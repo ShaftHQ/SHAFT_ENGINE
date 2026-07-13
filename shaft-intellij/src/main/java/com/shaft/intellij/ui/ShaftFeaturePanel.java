@@ -33,7 +33,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,7 +48,8 @@ final class ShaftFeaturePanel extends JPanel {
     private static final String REFRESH_TOOLS_TOOLTIP = "Refresh tools";
     private static final String REFRESHING_TOOLTIP = "Refreshing...";
 
-    private List<ToolCategory> categories;
+    // Package-private for ShaftFeaturePanelCatalogTest (read the merged catalog without reflection).
+    List<ToolCategory> categories;
     private final boolean catalogRefreshEnabled;
     private final JBTextField search;
     private final JComboBox<ToolCategory> categorySelector;
@@ -68,7 +68,8 @@ final class ShaftFeaturePanel extends JPanel {
     private final ShaftSettingsState.Settings settings;
     private final Map<String, String> argumentDrafts = new LinkedHashMap<>();
     private ToolTemplate activeTemplate;
-    private ShaftMcpInvocation currentInvocation;
+    // Package-private for ShaftFeaturePanelCatalogTest (simulate an in-flight user run without reflection).
+    ShaftMcpInvocation currentInvocation;
     private boolean updatingTools;
 
     ShaftFeaturePanel(Project project) {
@@ -209,6 +210,41 @@ final class ShaftFeaturePanel extends JPanel {
         splitPane.setBorder(JBUI.Borders.empty());
         add(north, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
+
+        autoPopulateCatalog(project);
+    }
+
+    /**
+     * Warms up the tool catalog in the background on first panel use, instead of leaving only the
+     * curated fallback list until the user clicks "Refresh tools". Silent by design: this reads
+     * through {@link ShaftMcpInvocationService#startListTools()}'s cache (so it costs nothing once a
+     * catalog was already fetched this session) and never touches button/status state, so a failure
+     * here (unconfigured MCP, a test double project with no wired service, a disconnected server)
+     * leaves the panel exactly as it was before this call — the curated categories still work and
+     * the user can always hit "Refresh tools" for an explicit, force-refreshed attempt.
+     */
+    private void autoPopulateCatalog(Project project) {
+        if (!catalogRefreshEnabled || project == null || !mcpConfigured() || currentInvocation != null) {
+            return;
+        }
+        try {
+            ShaftMcpInvocation invocation = ShaftMcpInvocationService.getInstance(project).startListTools();
+            invocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                    () -> applyAutoPopulatedCatalog(result, error)));
+        } catch (RuntimeException ignored) {
+            // Best-effort warm-up only; an unavailable service must never break panel construction.
+        }
+    }
+
+    // Package-private for ShaftFeaturePanelCatalogTest, which drives the warm-up callback directly.
+    void applyAutoPopulatedCatalog(ShaftMcpToolResult result, Throwable error) {
+        if (currentInvocation != null || error != null || result == null || !result.success()) {
+            // Either a real user-triggered run/refresh is already in flight (do not clobber it), or
+            // the background warm-up itself failed/was cancelled: keep the curated fallback catalog.
+            return;
+        }
+        categories = ToolTemplates.categories(result.output());
+        reloadCategories();
     }
 
     JComponent preferredFocusComponent() {
@@ -287,7 +323,9 @@ final class ShaftFeaturePanel extends JPanel {
         refreshCatalogButton.setToolTipText(REFRESHING_TOOLTIP);
         outputArea.setText("");
         copyOutputButton.setEnabled(false);
-        currentInvocation = ShaftMcpInvocationService.getInstance(project).startListTools();
+        // The button is an explicit user request for fresh data, so it must bypass the cache
+        // unlike the silent auto-populate warm-up (which serves the cache when present).
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startListTools(true);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showCatalogResult(result, error)));
     }

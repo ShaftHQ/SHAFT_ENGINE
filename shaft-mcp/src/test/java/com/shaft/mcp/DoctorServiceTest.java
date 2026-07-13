@@ -25,6 +25,7 @@ import java.util.Set;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -101,6 +102,31 @@ class DoctorServiceTest {
                 "statusDetails", Map.of(
                         "message", "TimeoutException: condition failed to be met",
                         "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var analysis = service(temp).analyzeFailedAllure(
+                List.of(),
+                List.of(),
+                temp.resolve("doctor-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, analysis.diagnosis().primaryCause());
+        assertEquals(McpAnalysisReport.Status.DETERMINISTIC, analysis.status());
+    }
+
+    @Test
+    void emptyAllurePathsAutomaticallyAnalyzeASingleFileAllureHtmlReportWhenNoResultsDirectoryExists(
+            @TempDir Path temp) throws Exception {
+        Path reportDir = Files.createDirectories(temp.resolve("shaft-visual/allure-report"));
+        Files.writeString(reportDir.resolve("2026-01-01_00-00-00-000_AllureReport.html"),
+                syntheticAllureHtmlReport(), StandardCharsets.UTF_8);
 
         var analysis = service(temp).analyzeFailedAllure(
                 List.of(),
@@ -254,6 +280,205 @@ class DoctorServiceTest {
         assertTrue(checklist.contains("By.cssSelector: #login-button"), checklist);
         assertTrue(checklist.contains(evidenceId), checklist);
         assertPlaywrightReplayTools(checklist);
+    }
+
+    @Test
+    void suggestPlaywrightFixRebuildsReplayEvidenceChecklistFromAnExistingReport(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("playwright-suggest-results"));
+        Files.writeString(input.resolve("playwright-suggest-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "playwright-suggest",
+                "historyId", "playwright-suggest",
+                "name", "playwright-suggest",
+                "fullName", "example.PlaywrightSuggest.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "NoSuchElementException: unable to locate element: By.cssSelector: #login-button",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var firstPass = service(temp).analyzeFailedPlaywrightAllure(
+                List.of(input.toString()),
+                List.of(),
+                temp.resolve("playwright-suggest-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        var rebuilt = service(temp).suggestPlaywrightFix(
+                firstPass.jsonReportPath(),
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        assertEquals(CauseCategory.LOCATOR, rebuilt.diagnosis().primaryCause());
+        assertEquals(McpAnalysisReport.Status.DETERMINISTIC, rebuilt.status());
+        String checklist = blockCode(rebuilt, "playwright-replay-evidence-checklist");
+        assertTrue(checklist.contains("By.cssSelector: #login-button"), checklist);
+        assertPlaywrightReplayTools(checklist);
+    }
+
+    @Test
+    void suggestFixRebuildsDeterministicActionsFromAnExistingWebDriverReport(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("webdriver-suggest-results"));
+        Files.writeString(input.resolve("webdriver-suggest-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "webdriver-suggest",
+                "historyId", "webdriver-suggest",
+                "name", "webdriver-suggest",
+                "fullName", "example.WebDriverSuggest.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "TimeoutException: condition failed to be met",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var firstPass = service(temp).analyzeFailedAllure(
+                List.of(input.toString()),
+                List.of(),
+                temp.resolve("webdriver-suggest-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        var rebuilt = service(temp).suggestFix(
+                firstPass.jsonReportPath(),
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, rebuilt.diagnosis().primaryCause());
+        assertTrue(rebuilt.codeBlocks().stream().anyMatch(block -> block.kind() == McpCodeBlock.Kind.WAIT));
+    }
+
+    @Test
+    void plainAnalyzeMethodReturnsAContentFreeSummaryOffline(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("allure-results"));
+        Files.writeString(input.resolve("plain-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "plain",
+                "historyId", "plain",
+                "name", "plain",
+                "fullName", "example.Plain.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "TimeoutException: condition failed to be met",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var summary = new DoctorService().analyze(
+                List.of(input.toString()),
+                List.of(),
+                List.of(temp.toString()),
+                temp.resolve("plain-doctor-output").toString(),
+                false,
+                false,
+                1);
+
+        assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, summary.diagnosis().primaryCause());
+        assertTrue(summary.evidenceItemCount() >= 0);
+        assertTrue(Files.isRegularFile(Path.of(summary.jsonReportPath())));
+    }
+
+    @Test
+    void plainAnalyzeMethodUsesTheConfiguredProviderAdvisoryPathWhenPilotIsEnabled(@TempDir Path temp)
+            throws Exception {
+        Path input = Files.createDirectories(temp.resolve("allure-results"));
+        Files.writeString(input.resolve("configured-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "configured",
+                "historyId", "configured",
+                "name", "configured",
+                "fullName", "example.Configured.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "NoSuchElementException: unable to locate element",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+        registry.registerForCurrentThread(new DoctorSnippetProvider());
+        SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider("doctor-test")
+                .remoteConsent(true)
+                .allowedEvidenceCategories("TEXT,LOG");
+
+        var summary = new DoctorService().analyze(
+                List.of(input.toString()),
+                List.of(),
+                List.of(temp.toString()),
+                temp.resolve("configured-plain-output").toString(),
+                false,
+                false,
+                1);
+
+        assertEquals(CauseCategory.LOCATOR, summary.diagnosis().primaryCause());
+        assertTrue(Files.isRegularFile(Path.of(summary.jsonReportPath())));
+    }
+
+    @Test
+    void proposeFixReturnsAnUnsuccessfulProviderPatchWithoutAConfiguredProviderInsteadOfCallingRepairService(
+            @TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("allure-results"));
+        Files.writeString(input.resolve("propose-fix-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "propose-fix",
+                "historyId", "propose-fix",
+                "name", "propose-fix",
+                "fullName", "example.ProposeFix.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "TimeoutException: condition failed to be met",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+        var analysis = service(temp).analyzeFailedAllure(
+                List.of(input.toString()),
+                List.of(),
+                temp.resolve("propose-fix-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        var proposal = new DoctorService().proposeFix(
+                temp.toString(),
+                "deadbeef",
+                analysis.jsonReportPath(),
+                "",
+                "ISSUE-1",
+                List.of(),
+                List.of(),
+                List.of(),
+                false,
+                "",
+                true);
+
+        assertTrue(proposal.providerPatch() != null, "Expected a provider-fallback result without a configured AI provider");
+        assertFalse(proposal.providerPatch().successful());
+        assertTrue(proposal.proposal() == null,
+                "Without a successful provider patch, proposeFix must not proceed to DoctorRepairService");
     }
 
     @Test
@@ -458,6 +683,33 @@ class DoctorServiceTest {
         assertEquals(sourceContent, Files.readString(source, StandardCharsets.UTF_8));
         assertTrue(proposal.patch().content().contains("By.id(\"new-login\")"));
         assertTrue(Files.isRegularFile(Path.of(proposal.manifestPath())));
+    }
+
+    /**
+     * Builds a minimal synthetic SHAFT single-file Allure HTML report: the embedded-data marker
+     * plus one {@code data/test-results/*.json} entry, matching the empirically observed format
+     * (base64-encoded JSON passed to repeated {@code d("name","base64")} calls).
+     */
+    private static String syntheticAllureHtmlReport() throws Exception {
+        String encoded = java.util.Base64.getEncoder().encodeToString(new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "html-report",
+                "historyId", "html-report",
+                "name", "reportTest",
+                "fullName", "example.Report.reportTest",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "error", Map.of(
+                        "message", "TimeoutException: condition failed to be met",
+                        "trace", "trace"))).getBytes(StandardCharsets.UTF_8));
+        return "<html><body><script>"
+                + "window.allureReportDataReady = false;"
+                + "window.allureReportData = window.allureReportData || {};"
+                + "function d(name, value){ return new Promise(function (resolve) {"
+                + "window.allureReportData[name] = value; return resolve(true); }); }"
+                + "</script><script defer>Promise.allSettled(["
+                + "d(\"data/test-results/html-report.json\",\"" + encoded + "\")"
+                + "]);</script></body></html>";
     }
 
     private static Path repositoryRoot() {

@@ -10,8 +10,13 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,6 +44,13 @@ public final class ShaftMcpInvocationService implements Disposable {
     private List<String> sharedCommand = List.of();
     private Map<String, String> sharedEnvironment = Map.of();
     private Path sharedWorkingDirectory;
+    /**
+     * Memoized {@code tools/list} result for {@link #sharedClient}. Guarded by {@link #clientLock}
+     * and keyed to the exact client instance it was fetched from, so a respawned process (new
+     * command/environment/working directory, or a dead-client replacement) can never serve a stale
+     * catalog: {@link #isCacheValidLocked()} compares identity against the live {@code sharedClient}.
+     */
+    private ToolsCache toolsCache;
 
     /**
      * Creates the project-scoped invocation service.
@@ -93,7 +105,8 @@ public final class ShaftMcpInvocationService implements Disposable {
     }
 
     /**
-     * Returns the latest list of tools from SHAFT MCP.
+     * Returns the latest list of tools from SHAFT MCP, serving the memoized catalog when the shared
+     * process is still alive.
      *
      * @return future MCP result
      */
@@ -102,12 +115,60 @@ public final class ShaftMcpInvocationService implements Disposable {
     }
 
     /**
-     * Starts a cancellable SHAFT MCP tools/list request.
+     * Returns the list of tools from SHAFT MCP.
+     *
+     * @param forceRefresh when {@code true}, bypasses the cache and issues a fresh {@code tools/list}
+     * @return future MCP result
+     */
+    public CompletableFuture<ShaftMcpToolResult> listTools(boolean forceRefresh) {
+        return startListTools(forceRefresh).future();
+    }
+
+    /**
+     * Starts a cancellable SHAFT MCP tools/list request, serving the memoized catalog when the
+     * shared process is still alive instead of round-tripping again.
      *
      * @return cancellable invocation
      */
     public ShaftMcpInvocation startListTools() {
-        ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
+        return startListTools(false);
+    }
+
+    /**
+     * Forces a fresh {@code tools/list} round-trip, bypassing the cache. Used by explicit
+     * "Refresh tools" actions where a stale catalog would be misleading.
+     *
+     * @return cancellable invocation
+     */
+    public ShaftMcpInvocation refreshToolsList() {
+        return startListTools(true);
+    }
+
+    /**
+     * Starts a cancellable SHAFT MCP tools/list request.
+     *
+     * @param forceRefresh when {@code true}, bypasses the cache and issues a fresh {@code tools/list}
+     * @return cancellable invocation
+     */
+    public ShaftMcpInvocation startListTools(boolean forceRefresh) {
+        return startListTools(forceRefresh, ShaftSettingsState.getInstance().getState());
+    }
+
+    /**
+     * Test seam: same logic as {@link #startListTools(boolean)} with explicit settings, so unit
+     * tests can exercise the cache without depending on {@code ApplicationManager}. Not public API.
+     *
+     * @param forceRefresh when {@code true}, bypasses the cache and issues a fresh {@code tools/list}
+     * @param settings     explicit settings, bypassing {@code ShaftSettingsState.getInstance()}
+     * @return cancellable invocation
+     */
+    ShaftMcpInvocation startListTools(boolean forceRefresh, ShaftSettingsState.Settings settings) {
+        if (!forceRefresh) {
+            Optional<String> cached = cachedToolsList();
+            if (cached.isPresent()) {
+                return completedSuccess(cached.get());
+            }
+        }
         List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
@@ -116,11 +177,83 @@ public final class ShaftMcpInvocationService implements Disposable {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> call(command, settings, clientReference, cancellationRequested,
-                        client -> client.listTools(DEFAULT_TIMEOUT)));
+                        client -> {
+                            JsonElement result = client.listTools(DEFAULT_TIMEOUT);
+                            updateToolsCache(client, result);
+                            return result;
+                        }));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),
                 () -> cancel(clientReference, cancellationRequested, true));
+    }
+
+    /**
+     * Returns the tool names known from the last successful {@code tools/list} response for the
+     * currently live shared process, or empty when no catalog has been fetched yet (or the process
+     * that fetched it is gone). Callers use this to fail fast on an unknown tool name instead of
+     * dispatching a doomed request; when empty, the server remains the source of truth.
+     *
+     * @return known tool names, or empty when the cache is not populated for the live process
+     */
+    public Optional<Set<String>> knownToolNames() {
+        synchronized (clientLock) {
+            return isCacheValidLocked() ? Optional.of(toolsCache.toolNames()) : Optional.empty();
+        }
+    }
+
+    /**
+     * Returns the raw {@code tools/list} payload memoized for the currently live shared process, or
+     * empty when it has not been fetched yet.
+     *
+     * @return the raw payload, or empty when the cache is not populated for the live process
+     */
+    public Optional<String> cachedToolsList() {
+        synchronized (clientLock) {
+            return isCacheValidLocked() ? Optional.of(toolsCache.rawPayload()) : Optional.empty();
+        }
+    }
+
+    private boolean isCacheValidLocked() {
+        return toolsCache != null && sharedClient != null && toolsCache.client() == sharedClient
+                && sharedClient.isAlive();
+    }
+
+    private void updateToolsCache(ShaftMcpStdioClient client, JsonElement result) {
+        Set<String> names = parseToolNames(result);
+        String rawPayload = result == null ? "{}" : result.toString();
+        synchronized (clientLock) {
+            toolsCache = new ToolsCache(client, rawPayload, names);
+        }
+    }
+
+    private static Set<String> parseToolNames(JsonElement result) {
+        Set<String> names = new LinkedHashSet<>();
+        if (result != null && result.isJsonObject()) {
+            JsonElement tools = result.getAsJsonObject().get("tools");
+            if (tools != null && tools.isJsonArray()) {
+                for (JsonElement entry : tools.getAsJsonArray()) {
+                    if (!entry.isJsonObject()) {
+                        continue;
+                    }
+                    JsonElement name = entry.getAsJsonObject().get("name");
+                    if (name != null && name.isJsonPrimitive() && name.getAsJsonPrimitive().isString()) {
+                        names.add(name.getAsString());
+                    }
+                }
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Identity-keyed memo of a successful {@code tools/list} response.
+     *
+     * @param client     the shared client instance the payload was fetched from
+     * @param rawPayload the raw JSON-RPC result, ready to hand back verbatim
+     * @param toolNames  the parsed tool names for fast local lookups
+     */
+    private record ToolsCache(ShaftMcpStdioClient client, String rawPayload, Set<String> toolNames) {
     }
 
     /**
@@ -131,13 +264,30 @@ public final class ShaftMcpInvocationService implements Disposable {
      * @return cancellable invocation
      */
     public ShaftMcpInvocation startTool(String toolName, JsonObject arguments) {
-        ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
+        return startTool(toolName, arguments, ShaftSettingsState.getInstance().getState());
+    }
+
+    /**
+     * Test seam: same logic as {@link #startTool(String, JsonObject)} with explicit settings, so
+     * unit tests can exercise the fail-fast unknown-tool check without depending on
+     * {@code ApplicationManager}. Not public API.
+     *
+     * @param toolName  MCP tool name
+     * @param arguments JSON object arguments
+     * @param settings  explicit settings, bypassing {@code ShaftSettingsState.getInstance()}
+     * @return cancellable invocation
+     */
+    ShaftMcpInvocation startTool(String toolName, JsonObject arguments, ShaftSettingsState.Settings settings) {
         List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
         }
         if (connectionState != null && !connectionState.isConnected()) {
             return completed(DISCONNECTED_MESSAGE);
+        }
+        Optional<Set<String>> known = knownToolNames();
+        if (known.isPresent() && !known.get().contains(toolName)) {
+            return completed(unknownToolMessage(toolName, known.get()));
         }
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
@@ -319,6 +469,7 @@ public final class ShaftMcpInvocationService implements Disposable {
             sharedCommand = List.of();
             sharedEnvironment = Map.of();
             sharedWorkingDirectory = null;
+            toolsCache = null;
         }
     }
 
@@ -356,6 +507,72 @@ public final class ShaftMcpInvocationService implements Disposable {
         });
     }
 
+    private static ShaftMcpInvocation completedSuccess(String rawPayload) {
+        return new ShaftMcpInvocation(CompletableFuture.completedFuture(ShaftMcpToolResult.success(rawPayload)), () -> {
+        });
+    }
+
+    /**
+     * Builds the fail-fast message for a tool name absent from the cached catalog, suggesting up to
+     * three known names that look related (substring/prefix match or a small edit distance) so a
+     * typo or a renamed tool points the caller at the right name instead of a bare "not found".
+     */
+    private static String unknownToolMessage(String toolName, Set<String> knownNames) {
+        List<String> suggestions = suggestSimilar(toolName, knownNames);
+        StringBuilder message = new StringBuilder("Unknown MCP tool '").append(toolName)
+                .append("'. It is not in the cached tool catalog.");
+        if (!suggestions.isEmpty()) {
+            message.append(" Did you mean: ").append(String.join(", ", suggestions)).append('?');
+        }
+        return message.toString();
+    }
+
+    private static List<String> suggestSimilar(String toolName, Set<String> knownNames) {
+        String needle = toolName.toLowerCase(Locale.ROOT);
+        return knownNames.stream()
+                .filter(name -> isRelated(needle, name.toLowerCase(Locale.ROOT)))
+                .sorted(Comparator.comparingInt(name -> levenshtein(needle, name.toLowerCase(Locale.ROOT))))
+                .limit(3)
+                .toList();
+    }
+
+    private static boolean isRelated(String needle, String candidate) {
+        if (needle.isEmpty() || candidate.isEmpty()) {
+            return false;
+        }
+        if (candidate.contains(needle) || needle.contains(candidate)) {
+            return true;
+        }
+        int prefixLength = Math.min(3, Math.min(needle.length(), candidate.length()));
+        if (needle.substring(0, prefixLength).equals(candidate.substring(0, prefixLength))) {
+            return true;
+        }
+        return levenshtein(needle, candidate) <= 2;
+    }
+
+    /**
+     * Classic Levenshtein edit distance ("Levenshtein-lite": no transposition handling, just
+     * insert/delete/substitute) used to rank suggested tool names by similarity.
+     */
+    private static int levenshtein(String a, String b) {
+        int[] previous = new int[b.length() + 1];
+        int[] current = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) {
+            previous[j] = j;
+        }
+        for (int i = 1; i <= a.length(); i++) {
+            current[0] = i;
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                current[j] = Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
+            }
+            int[] swap = previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[b.length()];
+    }
+
     private void cancel(AtomicReference<ShaftMcpStdioClient> clientReference,
                         AtomicBoolean cancellationRequested,
                         boolean force) {
@@ -373,6 +590,7 @@ public final class ShaftMcpInvocationService implements Disposable {
                     sharedCommand = List.of();
                     sharedEnvironment = Map.of();
                     sharedWorkingDirectory = null;
+                    toolsCache = null;
                 }
             }
             client.kill();

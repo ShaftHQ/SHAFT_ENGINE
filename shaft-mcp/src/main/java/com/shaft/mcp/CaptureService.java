@@ -254,7 +254,8 @@ public class CaptureService {
     private String noSessionGuidance() {
         List<String> recent = recentRecordings();
         StringBuilder guidance = new StringBuilder("No active capture session, and none is needed to generate code: "
-                + "pass a persisted recording JSON path to capture_code_blocks or capture_generate_replay.");
+                + "pass a persisted recording JSON path to capture_generate_replay (replay-proven locators) "
+                + "or capture_code_blocks (faster, generate-only draft).");
         if (recent.isEmpty()) {
             guidance.append(" No recordings were found under ").append(workspacePolicy.root().resolve("recordings"))
                     .append(". If the user described a scenario instead of providing a recording, start a fresh "
@@ -298,8 +299,9 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_stop",
-            description = "stops SHAFT Capture; after COMPLETED, show outputPath and generate code by passing it as "
-                    + "sessionPath to capture_code_blocks or capture_generate_replay")
+            description = "stops SHAFT Capture; after COMPLETED, show outputPath and generate replay-proven code by "
+                    + "passing it as sessionPath to capture_generate_replay (or capture_code_blocks for a faster, "
+                    + "unproven draft)")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
     }

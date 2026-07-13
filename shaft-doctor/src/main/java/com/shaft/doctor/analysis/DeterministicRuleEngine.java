@@ -8,6 +8,7 @@ import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.model.EvidenceCategory;
 import com.shaft.doctor.model.EvidenceItem;
 import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RankedCause;
 import com.shaft.doctor.model.Remediation;
 
 import java.nio.charset.StandardCharsets;
@@ -241,7 +242,7 @@ public final class DeterministicRuleEngine {
                     Confidence.LOW,
                     "The run contains contradictory high-confidence cause evidence.",
                     "Multiple high-confidence rules matched disjoint evidence, so deterministic precedence was not used to claim one root cause.",
-                    findings, remediations, missingEvidence);
+                    findings, remediations, missingEvidence, buildRankedCauses(matches));
         }
 
         Rule primary = matches.getFirst().rule();
@@ -261,7 +262,7 @@ public final class DeterministicRuleEngine {
                 primary.title() + ".",
                 "The first matching rule in stable precedence order was " + primary.id()
                         + "; later matches are reported as contributing causes.",
-                findings, remediations, missingEvidence);
+                findings, remediations, missingEvidence, buildRankedCauses(matches));
     }
 
     private static void addAttemptObservations(List<EvidenceItem> failures, List<Finding> findings) {
@@ -390,6 +391,20 @@ public final class DeterministicRuleEngine {
             List<Finding> findings,
             List<Remediation> remediations,
             List<String> missingEvidence) {
+        return diagnosis(primary, contributors, confidence, summary, rationale,
+                findings, remediations, missingEvidence, List.of());
+    }
+
+    private static Diagnosis diagnosis(
+            CauseCategory primary,
+            List<CauseCategory> contributors,
+            Confidence confidence,
+            String summary,
+            String rationale,
+            List<Finding> findings,
+            List<Remediation> remediations,
+            List<String> missingEvidence,
+            List<RankedCause> rankedCauses) {
         return new Diagnosis(
                 Diagnosis.CURRENT_SCHEMA_VERSION,
                 primary,
@@ -399,7 +414,111 @@ public final class DeterministicRuleEngine {
                 rationale,
                 findings.stream().sorted(Comparator.comparing(Finding::id)).toList(),
                 remediations.stream().distinct().sorted(Comparator.comparing(Remediation::id)).toList(),
-                missingEvidence.stream().distinct().sorted().toList());
+                missingEvidence.stream().distinct().sorted().toList(),
+                rankedCauses);
+    }
+
+    /**
+     * Builds all candidate ranked causes from rule matches, deduped to the highest-scoring
+     * match per {@link CauseCategory} and ordered by descending trust percentage (ties broken
+     * by earlier rule precedence). Runs even when deterministic precedence declines to select a
+     * single primary cause, so contradictory-evidence bailouts still surface every competing
+     * candidate with its own trust score and fix prompt.
+     *
+     * @param matches every rule that matched, in stable rule precedence order
+     * @return ranked causes, most-trusted first
+     */
+    private static List<RankedCause> buildRankedCauses(List<RuleMatch> matches) {
+        if (matches.isEmpty()) {
+            return List.of();
+        }
+        List<Set<String>> evidenceIdSets = matches.stream()
+                .<Set<String>>map(match -> match.evidence().stream()
+                        .map(EvidenceItem::id)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)))
+                .toList();
+
+        Map<CauseCategory, ScoredMatch> bestPerCategory = new LinkedHashMap<>();
+        for (int position = 0; position < matches.size(); position++) {
+            RuleMatch match = matches.get(position);
+            Set<String> evidenceIds = evidenceIdSets.get(position);
+            int contradictions = 0;
+            if (match.rule().confidence() == Confidence.HIGH) {
+                for (int other = 0; other < matches.size(); other++) {
+                    Rule otherRule = matches.get(other).rule();
+                    if (other == position || otherRule.confidence() != Confidence.HIGH
+                            || otherRule.category() == match.rule().category()) {
+                        continue;
+                    }
+                    if (java.util.Collections.disjoint(evidenceIds, evidenceIdSets.get(other))) {
+                        contradictions++;
+                    }
+                }
+            }
+            DeterministicTrustScorer.TrustResult scored = DeterministicTrustScorer.score(
+                    match.rule().confidence(), evidenceIds.size(), position, contradictions);
+            ScoredMatch candidate = new ScoredMatch(match, position, scored, evidenceIds);
+            ScoredMatch existing = bestPerCategory.get(match.rule().category());
+            if (existing == null
+                    || scored.trustPercentage() > existing.scored().trustPercentage()
+                    || (scored.trustPercentage() == existing.scored().trustPercentage()
+                            && position < existing.position())) {
+                bestPerCategory.put(match.rule().category(), candidate);
+            }
+        }
+
+        return bestPerCategory.values().stream()
+                .sorted(Comparator
+                        .comparingInt((ScoredMatch candidate) -> candidate.scored().trustPercentage())
+                        .reversed()
+                        .thenComparingInt(ScoredMatch::position))
+                .map(candidate -> new RankedCause(
+                        candidate.match().rule().category(),
+                        candidate.scored().trustPercentage(),
+                        candidate.match().rule().confidence(),
+                        candidate.scored().rationale(),
+                        candidate.evidenceIds().stream().sorted().toList(),
+                        buildFixPrompt(candidate.match())))
+                .toList();
+    }
+
+    /**
+     * Builds a self-contained, deterministic fix prompt for one rule match, referencing the
+     * rule title, cited failing test names with a bounded failure-message excerpt, and the
+     * rule's recommended action text.
+     *
+     * @param match the rule match to describe
+     * @return copy/paste-ready prompt text
+     */
+    private static String buildFixPrompt(RuleMatch match) {
+        Rule rule = match.rule();
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("SHAFT Doctor identified a potential root cause: ").append(rule.title()).append(".\n\n");
+        prompt.append("Recommended action: ").append(rule.action()).append("\n\n");
+        prompt.append("Failing evidence:\n");
+        for (EvidenceItem item : match.evidence()) {
+            String testName = item.attributes().getOrDefault("name", item.id());
+            String message = item.attributes().getOrDefault("failureMessage", "");
+            prompt.append("- ").append(testName).append(": ").append(truncateMessage(message)).append("\n");
+        }
+        prompt.append("\nApply only the smallest change directly supported by this cited evidence; ")
+                .append("do not invent new locators, data, or assertions beyond what the evidence shows.");
+        return prompt.toString();
+    }
+
+    private static String truncateMessage(String value) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.isEmpty()) {
+            return "No failure message was recorded.";
+        }
+        return normalized.length() <= 200 ? normalized : normalized.substring(0, 199).trim() + "…";
+    }
+
+    private record ScoredMatch(
+            RuleMatch match,
+            int position,
+            DeterministicTrustScorer.TrustResult scored,
+            Set<String> evidenceIds) {
     }
 
     private static Finding finding(

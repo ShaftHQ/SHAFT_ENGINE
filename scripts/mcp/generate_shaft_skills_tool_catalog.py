@@ -320,6 +320,19 @@ def build_catalog(source_dir: Path) -> tuple[list[ServiceSection], int]:
     return services, total_parsed
 
 
+def scanned_tool_names(source_dir: Path = SOURCE_DIR) -> set[str]:
+    """
+    Returns the set of @Tool names scanned from shaft-mcp Java sources.
+
+    This is the reusable half of the catalog generator's static scan: it lets other drift gates
+    (for example tests/scripts/test_mcp_tool_catalog_sync.py, which checks the MCP tool manifest,
+    ToolTemplates.java, and the shaft-cli command ACTIONS maps against the same tool-name set)
+    share one source of truth instead of re-implementing the @Tool parser.
+    """
+    services, _ = build_catalog(source_dir)
+    return {tool.name for service in services for tool in service.tools}
+
+
 def human_heading(class_name: str) -> str:
     """Derives an H2 heading label from a service class name, e.g. "BrowserService" -> "Browser",
     "CodingPartnerService" -> "Coding Partner"."""

@@ -24,6 +24,15 @@ public abstract class AbstractMcpClient implements McpClient {
     private long nextId = 1;
     private boolean initialized;
     private InitializeResult initializeResult;
+    /**
+     * Memoized {@code tools/list} results for {@link #listTools()}/{@link #listToolsRaw()},
+     * scoped to this connection. Each one-shot CLI invocation constructs a fresh client, so no
+     * cross-invocation staleness is possible; within one invocation, {@code tools} and {@code call}
+     * commands that would otherwise round-trip {@code tools/list} more than once (e.g. a future
+     * interactive/session-mode caller reusing one client for several commands) now pay for it once.
+     */
+    private List<Tool> toolsCache;
+    private JsonNode toolsRawCache;
 
     /**
      * Sends a JSON-RPC request and returns the parsed response envelope (containing either
@@ -75,6 +84,20 @@ public abstract class AbstractMcpClient implements McpClient {
 
     @Override
     public List<Tool> listTools() {
+        return listTools(false);
+    }
+
+    /**
+     * Lists the tools advertised by the server via {@code tools/list}, serving the last successful
+     * response from this connection's cache unless a refresh is requested.
+     *
+     * @param forceRefresh when {@code true}, bypasses the cache and issues a fresh {@code tools/list}
+     * @return the advertised tools
+     */
+    public List<Tool> listTools(boolean forceRefresh) {
+        if (!forceRefresh && toolsCache != null) {
+            return toolsCache;
+        }
         ensureInitialized();
         JsonNode response = rpc(request("tools/list", Json.newObject()));
         checkError(response);
@@ -89,7 +112,8 @@ public abstract class AbstractMcpClient implements McpClient {
                         schema.isMissingNode() ? null : schema));
             }
         }
-        return tools;
+        toolsCache = List.copyOf(tools);
+        return toolsCache;
     }
 
     @Override
@@ -114,14 +138,42 @@ public abstract class AbstractMcpClient implements McpClient {
     }
 
     /**
-     * @return the raw {@code result} node of a fresh {@code tools/list} call, for {@code --json} output
+     * @return the raw {@code result} node of a {@code tools/list} call, for {@code --json} output;
+     *         served from this connection's cache unless it has not been fetched yet
      */
     @Override
     public JsonNode listToolsRaw() {
+        return listToolsRaw(false);
+    }
+
+    /**
+     * Returns the raw {@code result} node of a {@code tools/list} call, for {@code --json} output,
+     * serving the last successful response from this connection's cache unless a refresh is
+     * requested.
+     *
+     * @param forceRefresh when {@code true}, bypasses the cache and issues a fresh {@code tools/list}
+     * @return the raw {@code result} node
+     */
+    public JsonNode listToolsRaw(boolean forceRefresh) {
+        if (!forceRefresh && toolsRawCache != null) {
+            return toolsRawCache;
+        }
         ensureInitialized();
         JsonNode response = rpc(request("tools/list", Json.newObject()));
         checkError(response);
-        return response.path("result");
+        toolsRawCache = response.path("result");
+        return toolsRawCache;
+    }
+
+    /**
+     * Clears the memoized {@code tools/list} results, forcing the next {@link #listTools()} or
+     * {@link #listToolsRaw()} call to round-trip. Subclasses that support reconnecting an existing
+     * instance (rather than constructing a fresh one) should call this alongside resetting whatever
+     * marks the connection as initialized.
+     */
+    protected void invalidateToolsCache() {
+        toolsCache = null;
+        toolsRawCache = null;
     }
 
     /**

@@ -11,6 +11,7 @@ import com.shaft.doctor.model.DoctorAnalysisResult;
 import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.model.EvidenceItem;
 import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RankedCause;
 import com.shaft.doctor.model.Remediation;
 import com.shaft.pilot.ai.AiBudget;
 import com.shaft.pilot.ai.AiExecutionService;
@@ -28,7 +29,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -44,6 +44,7 @@ final class McpDoctorRemediationService {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAX_SOURCE_FILES = 5;
     private static final int MAX_SOURCE_BYTES = 20_000;
+    private static final int MAX_RANKED_REMEDIATION_CAUSES = 5;
     private static final Pattern SECRET_LIKE = Pattern.compile(
             "(?i)(authorization\\s*[:=]|bearer\\s+[a-z0-9._\\-]{8,}|api[_-]?key\\s*[:=]|sk-[a-z0-9]{8,})");
     private static final Pattern FAILED_LOCATOR = Pattern.compile(
@@ -161,17 +162,85 @@ final class McpDoctorRemediationService {
             String driverVariableName,
             CodegenBackend backend) {
         String driver = javaIdentifierOrDefault(driverVariableName, "driver");
-        List<String> evidenceIds = evidenceIds(diagnosis);
         CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
-        return switch (diagnosis.primaryCause()) {
-            case LOCATOR -> List.of(locatorBlock(evidenceIds), waitBlock(driver, evidenceIds, false, targetBackend));
-            case TIMING_SYNCHRONIZATION -> List.of(waitBlock(driver, evidenceIds, true, targetBackend),
+        if (diagnosis.rankedCauses().isEmpty()) {
+            // Legacy fallback: no ranked causes were computed (e.g. an older persisted
+            // diagnosis), so fall back to the single-primary-cause path.
+            return categoryBlocks(diagnosis.primaryCause(), diagnosis, driver, evidenceIds(diagnosis), targetBackend);
+        }
+        List<McpCodeBlock> blocks = new ArrayList<>();
+        for (RankedCause cause : diagnosis.rankedCauses().stream().limit(MAX_RANKED_REMEDIATION_CAUSES).toList()) {
+            List<String> causeEvidenceIds = cause.evidenceIds().isEmpty()
+                    ? evidenceIds(diagnosis)
+                    : cause.evidenceIds();
+            for (McpCodeBlock block : categoryBlocks(cause.category(), diagnosis, driver, causeEvidenceIds, targetBackend)) {
+                blocks.add(retagForCause(block, cause));
+            }
+            blocks.add(fixPromptBlock(cause));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private static List<McpCodeBlock> categoryBlocks(
+            CauseCategory category,
+            Diagnosis diagnosis,
+            String driver,
+            List<String> evidenceIds,
+            CodegenBackend backend) {
+        return switch (category) {
+            case LOCATOR -> List.of(locatorBlock(evidenceIds), waitBlock(driver, evidenceIds, false, backend));
+            case TIMING_SYNCHRONIZATION -> List.of(waitBlock(driver, evidenceIds, true, backend),
                     assertionBlock(driver, evidenceIds, false));
             case DATA -> List.of(dataBlock(evidenceIds));
             case ENVIRONMENT_CONFIGURATION -> List.of(setupBlock(evidenceIds));
             case PRODUCT, TEST -> List.of(assertionBlock(driver, evidenceIds, true));
             case INFRASTRUCTURE, UNKNOWN -> List.of(investigationBlock(diagnosis, evidenceIds));
         };
+    }
+
+    /**
+     * Re-tags a category-derived code block with the ranked cause's category and trust
+     * percentage, and gives it a cause-scoped unique ID so blocks for multiple ranked causes
+     * that reuse the same underlying template (e.g. the shared explicit-wait block) do not collide.
+     *
+     * @param block the category-derived block to re-tag
+     * @param cause the ranked cause the block was generated for
+     * @return a re-tagged copy of the block
+     */
+    private static McpCodeBlock retagForCause(McpCodeBlock block, RankedCause cause) {
+        String tag = cause.category() + " (trust " + cause.trustPercentage() + "%)";
+        return new McpCodeBlock(
+                block.id() + "-" + cause.category().name().toLowerCase(Locale.ROOT),
+                tag + ": " + block.title(),
+                block.kind(),
+                block.language(),
+                block.imports(),
+                block.code(),
+                block.placement(),
+                block.copyPasteReady(),
+                block.evidenceIds(),
+                block.warnings());
+    }
+
+    /**
+     * Builds a copy/paste-ready code block carrying one ranked cause's deterministic fix prompt.
+     *
+     * @param cause the ranked cause whose fix prompt is being surfaced
+     * @return an investigation-kind text block containing the fix prompt
+     */
+    private static McpCodeBlock fixPromptBlock(RankedCause cause) {
+        String tag = cause.category() + " (trust " + cause.trustPercentage() + "%)";
+        return new McpCodeBlock(
+                "fix-prompt-" + cause.category().name().toLowerCase(Locale.ROOT),
+                tag + ": copy/paste fix prompt",
+                McpCodeBlock.Kind.INVESTIGATION,
+                "text",
+                List.of(),
+                cause.fixPrompt(),
+                "Paste into an AI assistant or agent to investigate and apply the smallest supported fix.",
+                true,
+                cause.evidenceIds(),
+                List.of());
     }
 
     private List<McpActionRecord> actions(Diagnosis diagnosis, List<McpCodeBlock> blocks) {

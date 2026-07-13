@@ -42,6 +42,11 @@ public class PlaywrightService {
         this.recorder = new McpPlaywrightRecordingService(workspacePolicy);
     }
 
+    /** Package-private test seam: tests inject a mocked driver because initialize() launches a real browser. */
+    void setDriverForTesting(SHAFT.GUI.Playwright driver) {
+        this.driver = driver;
+    }
+
     /**
      * Initializes a SHAFT Playwright browser session.
      *
