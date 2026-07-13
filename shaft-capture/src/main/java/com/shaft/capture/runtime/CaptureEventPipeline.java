@@ -46,6 +46,11 @@ final class CaptureEventPipeline implements AutoCloseable {
     // performed: recording it adds a phantom navigateToURL step to the generated test. Only
     // spontaneous navigations (address bar, the initial open) become steps.
     private static final Duration INTERACTION_NAVIGATION_WINDOW = Duration.ofSeconds(10);
+    // An overlay-reported user navigation whose URL was appended this recently describes the
+    // navigation a collector already recorded (channels race within milliseconds), so it only
+    // contributes its row identity. Anything older is a distinct user navigation — e.g. pressing
+    // Back to a page whose original open was recorded seconds earlier.
+    private static final Duration OVERLAY_NAVIGATION_ATTACH_WINDOW = Duration.ofSeconds(2);
 
     private final CaptureSessionStore store;
     private final CapturePrivacyClassifier privacy;
@@ -75,6 +80,8 @@ final class CaptureEventPipeline implements AutoCloseable {
     private String lastNavigationUrl = "";
     private Instant lastNavigationAt = Instant.EPOCH;
     private Instant lastInteractionAt = Instant.EPOCH;
+    private String lastAppendedNavigationUrl = "";
+    private Instant lastAppendedNavigationAt = Instant.EPOCH;
     private String lastWindow = "";
     private List<String> lastFramePath = List.of();
     private boolean closed;
@@ -267,26 +274,87 @@ final class CaptureEventPipeline implements AutoCloseable {
 
     private void emitNavigation(BrowserSignal signal) {
         SafePage page = page(signal);
-        boolean duplicateDelivery = page.context().url().equals(lastNavigationUrl)
+        String url = page.context().url();
+        String source = signal.dataString("navigationSource");
+        boolean duplicateDelivery = url.equals(lastNavigationUrl)
                 && Duration.between(lastNavigationAt, signal.timestamp()).abs()
                 .compareTo(NAVIGATION_DEBOUNCE) < 0;
-        // pushState/replaceState URL rewrites (SPA route changes, results-page canonicalization
-        // like DuckDuckGo appending query flags after a search) are never a user navigation.
-        boolean historyRewrite = "history".equals(signal.dataString("navigationSource"));
         boolean interactionConsequence = Duration.between(lastInteractionAt, signal.timestamp()).abs()
                 .compareTo(INTERACTION_NAVIGATION_WINDOW) < 0;
-        lastNavigationUrl = page.context().url();
+        lastNavigationUrl = url;
         lastNavigationAt = signal.timestamp();
-        currentUrlConsumer.accept(page.context().url());
-        if (duplicateDelivery || historyRewrite || interactionConsequence) {
-            return;
+        currentUrlConsumer.accept(url);
+        switch (source) {
+            // pushState/replaceState URL rewrites (SPA route changes, results-page
+            // canonicalization like DuckDuckGo appending query flags after a search) are never
+            // a user navigation.
+            case "history" -> {
+            }
+            // The overlay's "Open" breadcrumb only contributes its row identity to the
+            // already-recorded initial OPEN so the breadcrumb survives server step syncs; it
+            // must never append a second open event.
+            case "user_annotation" -> attachOverlayIdentity(signal, url);
+            // Overlay-observed user navigations (URL poll, back/forward traversal) are
+            // authoritative: back/forward in particular happens right after interactions and
+            // must not be swallowed by the interaction window. If a collector already appended
+            // this navigation, the signal only contributes its row identity.
+            case "user_traversal", "user_reported" -> {
+                boolean recentlyAppended = url.equals(lastAppendedNavigationUrl)
+                        && Duration.between(lastAppendedNavigationAt, signal.timestamp()).abs()
+                        .compareTo(OVERLAY_NAVIGATION_ATTACH_WINDOW) < 0;
+                if (recentlyAppended) {
+                    attachOverlayIdentity(signal, url);
+                } else {
+                    appendNavigation(signal, page, url);
+                }
+            }
+            default -> {
+                if (!duplicateDelivery && !interactionConsequence) {
+                    appendNavigation(signal, page, url);
+                }
+            }
         }
+    }
+
+    private void appendNavigation(BrowserSignal signal, SafePage page, String url) {
         CaptureEvent.NavigationAction action = enumValue(
                 CaptureEvent.NavigationAction.class,
                 signal.dataString("action"),
                 CaptureEvent.NavigationAction.OPEN);
-        append(new CaptureEvent.NavigationEvent(context(signal, page), action, page.context().url()),
+        append(new CaptureEvent.NavigationEvent(context(signal, page), action, url),
                 page.summary(), List.of());
+        lastAppendedNavigationUrl = url;
+        lastAppendedNavigationAt = signal.timestamp();
+    }
+
+    /**
+     * Gives the most recent identity-less recorded navigation to {@code url} the overlay row's
+     * client action id and description, so the row becomes a server-backed step: it survives
+     * step syncs across navigations and can be edited or deleted like any other step.
+     */
+    private void attachOverlayIdentity(BrowserSignal signal, String url) {
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (clientActionId.isBlank()) {
+            return;
+        }
+        String stepDescription = privacy.sanitizeText(signal.dataString("stepDescription")).value();
+        store.updateEvents(events -> {
+            for (int index = events.size() - 1; index >= 0; index--) {
+                if (!(events.get(index) instanceof CaptureEvent.NavigationEvent navigation)
+                        || !navigation.targetUrl().equals(url)
+                        || !extensionText(navigation.context(), "clientActionId").isBlank()) {
+                    continue;
+                }
+                EventContext context = withExtension(navigation.context(), "clientActionId", clientActionId);
+                if (!stepDescription.isBlank()) {
+                    context = withExtension(context, "stepDescription", stepDescription);
+                }
+                List<CaptureEvent> updated = new ArrayList<>(events);
+                updated.set(index, withContext(navigation, context));
+                return updated;
+            }
+            return events;
+        });
     }
 
     private static boolean isUserInteraction(String kind) {
@@ -305,7 +373,10 @@ final class CaptureEventPipeline implements AutoCloseable {
      */
     private boolean suppressDuplicateOrDeletedStep(BrowserSignal signal) {
         boolean oneShotStep = switch (signal.kind()) {
-            case "click", "select", "toggle", "upload", "keyboard", "verification" -> true;
+            // Navigations qualify only when overlay-identified (a blank id falls through
+            // below): collector navigations have no client action id and keep their own
+            // URL-based debounce.
+            case "click", "select", "toggle", "upload", "keyboard", "verification", "navigation" -> true;
             default -> false;
         };
         if (!oneShotStep) {

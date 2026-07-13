@@ -14,6 +14,8 @@ public final class BrowserEventScript {
             "const testIdAttributes = [\"data-testid\", \"data-test\", \"data-qa\"];";
     private static final String DEFAULT_STEPS_ENDPOINT =
             "const stepsEndpoint = {url: \"\", token: \"\"};";
+    private static final String DEFAULT_INJECTED_SINK =
+            "const injectedSink = {url: \"\", token: \"\"};";
     private static final String SCRIPT = load();
 
     private BrowserEventScript() {
@@ -51,7 +53,29 @@ public final class BrowserEventScript {
      * @return JavaScript function
      */
     public static String preloadFunction(List<String> testIdAttributes, String stepsEndpoint, String stepsToken) {
-        return script(testIdAttributes, stepsEndpoint, stepsToken);
+        return script(testIdAttributes, stepsEndpoint, stepsToken, "", "");
+    }
+
+    /**
+     * Returns the BiDi preload function declaration with the loopback event sink baked in, so
+     * preload-installed recorder instances deliver every signal through both the BiDi script
+     * channel and the HTTP sink. Single-channel preload delivery lost signals from
+     * back/forward-cache restored pages.
+     *
+     * @param testIdAttributes locator test-id attributes
+     * @param stepsEndpoint loopback steps query endpoint
+     * @param stepsToken loopback steps query token
+     * @param eventEndpoint loopback event endpoint
+     * @param eventToken loopback event token
+     * @return JavaScript function
+     */
+    public static String preloadFunction(
+            List<String> testIdAttributes,
+            String stepsEndpoint,
+            String stepsToken,
+            String eventEndpoint,
+            String eventToken) {
+        return script(testIdAttributes, stepsEndpoint, stepsToken, eventEndpoint, eventToken);
     }
 
     /**
@@ -127,6 +151,15 @@ public final class BrowserEventScript {
     }
 
     private static String script(List<String> testIdAttributes, String stepsEndpoint, String stepsToken) {
+        return script(testIdAttributes, stepsEndpoint, stepsToken, "", "");
+    }
+
+    private static String script(
+            List<String> testIdAttributes,
+            String stepsEndpoint,
+            String stepsToken,
+            String eventEndpoint,
+            String eventToken) {
         String result = SCRIPT;
         if (testIdAttributes != null && !testIdAttributes.isEmpty()) {
             result = result.replace(DEFAULT_TEST_ID_ATTRIBUTES,
@@ -137,6 +170,12 @@ public final class BrowserEventScript {
             result = result.replace(DEFAULT_STEPS_ENDPOINT,
                     "const stepsEndpoint = {url: " + jsString(stepsEndpoint)
                             + ", token: " + jsString(stepsToken) + "};");
+        }
+        if (eventEndpoint != null && !eventEndpoint.isBlank()
+                && eventToken != null && !eventToken.isBlank()) {
+            result = result.replace(DEFAULT_INJECTED_SINK,
+                    "const injectedSink = {url: " + jsString(eventEndpoint)
+                            + ", token: " + jsString(eventToken) + "};");
         }
         return result;
     }

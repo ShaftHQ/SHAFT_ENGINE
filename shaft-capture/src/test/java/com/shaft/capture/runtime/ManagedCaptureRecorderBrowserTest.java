@@ -622,6 +622,78 @@ class ManagedCaptureRecorderBrowserTest {
     }
 
     /**
+     * Back/forward traversals are navigations the user performed, and they typically happen
+     * within seconds of a recorded interaction — the interaction-consequence window must not
+     * swallow them (they were silently dropped when the consequence suppression first landed).
+     * The journey clicks a link, presses Back, then Forward, and expects:
+     * <ul>
+     *   <li>the click-consequence navigation to B stays suppressed,</li>
+     *   <li>both traversals are recorded as navigation events carrying the overlay row's
+     *       identity (so the rows survive step syncs),</li>
+     *   <li>generated code replays open + back-target + forward-target navigations.</li>
+     * </ul>
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void backForwardJourneyRecordsUserTraversals(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        Path output = temp.resolve(browserName + "-traversal.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "/nav-a",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-traversal-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("to-b")));
+
+            driver.findElement(By.id("to-b")).click();
+            waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
+            // Dwell past the overlay-identity attach window so the Back traversal to /nav-a is
+            // a distinct user navigation rather than a redelivery of the initial open.
+            Thread.sleep(2500);
+            driver.navigate().back();
+            waitFor(() -> elementPresent(driver, By.id("to-b")));
+            Thread.sleep(1000);
+            driver.navigate().forward();
+            waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
+            Thread.sleep(2000);
+
+            assertEquals(2, navigateRowCount(js),
+                    "Back and Forward must each append exactly one \"Navigate to\" row. Rows: "
+                            + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        List<String> navigationUrls = session.events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .map(CaptureEvent.NavigationEvent::targetUrl)
+                .toList();
+        assertEquals(3, navigationUrls.size(),
+                "Initial open plus the two traversals must be recorded (and the click "
+                        + "consequence suppressed); got: " + navigationUrls);
+        assertTrue(navigationUrls.get(0).contains("/nav-a"));
+        assertTrue(navigationUrls.get(1).contains("/nav-a"),
+                "The Back traversal to /nav-a must be recorded.");
+        assertTrue(navigationUrls.get(2).contains("/nav-b"),
+                "The Forward traversal to /nav-b must be recorded.");
+    }
+
+    /**
      * The minimize control collapses the panel to its header toolbar so the page underneath
      * stays usable, while recording continues and the header keeps a live step count; expanding
      * restores the full step list.
@@ -849,6 +921,10 @@ class ManagedCaptureRecorderBrowserTest {
                 """));
         server.createContext("/detail", exchange -> respond(exchange,
                 "<!doctype html><title>Detail</title><p id=\"detail-page\">Detail</p>"));
+        server.createContext("/nav-a", exchange -> respond(exchange,
+                "<!doctype html><title>Nav A</title><a id=\"to-b\" href=\"/nav-b\">Go to B</a>"));
+        server.createContext("/nav-b", exchange -> respond(exchange,
+                "<!doctype html><title>Nav B</title><p id=\"nav-b-page\">B</p>"));
         server.start();
         return server;
     }

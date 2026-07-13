@@ -7,8 +7,11 @@
 
   const testIdAttributes = ["data-testid", "data-test", "data-qa"];
   const stepsEndpoint = {url: "", token: ""};
+  // Loopback sink injected at build time so BiDi preload instances also get dual delivery
+  // (script channel + HTTP sink); the fallback installer passes it as the sink argument.
+  const injectedSink = {url: "", token: ""};
   const STORAGE_KEY = "shaft.capture.recorder.ui";
-  const eventSink = sink && typeof sink === "object" ? sink : {};
+  const eventSink = sink && typeof sink === "object" ? sink : injectedSink;
   const text = value => String(value || "").replace(/\s+/g, " ").trim().slice(0, 500);
   const valueText = value => String(value == null ? "" : value).slice(0, 1000);
   const dynamic = value =>
@@ -1866,6 +1869,33 @@
   // them created "Navigate to" rows for navigations the user never performed, e.g. a search
   // redirect landing on the results page counted as two extra navigation actions.
   const INTERACTION_NAVIGATION_WINDOW_MS = 10000;
+  // Announces a user-performed navigation and reports it to the server with this row's client
+  // action id, so the persisted NavigationEvent carries the row's identity: the row then
+  // survives server step syncs and stays editable/deletable like every other step. Sources:
+  // "user_reported" (URL poll), "user_traversal" (back/forward, which the interaction window
+  // must never swallow), and "user_annotation" (the initial "Open" breadcrumb, which only tags
+  // the already-recorded initial OPEN event and must never append a second one).
+  const reportNavigation = (source, breadcrumb) => {
+    if (uiState.stopped || uiState.paused) return;
+    uiState.lastUrl = String(location.href || "");
+    const description = (breadcrumb ? "Open " : "Navigate to ") + visibleLocation();
+    const lastAction = uiState.actions[uiState.actions.length - 1];
+    const data = {action: "OPEN", navigationSource: source};
+    // Redirect hops with the query stripped read identically; one row is the truth.
+    if (!(lastAction && lastAction.text === description)) {
+      if (!breadcrumb) {
+        setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
+      }
+      const item = announce(description);
+      if (item) {
+        data.clientActionId = clientActionId(item);
+        data.stepDescription = item.text;
+      }
+      lastClickEmission = null;
+    }
+    send({kind: "navigation", page: page(), data});
+    persist();
+  };
   if (topLevel) {
     setInterval(() => {
       const current = String(location.href || "");
@@ -1873,19 +1903,46 @@
       uiState.lastUrl = current;
       if (!uiState.stopped && !uiState.paused) {
         const sinceInteraction = Date.now() - uiState.lastInteractionAt;
-        const description = "Navigate to " + visibleLocation();
-        const lastAction = uiState.actions[uiState.actions.length - 1];
-        // Redirect hops with the query stripped read identically; one row is the truth.
-        const repeatsLastRow = Boolean(lastAction && lastAction.text === description);
-        if (sinceInteraction > INTERACTION_NAVIGATION_WINDOW_MS && !repeatsLastRow) {
-          setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
-          announce(description);
+        if (sinceInteraction > INTERACTION_NAVIGATION_WINDOW_MS) {
+          reportNavigation("user_reported", false);
         }
         lastClickEmission = null;
       }
       syncStepsFromServer();
       persist();
     }, 500);
+    // Back/forward is a navigation the user performed, even right after an interaction, so it
+    // bypasses the interaction window. Same-document traversals fire popstate. Cross-document
+    // traversals are detected on pageshow — the one event that fires for both a back/forward
+    // cache restore (persisted=true) and a fresh document, and late enough that the navigation
+    // timing entry (absent at preload time) reliably reports "back_forward".
+    addEventListener("popstate", () => reportNavigation("user_traversal", false), true);
+    addEventListener("pageshow", event => {
+      const freshTraversal = (() => {
+        try {
+          const entry = performance.getEntriesByType
+            && performance.getEntriesByType("navigation")[0];
+          return Boolean(entry && entry.type === "back_forward");
+        } catch (ignored) {
+          return false;
+        }
+      })();
+      if (!event.persisted && !freshTraversal) return;
+      if (event.persisted) {
+        // A bfcache restore resumes this page with its pre-navigation in-memory state; newer
+        // rows recorded on the page the user came back from live in shared storage.
+        const stored = persisted();
+        if (stored && typeof stored === "object" && Array.isArray(stored.actions)) {
+          Object.assign(uiState, stored);
+          uiState.actions = stored.actions.slice(-80);
+          renderActions();
+        }
+      }
+      if (uiState.actions.length > 0) {
+        // A first-ever page skips this — its "Open" breadcrumb already covers the arrival.
+        reportNavigation("user_traversal", false);
+      }
+    }, true);
   }
 
   addEventListener("mousemove", event => {
@@ -2011,13 +2068,13 @@
       syncStepsFromServer();
       setTimeout(() => {
         if (uiState.actions.length === 0) {
-          announce("Open " + visibleLocation());
+          reportNavigation("user_annotation", true);
         }
       }, 400);
     } else {
       syncStepsFromServer();
       if (uiState.actions.length === 0) {
-        announce("Open " + visibleLocation());
+        reportNavigation("user_annotation", true);
       }
     }
   }
