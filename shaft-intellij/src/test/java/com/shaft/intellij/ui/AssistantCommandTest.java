@@ -654,6 +654,44 @@ class AssistantCommandTest {
     }
 
     @Test
+    void mobileRecordingOutweighsBrowserRecordingWithoutCrossPredicateExclusion() {
+        // NATURAL_INTENTS used to resolve this by having isBrowserRecordingIntent explicitly call
+        // isMobileRecordingStartIntent and bail out (the issue #3429 patch). That cross-predicate
+        // exclusion is gone now: directIntent scores every matching intent and mobile-recording's
+        // weight (WEIGHT_MOBILE_RECORDING) is set above browser-recording's (WEIGHT_BROWSER_RECORDING),
+        // so the same phrasing still starts the mobile recorder.
+        AssistantCommand.Invocation mobileWordPrefill =
+                command("Record my mobile actions on the Android emulator");
+        // Genuinely ambiguous chosen example: dropping "mobile" still leaves "my actions on" (a
+        // capture_start keyword) AND "android"/"emulator" (mobile_record_start keywords), so both
+        // isBrowserRecordingIntent and isMobileRecordingStartIntent match this exact phrase under
+        // their raw keyword lists -- only the weight difference decides the winner.
+        AssistantCommand.Invocation ambiguousPhrase =
+                command("record my actions on the android emulator");
+
+        assertAll(
+                () -> assertEquals("mobile_record_start", mobileWordPrefill.toolName()),
+                () -> assertEquals("mobile_record_start", ambiguousPhrase.toolName()));
+    }
+
+    @Test
+    void naturalIntentTiesResolveByDeclarationOrder() {
+        // browser-control and mobile-control share WEIGHT_TOPIC_CONTROL: both are equally broad
+        // "topic + action-word" recognizers, so a phrase satisfying both predicates' raw conditions
+        // must resolve by declaration order (browser-control is declared first in NATURAL_INTENTS),
+        // exactly like the old first-match linear scan. "open mobile inspector http://..." mentions
+        // an action word + URL (browser-control) and "mobile" + "inspector" (mobile-control).
+        for (int attempt = 0; attempt < 5; attempt++) {
+            AssistantCommand.Invocation invocation = command("open mobile inspector http://example.com");
+
+            assertAll("attempt " + attempt,
+                    () -> assertTrue(invocation.isSequence()),
+                    () -> assertEquals("driver_initialize", invocation.toolCalls().get(0).toolName()),
+                    () -> assertEquals("browser_open_intent", invocation.toolCalls().get(1).toolName()));
+        }
+    }
+
+    @Test
     void slashCommandsMapToCuratedTools() {
         assertEquals("shaft_guide_search", command("/guide locators").toolName());
         assertEquals("locators", command("/guide locators").arguments().get("query").getAsString());
@@ -759,6 +797,30 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertTrue(invocation.isLocal()),
                 () -> assertTrue(invocation.localResponse().contains("upgrade_to_modular_shaft.py")));
+    }
+
+    @Test
+    void naturalUpgradePhraseStillReachesAgentPerformedUpgradePath() {
+        // isProjectUpgradeIntent used to also match "upgrade shaft project"/"upgrade this shaft
+        // project", but both branches were dead: isNaturalUpgradeIntent (checked in fromPrompt
+        // before directIntent -- and this predicate -- is ever consulted) already intercepts this
+        // phrasing and routes it to the agent-performed upgrade (issue #3426 B6). Removing the dead
+        // branches from the predicate must not change that routing.
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "upgrade shaft project .",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true);
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(invocation.isLocal()),
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertTrue(invocation.arguments().get("allowSourceMutation").getAsBoolean()),
+                () -> assertTrue(prompt.contains("Perform the upgrade yourself"), prompt),
+                () -> assertTrue(prompt.contains("shaft_project_upgrade"), prompt));
     }
 
     @Test

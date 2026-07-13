@@ -10,6 +10,7 @@ import com.shaft.intellij.mcp.ShaftCommandLine;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -197,39 +198,56 @@ final class AssistantCommand {
                     (command, rest, workingDirectory) -> generateTest(rest)),
             VERIFY_COMMAND,
             SKILLS_COMMAND);
+    // Specificity weights for NATURAL_INTENTS: directIntent (below) scores every predicate that
+    // matches the prompt and dispatches the highest-weight match instead of stopping at the first
+    // one, so ties fall back to declaration order in the list below. Magnitudes are otherwise
+    // arbitrary; only the relative ordering matters. Two orderings are load-bearing:
+    //  - WEIGHT_MOBILE_RECORDING > WEIGHT_BROWSER_RECORDING so a "record ..." phrase that satisfies
+    //    both recognizers' keyword lists (e.g. "record my actions on the Android emulator") still
+    //    starts the mobile recorder, without isBrowserRecordingIntent hand-excluding
+    //    isMobileRecordingStartIntent the way the issue #3429 patch used to.
+    //  - WEIGHT_TOPIC_CONTROL is shared by browser-control and mobile-control: both are equally
+    //    broad "topic + action-word" recognizers, so a phrase satisfying both (e.g. "open mobile
+    //    inspector http://...") resolves by declaration order below, exactly like the old
+    //    first-match linear scan did (browser-control is declared first).
+    private static final int WEIGHT_COMMAND_HELP = 100;
+    private static final int WEIGHT_NAMED_TOOL_REQUEST = 90;
+    private static final int WEIGHT_PROJECT_UPGRADE = 80;
+    private static final int WEIGHT_MOBILE_RECORDING = 65;
+    private static final int WEIGHT_BROWSER_RECORDING = 60;
+    private static final int WEIGHT_TOPIC_CONTROL = 55;
+    private static final int WEIGHT_MOBILE_CODEGEN = 40;
+    private static final int WEIGHT_DOCTOR = 30;
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
-            new NaturalIntent(AssistantCommand::isCommandHelpIntent,
+            new NaturalIntent(WEIGHT_COMMAND_HELP, AssistantCommand::isCommandHelpIntent,
                     (text, workingDirectory) -> Invocation.local(commandHelp(false))),
-            new NaturalIntent(AssistantCommand::isCodingPartnerIntent,
+            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isCodingPartnerIntent,
                     (text, workingDirectory) -> Invocation.tool(
                             "shaft_coding_partner_plan",
                             codingPartnerPlan(naturalCodingPartnerIntent(text), workingDirectory))),
-            new NaturalIntent(AssistantCommand::isGuideSearchIntent,
+            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isGuideSearchIntent,
                     (text, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(naturalQuery(text)))),
-            new NaturalIntent(AssistantCommand::isScenarioSearchIntent,
+            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isScenarioSearchIntent,
                     (text, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(naturalQuery(text)))),
-            new NaturalIntent(AssistantCommand::isGuardrailsCheckIntent,
+            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isGuardrailsCheckIntent,
                     (text, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)))),
-            new NaturalIntent(AssistantCommand::isProjectCreateIntent,
+            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isProjectCreateIntent,
                     (text, workingDirectory) -> projectCreateReview(naturalProjectName(text))),
-            new NaturalIntent(AssistantCommand::isProjectUpgradeIntent,
+            new NaturalIntent(WEIGHT_PROJECT_UPGRADE, AssistantCommand::isProjectUpgradeIntent,
                     (text, workingDirectory) -> Invocation.tool("shaft_project_upgrade", projectUpgrade(naturalProjectRoot(text, workingDirectory)))),
-            new NaturalIntent(AssistantCommand::isBrowserControlIntent,
+            new NaturalIntent(WEIGHT_TOPIC_CONTROL, AssistantCommand::isBrowserControlIntent,
                     (text, workingDirectory) -> browser(text)),
-            new NaturalIntent(AssistantCommand::isBrowserRecordingIntent,
+            new NaturalIntent(WEIGHT_BROWSER_RECORDING, AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
-            // Recording starts/stops outrank general mobile control: "Record my mobile actions on
-            // the Android emulator" mentions both, and routing it to a toolchain status check
-            // instead of the recorder dead-ends the user's actual request (issue #3429).
-            new NaturalIntent(AssistantCommand::isMobileRecordingStartIntent,
+            new NaturalIntent(WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStartIntent,
                     (text, workingDirectory) -> mobileRecord("start " + firstJsonLikePath(text))),
-            new NaturalIntent(AssistantCommand::isMobileRecordingStopIntent,
+            new NaturalIntent(WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStopIntent,
                     (text, workingDirectory) -> mobileRecord("stop")),
-            new NaturalIntent(AssistantCommand::isMobileControlIntent,
+            new NaturalIntent(WEIGHT_TOPIC_CONTROL, AssistantCommand::isMobileControlIntent,
                     (text, workingDirectory) -> mobile(naturalMobileCommand(text))),
-            new NaturalIntent(AssistantCommand::isMobileCodegenIntent,
+            new NaturalIntent(WEIGHT_MOBILE_CODEGEN, AssistantCommand::isMobileCodegenIntent,
                     (text, workingDirectory) -> mobileCodegen(firstJsonLikePath(text))),
-            new NaturalIntent(AssistantCommand::isDoctorIntent,
+            new NaturalIntent(WEIGHT_DOCTOR, AssistantCommand::isDoctorIntent,
                     (text, workingDirectory) -> {
                         String path = firstPathLike(text);
                         return doctor(path.isBlank() ? "" : path, workingDirectory);
@@ -1193,15 +1211,125 @@ final class AssistantCommand {
         ));
     }
 
+    /**
+     * Scores every natural-language intent that matches {@code text} and dispatches the
+     * highest-weight match (see the {@code WEIGHT_*} constants above {@link #NATURAL_INTENTS}).
+     * The loop only replaces {@code best} on a strictly greater weight, so ties resolve to
+     * whichever matching intent is declared first in {@link #NATURAL_INTENTS} -- the same
+     * first-match order the old linear scan used.
+     */
     private static Invocation directIntent(String text, String workingDirectory) {
+        NaturalIntent best = null;
         for (NaturalIntent intent : NATURAL_INTENTS) {
-            if (intent.matches(text)) {
-                return intent.invoke(text, workingDirectory);
+            if (intent.matches(text) && (best == null || intent.weight() > best.weight())) {
+                best = intent;
             }
         }
-        return null;
+        return best == null ? null : best.invoke(text, workingDirectory);
     }
 
+    // intent-keyword table (gated by tests/scripts/test_mcp_tool_catalog_sync.py)
+    private static final Map<String, List<String>> INTENT_KEYWORDS = Map.ofEntries(
+            Map.entry("shaft_coding_partner_plan", List.of(
+                    "plan coding partner work for ",
+                    "plan partner work for ",
+                    "coding partner plan for ",
+                    "partner plan for ",
+                    "find reuse for ")),
+            Map.entry("shaft_guide_search", List.of(
+                    "search shaft docs ",
+                    "search the shaft docs ",
+                    "search shaft guide ",
+                    "search the shaft guide ",
+                    "find shaft docs ",
+                    "find shaft guide ",
+                    "guide me on ",
+                    "docs for ")),
+            Map.entry("test_automation_scenarios", List.of(
+                    "find scenarios ",
+                    "find automation scenarios ",
+                    "show scenarios ",
+                    "automation scenarios for ",
+                    "scenario ideas for ")),
+            Map.entry("test_code_guardrails_check", List.of(
+                    "check generated java code ",
+                    "check this java code ",
+                    "run guardrails ",
+                    "guardrails check ")),
+            Map.entry("shaft_project_upgrade", List.of(
+                    "preview shaft upgrade",
+                    "preview upgrade",
+                    "dry run shaft upgrade")),
+            Map.entry("capture_start", List.of(
+                    "browser",
+                    "web flow",
+                    "web journey",
+                    "webdriver",
+                    "http://",
+                    "https://",
+                    "my actions on",
+                    "browser actions",
+                    "actions on the site",
+                    "actions on the page")),
+            Map.entry("mobile_record_start", List.of(
+                    "mobile",
+                    "android",
+                    "emulator",
+                    "appium",
+                    " app ")),
+            Map.entry("mobile_record_stop", List.of(
+                    "stop mobile recording",
+                    "stop app recording")),
+            Map.entry("mobile_recording_code_blocks", List.of(
+                    "generate mobile code",
+                    "generate appium code",
+                    "create mobile code")),
+            Map.entry("mobile_toolchain_status", List.of(
+                    "toolchain",
+                    "appium",
+                    "adb",
+                    "emulator",
+                    "sdk",
+                    "inspector",
+                    "accessibility tree",
+                    "current mobile screen",
+                    "mobile screen",
+                    "contexts",
+                    "context switch",
+                    "switch context",
+                    "screenshot",
+                    "quit mobile",
+                    "close mobile")),
+            Map.entry("doctor_analyze_failed_allure", List.of(
+                    "run doctor",
+                    "analyze allure",
+                    "analyse allure",
+                    "doctor ",
+                    "diagnose my last run",
+                    "diagnose the last run",
+                    "diagnose the latest run",
+                    "analyze the latest report",
+                    "analyze latest report",
+                    "why did my test fail",
+                    "why did my tests fail")));
+    // "start <mode> recording" phrasings match as a whole prefix (equal to the phrase, or the
+    // phrase followed by more words) via matchesWholeWordPrefix, rather than the anywhere-in-text
+    // keywords above -- kept out of the map above because they need different match semantics.
+    private static final List<String> CAPTURE_START_PHRASES = List.of(
+            "start browser recording",
+            "start a browser recording",
+            "start webdriver recording",
+            "start a webdriver recording");
+    private static final List<String> MOBILE_RECORD_START_PHRASES = List.of(
+            "start mobile recording",
+            "start app recording");
+
+    /**
+     * Intentionally broad: "command" plus a leading question word is a low-cost signal (command
+     * help never mutates anything or calls an MCP tool), so a rare false-positive match is cheaper
+     * than missing a real "what commands can I use" style question. Left as-is rather than
+     * narrowed.
+     */
     private static boolean isCommandHelpIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
         return normalized.contains("command")
@@ -1214,11 +1342,7 @@ final class AssistantCommand {
 
     private static boolean isCodingPartnerIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return (normalized.startsWith("plan coding partner work for ")
-                || normalized.startsWith("plan partner work for ")
-                || normalized.startsWith("coding partner plan for ")
-                || normalized.startsWith("partner plan for ")
-                || normalized.startsWith("find reuse for "))
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("shaft_coding_partner_plan"))
                 && !naturalCodingPartnerIntent(text).isBlank();
     }
 
@@ -1241,33 +1365,19 @@ final class AssistantCommand {
 
     private static boolean isGuideSearchIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return (normalized.startsWith("search shaft docs ")
-                || normalized.startsWith("search the shaft docs ")
-                || normalized.startsWith("search shaft guide ")
-                || normalized.startsWith("search the shaft guide ")
-                || normalized.startsWith("find shaft docs ")
-                || normalized.startsWith("find shaft guide ")
-                || normalized.startsWith("guide me on ")
-                || normalized.startsWith("docs for "))
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("shaft_guide_search"))
                 && !naturalQuery(text).isBlank();
     }
 
     private static boolean isScenarioSearchIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return (normalized.startsWith("find scenarios ")
-                || normalized.startsWith("find automation scenarios ")
-                || normalized.startsWith("show scenarios ")
-                || normalized.startsWith("automation scenarios for ")
-                || normalized.startsWith("scenario ideas for "))
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("test_automation_scenarios"))
                 && !naturalQuery(text).isBlank();
     }
 
     private static boolean isGuardrailsCheckIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return (normalized.startsWith("check generated java code ")
-                || normalized.startsWith("check this java code ")
-                || normalized.startsWith("run guardrails ")
-                || normalized.startsWith("guardrails check "))
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("test_code_guardrails_check"))
                 && !naturalCode(text).isBlank();
     }
 
@@ -1279,13 +1389,16 @@ final class AssistantCommand {
                 || normalized.startsWith("scaffold shaft project ");
     }
 
+    /**
+     * "upgrade shaft project"/"upgrade this shaft project" used to be handled here too, but both
+     * are dead: {@code isNaturalUpgradeIntent} in {@code fromPrompt} intercepts that phrasing
+     * before {@code directIntent} (and this predicate) is ever consulted, routing it to the
+     * agent-performed upgrade instead (issue #3426 B6). Removed rather than left as unreachable
+     * branches.
+     */
     private static boolean isProjectUpgradeIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return normalized.startsWith("preview shaft upgrade")
-                || normalized.startsWith("preview upgrade")
-                || normalized.startsWith("dry run shaft upgrade")
-                || normalized.startsWith("upgrade shaft project")
-                || normalized.startsWith("upgrade this shaft project");
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("shaft_project_upgrade"));
     }
 
     private static boolean containsAny(String text, String... needles) {
@@ -1294,6 +1407,40 @@ final class AssistantCommand {
         }
         for (String needle : needles) {
             if (needle != null && !needle.isBlank() && text.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsAny(String text, List<String> needles) {
+        return needles != null && containsAny(text, needles.toArray(new String[0]));
+    }
+
+    private static boolean startsWithAny(String text, List<String> prefixes) {
+        if (text == null || prefixes == null) {
+            return false;
+        }
+        for (String prefix : prefixes) {
+            if (prefix != null && text.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True when {@code normalized} equals one of {@code phrases}, or starts with one of them
+     * followed by a word boundary (a space). Used for "start &lt;mode&gt; recording" phrasings,
+     * where a plain {@code startsWith} would also match unrelated longer words glued onto the
+     * phrase (e.g. "start browser recordingroom").
+     */
+    private static boolean matchesWholeWordPrefix(String normalized, List<String> phrases) {
+        if (normalized == null || phrases == null) {
+            return false;
+        }
+        for (String phrase : phrases) {
+            if (normalized.equals(phrase) || normalized.startsWith(phrase + " ")) {
                 return true;
             }
         }
@@ -1315,14 +1462,7 @@ final class AssistantCommand {
 
     private static boolean isBrowserRecordingIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        if (normalized.equals("start browser recording")
-                || normalized.equals("start a browser recording")
-                || normalized.equals("start webdriver recording")
-                || normalized.equals("start a webdriver recording")
-                || normalized.startsWith("start browser recording ")
-                || normalized.startsWith("start a browser recording ")
-                || normalized.startsWith("start webdriver recording ")
-                || normalized.startsWith("start a webdriver recording ")) {
+        if (matchesWholeWordPrefix(normalized, CAPTURE_START_PHRASES)) {
             return true;
         }
         // Plain-language "record ..." requests must run on the plugin's long-lived MCP process:
@@ -1332,20 +1472,13 @@ final class AssistantCommand {
         if (!normalized.startsWith("record ")) {
             return false;
         }
-        if (isMobileRecordingStartIntent(text)) {
-            return false;
-        }
-        return containsAny(normalized,
-                "browser", "web flow", "web journey", "webdriver", "http://", "https://",
-                "my actions on", "browser actions", "actions on the site", "actions on the page");
+        return containsAny(normalized, INTENT_KEYWORDS.get("capture_start"));
     }
 
     private static boolean isMobileControlIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
         return normalized.contains("mobile")
-                && (containsAny(normalized, "toolchain", "appium", "adb", "emulator", "sdk", "inspector")
-                || containsAny(normalized, "accessibility tree", "current mobile screen", "mobile screen", "contexts",
-                "context switch", "switch context", "screenshot", "quit mobile", "close mobile"));
+                && containsAny(normalized, INTENT_KEYWORDS.get("mobile_toolchain_status"));
     }
 
     private static String naturalMobileCommand(String text) {
@@ -1372,48 +1505,37 @@ final class AssistantCommand {
 
     private static boolean isMobileRecordingStartIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        if (normalized.equals("start mobile recording")
-                || normalized.equals("start app recording")
-                || normalized.startsWith("start mobile recording ")
-                || normalized.startsWith("start app recording ")) {
+        if (matchesWholeWordPrefix(normalized, MOBILE_RECORD_START_PHRASES)) {
             return true;
         }
         // Same one-shot-agent hazard as browser recordings (issue #3429): plain-language mobile
         // recording requests — including the Assistant's own "Record my mobile actions on the
-        // Android emulator" prefill — must run on the plugin's long-lived MCP process.
+        // Android emulator" prefill — must run on the plugin's long-lived MCP process. Mobile
+        // recording outweighs browser recording in NATURAL_INTENTS (WEIGHT_MOBILE_RECORDING >
+        // WEIGHT_BROWSER_RECORDING), so phrases mentioning both, e.g. "record my actions on the
+        // Android emulator", resolve here without isBrowserRecordingIntent needing a
+        // cross-predicate exclusion.
         return normalized.startsWith("record ")
-                && containsAny(normalized, "mobile", "android", "emulator", "appium", " app ");
+                && containsAny(normalized, INTENT_KEYWORDS.get("mobile_record_start"));
     }
 
     private static boolean isMobileRecordingStopIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return normalized.equals("stop mobile recording") || normalized.equals("stop app recording");
+        return INTENT_KEYWORDS.get("mobile_record_stop").contains(normalized);
     }
 
     private static boolean isMobileCodegenIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return (normalized.startsWith("generate mobile code")
-                || normalized.startsWith("generate appium code")
-                || normalized.startsWith("create mobile code"))
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("mobile_recording_code_blocks"))
                 && !firstJsonLikePath(text).isBlank();
     }
 
+    // Report-triage phrasings route to the same auto-discovering analyzer: with no path in the
+    // text, the server analyzes the newest allure-results or single-file AllureReport.html in the
+    // workspace.
     private static boolean isDoctorIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return normalized.startsWith("run doctor")
-                || normalized.startsWith("analyze allure")
-                || normalized.startsWith("analyse allure")
-                || normalized.startsWith("doctor ")
-                // Report-triage phrasings route to the same auto-discovering analyzer: with no
-                // path in the text, the server analyzes the newest allure-results or single-file
-                // AllureReport.html in the workspace.
-                || normalized.startsWith("diagnose my last run")
-                || normalized.startsWith("diagnose the last run")
-                || normalized.startsWith("diagnose the latest run")
-                || normalized.startsWith("analyze the latest report")
-                || normalized.startsWith("analyze latest report")
-                || normalized.startsWith("why did my test fail")
-                || normalized.startsWith("why did my tests fail");
+        return startsWithAny(normalized, INTENT_KEYWORDS.get("doctor_analyze_failed_allure"));
     }
 
     private static String naturalQuery(String text) {
@@ -2159,7 +2281,7 @@ final class AssistantCommand {
         Invocation build(String command, String rest, String workingDirectory);
     }
 
-    private record NaturalIntent(NaturalIntentMatcher matcher, NaturalIntentBuilder builder) {
+    private record NaturalIntent(int weight, NaturalIntentMatcher matcher, NaturalIntentBuilder builder) {
         boolean matches(String text) {
             return matcher.matches(text);
         }
