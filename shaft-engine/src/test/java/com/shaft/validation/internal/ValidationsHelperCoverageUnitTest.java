@@ -2,6 +2,7 @@ package com.shaft.validation.internal;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums.ValidationCategory;
 import com.shaft.validation.ValidationEnums.ValidationType;
 import io.restassured.response.Response;
@@ -15,6 +16,8 @@ import org.testng.annotations.Test;
 import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -116,5 +119,38 @@ public class ValidationsHelperCoverageUnitTest {
         } finally {
             Files.deleteIfExists(tempSchema);
         }
+    }
+
+    @Test(description = "reportValidationState should attach one primary Assertion evidence card and keep the legacy Expected/Actual attachments")
+    public void reportValidationStateAttachesPrimaryEvidenceCard() {
+        List<List<Object>> captured = new ArrayList<>();
+        try (MockedStatic<ReportManagerHelper> reportMock = Mockito.mockStatic(ReportManagerHelper.class)) {
+            reportMock.when(() -> ReportManagerHelper.attach(any()))
+                    .thenAnswer(invocation -> {
+                        captured.addAll(invocation.getArgument(0));
+                        return null;
+                    });
+
+            ValidationsHelper.reportValidationState(ValidationCategory.SOFT_ASSERT, false,
+                    "expected-alpha", "actual-beta", null);
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        }
+
+        Assert.assertFalse(captured.isEmpty(), "reportValidationState must attach evidence.");
+        // The evidence card headlines the step: it is the first attachment and is HTML.
+        List<Object> primary = captured.get(0);
+        Assert.assertEquals(primary.get(0), "Assertion evidence");
+        Assert.assertEquals(primary.get(1), "assertion-evidence.html");
+        String cardHtml = String.valueOf(primary.get(2));
+        Assert.assertTrue(cardHtml.toLowerCase().contains("<html"), "The card must be an HTML document.");
+        Assert.assertTrue(cardHtml.contains("expected-alpha"), "The card must show the expected value.");
+        Assert.assertTrue(cardHtml.contains("actual-beta"), "The card must show the actual value.");
+
+        // Non-regression (issue #3502): the legacy plain-text attachments stay for consumers that
+        // scrape the "Expected Value" / "Actual Value" names.
+        Assert.assertTrue(captured.stream().anyMatch(attachment -> "Expected Value".equals(attachment.get(1))),
+                "Legacy Expected Value attachment must remain.");
+        Assert.assertTrue(captured.stream().anyMatch(attachment -> "Actual Value".equals(attachment.get(1))),
+                "Legacy Actual Value attachment must remain.");
     }
 }

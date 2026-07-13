@@ -18,6 +18,7 @@ import com.shaft.gui.internal.image.VisualProcessingProvider;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.AssertionEvidenceReporter;
 import com.shaft.tools.io.internal.CheckpointCounter;
 import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.tools.io.internal.CheckpointType;
@@ -997,6 +998,15 @@ public class ValidationsHelper {
             attachments.add(expectedValueAttachment);
             attachments.add(actualValueAttachment);
             ReportManager.logDiscrete("Expected and Actual values are attached.");
+        }
+        // Single primary assertion-evidence card (issue #3502 A+B): one HTML block carrying the
+        // redacted expected/actual plus a diff, placed first so it headlines the Allure step. The
+        // existing Expected/Actual text attachments stay (dual-write) so consumers that scrape
+        // those names keep working.
+        String evidenceCard = AssertionEvidenceReporter.renderCard(
+                this.validationCategoryString, validationState, expected, actual);
+        if (!evidenceCard.isBlank()) {
+            attachments.add(0, Arrays.asList("Assertion evidence", "assertion-evidence.html", evidenceCard));
         }
         // add attachments
         long profilerAttachmentStart = !attachments.isEmpty() && FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
