@@ -21,6 +21,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,6 +57,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
      * process exit to read stderr yielded nothing exactly when it mattered most.
      */
     private final StringBuilder stderrBuffer = new StringBuilder();
+    private final CountDownLatch stderrDrained = new CountDownLatch(1);
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService ioExecutor;
     private final Map<Integer, CompletableFuture<JsonObject>> pendingRequests = new ConcurrentHashMap<>();
@@ -218,10 +220,26 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         } catch (IOException ignored) {
             // Stream closed with the process; pending requests fail below.
         } finally {
+            awaitExitDiagnostics();
             IOException processExited = withDiagnostics("SHAFT MCP process exited.", (Throwable) null,
                     failureDetails());
             pendingRequests.values().forEach(pending -> pending.completeExceptionally(processExited));
             pendingRequests.clear();
+        }
+    }
+
+    /**
+     * Stdout EOF means the server is gone or going; the exit code and the tail of stderr are the
+     * only diagnostics left. Both arrive asynchronously (process teardown, the stderr reader
+     * thread), so wait for them deterministically instead of racing — otherwise a slow spawn or a
+     * loaded machine reports "process exited" with no reason attached.
+     */
+    private void awaitExitDiagnostics() {
+        try {
+            process.waitFor(GRACEFUL_EXIT_WAIT.toMillis(), TimeUnit.MILLISECONDS);
+            stderrDrained.await(GRACEFUL_EXIT_WAIT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -285,6 +303,8 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             }
         } catch (IOException ignored) {
             // Stream closed with the process; whatever was buffered stays available.
+        } finally {
+            stderrDrained.countDown();
         }
     }
 
