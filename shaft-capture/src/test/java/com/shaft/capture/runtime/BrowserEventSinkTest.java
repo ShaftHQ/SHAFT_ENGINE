@@ -48,6 +48,50 @@ class BrowserEventSinkTest {
     }
 
     @Test
+    void sessionEndpointServesSessionInfoAndRejectsBadToken() throws Exception {
+        BrowserEventSink sink = new BrowserEventSink(signal -> { }, warning -> { });
+        sink.sessionSupplier(() -> new BrowserEventSink.SessionInfo(
+                "ACTIVE", "target/recordings/login.json"));
+        sink.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+
+            HttpResponse<String> authorized = client.send(HttpRequest.newBuilder()
+                    .uri(URI.create(sink.sessionEndpoint() + "?token=" + sink.eventToken()))
+                    .GET()
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, authorized.statusCode());
+            assertTrue(authorized.body().contains("\"state\":\"ACTIVE\""));
+            assertTrue(authorized.body().contains("target/recordings/login.json"));
+
+            HttpResponse<String> unauthorized = client.send(HttpRequest.newBuilder()
+                    .uri(URI.create(sink.sessionEndpoint() + "?token=wrong-token"))
+                    .GET()
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, unauthorized.statusCode());
+        } finally {
+            sink.close();
+        }
+    }
+
+    @Test
+    void sessionEndpointReturnsBlankInfoBeforeSupplierIsWired() throws Exception {
+        BrowserEventSink sink = new BrowserEventSink(signal -> { }, warning -> { });
+        sink.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> response = client.send(HttpRequest.newBuilder()
+                    .uri(URI.create(sink.sessionEndpoint() + "?token=" + sink.eventToken()))
+                    .GET()
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("\"outputPath\":\"\""));
+        } finally {
+            sink.close();
+        }
+    }
+
+    @Test
     void stepsEndpointReturnsEmptyListBeforeSupplierIsWired() throws Exception {
         BrowserEventSink sink = new BrowserEventSink(signal -> { }, warning -> { });
         sink.start();

@@ -1064,6 +1064,11 @@ class ManagedCaptureRecorder {
         try {
             eventSink = new BrowserEventSink(this::acceptSignal, this::warn);
             eventSink.stepsSupplier(() -> store == null ? java.util.List.of() : store.steps());
+            eventSink.sessionSupplier(() -> {
+                CaptureStatus current = status();
+                return new BrowserEventSink.SessionInfo(
+                        current.state() == null ? "" : current.state().name(), current.outputPath());
+            });
             eventSink.start();
         } catch (RuntimeException exception) {
             eventSink = null;

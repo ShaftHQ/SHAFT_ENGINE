@@ -1127,6 +1127,8 @@
         --shaft-pass: #14804a;
         --shaft-warn: #b7791f;
         --shaft-fail: #c53030;
+        --shaft-on-primary: #ffffff;
+        --shaft-shadow: 0 18px 45px rgba(24, 31, 42, .22);
         position: fixed;
         right: 16px;
         bottom: 16px;
@@ -1144,14 +1146,34 @@
         border-radius: 8px;
         background: var(--shaft-surface);
         color: var(--shaft-text);
-        box-shadow: 0 18px 45px rgba(24, 31, 42, .22);
+        box-shadow: var(--shaft-shadow);
         font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      /* Dark palette kept in lockstep with ReportHtmlTheme (soft consistency per #3501). */
+      @media (prefers-color-scheme: dark) {
+        #shaft-capture-ui {
+          --shaft-primary: #4cc2ff;
+          --shaft-primary-rgb: 76, 194, 255;
+          --shaft-deep: #07111f;
+          --shaft-deep-alt: #102a31;
+          --shaft-muted: #dff5f4;
+          --shaft-on-dark: #f5fdff;
+          --shaft-on-primary: #07111f;
+          --shaft-bg: #07111f;
+          --shaft-surface: #102a31;
+          --shaft-text: #f5fdff;
+          --shaft-text-muted: #c8d6e7;
+          --shaft-border: rgba(223, 245, 244, .24);
+          --shaft-shadow: 0 18px 45px rgba(0, 0, 0, .34);
+        }
       }
       #shaft-capture-ui * { box-sizing: border-box; font: inherit; letter-spacing: 0; }
       /* Minimized: only the header toolbar stays, so the page underneath is usable while
          recording continues; the title carries the live step count. */
       #shaft-capture-ui[data-minimized="true"] { height: auto; }
       #shaft-capture-ui[data-minimized="true"] .status-chip,
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-warning,
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-stop-confirm,
       #shaft-capture-ui[data-minimized="true"] #shaft-capture-locator-panel,
       #shaft-capture-ui[data-minimized="true"] #shaft-capture-actions,
       #shaft-capture-ui[data-minimized="true"] #shaft-capture-dialog,
@@ -1254,6 +1276,66 @@
       #shaft-capture-status[data-readiness="BLOCKED"] {
         border-color: var(--shaft-fail);
         background: rgba(197, 48, 48, .12);
+      }
+      #shaft-capture-status { gap: 6px; flex-wrap: wrap; }
+      #shaft-capture-ui .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 8px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 999px;
+        background: var(--shaft-surface);
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      #shaft-capture-readiness-pill[data-readiness="READY"] { border-color: var(--shaft-pass); color: var(--shaft-pass); }
+      #shaft-capture-readiness-pill[data-readiness="RISKY"] { border-color: var(--shaft-warn); color: var(--shaft-warn); }
+      #shaft-capture-readiness-pill[data-readiness="BLOCKED"] { border-color: var(--shaft-fail); color: var(--shaft-fail); }
+      #shaft-capture-mode-pill { border-color: var(--shaft-primary); color: var(--shaft-primary); }
+      #shaft-capture-mode-pill[data-mode="Stopped"],
+      #shaft-capture-mode-pill[data-mode="Paused"] { border-color: var(--shaft-text-muted); color: var(--shaft-text-muted); }
+      #shaft-capture-step-count { font-weight: 700; }
+      #shaft-capture-warning {
+        margin: 6px 10px 0;
+        padding: 5px 9px;
+        border: 1px solid var(--shaft-warn);
+        border-radius: 6px;
+        background: rgba(183, 121, 31, .12);
+        color: var(--shaft-text);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      #shaft-capture-ignored-note {
+        margin: 0 0 7px;
+        padding: 4px 8px;
+        border: 1px dashed var(--shaft-border);
+        border-radius: 6px;
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      #shaft-capture-stop-confirm {
+        margin: 8px 10px 0;
+        padding: 9px 10px;
+        border: 1px solid var(--shaft-primary);
+        border-radius: 8px;
+        background: rgba(var(--shaft-primary-rgb), .08);
+        font-size: 12px;
+      }
+      #shaft-capture-stop-confirm p { margin: 6px 0; overflow-wrap: anywhere; }
+      #shaft-capture-stop-confirm .stop-confirm-buttons { display: flex; gap: 8px; margin-top: 8px; }
+      #shaft-capture-stop-confirm button {
+        min-width: 0;
+        height: auto;
+        padding: 5px 10px;
+        line-height: 1.2;
+        font-weight: 700;
+      }
+      #shaft-capture-stop-confirm #shaft-capture-stop-confirm-yes {
+        background: var(--shaft-primary);
+        color: var(--shaft-on-primary);
+        border-color: var(--shaft-primary);
       }
       #shaft-capture-actions {
         flex: 1 1 auto;
@@ -1505,20 +1587,41 @@
     }
     const assertionPanelOpen = Boolean(document.getElementById("shaft-capture-assertion-panel"));
     const latestWarning = uiState.readinessWarnings[uiState.readinessWarnings.length - 1] || "";
-    const base = uiState.readinessState + " | " + uiState.actions.length + " events";
+    // Shared authoring glossary (#3496/#3501): readiness reads Ready/Risky/Blocked, the mode pill
+    // reads Recording/Paused/Asserting/Picking locator/Stopped, and recorded units are "steps".
+    const readinessLabel = {READY: "Ready", RISKY: "Risky", BLOCKED: "Blocked"}[uiState.readinessState] || "Ready";
     const mode = uiState.stopped
-      ? "Stopped. Waiting for SHAFT to close the browser."
+      ? {label: "Stopped", hint: "Session saved. SHAFT is closing the browser."}
       : uiState.paused
-        ? "Paused. Browser actions are not being captured."
+        ? {label: "Paused", hint: "Browser actions are not being captured."}
         : uiState.locatorMode
-          ? "Locator picker active."
+          ? {label: "Picking locator", hint: "Click an element to rank its locators."}
           : uiState.assertionMode
-            ? "Assertion mode. Click an element to capture the assertion target."
+            ? {label: "Asserting", hint: "Click an element to capture the assertion target."}
             : assertionPanelOpen
-              ? "Choose an assertion."
-              : "Recording browser actions.";
+              ? {label: "Asserting", hint: "Choose an assertion."}
+              : {label: "Recording", hint: "Browser actions are captured as steps."};
     status.dataset.readiness = uiState.readinessState;
-    status.textContent = latestWarning ? base + " | " + latestWarning : base + " | " + mode;
+    status.title = mode.hint;
+    const readinessPill = document.getElementById("shaft-capture-readiness-pill");
+    const modePill = document.getElementById("shaft-capture-mode-pill");
+    const stepCount = document.getElementById("shaft-capture-step-count");
+    if (readinessPill && modePill && stepCount) {
+      readinessPill.textContent = readinessLabel;
+      readinessPill.dataset.readiness = uiState.readinessState;
+      modePill.textContent = mode.label;
+      modePill.dataset.mode = mode.label;
+      stepCount.textContent = uiState.actions.length + (uiState.actions.length === 1 ? " step" : " steps");
+    } else {
+      status.textContent = readinessLabel + " | " + mode.label + " | "
+        + uiState.actions.length + (uiState.actions.length === 1 ? " step" : " steps");
+    }
+    // Warnings coexist with the mode pill on their own line instead of replacing the mode text.
+    const warningLine = document.getElementById("shaft-capture-warning");
+    if (warningLine) {
+      warningLine.textContent = latestWarning;
+      warningLine.hidden = !latestWarning;
+    }
     pause.innerHTML = icon(uiState.paused ? "play" : "pause");
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
     pause.setAttribute("aria-label", pause.title);
@@ -1777,6 +1880,62 @@
     if (target) renderLocatorPanel(target);
     return true;
   };
+  // The stop confirmation renders BEFORE the STOP control is sent: once STOP reaches the server
+  // the browser closes almost immediately, so any "what happens next" guidance must be read
+  // pre-stop. Programmatic stops (MCP capture_stop) intentionally keep closing right away.
+  const sessionEndpointUrl = () =>
+    stepsEndpoint.url ? String(stepsEndpoint.url).replace(/\/steps($|\?)/, "/session$1") : "";
+  const closeStopConfirm = () => {
+    const confirmPanel = document.getElementById("shaft-capture-stop-confirm");
+    if (confirmPanel) {
+      confirmPanel.hidden = true;
+      confirmPanel.innerHTML = "";
+    }
+  };
+  const confirmStop = () => {
+    closeStopConfirm();
+    uiState.stopped = true;
+    lastClickEmission = null;
+    persist();
+    announce("Stop recording");
+    sendControl("STOP");
+    setStatus();
+  };
+  const renderStopConfirm = () => {
+    const confirmPanel = document.getElementById("shaft-capture-stop-confirm");
+    if (!confirmPanel) return;
+    if (uiState.minimized) {
+      uiState.minimized = false;
+      persist();
+      setStatus();
+    }
+    confirmPanel.hidden = false;
+    confirmPanel.innerHTML = `
+      <strong>Stop recording?</strong>
+      <p id="shaft-capture-stop-confirm-path">Your recorded steps are saved as a session.</p>
+      <p>Next: open the SHAFT Assistant in your IDE and use <strong>Review code</strong> to turn this session into a test.</p>
+      <div class="stop-confirm-buttons">
+        <button id="shaft-capture-stop-confirm-yes" type="button">Save &amp; close</button>
+        <button id="shaft-capture-stop-confirm-no" type="button">Keep recording</button>
+      </div>`;
+    document.getElementById("shaft-capture-stop-confirm-yes").addEventListener("click", confirmStop);
+    document.getElementById("shaft-capture-stop-confirm-no").addEventListener("click", closeStopConfirm);
+    const sessionUrl = sessionEndpointUrl();
+    if (sessionUrl && stepsEndpoint.token && typeof fetch === "function") {
+      fetch(sessionUrl + "?token=" + encodeURIComponent(stepsEndpoint.token), {method: "GET"})
+        .then(response => (response.ok ? response.json() : null))
+        .then(info => {
+          const pathLine = document.getElementById("shaft-capture-stop-confirm-path");
+          if (pathLine && info && text(info.outputPath)) {
+            pathLine.textContent = "Session saved to: " + text(info.outputPath);
+          }
+        })
+        .catch(() => {
+          // Loopback fetches from the recorded page are best-effort (see the steps-sync design);
+          // the generic saved-session copy already covers the endpoint being unavailable.
+        });
+    }
+  };
   const renderPanel = () => {
     if (!document.body || document.getElementById("shaft-capture-ui")) return;
     styles();
@@ -1793,9 +1952,15 @@
         <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
         <button id="shaft-capture-minimize" type="button" aria-expanded="true"></button>
       </header>
-      <div id="shaft-capture-status" class="status-chip shaft-capture-readiness"></div>
+      <div id="shaft-capture-status" class="status-chip shaft-capture-readiness">
+        <span id="shaft-capture-readiness-pill" class="status-pill"></span>
+        <span id="shaft-capture-mode-pill" class="status-pill"></span>
+        <span id="shaft-capture-step-count"></span>
+      </div>
+      <div id="shaft-capture-warning" hidden></div>
+      <div id="shaft-capture-stop-confirm" hidden></div>
       <div id="shaft-capture-locator-panel" hidden></div>
-      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><ol id="shaft-capture-action-list"></ol></div>
+      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><ol id="shaft-capture-action-list"></ol></div>
     `;
     document.body.appendChild(panel);
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
@@ -1842,12 +2007,11 @@
     });
     document.getElementById("shaft-capture-stop").addEventListener("click", () => {
       if (uiState.stopped) return;
-      uiState.stopped = true;
-      lastClickEmission = null;
-      persist();
-      announce("Stop recording");
-      sendControl("STOP");
-      setStatus();
+      if (document.getElementById("shaft-capture-stop-confirm-yes")) {
+        closeStopConfirm();
+        return;
+      }
+      renderStopConfirm();
     });
     document.getElementById("shaft-capture-minimize").addEventListener("click", () => {
       uiState.minimized = !uiState.minimized;
@@ -1875,6 +2039,20 @@
   // "user_reported" (URL poll), "user_traversal" (back/forward, which the interaction window
   // must never swallow), and "user_annotation" (the initial "Open" breadcrumb, which only tags
   // the already-recorded initial OPEN event and must never append a second one).
+  // Suppression transparency (#3496): when a navigation is treated as a consequence of the last
+  // recorded step (and therefore NOT recorded as its own step), say so briefly instead of
+  // silently dropping it, so users trust that "missing" rows are deliberate.
+  let ignoredNoteTimer = null;
+  const noteIgnored = reason => {
+    const note = document.getElementById("shaft-capture-ignored-note");
+    if (!note) return;
+    note.textContent = "Ignored: " + reason;
+    note.hidden = false;
+    if (ignoredNoteTimer) clearTimeout(ignoredNoteTimer);
+    ignoredNoteTimer = setTimeout(() => {
+      note.hidden = true;
+    }, 6000);
+  };
   const reportNavigation = (source, breadcrumb) => {
     if (uiState.stopped || uiState.paused) return;
     uiState.lastUrl = String(location.href || "");
@@ -1905,6 +2083,8 @@
         const sinceInteraction = Date.now() - uiState.lastInteractionAt;
         if (sinceInteraction > INTERACTION_NAVIGATION_WINDOW_MS) {
           reportNavigation("user_reported", false);
+        } else {
+          noteIgnored("navigation caused by your last step, kept as part of that step.");
         }
         lastClickEmission = null;
       }
