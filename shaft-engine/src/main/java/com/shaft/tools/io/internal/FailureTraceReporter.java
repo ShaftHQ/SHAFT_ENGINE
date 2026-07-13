@@ -114,16 +114,7 @@ public final class FailureTraceReporter {
         json.append("{\n");
         field(json, 1, "schemaVersion", "1.0", true);
         field(json, 1, "generatedAt", Instant.now().toString(), true);
-        objectStart(json, 1, "test");
-        field(json, 2, "className", value(info == null ? null : info.className()), true);
-        field(json, 2, "methodName", value(info == null ? null : info.methodName()), true);
-        field(json, 2, "displayName", value(info == null ? null : info.displayName()), true);
-        field(json, 2, "description", value(info == null ? null : info.description()), true);
-        field(json, 2, "status", throwable == null ? "passed" : "failed", true);
-        field(json, 2, "attempt", String.valueOf(attempt), true);
-        field(json, 2, "retried", String.valueOf(info != null && info.retried()), true);
-        field(json, 2, "traceMode", effectiveTraceMode(), false);
-        objectEnd(json, 1, true);
+        appendTestObject(json, info, throwable, attempt);
         objectStart(json, 1, "environment");
         field(json, 2, "shaftVersion", safeProperty(() -> SHAFT.Properties.internal.shaftEngineVersion()), true);
         field(json, 2, "os", System.getProperty("os.name", ""), true);
@@ -135,11 +126,7 @@ public final class FailureTraceReporter {
         field(json, 2, "headless", safeProperty(() -> String.valueOf(SHAFT.Properties.web.headlessExecution())), true);
         field(json, 2, "thread", Thread.currentThread().getName(), false);
         objectEnd(json, 1, true);
-        objectStart(json, 1, "exception");
-        field(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true);
-        field(json, 2, "message", redact(throwable == null ? "" : throwable.getMessage()), true);
-        field(json, 2, "stacktrace", redact(ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
-        objectEnd(json, 1, true);
+        appendExceptionObject(json, throwable);
         objectStart(json, 1, "source");
         field(json, 2, "frame", source.frame(), true);
         field(json, 2, "file", source.file(), true);
@@ -160,6 +147,27 @@ public final class FailureTraceReporter {
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
         return json.toString();
+    }
+
+    private static void appendTestObject(StringBuilder json, TestExecutionInfo info, Throwable throwable, int attempt) {
+        objectStart(json, 1, "test");
+        field(json, 2, "className", value(info == null ? null : info.className()), true);
+        field(json, 2, "methodName", value(info == null ? null : info.methodName()), true);
+        field(json, 2, "displayName", value(info == null ? null : info.displayName()), true);
+        field(json, 2, "description", value(info == null ? null : info.description()), true);
+        field(json, 2, "status", throwable == null ? "passed" : "failed", true);
+        field(json, 2, "attempt", String.valueOf(attempt), true);
+        field(json, 2, "retried", String.valueOf(info != null && info.retried()), true);
+        field(json, 2, "traceMode", effectiveTraceMode(), false);
+        objectEnd(json, 1, true);
+    }
+
+    private static void appendExceptionObject(StringBuilder json, Throwable throwable) {
+        objectStart(json, 1, "exception");
+        field(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true);
+        field(json, 2, "message", redact(throwable == null ? "" : throwable.getMessage()), true);
+        field(json, 2, "stacktrace", redact(ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
+        objectEnd(json, 1, true);
     }
 
     /**
