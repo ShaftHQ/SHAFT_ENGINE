@@ -64,8 +64,32 @@ public final class TraceEventRecorder {
                 System.nanoTime(),
                 value(locator),
                 currentUrl(driver),
+                callerFrame(),
                 domSnapshot(driver),
                 driver);
+    }
+
+    /**
+     * Best-effort first non-framework stack frame (the user's test or page-object line) so each
+     * traced action can be tied back to the exact source line that triggered it. Blank when every
+     * frame belongs to SHAFT, the JDK, or the test runner (e.g. SHAFT's own unit tests).
+     */
+    private static String callerFrame() {
+        for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+            String className = frame.getClassName();
+            if (!className.startsWith("com.shaft.")
+                    && !className.startsWith("java.")
+                    && !className.startsWith("jdk.")
+                    && !className.startsWith("sun.")
+                    && !className.startsWith("org.testng.")
+                    && !className.startsWith("org.junit.")
+                    && !className.startsWith("io.qameta.")
+                    && !className.startsWith("org.apache.maven.")
+                    && !className.startsWith("org.gradle.")) {
+                return frame.toString();
+            }
+        }
+        return "";
     }
 
     /**
@@ -170,6 +194,7 @@ public final class TraceEventRecorder {
                 TimeUnit.NANOSECONDS.toMillis(Math.max(0, System.nanoTime() - event.startNanos())),
                 event.locator(),
                 event.url(),
+                event.caller(),
                 value(message),
                 exceptionType(exception),
                 exceptionMessage(exception),
@@ -248,6 +273,7 @@ public final class TraceEventRecorder {
             numberField(json, 3, "durationMs", event.durationMs(), true);
             field(json, 3, "locator", event.locator(), true);
             field(json, 3, "url", event.url(), true);
+            field(json, 3, "caller", event.caller(), true);
             field(json, 3, "message", event.message(), true);
             objectStart(json, 3, "exception");
             field(json, 4, "type", event.exceptionType(), true);
@@ -517,15 +543,16 @@ public final class TraceEventRecorder {
      * snapshot at {@link #finish} time; it is never serialized or exposed outside this class.
      */
     public record Event(boolean enabled, String id, String category, String name, String startTime, long startNanos,
-                        String locator, String url, String domSnapshotBefore, WebDriver driver) {
+                        String locator, String url, String caller, String domSnapshotBefore, WebDriver driver) {
         static Event disabled() {
-            return new Event(false, "", "", "", "", 0L, "", "", "", null);
+            return new Event(false, "", "", "", "", 0L, "", "", "", "", null);
         }
     }
 
     record ActionEvent(String id, String category, String name, String status, String startTime, long durationMs,
-                       String locator, String url, String message, String exceptionType, String exceptionMessage,
-                       List<String> attachments, Map<String, String> metadata, Map<String, Object> actionability,
-                       String domSnapshotBefore, String domSnapshotAfter, String screenshot) {
+                       String locator, String url, String caller, String message, String exceptionType,
+                       String exceptionMessage, List<String> attachments, Map<String, String> metadata,
+                       Map<String, Object> actionability, String domSnapshotBefore, String domSnapshotAfter,
+                       String screenshot) {
     }
 }
