@@ -1,4 +1,5 @@
-"""Guards MCP tool-catalog drift from one static-scan source of truth.
+"""
+Guards MCP tool-catalog drift from one static-scan source of truth.
 
 Every surface below claims to expose or route shaft-mcp @Tool names by string literal: the
 manifest fixture consumed by ShaftMcpApplicationTests, the IntelliJ plugin's ToolTemplates panel,
@@ -65,13 +66,16 @@ def _load_manifest() -> dict:
 
 
 def _tool_template_names(text: str) -> set[str]:
-    """Every tool-name literal passed as the second argument to ToolTemplates.java's
-    private `template(label, toolName, ...)` factory methods."""
+    """
+    Return every tool-name literal from ToolTemplates.java's factory calls.
+
+    The names are the second argument of the private `template(label, toolName, ...)` methods.
+    """
     return set(TOOL_TEMPLATE_PATTERN.findall(text))
 
 
 def _cli_alias_tool_names(text: str) -> set[str]:
-    """Every tool-name VALUE from `Map.of("action", "tool_name", ...)` ACTIONS maps."""
+    """Return every tool-name value from `Map.of("action", "tool_name", ...)` ACTIONS maps."""
     tool_names: set[str] = set()
     for match in ACTIONS_BLOCK_PATTERN.finditer(text):
         literals = QUOTED_STRING_PATTERN.findall(match.group(1))
@@ -81,14 +85,18 @@ def _cli_alias_tool_names(text: str) -> set[str]:
 
 
 def _normalize(text: str) -> str:
-    """Collapses Java string-literal/comment punctuation and whitespace so a phrase that spans a
-    wrapped/concatenated literal (`"...the "` + `"Android emulator"`) or a plain comment still
-    matches as one contiguous, case-insensitive run of words."""
+    """
+    Collapse Java string-literal/comment punctuation and whitespace.
+
+    A phrase that spans a wrapped/concatenated literal (`"...the "` + `"Android emulator"`) or a
+    plain comment still matches as one contiguous, case-insensitive run of words.
+    """
     stripped = re.sub(r'["+\\]', " ", text)
     return re.sub(r"\s+", " ", stripped).strip().lower()
 
 
 class McpToolCatalogSyncTest(unittest.TestCase):
+
     """Gate 1a: the manifest's tool-name set must equal the live @Tool-annotation scan."""
 
     def test_manifest_matches_scanned_tool_annotations(self):
@@ -112,6 +120,7 @@ class McpToolCatalogSyncTest(unittest.TestCase):
 
 
 class ToolTemplatesSubsetTest(unittest.TestCase):
+
     """Gate 1b: every ToolTemplates.java toolName literal must be a real, scanned tool."""
 
     def test_tool_templates_are_subset_of_scanned_tools(self):
@@ -128,6 +137,7 @@ class ToolTemplatesSubsetTest(unittest.TestCase):
 
 
 class CliAliasSubsetTest(unittest.TestCase):
+
     """Gate 1c: every shaft-cli *Command.java ACTIONS map value must be a real, scanned tool."""
 
     def test_cli_alias_actions_are_subset_of_scanned_tools(self):
@@ -147,8 +157,12 @@ class CliAliasSubsetTest(unittest.TestCase):
 
 
 class IntentKeywordsValidityTest(unittest.TestCase):
-    """Gate 1d: manifest intentKeywords tools must be real tools, and their trigger phrases must
-    be backed by AssistantCommand.java's intent-keyword table."""
+
+    """
+    Gate 1d: manifest intentKeywords must name real tools with backed phrases.
+
+    Every trigger phrase must appear in AssistantCommand.java's intent-keyword table.
+    """
 
     def test_intent_keyword_tools_exist_in_scanned_set(self):
         scanned = GENERATOR.scanned_tool_names()

@@ -257,6 +257,102 @@ final class AssistantCommand {
     private static final List<CommandHint> EXPERT_HINTS =
             EXPERT_COMMANDS.stream().map(CommandDefinition::hint).toList();
     private static final List<CommandHint> ALL_HINTS = concat(CORE_HINTS, EXPERT_HINTS);
+    // intent-keyword table (gated by tests/scripts/test_mcp_tool_catalog_sync.py)
+    private static final Map<String, List<String>> INTENT_KEYWORDS = Map.ofEntries(
+            Map.entry("shaft_coding_partner_plan", List.of(
+                    "plan coding partner work for ",
+                    "plan partner work for ",
+                    "coding partner plan for ",
+                    "partner plan for ",
+                    "find reuse for ")),
+            Map.entry("shaft_guide_search", List.of(
+                    "search shaft docs ",
+                    "search the shaft docs ",
+                    "search shaft guide ",
+                    "search the shaft guide ",
+                    "find shaft docs ",
+                    "find shaft guide ",
+                    "guide me on ",
+                    "docs for ")),
+            Map.entry("test_automation_scenarios", List.of(
+                    "find scenarios ",
+                    "find automation scenarios ",
+                    "show scenarios ",
+                    "automation scenarios for ",
+                    "scenario ideas for ")),
+            Map.entry("test_code_guardrails_check", List.of(
+                    "check generated java code ",
+                    "check this java code ",
+                    "run guardrails ",
+                    "guardrails check ")),
+            Map.entry("shaft_project_upgrade", List.of(
+                    "preview shaft upgrade",
+                    "preview upgrade",
+                    "dry run shaft upgrade")),
+            Map.entry("capture_start", List.of(
+                    "browser",
+                    "web flow",
+                    "web journey",
+                    "webdriver",
+                    "http://",
+                    "https://",
+                    "my actions on",
+                    "browser actions",
+                    "actions on the site",
+                    "actions on the page")),
+            Map.entry("mobile_record_start", List.of(
+                    "mobile",
+                    "android",
+                    "emulator",
+                    "appium",
+                    " app ")),
+            Map.entry("mobile_record_stop", List.of(
+                    "stop mobile recording",
+                    "stop app recording")),
+            Map.entry("mobile_recording_code_blocks", List.of(
+                    "generate mobile code",
+                    "generate appium code",
+                    "create mobile code")),
+            Map.entry("mobile_toolchain_status", List.of(
+                    "toolchain",
+                    "appium",
+                    "adb",
+                    "emulator",
+                    "sdk",
+                    "inspector",
+                    "accessibility tree",
+                    "current mobile screen",
+                    "mobile screen",
+                    "contexts",
+                    "context switch",
+                    "switch context",
+                    "screenshot",
+                    "quit mobile",
+                    "close mobile")),
+            Map.entry("doctor_analyze_failed_allure", List.of(
+                    "run doctor",
+                    "analyze allure",
+                    "analyse allure",
+                    "doctor ",
+                    "diagnose my last run",
+                    "diagnose the last run",
+                    "diagnose the latest run",
+                    "analyze the latest report",
+                    "analyze latest report",
+                    "why did my test fail",
+                    "why did my tests fail")));
+    // "start <mode> recording" phrasings match as a whole prefix (equal to the phrase, or the
+    // phrase followed by more words) via matchesWholeWordPrefix, rather than the anywhere-in-text
+    // keywords above -- kept out of the map above because they need different match semantics.
+    private static final List<String> CAPTURE_START_PHRASES = List.of(
+            "start browser recording",
+            "start a browser recording",
+            "start webdriver recording",
+            "start a webdriver recording");
+    private static final List<String> MOBILE_RECORD_START_PHRASES = List.of(
+            "start mobile recording",
+            "start app recording");
+
 
     private AssistantCommand() {
         throw new IllegalStateException("Utility class");
@@ -1228,101 +1324,6 @@ final class AssistantCommand {
         return best == null ? null : best.invoke(text, workingDirectory);
     }
 
-    // intent-keyword table (gated by tests/scripts/test_mcp_tool_catalog_sync.py)
-    private static final Map<String, List<String>> INTENT_KEYWORDS = Map.ofEntries(
-            Map.entry("shaft_coding_partner_plan", List.of(
-                    "plan coding partner work for ",
-                    "plan partner work for ",
-                    "coding partner plan for ",
-                    "partner plan for ",
-                    "find reuse for ")),
-            Map.entry("shaft_guide_search", List.of(
-                    "search shaft docs ",
-                    "search the shaft docs ",
-                    "search shaft guide ",
-                    "search the shaft guide ",
-                    "find shaft docs ",
-                    "find shaft guide ",
-                    "guide me on ",
-                    "docs for ")),
-            Map.entry("test_automation_scenarios", List.of(
-                    "find scenarios ",
-                    "find automation scenarios ",
-                    "show scenarios ",
-                    "automation scenarios for ",
-                    "scenario ideas for ")),
-            Map.entry("test_code_guardrails_check", List.of(
-                    "check generated java code ",
-                    "check this java code ",
-                    "run guardrails ",
-                    "guardrails check ")),
-            Map.entry("shaft_project_upgrade", List.of(
-                    "preview shaft upgrade",
-                    "preview upgrade",
-                    "dry run shaft upgrade")),
-            Map.entry("capture_start", List.of(
-                    "browser",
-                    "web flow",
-                    "web journey",
-                    "webdriver",
-                    "http://",
-                    "https://",
-                    "my actions on",
-                    "browser actions",
-                    "actions on the site",
-                    "actions on the page")),
-            Map.entry("mobile_record_start", List.of(
-                    "mobile",
-                    "android",
-                    "emulator",
-                    "appium",
-                    " app ")),
-            Map.entry("mobile_record_stop", List.of(
-                    "stop mobile recording",
-                    "stop app recording")),
-            Map.entry("mobile_recording_code_blocks", List.of(
-                    "generate mobile code",
-                    "generate appium code",
-                    "create mobile code")),
-            Map.entry("mobile_toolchain_status", List.of(
-                    "toolchain",
-                    "appium",
-                    "adb",
-                    "emulator",
-                    "sdk",
-                    "inspector",
-                    "accessibility tree",
-                    "current mobile screen",
-                    "mobile screen",
-                    "contexts",
-                    "context switch",
-                    "switch context",
-                    "screenshot",
-                    "quit mobile",
-                    "close mobile")),
-            Map.entry("doctor_analyze_failed_allure", List.of(
-                    "run doctor",
-                    "analyze allure",
-                    "analyse allure",
-                    "doctor ",
-                    "diagnose my last run",
-                    "diagnose the last run",
-                    "diagnose the latest run",
-                    "analyze the latest report",
-                    "analyze latest report",
-                    "why did my test fail",
-                    "why did my tests fail")));
-    // "start <mode> recording" phrasings match as a whole prefix (equal to the phrase, or the
-    // phrase followed by more words) via matchesWholeWordPrefix, rather than the anywhere-in-text
-    // keywords above -- kept out of the map above because they need different match semantics.
-    private static final List<String> CAPTURE_START_PHRASES = List.of(
-            "start browser recording",
-            "start a browser recording",
-            "start webdriver recording",
-            "start a webdriver recording");
-    private static final List<String> MOBILE_RECORD_START_PHRASES = List.of(
-            "start mobile recording",
-            "start app recording");
 
     /**
      * Intentionally broad: "command" plus a leading question word is a low-cost signal (command
