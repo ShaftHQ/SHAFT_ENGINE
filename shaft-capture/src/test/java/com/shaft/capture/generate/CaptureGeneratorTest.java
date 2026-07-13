@@ -569,7 +569,7 @@ class CaptureGeneratorTest {
                 "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\"))"
                         + ".matchesAriaSnapshot(requiredData(\"username\"));"));
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesScreenshot().perform();"));
+                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesScreenshot();"));
     }
 
     @Test
