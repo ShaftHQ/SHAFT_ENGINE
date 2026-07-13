@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.model.CaptureReadiness;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,7 +51,8 @@ final class McpPlaywrightRecordingService {
 
     synchronized McpMobileRecordingStatus status() {
         if (recording == null) {
-            return new McpMobileRecordingStatus(false, outputPath, "", 0, false, List.of());
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false, List.of(),
+                    CaptureReadiness.State.READY);
         }
         return new McpMobileRecordingStatus(
                 true,
@@ -58,13 +60,14 @@ final class McpPlaywrightRecordingService {
                 recording.mode(),
                 recording.actions().size(),
                 recording.includeSensitiveValues(),
-                recording.warnings());
+                recording.warnings(),
+                readinessFor(recording, false));
     }
 
     synchronized McpMobileRecordingStatus stop(boolean discard) {
         if (recording == null) {
             return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
-                    List.of("No active Playwright recording."));
+                    List.of("No active Playwright recording."), CaptureReadiness.State.BLOCKED);
         }
         McpMobileRecording closed = new McpMobileRecording(
                 recording.schemaVersion(),
@@ -88,8 +91,31 @@ final class McpPlaywrightRecordingService {
         }
         recording = null;
         outputPath = null;
+        CaptureReadiness.State readiness = discard
+                ? CaptureReadiness.State.READY
+                : readinessFor(closed, true);
         return new McpMobileRecordingStatus(false, finalPath, closed.mode(), count, closed.includeSensitiveValues(),
-                discard ? List.of("Recording discarded.") : closed.warnings());
+                discard ? List.of("Recording discarded.") : closed.warnings(), readiness);
+    }
+
+    /**
+     * Rolls a Playwright recording's step warnings up into the shared Ready/Risky/Blocked verdict,
+     * so the Playwright recorder speaks the same readiness language as the web and mobile recorders
+     * (#3498). A stopped recording with no steps is {@code BLOCKED} (nothing to generate);
+     * coordinate-fallback, redaction, or approximated-action warnings on any step make it
+     * {@code RISKY}; a clean recording is {@code READY}.
+     *
+     * @param recording the live or just-closed recording
+     * @param stopped whether the recording has been stopped
+     * @return the readiness verdict
+     */
+    private static CaptureReadiness.State readinessFor(McpMobileRecording recording, boolean stopped) {
+        if (stopped && recording.actions().isEmpty()) {
+            return CaptureReadiness.State.BLOCKED;
+        }
+        return replayWarnings(recording).isEmpty()
+                ? CaptureReadiness.State.READY
+                : CaptureReadiness.State.RISKY;
     }
 
     synchronized McpMobileRecordedAction record(
