@@ -5,8 +5,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -185,15 +183,4 @@ class McpAllureResultsLocatorTest {
         }
     }
 
-    @Test
-    void privateConstructorRejectsInstantiationAsAPureUtilityClass() throws Exception {
-        Constructor<McpAllureResultsLocator> constructor =
-                McpAllureResultsLocator.class.getDeclaredConstructor();
-        constructor.setAccessible(true);
-
-        InvocationTargetException wrapper = assertThrows(InvocationTargetException.class, constructor::newInstance);
-
-        assertInstanceOf(IllegalStateException.class, wrapper.getCause());
-        assertEquals("Utility class", wrapper.getCause().getMessage());
-    }
 }

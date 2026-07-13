@@ -245,7 +245,18 @@
       "name": "capture_start",
       "mutation": true,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "start recording",
+        "start a recording",
+        "start recorder",
+        "start capture",
+        "start browser recording",
+        "start a browser recording",
+        "start webdriver recording",
+        "start a webdriver recording",
+        "record my browser actions"
+      ]
     },
     {
       "name": "capture_start_codegen",
@@ -275,7 +286,19 @@
       "name": "doctor_analyze_failed_allure",
       "mutation": true,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "run doctor",
+        "analyze allure",
+        "analyse allure",
+        "diagnose my last run",
+        "diagnose the last run",
+        "diagnose the latest run",
+        "analyze the latest report",
+        "analyze latest report",
+        "why did my test fail",
+        "why did my tests fail"
+      ]
     },
     {
       "name": "doctor_analyze_trace",
@@ -539,7 +562,11 @@
       "name": "mobile_record_start",
       "mutation": true,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "start mobile recording",
+        "start app recording"
+      ]
     },
     {
       "name": "mobile_record_status",
@@ -551,13 +578,22 @@
       "name": "mobile_record_stop",
       "mutation": true,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "stop mobile recording",
+        "stop app recording"
+      ]
     },
     {
       "name": "mobile_recording_code_blocks",
       "mutation": false,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "generate mobile code",
+        "generate appium code",
+        "create mobile code"
+      ]
     },
     {
       "name": "mobile_replay_recording",
@@ -623,7 +659,13 @@
       "name": "mobile_toolchain_status",
       "mutation": false,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "toolchain",
+        "appium",
+        "adb",
+        "sdk"
+      ]
     },
     {
       "name": "mobile_type",
@@ -881,13 +923,30 @@
       "name": "shaft_coding_partner_plan",
       "mutation": false,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "plan coding partner work for",
+        "plan partner work for",
+        "coding partner plan for",
+        "partner plan for",
+        "find reuse for"
+      ]
     },
     {
       "name": "shaft_guide_search",
       "mutation": false,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "search shaft docs",
+        "search the shaft docs",
+        "search shaft guide",
+        "search the shaft guide",
+        "find shaft docs",
+        "find shaft guide",
+        "guide me on",
+        "docs for"
+      ]
     },
     {
       "name": "shaft_project_create",
@@ -905,19 +964,39 @@
       "name": "shaft_project_upgrade",
       "mutation": true,
       "sensitive": true,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "preview shaft upgrade",
+        "preview upgrade",
+        "dry run shaft upgrade",
+        "upgrade shaft project",
+        "upgrade this shaft project"
+      ]
     },
     {
       "name": "test_automation_scenarios",
       "mutation": false,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "find scenarios",
+        "find automation scenarios",
+        "show scenarios",
+        "automation scenarios for",
+        "scenario ideas for"
+      ]
     },
     {
       "name": "test_code_guardrails_check",
       "mutation": false,
       "sensitive": false,
-      "deprecated": false
+      "deprecated": false,
+      "intentKeywords": [
+        "check generated java code",
+        "check this java code",
+        "run guardrails",
+        "guardrails check"
+      ]
     },
     {
       "name": "test_plan_explore",

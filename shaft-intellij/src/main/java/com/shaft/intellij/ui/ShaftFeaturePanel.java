@@ -48,7 +48,8 @@ final class ShaftFeaturePanel extends JPanel {
     private static final String REFRESH_TOOLS_TOOLTIP = "Refresh tools";
     private static final String REFRESHING_TOOLTIP = "Refreshing...";
 
-    private List<ToolCategory> categories;
+    // Package-private for ShaftFeaturePanelCatalogTest (read the merged catalog without reflection).
+    List<ToolCategory> categories;
     private final boolean catalogRefreshEnabled;
     private final JBTextField search;
     private final JComboBox<ToolCategory> categorySelector;
@@ -67,7 +68,8 @@ final class ShaftFeaturePanel extends JPanel {
     private final ShaftSettingsState.Settings settings;
     private final Map<String, String> argumentDrafts = new LinkedHashMap<>();
     private ToolTemplate activeTemplate;
-    private ShaftMcpInvocation currentInvocation;
+    // Package-private for ShaftFeaturePanelCatalogTest (simulate an in-flight user run without reflection).
+    ShaftMcpInvocation currentInvocation;
     private boolean updatingTools;
 
     ShaftFeaturePanel(Project project) {
@@ -234,7 +236,8 @@ final class ShaftFeaturePanel extends JPanel {
         }
     }
 
-    private void applyAutoPopulatedCatalog(ShaftMcpToolResult result, Throwable error) {
+    // Package-private for ShaftFeaturePanelCatalogTest, which drives the warm-up callback directly.
+    void applyAutoPopulatedCatalog(ShaftMcpToolResult result, Throwable error) {
         if (currentInvocation != null || error != null || result == null || !result.success()) {
             // Either a real user-triggered run/refresh is already in flight (do not clobber it), or
             // the background warm-up itself failed/was cancelled: keep the curated fallback catalog.

@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.openqa.selenium.Cookie;
 
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
@@ -30,17 +29,15 @@ import static org.mockito.Mockito.when;
 /**
  * Exercises the driver-backed surface of {@link PlaywrightService} (the {@code /record} and
  * {@code /codegen} slash-command business logic) using a Mockito-mocked {@link SHAFT.GUI.Playwright}
- * injected through reflection, since {@code driver} has no setter and the class never launches a
- * real browser in tests.
+ * injected through the package-private test seam, since the class never launches a real browser
+ * in tests.
  */
 class PlaywrightServiceDriverBackedTest {
     @TempDir
     Path temp;
 
-    private static void inject(PlaywrightService service, SHAFT.GUI.Playwright driver) throws Exception {
-        Field field = PlaywrightService.class.getDeclaredField("driver");
-        field.setAccessible(true);
-        field.set(service, driver);
+    private static void inject(PlaywrightService service, SHAFT.GUI.Playwright driver) {
+        service.setDriverForTesting(driver);
     }
 
     private static SHAFT.GUI.Playwright mockDriver(BrowserActions browser, ElementActions element, Page page) {

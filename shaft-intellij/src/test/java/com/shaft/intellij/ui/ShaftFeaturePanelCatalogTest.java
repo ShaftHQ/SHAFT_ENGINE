@@ -7,9 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JComboBox;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,10 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (a) construction never throws and keeps the curated fallback catalog when the service call fails,
  * for every guard combination (disabled, no project, unconfigured MCP), proven with a "trap" project
  * that fails the test if the service is ever actually reached when it shouldn't be; and (b) the
- * private completion handler {@code applyAutoPopulatedCatalog} correctly merges a successful catalog
- * fetch, and is a no-op on failure or when another invocation is already in flight — invoked directly
- * via reflection, the same technique {@code ShaftPanelSetupTest} already uses for the sibling
- * {@code showCatalogResult} handler.</p>
+ * package-private completion handler {@code applyAutoPopulatedCatalog} correctly merges a successful
+ * catalog fetch, and is a no-op on failure or when another invocation is already in flight.</p>
  */
 class ShaftFeaturePanelCatalogTest {
 
@@ -96,9 +91,9 @@ class ShaftFeaturePanelCatalogTest {
         ShaftFeaturePanel panel = new ShaftFeaturePanel(null, connectedMcpSettings(),
                 List.of(new ToolCategory("MCP", List.of())));
         List<ToolCategory> before = categories(panel);
-        setField(panel, "currentInvocation",
+        panel.currentInvocation =
                 new com.shaft.intellij.mcp.ShaftMcpInvocation(new java.util.concurrent.CompletableFuture<>(), () -> {
-                }));
+                });
 
         invokeApplyAutoPopulatedCatalog(panel, ShaftMcpToolResult.success(discoveredToolsListJson()), null);
 
@@ -130,9 +125,8 @@ class ShaftFeaturePanelCatalogTest {
         return "{\"tools\":[{\"name\":\"auto_populated_probe_tool\",\"description\":\"Auto-populate probe\"}]}";
     }
 
-    @SuppressWarnings("unchecked")
-    private static List<ToolCategory> categories(ShaftFeaturePanel panel) throws Exception {
-        return (List<ToolCategory>) getField(panel, "categories");
+    private static List<ToolCategory> categories(ShaftFeaturePanel panel) {
+        return panel.categories;
     }
 
     private static JComboBox<ToolCategory> categorySelector(ShaftFeaturePanel panel) {
@@ -140,30 +134,8 @@ class ShaftFeaturePanelCatalogTest {
     }
 
     private static void invokeApplyAutoPopulatedCatalog(
-            ShaftFeaturePanel panel, ShaftMcpToolResult result, Throwable error) throws Exception {
-        Method method = ShaftFeaturePanel.class.getDeclaredMethod(
-                "applyAutoPopulatedCatalog", ShaftMcpToolResult.class, Throwable.class);
-        method.setAccessible(true);
-        try {
-            method.invoke(panel, result, error);
-        } catch (InvocationTargetException wrapped) {
-            if (wrapped.getCause() instanceof Exception exception) {
-                throw exception;
-            }
-            throw wrapped;
-        }
-    }
-
-    private static void setField(Object target, String name, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
-    }
-
-    private static Object getField(Object target, String name) throws Exception {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        return field.get(target);
+            ShaftFeaturePanel panel, ShaftMcpToolResult result, Throwable error) {
+        panel.applyAutoPopulatedCatalog(result, error);
     }
 
     private static ShaftSettingsState.Settings connectedMcpSettings() {
