@@ -350,7 +350,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         recommendedAgent.setVisible(true);
         setupSummary = new JLabel();
         setupSummary.getAccessibleContext().setAccessibleName("SHAFT MCP setup summary");
-        setupSummary.setText("Installer source: main. It configures the selected client and installs SHAFT MCP locally.");
+        setupSummary.setText("Installs SHAFT MCP locally and configures the selected client.");
         recoveryStatus = new JLabel();
         recoveryStatus.getAccessibleContext().setAccessibleName("SHAFT MCP recovery summary");
         recoveryStatus.setVisible(false);
@@ -1714,7 +1714,7 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void updateLiveSummary() {
         String target = String.valueOf(installerTarget.getSelectedItem()).replace('_', ' ');
-        setupSummary.setText("Installer source: main. Target: " + target + ". Runtime: " + assistantRuntimeLabel() + ".");
+        setupSummary.setText("Target: " + target + ". Runtime: " + assistantRuntimeLabel() + ".");
         recommendedAgent.setText(recommendedAgentText());
     }
 

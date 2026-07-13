@@ -58,8 +58,8 @@ final class AssistantCommand {
                     - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
                     - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
                     - Reuse existing tests, page objects, locator fields, and action methods first.
-                    - If the user provided a recording JSON path, generate directly from it with capture_code_blocks; no active capture session is required and none should be demanded.
-                    - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then generate code from the persisted recording with capture_code_blocks.
+                    - If the user provided a recording JSON path, generate from it with capture_generate_replay (replay true, useAi false); it re-executes the recording headless, compiles the generated test, and proves every locator live. No active capture session is required and none should be demanded.
+                    - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
                     - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
@@ -92,10 +92,10 @@ final class AssistantCommand {
             (command, rest, workingDirectory) -> Invocation.tool(
                     "shaft_coding_partner_plan",
                     codingPartnerPlan(rest, workingDirectory)));
-    private static final CommandDefinition RECORD_WEB_COMMAND = new CommandDefinition("/record-web",
+    private static final CommandDefinition RECORD_WEB_COMMAND = new CommandDefinition("/record",
             "Record web actions",
-            List.of(),
-            "/record-web https://example.com",
+            List.of("/record-web", "/rec", "/capture"),
+            "/record https://example.com",
             (command, rest, workingDirectory) -> record(rest));
     private static final CommandDefinition RECORD_MOBILE_COMMAND = new CommandDefinition("/record-mobile",
             "Record mobile actions",
@@ -105,7 +105,7 @@ final class AssistantCommand {
     private static final CommandDefinition DOCTOR_COMMAND = new CommandDefinition("/doctor",
             "Analyze failures and recommend fixes",
             List.of(),
-            "/doctor target/allure-results",
+            "/doctor allure-report/AllureReport.html",
             (command, rest, workingDirectory) -> doctor(rest, workingDirectory));
     private static final CommandDefinition GUIDE_COMMAND = new CommandDefinition("/guide", "Search the SHAFT guide",
             List.of("/docs", "/manual"),
@@ -168,9 +168,6 @@ final class AssistantCommand {
                     List.of("/scenario", "/ideas"),
                     "/scenarios checkout", (command, rest, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(rest))),
             BROWSER_COMMAND,
-            new CommandDefinition("/record", "Record browser actions",
-                    List.of("/rec", "/capture"),
-                    "/record playwright", (command, rest, workingDirectory) -> record(rest)),
             MOBILE_COMMAND,
             new CommandDefinition("/mobile-record", "Record mobile actions",
                     List.of("/app-record", "/inspector-record"),
@@ -1406,7 +1403,17 @@ final class AssistantCommand {
         return normalized.startsWith("run doctor")
                 || normalized.startsWith("analyze allure")
                 || normalized.startsWith("analyse allure")
-                || normalized.startsWith("doctor ");
+                || normalized.startsWith("doctor ")
+                // Report-triage phrasings route to the same auto-discovering analyzer: with no
+                // path in the text, the server analyzes the newest allure-results or single-file
+                // AllureReport.html in the workspace.
+                || normalized.startsWith("diagnose my last run")
+                || normalized.startsWith("diagnose the last run")
+                || normalized.startsWith("diagnose the latest run")
+                || normalized.startsWith("analyze the latest report")
+                || normalized.startsWith("analyze latest report")
+                || normalized.startsWith("why did my test fail")
+                || normalized.startsWith("why did my tests fail");
     }
 
     private static String naturalQuery(String text) {
@@ -1504,12 +1511,17 @@ final class AssistantCommand {
         }
         String lower = text(rest).toLowerCase(Locale.ROOT);
         if (lower.contains("mobile") || lower.contains("appium")) {
-            return mobileCodegen(recordingPath);
+            // Replay proves the recorded locators against the active mobile session before the code
+            // blocks are returned; the server rejects redacted recordings with a clear error.
+            return Invocation.tool("mobile_replay_recording", mobileRecordingPath(recordingPath));
         }
         if (lower.contains("playwright") || recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
             // Playwright recorder sessions use their own recording schema (recordingPath), which
-            // the Capture-session replay tools cannot consume; they keep the generate-only tool.
-            return Invocation.tool("playwright_recording_code_blocks", generatePlaywrightCodeFromRecording(recordingPath));
+            // the Capture-session replay tools cannot consume; replay through the Playwright-native
+            // replay tool (after initializing its driver) so returned locators are proven live.
+            return Invocation.sequence(List.of(
+                    new ToolCall("playwright_initialize", playwrightInitialize()),
+                    new ToolCall("playwright_replay_recording", generatePlaywrightCodeFromRecording(recordingPath))));
         }
         // Explicit /codegen re-executes the recording (issue #3409): the generated test is
         // compiled and replayed headless so the returned code blocks are verified against the

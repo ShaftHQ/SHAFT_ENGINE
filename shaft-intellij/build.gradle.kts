@@ -3,6 +3,7 @@ import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     java
+    jacoco
     id("org.jetbrains.intellij.platform") version "2.17.0"
 }
 
@@ -160,5 +161,23 @@ tasks {
                 System.getProperty("shaft.intellij.mcp.bootstrapRoot", ""))
         systemProperty("shaft.intellij.liveGeminiModel",
                 System.getProperty("shaft.intellij.liveGeminiModel", "gemini-3.5-flash"))
+        // IntelliJ-instrumented classes carry no source-location attributes, so JaCoCo discards
+        // their probes unless no-location classes are explicitly included (JetBrains FAQ fix).
+        configure<JacocoTaskExtension> {
+            isIncludeNoLocationClasses = true
+            excludes = listOf("jdk.internal.*")
+        }
+    }
+
+    jacocoTestReport {
+        dependsOn(test)
+        // The IntelliJ Platform plugin instruments production classes before tests run, so the
+        // exec data's class ids match build/instrumented, not build/classes; the report must
+        // analyze the same instrumented bytes or every class shows 0% coverage.
+        classDirectories.setFrom(layout.buildDirectory.dir("instrumented/instrumentCode"))
+        reports {
+            xml.required = true
+            html.required = true
+        }
     }
 }

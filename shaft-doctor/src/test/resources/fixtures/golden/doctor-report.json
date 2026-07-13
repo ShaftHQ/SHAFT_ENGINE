@@ -68,7 +68,7 @@
     }
   },
   "diagnosis" : {
-    "schemaVersion" : "1.0",
+    "schemaVersion" : "1.1",
     "primaryCause" : "LOCATOR",
     "contributingCauses" : [ ],
     "confidence" : "HIGH",
@@ -113,6 +113,18 @@
         ]
       }
     ],
-    "missingEvidence" : [ ]
+    "missingEvidence" : [ ],
+    "rankedCauses" : [
+      {
+        "category" : "LOCATOR",
+        "trustPercentage" : 90,
+        "confidence" : "HIGH",
+        "rationale" : "Rule confidence HIGH contributes a base of 75. Citing 1 evidence item(s) adds 5. Rule precedence position 0 adds 10.",
+        "evidenceIds" : [
+          "e-9ec0926f96f896af0007"
+        ],
+        "fixPrompt" : "SHAFT Doctor identified a potential root cause: Locator did not resolve an element.\n\nRecommended action: Inspect the cited locator against the failing page state and update it only after confirming the intended element.\n\nFailing evidence:\n- example.GoldenTest.locatorFailure: NoSuchElementException: unable to locate element\n\nApply only the smallest change directly supported by this cited evidence; do not invent new locators, data, or assertions beyond what the evidence shows."
+      }
+    ]
   }
 }

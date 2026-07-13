@@ -24,6 +24,8 @@ final class FakeMcpServer {
             case "toolsList" -> runToolsListServer();
             case "toolResultArray" -> runToolCallResultServer("[\"first\",{\"name\":\"second\"}]");
             case "toolResultString" -> runToolCallResultServer("\"plain text result\"");
+            case "toolCallIsError" -> runToolCallResultServer(
+                    "{\"content\":[{\"type\":\"text\",\"text\":\"boom\"}],\"isError\":true}");
             case "echoTool" -> runEchoToolServer();
             case "silentToolCalls" -> runSilentToolCallServer();
             case "hang" -> Thread.sleep(Long.MAX_VALUE);

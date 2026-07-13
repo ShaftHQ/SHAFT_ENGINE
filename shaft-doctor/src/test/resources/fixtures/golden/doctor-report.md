@@ -1,7 +1,7 @@
 # SHAFT Doctor Report
 
 - Evidence schema: `1.0`
-- Diagnosis schema: `1.0`
+- Diagnosis schema: `1.1`
 - Bundle: `bundle-8d2c46c24c57991fcfcc`
 - Primary cause: `LOCATOR`
 - Confidence: `HIGH`
@@ -13,6 +13,23 @@
 Locator did not resolve an element.
 
 The first matching rule in stable precedence order was locator-not-found; later matches are reported as contributing causes.
+
+## Ranked Root Causes
+
+1. **LOCATOR** — trust 90%
+
+Rule confidence HIGH contributes a base of 75. Citing 1 evidence item(s) adds 5. Rule precedence position 0 adds 10.
+
+```text
+SHAFT Doctor identified a potential root cause: Locator did not resolve an element.
+
+Recommended action: Inspect the cited locator against the failing page state and update it only after confirming the intended element.
+
+Failing evidence:
+- example.GoldenTest.locatorFailure: NoSuchElementException: unable to locate element
+
+Apply only the smallest change directly supported by this cited evidence; do not invent new locators, data, or assertions beyond what the evidence shows.
+```
 
 ## Findings
 

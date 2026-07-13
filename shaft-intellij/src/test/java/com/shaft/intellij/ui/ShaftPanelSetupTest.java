@@ -278,7 +278,7 @@ class ShaftPanelSetupTest {
             assertTrue(containsText(toolWindow, "3 Install SHAFT MCP"));
             assertTrue(containsText(toolWindow, "4 Check setup"));
             assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
-            assertTrue(containsText(toolWindow, "Installer source: main"));
+            assertTrue(containsText(toolWindow, "Target: "));
             assertNotNull(findByAccessibleName(toolWindow, "Install SHAFT MCP setup state", JLabel.class));
             assertNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
             assertFalse(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class).isVisible());
@@ -1465,17 +1465,17 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantLocalAgentResponsesMentionEstimatedTokenUsage() throws Exception {
+    void assistantLocalAgentResponsesWithoutUsageMetadataOmitTokenLine() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
 
         showAgentResult(panel, ShaftMcpToolResult.success("Opened DuckDuckGo and validated the SHAFT result."));
 
         String markdown = transcriptMarkdown(panel);
-        assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"), markdown);
+        assertFalse(markdown.contains("Tokens consumed:"), markdown);
     }
 
     @Test
-    void assistantStreamingLocalAgentFinalResponseMentionsEstimatedTokenUsage() throws Exception {
+    void assistantStreamingLocalAgentFinalResponseWithoutUsageMetadataOmitsTokenLine() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
 
         appendStreamingLocalAgentBubble(panel, 7);
@@ -1484,8 +1484,7 @@ class ShaftPanelSetupTest {
         String markdown = transcriptMarkdown(panel);
         assertAll(
                 () -> assertTrue(markdown.contains("Final answer from Codex.")),
-                () -> assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"),
-                        markdown),
+                () -> assertFalse(markdown.contains("Tokens consumed:"), markdown),
                 () -> assertFalse(markdown.contains("Running local assistant")));
     }
 
@@ -1876,7 +1875,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantFallbackLocalAgentResponseKeepsEstimatedTokenCount() throws Exception {
+    void assistantUnstructuredLocalAgentResponseWithoutUsageMetadataOmitsTokenLine() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         String rawResponse = "Here is the explanation.\nIt spans several lines.\nNo structured data anywhere.";
 
@@ -1886,8 +1885,7 @@ class ShaftPanelSetupTest {
         String markdown = transcriptMarkdown(panel);
         assertAll(
                 () -> assertTrue(markdown.contains("Here is the explanation."), markdown),
-                () -> assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"),
-                        markdown));
+                () -> assertFalse(markdown.contains("Tokens consumed:"), markdown));
     }
 
     @Test
@@ -2173,6 +2171,86 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(timeline),
                 () -> assertTrue(listContains(timeline, "Prompt received")),
                 () -> assertTrue(listContains(timeline, "Completed")));
+    }
+
+    @Test
+    void assistantTimelineCompletedEntryShowsElapsedTimeSuffix() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        assistantPrompt(panel).setText("/help");
+        clickAccessible(panel, "Send assistant prompt");
+
+        String completedStep = timelineSteps(timeline).stream()
+                .filter(step -> step.startsWith("Completed"))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(completedStep, timelineSteps(timeline).toString());
+        assertTrue(completedStep.matches("Completed \\((<1s|\\d+s|\\d+m \\d+s)\\)"), completedStep);
+    }
+
+    @Test
+    void assistantTimelineIgnoresSecondTerminalEntryForSameRun() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        assistantPrompt(panel).setText("/help");
+        clickAccessible(panel, "Send assistant prompt");
+        assertTrue(listContains(timeline, "Completed"), timelineSteps(timeline).toString());
+        int sizeAfterFirstTerminal = timeline.getModel().getSize();
+
+        // No resetTimeline (i.e. no new send()) happens between these two terminal results, so the
+        // second one must be dropped rather than appended alongside the first.
+        showAssistantResult(panel, "shaft_guide_search", ShaftMcpToolResult.success(mcpText("Use Page Object locators.")));
+
+        assertEquals(sizeAfterFirstTerminal, timeline.getModel().getSize(),
+                "A second terminal entry for the same run must be ignored: " + timelineSteps(timeline));
+    }
+
+    @Test
+    void assistantCancelRequestShowsCancellingThenSingleCancelledTerminalEntry() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+
+        cancelOrKillCurrent(panel);
+        assertTrue(listContains(timeline, "Cancelling..."), timelineSteps(timeline).toString());
+
+        showAssistantResult(panel, "shaft_guide_search", null, new CancellationException("cancelled"));
+
+        List<String> steps = timelineSteps(timeline);
+        assertAll(
+                () -> assertEquals(1, steps.stream().filter(step -> step.startsWith("Cancelled")).count(),
+                        steps.toString()),
+                () -> assertFalse(steps.stream().anyMatch(step -> step.startsWith("Killed")), steps.toString()));
+    }
+
+    @Test
+    void assistantKillRequestTerminalEntryIsKilledNotCancelled() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+
+        cancelOrKillCurrent(panel);
+        cancelOrKillCurrent(panel);
+        assertTrue(listContains(timeline, "Killing..."), timelineSteps(timeline).toString());
+
+        showAssistantResult(panel, "shaft_guide_search", null, new CancellationException("killed"));
+
+        List<String> steps = timelineSteps(timeline);
+        assertAll(
+                () -> assertTrue(steps.stream().anyMatch(step -> step.startsWith("Killed")), steps.toString()),
+                () -> assertFalse(steps.stream().anyMatch(step -> step.startsWith("Cancelled")), steps.toString()));
     }
 
     @Test
@@ -4614,6 +4692,18 @@ class ShaftPanelSetupTest {
             }
         }
         return false;
+    }
+
+    private static List<String> timelineSteps(JList<?> list) {
+        List<String> steps = new ArrayList<>();
+        if (list == null) {
+            return steps;
+        }
+        for (int index = 0; index < list.getModel().getSize(); index++) {
+            Object item = list.getModel().getElementAt(index);
+            steps.add(item == null ? null : item.toString());
+        }
+        return steps;
     }
 
     private static JTextComponent assistantPrompt(Component component) {

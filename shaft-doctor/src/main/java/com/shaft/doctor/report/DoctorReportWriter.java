@@ -6,6 +6,7 @@ import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.model.EvidenceCategory;
 import com.shaft.doctor.model.EvidenceItem;
 import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RankedCause;
 import com.shaft.doctor.model.Remediation;
 
 import java.io.IOException;
@@ -62,6 +63,8 @@ public final class DoctorReportWriter {
                             .collect(Collectors.joining(", ")))
                     .append("\n\n");
         }
+
+        appendRankedCauses(report, diagnosis);
 
         report.append("## Findings\n\n");
         if (diagnosis.findings().isEmpty()) {
@@ -137,6 +140,20 @@ public final class DoctorReportWriter {
             Files.writeString(path, report.toString(), StandardCharsets.UTF_8);
         } catch (IOException exception) {
             throw new IllegalStateException("Doctor Markdown report could not be written.", exception);
+        }
+    }
+
+    private static void appendRankedCauses(StringBuilder report, Diagnosis diagnosis) {
+        if (diagnosis.rankedCauses().isEmpty()) {
+            return;
+        }
+        report.append("## Ranked Root Causes\n\n");
+        int position = 1;
+        for (RankedCause cause : diagnosis.rankedCauses()) {
+            report.append(position++).append(". **").append(cause.category())
+                    .append("** — trust ").append(cause.trustPercentage()).append("%\n\n");
+            report.append(cause.rationale()).append("\n\n");
+            report.append("```text\n").append(cause.fixPrompt()).append("\n```\n\n");
         }
     }
 

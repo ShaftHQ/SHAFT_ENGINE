@@ -7,6 +7,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.doctor.DoctorAnalysisRequest;
 import com.shaft.doctor.format.DoctorFormatException;
 import com.shaft.doctor.format.DoctorJsonCodec;
@@ -64,6 +65,7 @@ public final class EvidenceCollector {
             .build();
     private final DoctorJsonCodec codec = new DoctorJsonCodec();
     private final DefaultPrettyPrinter printer = prettyPrinter();
+    private final AllureHtmlReportParser htmlReportParser = new AllureHtmlReportParser();
 
     /**
      * Collects a deterministic portable evidence bundle.
@@ -193,6 +195,13 @@ public final class EvidenceCollector {
                     mediaType(extension), request, items, state);
             return;
         }
+        if (".html".equals(extension)) {
+            AllureHtmlReportParser.ParseResult parsed = htmlReportParser.parse(file);
+            if (parsed.reportDetected()) {
+                collectAllureHtmlReport(sourceReference, parsed, request, redactor, items, state);
+                return;
+            }
+        }
         if (isPageSnapshot(lowerName, extension) && !request.includePageSnapshots()) {
             state.omittedItems++;
             return;
@@ -229,28 +238,7 @@ public final class EvidenceCollector {
             if (parsed == null || !parsed.isObject()) {
                 throw new IllegalArgumentException("Allure result root is not an object.");
             }
-            JsonNode sanitized = redactor.redact(parsed);
-            byte[] retained = mapper.writer().with(printer)
-                    .writeValueAsBytes(sanitized);
-            retained = limit(retained, request.maxItemBytes());
-            Map<String, String> attributes = allureAttributes(sanitized);
-            attributes.put("invalid", "false");
-            addTextItem(sourceReference, EvidenceCategory.ALLURE_RESULT, "application/json",
-                    retained, sourceTruncated || retained.length >= request.maxItemBytes(),
-                    attributes, "allure-result-json", items, state, request.maxBundleBytes());
-            String message = attributes.getOrDefault("failureMessage", "");
-            String trace = detailsText(sanitized.path("statusDetails").path("trace").asText(""));
-            if (!message.isBlank() || !trace.isBlank()) {
-                String exceptionText = redactor.redact(message + (trace.isBlank() ? "" : "\n" + trace));
-                addTextItem(sourceReference, EvidenceCategory.EXCEPTION_CHAIN, "text/plain",
-                        limit(exceptionText.getBytes(StandardCharsets.UTF_8), request.maxItemBytes()),
-                        sourceTruncated,
-                        Map.of(
-                                "status", attributes.getOrDefault("status", ""),
-                                "historyId", attributes.getOrDefault("historyId", ""),
-                                "signature", attributes.getOrDefault("signature", "")),
-                        "allure-exception-chain", items, state, request.maxBundleBytes());
-            }
+            collectAllureResultNode(parsed, sourceReference, sourceTruncated, request, redactor, items, state);
             collectAllureAttachments(parsed, file, roots, request, redactor, items, state);
         } catch (RuntimeException exception) {
             byte[] retained = "Malformed or truncated Allure result JSON."
@@ -259,6 +247,106 @@ public final class EvidenceCollector {
                     retained, sourceTruncated, Map.of("invalid", "true"),
                     "allure-result-json", items, state, request.maxBundleBytes());
         }
+    }
+
+    /**
+     * Converts one already-parsed Allure result JSON object into the same ALLURE_RESULT and
+     * EXCEPTION_CHAIN evidence shape regardless of whether it came from an individual
+     * {@code *-result.json} file or was recovered from a SHAFT single-file Allure HTML report.
+     * Attachment collection is deliberately excluded here: it is only meaningful for a real
+     * {@code *-result.json} file with attachment files on disk beside it, and is handled by the
+     * caller for that case.
+     */
+    private void collectAllureResultNode(
+            JsonNode parsed,
+            String sourceReference,
+            boolean sourceTruncated,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        JsonNode sanitized = redactor.redact(parsed);
+        byte[] retained = mapper.writer().with(printer)
+                .writeValueAsBytes(sanitized);
+        retained = limit(retained, request.maxItemBytes());
+        Map<String, String> attributes = allureAttributes(sanitized);
+        attributes.put("invalid", "false");
+        addTextItem(sourceReference, EvidenceCategory.ALLURE_RESULT, "application/json",
+                retained, sourceTruncated || retained.length >= request.maxItemBytes(),
+                attributes, "allure-result-json", items, state, request.maxBundleBytes());
+        String message = attributes.getOrDefault("failureMessage", "");
+        String trace = detailsText(sanitized.path("statusDetails").path("trace").asText(""));
+        if (!message.isBlank() || !trace.isBlank()) {
+            String exceptionText = redactor.redact(message + (trace.isBlank() ? "" : "\n" + trace));
+            addTextItem(sourceReference, EvidenceCategory.EXCEPTION_CHAIN, "text/plain",
+                    limit(exceptionText.getBytes(StandardCharsets.UTF_8), request.maxItemBytes()),
+                    sourceTruncated,
+                    Map.of(
+                            "status", attributes.getOrDefault("status", ""),
+                            "historyId", attributes.getOrDefault("historyId", ""),
+                            "signature", attributes.getOrDefault("signature", "")),
+                    "allure-exception-chain", items, state, request.maxBundleBytes());
+        }
+    }
+
+    /**
+     * Converts every embedded test result recovered from a SHAFT single-file Allure HTML report
+     * into the same evidence shape {@link #collectAllureResult} produces for individual
+     * {@code *-result.json} files, so downstream rule matching is unaffected by which form the
+     * evidence arrived in.
+     */
+    private void collectAllureHtmlReport(
+            String sourceReference,
+            AllureHtmlReportParser.ParseResult parsed,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        if (parsed.testResults().isEmpty()) {
+            byte[] retained = htmlReportWarning(parsed.malformedEntryCount()).getBytes(StandardCharsets.UTF_8);
+            addTextItem(sourceReference, EvidenceCategory.ALLURE_RESULT, "text/plain",
+                    retained, false, Map.of("invalid", "true"),
+                    "allure-html-report", items, state, request.maxBundleBytes());
+            return;
+        }
+        int index = 0;
+        for (JsonNode raw : parsed.testResults()) {
+            JsonNode normalized = normalizeHtmlEmbeddedResult(raw);
+            collectAllureResultNode(normalized, sourceReference + "#" + index, false,
+                    request, redactor, items, state);
+            index++;
+        }
+    }
+
+    private static String htmlReportWarning(int malformedEntryCount) {
+        return malformedEntryCount > 0
+                ? "SHAFT single-file Allure HTML report detected but " + malformedEntryCount
+                        + " embedded test result entr" + (malformedEntryCount == 1 ? "y" : "ies")
+                        + " could not be decoded and no valid test results were found."
+                : "SHAFT single-file Allure HTML report detected but it contains no embedded test results.";
+    }
+
+    /**
+     * The report embeds each test result with a top-level {@code error} object ({@code message},
+     * {@code trace}), while {@code *-result.json} files use {@code statusDetails} with the same two
+     * fields. Synthesizing {@code statusDetails} lets every downstream helper
+     * ({@link #allureAttributes}, {@link #collectAllureResultNode}) stay agnostic to which shape the
+     * evidence originated from.
+     */
+    private JsonNode normalizeHtmlEmbeddedResult(JsonNode raw) {
+        if (!raw.path("statusDetails").isMissingNode()) {
+            return raw;
+        }
+        JsonNode error = raw.path("error");
+        if (error.isMissingNode() || error.isNull()) {
+            return raw;
+        }
+        ObjectNode normalized = ((ObjectNode) raw).deepCopy();
+        ObjectNode statusDetails = mapper.createObjectNode();
+        statusDetails.put("message", error.path("message").asText(""));
+        statusDetails.put("trace", error.path("trace").asText(""));
+        normalized.set("statusDetails", statusDetails);
+        return normalized;
     }
 
     private void collectAccessibilityAudit(
@@ -726,9 +814,25 @@ public final class EvidenceCollector {
         put(attributes, "traceTop", shorten(firstLine(trace)));
         put(attributes, "signature", signature(message, trace));
         String method = label(result, "testMethod");
+        if (method.isBlank()) {
+            method = fallbackTestMethodFromFullName(result.path("fullName").asText(""));
+        }
         put(attributes, "testMethod", method);
         put(attributes, "fixturePhase", fixturePhase(result.path("name").asText(""), method));
         return attributes;
+    }
+
+    /**
+     * Some evidence sources (e.g. a recovered HTML report entry) may omit the {@code testMethod}
+     * label. {@code fullName} is conventionally {@code package.Class.method}, so the segment after
+     * the last dot is a reasonable fallback.
+     */
+    private static String fallbackTestMethodFromFullName(String fullName) {
+        if (fullName.isBlank()) {
+            return "";
+        }
+        int lastDot = fullName.lastIndexOf('.');
+        return lastDot < 0 ? fullName : fullName.substring(lastDot + 1);
     }
 
     private static String label(JsonNode result, String name) {

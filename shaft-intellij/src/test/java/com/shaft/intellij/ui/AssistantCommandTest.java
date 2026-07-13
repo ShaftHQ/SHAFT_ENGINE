@@ -270,6 +270,10 @@ class AssistantCommandTest {
                 () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
                 () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
+                // Natural-language codegen must end in the replay-proving generator, never the
+                // generate-only draft tool, so the returned locators are validated live.
+                () -> assertTrue(prompt.contains("capture_generate_replay"), prompt),
+                () -> assertFalse(prompt.contains("with capture_code_blocks"), prompt),
                 () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("navigate to https://duckduckgo.com"), prompt),
                 () -> assertFalse(prompt.contains("test_automation_scenarios OK")));
@@ -681,14 +685,23 @@ class AssistantCommandTest {
         assertEquals("autobot_local_agent_clients", command("/clients").toolName());
         assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
         // Explicit codegen against a Capture recording re-executes it (generate + compile +
-        // headless replay), per issue #3409; Playwright/mobile recordings keep generate-only
-        // tools because their recording schemas have no Capture-session replay path.
+        // headless replay), per issue #3409; Playwright/mobile recordings replay through their
+        // schema-native replay tools so their returned code blocks are proven live too.
         assertEquals("capture_generate_replay", command("/generatetest recordings/capture-session.json").toolName());
         assertTrue(command("/generatetest recordings/capture-session.json").arguments().get("replay").getAsBoolean());
         assertFalse(command("/generatetest recordings/capture-session.json").arguments().get("useAi").getAsBoolean());
-        assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
+        assertTrue(command("/generatetest recordings/playwright-session.json").isSequence());
+        assertEquals(List.of("playwright_initialize", "playwright_replay_recording"),
+                command("/generatetest recordings/playwright-session.json").toolCalls().stream()
+                        .map(AssistantCommand.ToolCall::toolName).toList());
+        assertEquals("recordings/playwright-session.json",
+                command("/generatetest recordings/playwright-session.json")
+                        .toolCalls().get(1).arguments().get("recordingPath").getAsString());
         assertEquals("capture_generate_replay", command("/codegen recordings/capture-session.json").toolName());
-        assertEquals("mobile_recording_code_blocks", command("/codegen mobile recordings/mobile-session.json").toolName());
+        assertEquals("mobile_replay_recording", command("/codegen mobile recordings/mobile-session.json").toolName());
+        assertEquals("recordings/mobile-session.json",
+                command("/codegen mobile recordings/mobile-session.json")
+                        .arguments().get("recordingPath").getAsString());
         assertEquals("mobile_inspector_record_prepare",
                 command("/record-mobile inspector Android recordings/inspector.json").toolName());
     }
@@ -759,10 +772,10 @@ class AssistantCommandTest {
 
         assertAll(
                 // default composer shows only the five core entry points
-                () -> assertEquals(List.of("/record-web", "/record-mobile", "/codegen", "/doctor", "/upgrade"),
+                () -> assertEquals(List.of("/record", "/record-mobile", "/codegen", "/doctor", "/upgrade"),
                         coreHints),
                 // Expert mode reveals the rest, including the two new commands
-                () -> assertTrue(allHints.containsAll(List.of("/record-web", "/record-mobile", "/codegen", "/doctor",
+                () -> assertTrue(allHints.containsAll(List.of("/record", "/record-mobile", "/codegen", "/doctor",
                         "/upgrade", "/partner", "/guide", "/guardrails", "/browser", "/mobile", "/project", "/verify",
                         "/skills"))),
                 () -> assertEquals(AssistantCommand.commandHints().size(), allHints.size()),
@@ -786,7 +799,7 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertTrue(help.isLocal()),
                 () -> assertTrue(response.contains("**/codegen**")),
-                () -> assertTrue(response.contains("**/record-web**")),
+                () -> assertTrue(response.contains("**/record**")),
                 () -> assertTrue(response.contains("**/record-mobile**")),
                 () -> assertTrue(response.contains("**/doctor**")),
                 () -> assertTrue(response.contains("**/upgrade**")),
@@ -798,7 +811,7 @@ class AssistantCommandTest {
                 () -> assertTrue(response.contains("/verify")),
                 () -> assertTrue(response.contains("/skills")),
                 () -> assertTrue(response.contains("```text\n/codegen recordings/intellij-capture.json\n```")),
-                () -> assertTrue(response.contains("```text\n/record-web https://example.com\n```")),
+                () -> assertTrue(response.contains("```text\n/record https://example.com\n```")),
                 () -> assertTrue(response.contains("```text\n/upgrade .\n```")),
                 () -> assertFalse(response.contains("/commands -")),
                 () -> assertFalse(response.contains("/assistant -")));
@@ -1079,6 +1092,24 @@ class AssistantCommandTest {
                 () -> assertTrue(command("what commands can I use for mobile recording?").isLocal()),
                 () -> assertTrue(command("what commands can I use for mobile recording?")
                         .localResponse().contains("/record-mobile")));
+    }
+
+    @Test
+    void naturalTriagePhrasingsRouteToAutoDiscoveringDoctor() {
+        // No path in the text -> empty allureResultPaths -> the server auto-discovers the newest
+        // allure-results directory or single-file AllureReport.html in the workspace.
+        for (String phrase : List.of(
+                "diagnose my last run",
+                "diagnose the latest run",
+                "analyze the latest report",
+                "why did my test fail?",
+                "why did my tests fail")) {
+            AssistantCommand.Invocation triage = command(phrase, "C:/work/project");
+            assertAll(phrase,
+                    () -> assertEquals("doctor_analyze_failed_allure", triage.toolName()),
+                    () -> assertEquals(0, triage.arguments().get("allureResultPaths").getAsJsonArray().size()),
+                    () -> assertEquals("C:/work/project", triage.arguments().get("repositoryRoot").getAsString()));
+        }
     }
 
     @Test

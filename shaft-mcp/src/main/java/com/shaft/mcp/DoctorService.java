@@ -74,7 +74,9 @@ public class DoctorService {
      */
     @Tool(name = "doctor_analyze_failed_allure",
             description = "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; "
-                    + "when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace")
+                    + "accepts allure-results directories, individual *-result.json files, or a SHAFT single-file "
+                    + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
+                    + "evidence found in the workspace")
     public McpAnalysisReport analyzeFailedAllure(
             List<String> allureResultPaths,
             List<String> historicalBundlePaths,
@@ -126,7 +128,7 @@ public class DoctorService {
         if (allureResultPaths != null && !allureResultPaths.isEmpty()) {
             return workspacePolicy.existingList(allureResultPaths, "Allure result path");
         }
-        Path latest = McpAllureResultsLocator.latest(workspacePolicy.root());
+        Path latest = McpAllureResultsLocator.latestEvidence(workspacePolicy.root()).orElse(null);
         if (latest == null) {
             throw new IllegalArgumentException("No Allure results were found in this workspace ("
                     + workspacePolicy.root() + "). Run the failing test with SHAFT reporting enabled first, "
@@ -154,7 +156,9 @@ public class DoctorService {
      */
     @Tool(name = "playwright_doctor_analyze_failed_allure",
             description = "analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; "
-                    + "when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace")
+                    + "accepts allure-results directories, individual *-result.json files, or a SHAFT single-file "
+                    + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
+                    + "evidence found in the workspace")
     @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpAnalysisReport analyzeFailedPlaywrightAllure(
             List<String> allureResultPaths,

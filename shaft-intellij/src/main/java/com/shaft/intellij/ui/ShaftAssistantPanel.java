@@ -151,6 +151,10 @@ final class ShaftAssistantPanel extends JPanel {
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
     private final JPanel timelinePanel;
+    /** True once a terminal step (Completed/Failed/Cancelled/Killed) has been recorded for the current run. */
+    private boolean terminalRecorded;
+    /** Wall-clock start of the current run, for the terminal-entry elapsed-time suffix. */
+    private long timelineStartNanos;
     private final JPanel actionRow;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
@@ -169,6 +173,8 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean running;
     private boolean sendCancelHover;
     private boolean cancelRequested;
+    /** True once the user's second cancel click escalates to a kill for the current invocation. */
+    private boolean killRequested;
     private boolean refreshingChats;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
@@ -690,6 +696,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void resetTimeline(String firstStep) {
         timelineModel.clear();
+        terminalRecorded = false;
+        timelineStartNanos = System.nanoTime();
         addTimeline(firstStep);
     }
 
@@ -697,15 +705,45 @@ final class ShaftAssistantPanel extends JPanel {
         if (step == null || step.isBlank()) {
             return;
         }
+        if (isTerminalStep(step)) {
+            if (terminalRecorded) {
+                return;
+            }
+            terminalRecorded = true;
+        }
         if (!timelineModel.isEmpty() && step.equals(timelineModel.lastElement())) {
             return;
         }
         timelineModel.addElement(step);
-        while (timelineModel.size() > 8) {
+        while (timelineModel.size() > 12) {
             timelineModel.remove(0);
         }
         timeline.ensureIndexIsVisible(timelineModel.size() - 1);
         updateActionChrome();
+    }
+
+    /** A terminal entry ends the run's timeline; only one is ever recorded per run (see {@link #resetTimeline}). */
+    private static boolean isTerminalStep(String step) {
+        return step.startsWith("Completed") || step.startsWith("Failed")
+                || step.startsWith("Cancelled") || step.startsWith("Killed");
+    }
+
+    /** Appends a terminal step with an elapsed-time suffix, e.g. "Completed (12s)". */
+    private void addTerminalTimeline(String step) {
+        addTimeline(step + elapsedTimelineSuffix());
+    }
+
+    private String elapsedTimelineSuffix() {
+        long elapsedSeconds = (System.nanoTime() - timelineStartNanos) / 1_000_000_000L;
+        if (elapsedSeconds < 1) {
+            return " (<1s)";
+        }
+        if (elapsedSeconds < 60) {
+            return " (" + elapsedSeconds + "s)";
+        }
+        long minutes = elapsedSeconds / 60;
+        long seconds = elapsedSeconds % 60;
+        return " (" + minutes + "m " + seconds + "s)";
     }
 
     List<ContextSuggestion> contextSuggestionsForTest(char trigger) {
@@ -1003,7 +1041,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
             showResponse("This request needs MCP tool access. Switch to **Agent** mode, then send it again.",
                     "");
-            addTimeline("Failed");
+            addTerminalTimeline("Failed");
             setRunning(false, "Switch to Agent mode");
             return;
         }
@@ -1018,18 +1056,18 @@ final class ShaftAssistantPanel extends JPanel {
                         conversationContext)) {
             showResponse("To let the agent make source edits, please enable **Allow source edits** before sending.",
                     "");
-            addTimeline("Failed");
+            addTerminalTimeline("Failed");
             setRunning(false, "Approve source edits");
             return;
         }
         prompt.setText("");
         if (invocation.isLocal()) {
-            addTimeline("Completed");
+            addTerminalTimeline("Completed");
             showLocalResponse(invocation.localResponse());
             return;
         }
         if (requiresMcpSetup(invocation, mcpConfigured())) {
-            addTimeline("Failed");
+            addTerminalTimeline("Failed");
             showLocalResponse("Configure SHAFT MCP in Settings before running this Assistant feature command.");
             setStatus("Configure MCP");
             return;
@@ -1122,7 +1160,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void runNextSequenceCall(int index) {
         if (index >= currentToolSequence.size()) {
-            addTimeline("Completed");
+            addTerminalTimeline("Completed");
             setRunning(false, READY_STATUS);
             showResponse("**SHAFT Assistant sequence OK**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
             clearSequenceState();
@@ -1277,7 +1315,7 @@ final class ShaftAssistantPanel extends JPanel {
                 .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
                 .append("\n\n");
         setRunning(false, "Rejected generated code");
-        addTimeline("Failed");
+        addTerminalTimeline("Failed");
         showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
                 sequenceRawOutput.toString());
         clearSequenceState();
@@ -1303,8 +1341,11 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showTerminalSequenceResult(boolean cancelled, String statusText) {
-        setRunning(false, cancelled ? "Cancelled" : "Failed");
-        addTimeline(cancelled ? "Cancelled" : "Failed");
+        // Snapshot before setRunning(false, ...), which clears killRequested for the next run.
+        boolean killed = cancelled && killRequested;
+        String terminalStep = cancelled ? (killed ? "Killed" : "Cancelled") : "Failed";
+        setRunning(false, terminalStep);
+        addTerminalTimeline(terminalStep);
         showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
                 sequenceRawOutput.toString());
         clearSequenceState();
@@ -1400,10 +1441,12 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
         boolean cancelled = error instanceof CancellationException;
+        // Snapshot before updateMcpConnectionCheckStatus's setRunning(false, ...) clears killRequested.
+        boolean killed = cancelled && killRequested;
         boolean success = error == null && result != null && result.success();
         updateMcpConnectionCheckStatus(toolName, success);
         if (cancelled) {
-            showCancelledToolResult(toolName);
+            showCancelledToolResult(toolName, killed);
             return;
         }
         String output = resolveOutput(result, error, "No result returned.");
@@ -1423,7 +1466,7 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (success && formatUnknownResponse(toolName, output, markdown)) {
-            addTimeline("Completed");
+            addTerminalTimeline("Completed");
             return;
         }
         showFinalToolResult(toolName, success, markdown, output);
@@ -1444,14 +1487,15 @@ final class ShaftAssistantPanel extends JPanel {
         return result == null ? noResultFallback : result.output();
     }
 
-    private void showCancelledToolResult(String toolName) {
-        addTimeline("Cancelled");
+    private void showCancelledToolResult(String toolName, boolean killed) {
+        String terminalStep = killed ? "Killed" : "Cancelled";
+        addTerminalTimeline(terminalStep);
         if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
             captureReviewGenerationRunning = false;
             clearPendingCaptureReview();
         }
-        showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
-        setStatus("Cancelled");
+        showResponse("**SHAFT Assistant (" + toolName + " " + terminalStep.toLowerCase(Locale.ROOT) + ")**", "");
+        setStatus(terminalStep);
     }
 
     private void showRejectedToolResult(String toolName, String markdown) {
@@ -1460,7 +1504,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
         setStatus("Rejected generated code");
-        addTimeline("Failed");
+        addTerminalTimeline("Failed");
     }
 
     private boolean showCaptureReviewApprovalIfPending(
@@ -1507,7 +1551,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + body, output);
-        addTimeline(success ? "Completed" : "Failed");
+        addTerminalTimeline(success ? "Completed" : "Failed");
         if (success && "capture_start".equals(toolName)) {
             scheduleCaptureStartDiagnostic(output);
         }
@@ -1522,6 +1566,8 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         boolean cancelled = error instanceof CancellationException;
+        // Snapshot before setRunning(false, ...) clears killRequested for the next run.
+        boolean killed = cancelled && killRequested;
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
         boolean captureIntegrationRun = captureIntegrationRunning;
@@ -1537,9 +1583,10 @@ final class ShaftAssistantPanel extends JPanel {
         setRunning(false, success ? READY_STATUS : "Failed");
         finishCaptureIntegrationIfRunning(success, result);
         if (cancelled) {
-            addTimeline("Cancelled");
+            String terminalStep = killed ? "Killed" : "Cancelled";
+            addTerminalTimeline(terminalStep);
             showAgentCancelled(streamToken, currentStream);
-            setStatus("Cancelled");
+            setStatus(terminalStep);
             return;
         }
         showAgentToolResult(streamToken, currentStream, success, result, error, captureIntegrationRun);
@@ -1605,11 +1652,11 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (rejectedGeneratedJava) {
             setStatus("Rejected generated code");
-            addTimeline("Failed");
+            addTerminalTimeline("Failed");
         }
         showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
         if (!rejectedGeneratedJava) {
-            addTimeline(success ? "Completed" : "Failed");
+            addTerminalTimeline(success ? "Completed" : "Failed");
         }
     }
 
@@ -1841,24 +1888,12 @@ final class ShaftAssistantPanel extends JPanel {
             return markdown;
         }
         AssistantLocalAgentRunner.TokenUsage reported = AssistantLocalAgentRunner.parseTokenUsage(rawResponse);
-        if (reported != null) {
-            return markdown + "\n\n**Tokens consumed:** `" + reported.totalTokens() + "` (input: "
-                    + reported.inputTokens() + ", output: " + reported.outputTokens() + ")";
+        if (reported == null) {
+            // No usage metadata was reported -- an invented estimate is worse than no number at all.
+            return markdown;
         }
-        int tokens = estimatedTokenCount(lastPrompt) + estimatedTokenCount(rawResponse == null || rawResponse.isBlank()
-                ? markdown
-                : rawResponse);
-        return markdown + "\n\n**Tokens consumed:** `" + Math.max(1, tokens) + "` (estimated)";
-    }
-
-    private static int estimatedTokenCount(String value) {
-        String text = value == null ? "" : value.strip();
-        if (text.isBlank()) {
-            return 0;
-        }
-        int characters = text.codePointCount(0, text.length());
-        int words = text.split("\\s+").length;
-        return Math.max(words, (characters + 3) / 4);
+        return markdown + "\n\n**Tokens consumed:** `" + reported.totalTokens() + "` (input: "
+                + reported.inputTokens() + ", output: " + reported.outputTokens() + ")";
     }
 
     private void append(String role, String text, String rawResponse) {
@@ -1874,6 +1909,7 @@ final class ShaftAssistantPanel extends JPanel {
         this.running = running;
         if (running && !wasRunning) {
             cancelRequested = false;
+            killRequested = false;
         }
         send.setEnabled(true);
         chatSelector.setEnabled(!running);
@@ -1911,6 +1947,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (!running) {
             currentInvocation = null;
             cancelRequested = false;
+            killRequested = false;
             updateCancelButtonState();
         }
     }
@@ -2693,15 +2730,20 @@ final class ShaftAssistantPanel extends JPanel {
     private void cancelOrKillCurrent() {
         if (currentInvocation != null) {
             if (cancelRequested) {
+                killRequested = true;
                 stopLocalAgentStreaming();
                 currentInvocation.kill();
                 setStatus("Killing...");
-                addTimeline("Killed");
+                // The terminal "Killed" entry is recorded by the completion callback once the kill
+                // actually lands (see showCancelledToolResult / showAgentResult / showTerminalSequenceResult);
+                // this request-time entry is only an in-flight status.
+                addTimeline("Killing...");
             } else {
                 currentInvocation.cancel();
                 cancelRequested = true;
                 setStatus("Cancelling...");
-                addTimeline("Cancelled");
+                // Same as above: the terminal "Cancelled" entry comes from the completion callback.
+                addTimeline("Cancelling...");
             }
             updateSendButtonState();
             updateCancelButtonState();
@@ -3211,41 +3253,48 @@ final class ShaftAssistantPanel extends JPanel {
             return label;
         }
 
+        // Terminal steps carry an elapsed-time suffix (e.g. "Completed (12s)"), so matching uses
+        // startsWith rather than equality for the Completed/Failed/Cancelled/Killed families.
         private static String timelineIcon(String step) {
             if (step == null || step.isBlank()) {
                 return "";
             }
-            return switch (step) {
-                case "Completed" -> ShaftStatusPresentation.SUCCESS_ICON;
-                case "Failed" -> ShaftStatusPresentation.ERROR_ICON;
-                default -> {
-                    if ("Running".equals(step) || step.startsWith("Tool selected: ")) {
-                        yield ShaftStatusPresentation.PENDING_ICON;
-                    }
-                    yield "";
-                }
-            };
+            if (step.startsWith("Completed")) {
+                return ShaftStatusPresentation.SUCCESS_ICON;
+            }
+            if (step.startsWith("Failed")) {
+                return ShaftStatusPresentation.ERROR_ICON;
+            }
+            if (step.startsWith("Cancelled") || step.startsWith("Killed") || "Denied".equals(step)) {
+                return ShaftStatusPresentation.WARNING_ICON;
+            }
+            if ("Running".equals(step) || step.startsWith("Tool selected: ")
+                    || "Cancelling...".equals(step) || "Killing...".equals(step)
+                    || "Waiting for approval".equals(step)) {
+                return ShaftStatusPresentation.PENDING_ICON;
+            }
+            return "";
         }
 
         private static Color timelineColor(String step) {
             if (step == null || step.isBlank()) {
                 return null;
             }
-            return switch (step) {
-                case "Completed" -> ShaftStatusPresentation.success();
-                case "Failed" -> ShaftStatusPresentation.error();
-                case "Running" -> ShaftStatusPresentation.progress();
-                default -> {
-                    if (step.startsWith("Tool selected: ")) {
-                        yield ShaftStatusPresentation.progress();
-                    }
-                    if ("Ready".equals(step) || "Waiting for approval".equals(step)
-                            || "Cancelled".equals(step) || "Killed".equals(step)) {
-                        yield ShaftStatusPresentation.pending();
-                    }
-                    yield null;
-                }
-            };
+            if (step.startsWith("Completed")) {
+                return ShaftStatusPresentation.success();
+            }
+            if (step.startsWith("Failed") || "Denied".equals(step)) {
+                return ShaftStatusPresentation.error();
+            }
+            if ("Running".equals(step) || step.startsWith("Tool selected: ")) {
+                return ShaftStatusPresentation.progress();
+            }
+            if ("Ready".equals(step) || "Waiting for approval".equals(step)
+                    || "Cancelling...".equals(step) || "Killing...".equals(step)
+                    || step.startsWith("Cancelled") || step.startsWith("Killed")) {
+                return ShaftStatusPresentation.pending();
+            }
+            return null;
         }
     }
 }
