@@ -829,6 +829,24 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelNeverClaimsDetectedWhenNoAgentProbeSucceeded() {
+        ShaftMcpSetupPanel freshMachine = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure("not found"));
+
+        ShaftSettingsState.Settings saved = blankMcpSettings();
+        saved.assistantFamily = "CLAUDE";
+        ShaftMcpSetupPanel savedSelection = new ShaftMcpSetupPanel(fakeProject(), saved, () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure("not found"));
+
+        assertAll(
+                // "detected" is a real-check claim: with every probe failing it must never appear.
+                () -> assertFalse(containsText(freshMachine, "Recommended: Codex CLI detected")),
+                () -> assertTrue(containsText(freshMachine, "not detected yet")),
+                () -> assertFalse(containsText(savedSelection, "Recommended: Claude Code CLI detected")),
+                () -> assertTrue(containsText(savedSelection, "Recommended: Claude Code CLI (your saved selection)")));
+    }
+
+    @Test
     void setupPanelShowsBlankManualCommandDiagnostic() throws Exception {
         Path appData = tempDirectory("shaft-mcp-empty-app-data");
         Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
