@@ -1237,7 +1237,7 @@ public final class CaptureGenerator {
             case ARIA_SNAPSHOT_MATCHES -> line(source, "        driver.element().assertThat(" + locator
                     + ").matchesAriaSnapshot(" + dataExpression(expected, data) + ");");
             case SCREENSHOT_MATCHES -> line(source, "        driver.element().assertThat(" + locator
-                    + ").matchesScreenshot().perform();");
+                    + ").matchesScreenshot();");
         }
     }
 

@@ -2,6 +2,7 @@ package com.shaft.validation.internal;
 
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.VisualComparisonOptions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -128,18 +129,32 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
 
     /**
      * Use this to check that the target element matches its visual-regression baseline screenshot
-     * (pixel diff via OpenCV; see {@link VisualValidationsBuilder} for diff-budget/mask options).
-     * On the first test run this method takes a screenshot of the target element and the test passes,
-     * saving it as the baseline for subsequent runs. Baselines are stored alongside the other visual
-     * baselines under the configured {@code dynamicObjectRepositoryPath}.
+     * (pixel diff via OpenCV). On the first test run this method takes a screenshot of the target
+     * element and the test passes, saving it as the baseline for subsequent runs. Baselines are stored
+     * alongside the other visual baselines under the configured {@code dynamicObjectRepositoryPath}.
+     * The comparison executes immediately &mdash; no {@code perform()} is required.
      *
-     * @return a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation
+     * @return a ValidationsExecutor object to optionally set a custom validation message
      */
     @Override
-    public VisualValidationsBuilder matchesScreenshot() {
+    public ValidationsExecutor matchesScreenshot() {
+        return matchesScreenshot(null);
+    }
+
+    /**
+     * Same as {@link #matchesScreenshot()}, but with diff-budget/mask options (see
+     * {@link VisualComparisonOptions}). The comparison executes immediately.
+     *
+     * @param options the visual comparison options (diff budgets, masks), or {@code null} for defaults
+     * @return a ValidationsExecutor object to optionally set a custom validation message
+     */
+    @Override
+    public ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
         appendShaftElementNameIfAvailable();
         reportMessageBuilder.append("matches the visual regression baseline screenshot.");
-        return new VisualValidationsBuilder(validationCategory, driver, locator, false, reportMessageBuilder);
+        return new VisualValidationsBuilder(validationCategory, driver, locator, false, reportMessageBuilder)
+                .applyOptions(options)
+                .perform();
     }
 
     /**

@@ -4,9 +4,9 @@ import com.microsoft.playwright.Locator;
 import com.shaft.gui.driver.ElementAssertions;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
-import com.shaft.validation.internal.VisualValidationsBuilder;
 
 public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
@@ -167,10 +167,20 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     }
 
     @Override
-    public VisualValidationsBuilder matchesScreenshot() {
+    public ValidationsExecutor matchesScreenshot() {
+        return matchesScreenshot(null);
+    }
+
+    @Override
+    public ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
         appendShaftElementNameIfAvailable();
         reportMessageBuilder.append("matches the visual regression baseline screenshot.");
-        return new PlaywrightVisualValidationsBuilder(validationCategory, session, locator, locatorDescription, false, reportMessageBuilder);
+        var builder = new PlaywrightVisualValidationsBuilder(validationCategory, session, locator, locatorDescription, false, reportMessageBuilder);
+        builder.applyOptions(options);
+        if (options instanceof PlaywrightVisualComparisonOptions playwrightOptions) {
+            builder.mask(playwrightOptions.getPlaywrightMaskLocators().toArray(new Locator[0]));
+        }
+        return builder.perform();
     }
 
     private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {

@@ -1,6 +1,7 @@
 package com.shaft.validation.internal;
 
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.VisualComparisonOptions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -66,6 +67,27 @@ public class VisualValidationsBuilder {
      */
     public VisualValidationsBuilder mask(By... masks) {
         this.maskLocators.addAll(Arrays.asList(masks));
+        return this;
+    }
+
+    /**
+     * Copies the diff-budget and mask settings from a public {@link VisualComparisonOptions} object
+     * onto this internal builder. Playwright {@code Locator}-based masks are handled separately by
+     * the Playwright entry points.
+     *
+     * @param options the caller-supplied options, or {@code null} for defaults
+     * @return this builder, to continue chaining
+     */
+    public VisualValidationsBuilder applyOptions(VisualComparisonOptions options) {
+        if (options != null) {
+            if (options.getMaxDiffPixels() != null) {
+                this.maxDiffPixels = options.getMaxDiffPixels();
+            }
+            if (options.getMaxDiffPixelRatio() != null) {
+                this.maxDiffPixelRatio = options.getMaxDiffPixelRatio();
+            }
+            this.maskLocators.addAll(options.getMaskLocators());
+        }
         return this;
     }
 

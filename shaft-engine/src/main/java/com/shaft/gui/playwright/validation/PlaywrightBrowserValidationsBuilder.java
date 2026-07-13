@@ -1,10 +1,12 @@
 package com.shaft.gui.playwright.validation;
 
+import com.microsoft.playwright.Locator;
 import com.shaft.gui.driver.BrowserAssertions;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
-import com.shaft.validation.internal.VisualValidationsBuilder;
+import com.shaft.validation.internal.ValidationsExecutor;
 
 public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
@@ -52,9 +54,19 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     }
 
     @Override
-    public VisualValidationsBuilder matchesScreenshot() {
+    public ValidationsExecutor matchesScreenshot() {
+        return matchesScreenshot(null);
+    }
+
+    @Override
+    public ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
         reportMessageBuilder.append("page matches the visual regression baseline screenshot.");
-        return new PlaywrightVisualValidationsBuilder(validationCategory, session, null, null, true, reportMessageBuilder);
+        var builder = new PlaywrightVisualValidationsBuilder(validationCategory, session, null, null, true, reportMessageBuilder);
+        builder.applyOptions(options);
+        if (options instanceof PlaywrightVisualComparisonOptions playwrightOptions) {
+            builder.mask(playwrightOptions.getPlaywrightMaskLocators().toArray(new Locator[0]));
+        }
+        return builder.perform();
     }
 
     private NativeValidationsBuilder builder(String browserAttribute) {

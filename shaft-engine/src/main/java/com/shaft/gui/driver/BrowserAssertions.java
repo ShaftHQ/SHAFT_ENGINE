@@ -1,7 +1,8 @@
 package com.shaft.gui.driver;
 
+import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
-import com.shaft.validation.internal.VisualValidationsBuilder;
+import com.shaft.validation.internal.ValidationsExecutor;
 
 /**
  * Public contract for browser-level hard/soft validation starters.
@@ -25,11 +26,23 @@ public interface BrowserAssertions {
     NativeValidationsBuilder text();
 
     /**
-     * Starts a visual-regression assertion against the current page's baseline full-page screenshot.
+     * Asserts that the current page matches its baseline full-page screenshot. Executes immediately,
+     * like every other assertion &mdash; no {@code perform()} is required.
      *
-     * @return a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation
+     * @return a ValidationsExecutor object to optionally set a custom validation message
      */
-    default VisualValidationsBuilder matchesScreenshot() {
+    default ValidationsExecutor matchesScreenshot() {
+        throw new UnsupportedOperationException("matchesScreenshot is not supported by this browser assertions implementation.");
+    }
+
+    /**
+     * Asserts that the current page matches its baseline full-page screenshot, using the given
+     * diff-budget/mask options (see {@link VisualComparisonOptions}). Executes immediately.
+     *
+     * @param options the visual comparison options (diff budgets, masks), or {@code null} for defaults
+     * @return a ValidationsExecutor object to optionally set a custom validation message
+     */
+    default ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
         throw new UnsupportedOperationException("matchesScreenshot is not supported by this browser assertions implementation.");
     }
 }
