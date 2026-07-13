@@ -490,12 +490,14 @@ public class PropertiesHelper {
             case "CUSTOM" -> {
                 // respect granular evidence properties
             }
+            // "auto" keeps the retry-aware trace default: it resolves to retry mode when
+            // retryMaximumNumberOfAttempts > 0 and to plain failure mode otherwise.
             case "FAILURE_ONLY" -> applyEvidenceLevel("FailuresOnly", "FailuresOnly", false, false,
-                    false, false, true, true, "failure");
+                    false, false, true, true, "auto");
             case "BALANCED" -> applyEvidenceLevel("ValidationPointsOnly", "FailuresOnly", false, false,
-                    false, false, true, true, "failure");
+                    false, false, true, true, "auto");
             case "FAST" -> applyEvidenceLevel("Never", "Never", false, false,
-                    false, false, false, false, "failure");
+                    false, false, false, false, "auto");
             case "FULL" -> applyEvidenceLevel("Always", "Always", true, true,
                     true, true, true, true, "always");
             default -> throw new IllegalArgumentException("Unsupported evidenceLevel \""
