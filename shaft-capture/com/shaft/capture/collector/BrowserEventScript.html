@@ -51,6 +51,7 @@
 <li><a href="#preloadFunction()" tabindex="0">preloadFunction()</a></li>
 <li><a href="#preloadFunction(java.util.List)" tabindex="0">preloadFunction(List)</a></li>
 <li><a href="#preloadFunction(java.util.List,java.lang.String,java.lang.String)" tabindex="0">preloadFunction(List, String, String)</a></li>
+<li><a href="#preloadFunction(java.util.List,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">preloadFunction(List, String, String, String, String)</a></li>
 <li><a href="#fallbackInstallation()" tabindex="0">fallbackInstallation()</a></li>
 <li><a href="#fallbackInstallation(java.util.List)" tabindex="0">fallbackInstallation(List)</a></li>
 <li><a href="#fallbackInstallation(java.util.List,java.lang.String,java.lang.String)" tabindex="0">fallbackInstallation(List, String, String)</a></li>
@@ -143,6 +144,17 @@ control-server steps endpoint used to rehydrate the recorder UI step list across
 navigations, including cross-origin ones, from the server-side session store rather than
 page-scoped storage.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#preloadFunction(java.util.List,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">preloadFunction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsToken,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventToken)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the BiDi preload function declaration with the loopback event sink baked in, so
+preload-installed recorder instances deliver every signal through both the BiDi script
+channel and the HTTP sink.</div>
+</div>
 </div>
 </div>
 </div>
@@ -204,6 +216,32 @@ page-scoped storage.</div>
 <dd><code>testIdAttributes</code> - locator test-id attributes</dd>
 <dd><code>stepsEndpoint</code> - loopback steps query endpoint</dd>
 <dd><code>stepsToken</code> - loopback steps query token</dd>
+<dt>Returns:</dt>
+<dd>JavaScript function</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="preloadFunction(java.util.List,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+<h3>preloadFunction</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">preloadFunction</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsToken,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventToken)</span></div>
+<div class="block">Returns the BiDi preload function declaration with the loopback event sink baked in, so
+preload-installed recorder instances deliver every signal through both the BiDi script
+channel and the HTTP sink. Single-channel preload delivery lost signals from
+back/forward-cache restored pages.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>testIdAttributes</code> - locator test-id attributes</dd>
+<dd><code>stepsEndpoint</code> - loopback steps query endpoint</dd>
+<dd><code>stepsToken</code> - loopback steps query token</dd>
+<dd><code>eventEndpoint</code> - loopback event endpoint</dd>
+<dd><code>eventToken</code> - loopback event token</dd>
 <dt>Returns:</dt>
 <dd>JavaScript function</dd>
 </dl>

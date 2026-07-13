@@ -52,6 +52,7 @@
 <li><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver)" tabindex="0">BidiBrowserEventCollector(WebDriver)</a></li>
 <li><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.util.List)" tabindex="0">BidiBrowserEventCollector(WebDriver, List)</a></li>
 <li><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.util.List,java.lang.String,java.lang.String)" tabindex="0">BidiBrowserEventCollector(WebDriver, List, String, String)</a></li>
+<li><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.util.List,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">BidiBrowserEventCollector(WebDriver, List, String, String, String, String)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -110,6 +111,17 @@ implements <a href="BrowserEventCollector.html" title="interface in com.shaft.ca
 <div class="block">Creates a BiDi collector with a steps-rehydration endpoint so the recorder UI can source its
 step list from the server-side session store across navigations, including cross-origin
 ones, instead of page-scoped storage.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.util.List,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">BidiBrowserEventCollector</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsToken,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventToken)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Creates a BiDi collector whose preload script also posts every signal to the loopback
+event sink, so preload-installed recorder instances have two delivery channels (the BiDi
+script channel and the HTTP sink).</div>
 </div>
 </div>
 </section>
@@ -198,6 +210,32 @@ ones, instead of page-scoped storage.</div>
 <dd><code>testIdAttributes</code> - locator test-id attributes</dd>
 <dd><code>stepsEndpoint</code> - optional loopback steps query endpoint</dd>
 <dd><code>stepsToken</code> - optional loopback steps query token</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(org.openqa.selenium.WebDriver,java.util.List,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
+<h3>BidiBrowserEventCollector</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">BidiBrowserEventCollector</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepsToken,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventEndpoint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;eventToken)</span></div>
+<div class="block">Creates a BiDi collector whose preload script also posts every signal to the loopback
+event sink, so preload-installed recorder instances have two delivery channels (the BiDi
+script channel and the HTTP sink). Single-channel preload delivery lost signals from
+back/forward-cache restored pages.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>driver</code> - BiDi-capable driver</dd>
+<dd><code>testIdAttributes</code> - locator test-id attributes</dd>
+<dd><code>stepsEndpoint</code> - optional loopback steps query endpoint</dd>
+<dd><code>stepsToken</code> - optional loopback steps query token</dd>
+<dd><code>eventEndpoint</code> - optional loopback event endpoint</dd>
+<dd><code>eventToken</code> - optional loopback event token</dd>
 </dl>
 </div>
 </section>
