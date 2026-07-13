@@ -211,3 +211,4 @@
 {"actor":"agent","event":"memory.created","id":"workflow.codacy-pr-findings-are-readable-unauthenticated-via-the-public-api","timestamp":"2026-07-12T19:24:23+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.local-mvn-test-never-fails-the-build-read-surefire-xml-counts-for-verdicts","timestamp":"2026-07-12T19:43:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.visual-evidence-for-shaft-offline-html-report-templates-via-shaft-mcp-headless-chrome","timestamp":"2026-07-12T19:43:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-properties-flags-set-is-jvm-global-clearforcurrentthread-never-resets-it","timestamp":"2026-07-13T19:55:47+03:00"}

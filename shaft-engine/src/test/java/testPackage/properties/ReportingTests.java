@@ -17,6 +17,7 @@ public class ReportingTests {
     int diagnosticsMaxArtifactMb;
     boolean traceEnabled;
     String traceMode;
+    boolean traceRetainFailedAttempts;
     boolean traceIncludeCodeContext;
     boolean traceIncludeFullPageSnapshots;
     boolean traceIncludeNativePageSource;
@@ -38,6 +39,7 @@ public class ReportingTests {
         diagnosticsMaxArtifactMb = SHAFT.Properties.reporting.diagnosticsMaxArtifactMb();
         traceEnabled = SHAFT.Properties.reporting.traceEnabled();
         traceMode = SHAFT.Properties.reporting.traceMode();
+        traceRetainFailedAttempts = SHAFT.Properties.reporting.traceRetainFailedAttempts();
         traceIncludeCodeContext = SHAFT.Properties.reporting.traceIncludeCodeContext();
         traceIncludeFullPageSnapshots = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
         traceIncludeNativePageSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
@@ -61,6 +63,7 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().diagnosticsMaxArtifactMb(diagnosticsMaxArtifactMb);
         SHAFT.Properties.reporting.set().traceEnabled(traceEnabled);
         SHAFT.Properties.reporting.set().traceMode(traceMode);
+        SHAFT.Properties.reporting.set().traceRetainFailedAttempts(traceRetainFailedAttempts);
         SHAFT.Properties.reporting.set().traceIncludeCodeContext(traceIncludeCodeContext);
         SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(traceIncludeFullPageSnapshots);
         SHAFT.Properties.reporting.set().traceIncludeNativePageSource(traceIncludeNativePageSource);

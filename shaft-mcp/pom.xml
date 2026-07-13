@@ -21,6 +21,19 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- GHSA advisory (low): logback-core < 1.5.35 Object Injection via HardenedObjectInputStream.
+                 Spring Boot 4.1.0 manages 1.5.34; direct entries outrank the imported Boot BOM.
+                 Drop once a Boot bump ships logback 1.5.35+. -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.35</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.35</version>
+            </dependency>
             <!-- Import the reactor's selenium-bom before spring-boot-dependencies: Spring Boot
                  also manages org.seleniumhq.selenium artifacts (at an older version), and the
                  first import wins, so without this shaft-mcp runs Selenium 4.43 test classpaths

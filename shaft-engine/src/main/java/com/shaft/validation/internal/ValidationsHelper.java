@@ -1023,7 +1023,7 @@ public class ValidationsHelper {
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
             TraceEventRecorder.finish(traceEvent, "failed",
                     this.validationCategoryString.replace("erify", "erificat") + "ion failed",
-                    assertionError, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));
+                    assertionError, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
             // single timed outcome step: the failure message is reported exactly once,
             // spanning the real validation duration
             ReportManagerHelper.writeStepToReport(finalFailureMessage, Level.ERROR, Status.FAILED, this.validationStartTime);
@@ -1043,17 +1043,29 @@ public class ValidationsHelper {
                     Level.INFO, Status.PASSED, this.validationStartTime);
             TraceEventRecorder.finish(traceEvent, "passed",
                     this.validationCategoryString.replace("erify", "erificat") + "ion passed",
-                    null, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));
+                    null, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
         }
     }
 
-    private static Map<String, String> traceMetadata(CheckpointType checkpointType, By locator) {
+    private static Map<String, String> traceMetadata(CheckpointType checkpointType, By locator,
+                                                     Object expected, Object actual) {
         Map<String, String> metadata = new LinkedHashMap<>();
         metadata.put("checkpointType", checkpointType.name().toLowerCase());
+        metadata.put("expected", truncateForTrace(expected));
+        metadata.put("actual", truncateForTrace(actual));
         if (locator != null) {
             metadata.put("locator", JavaHelper.formatLocatorToString(locator));
         }
         return metadata;
+    }
+
+    /**
+     * Bounds expected/actual values embedded in trace metadata so page-sized comparisons cannot
+     * bloat the trace bundle; the full values remain available as report attachments.
+     */
+    private static String truncateForTrace(Object value) {
+        String text = String.valueOf(value);
+        return text.length() <= 500 ? text : text.substring(0, 500) + "… [truncated]";
     }
 
     private static List<String> summarizeAttachments(List<List<Object>> attachments) {

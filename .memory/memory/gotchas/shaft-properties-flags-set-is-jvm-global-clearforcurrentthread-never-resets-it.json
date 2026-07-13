@@ -1,0 +1,42 @@
+{
+  "body_path": "memory/gotchas/shaft-properties-flags-set-is-jvm-global-clearforcurrentthread-never-resets-it.md",
+  "content_hash": "sha256:eef00b1f357113f37c992b36bae31a885b33724a0d34d1229170379d71135227",
+  "created_at": "2026-07-13T19:55:47+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/properties/internal/Flags.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/properties/internal/ThreadLocalPropertiesManager.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/properties/internal/Properties.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-properties-flags-set-is-jvm-global-clearforcurrentthread-never-resets-it",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Add retry-aware trace tests for #3503 (branch codex/3503-trace-retry-aware-defaults)"
+  },
+  "status": "active",
+  "tags": [
+    "properties",
+    "testing",
+    "thread-safety"
+  ],
+  "title": "SHAFT.Properties.flags.set() is JVM-global; clearForCurrentThread() never resets it",
+  "type": "gotcha",
+  "updated_at": "2026-07-13T19:55:47+03:00"
+}

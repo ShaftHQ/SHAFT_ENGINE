@@ -64,7 +64,8 @@ public class FailureTraceReporterTest {
 
             List<Attachment> added = attachments().subList(beforePassing, attachments().size());
             Assert.assertEquals(added.size(), 1, "Only the self-contained trace archive should be attached.");
-            Assert.assertEquals(added.getFirst().getName(), "shaft-trace.zip");
+            Assert.assertEquals(added.getFirst().getName(), "SHAFT Trace Report - id-failingScenario",
+                    "Attachment label carries the test id (and attempt suffix once retried) for retry-aware trace attribution.");
             Assert.assertEquals(added.getFirst().getType(), "application/zip");
             Assert.assertFalse(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())),
                     "No dangling HTML attachment outside the archive.");
@@ -695,7 +696,8 @@ public class FailureTraceReporterTest {
     public void traceReportingPropertiesShouldHaveDefaultsAndSetters() {
         try {
             Assert.assertTrue(SHAFT.Properties.reporting.traceEnabled());
-            Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "failure");
+            Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "auto");
+            Assert.assertTrue(SHAFT.Properties.reporting.traceRetainFailedAttempts());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeCodeContext());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeScreenshots());
@@ -707,6 +709,7 @@ public class FailureTraceReporterTest {
             SHAFT.Properties.reporting.set()
                     .traceEnabled(false)
                     .traceMode("always")
+                    .traceRetainFailedAttempts(false)
                     .traceIncludeCodeContext(false)
                     .traceIncludeFullPageSnapshots(false)
                     .traceIncludeScreenshots(false)
@@ -717,6 +720,7 @@ public class FailureTraceReporterTest {
 
             Assert.assertFalse(SHAFT.Properties.reporting.traceEnabled());
             Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "always");
+            Assert.assertFalse(SHAFT.Properties.reporting.traceRetainFailedAttempts());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeCodeContext());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeScreenshots());
@@ -729,10 +733,175 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "Auto trace mode without configured retries should resolve to failure semantics")
+    public void autoModeWithoutRetriesShouldBehaveLikeFailureMode() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("auto");
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(0);
+
+            Assert.assertEquals(FailureTraceReporter.effectiveTraceMode(), "failure");
+            Assert.assertFalse(FailureTraceReporter.shouldAttachTrace(info("autoModeNoRetryPassingScenario", null)),
+                    "A passing, non-retried test must not attach a trace under resolved failure semantics.");
+            Assert.assertTrue(FailureTraceReporter.shouldAttachTrace(info("autoModeNoRetryFailingScenario", failure())),
+                    "A failing test must still attach a trace under resolved failure semantics.");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Auto trace mode should promote to retry semantics when retries are configured")
+    public void autoModeWithRetriesShouldPromoteToRetrySemantics() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("auto");
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+            Assert.assertEquals(FailureTraceReporter.effectiveTraceMode(), "retry");
+            TestExecutionInfo retriedPassingInfo = info("autoModeWithRetryPassingScenario", null, true);
+            Assert.assertTrue(FailureTraceReporter.shouldAttachTrace(retriedPassingInfo),
+                    "A retried passing test must attach a trace once auto mode resolves to retry semantics.");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Explicit failure trace mode should not auto-promote even when retries are configured")
+    public void explicitFailureModeShouldNotAutoPromoteWithRetries() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+            Assert.assertEquals(FailureTraceReporter.effectiveTraceMode(), "failure",
+                    "An explicit trace mode value must be honored unchanged, never auto-promoted.");
+            TestExecutionInfo retriedPassingInfo = info("explicitFailureModeRetryPassingScenario", null, true);
+            Assert.assertFalse(FailureTraceReporter.shouldAttachTrace(retriedPassingInfo),
+                    "Explicit failure mode must not attach traces for retried passing tests.");
+        } finally {
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Retained failed attempts should coexist with the latest attempt archive and be recorded in attempts history")
+    public void retriesShouldRetainFailedAttemptArchivesWhenEnabled() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        TestExecutionInfo failingAttempt = info("attemptRetentionScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingAttempt);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("retry").traceRetainFailedAttempts(true);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+            FailureTraceReporter.attachOnFailure(failingAttempt, "attempt one failed", List.of());
+            Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace-attempt-1.zip")),
+                    "The failed first attempt bundle should be retained under its attempt-indexed name.");
+            Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")));
+
+            TestExecutionInfo passingRetry = info("attemptRetentionScenario", null, true);
+            FailureTraceReporter.attachOnFailure(passingRetry, "attempt two passed", List.of());
+
+            Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace-attempt-1.zip")),
+                    "The retained failed attempt bundle must survive a later passing retry.");
+            Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")),
+                    "The root archive should always reflect the latest attempt.");
+
+            String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("\"attempt\": \"2\""), index);
+            Assert.assertTrue(index.contains("\"retried\": \"true\""), index);
+            Assert.assertTrue(index.contains("\"attempts\": ["), index);
+            Assert.assertTrue(index.contains("\"attempt\": 1"), index);
+            Assert.assertTrue(index.contains("\"attempt\": 2"), index);
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Disabling attempt retention should skip persisting attempt-indexed archives for failed retries")
+    public void retriesShouldNotRetainFailedAttemptArchivesWhenDisabled() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        TestExecutionInfo failingAttempt = info("attemptRetentionDisabledScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingAttempt);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("retry").traceRetainFailedAttempts(false);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+            FailureTraceReporter.attachOnFailure(failingAttempt, "attempt one failed", List.of());
+
+            Assert.assertFalse(Files.exists(traceDirectory.resolve("shaft-trace-attempt-1.zip")),
+                    "No attempt-indexed archive should be written when retention is disabled.");
+            Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")));
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "renderTraceJson four-arg overload should embed the attempt number and effective trace mode")
+    public void renderTraceJsonFourArgShouldIncludeAttemptAndTraceMode() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            String json = FailureTraceReporter.renderTraceJson(
+                    info("attemptFieldScenario", failure()), "failed", List.of(), 3);
+
+            Assert.assertTrue(json.contains("\"attempt\": \"3\""), json);
+            Assert.assertTrue(json.contains("\"traceMode\": \"failure\""), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Oversized bundle entries should be listed in index.json omittedEntries instead of failing silently")
+    public void oversizedScreenshotShouldBeListedInOmittedEntries() throws Exception {
+        TestExecutionInfo failingInfo = info("truncationScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        try {
+            deleteDirectory(traceDirectory);
+            // Buffer the oversized screenshot while the artifact cap is generous: TraceEventRecorder.recordScreenshot
+            // enforces shaft.trace.maxArtifactMb as a live *buffering* budget and would silently drop (never buffer)
+            // a screenshot larger than the cap in effect at record time, which would short-circuit this test before
+            // it ever reached the persist-time omission-marker logic under exercise.
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeScreenshots(true).traceMaxArtifactMb(50);
+            byte[] oversizedPng = new byte[2 * 1024 * 1024];
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(event, oversizedPng);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+
+            // Now shrink the cap so the already-buffered 2MB screenshot exceeds it at persist time.
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("\"omittedEntries\": ["), index);
+            Assert.assertTrue(index.contains("screenshots/action-1.png"), index);
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
     private static TestExecutionInfo info(String methodName, Throwable throwable) throws Exception {
+        return info(methodName, throwable, false);
+    }
+
+    private static TestExecutionInfo info(String methodName, Throwable throwable, boolean retried) throws Exception {
         Method method = FailureTraceReporterTest.class.getDeclaredMethod("failingScenario");
         return new TestExecutionInfo("id-" + methodName, "customer.LoginTest", methodName, methodName,
-                "trace test", method, throwable, false);
+                "trace test", method, throwable, retried);
     }
 
     private static TestExecutionInfo infoUnchecked(String methodName, Throwable throwable) {

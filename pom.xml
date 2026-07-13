@@ -144,6 +144,20 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- GHSA advisory (low): logback-core < 1.5.35 Object Injection via HardenedObjectInputStream.
+                 Spring Boot 4.1.0's transitive management brings 1.5.34; pin reactor-wide until a Boot
+                 bump ships logback 1.5.35+ (shaft-mcp additionally pins locally because its imported
+                 Boot BOM outranks inherited management). -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.35</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.35</version>
+            </dependency>
             <!-- JUNIT6 BOM -->
             <!-- https://mvnrepository.com/artifact/org.junit/junit-bom -->
             <dependency>

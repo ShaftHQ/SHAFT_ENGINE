@@ -26,9 +26,9 @@ public class PropertiesHelperEvidenceLevelUnitTest {
     @DataProvider
     public Object[][] evidenceProfiles() {
         return new Object[][]{
-                {"FAILURE_ONLY", "FailuresOnly", "FailuresOnly", false, false, false, false, true, true, "failure"},
-                {"BALANCED", "ValidationPointsOnly", "FailuresOnly", false, false, false, false, true, true, "failure"},
-                {"FAST", "Never", "Never", false, false, false, false, false, false, "failure"},
+                {"FAILURE_ONLY", "FailuresOnly", "FailuresOnly", false, false, false, false, true, true, "auto"},
+                {"BALANCED", "ValidationPointsOnly", "FailuresOnly", false, false, false, false, true, true, "auto"},
+                {"FAST", "Never", "Never", false, false, false, false, false, false, "auto"},
                 {"FULL", "Always", "Always", true, true, true, true, true, true, "always"}
         };
     }
@@ -113,7 +113,7 @@ public class PropertiesHelperEvidenceLevelUnitTest {
         Assert.assertFalse(SHAFT.Properties.reporting.attachFullLog());
         Assert.assertFalse(SHAFT.Properties.reporting.diagnosticsBundleEnabled());
         Assert.assertFalse(SHAFT.Properties.reporting.traceEnabled());
-        Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "failure");
+        Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "auto");
     }
 
     private void setOppositeGranularControls(String screenshots, String pageSource, boolean gif, boolean video,
