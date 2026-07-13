@@ -2,7 +2,7 @@ package com.shaft.intellij.testrunner;
 
 import com.intellij.execution.PsiLocation;
 import com.intellij.execution.actions.ConfigurationContext;
-import com.intellij.execution.actions.RunConfigurationProducer;
+import com.intellij.execution.actions.LazyRunConfigurationProducer;
 import com.intellij.execution.configurations.ConfigurationFactory;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiClass;
@@ -24,9 +24,10 @@ import java.util.List;
  * Registered only when the bundled TestNG-J plugin is enabled (see
  * {@code io.github.shafthq.shaft-withTestNG.xml}).
  */
-public final class ShaftTestNgRunConfigurationProducer extends RunConfigurationProducer<TestNGConfiguration> {
-    public ShaftTestNgRunConfigurationProducer() {
-        super((ConfigurationFactory) TestNGConfigurationType.getInstance());
+public final class ShaftTestNgRunConfigurationProducer extends LazyRunConfigurationProducer<TestNGConfiguration> {
+    @Override
+    public @NotNull ConfigurationFactory getConfigurationFactory() {
+        return (ConfigurationFactory) TestNGConfigurationType.getInstance();
     }
 
     @Override
@@ -39,13 +40,13 @@ public final class ShaftTestNgRunConfigurationProducer extends RunConfigurationP
         PsiElement element = context.getPsiLocation();
         PsiMethod method = PsiTreeUtil.getParentOfType(element, PsiMethod.class, false);
         if (method != null && ShaftTestMethodAnnotations.isShaftRunnableTestMethod(annotationQualifiedNames(method))) {
-            configuration.setMethodConfiguration(PsiLocation.fromPsiElement(method));
+            configuration.beMethodConfiguration(PsiLocation.fromPsiElement(method));
             sourceElement.set(method);
             return true;
         }
         PsiClass psiClass = PsiTreeUtil.getParentOfType(element, PsiClass.class, false);
         if (psiClass != null && psiClass.getName() != null && hasRunnableMethod(psiClass)) {
-            configuration.setClassConfiguration(psiClass);
+            configuration.beClassConfiguration(psiClass);
             sourceElement.set(psiClass);
             return true;
         }
