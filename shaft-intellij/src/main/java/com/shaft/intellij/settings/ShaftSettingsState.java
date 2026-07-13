@@ -54,6 +54,12 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
     public static final class Settings {
         public String mcpCommand = "";
         public boolean mcpSetupComplete = true;
+        /**
+         * Last verified agent-lane readiness (two-lane setup, issue #3425): true only when the
+         * optional agent check actually passed during setup. Read by the readiness strip
+         * (issue #3500 A4/O4) so it never claims an agent is ready without a real check.
+         */
+        public boolean agentLaneReady = false;
         public boolean agentGuidanceOptimizationPromptPending = false;
         public String assistantProviderType = "LOCAL";
         public String assistantFamily = "";

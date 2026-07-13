@@ -107,6 +107,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JComboBox<String> installerTarget;
     private final JCheckBox manualInstallerTarget;
     private final JCheckBox installShaftCli;
+    private JCheckBox advancedInstallerToggle;
+    private JLabel readyChecklist;
     private final JButton copyUpgradeCommand;
     private final JButton checkUpgrade;
     private final JLabel upgradeDetail;
@@ -484,7 +486,17 @@ final class ShaftMcpSetupPanel extends JPanel {
         readyActions.setOpaque(false);
         readyActions.add(startChatting);
         readyActions.add(startWithoutAgent);
-        chatRow = stepRow(readyStep, readyState, readyActions);
+        // Explicit success checklist (issue #3500 S6): one line answering "am I ready?" with the
+        // same dimensions as the tool-window readiness strip.
+        readyChecklist = new JLabel();
+        readyChecklist.getAccessibleContext().setAccessibleName("Setup ready checklist");
+        readyChecklist.setForeground(ShaftStatusPresentation.success());
+        JPanel readyControls = new JPanel();
+        readyControls.setLayout(new javax.swing.BoxLayout(readyControls, javax.swing.BoxLayout.Y_AXIS));
+        readyControls.setOpaque(false);
+        readyControls.add(readyChecklist);
+        readyControls.add(readyActions);
+        chatRow = stepRow(readyStep, readyState, readyControls);
         chatRow.setVisible(false);
         JPanel workflow = new JPanel();
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
@@ -534,11 +546,23 @@ final class ShaftMcpSetupPanel extends JPanel {
                 .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
                 .getPanel();
         installerDetailsPanel.setVisible(false);
+        // Deliberate advanced-installer disclosure (issue #3500 S5): the details panel was
+        // dead-hidden since #3270, which also made the manual MCP-target selection unreachable.
+        advancedInstallerToggle = new JCheckBox("Advanced installer options");
+        advancedInstallerToggle.getAccessibleContext().setAccessibleName("Show advanced installer options");
+        advancedInstallerToggle.setToolTipText(
+                "Show the raw installer command and manual MCP target selection.");
+        advancedInstallerToggle.setOpaque(false);
+        advancedInstallerToggle.addActionListener(event -> {
+            installerDetailsPanel.setVisible(advancedInstallerToggle.isSelected());
+            updateProgressivePanels();
+        });
         JPanel form = FormBuilder.createFormBuilder()
                 .addComponent(intro)
                 .addComponent(setupSummary)
                 .addComponent(runtimeStatus)
                 .addComponent(workflow)
+                .addComponent(advancedInstallerToggle)
                 .addComponent(installerDetailsPanel)
                 .addComponent(status)
                 .addComponent(toast)
@@ -779,6 +803,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         return area;
     }
 
+    private String readyChecklistText(boolean agentReady) {
+        boolean workspaceOk = Files.isDirectory(projectRoot());
+        return "MCP connected · "
+                + (workspaceOk ? "Workspace root OK" : "Workspace root unavailable") + " · "
+                + (agentReady ? "Agent ready" : "Agent optional (not connected)")
+                + " · Ready to record";
+    }
+
     private Path projectRoot() {
         return project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
     }
@@ -843,15 +875,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         refreshRealChecks();
         if (success) {
             settings.mcpSetupComplete = true;
+            settings.agentLaneReady = agentReady;
             settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
             startChatting.setVisible(agentReady);
             startWithoutAgent.setVisible(!agentReady);
+            readyChecklist.setText(readyChecklistText(agentReady));
             (agentReady ? startChatting : startWithoutAgent).requestFocusInWindow();
         } else {
             settings.mcpSetupComplete = false;
+            settings.agentLaneReady = false;
             settings.agentGuidanceOptimizationPromptPending = false;
             startChatting.setVisible(false);
             startWithoutAgent.setVisible(false);
+            readyChecklist.setText("");
             showRuntimeSelected();
         }
         updateActionState(false);
