@@ -49,6 +49,7 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List,com.shaft.capture.model.CaptureReadiness.State,java.util.List)" tabindex="0">McpMobileRecordingStatus(boolean, Path, String, int, boolean, List, CaptureReadiness.State, List)</a></li>
 <li><a href="#%3Cinit%3E(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List,com.shaft.capture.model.CaptureReadiness.State)" tabindex="0">McpMobileRecordingStatus(boolean, Path, String, int, boolean, List, CaptureReadiness.State)</a></li>
 <li><a href="#%3Cinit%3E(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List)" tabindex="0">McpMobileRecordingStatus(boolean, Path, String, int, boolean, List)</a></li>
 </ol>
@@ -65,6 +66,7 @@
 <li><a href="#includeSensitiveValues()" tabindex="0">includeSensitiveValues()</a></li>
 <li><a href="#warnings()" tabindex="0">warnings()</a></li>
 <li><a href="#readiness()" tabindex="0">readiness()</a></li>
+<li><a href="#steps()" tabindex="0">steps()</a></li>
 </ol>
 </li>
 </ol>
@@ -83,10 +85,12 @@
 <dl class="notes">
 <dt>Record Components:</dt>
 <dd><code><span id="param-readiness">readiness</span></code> - Ready/Risky/Blocked verdict rolled up from step warnings; never <code>null</code></dd>
+<dd><code><span id="param-steps">steps</span></code> - per-step summaries (stable stepId, sequence, action, risk) an agent can target with
+        <code>mobile_step_delete</code>/<code>mobile_step_reorder</code>; empty when inactive</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">McpMobileRecordingStatus</span>(boolean&nbsp;active, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputPath, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode, int&nbsp;actionCount, boolean&nbsp;includeSensitiveValues, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings, com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">McpMobileRecordingStatus</span>(boolean&nbsp;active, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputPath, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode, int&nbsp;actionCount, boolean&nbsp;includeSensitiveValues, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings, com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="McpMobileStepSummary.html" title="class in com.shaft.mcp">McpMobileStepSummary</a>&gt;&nbsp;steps)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Status for MCP mobile action recording.
 
@@ -114,7 +118,7 @@ recorder speaks the same language as the web Capture recorder (issue #3497): rec
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Back-compatible constructor for callers that predate the shared readiness contract; defaults
-readiness to <code>CaptureReadiness.State.READY</code>.</div>
+readiness to <code>CaptureReadiness.State.READY</code> and <code>steps</code> to an empty list.</div>
 </div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List,com.shaft.capture.model.CaptureReadiness.State)" class="member-name-link">McpMobileRecordingStatus</a><wbr>(boolean&nbsp;active,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputPath,
@@ -124,6 +128,18 @@ readiness to <code>CaptureReadiness.State.READY</code>.</div>
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
  com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Back-compatible constructor for callers that predate the step summaries (#3526); defaults
+<code>steps</code> to an empty list.</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List,com.shaft.capture.model.CaptureReadiness.State,java.util.List)" class="member-name-link">McpMobileRecordingStatus</a><wbr>(boolean&nbsp;active,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode,
+ int&nbsp;actionCount,
+ boolean&nbsp;includeSensitiveValues,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
+ com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="McpMobileStepSummary.html" title="class in com.shaft.mcp">McpMobileStepSummary</a>&gt;&nbsp;steps)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Creates an immutable mobile recording status.</div>
 </div>
 </div>
@@ -180,14 +196,19 @@ readiness to <code>CaptureReadiness.State.READY</code>.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-readiness"><code>readiness</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="McpMobileStepSummary.html" title="class in com.shaft.mcp">McpMobileStepSummary</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#steps()" class="member-name-link">steps</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-steps"><code>steps</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#warnings()" class="member-name-link">warnings</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#warnings()" class="member-name-link">warnings</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <code>warnings</code> record component.</div>
 </div>
 </div>
@@ -208,6 +229,22 @@ readiness to <code>CaptureReadiness.State.READY</code>.</div>
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="&lt;init&gt;(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List,com.shaft.capture.model.CaptureReadiness.State,java.util.List)">
+<h3>McpMobileRecordingStatus</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">McpMobileRecordingStatus</span><wbr><span class="parameters">(boolean&nbsp;active,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode,
+ int&nbsp;actionCount,
+ boolean&nbsp;includeSensitiveValues,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
+ com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="McpMobileStepSummary.html" title="class in com.shaft.mcp">McpMobileStepSummary</a>&gt;&nbsp;steps)</span></div>
+<div class="block">Creates an immutable mobile recording status.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="&lt;init&gt;(boolean,java.nio.file.Path,java.lang.String,int,boolean,java.util.List,com.shaft.capture.model.CaptureReadiness.State)">
 <h3>McpMobileRecordingStatus</h3>
 <div class="horizontal-scroll">
@@ -218,7 +255,8 @@ readiness to <code>CaptureReadiness.State.READY</code>.</div>
  boolean&nbsp;includeSensitiveValues,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
  com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness)</span></div>
-<div class="block">Creates an immutable mobile recording status.</div>
+<div class="block">Back-compatible constructor for callers that predate the step summaries (#3526); defaults
+<code>steps</code> to an empty list.</div>
 </div>
 </section>
 </li>
@@ -233,7 +271,7 @@ readiness to <code>CaptureReadiness.State.READY</code>.</div>
  boolean&nbsp;includeSensitiveValues,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings)</span></div>
 <div class="block">Back-compatible constructor for callers that predate the shared readiness contract; defaults
-readiness to <code>CaptureReadiness.State.READY</code>.</div>
+readiness to <code>CaptureReadiness.State.READY</code> and <code>steps</code> to an empty list.</div>
 </div>
 </section>
 </li>
@@ -379,6 +417,19 @@ readiness to <code>CaptureReadiness.State.READY</code>.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-readiness"><code>readiness</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="steps()">
+<h3>steps</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="McpMobileStepSummary.html" title="class in com.shaft.mcp">McpMobileStepSummary</a>&gt;</span>&nbsp;<span class="element-name">steps</span>()</div>
+<div class="block">Returns the value of the <a href="#param-steps"><code>steps</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-steps"><code>steps</code></a> record component</dd>
 </dl>
 </div>
 </section>

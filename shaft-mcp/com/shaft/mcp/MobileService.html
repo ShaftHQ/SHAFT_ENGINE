@@ -59,6 +59,8 @@
 <li><a href="#recordStart(java.lang.String,java.lang.String,boolean)" tabindex="0">recordStart(String, String, boolean)</a></li>
 <li><a href="#recordStatus()" tabindex="0">recordStatus()</a></li>
 <li><a href="#recordStop(boolean)" tabindex="0">recordStop(boolean)</a></li>
+<li><a href="#stepDelete(java.lang.String)" tabindex="0">stepDelete(String)</a></li>
+<li><a href="#stepReorder(java.lang.String,java.lang.String)" tabindex="0">stepReorder(String, String)</a></li>
 <li><a href="#mobileApiRecordStart(java.lang.String,java.lang.String,java.lang.String)" tabindex="0">mobileApiRecordStart(String, String, String)</a></li>
 <li><a href="#mobileApiRecordStatus()" tabindex="0">mobileApiRecordStatus()</a></li>
 <li><a href="#mobileApiRecordStop(boolean)" tabindex="0">mobileApiRecordStop(boolean)</a></li>
@@ -324,6 +326,17 @@ capture session, independent of any Appium/WebDriver session.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Rotates an Appium device.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stepDelete(java.lang.String)" class="member-name-link">stepDelete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Deletes a recorded mobile step by its stable stepId, as surfaced in recorder status.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stepReorder(java.lang.String,java.lang.String)" class="member-name-link">stepReorder</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Moves a recorded mobile step up or down by its stable stepId, as surfaced in recorder status.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)" class="member-name-link">swipeByOffset</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
@@ -538,6 +551,42 @@ capture session, independent of any Appium/WebDriver session.</div>
 <dd><code>discard</code> - whether to delete the recording output</dd>
 <dt>Returns:</dt>
 <dd>final recorder status</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stepDelete(java.lang.String)">
+<h3>stepDelete</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="mobile_step_delete",
+      description="deletes a recorded mobile step by its stable stepId and renumbers the remaining steps")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepDelete</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</span></div>
+<div class="block">Deletes a recorded mobile step by its stable stepId, as surfaced in recorder status.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>stepId</code> - stable step id (e.g. "m2") from <a href="McpMobileRecordingStatus.html#steps()"><code>McpMobileRecordingStatus.steps()</code></a></dd>
+<dt>Returns:</dt>
+<dd>updated recorder status</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stepReorder(java.lang.String,java.lang.String)">
+<h3>stepReorder</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="mobile_step_reorder",
+      description="moves a recorded mobile step up or down by its stable stepId (direction: up|down)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepReorder</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction)</span></div>
+<div class="block">Moves a recorded mobile step up or down by its stable stepId, as surfaced in recorder status.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>stepId</code> - stable step id (e.g. "m2") from <a href="McpMobileRecordingStatus.html#steps()"><code>McpMobileRecordingStatus.steps()</code></a></dd>
+<dd><code>direction</code> - "up" or "down"</dd>
+<dt>Returns:</dt>
+<dd>updated recorder status</dd>
 </dl>
 </div>
 </section>
