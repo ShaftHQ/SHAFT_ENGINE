@@ -495,9 +495,21 @@ final class AssistantLocalAgentRunner {
                 boolean success = process.exitValue() == 0;
                 String rawStdout = stdoutNow(stdout);
                 String rawStderr = stderrNow(stderr);
-                String output = success && streamParser != null && streamParser.hasTerminalEvent()
-                        ? streamParser.finalOutput()
-                        : agentOutput(success, rawStdout, rawStderr, "");
+                String output;
+                if (success) {
+                    output = streamParser != null && streamParser.hasTerminalEvent()
+                            ? streamParser.finalOutput()
+                            : agentOutput(true, rawStdout, rawStderr, "");
+                } else if (streamParser != null) {
+                    // A structured (stream-json / --json) CLI writes machine NDJSON to stdout, so on a
+                    // failed run the raw stream must never reach the transcript verbatim -- rerun/codegen
+                    // failures used to dump lines like {"type":"system","subtype":"thinking_tokens",...}.
+                    // Render the parser's cleaned answer, or a plain-language reason plus stderr when the
+                    // CLI died before emitting a terminal event.
+                    output = streamParser.failureOutput(process.exitValue(), rawStderr);
+                } else {
+                    output = agentOutput(false, rawStdout, rawStderr, "");
+                }
                 return success
                         ? ShaftMcpToolResult.success(output)
                         : ShaftMcpToolResult.failure(output);
@@ -608,6 +620,9 @@ final class AssistantLocalAgentRunner {
         private String answer;
         private Integer inputTokens;
         private Integer outputTokens;
+        // A short, human-readable reason captured from a non-success terminal event (Claude's error
+        // subtype, Codex's turn.failed detail), used to explain a failure whose answer text is empty.
+        private String terminalDetail;
 
         StructuredStreamParser(Format format) {
             this.format = format;
@@ -641,17 +656,46 @@ final class AssistantLocalAgentRunner {
         }
 
         synchronized String finalOutput() {
+            return composeOutput(answer.strip());
+        }
+
+        /**
+         * Cleaned output for a failed structured run. Prefers the terminal answer text; when the CLI
+         * died before returning one, synthesizes a plain-language reason (from {@link #terminalDetail}
+         * or the exit code) and appends stderr. Never returns the raw NDJSON stdout, so native stream
+         * events such as {@code {"type":"system","subtype":"thinking_tokens",...}} can no longer leak
+         * verbatim into the transcript.
+         */
+        synchronized String failureOutput(int exitCode, String stderr) {
+            String core = answer == null ? "" : answer.strip();
+            if (core.isBlank()) {
+                core = terminalDetail != null && !terminalDetail.isBlank()
+                        ? "The local assistant stopped before finishing: " + terminalDetail + "."
+                        : "The local assistant exited with code " + exitCode + " before returning an answer.";
+            }
+            String stderrText = stderr == null ? "" : stderr.strip();
+            if (!stderrText.isBlank()) {
+                core = core + "\n\n```\n" + stderrText + "\n```";
+            }
+            return composeOutput(core);
+        }
+
+        private String composeOutput(String core) {
+            StringBuilder output = new StringBuilder(core);
+            String activity = activitySummary();
+            if (!activity.isBlank()) {
+                output.append("\n\n").append(activity);
+            }
+            return output + "\n\n" + usageHolder();
+        }
+
+        private JsonObject usageHolder() {
             JsonObject usage = new JsonObject();
             usage.addProperty("input_tokens", orZero(inputTokens));
             usage.addProperty("output_tokens", orZero(outputTokens));
             JsonObject usageHolder = new JsonObject();
             usageHolder.add("usage", usage);
-            StringBuilder output = new StringBuilder(answer.strip());
-            String activity = activitySummary();
-            if (!activity.isBlank()) {
-                output.append("\n\n").append(activity);
-            }
-            return output + "\n\n" + usageHolder;
+            return usageHolder;
         }
 
         /**
@@ -747,6 +791,10 @@ final class AssistantLocalAgentRunner {
                 inputTokens = intField(usage, "input_tokens");
                 outputTokens = intField(usage, "output_tokens");
                 recordPermissionDenials(event.get("permission_denials"));
+                String subtype = stringField(event, "subtype");
+                if (booleanField(event, "is_error") || (subtype != null && subtype.startsWith("error"))) {
+                    terminalDetail = humanizeSubtype(subtype);
+                }
                 // Fully consumed: this event becomes the final answer, so it is mapped, not hidden.
                 return CONSUMED;
             }
@@ -867,6 +915,10 @@ final class AssistantLocalAgentRunner {
                 if ("turn.completed".equals(type)) {
                     String lastAgentMessage = stringField(event, "last_agent_message");
                     answer = lastAgentMessage != null ? lastAgentMessage : (answer == null ? "" : answer);
+                } else {
+                    JsonObject error = objectField(event, "error");
+                    terminalDetail = firstNonBlank(stringField(event, "error"),
+                            stringField(error, "message"), stringField(error, "type"));
                 }
                 // Fully consumed: this event becomes the final answer/usage, so it is mapped, not hidden.
                 return CONSUMED;
@@ -881,6 +933,18 @@ final class AssistantLocalAgentRunner {
                 }
             }
             return null;
+        }
+
+        /**
+         * Turns a machine error subtype (e.g. {@code error_max_turns}) into a short prose reason
+         * (e.g. {@code max turns}) for the failure headline.
+         */
+        private static String humanizeSubtype(String subtype) {
+            if (subtype == null || subtype.isBlank()) {
+                return "the run failed";
+            }
+            String cleaned = subtype.replace("error_", "").replace('_', ' ').trim();
+            return cleaned.isBlank() ? "the run failed" : cleaned;
         }
 
         private static Integer firstNonNull(Integer preferred, Integer fallback) {
