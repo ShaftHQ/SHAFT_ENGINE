@@ -15,6 +15,10 @@ import com.shaft.intellij.settings.ShaftSettingsState;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Prepares an MCP {@code capture_api_start} request for a target URL and opens the
  * API Recording tab so the user can review captured network transactions live.
@@ -22,6 +26,17 @@ import org.jetbrains.annotations.NotNull;
 public final class RecordApiWebAction extends AnAction implements DumbAware {
     private static final String DEFAULT_TARGET_URL = "https://example.com";
     private static final String START_TOOL_NAME = "capture_api_start";
+
+    /**
+     * Exact field names of {@code com.shaft.capture.runtime.NetworkCaptureOptions}, the class the
+     * MCP layer binds {@code networkOptions} JSON keys to. A key outside this set is silently
+     * ignored by the binder rather than rejected -- most dangerously, a typo'd
+     * {@code captureRequestBodies}/{@code captureResponseBodies} leaves body capture off with no
+     * error, which is the exact silent failure issue #3548 item 2 hardens against.
+     */
+    static final Set<String> NETWORK_CAPTURE_OPTIONS_FIELDS = Set.of(
+            "enabled", "excludeAssets", "excludePattern", "includePattern",
+            "captureResponseBodies", "captureRequestBodies");
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
@@ -51,6 +66,15 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
         networkOptions.addProperty("excludeAssets", true);
         networkOptions.addProperty("captureRequestBodies", true);
         networkOptions.addProperty("captureResponseBodies", true);
+
+        List<String> unknownKeys = unknownNetworkCaptureOptionKeys(networkOptions);
+        if (!unknownKeys.isEmpty()) {
+            // Warn instead of failing the request: an unrecognized key is dropped by the MCP binder,
+            // not rejected, so the recording still starts -- just without the intended option applied.
+            ShaftNotifier.warn(project, "SHAFT", "networkOptions has unrecognized key(s) " + unknownKeys
+                    + " -- they will be silently ignored and any body capture they were meant to control "
+                    + "may default off. Valid keys: " + NETWORK_CAPTURE_OPTIONS_FIELDS);
+        }
 
         JsonObject arguments = new JsonObject();
         arguments.addProperty("targetUrl", targetUrl.trim());
@@ -84,6 +108,25 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
      */
     static String recordApiPrompt(String targetUrl) {
         return "Record API traffic on " + targetUrl;
+    }
+
+    /**
+     * Returns any {@code networkOptions} keys that do not match a
+     * {@code com.shaft.capture.runtime.NetworkCaptureOptions} field, so a mistyped key can be
+     * surfaced as a visible warning instead of silently doing nothing. Package-private for
+     * {@code RecordApiWebActionTest}.
+     *
+     * @param networkOptions the {@code networkOptions} JSON object about to be sent
+     * @return unknown key names, in encounter order; empty when every key is valid
+     */
+    static List<String> unknownNetworkCaptureOptionKeys(JsonObject networkOptions) {
+        List<String> unknown = new ArrayList<>();
+        for (String key : networkOptions.keySet()) {
+            if (!NETWORK_CAPTURE_OPTIONS_FIELDS.contains(key)) {
+                unknown.add(key);
+            }
+        }
+        return unknown;
     }
 
     private static void openAssistantPrompt(Project project, String text) {

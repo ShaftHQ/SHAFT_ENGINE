@@ -119,7 +119,7 @@ public final class ApiCaptureGenerator {
         }
 
         Path bodiesDirectory = sessionPath.getParent().resolve(session.sessionId() + "-network-bodies");
-        List<ApiTransaction> transactions = extractTransactions(session, bodiesDirectory);
+        List<ApiTransaction> transactions = extractTransactions(session, bodiesDirectory, request.excludedTransactionIds());
         if (transactions.isEmpty()) {
             unsupported.add("No renderable API transactions (XHR/FETCH with a recorded response) "
                     + "were found in this session.");
@@ -353,7 +353,8 @@ public final class ApiCaptureGenerator {
 
     // ---- transaction extraction ----
 
-    private List<ApiTransaction> extractTransactions(CaptureSession session, Path bodiesDirectory) {
+    private List<ApiTransaction> extractTransactions(
+            CaptureSession session, Path bodiesDirectory, List<String> excludedTransactionIds) {
         List<ApiTransaction> transactions = new ArrayList<>();
         String lastDedupeKey = null;
         for (CaptureEvent event : session.events()) {
@@ -361,6 +362,12 @@ public final class ApiCaptureGenerator {
                 continue;
             }
             if (!isRenderableResourceKind(networkEvent.resourceKind()) || networkEvent.response() == null) {
+                continue;
+            }
+            if (excludedTransactionIds.contains(networkEvent.transactionId())) {
+                // Deselected in the recorder's transaction table (issue #3548 item 3): honor the
+                // caller's include/exclude choice by omitting it before dedupe/rendering, not just
+                // decorating the table client-side.
                 continue;
             }
             String dedupeKey = networkEvent.request().method() + " " + networkEvent.request().url();

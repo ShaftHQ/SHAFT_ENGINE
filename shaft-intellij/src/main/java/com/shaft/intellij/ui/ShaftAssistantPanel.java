@@ -2715,7 +2715,7 @@ final class ShaftAssistantPanel extends JPanel {
             if (code.isBlank() || !code.contains("class ")) {
                 continue;
             }
-            if ("full-class".equals(string(block, "id", ""))) {
+            if ("capture-full-class".equals(string(block, "id", ""))) {
                 return code;
             }
             if (fallback.isBlank()) {

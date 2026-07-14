@@ -124,6 +124,20 @@ final class AssistantMarkdown {
         return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
     }
 
+    /**
+     * Unwraps an MCP {@code content[].text} envelope down to the tool's own JSON result and returns
+     * it as a JSON array, for tools whose return type serializes as a bare array (for example a
+     * {@code List<...>}) rather than an object -- {@link #jsonObjectFromMcpOutput} always returns
+     * null for those since the unwrapped payload is never a JSON object.
+     *
+     * @param output raw tool output text
+     * @return the parsed array, or null when the unwrapped payload is not a JSON array
+     */
+    static JsonArray jsonArrayFromMcpOutput(String output) {
+        JsonElement parsed = parse(unwrapMcpText(output));
+        return parsed != null && parsed.isJsonArray() ? parsed.getAsJsonArray() : null;
+    }
+
     static boolean shouldFormatWithAgent(String toolName, String output) {
         if (KNOWN_TOOLS.contains(toolName)) {
             return false;

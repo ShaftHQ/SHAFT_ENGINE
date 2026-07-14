@@ -152,6 +152,41 @@ class GuidedWorkflowPanelTest {
     }
 
     @Test
+    void insertAtCaretAndCreateTestClassGenerateFromTheSameToolAsReviewCode() {
+        // Issue #3548 item 1: without a live project (no MCP connection, no open editor -- the
+        // state every headless unit test runs in), invocationService() is null and these buttons
+        // fall back to the same review-only prefill "Review code" already uses, so the recorder
+        // stays testable with PickLocatorAtCaretActionTest's pure-logic style even though the
+        // WriteCommandAction/PSI insertion path itself is not unit-testable here.
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
+        JButton insertAtCaret = findButton(panel, "Insert at caret");
+        JButton createTestClass = findButton(panel, "Create test class");
+        assertNotNull(insertAtCaret);
+        assertNotNull(createTestClass);
+
+        insertAtCaret.doClick();
+        CapturedInvocation insert = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_code_blocks", insert.toolName()),
+                () -> assertEquals("driver", insert.arguments().get("driverVariableName").getAsString()));
+
+        createTestClass.doClick();
+        CapturedInvocation create = last(invocations);
+        assertEquals("capture_code_blocks", create.toolName());
+
+        select(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class), "Mobile (web emulation)");
+        insertAtCaret.doClick();
+        assertEquals("mobile_recording_code_blocks", last(invocations).toolName());
+
+        select(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class), "Playwright");
+        createTestClass.doClick();
+        assertEquals("playwright_recording_code_blocks", last(invocations).toolName());
+    }
+
+    @Test
     void webRecordingStartCarriesIntentAsSessionGoal() {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
@@ -345,6 +380,8 @@ class GuidedWorkflowPanelTest {
                 () -> assertNotNull(findButton(panel, "Start recording")),
                 () -> assertNotNull(findButton(panel, "Stop recording")),
                 () -> assertNotNull(findButton(panel, "Review code")),
+                () -> assertNotNull(findButton(panel, "Insert at caret")),
+                () -> assertNotNull(findButton(panel, "Create test class")),
                 () -> assertNotNull(findButton(panel, "Plan coding partner")),
                 () -> assertNotNull(findButton(panel, "Find reuse")),
                 () -> assertNotNull(findButton(panel, "Inspect locator")),

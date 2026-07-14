@@ -4,14 +4,20 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.Alarm;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.java.JavaTargetContextResolver;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -27,6 +33,11 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Guided recorder, locator, and code-generation entry points backed by existing MCP tools.
@@ -136,7 +147,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         this::trySampleRecording),
                 button("Start recording", "Start a SHAFT recording", ShaftIcons.SEND, this::startRecording),
                 button("Stop recording", "Stop the active SHAFT recording", ShaftIcons.CANCEL, this::stopRecording),
-                button("Review code", "Generate reviewed SHAFT code blocks from a recording", ShaftIcons.CODE, this::generateCode));
+                button("Review code", "Generate reviewed SHAFT code blocks from a recording", ShaftIcons.CODE, this::generateCode),
+                // Closes the recorder -> editor loop (issue #3548 item 1): "Review code" only
+                // prefills the Tools panel for manual copy; these execute the same *_code_blocks
+                // tool and write the result into the editor, mirroring the Assistant Capture-review
+                // strip's "Insert into open class"/"Create test class" seams.
+                button("Insert at caret", "Insert generated SHAFT code at the editor caret", ShaftIcons.EDIT,
+                        this::insertCodeAtCaret),
+                button("Create test class", "Create a test class from the generated recording", ShaftIcons.CODE,
+                        this::createTestClassFromRecording));
         JPanel locator = section("Locator",
                 button("Inspect locator", "Inspect the page and propose locator candidates", ShaftIcons.SEARCH, this::inspectLocator),
                 button("Guardrail check", "Check generated SHAFT code for automation anti-patterns", ShaftIcons.CHECK, this::guardrailCheck));
@@ -627,15 +646,29 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private void generateCode() {
-        JsonObject arguments = new JsonObject();
+        prefill.prefill(codeBlocksToolName(), codeBlocksArguments());
+    }
+
+    /**
+     * Returns the {@code *_code_blocks} MCP tool matching the selected backend, shared by
+     * "Review code", "Insert at caret", and "Create test class" so the three actions always
+     * generate from the same recording.
+     */
+    private String codeBlocksToolName() {
         if (mobile()) {
+            return "mobile_recording_code_blocks";
+        }
+        if (playwright()) {
+            return "playwright_recording_code_blocks";
+        }
+        return "capture_code_blocks";
+    }
+
+    private JsonObject codeBlocksArguments() {
+        JsonObject arguments = new JsonObject();
+        if (mobile() || playwright()) {
             arguments.addProperty("recordingPath", sessionPath.getText().trim());
             arguments.addProperty("driverVariableName", "driver");
-            prefill.prefill("mobile_recording_code_blocks", arguments);
-        } else if (playwright()) {
-            arguments.addProperty("recordingPath", sessionPath.getText().trim());
-            arguments.addProperty("driverVariableName", "driver");
-            prefill.prefill("playwright_recording_code_blocks", arguments);
         } else {
             arguments.addProperty("sessionPath", sessionPath.getText().trim());
             arguments.addProperty("outputDirectory", ".");
@@ -643,8 +676,213 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             arguments.addProperty("className", "GeneratedShaftTest");
             arguments.addProperty("overwrite", false);
             arguments.addProperty("driverVariableName", "driver");
-            prefill.prefill("capture_code_blocks", arguments);
         }
+        return arguments;
+    }
+
+    /**
+     * "Insert at caret" (issue #3548 item 1): executes the same {@code *_code_blocks} tool "Review
+     * code" only prefills, then writes the generated {@code TEST_METHOD} snippet (falling back to
+     * the full class) into the editor at the caret -- the same {@code FileDocumentManager
+     * .requestWriting} + {@code WriteCommandAction} seam {@code PickLocatorAtCaretAction} already
+     * proved, not a new insertion mechanism.
+     */
+    private void insertCodeAtCaret() {
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(codeBlocksToolName(), codeBlocksArguments());
+            return;
+        }
+        if (selectedJavaEditor() == null) {
+            setRecorderStatus("Open a Java file in the editor first.");
+            return;
+        }
+        setRecorderStatus("Generating code to insert at caret...");
+        invocationService.startTool(codeBlocksToolName(), codeBlocksArguments())
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> applyInsertAtCaret(result, error)));
+    }
+
+    private void applyInsertAtCaret(ShaftMcpToolResult result, Throwable error) {
+        if (failed(result, error)) {
+            setRecorderStatus("Could not generate code to insert: " + failureText(result, error));
+            return;
+        }
+        JsonObject raw = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        String snippet = firstBlockByKind(raw, "TEST_METHOD");
+        if (snippet.isBlank()) {
+            snippet = firstFullClassBlock(raw);
+        }
+        if (snippet.isBlank()) {
+            setRecorderStatus("The generated result has no insertable code block.");
+            return;
+        }
+        Editor editor = selectedJavaEditor();
+        if (editor == null) {
+            setRecorderStatus("Open a Java file in the editor first.");
+            return;
+        }
+        Document document = editor.getDocument();
+        if (!FileDocumentManager.getInstance().requestWriting(document, project)) {
+            setRecorderStatus("The current file could not be made writable.");
+            return;
+        }
+        int offset = Math.max(0, Math.min(editor.getCaretModel().getOffset(), document.getTextLength()));
+        String toInsert = snippet;
+        WriteCommandAction.writeCommandAction(project)
+                .withName("Insert SHAFT Recorded Code")
+                .run(() -> document.insertString(offset, toInsert));
+        setRecorderStatus("Inserted generated code at the caret.");
+    }
+
+    /**
+     * "Create test class" (issue #3548 item 1): executes the same {@code *_code_blocks} tool, then
+     * writes the {@code FULL_CLASS} block into {@code src/test/java} (never overwriting) and opens
+     * it, mirroring {@code ShaftAssistantPanel#createTestClassFromReview}.
+     */
+    private void createTestClassFromRecording() {
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(codeBlocksToolName(), codeBlocksArguments());
+            return;
+        }
+        if (project == null || project.getBasePath() == null) {
+            setRecorderStatus("No open project.");
+            return;
+        }
+        setRecorderStatus("Generating test class...");
+        invocationService.startTool(codeBlocksToolName(), codeBlocksArguments())
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> applyCreateTestClass(result, error)));
+    }
+
+    private void applyCreateTestClass(ShaftMcpToolResult result, Throwable error) {
+        if (failed(result, error)) {
+            setRecorderStatus("Could not generate test class: " + failureText(result, error));
+            return;
+        }
+        JsonObject raw = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        String code = firstFullClassBlock(raw);
+        if (code.isBlank()) {
+            setRecorderStatus("The generated result has no full-class code block.");
+            return;
+        }
+        Matcher classMatcher = Pattern.compile("class\\s+(\\w+)").matcher(code);
+        Matcher packageMatcher = Pattern.compile("package\\s+([\\w.]+)\\s*;").matcher(code);
+        if (!classMatcher.find()) {
+            setRecorderStatus("Could not determine the generated class name.");
+            return;
+        }
+        String body = packageMatcher.find() ? code : "package tests.generated;\n\n" + code;
+        String packagePath = (packageMatcher.reset().find() ? packageMatcher.group(1) : "tests.generated")
+                .replace('.', '/');
+        Path target = Path.of(project.getBasePath(), "src", "test", "java")
+                .resolve(packagePath).resolve(classMatcher.group(1) + ".java");
+        try {
+            if (Files.exists(target)) {
+                setRecorderStatus("Already exists - opened " + target.getFileName() + " (not overwritten).");
+            } else {
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, body);
+                setRecorderStatus("Created " + target.getFileName() + " in src/test/java.");
+            }
+            openFileInEditor(target);
+        } catch (IOException writeFailure) {
+            setRecorderStatus("Could not write test class: " + writeFailure.getMessage());
+        }
+    }
+
+    /**
+     * Returns the editor selected in the editor tab strip, gated on it holding a resolvable Java
+     * target (same gate {@code PickLocatorAtCaretAction#isAvailable} uses), or null when there is
+     * none -- callers treat null as "open a Java file first".
+     */
+    private Editor selectedJavaEditor() {
+        if (project == null) {
+            return null;
+        }
+        Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
+        if (editor == null) {
+            return null;
+        }
+        PsiFile file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument());
+        return JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset()) != null ? editor : null;
+    }
+
+    private void openFileInEditor(Path path) {
+        try {
+            var virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                    .refreshAndFindFileByNioFile(path);
+            if (virtualFile != null && project != null) {
+                FileEditorManager.getInstance(project).openFile(virtualFile, true);
+            }
+        } catch (RuntimeException | Error headlessTestEnvironment) {
+            // Best effort: the path was already reported in the status label.
+        }
+    }
+
+    /**
+     * Returns the {@code code} of the first {@code codeBlocks[]} entry whose {@code kind} matches,
+     * or {@code ""} when none match. Kind (not id) is used because the id differs per backend
+     * (e.g. {@code capture-test-method} vs {@code playwright-replay-method}).
+     */
+    private static String firstBlockByKind(JsonObject raw, String kind) {
+        if (raw == null || !raw.has("codeBlocks") || !raw.get("codeBlocks").isJsonArray()) {
+            return "";
+        }
+        for (var element : raw.getAsJsonArray("codeBlocks")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = element.getAsJsonObject();
+            if (kind.equals(jsonString(block, "kind"))) {
+                String code = blockCode(block);
+                if (!code.isBlank()) {
+                    return code;
+                }
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Returns the {@code capture-full-class} block's code, falling back to the first block whose
+     * code contains {@code "class "} when the id is missing (mirrors {@code
+     * ShaftAssistantPanel#firstJavaClassBlock}).
+     */
+    private static String firstFullClassBlock(JsonObject raw) {
+        if (raw == null || !raw.has("codeBlocks") || !raw.get("codeBlocks").isJsonArray()) {
+            return "";
+        }
+        String fallback = "";
+        for (var element : raw.getAsJsonArray("codeBlocks")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = element.getAsJsonObject();
+            String code = blockCode(block);
+            if (code.isBlank() || !code.contains("class ")) {
+                continue;
+            }
+            if ("capture-full-class".equals(jsonString(block, "id"))) {
+                return code;
+            }
+            if (fallback.isBlank()) {
+                fallback = code;
+            }
+        }
+        return fallback;
+    }
+
+    // McpCodeBlock's source is in "code"; a few callers key on "content" instead, so both are
+    // checked (mirrors ShaftAssistantPanel#firstJavaClassBlock).
+    private static String blockCode(JsonObject block) {
+        String code = jsonString(block, "code");
+        return code.isBlank() ? jsonString(block, "content") : code;
+    }
+
+    private static String jsonString(JsonObject object, String key) {
+        return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsString() : "";
     }
 
     private void inspectLocator() {

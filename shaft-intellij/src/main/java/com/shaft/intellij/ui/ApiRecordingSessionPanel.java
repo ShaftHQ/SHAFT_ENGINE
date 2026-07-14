@@ -40,6 +40,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private static final int POLL_INTERVAL_MILLIS = 2_000;
     private static final String TRANSACTIONS_TOOL_NAME = "capture_api_transactions";
     private static final String STOP_TOOL_NAME = "capture_api_stop";
+    private static final String GENERATE_TOOL_NAME = "capture_api_generate";
 
     private final Project project;
     private final TransactionTableModel tableModel = new TransactionTableModel();
@@ -47,11 +48,13 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private final TableRowSorter<TransactionTableModel> rowSorter = new TableRowSorter<>(tableModel);
     private final JBTextField filterField = new JBTextField();
     private final JButton stopButton = new JButton("Stop");
+    private final JButton generateButton = new JButton("Generate");
     private final JLabel statusLabel = new JLabel("Recording...");
     private final Alarm pollAlarm;
 
     private volatile boolean stopped;
     private String sessionId;
+    private String sessionOutputPath = "";
     private ShaftMcpInvocation currentInvocation;
 
     /**
@@ -92,15 +95,23 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         });
 
         stopButton.addActionListener(event -> stopRecording());
+        generateButton.setEnabled(false);
+        generateButton.getAccessibleContext().setAccessibleDescription(
+                "Generate a SHAFT.API test from the included transactions");
+        generateButton.addActionListener(event -> generateCode());
 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         JLabel titleLabel = new JLabel("Recording: " + targetUrl);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
         header.add(titleLabel);
 
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        actions.add(stopButton);
+        actions.add(generateButton);
+
         JPanel toolbar = new JPanel(new BorderLayout(6, 0));
         toolbar.add(filterField, BorderLayout.CENTER);
-        toolbar.add(stopButton, BorderLayout.EAST);
+        toolbar.add(actions, BorderLayout.EAST);
 
         JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(header, BorderLayout.NORTH);
@@ -137,6 +148,10 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
 
     JButton stopButton() {
         return stopButton;
+    }
+
+    JButton generateButton() {
+        return generateButton;
     }
 
     JLabel statusLabel() {
@@ -198,28 +213,29 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         statusLabel.setText("Recording... " + rows.size() + " transaction(s)");
     }
 
-    private static List<TransactionRow> parseTransactions(String output) {
+    // Package-private (not private) for ApiRecordingSessionPanelTest: this parsing logic is pure
+    // and worth covering directly without standing up the full panel (which needs a live Project).
+    static List<TransactionRow> parseTransactions(String output) {
         List<TransactionRow> rows = new ArrayList<>();
-        JsonObject payload = AssistantMarkdown.jsonObjectFromMcpOutput(output);
-        if (payload == null) {
+        // capture_api_transactions returns a bare List<NetworkTransaction> -- a JSON array, not an
+        // object -- so this must unwrap to an array, not look for an object with a "transactions"
+        // key (that key never exists on the wire and previously left this table permanently empty).
+        JsonArray transactions = AssistantMarkdown.jsonArrayFromMcpOutput(output);
+        if (transactions == null) {
             return rows;
         }
-        JsonElement transactionsElement = payload.get("transactions");
-        if (transactionsElement == null || !transactionsElement.isJsonArray()) {
-            return rows;
-        }
-        JsonArray transactions = transactionsElement.getAsJsonArray();
         for (JsonElement element : transactions) {
             if (!element.isJsonObject()) {
                 continue;
             }
             JsonObject transaction = element.getAsJsonObject();
             rows.add(new TransactionRow(
+                    stringOf(transaction, "transactionId"),
                     stringOf(transaction, "method"),
                     stringOf(transaction, "url"),
-                    stringOf(transaction, "status"),
+                    intOf(transaction, "statusCode") == 0 ? "" : String.valueOf(intOf(transaction, "statusCode")),
                     stringOf(transaction, "resourceKind"),
-                    stringOf(transaction, "size"),
+                    responseSize(transaction),
                     true));
         }
         return rows;
@@ -228,6 +244,26 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private static String stringOf(JsonObject object, String key) {
         JsonElement element = object.get(key);
         return element == null || element.isJsonNull() ? "" : element.getAsString();
+    }
+
+    private static int intOf(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        return element == null || element.isJsonNull() || !element.isJsonPrimitive() ? 0 : element.getAsInt();
+    }
+
+    // NetworkTransaction#bodyRefMetadata nests a "response" entry with a "sizeBytes" field (see
+    // CaptureSessionStore#putBodyRefMetadata); absent when the transaction has no response body.
+    private static String responseSize(JsonObject transaction) {
+        JsonElement metadata = transaction.get("bodyRefMetadata");
+        if (metadata == null || !metadata.isJsonObject()) {
+            return "";
+        }
+        JsonElement response = metadata.getAsJsonObject().get("response");
+        if (response == null || !response.isJsonObject()) {
+            return "";
+        }
+        JsonElement sizeBytes = response.getAsJsonObject().get("sizeBytes");
+        return sizeBytes == null || sizeBytes.isJsonNull() ? "" : sizeBytes.getAsString();
     }
 
     /**
@@ -257,9 +293,64 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
                 .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
                     if (error != null || result == null || !result.success()) {
                         statusLabel.setText("Stopped (with errors). " + tableModel.getRowCount() + " transaction(s).");
-                    } else {
-                        statusLabel.setText("Stopped. " + tableModel.getRowCount() + " transaction(s).");
+                        return;
                     }
+                    // capture_api_stop returns CaptureStatus, whose outputPath is the persisted session
+                    // JSON capture_api_generate needs -- captured here so Generate has a sessionPath.
+                    JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+                    sessionOutputPath = status != null && status.has("outputPath")
+                            ? status.get("outputPath").getAsString()
+                            : "";
+                    generateButton.setEnabled(!sessionOutputPath.isBlank());
+                    statusLabel.setText("Stopped. " + tableModel.getRowCount() + " transaction(s).");
+                }));
+    }
+
+    /**
+     * Generates a {@code SHAFT.API} test from the stopped session via {@code capture_api_generate},
+     * excluding any transaction whose Include checkbox is unchecked (issue #3548 item 3).
+     */
+    private void generateCode() {
+        if (sessionOutputPath.isBlank()) {
+            statusLabel.setText("Stop the recording before generating code.");
+            return;
+        }
+        generateButton.setEnabled(false);
+        statusLabel.setText("Generating SHAFT.API test...");
+
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", sessionOutputPath);
+        arguments.addProperty("outputDirectory", "generated-tests");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "");
+        arguments.addProperty("style", "SCENARIO");
+        arguments.addProperty("validationDepth", "SCHEMA");
+        arguments.addProperty("overwrite", false);
+        arguments.addProperty("replay", false);
+        arguments.addProperty("openApiSpecPath", "");
+        JsonArray excludedTransactionIds = new JsonArray();
+        tableModel.excludedTransactionIds().forEach(excludedTransactionIds::add);
+        arguments.add("excludedTransactionIds", excludedTransactionIds);
+
+        ShaftMcpInvocationService.getInstance(project)
+                .startTool(GENERATE_TOOL_NAME, arguments)
+                .future()
+                .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
+                    generateButton.setEnabled(true);
+                    if (error != null || result == null || !result.success()) {
+                        statusLabel.setText("Generation failed: "
+                                + (result != null ? result.output() : String.valueOf(error)));
+                        return;
+                    }
+                    JsonObject payload = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+                    boolean successful = payload != null && payload.has("successful")
+                            && payload.get("successful").getAsBoolean();
+                    String sourcePath = payload != null && payload.has("sourcePath")
+                            ? payload.get("sourcePath").getAsString()
+                            : "";
+                    statusLabel.setText(successful
+                            ? "Generated " + sourcePath
+                            : "Generation completed with errors -- see the SHAFT tool output.");
                 }));
     }
 
@@ -280,6 +371,9 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     /**
      * One row of the API recording transactions table.
      *
+     * @param id recorded transaction ID ({@code NetworkTransaction#transactionId}); used to drive
+     *           {@code capture_api_generate}'s {@code excludedTransactionIds} filter, not just to
+     *           display the row
      * @param method HTTP method
      * @param url request URL
      * @param status HTTP status
@@ -287,7 +381,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
      * @param size response size
      * @param included whether the row is included in generated code (session-local state)
      */
-    record TransactionRow(String method, String url, String status, String resourceKind, String size,
+    record TransactionRow(String id, String method, String url, String status, String resourceKind, String size,
                            boolean included) {
     }
 
@@ -300,15 +394,15 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         private List<TransactionRow> rows = new ArrayList<>();
 
         void setRows(List<TransactionRow> newRows) {
-            // Preserve session-local include checkbox state by matching on URL+method.
+            // Preserve session-local include checkbox state by matching on the stable transaction ID.
             List<TransactionRow> merged = new ArrayList<>(newRows.size());
             for (TransactionRow row : newRows) {
                 boolean included = rows.stream()
-                        .filter(existing -> existing.method().equals(row.method()) && existing.url().equals(row.url()))
+                        .filter(existing -> existing.id().equals(row.id()))
                         .findFirst()
                         .map(TransactionRow::included)
                         .orElse(true);
-                merged.add(new TransactionRow(row.method(), row.url(), row.status(), row.resourceKind(),
+                merged.add(new TransactionRow(row.id(), row.method(), row.url(), row.status(), row.resourceKind(),
                         row.size(), included));
             }
             rows = merged;
@@ -317,6 +411,20 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
 
         List<TransactionRow> rows() {
             return rows;
+        }
+
+        /**
+         * Returns the transaction IDs whose Include checkbox is unchecked, in table order, for
+         * {@code capture_api_generate}'s {@code excludedTransactionIds} filter.
+         *
+         * @return excluded transaction IDs
+         */
+        List<String> excludedTransactionIds() {
+            return rows.stream()
+                    .filter(row -> !row.included())
+                    .map(TransactionRow::id)
+                    .filter(id -> !id.isBlank())
+                    .toList();
         }
 
         @Override
@@ -364,8 +472,8 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
                 return;
             }
             TransactionRow row = rows.get(rowIndex);
-            rows.set(rowIndex, new TransactionRow(row.method(), row.url(), row.status(), row.resourceKind(),
-                    row.size(), included));
+            rows.set(rowIndex, new TransactionRow(row.id(), row.method(), row.url(), row.status(),
+                    row.resourceKind(), row.size(), included));
             fireTableCellUpdated(rowIndex, columnIndex);
         }
     }
