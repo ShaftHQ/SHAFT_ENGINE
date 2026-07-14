@@ -556,6 +556,86 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void formatsHealerRunResultAsACardDelegatingItsNestedAnalysisToTheDoctorRenderer() {
+        // Issue #3552: a healer run must read as a readable card (status, delegated Doctor
+        // diagnosis, attempts, review actions), not raw JSON -- the whole point of the shared
+        // renderer this ticket adds so a healer's embedded diagnosis reads like a manual Doctor run.
+        String markdown = AssistantMarkdown.fromMcpOutput("healer_run_failed_test", mcpText("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "FAILED_WITH_SUGGESTIONS",
+                  "attempts": [
+                    {"attemptNumber": 1, "exitCode": 1, "timedOut": false, "passed": false,
+                     "allureResultCount": 1, "failedAllureResultCount": 1,
+                     "diagnostics": "Locator not found: login_button"}
+                  ],
+                  "analysis": {
+                    "schemaVersion": "1.0",
+                    "status": "DETERMINISTIC",
+                    "bundleId": "bundle-456",
+                    "primaryCause": "LOCATOR",
+                    "confidence": "HIGH",
+                    "summary": "Button locator no longer matches the page.",
+                    "actions": [],
+                    "codeBlocks": [],
+                    "bundlePath": "target/shaft-healer/evidence-bundle.json",
+                    "jsonReportPath": "target/shaft-healer/doctor-report.json",
+                    "markdownReportPath": "target/shaft-healer/doctor-report.md",
+                    "warnings": []
+                  },
+                  "actions": [
+                    {"title":"Replay flow","action":"Use the agent to replay the failing flow.",
+                     "status":"PROVIDER_ADVISORY"}
+                  ],
+                  "codeBlocks": [
+                    {"title":"Agent handoff","language":"text","code":"Replay recording X and inspect the DOM."}
+                  ],
+                  "warnings": []
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("Healer:"), markdown),
+                () -> assertTrue(markdown.contains("FAILED_WITH_SUGGESTIONS"), markdown),
+                () -> assertTrue(markdown.contains("Attempt 1"), markdown),
+                () -> assertTrue(markdown.contains("Locator not found: login_button"), markdown),
+                () -> assertTrue(markdown.contains("**Primary cause:** LOCATOR"), markdown),
+                () -> assertTrue(markdown.contains("Button locator no longer matches the page."), markdown),
+                () -> assertTrue(markdown.contains("target/shaft-healer/doctor-report.json"), markdown),
+                () -> assertTrue(markdown.contains("Healer actions"), markdown),
+                () -> assertTrue(markdown.contains("Use the agent to replay the failing flow."), markdown),
+                () -> assertTrue(markdown.contains("Handoff snippets"), markdown),
+                () -> assertTrue(markdown.contains("Replay recording X and inspect the DOM."), markdown),
+                () -> assertFalse(markdown.contains("\"schemaVersion\"")));
+    }
+
+    @Test
+    void healerMarkdownAlsoDispatchesForThePlaywrightHealerToolName() {
+        String markdown = AssistantMarkdown.fromMcpOutput("playwright_healer_run_failed_test", mcpText("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "PASSED",
+                  "attempts": [
+                    {"attemptNumber": 1, "exitCode": 0, "timedOut": false, "passed": true,
+                     "allureResultCount": 1, "failedAllureResultCount": 0, "diagnostics": ""}
+                  ],
+                  "analysis": {
+                    "schemaVersion": "1.0", "status": "DETERMINISTIC", "bundleId": "",
+                    "primaryCause": "UNKNOWN", "confidence": "UNKNOWN", "summary": "",
+                    "actions": [], "codeBlocks": [], "bundlePath": "", "jsonReportPath": "",
+                    "markdownReportPath": "", "warnings": []
+                  },
+                  "actions": [], "codeBlocks": [], "warnings": []
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("Healer:"), markdown),
+                () -> assertTrue(markdown.contains("PASSED"), markdown),
+                () -> assertTrue(markdown.contains("Attempt 1"), markdown));
+    }
+
+    @Test
     void rejectsNativeSeleniumGeneratedJavaSnippetsWithRegenerationTools() {
         String markdown = AssistantMarkdown.fromMcpOutput("capture_code_blocks", mcpText("""
                 {

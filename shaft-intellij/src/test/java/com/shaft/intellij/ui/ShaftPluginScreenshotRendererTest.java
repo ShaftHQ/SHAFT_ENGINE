@@ -124,6 +124,8 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
         Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
+        Path toolsHumanizedDoctorCardScreenshot = outputPath.resolve("intellij-plugin-tools-humanized-doctor-card.png");
+        Path assistantDefaultModePrefillScreenshot = outputPath.resolve("intellij-plugin-assistant-default-mode-prefill.png");
         Path mcpSetupPostSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-post-setup.png");
         Path guidedScreenshot = outputPath.resolve("intellij-plugin-guided.png");
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
@@ -155,6 +157,8 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
+        write(toolsHumanizedDoctorCardScreenshot, renderToolsHumanizedDoctorCard(LIGHT_THEME, false));
+        write(assistantDefaultModePrefillScreenshot, renderAssistantDefaultModePrefill(LIGHT_THEME, false));
         write(mcpSetupPostSetupScreenshot, renderPostSetupSettings(LIGHT_THEME, false));
         write(guidedScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
         write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
@@ -187,6 +191,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantProgressMilestonesScreenshot) > 0,
                         assistantProgressMilestonesScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(toolsHumanizedDoctorCardScreenshot) > 0, toolsHumanizedDoctorCardScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantDefaultModePrefillScreenshot) > 0, assistantDefaultModePrefillScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupPostSetupScreenshot) > 0, mcpSetupPostSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(guidedScreenshot) > 0, guidedScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
@@ -217,6 +223,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantLiveDarkScreenshot),
                 () -> assertDimensions(assistantProgressMilestonesScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
+                () -> assertDimensions(toolsHumanizedDoctorCardScreenshot),
+                () -> assertDimensions(assistantDefaultModePrefillScreenshot),
                 () -> assertDimensions(mcpSetupPostSetupScreenshot),
                 () -> assertDimensions(guidedScreenshot),
                 () -> assertDimensions(recorderScreenshot),
@@ -507,6 +515,89 @@ class ShaftPluginScreenshotRendererTest {
             selectButton(component, "Allow source edits");
             invokeStartMcpInvocation(component, AssistantCommand.Invocation.tool(
                     "capture_start", captureStartArguments()));
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /**
+     * Renders the Tools panel's humanized doctor card (issue #3552): a {@code
+     * doctor_analyze_failed_allour} result routed through {@link AssistantMarkdown} instead of raw
+     * pretty-printed JSON, with the "View raw JSON" toggle button visible (still one click away).
+     */
+    private static BufferedImage renderToolsHumanizedDoctorCard(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftFeaturePanel component = new ShaftFeaturePanel(screenshotProject(), defaultSettings());
+            invokeShowResult(component, "doctor_analyze_failed_allure", ShaftMcpToolResult.success("""
+                    {
+                      "schemaVersion": "1.0",
+                      "status": "DETERMINISTIC",
+                      "bundleId": "bundle-123",
+                      "primaryCause": "LOCATOR",
+                      "confidence": "HIGH",
+                      "summary": "The sign-in button locator no longer matches the page after a redesign.",
+                      "actions": [
+                        {"title":"Update locator","action":"Replace the stale CSS selector with the new data-testid.",
+                         "status":"SUGGESTED"}
+                      ],
+                      "codeBlocks": [
+                        {"title":"Locator fix","language":"java",
+                         "code":"driver.element().click(SHAFT.GUI.Locator.hasTestId(\\"sign-in-button\\"));",
+                         "copyPasteReady":true}
+                      ],
+                      "providerFallback": {"used":false,"reason":"AI advisory disabled by default."},
+                      "bundlePath": "target/shaft-doctor/evidence-bundle.json",
+                      "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+                      "markdownReportPath": "target/shaft-doctor/doctor-report.md",
+                      "warnings": []
+                    }
+                    """), null);
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static void invokeShowResult(
+            ShaftFeaturePanel component, String toolName, ShaftMcpToolResult result, Throwable error) {
+        try {
+            Method method = ShaftFeaturePanel.class.getDeclaredMethod(
+                    "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
+            method.setAccessible(true);
+            method.invoke(component, toolName, result, error);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to render the Tools panel result", exception);
+        }
+    }
+
+    /**
+     * Renders the SHAFT tool window in DEFAULT mode (advancedUiEnabled=false -- how most users run
+     * it) right after a gate-audited entry point (issue #3552, e.g. {@code
+     * ShaftToolWorkflowLauncher}, {@code RecordShaftFlowHereAction}, {@code RecordApiWebAction})
+     * routed a plain-language request into the Assistant composer instead of silently no-opping or
+     * dead-ending in a warning. The composer is filled but nothing has been sent -- the transcript
+     * stays on the first-run welcome, proving this is a prefill, not an auto-send.
+     */
+    private static BufferedImage renderAssistantDefaultModePrefill(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftToolWindowPanel component = new ShaftToolWindowPanel(screenshotProject(), settings);
+            component.prefillAssistantPrompt("Diagnose my last failed test run");
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);

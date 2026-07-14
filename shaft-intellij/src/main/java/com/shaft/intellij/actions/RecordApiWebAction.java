@@ -60,10 +60,12 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
         arguments.add("networkOptions", networkOptions);
 
         if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
-            // showApiRecordingTab silently no-ops while advanced workflows are off (the default), so
-            // notifying "prepared" here would claim a recording started when nothing actually did.
-            ShaftNotifier.warn(project, "SHAFT",
-                    "Enable advanced workflows in Settings | SHAFT to open the API Recording tab.");
+            // Default mode: route to the Assistant with the URL the user just typed, carried into an
+            // equivalent plain-language request, instead of discarding it behind a dead-end warning
+            // (issue #3552) -- the raw API Recording tab stays hidden here.
+            openAssistantPrompt(project, recordApiPrompt(targetUrl.trim()));
+            ShaftNotifier.info(project, "SHAFT",
+                    "API recording request ready in the Assistant for " + targetUrl.trim() + ".");
             return;
         }
         openApiRecordingTab(project, targetUrl.trim(), arguments);
@@ -74,6 +76,29 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
     public void update(@NotNull AnActionEvent event) {
         Project project = event.getProject();
         event.getPresentation().setEnabledAndVisible(project != null && ShaftProjectDetector.isShaftProject(project));
+    }
+
+    /**
+     * Plain-language Assistant equivalent of the {@code capture_api_start} MCP request. Package-
+     * private for {@code RecordApiWebActionTest}.
+     */
+    static String recordApiPrompt(String targetUrl) {
+        return "Record API traffic on " + targetUrl;
+    }
+
+    private static void openAssistantPrompt(Project project, String text) {
+        ToolWindowManager.getInstance(project).invokeLater(() -> {
+            ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
+            if (toolWindow == null) {
+                return;
+            }
+            toolWindow.show(() -> {
+                Content content = toolWindow.getContentManager().getContent(0);
+                if (content != null && content.getComponent() instanceof ShaftToolWindowPanel panel) {
+                    panel.prefillAssistantPrompt(text);
+                }
+            });
+        });
     }
 
     private static void openApiRecordingTab(Project project, String targetUrl, JsonObject arguments) {

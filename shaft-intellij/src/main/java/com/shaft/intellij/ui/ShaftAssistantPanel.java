@@ -593,6 +593,35 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
+     * Fills the composer with {@code text} for the user to review and send themselves — never
+     * auto-sends (issue #3552, mirrors {@link #emptyStateChip(String, String)}). Used by
+     * {@link ShaftToolWindowPanel#prefillAssistantPrompt(String)} so action/notification entry
+     * points that used to silently no-op while advanced workflows are off can instead route the
+     * user straight to the Assistant with a ready-to-send plain-language request.
+     *
+     * @param text plain-language prompt to prefill
+     */
+    void prefillPrompt(String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        prompt.setText(text);
+        prompt.setCaretPosition(text.length());
+        prompt.requestFocusInWindow();
+        setStatus("Review the prefilled request, then send it");
+    }
+
+    /** Package-private test accessor: current composer text. */
+    String promptText() {
+        return prompt.getText();
+    }
+
+    /** Package-private test accessor: rendered transcript markdown (blank until a turn is sent). */
+    String transcriptMarkdown() {
+        return transcript.markdown();
+    }
+
+    /**
      * Text area with a placeholder that wraps to the component's real width. IntelliJ's
      * {@code StatusText} empty text never wraps and clips long lines even when the tool window is
      * wide, cutting off the invite mid-sentence.
