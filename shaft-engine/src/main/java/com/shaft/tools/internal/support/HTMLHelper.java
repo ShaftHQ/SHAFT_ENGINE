@@ -21,9 +21,11 @@ public enum HTMLHelper {
                   background: conic-gradient(var(--shaft-pass) ${CHECKPOINTS_PASSED_DEGREES}deg, var(--shaft-fail) 0);
                   box-shadow: inset 0 0 0 28px var(--shaft-surface);
                 }
-                .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.9em; }
+                .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.9em; flex-wrap: wrap; }
                 .filter-bar input { accent-color: var(--shaft-fail); }
+                .filter-bar select { font: inherit; padding: 2px 6px; border: 1px solid var(--shaft-border); border-radius: 4px; background: var(--shaft-surface); color: var(--shaft-text); max-width: 60ch; }
                 .table-wrap.fail-only tr.checkpoint-row[data-status="PASS"] { display: none; }
+                tr.checkpoint-row.test-hidden { display: none; }
               </style>
             </head>
             <body>
@@ -74,10 +76,18 @@ public enum HTMLHelper {
                   </section>
                   <section class="panel">
                     <h2>Details</h2>
-                    <label class="filter-bar">
-                      <input type="checkbox" id="shaft-fail-only" onchange="document.getElementById('shaft-checkpoints').classList.toggle('fail-only', this.checked)">
-                      Show failures only
-                    </label>
+                    <div class="filter-bar">
+                      <label>
+                        <input type="checkbox" id="shaft-fail-only" onchange="document.getElementById('shaft-checkpoints').classList.toggle('fail-only', this.checked)">
+                        Show failures only
+                      </label>
+                      <label>
+                        Filter by test:
+                        <select id="shaft-test-filter" onchange="shaftFilterCheckpointsByTest(this.value)">
+                          <option value="">All tests</option>${CHECKPOINTS_TEST_OPTIONS}
+                        </select>
+                      </label>
+                    </div>
                     <div class="table-wrap" id="shaft-checkpoints">
                       <table>
                         <thead>
@@ -86,6 +96,13 @@ public enum HTMLHelper {
                         <tbody>${CHECKPOINTS_DETAILS}</tbody>
                       </table>
                     </div>
+                    <script>
+                      function shaftFilterCheckpointsByTest(selectedTest) {
+                        document.querySelectorAll('#shaft-checkpoints tr.checkpoint-row').forEach(function (row) {
+                          row.classList.toggle('test-hidden', selectedTest !== '' && row.getAttribute('data-test') !== selectedTest);
+                        });
+                      }
+                    </script>
                   </section>
                 </main>
               </div>

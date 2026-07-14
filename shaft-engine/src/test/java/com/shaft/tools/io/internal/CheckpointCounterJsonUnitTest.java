@@ -134,6 +134,44 @@ public class CheckpointCounterJsonUnitTest {
         Assert.assertTrue(html.contains(">(suite)<"), html);
     }
 
+    @Test(description = "checkpoint-browser test filter lists one distinct option per owning test, none for suite-level (#3534)")
+    public void checkpointTestFilterOptionsListDistinctTests() {
+        String classA = "com.example.AlphaTest";
+        String classB = "com.example.BetaTest";
+        // Two checkpoints for AlphaTest (must dedupe to a single option) and one for BetaTest.
+        ReportContext.start(new TestExecutionInfo(classA + "#one", classA, "one", "one", null, null, null, false));
+        try {
+            CheckpointCounter.increment(CheckpointType.ASSERTION, "opt-a1", CheckpointStatus.PASS);
+            CheckpointCounter.increment(CheckpointType.ASSERTION, "opt-a2", CheckpointStatus.PASS);
+        } finally {
+            ReportContext.clear();
+        }
+        ReportContext.start(new TestExecutionInfo(classB + "#two", classB, "two", "two", null, null, null, false));
+        try {
+            CheckpointCounter.increment(CheckpointType.VERIFICATION, "opt-b1", CheckpointStatus.FAIL);
+        } finally {
+            ReportContext.clear();
+        }
+        // A suite-level checkpoint must not produce an option.
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "opt-suite", CheckpointStatus.PASS);
+
+        String options = CheckpointCounter.checkpointTestFilterOptions();
+
+        Assert.assertEquals(countOccurrences(options, "<option value=\"" + classA + "#one\">"), 1,
+                "AlphaTest must appear exactly once despite two checkpoints: " + options);
+        Assert.assertTrue(options.contains("<option value=\"" + classB + "#two\">"), options);
+        // Suite-level checkpoints have no test id, so no empty-value option is emitted here.
+        Assert.assertFalse(options.contains("value=\"\""), options);
+    }
+
+    private static int countOccurrences(String haystack, String needle) {
+        int count = 0;
+        for (int i = haystack.indexOf(needle); i >= 0; i = haystack.indexOf(needle, i + needle.length())) {
+            count++;
+        }
+        return count;
+    }
+
     @Test(description = "checkpoints are attributed to the owning test (class/method/testId) (#3532 D / #3534 P3)")
     public void checkpointsAttributeToOwningTest() {
         String marker = "attribution-marker";

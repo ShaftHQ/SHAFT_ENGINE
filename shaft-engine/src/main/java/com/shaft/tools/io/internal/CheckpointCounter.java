@@ -143,6 +143,7 @@ public class CheckpointCounter {
                         .replace("${VERIFICATIONS_PASSED}", String.valueOf(verificationsPassed))
                         .replace("${VERIFICATIONS_FAILED}", String.valueOf(verificationsFailed))
                         .replace("${VERIFICATIONS_TOTAL}", String.valueOf(verificationsPassed + verificationsFailed))
+                        .replace("${CHECKPOINTS_TEST_OPTIONS}", checkpointTestFilterOptions())
                         .replace("${CHECKPOINTS_DETAILS}", checkpointsDetails));
 
         attachCheckpointsJson();
@@ -175,6 +176,30 @@ public class CheckpointCounter {
                     entry.status()));
         }
         return detailsBuilder.toString();
+    }
+
+    /**
+     * Builds the {@code <option>} list for the checkpoint-browser "filter by test" control: one
+     * option per distinct owning test id, in first-seen order, so a reader can narrow the details
+     * table to a single test. Suite-level checkpoints (no captured identity) have no option and are
+     * shown only under "All tests". Package-visible for unit testing (issue #3534 checkpoint browser).
+     *
+     * @return the concatenated {@code <option>} HTML (empty when no checkpoint carries a test id)
+     */
+    static String checkpointTestFilterOptions() {
+        java.util.LinkedHashSet<String> testIds = new java.util.LinkedHashSet<>();
+        for (CheckpointEntry entry : checkpoints) {
+            String testId = entry.testId();
+            if (!testId.isEmpty()) {
+                testIds.add(testId);
+            }
+        }
+        StringBuilder options = new StringBuilder();
+        for (String testId : testIds) {
+            String escaped = ReportHtmlTheme.escapeHtml(testId);
+            options.append("<option value=\"").append(escaped).append("\">").append(escaped).append("</option>");
+        }
+        return options.toString();
     }
 
     private static final String ASSERTION = CheckpointType.ASSERTION.toString();
