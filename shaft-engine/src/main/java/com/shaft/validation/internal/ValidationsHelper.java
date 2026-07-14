@@ -46,6 +46,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
@@ -671,6 +672,10 @@ public class ValidationsHelper {
         AtomicBoolean validationState = new AtomicBoolean(false);
         List<List<Object>> attachments = new ArrayList<>();
         AtomicBoolean visualComparisonAttached = new AtomicBoolean(false);
+        // Hoisted out of the fluentWait lambda so the reporting block can render a domain-consistent
+        // visual evidence card from the numeric diff metadata (issue #3532 E).
+        AtomicLong diffPixelsRef = new AtomicLong(0);
+        AtomicReference<Double> diffRatioRef = new AtomicReference<>(0.0);
         String pageBaselineKey = pageLevel ? "page_" + ReportManagerHelper.getCallingMethodFullName() : null;
 
         try {
@@ -710,6 +715,8 @@ public class ValidationsHelper {
                 if (baselineImage != null) {
                     visualComparisonAttached.set(attachVisualComparison(baselineImage, actualScreenshot, comparisonResult.diffImage()));
                 }
+                diffPixelsRef.set(comparisonResult.diffPixels());
+                diffRatioRef.set(comparisonResult.diffRatio());
 
                 expected.set(validationType.getValue());
                 actual.set(comparisonResult.matched());
@@ -726,6 +733,15 @@ public class ValidationsHelper {
         parameters.put("Should match", String.valueOf(expected.get()));
         parameters.put("Actual value", String.valueOf(actual.get()));
         updateAllureParameters(parameters);
+        // Prepend a domain-consistent visual evidence card (diff pixels/ratio vs budget + pointer to
+        // the attached image diff) whenever an actual baseline comparison happened (#3532 E).
+        if (visualComparisonAttached.get()) {
+            String visualCard = AssertionEvidenceReporter.renderVisualCard(validationState.get(),
+                    diffPixelsRef.get(), maxDiffPixels, diffRatioRef.get(), maxDiffPixelRatio);
+            if (!visualCard.isBlank()) {
+                attachments.add(0, Arrays.asList("Visual evidence", "visual-evidence.html", visualCard));
+            }
+        }
         // force take page screenshot, (rather than element highlighted screenshot)
         reportValidationState(validationState.get(), expected, actual, driver, pageLevel ? null : locator, attachments, visualComparisonAttached.get());
     }

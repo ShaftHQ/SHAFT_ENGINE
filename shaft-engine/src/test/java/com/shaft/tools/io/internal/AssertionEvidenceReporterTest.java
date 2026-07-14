@@ -181,6 +181,46 @@ public class AssertionEvidenceReporterTest {
         Assert.assertTrue(html.contains("aer-diff"), html);
     }
 
+    @Test(description = "Visual card surfaces diff pixels/ratio against their budgets as a summary (#3532 E)")
+    public void visualCardRendersDiffMetadata() {
+        String html = AssertionEvidenceReporter.renderVisualCard(false, 1234L, 100, 0.0125d, 0.01d);
+
+        Assert.assertTrue(html.contains("Visual"), html);
+        Assert.assertTrue(html.contains("FAILED"), html);
+        Assert.assertTrue(html.contains(">Image<"), html);
+        Assert.assertTrue(html.contains("Diff pixels"), html);
+        Assert.assertTrue(html.contains("1234"), html);
+        Assert.assertTrue(html.contains("budget 100"), html);
+        Assert.assertTrue(html.contains("Diff ratio"), html);
+        Assert.assertTrue(html.contains("0.0125"), html);
+        Assert.assertTrue(html.contains("image diff is attached"), html);
+        Assert.assertTrue(html.contains("<!doctype html>"), html);
+    }
+
+    @Test(description = "Visual card omits budget text and shows PASSED when no budgets are configured (#3532 E)")
+    public void visualCardHandlesNullBudgetsAndPass() {
+        String html = AssertionEvidenceReporter.renderVisualCard(true, 0L, null, 0.0d, null);
+
+        Assert.assertTrue(html.contains("PASSED"), html);
+        // No budgets configured -> no "budget" annotation, and an exact match reads as 0.
+        Assert.assertFalse(html.contains("budget"), html);
+        Assert.assertTrue(html.contains(">0<") || html.contains(">0 <") || html.contains("\">0</span>"), html);
+    }
+
+    @Test(description = "Writes a sample visual diff-metadata card to the scratch directory for manual review (#3532 E)")
+    public void writeSampleVisualCardForManualReview() throws Exception {
+        String html = AssertionEvidenceReporter.renderVisualCard(false, 4821L, 500, 0.0231d, 0.01d);
+
+        Path outputFile = Path.of(System.getProperty("shaft.visualEvidence.sampleOutput",
+                "C:\\Users\\Mohab\\AppData\\Local\\Temp\\claude\\C--Users-Mohab-IdeaProjects-SHAFT-ENGINE\\a0966654-661a-46d0-8c81-75ecf6570c15\\scratchpad\\visual-card-sample.html"));
+        Files.createDirectories(outputFile.getParent());
+        Files.writeString(outputFile, html, StandardCharsets.UTF_8);
+
+        Assert.assertTrue(Files.exists(outputFile));
+        Assert.assertTrue(html.contains("Visual"), html);
+        Assert.assertTrue(html.contains("4821"), html);
+    }
+
     @Test(description = "Writes a sample failed-JSON-diff card to the scratch directory for manual visual review")
     public void writeSampleFailedJsonDiffCardForManualReview() throws Exception {
         String expectedJson = "{\n  \"orderId\": 1042,\n  \"status\": \"CONFIRMED\",\n  \"items\": [\"sku-1\", \"sku-2\"],\n  \"customer\": {\n    \"name\": \"Ann Example\",\n    \"token\": \"abcdef123456\"\n  }\n}";
