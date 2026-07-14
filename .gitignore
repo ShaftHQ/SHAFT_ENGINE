@@ -110,3 +110,7 @@ __pycache__/
 
 # SHAFT auto-scaffolded default properties (generated when shaft-mcp/shaft-cli runs from the repo root)
 /src/main/resources/properties/
+
+# JVM fatal error / replay dumps (generated at CWD on a forked-test crash)
+hs_err_pid*.log
+replay_pid*.log
