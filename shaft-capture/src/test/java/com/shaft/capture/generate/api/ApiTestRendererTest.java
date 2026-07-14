@@ -296,6 +296,101 @@ class ApiTestRendererTest {
                 "The volatile traceId must not be pinned, got:\n" + source);
     }
 
+    @Test
+    void formUrlEncodedBodyRendersSetParametersFormNotRawBody() throws Exception {
+        ApiTransaction login = transaction("tx-1", "POST", "https://api.example.test/login",
+                Map.of("Content-Type", "application/x-www-form-urlencoded"),
+                "username=john&password=secret%21", 200, Map.of(), "{\"status\":\"ok\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Form", List.of(login),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Form");
+        assertTrue(source.contains(".setContentType(\"application/x-www-form-urlencoded\")"), source);
+        assertTrue(source.contains("com.shaft.api.RestActions.ParametersType.FORM"), source);
+        assertTrue(source.contains("java.util.Map.entry(\"username\", \"john\")"), source);
+        // The %21 escape is URL-decoded to '!' before being pinned as a parameter value.
+        assertTrue(source.contains("java.util.Map.entry(\"password\", \"secret!\")"), source);
+        // A form body must not be replayed as an opaque JSON-defaulted request body.
+        assertTrue(!source.contains(".setRequestBody(\"username=john"), source);
+    }
+
+    @Test
+    void formUrlEncodedBodyWithCorrelationKeepsInterpolatedRawBody() throws Exception {
+        // A correlated value flows into the form body, so setParameters (which cannot interpolate)
+        // must be skipped in favour of the interpolated raw body -- with the content type preserved.
+        ApiTransaction createOrder = transaction("tx-1", "POST", "https://api.example.test/orders",
+                Map.of(), "{\"item\":\"widget\"}", 201, Map.of(), "{\"id\":\"" + CREATED_ID + "\"}");
+        ApiTransaction confirm = transaction("tx-2", "POST", "https://api.example.test/orders/confirm",
+                Map.of("Content-Type", "application/x-www-form-urlencoded"),
+                "orderId=" + CREATED_ID + "&note=ok", 200, Map.of(), "{\"status\":\"confirmed\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_FormCorrelated", List.of(createOrder, confirm),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_FormCorrelated");
+        assertTrue(source.contains(".setContentType(\"application/x-www-form-urlencoded\")"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+        // The correlated id is chained through a variable, never emitted as a literal or a form param.
+        assertTrue(!source.contains("ParametersType.FORM"), source);
+        assertTrue(!source.contains(CREATED_ID), source);
+    }
+
+    @Test
+    void multipartBodyPreservesContentTypeAndFlagsFileParts() throws Exception {
+        ApiTransaction upload = transaction("tx-1", "POST", "https://api.example.test/upload",
+                Map.of("Content-Type", "multipart/form-data; boundary=X"),
+                "--X\r\nContent-Disposition: form-data; name=\"f\"\r\n\r\nhi\r\n--X--", 201, Map.of(), "{\"id\":\"1\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Multipart", List.of(upload),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Multipart");
+        assertTrue(source.contains("Multipart body captured as raw text"), source);
+        assertTrue(source.contains(".setContentType(\"multipart/form-data; boundary=X\")"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+    }
+
+    @Test
+    void graphQlJsonBodyIsFlaggedAndTheWorkingBodyPreserved() throws Exception {
+        ApiTransaction query = transaction("tx-1", "POST", "https://api.example.test/graphql",
+                Map.of("Content-Type", "application/json"),
+                "{\"query\":\"{ user { id } }\"}", 200, Map.of(), "{\"data\":{\"user\":{\"id\":\"1\"}}}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_GraphQl", List.of(query),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_GraphQl");
+        assertTrue(source.contains("sendGraphQlRequest"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+        // JSON is SHAFT's default, so the content type is not re-stated for a GraphQL JSON body.
+        assertTrue(!source.contains(".setContentType(\"application/json\")"), source);
+    }
+
+    @Test
+    void nonJsonBodyPreservesTheRecordedContentType() throws Exception {
+        ApiTransaction xml = transaction("tx-1", "POST", "https://api.example.test/soap",
+                Map.of("Content-Type", "application/xml"),
+                "<user><id>1</id></user>", 200, Map.of(), "<ok/>");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Xml", List.of(xml),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Xml");
+        assertTrue(source.contains(".setContentType(\"application/xml\")"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+    }
+
     private void assertCompiles(String source, String className) throws Exception {
         Path moduleDir = Files.createDirectories(tempDir.resolve(className));
         Path sourceFile = moduleDir.resolve(className + ".java");
