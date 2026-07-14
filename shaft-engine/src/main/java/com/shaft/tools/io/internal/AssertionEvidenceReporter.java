@@ -84,6 +84,60 @@ public final class AssertionEvidenceReporter {
         }
     }
 
+    /**
+     * Renders a domain-consistent evidence card for a visual (screenshot) validation.
+     *
+     * <p>Visual validations also report their outcome as a pass/fail boolean, so {@link #renderCard}
+     * skips them; the pixel diff is attached separately as a native Allure image-diff viewer. This
+     * overload surfaces the numeric comparison metadata — diff pixels and diff ratio against their
+     * budgets — as a compact summary card, so the report answers "how far off was it?" in text
+     * without a full dump, and points at the attached image diff (issue #3532 E).
+     *
+     * @param passed        true when the screenshot matched its baseline within budget
+     * @param diffPixels    number of differing pixels reported by the comparison
+     * @param maxDiffPixels the pixel-count budget, or {@code null} when none was configured
+     * @param diffRatio     the differing-pixel ratio reported by the comparison
+     * @param maxDiffRatio  the ratio budget, or {@code null} when none was configured
+     * @return a complete self-contained HTML document string
+     */
+    public static String renderVisualCard(boolean passed, long diffPixels, Integer maxDiffPixels,
+                                          double diffRatio, Double maxDiffRatio) {
+        try {
+            return document("Visual", passed, "Image",
+                    visualMetadataSection(diffPixels, maxDiffPixels, diffRatio, maxDiffRatio));
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    private static String visualMetadataSection(long diffPixels, Integer maxDiffPixels, double diffRatio,
+                                                Double maxDiffRatio) {
+        String pixels = diffPixels + (maxDiffPixels == null ? "" : " (budget " + maxDiffPixels + ")");
+        String ratio = formatRatio(diffRatio) + (maxDiffRatio == null ? "" : " (budget " + formatRatio(maxDiffRatio) + ")");
+        return "<div class=\"aer-scalar\">"
+                + "<div class=\"aer-scalar-row\"><span class=\"aer-scalar-label\">Diff pixels</span>"
+                + "<span class=\"aer-scalar-value\">" + escapeHtml(pixels) + "</span></div>"
+                + "<div class=\"aer-scalar-row\"><span class=\"aer-scalar-label\">Diff ratio</span>"
+                + "<span class=\"aer-scalar-value\">" + escapeHtml(ratio) + "</span></div>"
+                + "</div>"
+                + "<p class=\"aer-visual-note\">The full pixel-level image diff is attached separately as the image-diff viewer.</p>";
+    }
+
+    /**
+     * Formats a diff ratio compactly: up to six significant digits, trailing zeros trimmed, so a
+     * ratio like {@code 0.0125000} reads as {@code 0.0125} and an exact match reads as {@code 0}.
+     */
+    private static String formatRatio(double ratio) {
+        if (ratio == 0d) {
+            return "0";
+        }
+        String formatted = String.format("%.6f", ratio);
+        if (formatted.contains(".")) {
+            formatted = formatted.replaceAll("0+$", "").replaceAll("\\.$", "");
+        }
+        return formatted;
+    }
+
     private static String render(String categoryLabel, boolean passed, Object expected, Object actual) {
         Capped expectedText = cap(safeRedact(rawValue(expected)));
         Capped actualText = cap(safeRedact(rawValue(actual)));
