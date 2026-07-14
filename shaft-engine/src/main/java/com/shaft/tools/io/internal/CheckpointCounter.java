@@ -121,17 +121,7 @@ public class CheckpointCounter {
         if (checkpoints.isEmpty()) {
             return;
         }
-        StringBuilder detailsBuilder = new StringBuilder();
-        for (CheckpointEntry entry : checkpoints) {
-            detailsBuilder.append(String.format(
-                    HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
-                    entry.status(),
-                    entry.id(),
-                    ReportHtmlTheme.escapeHtml(entry.type()),
-                    ReportHtmlTheme.escapeHtml(entry.message()),
-                    ReportHtmlTheme.statusClass(entry.status()),
-                    entry.status()));
-        }
+        String checkpointsDetails = checkpointDetailsHtml();
 
         long assertionsPassed = typeStatusCount(ASSERTION, PASS);
         long assertionsFailed = typeStatusCount(ASSERTION, FAIL);
@@ -153,9 +143,38 @@ public class CheckpointCounter {
                         .replace("${VERIFICATIONS_PASSED}", String.valueOf(verificationsPassed))
                         .replace("${VERIFICATIONS_FAILED}", String.valueOf(verificationsFailed))
                         .replace("${VERIFICATIONS_TOTAL}", String.valueOf(verificationsPassed + verificationsFailed))
-                        .replace("${CHECKPOINTS_DETAILS}", detailsBuilder));
+                        .replace("${CHECKPOINTS_DETAILS}", checkpointsDetails));
 
         attachCheckpointsJson();
+    }
+
+    /**
+     * Builds the {@code <tr>} rows for the checkpoint-browser details table, one per checkpoint.
+     * Each row carries its stable id and the owning test's {@code class#method} identity (a
+     * {@code data-test} attribute plus a visible "Test" cell), so the report attributes every
+     * checkpoint to its test and can later filter or "jump to test" by it; a checkpoint with no
+     * captured identity (suite-level) shows "(suite)". Package-visible so it can be unit-tested
+     * without publishing an Allure attachment (issue #3534 checkpoint browser).
+     *
+     * @return the concatenated table-row HTML
+     */
+    static String checkpointDetailsHtml() {
+        StringBuilder detailsBuilder = new StringBuilder();
+        for (CheckpointEntry entry : checkpoints) {
+            String testId = entry.testId();
+            String testDisplay = testId.isEmpty() ? "(suite)" : testId;
+            detailsBuilder.append(String.format(
+                    HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
+                    entry.status(),
+                    ReportHtmlTheme.escapeHtml(testId),
+                    entry.id(),
+                    ReportHtmlTheme.escapeHtml(testDisplay),
+                    ReportHtmlTheme.escapeHtml(entry.type()),
+                    ReportHtmlTheme.escapeHtml(entry.message()),
+                    ReportHtmlTheme.statusClass(entry.status()),
+                    entry.status()));
+        }
+        return detailsBuilder.toString();
     }
 
     private static final String ASSERTION = CheckpointType.ASSERTION.toString();

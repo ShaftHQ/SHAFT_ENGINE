@@ -81,7 +81,7 @@ public enum HTMLHelper {
                     <div class="table-wrap" id="shaft-checkpoints">
                       <table>
                         <thead>
-                          <tr><th>ID</th><th>Type</th><th>Message</th><th>Status</th></tr>
+                          <tr><th>ID</th><th>Test</th><th>Type</th><th>Message</th><th>Status</th></tr>
                         </thead>
                         <tbody>${CHECKPOINTS_DETAILS}</tbody>
                       </table>
@@ -91,7 +91,7 @@ public enum HTMLHelper {
               </div>
             </body>
             </html>"""),
-    CHECKPOINT_DETAILS_FORMAT("<tr class=\"checkpoint-row\" data-status=\"%s\"><td>%d</td><td>%s</td><td>%s</td><td><span class=\"status-chip %s\">%s</span></td></tr>"),
+    CHECKPOINT_DETAILS_FORMAT("<tr class=\"checkpoint-row\" data-status=\"%s\" data-test=\"%s\"><td>%d</td><td class=\"checkpoint-test\">%s</td><td>%s</td><td>%s</td><td><span class=\"status-chip %s\">%s</span></td></tr>"),
 
     EXECUTION_SUMMARY("""
             <!DOCTYPE html>

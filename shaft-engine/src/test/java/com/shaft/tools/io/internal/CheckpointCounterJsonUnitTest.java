@@ -109,6 +109,31 @@ public class CheckpointCounterJsonUnitTest {
         Assert.assertTrue(secondId > firstId, "ids must strictly increase: " + firstId + " -> " + secondId);
     }
 
+    @Test(description = "checkpoint-browser details HTML surfaces the owning test id per row (#3534 checkpoint browser)")
+    public void checkpointDetailsHtmlSurfacesOwningTestPerRow() {
+        String marker = "browser-attribution-marker";
+        String className = "com.example.CheckoutTest";
+        String methodName = "appliesDiscount";
+        ReportContext.start(new TestExecutionInfo(
+                className + "#" + methodName, className, methodName, methodName, null, null, null, false));
+        try {
+            CheckpointCounter.increment(CheckpointType.ASSERTION, marker, CheckpointStatus.PASS);
+        } finally {
+            ReportContext.clear();
+        }
+        // A suite-level checkpoint (no test identity) captured after clearing the context.
+        CheckpointCounter.increment(CheckpointType.VERIFICATION, "browser-suite-level-marker", CheckpointStatus.PASS);
+
+        String html = CheckpointCounter.checkpointDetailsHtml();
+
+        // The attributed checkpoint carries its test both as a filterable data-test attribute and a visible cell.
+        Assert.assertTrue(html.contains("data-test=\"" + className + "#" + methodName + "\""), html);
+        Assert.assertTrue(html.contains(">" + className + "#" + methodName + "<"), html);
+        // A checkpoint with no captured identity renders the suite-level placeholder, never a blank test.
+        Assert.assertTrue(html.contains("data-test=\"\""), html);
+        Assert.assertTrue(html.contains(">(suite)<"), html);
+    }
+
     @Test(description = "checkpoints are attributed to the owning test (class/method/testId) (#3532 D / #3534 P3)")
     public void checkpointsAttributeToOwningTest() {
         String marker = "attribution-marker";
