@@ -249,6 +249,53 @@ class ApiTestRendererTest {
                 "BUSINESS depth should not need test-data artifacts");
     }
 
+    @Test
+    void businessDepthErrorResponseRendersErrorShapeTemplatePinningCodeThenMessage() throws Exception {
+        // A 4xx negative case: code + message are the stable error contract; traceId is volatile.
+        ApiTransaction notFound = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 404, Map.of(),
+                "{\"message\":\"Order not found\",\"code\":\"NOT_FOUND\",\"traceId\":\"" + CREATED_ID + "\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Error", List.of(notFound),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Error");
+        // Negative-case template is labelled and reports the HTTP status.
+        assertTrue(source.contains("Negative-case error shape (HTTP 404)"), source);
+        // Both the error code and message are pinned by JSON path.
+        assertTrue(source.contains(".object(api.getResponseJSONValue(\"$.code\"))"), source);
+        assertTrue(source.contains(".isEqualTo(\"NOT_FOUND\")"), source);
+        assertTrue(source.contains(".object(api.getResponseJSONValue(\"$.message\"))"), source);
+        assertTrue(source.contains(".isEqualTo(\"Order not found\")"), source);
+        // Contract-relevant fields lead: the code assertion is rendered before the message one,
+        // regardless of their order in the recorded body.
+        assertTrue(source.indexOf("$.code") < source.indexOf("$.message"),
+                "Error code must be pinned before the message, got:\n" + source);
+        // The volatile traceId is never pinned as a business value.
+        assertTrue(!source.contains(CREATED_ID),
+                "The volatile traceId must not be pinned, got:\n" + source);
+    }
+
+    @Test
+    void businessDepthErrorResponseWithOnlyVolatileFieldsFallsBackToStatusOnlyComment() throws Exception {
+        // A 5xx whose body carries no stable field -- the status assertion must stand alone.
+        ApiTransaction serverError = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 500, Map.of(), "{\"traceId\":\"" + CREATED_ID + "\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_ServerError", List.of(serverError),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_ServerError");
+        assertTrue(source.contains("Negative-case error shape (HTTP 500)"), source);
+        assertTrue(source.contains("status assertion above stands alone"), source);
+        assertTrue(!source.contains(CREATED_ID),
+                "The volatile traceId must not be pinned, got:\n" + source);
+    }
+
     private void assertCompiles(String source, String className) throws Exception {
         Path moduleDir = Files.createDirectories(tempDir.resolve(className));
         Path sourceFile = moduleDir.resolve(className + ".java");
