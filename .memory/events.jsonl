@@ -221,3 +221,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.verify-assistant-workflow-bug-reports-against-main-much-was-already-shipped-in-3505-3513","timestamp":"2026-07-14T15:55:31+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.recorder-enter-nav-double-navigate-to-location-replace-redirect-mechanism-is-already-suppressed","timestamp":"2026-07-14T15:55:31+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.shaft-capture-e2e-use-system-mvn-jdk25-not-mvnw-read-surefire-xml-for-the-verdict","timestamp":"2026-07-14T15:55:31+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-plugin-ux-program-umbrella-3553-tracks-children-3546-3552","timestamp":"2026-07-14T15:59:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.always-commit-learned-lessons-to-github-via-a-pr","timestamp":"2026-07-14T15:59:26+03:00"}
