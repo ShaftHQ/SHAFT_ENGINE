@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/recorder-enter-nav-double-navigate-to-location-replace-redirect-mechanism-is-already-suppressed.md",
+  "content_hash": "sha256:c7163439c630d874b4a96fb627050d031e87a184999a128f506f072e4ff7d332",
+  "created_at": "2026-07-14T15:55:31+03:00",
+  "evidence": [
+    {
+      "id": "#3495 server interactionConsequence + popstate; #3508 client consequence gate",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.recorder-enter-nav-double-navigate-to-location-replace-redirect-mechanism-is-already-suppressed",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ initial->recorder->codegen end-user workflow audit (2026-07-14 close-all-open-issues loop)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Recorder ENTER-nav double 'Navigate to': location.replace/redirect mechanism is already suppressed",
+  "type": "gotcha",
+  "updated_at": "2026-07-14T15:55:31+03:00"
+}

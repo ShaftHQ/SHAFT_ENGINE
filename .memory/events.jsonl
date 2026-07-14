@@ -217,3 +217,7 @@
 {"actor":"agent","event":"memory.created","id":"workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a-self-polling-monitor","timestamp":"2026-07-14T12:45:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync","timestamp":"2026-07-14T12:45:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.capture-overlay-is-fixed-height-overflow-hidden-added-content-clips-modal-sub-panels-e2e-runs-the-full-class","timestamp":"2026-07-14T12:45:52+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.intellij-assistant-local-agent-failure-leaked-raw-stream-json-into-the-transcript-fixed-3545","timestamp":"2026-07-14T15:55:31+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.verify-assistant-workflow-bug-reports-against-main-much-was-already-shipped-in-3505-3513","timestamp":"2026-07-14T15:55:31+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.recorder-enter-nav-double-navigate-to-location-replace-redirect-mechanism-is-already-suppressed","timestamp":"2026-07-14T15:55:31+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.shaft-capture-e2e-use-system-mvn-jdk25-not-mvnw-read-surefire-xml-for-the-verdict","timestamp":"2026-07-14T15:55:31+03:00"}

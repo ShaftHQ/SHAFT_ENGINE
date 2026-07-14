@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/intellij-assistant-local-agent-failure-leaked-raw-stream-json-into-the-transcript-fixed-3545.md",
+  "content_hash": "sha256:4e91d640211f4cc76efc21bad2a198e8906bcc4ba2123aec0682d6401e4226e2",
+  "created_at": "2026-07-14T15:55:31+03:00",
+  "evidence": [
+    {
+      "id": "PR #3545 shaft-intellij AssistantLocalAgentRunner.java:495-515 + failureOutput()",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.intellij-assistant-local-agent-failure-leaked-raw-stream-json-into-the-transcript-fixed-3545",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ initial->recorder->codegen end-user workflow audit (2026-07-14 close-all-open-issues loop)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "IntelliJ Assistant local-agent FAILURE leaked raw stream-json into the transcript (fixed #3545)",
+  "type": "gotcha",
+  "updated_at": "2026-07-14T15:55:31+03:00"
+}

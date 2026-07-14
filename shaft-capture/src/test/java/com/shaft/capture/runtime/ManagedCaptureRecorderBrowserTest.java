@@ -635,6 +635,74 @@ class ManagedCaptureRecorderBrowserTest {
     }
 
     /**
+     * DuckDuckGo-style search where the results page performs a genuine SECOND top-level navigation
+     * ({@code location.replace()}, a real BiDi commit) to canonicalize its URL after the 302 form
+     * submit. Both commits are consequences of the ENTER submit, so — exactly like the single-commit
+     * case above — the journey must record only the initial open, no phantom "Navigate to" rows.
+     * Reproduces the reported bug where an ENTER-triggered search left two extra navigation steps.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void searchWithSecondReplaceNavigationRecordsOnlyUserPerformedSteps(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        Path output = temp.resolve(browserName + "-search-replace.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "/search-home-replace",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-search-replace-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("q")));
+
+            driver.findElement(By.id("q")).sendKeys("shaft engine");
+            driver.findElement(By.id("q")).sendKeys(org.openqa.selenium.Keys.ENTER);
+            waitFor(() -> elementPresent(driver, By.id("result-link-replace")));
+            waitFor(() -> String.valueOf(driver.getCurrentUrl()).contains("results-replace-final"));
+            driver.findElement(By.id("result-link-replace")).click();
+            waitFor(() -> elementPresent(driver, By.id("detail-page")));
+
+            // Several 500ms poll ticks so any reintroduced consequence-navigation announcement has
+            // every chance to fire before the count is asserted.
+            Thread.sleep(2000);
+            assertEquals(0, navigateRowCount(js),
+                    "The 302 form-submit redirect AND the results page's location.replace() "
+                            + "canonicalization are both consequences of the ENTER submit, never their "
+                            + "own \"Navigate to\" actions. Rows: " + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        List<CaptureEvent.NavigationEvent> navigations = session.events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .toList();
+        assertEquals(1, navigations.size(),
+                "Exactly one NavigationEvent (the initial open) must be persisted for the whole "
+                        + "second-replace search journey; got: "
+                        + navigations.stream().map(CaptureEvent.NavigationEvent::targetUrl).toList());
+        assertTrue(navigations.getFirst().targetUrl().contains("/search-home-replace"));
+        assertTrue(session.events().stream().anyMatch(CaptureEvent.TypeEvent.class::isInstance),
+                "The typed search query must be recorded.");
+        assertTrue(session.events().stream().anyMatch(event ->
+                        event instanceof CaptureEvent.ClickEvent click
+                                && "result-link-replace".equals(click.target().logicalElementId())),
+                "The result-link click must be recorded.");
+    }
+
+    /**
      * Back/forward traversals are navigations the user performed, and they typically happen
      * within seconds of a recorded interaction — the interaction-consequence window must not
      * swallow them (they were silently dropped when the consequence suppression first landed).
@@ -1246,6 +1314,51 @@ class ManagedCaptureRecorderBrowserTest {
                 """));
         server.createContext("/detail", exchange -> respond(exchange,
                 "<!doctype html><title>Detail</title><p id=\"detail-page\">Detail</p>"));
+        // Search chain with a genuine SECOND top-level navigation (DuckDuckGo-style): the form submit
+        // 302-redirects to a results page which then canonicalizes its own URL with location.replace()
+        // -- a real BiDi navigation commit (source "default"), NOT history.replaceState (source
+        // "history", already exempt). Both commits are consequences of the ENTER submit and must be
+        // suppressed. Kept separate from /search-home so the single-commit test above is unaffected.
+        server.createContext("/search-home-replace", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Search Replace Fixture</title></head>
+                <body>
+                  <form action="/search-replace" method="get">
+                    <input id="q" name="q" placeholder="Search">
+                  </form>
+                </body>
+                </html>
+                """));
+        server.createContext("/search-replace", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            exchange.getResponseHeaders().set("Location",
+                    "/results-replace" + (query == null || query.isBlank() ? "" : "?" + query));
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        server.createContext("/results-replace", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Results Replace</title></head>
+                <body>
+                  <p>Canonicalizing…</p>
+                  <script>
+                    location.replace(location.pathname + "-final"
+                        + (location.search ? location.search + "&ia=web" : "?ia=web"));
+                  </script>
+                </body>
+                </html>
+                """));
+        server.createContext("/results-replace-final", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Results Replace Final</title></head>
+                <body>
+                  <a id="result-link-replace" href="/detail">Result detail</a>
+                </body>
+                </html>
+                """));
         server.createContext("/nav-a", exchange -> respond(exchange,
                 "<!doctype html><title>Nav A</title><a id=\"to-b\" href=\"/nav-b\">Go to B</a>"));
         server.createContext("/nav-b", exchange -> respond(exchange,
