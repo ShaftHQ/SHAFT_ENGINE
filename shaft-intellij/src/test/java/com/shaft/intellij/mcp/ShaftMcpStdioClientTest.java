@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -138,6 +140,42 @@ class ShaftMcpStdioClientTest {
 
         assertEquals("first", array.getAsJsonArray().get(0).getAsString());
         assertEquals("plain text result", string.getAsString());
+    }
+
+    @Test
+    void callToolStreamsProgressNotificationsToRegisteredCallback() throws Exception {
+        withClient("progressStream", client -> {
+            client.initializeOnly(Duration.ofSeconds(5));
+            List<ShaftMcpProgress> updates = Collections.synchronizedList(new ArrayList<>());
+
+            JsonElement result = client.callTool("fake_tool", new JsonObject(), Duration.ofSeconds(5), updates::add);
+
+            assertTrue(result.getAsJsonObject().get("ok").getAsBoolean());
+            // Only the frame carrying this call's own progressToken reaches the callback: the
+            // unregistered-token frame and the unrelated notifications/message frame the fake
+            // server also sends must both be silent no-ops.
+            assertEquals(1, updates.size());
+            assertEquals(0.5, updates.get(0).progress());
+            assertEquals(1.0, updates.get(0).total());
+            assertEquals("halfway there", updates.get(0).message());
+            return null;
+        });
+    }
+
+    @Test
+    void callToolWithoutProgressCallbackIgnoresProgressNotifications() throws Exception {
+        withClient("progressStream", client -> {
+            client.initializeOnly(Duration.ofSeconds(5));
+
+            // No callback: no progressToken is sent, so this exercises an id-less
+            // notifications/progress frame for a token nobody registered, plus an unrelated id-less
+            // notification, arriving on a call that never opted into progress at all. Neither may
+            // throw or otherwise disrupt the normal tools/call response.
+            JsonElement result = client.callTool("fake_tool", new JsonObject(), Duration.ofSeconds(5));
+
+            assertTrue(result.getAsJsonObject().get("ok").getAsBoolean());
+            return null;
+        });
     }
 
     private interface ClientAction<T> {

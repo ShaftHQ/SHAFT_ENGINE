@@ -12,6 +12,7 @@ final class FakeMcpServer {
     private static final Pattern CONTENT_ID = Pattern.compile("\"id\"\\s*:\\s*(\\d+)");
     private static final Pattern METHOD = Pattern.compile("\"method\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern TOOL_NAME = Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"");
+    private static final Pattern PROGRESS_TOKEN = Pattern.compile("\"progressToken\"\\s*:\\s*\"([^\"]+)\"");
 
     private FakeMcpServer() {
     }
@@ -28,6 +29,7 @@ final class FakeMcpServer {
                     "{\"content\":[{\"type\":\"text\",\"text\":\"boom\"}],\"isError\":true}");
             case "echoTool" -> runEchoToolServer();
             case "silentToolCalls" -> runSilentToolCallServer();
+            case "progressStream" -> runProgressStreamServer();
             case "hang" -> Thread.sleep(Long.MAX_VALUE);
             default -> Thread.sleep(Long.MAX_VALUE);
         }
@@ -116,6 +118,66 @@ final class FakeMcpServer {
                 }
             }
         }
+    }
+
+    /**
+     * Answers {@code tools/call} with an {@code ok} result, but first emits three
+     * {@code notifications/progress}-shaped frames the client's {@link ShaftMcpStdioClient#dispatch}
+     * must route safely: one for an unregistered token (proves an unknown/late token is a silent
+     * no-op regardless of whether this call requested progress), one id-less notification using an
+     * unrelated method (proves non-progress notifications stay ignored exactly as before progress
+     * streaming existed), and — only when the request itself carried a {@code _meta.progressToken} —
+     * one for that real token (proves a registered callback receives it).
+     */
+    private static void runProgressStreamServer() throws Exception {
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        OutputStream output = System.out;
+        while (true) {
+            String message = input.readLine();
+            if (message == null) {
+                return;
+            }
+            int requestId = requestId(message);
+            switch (requestMethod(message)) {
+                case "initialize" -> writeMessage(output, requestId,
+                        "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{\"protocolVersion\":\"2024-11-05\"}}");
+                case "tools/call" -> {
+                    String token = progressToken(message);
+                    writeRaw(output, progressFrame("unregistered-token", 0.9, null, "should be ignored"));
+                    writeRaw(output, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\","
+                            + "\"params\":{\"level\":\"info\",\"data\":\"noise\"}}");
+                    if (token != null) {
+                        writeRaw(output, progressFrame(token, 0.5, 1.0, "halfway there"));
+                    }
+                    writeMessage(output, requestId, "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{\"ok\":true}}");
+                }
+                default -> {
+                }
+            }
+        }
+    }
+
+    private static String progressToken(String message) {
+        Matcher matcher = PROGRESS_TOKEN.matcher(message);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static String progressFrame(String token, double progressValue, Double total, String messageText) {
+        StringBuilder json = new StringBuilder("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\",\"params\":{");
+        json.append("\"progressToken\":\"").append(token).append("\",\"progress\":").append(progressValue);
+        if (total != null) {
+            json.append(",\"total\":").append(total);
+        }
+        if (messageText != null) {
+            json.append(",\"message\":\"").append(messageText).append('"');
+        }
+        return json.append("}}").toString();
+    }
+
+    private static void writeRaw(OutputStream output, String json) throws IOException {
+        output.write(json.getBytes(StandardCharsets.UTF_8));
+        output.write('\n');
+        output.flush();
     }
 
     private static void writeMessage(OutputStream output, int requestId, String responseTemplate) throws IOException {

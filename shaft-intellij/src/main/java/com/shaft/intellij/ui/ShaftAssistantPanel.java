@@ -25,6 +25,7 @@ import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
+import com.shaft.intellij.mcp.ShaftMcpProgress;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftCredentialService;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -1157,9 +1158,25 @@ final class ShaftAssistantPanel extends JPanel {
         }
         // #3513 A8: name the routed tool in a plain-language "Running: <tool> …" confirmation.
         setRunning(true, "Running: " + invocation.toolName() + " …");
-        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(
+                invocation.toolName(), invocation.arguments(), this::onToolProgress);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    /**
+     * Renders a streamed {@code notifications/progress} milestone in the run timeline as it
+     * arrives, so a long tool call (for example {@code capture_generate_replay}) shows what it is
+     * doing instead of sitting on a bare "Running" line the whole time (issue #3546). The server
+     * streams progress best-effort for opted-in tools only; every other tool call never invokes
+     * this. Called from the MCP client's background thread, so UI updates are marshaled to the EDT.
+     */
+    private void onToolProgress(ShaftMcpProgress progress) {
+        String message = progress.message();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        ApplicationManager.getApplication().invokeLater(() -> addTimeline(message));
     }
 
     /**
@@ -1212,7 +1229,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void dispatchApprovedSequenceTool(int index, AssistantCommand.ToolCall toolCall) {
         setRunning(true, "Running: " + toolCall.toolName() + " (" + (index + 1) + "/" + currentToolSequence.size() + ") …");
-        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(toolCall.toolName(), toolCall.arguments());
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(
+                toolCall.toolName(), toolCall.arguments(), this::onToolProgress);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showSequenceResult(index, toolCall, result, error)));
     }
@@ -1749,7 +1767,33 @@ final class ShaftAssistantPanel extends JPanel {
         if (verboseLocalAgentOutput()) {
             localAgentBubbleRendersContent = true;
             replaceLastTranscriptAndChatState("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
+        } else {
+            // Verbose gates the full streaming bubble, but a non-verbose run must not look frozen
+            // either (issue #3546): surface a compact milestone in the run timeline instead.
+            addCompactLocalAgentMilestone(line);
         }
+    }
+
+    /**
+     * Reflects one local-agent output line as a compact run-timeline entry for non-verbose runs.
+     * Raw NDJSON lines (an unmapped Claude/Codex structured-stream event with no human-readable
+     * translation, see {@code AssistantLocalAgentRunner}'s {@code StructuredStreamParser#accept})
+     * always start with {@code {}; skipping those keeps this method's visibility contract identical
+     * to Verbose mode's pre-#3546 raw-content boundary (#3545: raw stdout stays invisible unless the
+     * user opts into Verbose) while still giving a signal of progress for everything else — translated
+     * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines.
+     */
+    private void addCompactLocalAgentMilestone(String line) {
+        if (line == null) {
+            return;
+        }
+        String trimmed = line.strip();
+        if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            return;
+        }
+        // The timeline is a single-line-per-entry heartbeat, not a transcript, so long milestone
+        // text (a full answer paragraph, a tool call with long arguments) is kept skimmable.
+        addTimeline(trimmed.length() > 80 ? trimmed.substring(0, 77) + "..." : trimmed);
     }
 
     /**
