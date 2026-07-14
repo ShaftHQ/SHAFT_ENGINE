@@ -161,7 +161,9 @@ publish the generated report attachment.</div>
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">increment</span><wbr><span class="parameters">(<a href="CheckpointType.html" title="enum class in com.shaft.tools.io.internal">CheckpointType</a>&nbsp;type,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
  <a href="CheckpointStatus.html" title="enum class in com.shaft.tools.io.internal">CheckpointStatus</a>&nbsp;status)</span></div>
-<div class="block">Creates a new checkpoint entry and updates the pass/fail counters.</div>
+<div class="block">Creates a new checkpoint entry and updates the pass/fail counters. The entry is stamped with
+a stable, process-wide id and the current test's identity (class/method), so it can be
+attributed and deep-linked to its owning test even though the checkpoint list is cumulative.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>type</code> - the checkpoint type (assertion or verification)</dd>
