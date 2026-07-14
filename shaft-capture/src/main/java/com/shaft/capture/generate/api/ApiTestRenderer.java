@@ -6,6 +6,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -392,12 +394,140 @@ public final class ApiTestRenderer {
         }
     }
 
+    /**
+     * Renders the request body with content-type fidelity (issue #3530 A3). The recorder captures
+     * the {@code Content-Type} request header but drops it from the generated {@code addHeader}
+     * calls (it is a mechanical/transport header), which previously made every replay default to
+     * JSON. This detects the captured content type and renders each family faithfully:
+     * <ul>
+     *   <li>{@code application/x-www-form-urlencoded} &rarr; parsed into a {@code setParameters(...,
+     *       FORM)} map (unless a correlated value flows through the body, in which case the raw
+     *       interpolated body is preserved so chaining still works);</li>
+     *   <li>{@code multipart/form-data} &rarr; content type preserved plus a note to wire file
+     *       parts, since binary parts cannot be reconstructed from a captured string;</li>
+     *   <li>GraphQL (a {@code graphql} content type, or a JSON body with a top-level {@code query})
+     *       &rarr; a pointer to {@code sendGraphQlRequest} plus the working JSON body;</li>
+     *   <li>any other non-JSON content type &rarr; preserved via {@code setContentType} before the
+     *       body;</li>
+     *   <li>JSON / no content type &rarr; the existing {@code setRequestBody} default.</li>
+     * </ul>
+     */
     private static void renderRequestBody(
             StringBuilder source, ApiTransaction transaction, Map<String, String> valueToVariable) {
-        if (transaction.requestBody().isBlank()) {
+        String body = transaction.requestBody();
+        if (body.isBlank()) {
             return;
         }
-        line(source, "                .setRequestBody(" + interpolate(transaction.requestBody(), valueToVariable) + ")");
+        String rawContentType = requestHeaderValue(transaction, "content-type");
+        String contentType = rawContentType == null ? "" : rawContentType.toLowerCase(Locale.ROOT);
+
+        if (contentType.contains("x-www-form-urlencoded") && !bodyCarriesCorrelation(body, valueToVariable)) {
+            Map<String, String> formParameters = parseFormUrlEncoded(body);
+            if (!formParameters.isEmpty()) {
+                renderFormParameters(source, formParameters);
+                return;
+            }
+        }
+        if (contentType.contains("multipart/form-data")) {
+            line(source, "                // Multipart body captured as raw text; add file parts with"
+                    + " setParameters(..., RestActions.ParametersType.MULTIPART) if this endpoint uploads files.");
+        } else if (isGraphQlRequest(contentType, body)) {
+            line(source, "                // GraphQL request; SHAFT.API.sendGraphQlRequest(service, query[, variables])"
+                    + " is the idiomatic alternative to this raw body.");
+        }
+        if (shouldPreserveContentType(contentType)) {
+            line(source, "                .setContentType(\"" + escape(rawContentType) + "\")");
+        }
+        line(source, "                .setRequestBody(" + interpolate(body, valueToVariable) + ")");
+    }
+
+    /**
+     * Returns the raw value of the first request header matching {@code name} (case-insensitive),
+     * or {@code null} when absent.
+     */
+    private static String requestHeaderValue(ApiTransaction transaction, String name) {
+        for (Map.Entry<String, String> header : transaction.requestHeaders().entrySet()) {
+            if (header.getKey().equalsIgnoreCase(name)) {
+                return header.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * True when a correlated value flows through this body, so switching to {@code setParameters}
+     * (which cannot interpolate) would drop the chaining -- the raw interpolated body is kept instead.
+     */
+    private static boolean bodyCarriesCorrelation(String body, Map<String, String> valueToVariable) {
+        for (String capturedValue : valueToVariable.keySet()) {
+            if (!capturedValue.isEmpty() && body.contains(capturedValue)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A content type worth pinning on the generated request: present and not JSON (SHAFT already
+     * defaults an unset content type to JSON, so re-stating it would be noise).
+     */
+    private static boolean shouldPreserveContentType(String contentType) {
+        return !contentType.isBlank() && !contentType.contains("application/json");
+    }
+
+    private static boolean isGraphQlRequest(String contentType, String body) {
+        if (contentType.contains("graphql")) {
+            return true;
+        }
+        String trimmed = body.trim();
+        return contentType.contains("json") && trimmed.startsWith("{") && trimmed.contains("\"query\"");
+    }
+
+    /**
+     * Parses an {@code a=1&b=2} form body into an ordered, URL-decoded key/value map. Malformed
+     * pairs (empty key) are skipped; a value-less key maps to the empty string.
+     */
+    private static Map<String, String> parseFormUrlEncoded(String body) {
+        Map<String, String> parameters = new LinkedHashMap<>();
+        for (String pair : body.split("&")) {
+            if (pair.isEmpty()) {
+                continue;
+            }
+            int equals = pair.indexOf('=');
+            String rawKey = equals < 0 ? pair : pair.substring(0, equals);
+            String rawValue = equals < 0 ? "" : pair.substring(equals + 1);
+            String key = urlDecode(rawKey);
+            if (key.isEmpty()) {
+                continue;
+            }
+            parameters.put(key, urlDecode(rawValue));
+        }
+        return parameters;
+    }
+
+    private static String urlDecode(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            // A malformed percent-escape is left as-is rather than dropping the value.
+            return value;
+        }
+    }
+
+    private static void renderFormParameters(StringBuilder source, Map<String, String> parameters) {
+        line(source, "                .setContentType(\"application/x-www-form-urlencoded\")");
+        StringBuilder entries = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> parameter : parameters.entrySet()) {
+            if (!first) {
+                entries.append(", ");
+            }
+            entries.append("java.util.Map.entry(\"").append(escape(parameter.getKey()))
+                    .append("\", \"").append(escape(parameter.getValue())).append("\")");
+            first = false;
+        }
+        line(source, "                .setParameters(java.util.Map.<String, Object>ofEntries(" + entries
+                + "), com.shaft.api.RestActions.ParametersType.FORM)");
     }
 
     private static void renderValidation(
