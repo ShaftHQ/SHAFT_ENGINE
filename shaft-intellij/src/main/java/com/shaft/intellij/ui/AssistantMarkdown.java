@@ -58,6 +58,33 @@ final class AssistantMarkdown {
         return cleaned.isBlank() ? message.strip() : cleaned;
     }
 
+    /**
+     * Renders a failed tool result with a consistent "short headline + details + one next action"
+     * shape (issue #3513 S3). A body that already leads with its own bold headline (a structured
+     * failure narrative such as the Capture codegen report) is returned unchanged so it is not
+     * double-headlined; a plain-text failure (a humanized error) gets the headline and a single
+     * next-action line.
+     *
+     * @param toolName the MCP tool that failed
+     * @param body the already-rendered result body (may be blank)
+     * @return the failure markdown
+     */
+    static String toolFailureMarkdown(String toolName, String body) {
+        String trimmed = body == null ? "" : body.strip();
+        if (trimmed.startsWith("**")) {
+            return trimmed;
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add("**" + ShaftStatusPresentation.ERROR_ICON + " `"
+                + (toolName == null ? "" : toolName.trim()) + "` couldn't finish**");
+        if (!trimmed.isBlank()) {
+            sections.add(trimmed);
+        }
+        sections.add("_Next: review the details above and try again — or check the SHAFT MCP "
+                + "connection in Settings if the tool can't reach SHAFT._");
+        return joinSections(sections);
+    }
+
     private static Throwable rootCause(Throwable error) {
         Throwable current = error;
         while ((current instanceof CompletionException || current instanceof ExecutionException)

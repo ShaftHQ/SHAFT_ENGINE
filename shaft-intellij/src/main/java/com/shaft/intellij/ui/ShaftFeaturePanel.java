@@ -295,7 +295,7 @@ final class ShaftFeaturePanel extends JPanel {
             copyOutputButton.setEnabled(true);
             return;
         }
-        setRunning(true, "Running " + template.toolName() + "...");
+        setRunning(true, "Running: " + template.toolName() + " …");
         outputArea.setText("");
         copyOutputButton.setEnabled(false);
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(template.toolName(), arguments);

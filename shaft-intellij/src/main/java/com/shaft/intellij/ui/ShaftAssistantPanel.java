@@ -1128,7 +1128,8 @@ final class ShaftAssistantPanel extends JPanel {
                     + "{\"tool\": \"" + invocation.toolName() + "\", \"arguments\": "
                     + invocation.arguments() + "}\n```", "");
         }
-        setRunning(true, "Running " + invocation.toolName() + "...");
+        // #3513 A8: name the routed tool in a plain-language "Running: <tool> …" confirmation.
+        setRunning(true, "Running: " + invocation.toolName() + " …");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
@@ -1183,7 +1184,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void dispatchApprovedSequenceTool(int index, AssistantCommand.ToolCall toolCall) {
-        setRunning(true, "Running " + toolCall.toolName() + " (" + (index + 1) + "/" + currentToolSequence.size() + ")...");
+        setRunning(true, "Running: " + toolCall.toolName() + " (" + (index + 1) + "/" + currentToolSequence.size() + ") …");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(toolCall.toolName(), toolCall.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showSequenceResult(index, toolCall, result, error)));
@@ -1559,8 +1560,11 @@ final class ShaftAssistantPanel extends JPanel {
             body = body + "\n\n**Verbose — raw tool response**\n\n"
                     + AssistantMarkdown.normalizeMarkdown(output);
         }
-        showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
-                + body, output);
+        // #3513 S3: failures render with a consistent short-headline + one-next-action shape; the
+        // success header is unchanged.
+        showResponse(success
+                ? "**SHAFT Assistant (" + toolName + " OK)**\n\n" + body
+                : AssistantMarkdown.toolFailureMarkdown(toolName, body), output);
         addTerminalTimeline(success ? "Completed" : "Failed");
         if (success && ("capture_start".equals(toolName) || "playwright_record_start".equals(toolName)
                 || "mobile_record_start".equals(toolName))) {
