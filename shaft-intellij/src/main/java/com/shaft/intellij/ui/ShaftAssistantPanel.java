@@ -611,6 +611,50 @@ final class ShaftAssistantPanel extends JPanel {
         setStatus("Review the prefilled request, then send it");
     }
 
+    /**
+     * Runs {@code toolName} against the live MCP connection and renders its result into the
+     * transcript as an assistant message, without touching the composer, run/timeline, or capture-
+     * review state -- unlike {@link #dispatchApprovedTool}, this is not a user "send": it backs
+     * failure-recovery entry points (issue #3547) that trigger a read-only Doctor/Healer diagnosis
+     * from outside the composer, either automatically on a failed test run or from a notification's
+     * "Diagnose"/"Heal" action. The MCP callback runs on a background thread, so rendering is
+     * marshaled onto the EDT.
+     *
+     * @param toolName MCP tool name to run
+     * @param arguments MCP tool arguments
+     */
+    void runToolAndRenderCard(String toolName, JsonObject arguments) {
+        ShaftMcpInvocationService.getInstance(project).startTool(toolName, arguments).future()
+                .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                        () -> append("assistant", toolCardMarkdown(toolName, result, error),
+                                result == null ? "" : result.output())));
+    }
+
+    /**
+     * Pure formatting for {@link #runToolAndRenderCard}: renders a tool result (or failure) as
+     * plain-language Markdown, reusing {@link AssistantMarkdown#fromMcpOutput} for the known Doctor
+     * card shape so a manual doctor run and an auto-triggered one read identically. Never returns
+     * raw JSON or an exception's fully-qualified class name -- a thrown error (for example
+     * {@code doctor_analyze_failed_allure} finding no Allure evidence at all) degrades to a plain
+     * "couldn't finish" card instead. Package-private and static so it is directly unit-testable
+     * without the EDT or a live MCP connection.
+     *
+     * @param toolName MCP tool name that was run
+     * @param result the tool result, or {@code null} if none was returned
+     * @param error the failure, or {@code null} on success
+     * @return transcript-ready Markdown
+     */
+    static String toolCardMarkdown(String toolName, ShaftMcpToolResult result, Throwable error) {
+        if (error != null) {
+            return AssistantMarkdown.toolFailureMarkdown(toolName, AssistantMarkdown.humanizeError(error));
+        }
+        if (result == null) {
+            return AssistantMarkdown.toolFailureMarkdown(toolName, "No result returned.");
+        }
+        String markdown = AssistantMarkdown.fromMcpOutput(toolName, result.output());
+        return result.success() ? markdown : AssistantMarkdown.toolFailureMarkdown(toolName, markdown);
+    }
+
     /** Package-private test accessor: current composer text. */
     String promptText() {
         return prompt.getText();

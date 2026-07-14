@@ -130,19 +130,24 @@ final class ShaftTestsPanel extends JPanel {
     }
 
     private void diagnoseSelected() {
-        if (!isFailRow(rowList.getSelectedValue())) {
+        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
+        if (!isFailRow(selected)) {
             return;
         }
+        // No resolved Allure directory is known from this tab's row-level data (unlike
+        // FailedRunDoctorNotifier, which resolves it from the just-failed run's project root): pass
+        // null so the server auto-discovers the newest evidence instead of guessing a path.
         ShaftToolWorkflowLauncher.open(project, "doctor_analyze_failed_allure",
-                FailedRunDoctorNotifier.doctorArguments());
+                FailedRunDoctorNotifier.doctorArguments(null));
     }
 
     private void healSelected() {
-        if (!isFailRow(rowList.getSelectedValue())) {
+        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
+        if (!isFailRow(selected)) {
             return;
         }
         ShaftToolWorkflowLauncher.open(project, "healer_run_failed_test",
-                FailedRunDoctorNotifier.healerArguments());
+                FailedRunDoctorNotifier.healerArguments(selected.testId()));
     }
 
     // ------------------------------------------------------------------

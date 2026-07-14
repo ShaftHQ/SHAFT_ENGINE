@@ -32,6 +32,33 @@ public final class ShaftToolWorkflowLauncher {
      */
     public static void open(Project project, String toolName, JsonObject arguments) {
         boolean advancedUiEnabled = ShaftSettingsState.getInstance().getState().advancedUiEnabled;
+        withToolWindowPanel(project, panel -> {
+            if (advancedUiEnabled) {
+                panel.prefillTool(toolName, arguments);
+            } else {
+                panel.prefillAssistantPrompt(assistantPromptFor(toolName));
+            }
+        });
+    }
+
+    /**
+     * Opens the SHAFT tool window, runs {@code toolName} against the live MCP connection, and
+     * renders its result into the Assistant transcript as a read-only diagnosis card -- regardless
+     * of the {@code advancedUiEnabled} setting (issue #3547). Unlike {@link #open}, this always
+     * executes the call: a Doctor/Healer analysis is read-only-or-guarded and the caller (an
+     * automatic failure-recovery trigger, or a user who explicitly clicked "Diagnose"/"Heal") has
+     * already decided it should run, so a prefill-only no-op in default mode would silently fail to
+     * deliver what the action promised.
+     *
+     * @param project current project
+     * @param toolName MCP tool name to run
+     * @param arguments MCP tool arguments
+     */
+    public static void runAndRender(Project project, String toolName, JsonObject arguments) {
+        withToolWindowPanel(project, panel -> panel.runAssistantTool(toolName, arguments));
+    }
+
+    private static void withToolWindowPanel(Project project, java.util.function.Consumer<ShaftToolWindowPanel> action) {
         ToolWindowManager.getInstance(project).invokeLater(() -> {
             ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
             if (toolWindow == null) {
@@ -39,13 +66,8 @@ public final class ShaftToolWorkflowLauncher {
             }
             toolWindow.show(() -> {
                 Content content = toolWindow.getContentManager().getContent(0);
-                if (!(content != null && content.getComponent() instanceof ShaftToolWindowPanel panel)) {
-                    return;
-                }
-                if (advancedUiEnabled) {
-                    panel.prefillTool(toolName, arguments);
-                } else {
-                    panel.prefillAssistantPrompt(assistantPromptFor(toolName));
+                if (content != null && content.getComponent() instanceof ShaftToolWindowPanel panel) {
+                    action.accept(panel);
                 }
             });
         });
