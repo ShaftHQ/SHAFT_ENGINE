@@ -66,6 +66,7 @@
 <li><a href="#addHeaders(java.util.Map)" tabindex="0">addHeaders(Map)</a></li>
 <li><a href="#addCookie(java.lang.String,java.lang.Object)" tabindex="0">addCookie(String, Object)</a></li>
 <li><a href="#addCookies(java.util.Map)" tabindex="0">addCookies(Map)</a></li>
+<li><a href="#setFollowRedirects(boolean)" tabindex="0">setFollowRedirects(boolean)</a></li>
 <li><a href="#setAuthentication(java.lang.String,java.lang.String,com.shaft.api.RequestBuilder.AuthenticationType)" tabindex="0">setAuthentication(String, String, RequestBuilder.AuthenticationType)</a></li>
 <li><a href="#withRetry(com.shaft.api.RetryPolicy)" tabindex="0">withRetry(RetryPolicy)</a></li>
 <li><a href="#perform()" tabindex="0">perform()</a></li>
@@ -181,56 +182,61 @@
 <div class="block">Sets the content type for the API request that you're currently building.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setParameters(java.util.Map,com.shaft.api.RestActions.ParametersType)" class="member-name-link">setParameters</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&nbsp;parameters,
- <a href="RestActions.ParametersType.html" title="enum class in com.shaft.api">RestActions.ParametersType</a>&nbsp;parametersType)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setFollowRedirects(boolean)" class="member-name-link">setFollowRedirects</a><wbr>(boolean&nbsp;followRedirects)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Controls whether this request automatically follows HTTP redirects (3xx).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setParameters(java.util.Map,com.shaft.api.RestActions.ParametersType)" class="member-name-link">setParameters</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&nbsp;parameters,
+ <a href="RestActions.ParametersType.html" title="enum class in com.shaft.api">RestActions.ParametersType</a>&nbsp;parametersType)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Sets API request parameters using a Map&lt;String, Object&gt;.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPathParameters(java.lang.String...)" class="member-name-link">setPathParameters</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;values)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPathParameters(java.lang.String...)" class="member-name-link">setPathParameters</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;values)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Dynamically sets path parameters by replacing placeholders in the `serviceName` using ordered string values.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPathParameters(java.util.Map)" class="member-name-link">setPathParameters</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&nbsp;paramMap)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPathParameters(java.util.Map)" class="member-name-link">setPathParameters</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&nbsp;paramMap)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Dynamically sets path parameters by replacing placeholders in the `serviceName` using key-value pairs.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setRequestBody(java.lang.Object)" class="member-name-link">setRequestBody</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;requestBody)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Sets the body (if any) for the API request that you're currently building.</div>
-</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setRequestBodyFromFile(java.lang.String)" class="member-name-link">setRequestBodyFromFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;relativeFilePath)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setRequestBody(java.lang.Object)" class="member-name-link">setRequestBody</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;requestBody)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Sets the body (if any) for the API request that you're currently building.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setTargetStatusCode(int)" class="member-name-link">setTargetStatusCode</a><wbr>(int&nbsp;targetStatusCode)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setRequestBodyFromFile(java.lang.String)" class="member-name-link">setRequestBodyFromFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;relativeFilePath)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Sets the body (if any) for the API request that you're currently building.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setTargetStatusCode(int)" class="member-name-link">setTargetStatusCode</a><wbr>(int&nbsp;targetStatusCode)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Sets the expected target status code for the API request that you're currently building.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setUrlArguments(java.lang.String)" class="member-name-link">setUrlArguments</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlArguments)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setUrlArguments(java.lang.String)" class="member-name-link">setUrlArguments</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlArguments)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Sets the url arguments (if any) for the API request that you're currently building.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#useRelaxedHTTPSValidation()" class="member-name-link">useRelaxedHTTPSValidation</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#useRelaxedHTTPSValidation()" class="member-name-link">useRelaxedHTTPSValidation</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
 'SSL' is the protocol name by default</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#useRelaxedHTTPSValidation(java.lang.String)" class="member-name-link">useRelaxedHTTPSValidation</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;protocol)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#useRelaxedHTTPSValidation(java.lang.String)" class="member-name-link">useRelaxedHTTPSValidation</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;protocol)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
 *</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withRetry(com.shaft.api.RetryPolicy)" class="member-name-link">withRetry</a><wbr>(<a href="RetryPolicy.html" title="class in com.shaft.api">RetryPolicy</a>&nbsp;retryPolicy)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withRetry(com.shaft.api.RetryPolicy)" class="member-name-link">withRetry</a><wbr>(<a href="RetryPolicy.html" title="class in com.shaft.api">RetryPolicy</a>&nbsp;retryPolicy)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Applies an opt-in retry policy to this request.</div>
 </div>
 </div>
@@ -514,6 +520,25 @@ Default is true.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>cookies</code> - a map of cookies that you want to add</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to continue building your API request</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setFollowRedirects(boolean)">
+<h3>setFollowRedirects</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></span>&nbsp;<span class="element-name">setFollowRedirects</span><wbr><span class="parameters">(boolean&nbsp;followRedirects)</span></div>
+<div class="block">Controls whether this request automatically follows HTTP redirects (3xx). By default
+REST-Assured follows them, so a request to a redirecting endpoint returns the final response.
+Pass <code>false</code> to receive the redirect response itself — required when asserting a 3xx
+status code or inspecting the <code>Location</code> header of the redirect.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>followRedirects</code> - <code>true</code> to follow redirects (the default), <code>false</code> to
+                       return the redirect response without following it</dd>
 <dt>Returns:</dt>
 <dd>a self-reference to be used to continue building your API request</dd>
 </dl>
