@@ -585,6 +585,18 @@
       ]
     },
     {
+      "name": "mobile_step_delete",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_step_reorder",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "mobile_recording_code_blocks",
       "mutation": false,
       "sensitive": false,
