@@ -13,10 +13,13 @@ import org.junit.jupiter.api.Test;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.DefaultListModel;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.ColorUIResource;
@@ -30,6 +33,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -125,6 +129,8 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
         Path assistantFailureRecoveryCardScreenshot = outputPath.resolve("intellij-plugin-assistant-failure-recovery-card.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
+        Path assistantModelFallbackScreenshot = outputPath.resolve("intellij-plugin-assistant-model-fallback.png");
+        Path assistantSlashCommandsScreenshot = outputPath.resolve("intellij-plugin-assistant-slash-commands.png");
         Path toolsHumanizedDoctorCardScreenshot = outputPath.resolve("intellij-plugin-tools-humanized-doctor-card.png");
         Path assistantDefaultModePrefillScreenshot = outputPath.resolve("intellij-plugin-assistant-default-mode-prefill.png");
         Path mcpSetupPostSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-post-setup.png");
@@ -146,6 +152,7 @@ class ShaftPluginScreenshotRendererTest {
         Path mcpSetupNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-narrow-dark.png");
         Path mcpSetupSuccessScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-success.png");
         Path mcpSetupErrorScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-error-dark.png");
+        Path mcpSetupOfflineScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-offline.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
         Path settingsDarkScreenshot = outputPath.resolve("intellij-plugin-settings-dark.png");
         Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
@@ -159,6 +166,8 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
         write(assistantFailureRecoveryCardScreenshot, renderAssistantFailureRecoveryCard(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
+        write(assistantModelFallbackScreenshot, renderAssistantModelFallback(LIGHT_THEME, false));
+        write(assistantSlashCommandsScreenshot, renderAssistantSlashCommands(LIGHT_THEME, false));
         write(toolsHumanizedDoctorCardScreenshot, renderToolsHumanizedDoctorCard(LIGHT_THEME, false));
         write(assistantDefaultModePrefillScreenshot, renderAssistantDefaultModePrefill(LIGHT_THEME, false));
         write(mcpSetupPostSetupScreenshot, renderPostSetupSettings(LIGHT_THEME, false));
@@ -180,6 +189,7 @@ class ShaftPluginScreenshotRendererTest {
         write(mcpSetupNarrowDarkScreenshot, renderSetup(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(mcpSetupSuccessScreenshot, renderSetupSuccess(LIGHT_THEME, false));
         write(mcpSetupErrorScreenshot, renderSetupError(DARK_THEME, true));
+        write(mcpSetupOfflineScreenshot, renderSetupMcpOffline(LIGHT_THEME, false));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
         write(mcpGuideScreenshot, renderToolWindow(9, "Guide", LIGHT_THEME, false));
@@ -195,6 +205,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantFailureRecoveryCardScreenshot) > 0,
                         assistantFailureRecoveryCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantModelFallbackScreenshot) > 0, assistantModelFallbackScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantSlashCommandsScreenshot) > 0, assistantSlashCommandsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsHumanizedDoctorCardScreenshot) > 0, toolsHumanizedDoctorCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDefaultModePrefillScreenshot) > 0, assistantDefaultModePrefillScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupPostSetupScreenshot) > 0, mcpSetupPostSetupScreenshot + " should be non-empty"),
@@ -216,6 +228,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(mcpSetupNarrowDarkScreenshot) > 0, mcpSetupNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupSuccessScreenshot) > 0, mcpSetupSuccessScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupErrorScreenshot) > 0, mcpSetupErrorScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupOfflineScreenshot) > 0, mcpSetupOfflineScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
@@ -228,6 +241,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantProgressMilestonesScreenshot),
                 () -> assertDimensions(assistantFailureRecoveryCardScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
+                () -> assertDimensions(assistantModelFallbackScreenshot),
                 () -> assertDimensions(toolsHumanizedDoctorCardScreenshot),
                 () -> assertDimensions(assistantDefaultModePrefillScreenshot),
                 () -> assertDimensions(mcpSetupPostSetupScreenshot),
@@ -249,6 +263,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(mcpSetupNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(mcpSetupSuccessScreenshot),
                 () -> assertDimensions(mcpSetupErrorScreenshot),
+                () -> assertDimensions(mcpSetupOfflineScreenshot),
                 () -> assertDimensions(settingsScreenshot),
                 () -> assertDimensions(settingsDarkScreenshot),
                 () -> assertDimensions(mcpGuideScreenshot),
@@ -588,6 +603,81 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     /**
+     * Renders the Assistant local-model refresh control in its fallback state (issue #3551): when
+     * the connected local CLI reports no models, {@code applyLocalModels} falls back to the curated
+     * {@link AssistantModelCatalog} list and sets {@code localModelListIsFallback}, and the "Refresh
+     * local agent models" button stays visible so the user can retry the live CLI listing. {@code
+     * defaultSettings()} already normalizes to provider=LOCAL/runtime=CLI, so the panel starts in
+     * the local-CLI configuration this control only appears in; the empty live list is then forced
+     * through the same {@code applyLocalModels} seam production uses after a real CLI listing call
+     * (via reflection, since it is private), rather than racing the panel's own async CLI probe
+     * that already runs once at construction time.
+     */
+    private static BufferedImage renderAssistantModelFallback(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), defaultSettings(), chatState,
+                    () -> {
+                    });
+            invokeApplyLocalModels(component, "CODEX", List.of());
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static void invokeApplyLocalModels(ShaftAssistantPanel component, String family, List<String> models) {
+        try {
+            Method method = ShaftAssistantPanel.class.getDeclaredMethod("applyLocalModels", String.class, List.class);
+            method.setAccessible(true);
+            method.invoke(component, family, models);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to apply the local-model fallback state", exception);
+        }
+    }
+
+    /**
+     * BEST-EFFORT representative shot of the "/" command popup (issue #3550). A live {@link
+     * JPopupMenu} never paints when captured off-screen through {@link #render}: {@code
+     * JPopupMenu#show} backs it with a heavyweight popup window this headless harness never
+     * realizes, so the menu is built and populated exactly as {@code populateContextPopup} does --
+     * one {@link JMenuItem} per {@link AssistantCommand.CommandHint} from {@code
+     * AssistantCommand.commandHints(false)} (core-only, matching default non-Expert mode) -- and
+     * rendered standalone, without ever calling {@code show}. The interactive filter/select
+     * behaviour behind this popup is already covered by {@code ShaftPanelSetupTest}; this shot is
+     * evidence of the command list's contents only.
+     */
+    private static BufferedImage renderAssistantSlashCommands(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            JPopupMenu popup = new JPopupMenu("Assistant context suggestions");
+            popup.getAccessibleContext().setAccessibleName("Assistant context suggestions");
+            for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints(false)) {
+                JMenuItem item = new JMenuItem("<html><b>" + hint.canonical() + "</b> — " + hint.summary()
+                        + "<br><small>" + hint.example() + "</small></html>");
+                item.getAccessibleContext().setAccessibleName("Insert " + hint.canonical());
+                popup.add(item);
+            }
+            SwingUtilities.updateComponentTreeUI(popup);
+            Dimension size = popup.getPreferredSize();
+            popup.setSize(size);
+            popup.doLayout();
+            layout(popup, !dark);
+            image.set(render(popup, Math.max(1, size.width), Math.max(1, size.height)));
+        });
+        return image.get();
+    }
+
+    /**
      * Renders the Tools panel's humanized doctor card (issue #3552): a {@code
      * doctor_analyze_failed_allour} result routed through {@link AssistantMarkdown} instead of raw
      * pretty-printed JSON, with the "View raw JSON" toggle button visible (still one click away).
@@ -842,6 +932,77 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
+    }
+
+    /**
+     * Renders the SHAFT MCP version wizard-step row in its Offline state (issue #3551): when the
+     * "latest" half of a {@link ShaftMcpVersionCheck} can't be resolved (no network), the row shows
+     * a neutral "Offline" badge with the currently-installed version and a "Press Check to retry."
+     * callout -- never a red "Failed", and never blocking the rest of setup -- matching {@code
+     * ShaftPanelSetupTest#setupPanelMcpVersionStepReflectsRealVersionCheck}. Reproduced the same way
+     * that test does: swap in a fake {@code mcpVersionChecker} and click "Check SHAFT MCP version".
+     */
+    private static BufferedImage renderSetupMcpOffline(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), settings,
+                    () -> {
+                    });
+            setField(component, "mcpVersionChecker",
+                    (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () -> new ShaftMcpVersionCheck.Result(
+                            ShaftMcpVersionCheck.State.LATEST_UNKNOWN, "10.3.20260703", ""));
+            clickAccessible(component, "Check SHAFT MCP version");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static void setField(Object target, String name, Object value) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to set field " + name, exception);
+        }
+    }
+
+    private static void clickAccessible(Component component, String accessibleName) {
+        JButton button = findByAccessibleName(component, accessibleName, JButton.class);
+        if (button == null) {
+            throw new IllegalStateException("No button found with accessible name: " + accessibleName);
+        }
+        button.doClick();
+    }
+
+    private static <T extends JComponent> T findByAccessibleName(
+            Component component, String accessibleName, Class<T> type) {
+        if (type.isInstance(component)
+                && accessibleName.equals(((JComponent) component).getAccessibleContext().getAccessibleName())) {
+            return type.cast(component);
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                T found = findByAccessibleName(child, accessibleName, type);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private static JComponent settingsPanel() {
