@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,7 +44,8 @@ final class McpMobileRecordingService {
                 "",
                 includeSensitiveValues,
                 List.of(),
-                List.of());
+                List.of(),
+                1L);
         persist();
         return status();
     }
@@ -60,7 +62,8 @@ final class McpMobileRecordingService {
                 recording.actions().size(),
                 recording.includeSensitiveValues(),
                 recording.warnings(),
-                readinessFor(recording, false));
+                readinessFor(recording, false),
+                stepSummaries(recording));
     }
 
     synchronized McpMobileRecordingStatus stop(boolean discard) {
@@ -75,7 +78,8 @@ final class McpMobileRecordingService {
                 Instant.now().toString(),
                 recording.includeSensitiveValues(),
                 recording.actions(),
-                recording.warnings());
+                recording.warnings(),
+                recording.nextStepId());
         int count = closed.actions().size();
         Path finalPath = outputPath;
         if (!discard) {
@@ -94,7 +98,131 @@ final class McpMobileRecordingService {
                 ? CaptureReadiness.State.READY
                 : readinessFor(closed, true);
         return new McpMobileRecordingStatus(false, finalPath, closed.mode(), count, closed.includeSensitiveValues(),
-                discard ? List.of("Recording discarded.") : closed.warnings(), readiness);
+                discard ? List.of("Recording discarded.") : closed.warnings(), readiness, stepSummaries(closed));
+    }
+
+    /**
+     * Deletes a recorded mobile step by its stable {@code stepId} and renumbers the remaining
+     * steps' {@code sequence} to stay contiguous (1..N), so codegen (which iterates the action list
+     * in order and derives {@code action-<sequence>} evidence ids) keeps working after the edit.
+     * A missing recording or an unknown {@code stepId} is a no-op — the agent is expected to re-read
+     * status and retry rather than have the recording silently corrupted or an exception thrown.
+     *
+     * @param stepId stable step id to remove, as surfaced in {@link McpMobileRecordingStatus#steps()}
+     * @return updated recorder status
+     */
+    synchronized McpMobileRecordingStatus deleteStep(String stepId) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("Ignored: no active mobile recording to edit."), CaptureReadiness.State.BLOCKED);
+        }
+        int index = indexOfStep(stepId);
+        if (index < 0) {
+            return status();
+        }
+        List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
+        actions.remove(index);
+        recording = new McpMobileRecording(
+                recording.schemaVersion(),
+                recording.mode(),
+                recording.startedAt(),
+                recording.stoppedAt(),
+                recording.includeSensitiveValues(),
+                renumber(actions),
+                recording.warnings(),
+                recording.nextStepId());
+        persist();
+        return status();
+    }
+
+    /**
+     * Moves a recorded mobile step up or down by its stable {@code stepId}, then renumbers
+     * {@code sequence} to stay contiguous (1..N). Moving the first step up, the last step down, an
+     * unknown {@code stepId}, or an unrecognized {@code direction} are all no-ops.
+     *
+     * @param stepId stable step id to move, as surfaced in {@link McpMobileRecordingStatus#steps()}
+     * @param direction "up" or "down" (case-insensitive)
+     * @return updated recorder status
+     */
+    synchronized McpMobileRecordingStatus reorderStep(String stepId, String direction) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("Ignored: no active mobile recording to edit."), CaptureReadiness.State.BLOCKED);
+        }
+        String normalizedDirection = direction == null ? "" : direction.trim().toLowerCase(Locale.ROOT);
+        if (!normalizedDirection.equals("up") && !normalizedDirection.equals("down")) {
+            return status();
+        }
+        int index = indexOfStep(stepId);
+        if (index < 0) {
+            return status();
+        }
+        int targetIndex = normalizedDirection.equals("up") ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= recording.actions().size()) {
+            return status();
+        }
+        List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
+        Collections.swap(actions, index, targetIndex);
+        recording = new McpMobileRecording(
+                recording.schemaVersion(),
+                recording.mode(),
+                recording.startedAt(),
+                recording.stoppedAt(),
+                recording.includeSensitiveValues(),
+                renumber(actions),
+                recording.warnings(),
+                recording.nextStepId());
+        persist();
+        return status();
+    }
+
+    private int indexOfStep(String stepId) {
+        String targetId = stepId == null ? "" : stepId.trim();
+        if (targetId.isBlank()) {
+            return -1;
+        }
+        List<McpMobileRecordedAction> actions = recording.actions();
+        for (int index = 0; index < actions.size(); index++) {
+            if (targetId.equals(actions.get(index).stepId())) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static List<McpMobileRecordedAction> renumber(List<McpMobileRecordedAction> actions) {
+        List<McpMobileRecordedAction> renumbered = new ArrayList<>(actions.size());
+        for (int index = 0; index < actions.size(); index++) {
+            renumbered.add(withSequence(actions.get(index), index + 1L));
+        }
+        return List.copyOf(renumbered);
+    }
+
+    private static McpMobileRecordedAction withSequence(McpMobileRecordedAction action, long sequence) {
+        return new McpMobileRecordedAction(
+                action.stepId(),
+                sequence,
+                action.timestamp(),
+                action.action(),
+                action.locatorStrategy(),
+                action.locatorValue(),
+                action.parameters(),
+                action.javaCode(),
+                action.sensitiveValueStored(),
+                action.warnings());
+    }
+
+    private static List<McpMobileStepSummary> stepSummaries(McpMobileRecording stored) {
+        return stored.actions().stream()
+                .map(action -> new McpMobileStepSummary(
+                        action.stepId(),
+                        action.sequence(),
+                        action.action(),
+                        action.locatorStrategy(),
+                        action.locatorValue(),
+                        !action.warnings().isEmpty(),
+                        action.warnings()))
+                .toList();
     }
 
     /**
@@ -137,7 +265,9 @@ final class McpMobileRecordingService {
             safeParameters = Map.of("value", "<redacted>");
             warnings.add("Sensitive value omitted; this action requires manual value replacement before replay.");
         }
+        String stepId = "m" + recording.nextStepId();
         McpMobileRecordedAction recorded = new McpMobileRecordedAction(
+                stepId,
                 recording.actions().size() + 1L,
                 Instant.now().toString(),
                 action,
@@ -156,7 +286,8 @@ final class McpMobileRecordingService {
                 recording.stoppedAt(),
                 recording.includeSensitiveValues(),
                 actions,
-                recording.warnings());
+                recording.warnings(),
+                recording.nextStepId() + 1);
         persist();
         return recorded;
     }
@@ -174,7 +305,8 @@ final class McpMobileRecordingService {
                 recording.stoppedAt(),
                 recording.includeSensitiveValues(),
                 recording.actions(),
-                warnings);
+                warnings,
+                recording.nextStepId());
         persist();
     }
 
@@ -200,9 +332,75 @@ final class McpMobileRecordingService {
 
     private McpMobileRecording read(Path path) {
         try {
-            return mapper.readValue(path.toFile(), McpMobileRecording.class);
+            return normalize(mapper.readValue(path.toFile(), McpMobileRecording.class));
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("Mobile recording could not be read.", exception);
+        }
+    }
+
+    /**
+     * Backfills recordings persisted before schema 1.1 so step surgery ({@link #deleteStep(String)},
+     * {@link #reorderStep(String, String)}) and codegen keep working on old files: Jackson leaves a
+     * missing {@code stepId} as {@code ""} (coerced by the record's compact constructor) and a
+     * missing {@code nextStepId} as {@code 0}, so any blank {@code stepId} is backfilled to
+     * {@code "m" + sequence}, and {@code nextStepId} is raised above every numeric {@code stepId}
+     * suffix in use (and above the action count) so newly recorded or mutated steps never collide
+     * with, or reuse, a backfilled id.
+     *
+     * @param stored the recording as deserialized from disk
+     * @return the recording with {@code stepId}/{@code nextStepId} backfilled when needed
+     */
+    private static McpMobileRecording normalize(McpMobileRecording stored) {
+        boolean needsBackfill = stored.actions().stream().anyMatch(action -> action.stepId().isBlank());
+        List<McpMobileRecordedAction> actions = needsBackfill
+                ? stored.actions().stream()
+                        .map(action -> action.stepId().isBlank()
+                                ? withStepId(action, "m" + action.sequence())
+                                : action)
+                        .toList()
+                : stored.actions();
+        long highestSuffix = actions.stream()
+                .mapToLong(McpMobileRecordingService::numericStepIdSuffix)
+                .max()
+                .orElse(0L);
+        long nextStepId = Math.max(Math.max(highestSuffix + 1, actions.size() + 1L), stored.nextStepId());
+        if (!needsBackfill && nextStepId == stored.nextStepId()) {
+            return stored;
+        }
+        return new McpMobileRecording(
+                stored.schemaVersion(),
+                stored.mode(),
+                stored.startedAt(),
+                stored.stoppedAt(),
+                stored.includeSensitiveValues(),
+                actions,
+                stored.warnings(),
+                nextStepId);
+    }
+
+    private static McpMobileRecordedAction withStepId(McpMobileRecordedAction action, String stepId) {
+        return new McpMobileRecordedAction(
+                stepId,
+                action.sequence(),
+                action.timestamp(),
+                action.action(),
+                action.locatorStrategy(),
+                action.locatorValue(),
+                action.parameters(),
+                action.javaCode(),
+                action.sensitiveValueStored(),
+                action.warnings());
+    }
+
+    private static long numericStepIdSuffix(McpMobileRecordedAction action) {
+        String stepId = action.stepId();
+        if (stepId.length() < 2 || stepId.charAt(0) != 'm') {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(stepId.substring(1));
+        } catch (NumberFormatException ignored) {
+            return 0L;
         }
     }
 

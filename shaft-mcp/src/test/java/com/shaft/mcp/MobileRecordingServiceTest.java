@@ -289,6 +289,193 @@ class MobileRecordingServiceTest {
         assertEquals(CaptureReadiness.State.READY, status.readiness());
     }
 
+    @Test
+    void recordedStepsGetDistinctStableIdsThatSurviveDeleteAndAreNeverReused() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("stable-ids.json");
+
+        service.start(recording.toString(), "native", false);
+        McpMobileRecordedAction first = tap(service, "login");
+        McpMobileRecordedAction second = tap(service, "next");
+        McpMobileRecordedAction third = tap(service, "submit");
+
+        assertEquals("m1", first.stepId());
+        assertEquals("m2", second.stepId());
+        assertEquals("m3", third.stepId());
+
+        service.deleteStep("m2");
+        McpMobileRecording afterDelete = service.readRecording(recording.toString());
+        assertEquals(List.of("m1", "m3"),
+                afterDelete.actions().stream().map(McpMobileRecordedAction::stepId).toList());
+        assertEquals(List.of(1L, 2L),
+                afterDelete.actions().stream().map(McpMobileRecordedAction::sequence).toList());
+
+        McpMobileRecordedAction fourth = tap(service, "confirm");
+        assertEquals("m4", fourth.stepId(), "A new step must never reuse a deleted step's id");
+    }
+
+    @Test
+    void deleteStepRemovesTheTargetedStepAndRenumbersRemainingSequences() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        service.start(temp.resolve("delete.json").toString(), "native", false);
+        tap(service, "a");
+        tap(service, "b");
+        tap(service, "c");
+
+        McpMobileRecordingStatus status = service.deleteStep("m2");
+
+        assertEquals(2, status.actionCount());
+        List<McpMobileStepSummary> steps = status.steps();
+        assertEquals(List.of("m1", "m3"), steps.stream().map(McpMobileStepSummary::stepId).toList());
+        assertEquals(List.of(1L, 2L), steps.stream().map(McpMobileStepSummary::sequence).toList());
+        assertEquals(List.of("a", "c"), steps.stream().map(McpMobileStepSummary::locatorValue).toList());
+    }
+
+    @Test
+    void deleteStepIsANoOpWhenInactiveOrForAnUnknownStepId() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+
+        McpMobileRecordingStatus inactive = service.deleteStep("m1");
+        assertFalse(inactive.active());
+        assertTrue(inactive.warnings().stream().anyMatch(warning -> warning.contains("Ignored")));
+
+        service.start(temp.resolve("delete-noop.json").toString(), "native", false);
+        tap(service, "a");
+
+        McpMobileRecordingStatus unknown = service.deleteStep("m99");
+        assertEquals(1, unknown.actionCount());
+        assertEquals(List.of("m1"), unknown.steps().stream().map(McpMobileStepSummary::stepId).toList());
+    }
+
+    @Test
+    void reorderStepMovesAStepUpOrDownAndRenumbersSequences() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        service.start(temp.resolve("reorder.json").toString(), "native", false);
+        tap(service, "a");
+        tap(service, "b");
+        tap(service, "c");
+
+        McpMobileRecordingStatus movedUp = service.reorderStep("m3", "up");
+        assertEquals(List.of("m1", "m3", "m2"),
+                movedUp.steps().stream().map(McpMobileStepSummary::stepId).toList());
+        assertEquals(List.of(1L, 2L, 3L),
+                movedUp.steps().stream().map(McpMobileStepSummary::sequence).toList());
+
+        McpMobileRecordingStatus movedDown = service.reorderStep("m1", "down");
+        assertEquals(List.of("m3", "m1", "m2"),
+                movedDown.steps().stream().map(McpMobileStepSummary::stepId).toList());
+    }
+
+    @Test
+    void reorderStepIsANoOpAtListBoundariesAndForUnknownStepIdOrDirection() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        service.start(temp.resolve("reorder-noop.json").toString(), "native", false);
+        tap(service, "a");
+        tap(service, "b");
+        List<String> original = List.of("m1", "m2");
+
+        assertEquals(original, service.reorderStep("m1", "up").steps()
+                .stream().map(McpMobileStepSummary::stepId).toList());
+        assertEquals(original, service.reorderStep("m2", "down").steps()
+                .stream().map(McpMobileStepSummary::stepId).toList());
+        assertEquals(original, service.reorderStep("m99", "up").steps()
+                .stream().map(McpMobileStepSummary::stepId).toList());
+        assertEquals(original, service.reorderStep("m1", "sideways").steps()
+                .stream().map(McpMobileStepSummary::stepId).toList());
+    }
+
+    @Test
+    void statusExposesStepsWithStepIdSequenceActionAndRiskyWarnings() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        service.start(temp.resolve("steps-status.json").toString(), "native", true);
+        tap(service, "login");
+        service.record(
+                "tapCoordinates",
+                null,
+                "",
+                Map.of("x", "10", "y", "20"),
+                "driver.element().touch().tapByCoordinates(10, 20);",
+                "driver.element().touch().tapByCoordinates(10, 20);",
+                false);
+
+        List<McpMobileStepSummary> steps = service.status().steps();
+
+        assertEquals(2, steps.size());
+        assertEquals("m1", steps.get(0).stepId());
+        assertEquals(1L, steps.get(0).sequence());
+        assertEquals("tap", steps.get(0).action());
+        assertFalse(steps.get(0).risky());
+        assertTrue(steps.get(0).warnings().isEmpty());
+
+        assertEquals("m2", steps.get(1).stepId());
+        assertEquals("tapCoordinates", steps.get(1).action());
+        assertTrue(steps.get(1).risky());
+        assertTrue(steps.get(1).warnings().stream().anyMatch(warning -> warning.contains("probably fail")));
+    }
+
+    @Test
+    void preSchema11RecordingsAreBackfilledOnReadAndSupportCodegen() throws Exception {
+        Path legacy = temp.resolve("legacy.json");
+        Files.writeString(legacy, """
+                {
+                  "schemaVersion": "1.0",
+                  "mode": "native",
+                  "startedAt": "2026-01-01T00:00:00Z",
+                  "stoppedAt": "",
+                  "includeSensitiveValues": false,
+                  "actions": [
+                    {
+                      "sequence": 1,
+                      "timestamp": "2026-01-01T00:00:01Z",
+                      "action": "tap",
+                      "locatorStrategy": "ACCESSIBILITY_ID",
+                      "locatorValue": "login",
+                      "parameters": {},
+                      "javaCode": "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\\"login\\"));",
+                      "sensitiveValueStored": true,
+                      "warnings": []
+                    },
+                    {
+                      "sequence": 2,
+                      "timestamp": "2026-01-01T00:00:02Z",
+                      "action": "tap",
+                      "locatorStrategy": "ACCESSIBILITY_ID",
+                      "locatorValue": "next",
+                      "parameters": {},
+                      "javaCode": "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\\"next\\"));",
+                      "sensitiveValueStored": true,
+                      "warnings": []
+                    }
+                  ],
+                  "warnings": []
+                }
+                """);
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+
+        McpMobileRecording backfilled = service.readRecording(legacy.toString());
+
+        assertEquals(List.of("m1", "m2"),
+                backfilled.actions().stream().map(McpMobileRecordedAction::stepId).toList());
+        assertEquals(3L, backfilled.nextStepId(),
+                "nextStepId must be raised above every backfilled stepId so it is never reused");
+
+        McpMobileReplayResult replay = service.codeBlocks(legacy.toString(), "driver");
+        String code = replay.codeBlocks().getFirst().code();
+        assertTrue(code.contains("driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));"));
+        assertTrue(code.contains("driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"next\"));"));
+    }
+
+    private static McpMobileRecordedAction tap(McpMobileRecordingService service, String locatorValue) {
+        return service.record(
+                "tap",
+                locatorStrategy.ACCESSIBILITY_ID,
+                locatorValue,
+                Map.of(),
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"" + locatorValue + "\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"" + locatorValue + "\"));",
+                false);
+    }
+
     private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {
         return blocks.stream()
                 .filter(block -> block.id().equals(id))

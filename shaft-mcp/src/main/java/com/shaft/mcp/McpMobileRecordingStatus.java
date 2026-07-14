@@ -14,6 +14,8 @@ import java.util.List;
  * {@link CaptureReadiness.State} (Ready/Risky/Blocked) rather than forking a parallel enum.
  *
  * @param readiness Ready/Risky/Blocked verdict rolled up from step warnings; never {@code null}
+ * @param steps per-step summaries (stable stepId, sequence, action, risk) an agent can target with
+ *         {@code mobile_step_delete}/{@code mobile_step_reorder}; empty when inactive
  */
 public record McpMobileRecordingStatus(
         boolean active,
@@ -22,7 +24,8 @@ public record McpMobileRecordingStatus(
         int actionCount,
         boolean includeSensitiveValues,
         List<String> warnings,
-        CaptureReadiness.State readiness) {
+        CaptureReadiness.State readiness,
+        List<McpMobileStepSummary> steps) {
     /**
      * Creates an immutable mobile recording status.
      */
@@ -30,11 +33,27 @@ public record McpMobileRecordingStatus(
         mode = mode == null ? "" : mode.trim();
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
         readiness = readiness == null ? CaptureReadiness.State.READY : readiness;
+        steps = steps == null ? List.of() : List.copyOf(steps);
+    }
+
+    /**
+     * Back-compatible constructor for callers that predate the step summaries (#3526); defaults
+     * {@code steps} to an empty list.
+     */
+    public McpMobileRecordingStatus(
+            boolean active,
+            Path outputPath,
+            String mode,
+            int actionCount,
+            boolean includeSensitiveValues,
+            List<String> warnings,
+            CaptureReadiness.State readiness) {
+        this(active, outputPath, mode, actionCount, includeSensitiveValues, warnings, readiness, List.of());
     }
 
     /**
      * Back-compatible constructor for callers that predate the shared readiness contract; defaults
-     * readiness to {@link CaptureReadiness.State#READY}.
+     * readiness to {@link CaptureReadiness.State#READY} and {@code steps} to an empty list.
      */
     public McpMobileRecordingStatus(
             boolean active,
@@ -43,6 +62,7 @@ public record McpMobileRecordingStatus(
             int actionCount,
             boolean includeSensitiveValues,
             List<String> warnings) {
-        this(active, outputPath, mode, actionCount, includeSensitiveValues, warnings, CaptureReadiness.State.READY);
+        this(active, outputPath, mode, actionCount, includeSensitiveValues, warnings, CaptureReadiness.State.READY,
+                List.of());
     }
 }

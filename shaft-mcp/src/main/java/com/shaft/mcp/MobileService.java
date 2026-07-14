@@ -264,6 +264,31 @@ public class MobileService {
     }
 
     /**
+     * Deletes a recorded mobile step by its stable stepId, as surfaced in recorder status.
+     *
+     * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
+     * @return updated recorder status
+     */
+    @Tool(name = "mobile_step_delete",
+            description = "deletes a recorded mobile step by its stable stepId and renumbers the remaining steps")
+    public McpMobileRecordingStatus stepDelete(String stepId) {
+        return recorder.deleteStep(stepId);
+    }
+
+    /**
+     * Moves a recorded mobile step up or down by its stable stepId, as surfaced in recorder status.
+     *
+     * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
+     * @param direction "up" or "down"
+     * @return updated recorder status
+     */
+    @Tool(name = "mobile_step_reorder",
+            description = "moves a recorded mobile step up or down by its stable stepId (direction: up|down)")
+    public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
+        return recorder.reorderStep(stepId, direction);
+    }
+
+    /**
      * Starts a loopback MITM proxy that captures native mobile API traffic as a first-class
      * capture session, independent of any Appium/WebDriver session. HTTPS interception requires the
      * device or emulator to trust the CA certificate returned in the status; plain HTTP traffic
