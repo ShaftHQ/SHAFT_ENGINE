@@ -63,6 +63,8 @@
 <li><a href="#patch(java.lang.String)" tabindex="0">patch(String)</a></li>
 <li><a href="#delete(java.lang.String)" tabindex="0">delete(String)</a></li>
 <li><a href="#put(java.lang.String)" tabindex="0">put(String)</a></li>
+<li><a href="#head(java.lang.String)" tabindex="0">head(String)</a></li>
+<li><a href="#options(java.lang.String)" tabindex="0">options(String)</a></li>
 <li><a href="#sendGraphQlRequest(java.lang.String,java.lang.String)" tabindex="0">sendGraphQlRequest(String, String)</a></li>
 <li><a href="#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object)" tabindex="0">sendGraphQlRequest(String, String, Object)</a></li>
 <li><a href="#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object,java.lang.String)" tabindex="0">sendGraphQlRequest(String, String, Object, String)</a></li>
@@ -277,17 +279,28 @@ in this session.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Extracts a list of values from the most recent XML response using an XPath expression.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#importCookiesFrom(com.shaft.gui.driver.BrowserActionsContract)" class="member-name-link">importCookiesFrom</a><wbr>(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#head(java.lang.String)" class="member-name-link">head</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Imports all browser cookies into this API session.</div>
+<div class="block">Builds a HEAD request for the specified service endpoint.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#importCookiesFrom(com.shaft.gui.driver.BrowserActionsContract,java.lang.String,java.lang.String)" class="member-name-link">importCookiesFrom</a><wbr>(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#importCookiesFrom(com.shaft.gui.driver.BrowserActionsContract)" class="member-name-link">importCookiesFrom</a><wbr>(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Imports all browser cookies into this API session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#importCookiesFrom(com.shaft.gui.driver.BrowserActionsContract,java.lang.String,java.lang.String)" class="member-name-link">importCookiesFrom</a><wbr>(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domainFilter,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pathFilter)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Imports browser cookies that match the optional domain and path filters into this API session.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#options(java.lang.String)" class="member-name-link">options</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Builds an OPTIONS request for the specified service endpoint, typically
+used to inspect the allowed methods (CORS/preflight) an endpoint exposes.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#patch(java.lang.String)" class="member-name-link">patch</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</code></div>
@@ -483,6 +496,39 @@ file produced by <code>driver.browser().saveStorageState(String)</code>).</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></span>&nbsp;<span class="element-name">put</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</span></div>
 <div class="block">Builds a PUT request for the specified service endpoint.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>serviceName</code> - the endpoint path (appended to the base URI)</dd>
+<dt>Returns:</dt>
+<dd>a <a href="../api/RequestBuilder.html" title="class in com.shaft.api"><code>RequestBuilder</code></a> for further request configuration</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="head(java.lang.String)">
+<h3>head</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></span>&nbsp;<span class="element-name">head</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</span></div>
+<div class="block">Builds a HEAD request for the specified service endpoint. HEAD returns
+the same headers/status as GET without a response body, so it is useful
+for existence, cache, and header assertions.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>serviceName</code> - the endpoint path (appended to the base URI)</dd>
+<dt>Returns:</dt>
+<dd>a <a href="../api/RequestBuilder.html" title="class in com.shaft.api"><code>RequestBuilder</code></a> for further request configuration</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="options(java.lang.String)">
+<h3>options</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></span>&nbsp;<span class="element-name">options</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</span></div>
+<div class="block">Builds an OPTIONS request for the specified service endpoint, typically
+used to inspect the allowed methods (CORS/preflight) an endpoint exposes.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>serviceName</code> - the endpoint path (appended to the base URI)</dd>
