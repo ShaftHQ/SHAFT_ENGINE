@@ -87,6 +87,7 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
     public void afterTestExecution(ExtensionContext context) throws Exception {
         AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
         if (verificationError != null) {
+            ValidationsHelper.attachVerificationSummary();
             ValidationsHelper.resetVerificationStateAfterFailing();
             if (context.getExecutionException().isEmpty()) {
                 if (isActiveRetry(context) || !scheduleRetry(context, verificationError)) {

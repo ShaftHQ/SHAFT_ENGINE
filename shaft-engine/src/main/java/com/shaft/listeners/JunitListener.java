@@ -96,6 +96,7 @@ public class JunitListener implements LauncherSessionListener {
                         case SUCCESSFUL -> {
                             AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
                             if (verificationError != null) {
+                                ValidationsHelper.attachVerificationSummary();
                                 ValidationsHelper.resetVerificationStateAfterFailing();
                                 TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
                                 ReportContext.update(failedInfo);

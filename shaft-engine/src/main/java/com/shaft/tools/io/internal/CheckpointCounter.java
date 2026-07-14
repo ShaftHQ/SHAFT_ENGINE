@@ -1,10 +1,13 @@
 package com.shaft.tools.io.internal;
 
+import com.google.gson.GsonBuilder;
 import com.shaft.tools.internal.support.HTMLHelper;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -79,6 +82,42 @@ public class CheckpointCounter {
                         .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
                         .replace("${TRACES_CAPTURED}", String.valueOf(capturedTraceCount()))
                         .replace("${CHECKPOINTS_DETAILS}", detailsBuilder));
+
+        attachCheckpointsJson();
+    }
+
+    /**
+     * Attaches a machine-readable JSON view of the accumulated checkpoints alongside the HTML
+     * overview, so Doctor / MCP and the #3504 plugin widgets can consume structured checkpoint
+     * fields (id, type, message, status) instead of scraping the HTML report (issue #3516 D).
+     */
+    static void attachCheckpointsJson() {
+        ReportManagerHelper.attach("json", "Checkpoints", checkpointsJson());
+    }
+
+    /**
+     * Builds the machine-readable checkpoint payload (totals plus one row per checkpoint with a
+     * per-attach ordinal id, type, message, and status).
+     *
+     * @return the pretty-printed JSON payload
+     */
+    static String checkpointsJson() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int checkpointId = 0;
+        for (ArrayList<String> value : checkpoints) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", ++checkpointId);
+            row.put("type", value.get(0));
+            row.put("message", value.get(1));
+            row.put("status", value.get(2));
+            rows.add(row);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("total", checkpoints.size());
+        payload.put("passed", passedCheckpoints.get());
+        payload.put("failed", failedCheckpoints.get());
+        payload.put("checkpoints", rows);
+        return new GsonBuilder().setPrettyPrinting().create().toJson(payload);
     }
 
     /**

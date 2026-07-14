@@ -57,6 +57,24 @@ public class ValidationsHelperCoverageUnitTest {
         ValidationsHelper.resetVerificationStateAfterFailing();
     }
 
+    @Test(description = "verificationSummaryText numbers every accumulated soft failure (#3516 C)")
+    public void verificationSummaryTextNumbersAllSoftFailures() {
+        Assert.assertNull(ValidationsHelper.verificationSummaryText(),
+                "with no accumulated failures the summary must be null");
+        try {
+            ValidationsHelper.recordVerificationFailure("first soft failure");
+            ValidationsHelper.recordVerificationFailure("second soft failure");
+
+            String summary = ValidationsHelper.verificationSummaryText();
+            Assert.assertNotNull(summary);
+            Assert.assertTrue(summary.contains("2 failure(s)"), summary);
+            Assert.assertTrue(summary.contains("1. first soft failure"), summary);
+            Assert.assertTrue(summary.contains("2. second soft failure"), summary);
+        } finally {
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        }
+    }
+
     @Test(description = "validateJSONFileContent should cover pass/fail and json path branches")
     public void validateJSONFileContentShouldCoverPassAndFailBranches() {
         ValidationsHelper helper = new ValidationsHelper(ValidationCategory.SOFT_ASSERT);
