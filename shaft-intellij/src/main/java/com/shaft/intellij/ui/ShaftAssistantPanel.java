@@ -109,6 +109,17 @@ final class ShaftAssistantPanel extends JPanel {
                     + "before any actions were captured) or code generation may have failed silently. "
                     + "Record the journey again, confirm the recording actually captured actions, then "
                     + "ask for a test generated from that recording._";
+    /**
+     * First-run welcome (issue #3500 O1, follow-up #3540): the Assistant's own first message,
+     * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed.
+     */
+    private static final String FIRST_RUN_WELCOME_MARKDOWN =
+            "👋 Hi! I'm the SHAFT Assistant — I turn what you do in your app into real tests.\n\n"
+                    + "**Let's get started 🚀**\n\n"
+                    + "1. ⚙️ Check your setup in the status strip up top.\n"
+                    + "2. 🎬 Record a sample flow — just click around your app.\n"
+                    + "3. 🧪 Review code to turn it into a real test.\n"
+                    + "4. 💬 Or just tell me what you need below.";
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
@@ -356,6 +367,8 @@ final class ShaftAssistantPanel extends JPanel {
             transcript.setMessages(chatState.activeMessages());
             lastPrompt = latestUserPrompt();
             updateContextTruncationBoundary();
+        } else {
+            showFirstRunWelcomeIfNeeded();
         }
         status = new JLabel(READY_STATUS);
         status.getAccessibleContext().setAccessibleName("Assistant status");
@@ -756,6 +769,20 @@ final class ShaftAssistantPanel extends JPanel {
         append(role, message, rawResponse);
     }
 
+    /**
+     * TODO(#3540 slash-command autocomplete, deferred): a "/" trigger case was NOT added here.
+     * Issue #3428 deliberately retired the slash-command UX (no picker, no "/" popup, no slash
+     * mentions anywhere) in favor of plain-language intents routed by the agent, and
+     * {@code assistantContextSuggestionsAppearOnlyForImplementedTriggers} /
+     * {@code assistantComposerUsesPlainLanguageInputAndModernThinkingIndicator} in
+     * {@code ShaftPanelSetupTest} assert that retirement. Reintroducing a "/" popup would directly
+     * reverse that decision and break both tests, so it needs an explicit product call, not a
+     * silent revival inside an unrelated first-run-welcome change. If reinstated, mirror this exact
+     * {@code @}/{@code #} mechanism ({@link #bindContextInsertion()}, {@link
+     * #showContextSuggestions(char)}, {@link #populateContextPopup(List)}, {@link
+     * #insertContextSuggestion(char, ContextSuggestion)}) with a new {@code case '/'} here backed by
+     * a small static command list, exactly as originally planned.
+     */
     private List<ContextSuggestion> contextSuggestions(
             char trigger,
             Project project,
@@ -1920,6 +1947,13 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void append(String role, String text, String rawResponse) {
+        // Any real message (user or assistant) ends the first-run welcome (issue #3540): the
+        // welcome is only ever valid on a genuinely empty transcript, and this always follows
+        // showFirstRunWelcomeIfNeeded() showing it (or a no-op if never shown/already dismissed),
+        // so clearWidget() here is safe even when nothing is currently showing. append() is never
+        // called while an approval widget occupies the same slot (see showFirstRunWelcomeIfNeeded's
+        // javadoc), so this never fights that widget for the slot.
+        transcript.clearWidget();
         transcript.append(role, text);
         chatState.append(role, text, rawResponse);
         updateContextTruncationBoundary();
@@ -2175,11 +2209,42 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
+     * Shows the first-run welcome as the Assistant's own first message in the transcript (issue
+     * #3500 O1, follow-up #3540), via the same ephemeral {@link AssistantTranscriptView#showWidget}
+     * slot used for {@link ToolApprovalPromptPanel} -- never persisted into
+     * chatState/markdown/Copy-transcript. A no-op unless the transcript is genuinely empty and the
+     * flag isn't set, so it's safe to call after every transition to an empty transcript
+     * (construction, New chat, chat switch, Clear); {@link #transcript}'s single widget slot is
+     * never contested because those same call sites always {@code transcript.clear()} first, and an
+     * approval widget only ever appears after some message has already hidden this welcome (every
+     * {@link #append(String, String, String)} call clears it unconditionally).
+     */
+    private void showFirstRunWelcomeIfNeeded() {
+        if (settings.firstRunCoachDismissed || !transcript.markdown().isBlank()) {
+            return;
+        }
+        javax.swing.JButton gotIt = new javax.swing.JButton("Got it");
+        gotIt.getAccessibleContext().setAccessibleName("Dismiss first run coach");
+        gotIt.setToolTipText("Hide this first-run guide permanently.");
+        gotIt.setMargin(JBUI.insets(1, 8));
+        gotIt.addActionListener(event -> {
+            settings.firstRunCoachDismissed = true;
+            transcript.clearWidget();
+        });
+        transcript.showWidget("assistant", transcript.assistantBubbleWithActions(FIRST_RUN_WELCOME_MARKDOWN, gotIt));
+    }
+
+    /**
      * First-run empty-state chips (issue #3500 A6): three concrete next actions that pre-fill the
      * composer instead of executing anything, so the user stays in control of the first send.
+     * {@code WrapLayout} (not plain {@code FlowLayout}) reports correct wrapped preferred height in
+     * a narrow tool window; a plain {@code FlowLayout} row under-reports it, letting whatever
+     * follows collide with a wrapped second line of chips (root cause of the first-run coach clip,
+     * issue #3540 -- the coach strip that used to sit above this row is now the transcript welcome
+     * bubble; see {@link #showFirstRunWelcomeIfNeeded()}).
      */
     private javax.swing.JPanel buildEmptyStateChips() {
-        javax.swing.JPanel chipRow = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        javax.swing.JPanel chipRow = new javax.swing.JPanel(new WrapLayout(java.awt.FlowLayout.LEFT, 6, 0));
         chipRow.setOpaque(false);
         chipRow.add(emptyStateChip("Record a sample flow",
                 "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."));
@@ -2187,44 +2252,8 @@ final class ShaftAssistantPanel extends JPanel {
                 "How do I add assertions while recording a web flow?"));
         chipRow.add(emptyStateChip("Diagnose my last failure",
                 "Diagnose my most recent failed test run and propose a fix."));
-        emptyStateChips = new javax.swing.JPanel();
-        emptyStateChips.setLayout(new javax.swing.BoxLayout(emptyStateChips, javax.swing.BoxLayout.Y_AXIS));
-        emptyStateChips.setOpaque(false);
-        javax.swing.JPanel coach = buildFirstRunCoach();
-        if (coach != null) {
-            emptyStateChips.add(coach);
-        }
-        emptyStateChips.add(chipRow);
+        emptyStateChips = chipRow;
         return emptyStateChips;
-    }
-
-    /**
-     * First-run happy-path coach (issue #3500 O1): one dismissible line telling the whole story in
-     * three steps; never reappears once acknowledged.
-     */
-    private javax.swing.JPanel buildFirstRunCoach() {
-        if (settings.firstRunCoachDismissed) {
-            return null;
-        }
-        javax.swing.JPanel coach = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-        coach.setOpaque(false);
-        javax.swing.JLabel story = new javax.swing.JLabel(
-                "First run: 1. Check setup (header strip)  2. Record a sample flow  3. Review code into a test.");
-        story.getAccessibleContext().setAccessibleName("First run happy path coach");
-        story.setForeground(ShaftStatusPresentation.pending());
-        javax.swing.JButton gotIt = new javax.swing.JButton("Got it");
-        gotIt.getAccessibleContext().setAccessibleName("Dismiss first run coach");
-        gotIt.setToolTipText("Hide this first-run guide permanently.");
-        gotIt.setMargin(JBUI.insets(1, 8));
-        gotIt.addActionListener(event -> {
-            settings.firstRunCoachDismissed = true;
-            coach.setVisible(false);
-            emptyStateChips.revalidate();
-            emptyStateChips.repaint();
-        });
-        coach.add(story);
-        coach.add(gotIt);
-        return coach;
     }
 
     private javax.swing.JButton emptyStateChip(String label, String cannedPrompt) {
@@ -2410,6 +2439,7 @@ final class ShaftAssistantPanel extends JPanel {
         captureIntegrationRunning = false;
         transcript.clear();
         contextTruncationBoundaryIndex = -1;
+        showFirstRunWelcomeIfNeeded();
         lastResponse = "";
         lastRawResponse = "";
         lastPrompt = "";
@@ -2431,6 +2461,7 @@ final class ShaftAssistantPanel extends JPanel {
         captureIntegrationRunning = false;
         refreshChatSelector();
         transcript.clear();
+        showFirstRunWelcomeIfNeeded();
         prompt.setText("");
         lastResponse = "";
         lastRawResponse = "";
@@ -2929,6 +2960,7 @@ final class ShaftAssistantPanel extends JPanel {
         } else {
             transcript.clear();
             contextTruncationBoundaryIndex = -1;
+            showFirstRunWelcomeIfNeeded();
         }
         lastResponse = "";
         lastRawResponse = "";
