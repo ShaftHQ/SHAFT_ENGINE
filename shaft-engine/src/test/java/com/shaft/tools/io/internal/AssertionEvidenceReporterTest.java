@@ -44,6 +44,36 @@ public class AssertionEvidenceReporterTest {
         Assert.assertTrue(html.contains("Bob"), html);
     }
 
+    @Test(description = "Both sides parsing as XML should surface an XML data-shape badge, pretty-printed content, and a diff region (#3532 E)")
+    public void xmlBothSidesShouldShowXmlShapeAndDiff() {
+        String expectedXml = "<user><id>1</id><name>Ann</name></user>";
+        String actualXml = "<user><id>1</id><name>Bob</name></user>";
+
+        String html = AssertionEvidenceReporter.renderCard("Assert", false, expectedXml, actualXml);
+
+        Assert.assertTrue(html.contains(">XML<"), html);
+        // Transformer indents each element onto its own line, so the diff can isolate the changed leaf.
+        Assert.assertTrue(html.contains("aer-diff"), html);
+        Assert.assertTrue(html.contains("Ann"), html);
+        Assert.assertTrue(html.contains("Bob"), html);
+        // The unchanged <id> element must survive as a same-line, proving structural (not scalar) rendering.
+        Assert.assertTrue(html.contains("&lt;id&gt;1&lt;/id&gt;"), html);
+    }
+
+    @Test(description = "XML bodies with a DOCTYPE/external entity must never expand the entity (XXE hardening) (#3532 E)")
+    public void xmlWithDoctypeMustNotExpandEntities() {
+        String malicious = "<!DOCTYPE foo [<!ENTITY xxe \"SECRET_EXPANDED\">]><foo>&xxe;</foo>";
+
+        String html = AssertionEvidenceReporter.renderCard("Assert", false, malicious, "<foo>bar</foo>");
+
+        // disallow-doctype-decl makes the DOCTYPE side fail to parse, so it degrades to text — never XML.
+        Assert.assertFalse(html.contains(">XML<"), html);
+        // The entity reference must survive as a literal, unexpanded token — never resolved into
+        // the <foo> element's content. Seeing the escaped "&xxe;" (not an expanded value) proves it.
+        Assert.assertTrue(html.contains("&amp;xxe;"), html);
+        Assert.assertFalse(html.contains("<foo>SECRET_EXPANDED</foo>"), html);
+    }
+
     @Test(description = "Multi-line text values should surface a Text data-shape badge and a diff region")
     public void multiLineTextShouldShowTextShapeAndDiff() {
         String expectedText = "line one\nline two\nline three";
