@@ -133,6 +133,54 @@ public class AssertionEvidenceReporterTest {
         Assert.assertNotNull(AssertionEvidenceReporter.renderCard("Assert", true, new Object(), new Object()));
     }
 
+    @Test(description = "Accessibility card renders a domain-labelled aria-YAML diff even though the outcome is a boolean (#3532 E)")
+    public void accessibilityCardRendersAriaYamlDiff() {
+        String baselineYaml = "- textbox \"Email\"\n- button \"Submit\"";
+        String actualYaml = "- textbox \"Email\"\n- button \"Send\"";
+
+        String html = AssertionEvidenceReporter.renderAccessibilityCard(false, baselineYaml, actualYaml);
+
+        // Domain-consistent header, real FAILED status, and a rendered line diff — not a raw dump.
+        Assert.assertTrue(html.contains("Accessibility"), html);
+        Assert.assertTrue(html.contains("FAILED"), html);
+        Assert.assertTrue(html.contains(">Text<"), html);
+        Assert.assertTrue(html.contains("aer-diff"), html);
+        Assert.assertTrue(html.contains("Submit"), html);
+        Assert.assertTrue(html.contains("Send"), html);
+        Assert.assertTrue(html.contains("<!doctype html>"), html);
+    }
+
+    @Test(description = "Accessibility card still redacts secrets and skips rendering when there is no aria YAML (#3532 E)")
+    public void accessibilityCardRedactsAndSkipsBlank() {
+        // Secrets embedded in an aria label must be redacted like any other card content.
+        String withSecret = AssertionEvidenceReporter.renderAccessibilityCard(false,
+                "- textbox \"password=hunter2\"", "- textbox \"password=different\"");
+        Assert.assertFalse(withSecret.contains("hunter2"), withSecret);
+        Assert.assertTrue(withSecret.contains("********"), withSecret);
+
+        // Nothing to diff -> no card (mirrors renderCard's blank contract).
+        Assert.assertEquals(AssertionEvidenceReporter.renderAccessibilityCard(true, null, ""), "");
+        Assert.assertEquals(AssertionEvidenceReporter.renderAccessibilityCard(true, "  ", null), "");
+    }
+
+    @Test(description = "Writes a sample accessibility aria-diff card to the scratch directory for manual visual review (#3532 E)")
+    public void writeSampleAccessibilityCardForManualReview() throws Exception {
+        String baselineYaml = "- heading \"Checkout\" [level=1]\n- textbox \"Email\"\n- textbox \"Card number\"\n- button \"Pay now\"";
+        String actualYaml = "- heading \"Checkout\" [level=2]\n- textbox \"Email\"\n- button \"Pay now\"";
+
+        String html = AssertionEvidenceReporter.renderAccessibilityCard(false, baselineYaml, actualYaml);
+
+        Path outputFile = Path.of(System.getProperty("shaft.accessibilityEvidence.sampleOutput",
+                "C:\\Users\\Mohab\\AppData\\Local\\Temp\\claude\\C--Users-Mohab-IdeaProjects-SHAFT-ENGINE\\a0966654-661a-46d0-8c81-75ecf6570c15\\scratchpad\\accessibility-card-sample.html"));
+        Files.createDirectories(outputFile.getParent());
+        Files.writeString(outputFile, html, StandardCharsets.UTF_8);
+
+        Assert.assertTrue(Files.exists(outputFile));
+        Assert.assertTrue(html.contains("Accessibility"), html);
+        Assert.assertTrue(html.contains("FAILED"), html);
+        Assert.assertTrue(html.contains("aer-diff"), html);
+    }
+
     @Test(description = "Writes a sample failed-JSON-diff card to the scratch directory for manual visual review")
     public void writeSampleFailedJsonDiffCardForManualReview() throws Exception {
         String expectedJson = "{\n  \"orderId\": 1042,\n  \"status\": \"CONFIRMED\",\n  \"items\": [\"sku-1\", \"sku-2\"],\n  \"customer\": {\n    \"name\": \"Ann Example\",\n    \"token\": \"abcdef123456\"\n  }\n}";
