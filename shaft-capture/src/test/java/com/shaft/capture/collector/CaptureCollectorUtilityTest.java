@@ -82,6 +82,16 @@ class CaptureCollectorUtilityTest {
         assertTrue(preload.contains("Delete captured action"));
         assertTrue(preload.contains("pagehide"));
         assertTrue(preload.contains("beforeunload"));
+        // #3536 A1: first-session labeled toolbar.
+        assertTrue(preload.contains("toolbarLabelsDismissed"));
+        assertTrue(preload.contains("show-ctrl-labels"));
+        assertTrue(preload.contains("shaft-capture-labels-dismiss"));
+        // #3536 B5: step-row overflow menu.
+        assertTrue(preload.contains("row-overflow-menu"));
+        assertTrue(preload.contains("More actions"));
+        // #3536 C1: persistent suppressed-events log.
+        assertTrue(preload.contains("shaft-capture-suppressed-toggle"));
+        assertTrue(preload.contains("suppressedEvents"));
 
         Constructor<BrowserEventScript> constructor = BrowserEventScript.class.getDeclaredConstructor();
         constructor.setAccessible(true);

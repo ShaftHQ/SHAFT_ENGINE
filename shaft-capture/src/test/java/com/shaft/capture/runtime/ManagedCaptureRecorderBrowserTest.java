@@ -903,6 +903,11 @@ class ManagedCaptureRecorderBrowserTest {
                     .get(rowsBefore - 1)
                     .findElement(By.cssSelector(".action-row > span > span:not(.step-badge)"))
                     .getText().trim();
+            // #3536 B5: delete now lives behind the row's overflow menu, so open it first.
+            driver.findElements(By.cssSelector("#shaft-capture-action-list li .row-overflow-toggle"))
+                    .get(rowsBefore - 1).click();
+            waitFor(() -> driver.findElements(By.cssSelector("#shaft-capture-action-list li .row-overflow-menu"))
+                    .get(rowsBefore - 1).isDisplayed());
             driver.findElements(By.cssSelector(
                     "#shaft-capture-action-list li button[aria-label='Delete captured action']"))
                     .get(rowsBefore - 1).click();
@@ -941,6 +946,149 @@ class ManagedCaptureRecorderBrowserTest {
             assertTrue(after.getX() < before.getX() && after.getY() < before.getY(),
                     "Dragging the header must move the panel, before=" + before.getPoint()
                             + " after=" + after.getPoint());
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #3536 A1: icon-only header buttons show text labels for the first session until
+     * dismissed. The panel carries a {@code show-ctrl-labels} class while labels are visible, and
+     * dismissing persists {@code toolbarLabelsDismissed} so labels never come back for the rest of
+     * the session.
+     */
+    @Test
+    void overlayToolbarShowsFirstSessionLabelsUntilDismissed(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("toolbar-labels.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("toolbar-labels-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-labels-dismiss")));
+
+            assertTrue(driver.findElement(By.id("shaft-capture-ui")).getAttribute("class")
+                            .contains("show-ctrl-labels"),
+                    "Labels must be visible on the first session.");
+            assertTrue(driver.findElement(By.id("shaft-capture-assert"))
+                            .findElement(By.cssSelector(".ctrl-label")).isDisplayed(),
+                    "A visible control label must render inside the Assert button.");
+            assertTrue(driver.findElement(By.id("shaft-capture-labels-dismiss")).isDisplayed(),
+                    "The dismiss affordance must be visible while labels show.");
+
+            driver.findElement(By.id("shaft-capture-labels-dismiss")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-ui")).getAttribute("class")
+                    .contains("show-ctrl-labels"));
+            assertFalse(driver.findElement(By.id("shaft-capture-ui")).getAttribute("class")
+                            .contains("show-ctrl-labels"),
+                    "Dismissing must hide the labels.");
+            assertEquals(Boolean.TRUE, js.executeScript(
+                            "return globalThis.__shaftCaptureUiState.toolbarLabelsDismissed;"),
+                    "Dismissing must persist toolbarLabelsDismissed.");
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #3536 B5: each step row carries a "More actions" overflow menu holding assert/edit/
+     * delete, while up/down remain always-visible inline buttons. Opening the menu reveals the
+     * menu items; Esc closes it again.
+     */
+    @Test
+    void overlayStepRowOverflowMenuHoldsSecondaryActions(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("overflow-menu.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("overflow-menu-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-action-list")));
+            driver.findElement(By.id("username")).click();
+            waitFor(() -> !driver.findElements(By.cssSelector("#shaft-capture-action-list li")).isEmpty());
+
+            WebElement row = driver.findElements(By.cssSelector("#shaft-capture-action-list li")).get(0);
+            assertTrue(elementPresent(driver, By.cssSelector(
+                            "#shaft-capture-action-list li .row-overflow-toggle")),
+                    "Every row must carry a 'More actions' overflow toggle.");
+            assertTrue(row.findElement(By.cssSelector(
+                            ".action-row button[aria-label='Move captured action up']")).isDisplayed(),
+                    "Up must remain a direct, always-visible row button.");
+            assertTrue(row.findElement(By.cssSelector(
+                            ".action-row button[aria-label='Move captured action down']")).isDisplayed(),
+                    "Down must remain a direct, always-visible row button.");
+
+            WebElement toggle = row.findElement(By.cssSelector(".row-overflow-toggle"));
+            WebElement menu = row.findElement(By.cssSelector(".row-overflow-menu"));
+            assertFalse(menu.isDisplayed(), "The overflow menu must start closed.");
+            toggle.click();
+            waitFor(menu::isDisplayed);
+            assertEquals("true", toggle.getAttribute("aria-expanded"));
+            assertTrue(menu.findElement(By.cssSelector("button[aria-label='Edit captured action']"))
+                    .isDisplayed());
+            assertTrue(menu.findElement(By.cssSelector("button[aria-label='Delete captured action']"))
+                    .isDisplayed());
+
+            new Actions(driver).sendKeys(org.openqa.selenium.Keys.ESCAPE).perform();
+            waitFor(() -> !menu.isDisplayed());
+            assertEquals("false", toggle.getAttribute("aria-expanded"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #3536 C1: the suppressed-events toggle/log DOM wiring exists from render time even
+     * before any suppression happens, and both stay hidden while {@code uiState.suppressedEvents}
+     * is empty. A real suppression only fires from the 10-second interaction-navigation window
+     * (issue #3496), which is not reproducible deterministically here, so this asserts the
+     * always-verifiable existence+visibility contract instead of a flaky live trigger.
+     */
+    @Test
+    void overlaySuppressedEventsLogStaysHiddenWithoutSuppressions(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("suppressed-log.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("suppressed-log-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-suppressed-toggle")));
+
+            assertFalse(driver.findElement(By.id("shaft-capture-suppressed-toggle")).isDisplayed(),
+                    "The suppressed-events toggle must stay hidden with no suppressed events yet.");
+            assertFalse(driver.findElement(By.id("shaft-capture-suppressed-log")).isDisplayed(),
+                    "The suppressed-events log must stay hidden with no suppressed events yet.");
+
+            recorder.stop(false);
         } finally {
             if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
                 recorder.interrupt();
