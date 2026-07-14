@@ -114,11 +114,12 @@ final class ShaftAssistantPanel extends JPanel {
      * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed.
      */
     private static final String FIRST_RUN_WELCOME_MARKDOWN =
-            "👋 I'm the SHAFT Assistant. I can record flows, generate tests, and diagnose failures.\n\n"
-                    + "**First run**\n\n"
-                    + "1. Check setup (header strip)\n"
-                    + "2. Record a sample flow\n"
-                    + "3. Review code into a test";
+            "👋 Hi! I'm the SHAFT Assistant — I turn what you do in your app into real tests.\n\n"
+                    + "**Let's get started 🚀**\n\n"
+                    + "1. ⚙️ Check your setup in the status strip up top.\n"
+                    + "2. 🎬 Record a sample flow — just click around your app.\n"
+                    + "3. 🧪 Review code to turn it into a real test.\n"
+                    + "4. 💬 Or just tell me what you need below.";
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
