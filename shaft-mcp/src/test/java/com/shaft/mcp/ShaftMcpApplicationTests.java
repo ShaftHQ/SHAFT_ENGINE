@@ -1,5 +1,7 @@
 package com.shaft.mcp;
 
+import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.spec.McpSchema;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
@@ -12,7 +14,9 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -42,9 +46,7 @@ class ShaftMcpApplicationTests {
         Set<String> toolNames = callbacks.stream()
                 .map(ToolCallback.class::cast)
                 .map(callback -> callback.getToolDefinition().name())
-                .collect(Collectors.toSet());
-        Set<String> expected = expectedTools();
-        assertEquals(expected, toolNames);
+                .collect(Collectors.toCollection(HashSet::new));
         callbacks.stream()
                 .map(ToolCallback.class::cast)
                 .forEach(callback -> {
@@ -52,6 +54,21 @@ class ShaftMcpApplicationTests {
                     assertFalse(GENERIC_PARAMETER_NAME.matcher(schema).find(),
                             callback.getToolDefinition().name() + " exposes generic parameter names: " + schema);
                 });
+
+        // Tools that need a live MCP exchange (for example, to stream progress notifications) are
+        // exposed via @McpTool annotation scanning instead of the plain @Tool/ToolCallback path
+        // above; they register on a separate "toolSpecs" bean that the real McpSyncServer also
+        // consumes (McpServerAutoConfiguration merges both lists), so the full external tool
+        // catalog is the union of the two.
+        for (McpServerFeatures.SyncToolSpecification toolSpecification : annotationScannedToolSpecs()) {
+            McpSchema.Tool tool = toolSpecification.tool();
+            assertTrue(toolNames.add(tool.name()),
+                    tool.name() + " is registered both as a ToolCallback and an annotation-scanned MCP tool");
+            assertNoGenericParameterNames(tool);
+        }
+
+        Set<String> expected = expectedTools();
+        assertEquals(expected, toolNames);
         assertTrue(toolNames.contains("doctor_analyze_failed_allure"));
         assertTrue(toolNames.contains("trace_latest"));
         assertTrue(toolNames.contains("trace_read"));
@@ -199,5 +216,30 @@ class ShaftMcpApplicationTests {
         }
         assertTrue(duplicates.isEmpty(), "MCP tool manifest contains duplicate tools: " + duplicates);
         return tools;
+    }
+
+    /**
+     * Tools annotated {@code @McpTool} (for example, {@code capture_generate_replay}, which needs
+     * a live {@code McpSyncServerExchange} to stream progress notifications) register on the
+     * "toolSpecs" bean built by Spring AI's annotation-scanning MCP auto-configuration, not on the
+     * "shaftTools" {@code List<ToolCallback>} bean. That auto-configuration only requires
+     * {@code spring.ai.mcp.server.annotation-scanner.enabled} (defaults true) and is unaffected by
+     * this test class's {@code spring.ai.mcp.server.enabled=false}, so the bean is present here too.
+     */
+    @SuppressWarnings("unchecked")
+    private List<McpServerFeatures.SyncToolSpecification> annotationScannedToolSpecs() {
+        return (List<McpServerFeatures.SyncToolSpecification>) context.getBean("toolSpecs", List.class);
+    }
+
+    private static void assertNoGenericParameterNames(McpSchema.Tool tool) {
+        Object properties = tool.inputSchema().get("properties");
+        if (!(properties instanceof Map<?, ?> propertiesMap)) {
+            return;
+        }
+        Set<String> generic = propertiesMap.keySet().stream()
+                .map(Object::toString)
+                .filter(name -> name.matches("arg\\d+"))
+                .collect(Collectors.toSet());
+        assertTrue(generic.isEmpty(), tool.name() + " exposes generic parameter names: " + generic);
     }
 }
