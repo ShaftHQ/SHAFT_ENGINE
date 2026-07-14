@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -269,6 +270,59 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
                 "A plain Q&A run must not grow an activity footer: " + output);
     }
 
+    /**
+     * Regression for the "rerun failure dumps raw JSON" report: a structured (stream-json) CLI that
+     * exits non-zero after emitting only native NDJSON events (system/thinking lines, no terminal
+     * result) must render a clean, plain-language failure message -- never the raw stream.
+     */
+    @Test
+    void failedStructuredRunWithoutTerminalEventNeverLeaksRawNdjson() throws Exception {
+        String nativeNoise = "{\"type\":\"system\",\"subtype\":\"thinking_tokens\",\"tokens\":42}\n"
+                + "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc\"}\n";
+
+        ShaftMcpToolResult result = failingRun(claudeInvocation(), nativeNoise,
+                "chrome exited: session not created", 1);
+
+        assertFalse(result.success(), "A non-zero exit must fail the run: " + result.output());
+        String output = result.output();
+        assertFalse(output.contains("thinking_tokens"),
+                "Raw native NDJSON must never leak into the failure output: " + output);
+        assertFalse(output.contains("\"type\":\"system\""),
+                "Raw native NDJSON must never leak into the failure output: " + output);
+        assertTrue(output.contains("exited with code 1"),
+                "A run with no terminal event must explain the exit: " + output);
+        assertTrue(output.contains("chrome exited: session not created"),
+                "stderr carries the real cause and must be surfaced: " + output);
+    }
+
+    /**
+     * When the structured CLI DOES emit a terminal error result, its human answer text (and error
+     * subtype) drive the failure message instead of the raw stream.
+     */
+    @Test
+    void failedStructuredRunWithTerminalErrorResultShowsHumanReadableReason() throws Exception {
+        String errorResult = "{\"type\":\"result\",\"subtype\":\"error_during_execution\",\"is_error\":true,"
+                + "\"result\":\"Could not reach the target URL.\",\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}";
+
+        ShaftMcpToolResult result = failingRun(claudeInvocation(),
+                "{\"type\":\"system\",\"subtype\":\"thinking_tokens\",\"tokens\":9}\n" + errorResult + "\n", "", 1);
+
+        assertFalse(result.success(), result.output());
+        String output = result.output();
+        assertTrue(output.contains("Could not reach the target URL."),
+                "The terminal error answer text must be shown: " + output);
+        assertFalse(output.contains("thinking_tokens"),
+                "Raw native NDJSON must never leak into the failure output: " + output);
+    }
+
+    private static ShaftMcpToolResult failingRun(
+            AssistantCommand.Invocation invocation, String stdout, String stderr, int exitCode) throws Exception {
+        StubProcess process = new StubProcess(stdout, stderr, exitCode);
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, line -> { }, (command, workingDirectory, environment) -> process, false);
+        return running.future().get(5, TimeUnit.SECONDS);
+    }
+
     private static String finalOutput(AssistantCommand.Invocation invocation, String stdout) throws Exception {
         StubProcess process = new StubProcess(stdout);
         ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
@@ -320,9 +374,17 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
      */
     private static final class StubProcess extends Process {
         private final InputStream stdout;
+        private final InputStream stderr;
+        private final int exitCode;
 
         StubProcess(String stdoutContent) {
+            this(stdoutContent, "", 0);
+        }
+
+        StubProcess(String stdoutContent, String stderrContent, int exitCode) {
             this.stdout = new ByteArrayInputStream(stdoutContent.getBytes(StandardCharsets.UTF_8));
+            this.stderr = new ByteArrayInputStream(stderrContent.getBytes(StandardCharsets.UTF_8));
+            this.exitCode = exitCode;
         }
 
         @Override
@@ -337,12 +399,12 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
         @Override
         public InputStream getErrorStream() {
-            return new ByteArrayInputStream(new byte[0]);
+            return stderr;
         }
 
         @Override
         public int waitFor() {
-            return 0;
+            return exitCode;
         }
 
         @Override
@@ -352,7 +414,7 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
         @Override
         public int exitValue() {
-            return 0;
+            return exitCode;
         }
 
         @Override
