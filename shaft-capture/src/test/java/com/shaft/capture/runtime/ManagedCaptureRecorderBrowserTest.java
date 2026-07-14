@@ -310,6 +310,17 @@ class ManagedCaptureRecorderBrowserTest {
             WebDriver driver = recorder.driverForTesting();
             waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
 
+            // #3510 A3: the first-run coach card shows its three tips until dismissed, then stays gone.
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-coach")));
+            assertTrue(driver.findElement(By.id("shaft-capture-coach")).isDisplayed(),
+                    "first-run coach card should be visible");
+            assertEquals(3, driver.findElements(By.cssSelector("#shaft-capture-coach li")).size(),
+                    "coach card should show exactly three tips");
+            driver.findElement(By.id("shaft-capture-coach-dismiss")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-coach")).isDisplayed());
+            assertFalse(driver.findElement(By.id("shaft-capture-coach")).isDisplayed(),
+                    "coach card should hide after Got it");
+
             // Element branch: entry point -> Element -> click target -> pick locator ->
             // "Element exists" with expected=false (negated existence).
             driver.findElement(By.id("shaft-capture-assert")).click();

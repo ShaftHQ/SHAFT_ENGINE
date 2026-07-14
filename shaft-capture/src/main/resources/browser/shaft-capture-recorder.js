@@ -46,6 +46,7 @@
     paused: false,
     stopped: false,
     minimized: false,
+    coachDismissed: false,
     assertionMode: false,
     locatorMode: false,
     locatorPreferences: {},
@@ -69,6 +70,7 @@
   uiState.assertionMode = Boolean(uiState.assertionMode);
   uiState.locatorMode = Boolean(uiState.locatorMode);
   uiState.minimized = Boolean(uiState.minimized);
+  uiState.coachDismissed = Boolean(uiState.coachDismissed);
   uiState.lastInteractionAt = Number(uiState.lastInteractionAt) || 0;
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
     ? uiState.locatorPreferences
@@ -91,6 +93,7 @@
         paused: uiState.paused,
         stopped: uiState.stopped,
         minimized: uiState.minimized,
+        coachDismissed: uiState.coachDismissed,
         assertionMode: uiState.assertionMode,
         locatorMode: uiState.locatorMode,
         locatorPreferences: uiState.locatorPreferences,
@@ -171,6 +174,7 @@
     // every recorded row with a details-less skeleton after each navigation.
     const localByRemoteId = new Map(
       uiState.actions.map(item => [clientActionId(item), item]));
+    const previousKeys = uiState.actions.map(clientActionId).join("|");
     const merged = steps
       .filter(step => step && step.clientActionId)
       // A soft-deleted step is gone locally but the server only learns about the delete after
@@ -194,9 +198,14 @@
       });
     if (merged.length === 0) return;
     uiState.actions = merged.slice(-80);
+    const changed = uiState.actions.map(clientActionId).join("|") !== previousKeys;
     uiState.currentInputActionKey = "";
     persist();
     renderActions();
+    if (changed && previousKeys) {
+      noteRefreshed("Steps refreshed from session (" + uiState.actions.length + " step"
+        + (uiState.actions.length === 1 ? "" : "s") + ").");
+    }
   };
   const framePath = () => {
     const path = [];
@@ -1324,6 +1333,35 @@
         font-size: 12px;
         overflow-wrap: anywhere;
       }
+      #shaft-capture-sync-note {
+        margin: 0 0 7px;
+        padding: 4px 8px;
+        border: 1px dashed var(--shaft-pass);
+        border-radius: 6px;
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      #shaft-capture-sync-note[hidden] { display: none; }
+      #shaft-capture-coach {
+        margin: 6px 10px 0;
+        padding: 8px 10px;
+        border: 1px solid var(--shaft-pass);
+        border-radius: 6px;
+        background: rgba(20, 128, 74, .10);
+        color: var(--shaft-text);
+        font-size: 12px;
+      }
+      #shaft-capture-coach[hidden] { display: none; }
+      #shaft-capture-coach ul { margin: 6px 0 8px; padding-left: 18px; }
+      #shaft-capture-coach li { margin: 3px 0; overflow-wrap: anywhere; }
+      #shaft-capture-coach-dismiss {
+        min-width: 0;
+        height: auto;
+        padding: 3px 12px;
+        line-height: 1.2;
+        font-weight: 700;
+      }
       #shaft-capture-undo-note {
         display: flex;
         align-items: center;
@@ -1893,6 +1931,7 @@
       list.appendChild(row);
     });
     setStatus();
+    maybeShowCoach();
   }
   const renderLocatorPanel = target => {
     const panel = document.getElementById("shaft-capture-locator-panel");
@@ -2046,7 +2085,14 @@
         .then(info => {
           const pathLine = document.getElementById("shaft-capture-stop-confirm-path");
           if (pathLine && info && text(info.outputPath)) {
-            pathLine.textContent = "Session saved to: " + text(info.outputPath);
+            // Incomplete-session recovery copy (#3510 C4): if the server marked the session
+            // INCOMPLETE (it ended before a clean stop), reassure the user that everything captured
+            // so far was still saved and is safe to review, rather than implying a clean save.
+            const incomplete = text(info.state).toUpperCase() === "INCOMPLETE";
+            pathLine.textContent = incomplete
+              ? "This recording was interrupted, but every step captured so far was saved to: "
+                + text(info.outputPath) + " — review it or start a new recording; nothing was lost."
+              : "Session saved to: " + text(info.outputPath);
           }
         })
         .catch(() => {
@@ -2078,6 +2124,15 @@
         <span id="shaft-capture-step-count"></span>
       </div>
       <div id="shaft-capture-warning" hidden></div>
+      <div id="shaft-capture-coach" hidden>
+        <strong>New here? 3 quick tips</strong>
+        <ul>
+          <li>Every click, type, and navigation becomes an editable <strong>step</strong> below.</li>
+          <li>Use <strong>Add assertion</strong> to verify an element, and <strong>Pick locator</strong> to rank locators &mdash; neither records a step.</li>
+          <li><strong>Drag this header</strong> to move the panel; <strong>Stop</strong> saves the session and shows where.</li>
+        </ul>
+        <button id="shaft-capture-coach-dismiss" type="button">Got it</button>
+      </div>
       <div id="shaft-capture-help" hidden>
         <strong>Recorder controls</strong>
         <ul>
@@ -2091,7 +2146,7 @@
       </div>
       <div id="shaft-capture-stop-confirm" hidden></div>
       <div id="shaft-capture-locator-panel" hidden></div>
-      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><div id="shaft-capture-undo-note" hidden><span>Step deleted.</span><button id="shaft-capture-undo" type="button">Undo</button></div><ol id="shaft-capture-action-list"></ol></div>
+      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><div id="shaft-capture-sync-note" hidden></div><div id="shaft-capture-undo-note" hidden><span>Step deleted.</span><button id="shaft-capture-undo" type="button">Undo</button></div><ol id="shaft-capture-action-list"></ol></div>
     `;
     document.body.appendChild(panel);
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
@@ -2157,12 +2212,39 @@
       toggle.setAttribute("aria-expanded", String(!help.hidden));
     });
     document.getElementById("shaft-capture-undo").addEventListener("click", undoDelete);
+    const coachDismiss = document.getElementById("shaft-capture-coach-dismiss");
+    if (coachDismiss) {
+      coachDismiss.addEventListener("click", () => {
+        uiState.coachDismissed = true;
+        persist();
+        const coach = document.getElementById("shaft-capture-coach");
+        if (coach) coach.hidden = true;
+      });
+    }
     installPanelDrag(panel);
     if (uiState.panelPosition) {
       applyPanelPosition(panel, uiState.panelPosition.left, uiState.panelPosition.top);
     }
+    // Keep the panel on-screen after a viewport resize (#3510): a remembered position that fit a
+    // large window can strand the panel off-screen once the window shrinks, so re-clamp it.
+    addEventListener("resize", () => {
+      if (!uiState.panelPosition) return;
+      uiState.panelPosition = applyPanelPosition(panel, uiState.panelPosition.left, uiState.panelPosition.top);
+      persist();
+    });
+    maybeShowCoach();
     renderActions();
   };
+  // First-run coach marks (#3510 A3): a dismissible, session-scoped set of at-most-three tips shown
+  // until the user dismisses them, so a first-time user is oriented without nagging returning users
+  // (the "seen" flag rides the same top-frame sessionStorage as the rest of the UI state). The count
+  // is not gated on an empty step list because a fresh recording already carries the initial
+  // "Open ..." breadcrumb step.
+  function maybeShowCoach() {
+    const coach = document.getElementById("shaft-capture-coach");
+    if (!coach) return;
+    coach.hidden = !(topLevel && !uiState.coachDismissed && !uiState.stopped);
+  }
   // Draggable panel (#3496 B1): the header is the drag handle; the remembered position is
   // page-session-scoped via the same top-frame-only persisted UI state as everything else.
   const applyPanelPosition = (panel, left, top) => {
@@ -2239,6 +2321,20 @@
       note.hidden = true;
     }, 6000);
   };
+  // Server-sync transparency (#3510 C3): when a background re-sync from the durable session changes
+  // the visible step list (a cross-origin navigation rehydrated rows this page had not seen), say
+  // so briefly instead of letting the list silently rewrite itself.
+  let syncNoteTimer = null;
+  function noteRefreshed(message) {
+    const note = document.getElementById("shaft-capture-sync-note");
+    if (!note) return;
+    note.textContent = message;
+    note.hidden = false;
+    if (syncNoteTimer) clearTimeout(syncNoteTimer);
+    syncNoteTimer = setTimeout(() => {
+      note.hidden = true;
+    }, 6000);
+  }
   const reportNavigation = (source, breadcrumb) => {
     if (uiState.stopped || uiState.paused) return;
     uiState.lastUrl = String(location.href || "");
