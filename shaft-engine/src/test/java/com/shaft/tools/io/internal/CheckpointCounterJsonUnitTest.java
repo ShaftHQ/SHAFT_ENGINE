@@ -32,4 +32,26 @@ public class CheckpointCounterJsonUnitTest {
         Assert.assertTrue(json.contains("PASS"), json);
         Assert.assertTrue(json.contains("FAIL"), json);
     }
+
+    @Test(description = "checkpointsJson exposes a per-type breakdown, and typeStatusCount tallies it (#3523)")
+    public void checkpointsJsonExposesPerTypeBreakdown() {
+        long assertionPassBefore = CheckpointCounter.typeStatusCount(
+                CheckpointType.ASSERTION.toString(), CheckpointStatus.PASS.toString());
+        long verificationFailBefore = CheckpointCounter.typeStatusCount(
+                CheckpointType.VERIFICATION.toString(), CheckpointStatus.FAIL.toString());
+
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "breakdown-assert-pass", CheckpointStatus.PASS);
+        CheckpointCounter.increment(CheckpointType.VERIFICATION, "breakdown-verify-fail", CheckpointStatus.FAIL);
+
+        // typeStatusCount reflects the new checkpoints.
+        Assert.assertEquals(CheckpointCounter.typeStatusCount(
+                CheckpointType.ASSERTION.toString(), CheckpointStatus.PASS.toString()), assertionPassBefore + 1);
+        Assert.assertEquals(CheckpointCounter.typeStatusCount(
+                CheckpointType.VERIFICATION.toString(), CheckpointStatus.FAIL.toString()), verificationFailBefore + 1);
+
+        String json = CheckpointCounter.checkpointsJson();
+        Assert.assertTrue(json.contains("\"byType\""), json);
+        Assert.assertTrue(json.contains("\"assertion\""), json);
+        Assert.assertTrue(json.contains("\"verification\""), json);
+    }
 }
