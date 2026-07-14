@@ -931,30 +931,55 @@ final class AssistantMarkdown {
             return "";
         }
         JsonObject object = parsed.getAsJsonObject();
-        if (!object.has("schemaVersion") || !object.has("attempts") || !object.has("analysis")) {
+        if (!isHealerResult(object)) {
             return "";
         }
+        // Each section helper returns "" when its data is absent, so appendNonBlank does the
+        // filtering and this method stays flat (keeps NPath complexity low).
         List<String> sections = new ArrayList<>();
-        String status = string(object, "status", "");
-        sections.add("**" + healerStatusIcon(status) + " Healer:** " + status);
-        if (object.get("attempts").isJsonArray()) {
-            appendNonBlank(sections, healerAttemptsMarkdown(object.getAsJsonArray("attempts")));
-        }
-        JsonElement analysis = object.get("analysis");
-        if (analysis != null && analysis.isJsonObject()) {
-            appendNonBlank(sections, doctorMarkdown(analysis.getAsJsonObject()));
-        }
-        if (object.has("actions") && object.get("actions").isJsonArray()) {
-            appendNonBlank(sections, titledActionsMarkdown("Healer actions", object.getAsJsonArray("actions")));
-        }
-        if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
-            String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
-            if (!blocks.isBlank()) {
-                sections.add("**Handoff snippets**\n\n" + blocks);
-            }
-        }
+        sections.add(healerStatusLine(object));
+        appendNonBlank(sections, healerAttemptsSection(object));
+        appendNonBlank(sections, healerAnalysisSection(object));
+        appendNonBlank(sections, healerActionsSection(object));
+        appendNonBlank(sections, healerSnippetsSection(object));
         appendNonBlank(sections, warnings(object));
         return joinSections(sections);
+    }
+
+    private static boolean isHealerResult(JsonObject object) {
+        return object.has("schemaVersion") && object.has("attempts") && object.has("analysis");
+    }
+
+    private static String healerStatusLine(JsonObject object) {
+        String status = string(object, "status", "");
+        return "**" + healerStatusIcon(status) + " Healer:** " + status;
+    }
+
+    private static String healerAttemptsSection(JsonObject object) {
+        return object.get("attempts").isJsonArray()
+                ? healerAttemptsMarkdown(object.getAsJsonArray("attempts"))
+                : "";
+    }
+
+    private static String healerAnalysisSection(JsonObject object) {
+        JsonElement analysis = object.get("analysis");
+        return analysis != null && analysis.isJsonObject()
+                ? doctorMarkdown(analysis.getAsJsonObject())
+                : "";
+    }
+
+    private static String healerActionsSection(JsonObject object) {
+        return object.has("actions") && object.get("actions").isJsonArray()
+                ? titledActionsMarkdown("Healer actions", object.getAsJsonArray("actions"))
+                : "";
+    }
+
+    private static String healerSnippetsSection(JsonObject object) {
+        if (!object.has("codeBlocks") || !object.get("codeBlocks").isJsonArray()) {
+            return "";
+        }
+        String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
+        return blocks.isBlank() ? "" : "**Handoff snippets**\n\n" + blocks;
     }
 
     private static String healerAttemptsMarkdown(JsonArray attempts) {

@@ -313,6 +313,11 @@ public final class ShaftToolWindowPanel extends JPanel {
         return workflowSelector;
     }
 
+    /** Package-private test accessor: the retained Assistant panel, or {@code null} before setup. */
+    ShaftAssistantPanel assistantPanel() {
+        return assistantPanel;
+    }
+
     /**
      * Selects the workflow tab that owns the MCP tool template and pre-fills the request.
      *

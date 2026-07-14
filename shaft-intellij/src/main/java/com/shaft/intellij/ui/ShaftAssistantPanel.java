@@ -611,6 +611,16 @@ final class ShaftAssistantPanel extends JPanel {
         setStatus("Review the prefilled request, then send it");
     }
 
+    /** Package-private test accessor: current composer text. */
+    String promptText() {
+        return prompt.getText();
+    }
+
+    /** Package-private test accessor: rendered transcript markdown (blank until a turn is sent). */
+    String transcriptMarkdown() {
+        return transcript.markdown();
+    }
+
     /**
      * Text area with a placeholder that wraps to the component's real width. IntelliJ's
      * {@code StatusText} empty text never wraps and clips long lines even when the tool window is
