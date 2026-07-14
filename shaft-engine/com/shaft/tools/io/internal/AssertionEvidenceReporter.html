@@ -50,6 +50,7 @@
 <ol class="toc-list">
 <li><a href="#renderCard(java.lang.String,boolean,java.lang.Object,java.lang.Object)" tabindex="0">renderCard(String, boolean, Object, Object)</a></li>
 <li><a href="#renderAccessibilityCard(boolean,java.lang.Object,java.lang.Object)" tabindex="0">renderAccessibilityCard(boolean, Object, Object)</a></li>
+<li><a href="#renderVisualCard(boolean,long,java.lang.Integer,double,java.lang.Double)" tabindex="0">renderVisualCard(boolean, long, Integer, double, Double)</a></li>
 </ol>
 </li>
 </ol>
@@ -99,6 +100,15 @@ exactly what a validation compared without leaking sensitive data or exceeding a
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Renders a self-contained HTML "assertion evidence" card for one validation.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#renderVisualCard(boolean,long,java.lang.Integer,double,java.lang.Double)" class="member-name-link">renderVisualCard</a><wbr>(boolean&nbsp;passed,
+ long&nbsp;diffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ double&nbsp;diffRatio,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffRatio)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Renders a domain-consistent evidence card for a visual (screenshot) validation.</div>
 </div>
 </div>
 </div>
@@ -161,6 +171,35 @@ attachment, rather than a full YAML dump in the step name (issue #3532 E).</div>
 <dt>Returns:</dt>
 <dd>a complete self-contained HTML document string, or "" when there is nothing
 meaningful to show (both sides are null/blank)</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="renderVisualCard(boolean,long,java.lang.Integer,double,java.lang.Double)">
+<h3>renderVisualCard</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">renderVisualCard</span><wbr><span class="parameters">(boolean&nbsp;passed,
+ long&nbsp;diffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ double&nbsp;diffRatio,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffRatio)</span></div>
+<div class="block">Renders a domain-consistent evidence card for a visual (screenshot) validation.
+
+<p>Visual validations also report their outcome as a pass/fail boolean, so <a href="#renderCard(java.lang.String,boolean,java.lang.Object,java.lang.Object)"><code>renderCard(String, boolean, Object, Object)</code></a>
+skips them; the pixel diff is attached separately as a native Allure image-diff viewer. This
+overload surfaces the numeric comparison metadata — diff pixels and diff ratio against their
+budgets — as a compact summary card, so the report answers "how far off was it?" in text
+without a full dump, and points at the attached image diff (issue #3532 E).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>passed</code> - true when the screenshot matched its baseline within budget</dd>
+<dd><code>diffPixels</code> - number of differing pixels reported by the comparison</dd>
+<dd><code>maxDiffPixels</code> - the pixel-count budget, or <code>null</code> when none was configured</dd>
+<dd><code>diffRatio</code> - the differing-pixel ratio reported by the comparison</dd>
+<dd><code>maxDiffRatio</code> - the ratio budget, or <code>null</code> when none was configured</dd>
+<dt>Returns:</dt>
+<dd>a complete self-contained HTML document string</dd>
 </dl>
 </div>
 </section>
