@@ -74,6 +74,21 @@ public class RequestBuilderTests {
     }
 
     @Test
+    public void setFollowRedirectsShouldUpdateTheRedirectConfigAndReturnSelf() {
+        RequestBuilder builder = new RequestBuilder(createSessionMock(), "old", RestActions.RequestType.GET);
+
+        RequestBuilder returned = builder.setFollowRedirects(false);
+
+        Assert.assertSame(returned, builder, "setFollowRedirects should return the same builder for chaining");
+        Assert.assertFalse(builder.getSessionConfig().getRedirectConfig().followsRedirects(),
+                "Redirect following should be disabled after setFollowRedirects(false)");
+
+        builder.setFollowRedirects(true);
+        Assert.assertTrue(builder.getSessionConfig().getRedirectConfig().followsRedirects(),
+                "Redirect following should be re-enabled after setFollowRedirects(true)");
+    }
+
+    @Test
     public void setPathParametersShouldReplaceMapAndOrderedPlaceholders() {
         RequestBuilder fromMap = new RequestBuilder(createSessionMock(), "users/{id}/orders/{orderId}", RestActions.RequestType.GET)
                 .setPathParameters(Map.of("id", 7, "orderId", "A1"));

@@ -429,6 +429,36 @@ class ApiTestRendererTest {
         assertTrue(source.contains(".setRequestBody("), source);
     }
 
+    @Test
+    void redirectTransactionDisablesRedirectFollowingSoTheStatusCanBeAsserted() throws Exception {
+        ApiTransaction redirect = transaction("tx-1", "GET", "https://api.example.test/old",
+                Map.of(), "", 302, Map.of("Location", "/new"), "");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Redirect", List.of(redirect),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Redirect");
+        // The redirect must not be followed, so the recorded 302 status assertion holds.
+        assertTrue(source.contains(".setFollowRedirects(false)"), source);
+        assertTrue(source.contains(".setTargetStatusCode(302)"), source);
+    }
+
+    @Test
+    void nonRedirectTransactionKeepsDefaultRedirectFollowing() throws Exception {
+        ApiTransaction ok = transaction("tx-1", "GET", "https://api.example.test/ok",
+                Map.of(), "", 200, Map.of(), "{\"ok\":true}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_NoRedirect", List.of(ok),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+
+        assertCompiles(rendered.source(), "RecordedApiTest_NoRedirect");
+        // A 2xx must not touch the default follow behaviour.
+        assertTrue(!rendered.source().contains("setFollowRedirects"), rendered.source());
+    }
+
     private void assertCompiles(String source, String className) throws Exception {
         Path moduleDir = Files.createDirectories(tempDir.resolve(className));
         Path sourceFile = moduleDir.resolve(className + ".java");
