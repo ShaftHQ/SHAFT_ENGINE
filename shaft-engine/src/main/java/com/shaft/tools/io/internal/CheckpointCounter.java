@@ -65,12 +65,18 @@ public class CheckpointCounter {
         for (ArrayList<String> value : checkpoints) {
             detailsBuilder.append(String.format(
                     HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
+                    value.get(2),
                     ++checkpointId,
                     ReportHtmlTheme.escapeHtml(value.get(0)),
                     ReportHtmlTheme.escapeHtml(value.get(1)),
                     ReportHtmlTheme.statusClass(value.get(2)),
                     value.get(2)));
         }
+
+        long assertionsPassed = typeStatusCount(ASSERTION, PASS);
+        long assertionsFailed = typeStatusCount(ASSERTION, FAIL);
+        long verificationsPassed = typeStatusCount(VERIFICATION, PASS);
+        long verificationsFailed = typeStatusCount(VERIFICATION, FAIL);
 
         ReportManagerHelper.attach("HTML",
                 "SHAFT Overview",
@@ -81,9 +87,34 @@ public class CheckpointCounter {
                         .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
                         .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
                         .replace("${TRACES_CAPTURED}", String.valueOf(capturedTraceCount()))
+                        .replace("${ASSERTIONS_PASSED}", String.valueOf(assertionsPassed))
+                        .replace("${ASSERTIONS_FAILED}", String.valueOf(assertionsFailed))
+                        .replace("${ASSERTIONS_TOTAL}", String.valueOf(assertionsPassed + assertionsFailed))
+                        .replace("${VERIFICATIONS_PASSED}", String.valueOf(verificationsPassed))
+                        .replace("${VERIFICATIONS_FAILED}", String.valueOf(verificationsFailed))
+                        .replace("${VERIFICATIONS_TOTAL}", String.valueOf(verificationsPassed + verificationsFailed))
                         .replace("${CHECKPOINTS_DETAILS}", detailsBuilder));
 
         attachCheckpointsJson();
+    }
+
+    private static final String ASSERTION = CheckpointType.ASSERTION.toString();
+    private static final String VERIFICATION = CheckpointType.VERIFICATION.toString();
+    private static final String PASS = CheckpointStatus.PASS.toString();
+    private static final String FAIL = CheckpointStatus.FAIL.toString();
+
+    /**
+     * Counts checkpoints of a given type ({@code ASSERTION}/{@code VERIFICATION}) with a given
+     * status ({@code PASS}/{@code FAIL}) from the accumulated list, for the per-type breakdown.
+     *
+     * @param type the checkpoint type string
+     * @param status the checkpoint status string
+     * @return the number of matching checkpoints
+     */
+    static long typeStatusCount(String type, String status) {
+        return checkpoints.stream()
+                .filter(row -> row.get(0).equals(type) && row.get(2).equals(status))
+                .count();
     }
 
     /**
@@ -116,6 +147,9 @@ public class CheckpointCounter {
         payload.put("total", checkpoints.size());
         payload.put("passed", passedCheckpoints.get());
         payload.put("failed", failedCheckpoints.get());
+        payload.put("byType", Map.of(
+                "assertion", Map.of("passed", typeStatusCount(ASSERTION, PASS), "failed", typeStatusCount(ASSERTION, FAIL)),
+                "verification", Map.of("passed", typeStatusCount(VERIFICATION, PASS), "failed", typeStatusCount(VERIFICATION, FAIL))));
         payload.put("checkpoints", rows);
         return new GsonBuilder().setPrettyPrinting().create().toJson(payload);
     }

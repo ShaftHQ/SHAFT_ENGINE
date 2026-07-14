@@ -21,6 +21,9 @@ public enum HTMLHelper {
                   background: conic-gradient(var(--shaft-pass) ${CHECKPOINTS_PASSED_DEGREES}deg, var(--shaft-fail) 0);
                   box-shadow: inset 0 0 0 28px var(--shaft-surface);
                 }
+                .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.9em; }
+                .filter-bar input { accent-color: var(--shaft-fail); }
+                .table-wrap.fail-only tr.checkpoint-row[data-status="PASS"] { display: none; }
               </style>
             </head>
             <body>
@@ -56,8 +59,26 @@ public enum HTMLHelper {
                     </div>
                   </section>
                   <section class="panel">
-                    <h2>Details</h2>
+                    <h2>By type</h2>
                     <div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr><th>Type</th><th>Passed</th><th>Failed</th><th>Total</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr><td>Assertion</td><td>${ASSERTIONS_PASSED}</td><td>${ASSERTIONS_FAILED}</td><td>${ASSERTIONS_TOTAL}</td></tr>
+                          <tr><td>Verification</td><td>${VERIFICATIONS_PASSED}</td><td>${VERIFICATIONS_FAILED}</td><td>${VERIFICATIONS_TOTAL}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                  <section class="panel">
+                    <h2>Details</h2>
+                    <label class="filter-bar">
+                      <input type="checkbox" id="shaft-fail-only" onchange="document.getElementById('shaft-checkpoints').classList.toggle('fail-only', this.checked)">
+                      Show failures only
+                    </label>
+                    <div class="table-wrap" id="shaft-checkpoints">
                       <table>
                         <thead>
                           <tr><th>ID</th><th>Type</th><th>Message</th><th>Status</th></tr>
@@ -70,7 +91,7 @@ public enum HTMLHelper {
               </div>
             </body>
             </html>"""),
-    CHECKPOINT_DETAILS_FORMAT("<tr><td>%d</td><td>%s</td><td>%s</td><td><span class=\"status-chip %s\">%s</span></td></tr>"),
+    CHECKPOINT_DETAILS_FORMAT("<tr class=\"checkpoint-row\" data-status=\"%s\"><td>%d</td><td>%s</td><td>%s</td><td><span class=\"status-chip %s\">%s</span></td></tr>"),
 
     EXECUTION_SUMMARY("""
             <!DOCTYPE html>

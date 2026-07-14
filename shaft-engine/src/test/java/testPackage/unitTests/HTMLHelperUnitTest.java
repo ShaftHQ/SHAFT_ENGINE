@@ -44,6 +44,23 @@ public class HTMLHelperUnitTest {
                 "CHECKPOINT_COUNTER should surface the captured-traces KPI");
     }
 
+    @Test(description = "CHECKPOINT_COUNTER should expose the per-type breakdown and fail-only filter (#3523)")
+    public void checkpointCounterShouldExposeBreakdownAndFilter() {
+        String value = HTMLHelper.CHECKPOINT_COUNTER.getValue();
+        Assert.assertTrue(value.contains("By type"), "expected a per-type breakdown panel");
+        Assert.assertTrue(value.contains("${ASSERTIONS_PASSED}") && value.contains("${VERIFICATIONS_FAILED}"),
+                "expected per-type breakdown placeholders");
+        Assert.assertTrue(value.contains("Show failures only"), "expected a fail-only filter control");
+        Assert.assertTrue(value.contains("fail-only"), "expected the fail-only CSS/class hook");
+    }
+
+    @Test(description = "CHECKPOINT_DETAILS_FORMAT should carry a filterable data-status (#3523)")
+    public void checkpointDetailsFormatShouldCarryDataStatus() {
+        String value = HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue();
+        Assert.assertTrue(value.contains("data-status=\"%s\""), "expected a filterable data-status attribute");
+        Assert.assertTrue(value.contains("checkpoint-row"), "expected the checkpoint-row class hook");
+    }
+
     @Test(description = "CHECKPOINT_DETAILS_FORMAT should have non-null, non-empty value")
     public void checkpointDetailsFormatShouldBeNonEmpty() {
         String value = HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue();
