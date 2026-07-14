@@ -123,6 +123,7 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
         Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
+        Path assistantFailureRecoveryCardScreenshot = outputPath.resolve("intellij-plugin-assistant-failure-recovery-card.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
         Path toolsHumanizedDoctorCardScreenshot = outputPath.resolve("intellij-plugin-tools-humanized-doctor-card.png");
         Path assistantDefaultModePrefillScreenshot = outputPath.resolve("intellij-plugin-assistant-default-mode-prefill.png");
@@ -156,6 +157,7 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
+        write(assistantFailureRecoveryCardScreenshot, renderAssistantFailureRecoveryCard(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
         write(toolsHumanizedDoctorCardScreenshot, renderToolsHumanizedDoctorCard(LIGHT_THEME, false));
         write(assistantDefaultModePrefillScreenshot, renderAssistantDefaultModePrefill(LIGHT_THEME, false));
@@ -190,6 +192,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantLiveDarkScreenshot) > 0, assistantLiveDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantProgressMilestonesScreenshot) > 0,
                         assistantProgressMilestonesScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantFailureRecoveryCardScreenshot) > 0,
+                        assistantFailureRecoveryCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsHumanizedDoctorCardScreenshot) > 0, toolsHumanizedDoctorCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDefaultModePrefillScreenshot) > 0, assistantDefaultModePrefillScreenshot + " should be non-empty"),
@@ -222,6 +226,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantLiveDarkScreenshot),
                 () -> assertDimensions(assistantProgressMilestonesScreenshot),
+                () -> assertDimensions(assistantFailureRecoveryCardScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
                 () -> assertDimensions(toolsHumanizedDoctorCardScreenshot),
                 () -> assertDimensions(assistantDefaultModePrefillScreenshot),
@@ -498,6 +503,63 @@ class ShaftPluginScreenshotRendererTest {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to render the progress-milestones timeline", exception);
         }
+    }
+
+    /**
+     * Renders the Assistant transcript's failure-recovery card (issue #3547): the plain-language
+     * root-cause card that {@code FailedRunDoctorNotifier} now renders automatically after a failed
+     * test run (and that the notification's "Diagnose"/"Heal" buttons also produce directly, even
+     * in default mode), instead of a bare "Failed" timeline entry or raw JSON. Seeded through the
+     * same pure {@link ShaftAssistantPanel#toolCardMarkdown} formatting step {@code
+     * runToolAndRenderCard} uses in production, then appended via {@link
+     * ShaftAssistantPanel#simulateAppendForTest} -- this harness's fake {@link #screenshotProject()}
+     * has no live {@code ShaftMcpInvocationService} to dispatch a real MCP round trip through, the
+     * same reason {@link #renderAssistantProgressMilestones} drives {@code addTimeline} directly.
+     */
+    private static BufferedImage renderAssistantFailureRecoveryCard(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            String cardMarkdown = ShaftAssistantPanel.toolCardMarkdown(
+                    "doctor_analyze_failed_allure", ShaftMcpToolResult.success("""
+                            {
+                              "schemaVersion": "1.0",
+                              "status": "DETERMINISTIC",
+                              "bundleId": "bundle-456",
+                              "primaryCause": "LOCATOR",
+                              "confidence": "HIGH",
+                              "summary": "The checkout submit button locator no longer matches the page after a redesign.",
+                              "actions": [
+                                {"title":"Update locator","action":"Replace the stale CSS selector with the new data-testid.",
+                                 "status":"SUGGESTED"}
+                              ],
+                              "codeBlocks": [
+                                {"title":"Locator fix","language":"java",
+                                 "code":"driver.element().click(SHAFT.GUI.Locator.hasTestId(\\"checkout-submit\\"));",
+                                 "copyPasteReady":true}
+                              ],
+                              "providerFallback": {"used":false,"reason":"AI advisory disabled by default."},
+                              "bundlePath": "target/shaft-doctor/evidence-bundle.json",
+                              "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+                              "markdownReportPath": "target/shaft-doctor/doctor-report.md",
+                              "warnings": []
+                            }
+                            """), null);
+            component.simulateAppendForTest("assistant", cardMarkdown, "");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
     }
 
     private static BufferedImage renderApprovalPrompt(String lookAndFeelClassName, boolean dark)

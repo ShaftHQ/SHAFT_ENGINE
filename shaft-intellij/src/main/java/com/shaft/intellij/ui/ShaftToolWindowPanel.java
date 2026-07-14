@@ -374,6 +374,28 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     /**
+     * Selects the Assistant tab, runs {@code toolName} against the live MCP connection, and renders
+     * the result into the transcript as a read-only diagnosis card -- unlike {@link
+     * #prefillAssistantPrompt}, this always executes rather than waiting for the user to review and
+     * send (issue #3547 failure-recovery: an automatic post-failure diagnosis, or an explicit
+     * "Diagnose"/"Heal" click, must actually produce a diagnosis in default mode, not a prefilled
+     * request). A no-op when the main view has not been built yet (setup view still showing), same
+     * rationale as {@link #prefillAssistantPrompt}.
+     *
+     * @param toolName MCP tool name to run
+     * @param arguments MCP tool arguments
+     */
+    public void runAssistantTool(@NotNull String toolName, @NotNull JsonObject arguments) {
+        if (assistantPanel == null) {
+            return;
+        }
+        assistantPanel.runToolAndRenderCard(toolName, arguments);
+        if (workflowSelector != null) {
+            selectWorkflow(assistantPanel);
+        }
+    }
+
+    /**
      * Opens (or reuses) the API Recording tab for the given target URL and MCP
      * {@code capture_api_start} arguments, starting a new polling session.
      *

@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -28,6 +29,7 @@ import java.util.stream.Stream;
  */
 public class GeneratedTestValidator {
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final Duration PROCESS_TREE_KILL_GRACE = Duration.ofSeconds(5);
 
     /**
      * Compiles one generated test class against the current SHAFT runtime.
@@ -92,6 +94,7 @@ public class GeneratedTestValidator {
         Path testngOutput = replayDirectory.resolve("testng-output");
         Path outputLog = replayDirectory.resolve("replay.log");
         Path chromeDriverLog = replayDirectory.resolve("chromedriver.log");
+        Process process = null;
         try {
             Files.createDirectories(allureResults);
             Files.createDirectories(testngOutput);
@@ -128,14 +131,16 @@ public class GeneratedTestValidator {
             command.add(testngOutput.toAbsolutePath().normalize().toString());
             command.add("-testclass");
             command.add(fullyQualifiedClassName);
-            Process process = new ProcessBuilder(command)
+            process = new ProcessBuilder(command)
                     .directory(workDirectory.toAbsolutePath().normalize().toFile())
                     .redirectErrorStream(true)
                     .redirectOutput(outputLog.toFile())
                     .start();
             boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
             if (!finished) {
-                process.destroyForcibly();
+                // destroyForcibly() only kills the forked TestNG JVM itself -- it leaves
+                // ChromeDriver/Chrome (its descendants) running as orphans, especially on Windows.
+                destroyProcessTree(process);
                 return failed("Generated test replay timed out.");
             }
             AllureSummary allure = allure(allureResults);
@@ -158,10 +163,53 @@ public class GeneratedTestValidator {
                     List.copyOf(diagnostics),
                     allure.count());
         } catch (IOException exception) {
+            if (process != null) {
+                destroyProcessTree(process);
+            }
             return failed("Generated test replay could not be launched: " + exception.getMessage());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            if (process != null) {
+                destroyProcessTree(process);
+            }
             return failed("Generated test replay was interrupted.");
+        }
+    }
+
+    /**
+     * Forcibly kills a process and every descendant it spawned (e.g. ChromeDriver and the Chrome
+     * it launches beneath the forked TestNG JVM). {@link Process#destroyForcibly()} alone only
+     * terminates the top-level process -- descendants are reparented and survive as orphans,
+     * which on Windows leaves a visible browser window behind after a failed/timed-out replay.
+     *
+     * <p>Descendants must be snapshotted before the process is destroyed: {@link
+     * Process#descendants()} reports nothing once the parent has already exited.
+     *
+     * @param process the process (and its process tree) to terminate
+     */
+    static void destroyProcessTree(Process process) {
+        List<ProcessHandle> descendants = process.descendants().toList();
+        process.destroyForcibly();
+        descendants.forEach(ProcessHandle::destroyForcibly);
+        // The top-level process already has a live OS handle from ProcessBuilder#start(), so
+        // Process#waitFor() is the authoritative wait for it. Descendants are only known as
+        // ProcessHandle snapshots (there is no Process object for them), so ProcessHandle#onExit()
+        // is the only option there -- re-deriving a ProcessHandle for the top-level process via
+        // Process#toHandle() after it has already been destroyed is avoided on purpose, since a
+        // freshly looked-up handle can race a reused PID immediately after exit.
+        try {
+            process.waitFor(PROCESS_TREE_KILL_GRACE.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+        List<CompletableFuture<ProcessHandle>> descendantExits =
+                descendants.stream().map(ProcessHandle::onExit).toList();
+        try {
+            CompletableFuture.allOf(descendantExits.toArray(new CompletableFuture[0]))
+                    .get(PROCESS_TREE_KILL_GRACE.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (Exception exception) {
+            // Best-effort grace period; destroyForcibly() was already issued to every handle above,
+            // so a slow or already-gone process here does not change the outcome.
         }
     }
 
