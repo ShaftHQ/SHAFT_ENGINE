@@ -1548,6 +1548,12 @@ public class RestActions {
             case DELETE -> {
                 return given().filter(allureFilter).spec(specs).when().delete(request).andReturn();
             }
+            case HEAD -> {
+                return given().filter(allureFilter).spec(specs).when().head(request).andReturn();
+            }
+            case OPTIONS -> {
+                return given().filter(allureFilter).spec(specs).when().options(request).andReturn();
+            }
             default -> {
             }
         }
@@ -1750,7 +1756,7 @@ public class RestActions {
 
     /** HTTP methods supported for building API requests. */
     public enum RequestType {
-        POST, GET, PATCH, DELETE, PUT
+        POST, GET, PATCH, DELETE, PUT, HEAD, OPTIONS
     }
 
     /**

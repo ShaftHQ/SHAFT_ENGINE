@@ -480,6 +480,8 @@ public final class ApiTestRenderer {
             case "PUT" -> "put";
             case "PATCH" -> "patch";
             case "DELETE" -> "delete";
+            case "HEAD" -> "head";
+            case "OPTIONS" -> "options";
             default -> null;
         };
     }
