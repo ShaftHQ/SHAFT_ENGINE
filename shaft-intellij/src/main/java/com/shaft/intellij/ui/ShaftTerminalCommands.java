@@ -4,6 +4,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 
 import java.lang.reflect.Method;
+import java.util.function.Consumer;
 
 /**
  * Opens an IntelliJ terminal tab and pre-types a command into its shell so the user only has to
@@ -27,9 +28,22 @@ final class ShaftTerminalCommands {
      * Opens a new terminal tab named {@code tabName} in the project root and types {@code command}
      * into it without executing it. Returns {@code true} when the terminal tab was opened and the
      * pre-type was scheduled; {@code false} means the caller should tell the user to paste the
-     * already-copied command manually.
+     * already-copied command manually. This overload never learns whether the async pre-type
+     * actually succeeded; prefer the {@link Consumer} overload when the caller can react to that.
      */
     static boolean openWithPreparedCommand(Project project, String workingDirectory, String tabName, String command) {
+        return openWithPreparedCommand(project, workingDirectory, tabName, command, typed -> { });
+    }
+
+    /**
+     * Same as {@link #openWithPreparedCommand(Project, String, String, String)}, but {@code
+     * onOutcome} is invoked exactly once, off the EDT, once the async pre-type has genuinely
+     * finished: {@code true} only on a real {@code TtyConnector.write()} success, {@code false} when
+     * retries were exhausted or the write threw (issue #3551 — the boolean return here only means
+     * "typing was scheduled", not "the command was typed").
+     */
+    static boolean openWithPreparedCommand(Project project, String workingDirectory, String tabName, String command,
+                                            Consumer<Boolean> onOutcome) {
         if (project == null || command == null || command.isBlank()
                 || ApplicationManager.getApplication() == null) {
             return false;
@@ -41,7 +55,7 @@ final class ShaftTerminalCommands {
             if (widget == null) {
                 return false;
             }
-            scheduleCommandTyping(widget, command);
+            scheduleCommandTyping(widget, command, onOutcome);
             return true;
         } catch (Throwable terminalUnavailable) {
             // Terminal plugin disabled/missing, or its API drifted: the clipboard fallback covers it.
@@ -69,26 +83,32 @@ final class ShaftTerminalCommands {
      * plain jediterm {@code TtyConnector.write(String)} (types WITHOUT pressing Enter — running a
      * just-downloaded script stays the user's explicit decision). A slow shell start no longer
      * silently loses the command: while the TTY connector is missing, typing retries on a short
-     * cadence before giving up to the clipboard fallback.
+     * cadence before giving up to the clipboard fallback. {@code onOutcome} fires exactly once, on
+     * genuine success or genuine failure (retry-exhaustion or a thrown {@code write()}) — never on
+     * a still-retrying attempt (issue #3551).
      */
-    private static void scheduleCommandTyping(Object widget, String command) {
+    private static void scheduleCommandTyping(Object widget, String command, Consumer<Boolean> onOutcome) {
         java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();
         javax.swing.Timer typeSoon = new javax.swing.Timer(TYPE_RETRY_DELAY_MILLIS, null);
         typeSoon.setInitialDelay(SHELL_READY_DELAY_MILLIS);
         typeSoon.addActionListener(event -> {
             boolean typed = false;
+            boolean writeThrew = false;
             try {
                 Object connector = ttyConnector(widget);
                 if (connector != null) {
                     connector.getClass().getMethod("write", String.class).invoke(connector, command);
                     typed = true;
                 }
-            } catch (Throwable ignored) {
-                // Best effort: the command is already on the clipboard.
-                typed = true;
+            } catch (Throwable failedToWrite) {
+                // The write genuinely failed; report failure below instead of claiming success -
+                // the command is still safely on the clipboard as a fallback.
+                writeThrew = true;
             }
-            if (typed || attempts.incrementAndGet() >= MAX_TYPE_ATTEMPTS) {
+            boolean retriesExhausted = attempts.incrementAndGet() >= MAX_TYPE_ATTEMPTS;
+            if (typed || writeThrew || retriesExhausted) {
                 typeSoon.stop();
+                onOutcome.accept(typed);
             }
         });
         typeSoon.setRepeats(true);

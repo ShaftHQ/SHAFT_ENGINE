@@ -35,9 +35,10 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
 
     /**
      * Returns the documented factory-default settings bean used to reset the plugin to a
-     * fresh-install state. Every field matches {@link Settings}' own field defaults except
-     * {@link Settings#mcpSetupComplete}, which is explicitly forced to {@code false} here so the
-     * setup view renders after a reset even though the bean's own default is {@code true}.
+     * fresh-install state. Every field matches {@link Settings}' own field defaults, including
+     * {@link Settings#mcpSetupComplete} (now {@code false} by default, issue #3551); the explicit
+     * assignment here is kept as defense-in-depth so a reset is provably fresh even if the bean
+     * default ever changes again.
      *
      * @return a new Settings instance holding the factory defaults
      */
@@ -53,7 +54,14 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
      */
     public static final class Settings {
         public String mcpCommand = "";
-        public boolean mcpSetupComplete = true;
+        /**
+         * Defaults to {@code false} (issue #3551): a fresh install (or a check that is still in
+         * flight) must never read as ready. Because IntelliJ's XML serializer omits properties
+         * that equal the bean default, a pre-existing user whose {@code shaft.xml} predates this
+         * change and never wrote {@code mcpSetupComplete} will load {@code false} here once and
+         * see one self-healing re-check after upgrading — acceptable and honest, not a bug.
+         */
+        public boolean mcpSetupComplete = false;
         /**
          * Last verified agent-lane readiness (two-lane setup, issue #3425): true only when the
          * optional agent check actually passed during setup. Read by the readiness strip

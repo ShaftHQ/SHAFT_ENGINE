@@ -631,6 +631,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         statusLabel.setEnabled(true);
         statusLabel.setText("Testing...");
         statusLabel.setForeground(ShaftStatusPresentation.progress());
+        // Race fix (issue #3551): a check is starting, so the persisted state must not read ready
+        // for the whole in-flight window (mirrors ShaftMcpSetupPanel#testConnection()).
+        settingsProvider.get().mcpSetupComplete = false;
         String command = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
         ShaftMcpConnectionProbe.test(command, formSettings(), resolveProjectRoot()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> {
