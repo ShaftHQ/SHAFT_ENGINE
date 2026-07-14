@@ -114,6 +114,31 @@ public class PlaywrightService {
     }
 
     /**
+     * Deletes a recorded Playwright step by its stable stepId, as surfaced in recorder status.
+     *
+     * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
+     * @return updated recorder status
+     */
+    @Tool(name = "playwright_step_delete",
+            description = "deletes a recorded Playwright step by its stable stepId and renumbers the remaining steps")
+    public McpMobileRecordingStatus stepDelete(String stepId) {
+        return recorder.deleteStep(stepId);
+    }
+
+    /**
+     * Moves a recorded Playwright step up or down by its stable stepId, as surfaced in recorder status.
+     *
+     * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
+     * @param direction "up" or "down"
+     * @return updated recorder status
+     */
+    @Tool(name = "playwright_step_reorder",
+            description = "moves a recorded Playwright step up or down by its stable stepId (direction: up|down)")
+    public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
+        return recorder.reorderStep(stepId, direction);
+    }
+
+    /**
      * Generates copy-paste replay code from a Playwright recording.
      *
      * @param recordingPath workspace-contained recording path
@@ -124,6 +149,28 @@ public class PlaywrightService {
             description = "generates reusable copy-paste SHAFT Playwright replay code blocks")
     public McpMobileReplayResult recordingCodeBlocks(String recordingPath, String driverVariableName) {
         return recorder.codeBlocks(recordingPath, driverVariableName);
+    }
+
+    /**
+     * Generates focused Playwright recording snippets for insertion into an existing Page Object.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @param targetSourcePath workspace-contained Java Page Object source path
+     * @param insertAfter method name or textual anchor to insert after
+     * @return replay code blocks plus target insertion snippets
+     */
+    @Tool(name = "playwright_record_at_target_code_blocks",
+            description = "generates focused Playwright recording snippets for insertion at an existing Java source anchor")
+    public McpMobileReplayResult recordAtTargetCodeBlocks(
+            String recordingPath,
+            String driverVariableName,
+            String targetSourcePath,
+            String insertAfter) {
+        Path targetSource = targetSourcePath == null || targetSourcePath.isBlank()
+                ? null
+                : workspacePolicy.existing(targetSourcePath, "Playwright target source path");
+        return recorder.codeBlocks(recordingPath, driverVariableName, targetSource, insertAfter);
     }
 
     /**

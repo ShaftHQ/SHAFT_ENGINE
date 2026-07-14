@@ -890,6 +890,12 @@
       "deprecated": false
     },
     {
+      "name": "playwright_record_at_target_code_blocks",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "playwright_record_start",
       "mutation": true,
       "sensitive": false,
@@ -915,6 +921,18 @@
     },
     {
       "name": "playwright_replay_recording",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "playwright_step_delete",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "playwright_step_reorder",
       "mutation": true,
       "sensitive": false,
       "deprecated": false

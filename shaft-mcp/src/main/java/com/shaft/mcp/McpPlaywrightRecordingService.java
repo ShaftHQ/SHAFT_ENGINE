@@ -62,7 +62,8 @@ final class McpPlaywrightRecordingService {
                 recording.actions().size(),
                 recording.includeSensitiveValues(),
                 recording.warnings(),
-                readinessFor(recording, false));
+                readinessFor(recording, false),
+                McpRecordingStepEditor.stepSummaries(recording));
     }
 
     synchronized McpMobileRecordingStatus stop(boolean discard) {
@@ -97,7 +98,54 @@ final class McpPlaywrightRecordingService {
                 ? CaptureReadiness.State.READY
                 : readinessFor(closed, true);
         return new McpMobileRecordingStatus(false, finalPath, closed.mode(), count, closed.includeSensitiveValues(),
-                discard ? List.of("Recording discarded.") : closed.warnings(), readiness);
+                discard ? List.of("Recording discarded.") : closed.warnings(), readiness,
+                McpRecordingStepEditor.stepSummaries(closed));
+    }
+
+    /**
+     * Deletes a recorded Playwright step by its stable {@code stepId} and renumbers the remaining
+     * steps' {@code sequence} to stay contiguous (1..N), mirroring mobile step surgery (#3528). A
+     * missing recording or an unknown {@code stepId} is a no-op — the agent is expected to re-read
+     * status and retry rather than have the recording silently corrupted or an exception thrown.
+     *
+     * @param stepId stable step id to remove, as surfaced in {@link McpMobileRecordingStatus#steps()}
+     * @return updated recorder status
+     */
+    synchronized McpMobileRecordingStatus deleteStep(String stepId) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("Ignored: no active Playwright recording to edit."), CaptureReadiness.State.BLOCKED);
+        }
+        McpMobileRecording updated = McpRecordingStepEditor.delete(recording, stepId);
+        if (updated == recording) {
+            return status();
+        }
+        recording = updated;
+        persist();
+        return status();
+    }
+
+    /**
+     * Moves a recorded Playwright step up or down by its stable {@code stepId}, then renumbers
+     * {@code sequence} to stay contiguous (1..N). Moving the first step up, the last step down, an
+     * unknown {@code stepId}, or an unrecognized {@code direction} are all no-ops.
+     *
+     * @param stepId stable step id to move, as surfaced in {@link McpMobileRecordingStatus#steps()}
+     * @param direction "up" or "down" (case-insensitive)
+     * @return updated recorder status
+     */
+    synchronized McpMobileRecordingStatus reorderStep(String stepId, String direction) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("Ignored: no active Playwright recording to edit."), CaptureReadiness.State.BLOCKED);
+        }
+        McpMobileRecording updated = McpRecordingStepEditor.reorder(recording, stepId, direction);
+        if (updated == recording) {
+            return status();
+        }
+        recording = updated;
+        persist();
+        return status();
     }
 
     /**
@@ -169,6 +217,25 @@ final class McpPlaywrightRecordingService {
     }
 
     McpMobileReplayResult codeBlocks(String recordingPath, String driverVariableName) {
+        return codeBlocks(recordingPath, driverVariableName, null, "");
+    }
+
+    /**
+     * Generates copy-paste replay code plus focused record-at-target snippets from a Playwright
+     * recording (#3528), mirroring the mobile recorder's {@code codeBlocks(recordingPath,
+     * driverVariableName, targetSource, insertAfter)} overload.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @param targetSource existing Java Page Object source; {@code null} skips target insertion
+     * @param insertAfter method name or textual anchor to insert after
+     * @return replay code blocks plus target insertion snippets
+     */
+    McpMobileReplayResult codeBlocks(
+            String recordingPath,
+            String driverVariableName,
+            Path targetSource,
+            String insertAfter) {
         Path path = workspacePolicy.existing(recordingPath, "Playwright recording path");
         McpMobileRecording stored = read(path);
         McpPlaywrightCaptureAdapter.CaptureAdapterResult capture = captureAdapter.generate(path, stored);
@@ -177,7 +244,7 @@ final class McpPlaywrightRecordingService {
         blocks.add(replayBlock(stored, driverVariableName));
         if (Files.isRegularFile(generation.sourcePath())) {
             blocks.addAll(captureCodeBlocks.fromGeneratedSource(
-                    generation.sourcePath(), driverVariableName, generation.report()));
+                    generation.sourcePath(), driverVariableName, generation.report(), targetSource, insertAfter));
         }
         List<String> warnings = new ArrayList<>(replayWarnings(stored));
         warnings.addAll(capture.warnings());
@@ -204,7 +271,7 @@ final class McpPlaywrightRecordingService {
 
     private McpMobileRecording read(Path path) {
         try {
-            return mapper.readValue(path.toFile(), McpMobileRecording.class);
+            return McpRecordingStepEditor.normalize(mapper.readValue(path.toFile(), McpMobileRecording.class));
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("Playwright recording could not be read.", exception);
         }
