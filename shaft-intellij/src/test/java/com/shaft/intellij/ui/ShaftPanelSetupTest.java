@@ -709,6 +709,84 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelMcpVersionStepReflectsRealVersionCheck() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        JLabel mcpVersionState = findByAccessibleName(panel, "SHAFT MCP version setup state", JLabel.class);
+        JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
+
+        // Installed at or above the latest release is green without any clicks, matching the
+        // "Upgrade project" row's real-check pattern (issue #3538).
+        setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
+                new ShaftMcpVersionCheck.Result(
+                        ShaftMcpVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
+        clickAccessible(panel, "Check SHAFT MCP version");
+        assertAll(
+                () -> assertEquals("Done", mcpVersionState.getText()),
+                () -> assertTrue(mcpVersionDetail.getText().contains("is up to date")),
+                () -> assertFalse(
+                        findByAccessibleName(panel, "Copy SHAFT MCP install command", JButton.class).isVisible()));
+
+        // Installed but behind the latest release keeps the row actionable.
+        setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
+                new ShaftMcpVersionCheck.Result(
+                        ShaftMcpVersionCheck.State.UPGRADE_AVAILABLE, "10.2.20260101", "10.3.20260710"));
+        clickAccessible(panel, "Check SHAFT MCP version");
+        assertAll(
+                () -> assertEquals("Next", mcpVersionState.getText()),
+                () -> assertTrue(mcpVersionDetail.getText().contains("latest 10.3.20260710")),
+                () -> assertTrue(
+                        findByAccessibleName(panel, "Copy SHAFT MCP install command", JButton.class).isVisible()));
+
+        // Nothing installed offers the install command.
+        setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
+                new ShaftMcpVersionCheck.Result(ShaftMcpVersionCheck.State.NOT_INSTALLED, "", ""));
+        clickAccessible(panel, "Check SHAFT MCP version");
+        assertAll(
+                () -> assertEquals("Next", mcpVersionState.getText()),
+                () -> assertTrue(mcpVersionDetail.getText().contains("not installed yet")),
+                () -> assertTrue(
+                        findByAccessibleName(panel, "Copy SHAFT MCP install command", JButton.class).isVisible()));
+
+        // Offline (latest unknown) is a neutral, non-blocking "Optional" badge — never "Failed"
+        // and never disables the rest of setup (issue #3538).
+        setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
+                new ShaftMcpVersionCheck.Result(ShaftMcpVersionCheck.State.LATEST_UNKNOWN, "10.3.20260703", ""));
+        clickAccessible(panel, "Check SHAFT MCP version");
+        assertAll(
+                () -> assertEquals("Optional", mcpVersionState.getText()),
+                () -> assertTrue(mcpVersionDetail.getText().contains("offline")),
+                () -> assertTrue(mcpVersionDetail.getText().contains("10.3.20260703")),
+                () -> assertTrue(
+                        findByAccessibleName(panel, "Copy SHAFT MCP install command", JButton.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isVisible(),
+                        "the MCP version row must never gate the rest of setup"));
+    }
+
+    @Test
+    void setupPanelDetectsRealInstalledMcpVersionFromDisk() throws Exception {
+        Path appData = tempDirectory("shaft-mcp-app-data");
+        Path argsFile = appData.resolve("versions").resolve("10.3.20260703").resolve("shaft-mcp.args");
+        Files.createDirectories(argsFile.getParent());
+        Files.writeString(argsFile, "-cp\nshaft-mcp.jar\ncom.shaft.mcp.ShaftMcpApplication\n");
+        String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
+        System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
+        try {
+            assertEquals("10.3.20260703", ShaftMcpSetupPanel.installedShaftMcpVersion(appData));
+
+            // Real on-disk detection runs once in the constructor (issue #3538); regardless of
+            // network availability for the "latest" half of the comparison, the installed version
+            // this test just wrote to disk must flow through into the row's detail text.
+            ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+            });
+            JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
+            assertTrue(mcpVersionDetail.getText().contains("10.3.20260703"), mcpVersionDetail.getText());
+        } finally {
+            restoreProperty("shaft.intellij.mcp.applicationDataRoot", oldAppData);
+        }
+    }
+
+    @Test
     void setupPanelScrollsVerticallyAndNeverHorizontally() {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
@@ -2525,6 +2603,9 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
+                // The shaft-mcp version step's check button is labeled like its upgrade-step peer
+                // above: it names the exact check being run on a first-run setup screen (issue #3538).
+                .filter(button -> !"Check SHAFT MCP version".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
                 // its lane (issue #3425 A2/B7/A6), and the health-chip recheck is a compact
                 // header action.

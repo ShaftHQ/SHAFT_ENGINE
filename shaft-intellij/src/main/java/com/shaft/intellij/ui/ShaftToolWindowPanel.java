@@ -181,6 +181,12 @@ public final class ShaftToolWindowPanel extends JPanel {
                 if (value instanceof WorkflowView workflow) {
                     label.setIcon(workflow.icon());
                     label.setIconTextGap(6);
+                    // Screen readers announce what each workflow does, not just its short name
+                    // (issue #3538 G4).
+                    String description = workflowDescription(workflow.label());
+                    if (!description.isBlank()) {
+                        label.getAccessibleContext().setAccessibleDescription(description);
+                    }
                 }
                 return label;
             }
@@ -431,6 +437,27 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private static boolean mcpReady(ShaftSettingsState.Settings settings) {
         return settings != null && settings.mcpReady();
+    }
+
+    /**
+     * One-line description of what each workflow selector entry does, announced by screen readers
+     * alongside the short label (issue #3538 G4). Blank for any future label added here without a
+     * matching case, so a missing entry degrades to "no description" rather than a crash.
+     */
+    private static String workflowDescription(String label) {
+        return switch (label) {
+            case "Assistant" -> "Chat with the SHAFT Assistant to record, generate, and diagnose tests";
+            case "Guided" -> "Step-by-step guided workflow across recording, code generation, and diagnosis";
+            case "Recorder" -> "Record browser or mobile actions into SHAFT test code";
+            case "Inspector" -> "Inspect page or app elements and pick resilient locators";
+            case "Triage" -> "Review failed test evidence and get suggested fixes";
+            case "SHAFT Tests" -> "Run and review SHAFT Engine test suites";
+            case "Visual Baselines" -> "Manage and compare visual regression baselines";
+            case "Evidence" -> "Doctor and healer tools for failure evidence";
+            case "Projects" -> "Create or upgrade SHAFT projects";
+            case "Advanced" -> "Raw SHAFT MCP tool catalog for advanced users";
+            default -> "";
+        };
     }
 
     record WorkflowView(String label, JComponent component, Icon icon) {
