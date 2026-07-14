@@ -56,12 +56,14 @@ public final class ApiTestRenderer {
     /**
      * Request headers that are mechanical/transport-level and never meaningfully replayed:
      * content negotiation and framing are already handled by {@code setContentType}/
-     * {@code setRequestBody}, and connection/host/user-agent/cookie headers describe the
-     * recording browser session, not the API contract.
+     * {@code setRequestBody}, and connection/host/user-agent headers describe the recording
+     * browser session, not the API contract. The {@code Cookie} header is handled separately as an
+     * auth bootstrap (see {@link #renderRequestHeaders}), not skipped, so recorded session auth is
+     * preserved rather than silently dropped.
      */
     private static final Set<String> SKIPPED_REQUEST_HEADERS = Set.of(
             "content-length", "content-type", "host", "connection", "accept-encoding",
-            "user-agent", "cookie", "origin", "referer");
+            "user-agent", "origin", "referer");
 
     private ApiTestRenderer() {
     }
@@ -386,12 +388,34 @@ public final class ApiTestRenderer {
             StringBuilder source, ApiTransaction transaction, Map<String, String> valueToVariable) {
         for (Map.Entry<String, String> header : transaction.requestHeaders().entrySet()) {
             String name = header.getKey().toLowerCase(Locale.ROOT);
+            if (name.equals("cookie")) {
+                renderAuthCookie(source, header.getValue(), valueToVariable);
+                continue;
+            }
             if (SKIPPED_REQUEST_HEADERS.contains(name)) {
                 continue;
             }
             line(source, "                .addHeader(\"" + escape(header.getKey()) + "\", "
                     + headerOrInterpolatedValueExpression(header.getValue(), valueToVariable) + ")");
         }
+    }
+
+    /**
+     * Renders the recorded session {@code Cookie} header as an auth bootstrap (issue #3530 A3),
+     * rather than dropping it (which left the replay unauthenticated). A sensitive cookie is
+     * captured as a {@code secret-ref} token, so it is replayed from the environment via
+     * {@code requiredEnvironment(...)} and never written to source as a literal; a non-sensitive
+     * cookie is emitted directly (with correlation applied). Blank cookies carry nothing to
+     * bootstrap and are skipped.
+     */
+    private static void renderAuthCookie(
+            StringBuilder source, String cookieValue, Map<String, String> valueToVariable) {
+        if (cookieValue == null || cookieValue.isBlank()) {
+            return;
+        }
+        line(source, "                // Auth bootstrap: replay the recorded session cookie so the request is authenticated.");
+        line(source, "                .addHeader(\"Cookie\", "
+                + headerOrInterpolatedValueExpression(cookieValue, valueToVariable) + ")");
     }
 
     /**
@@ -832,7 +856,9 @@ public final class ApiTestRenderer {
         }
         for (Map.Entry<String, String> candidate : transactions.get(0).requestHeaders().entrySet()) {
             String name = candidate.getKey().toLowerCase(Locale.ROOT);
-            if (SKIPPED_REQUEST_HEADERS.contains(name)) {
+            if (SKIPPED_REQUEST_HEADERS.contains(name) || name.equals("cookie")) {
+                // The Cookie header is rendered per request as an auth bootstrap (renderAuthCookie),
+                // which owns its blank-skip and secret-ref handling, so it is never hoisted here.
                 continue;
             }
             boolean sharedByAll = transactions.stream()

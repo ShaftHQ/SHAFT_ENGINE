@@ -104,6 +104,44 @@ class ApiTestRendererTest {
     }
 
     @Test
+    void recordedSessionCookieIsReplayedAsAnAuthBootstrapNeverDropped() throws Exception {
+        // Capture tokenizes the Cookie header as a secret-ref, so it must replay from the
+        // environment (auth bootstrap) rather than being silently dropped (#3530 A3).
+        ApiTransaction authenticated = transaction("tx-1", "GET", "https://api.example.test/me",
+                Map.of("Cookie", "secret-ref:COOKIE_ABC_DEF"), "", 200, Map.of(), "{\"name\":\"Ada\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Cookie", List.of(authenticated),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Cookie");
+        assertTrue(source.contains("Auth bootstrap"), source);
+        assertTrue(source.contains(".addHeader(\"Cookie\", requiredEnvironment(\"COOKIE_ABC_DEF\"))"), source);
+        // The raw secret-ref token must never appear literally.
+        assertTrue(!source.contains("secret-ref:"), source);
+        // The cookie is rendered once (per request), not also hoisted into the session setup.
+        assertEquals(1, source.split("\\.addHeader\\(\"Cookie\"", -1).length - 1, source);
+        String setup = source.substring(source.indexOf("setupApiSessions"), source.indexOf("recordedApiScenario"));
+        assertTrue(!setup.contains("Cookie"), setup);
+    }
+
+    @Test
+    void blankCookieHeaderCarriesNoAuthAndIsSkipped() throws Exception {
+        ApiTransaction noCookie = transaction("tx-1", "GET", "https://api.example.test/public",
+                Map.of("Cookie", ""), "", 200, Map.of(), "{\"ok\":true}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_BlankCookie", List.of(noCookie),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_BlankCookie");
+        assertTrue(!source.contains(".addHeader(\"Cookie\""), source);
+        assertTrue(!source.contains("Auth bootstrap"), source);
+    }
+
+    @Test
     void commonHeaderAcrossAllTransactionsIsHoistedToBeforeClass() throws Exception {
         Map<String, String> sharedHeader = Map.of("X-Api-Version", "2026-07");
         ApiTransaction first = transaction("tx-1", "GET", "https://api.example.test/a", sharedHeader, "", 200, Map.of(), "{}");
