@@ -44,7 +44,8 @@ final class McpPlaywrightRecordingService {
                 "",
                 includeSensitiveValues,
                 List.of(),
-                List.of());
+                List.of(),
+                1L);
         persist();
         return status();
     }
@@ -76,7 +77,8 @@ final class McpPlaywrightRecordingService {
                 Instant.now().toString(),
                 recording.includeSensitiveValues(),
                 recording.actions(),
-                recording.warnings());
+                recording.warnings(),
+                recording.nextStepId());
         int count = closed.actions().size();
         Path finalPath = outputPath;
         if (!discard) {
@@ -139,7 +141,9 @@ final class McpPlaywrightRecordingService {
             safeParameters = Map.of("value", "<redacted>");
             warnings.add("Sensitive value omitted; replace the placeholder before replay.");
         }
+        String stepId = "m" + recording.nextStepId();
         McpMobileRecordedAction recorded = new McpMobileRecordedAction(
+                stepId,
                 recording.actions().size() + 1L,
                 Instant.now().toString(),
                 action,
@@ -158,7 +162,8 @@ final class McpPlaywrightRecordingService {
                 recording.stoppedAt(),
                 recording.includeSensitiveValues(),
                 actions,
-                recording.warnings());
+                recording.warnings(),
+                recording.nextStepId() + 1);
         persist();
         return recorded;
     }

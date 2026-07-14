@@ -105,6 +105,7 @@ class McpServiceHelperTest {
     @Test
     void mobileHelperRejectsReplayWhenSensitiveValueWasRedacted() {
         McpMobileRecordedAction action = new McpMobileRecordedAction(
+                "m1",
                 1,
                 "",
                 "type",

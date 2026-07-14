@@ -4,6 +4,10 @@ import java.util.List;
 
 /**
  * Persisted MCP mobile action recording.
+ *
+ * @param nextStepId monotonic counter for the next {@link McpMobileRecordedAction#stepId()} to
+ *         assign; recordings persisted before schema 1.1 lack this field and are backfilled on
+ *         read (see {@link McpMobileRecordingService})
  */
 public record McpMobileRecording(
         String schemaVersion,
@@ -12,8 +16,9 @@ public record McpMobileRecording(
         String stoppedAt,
         boolean includeSensitiveValues,
         List<McpMobileRecordedAction> actions,
-        List<String> warnings) {
-    static final String CURRENT_SCHEMA_VERSION = "1.0";
+        List<String> warnings,
+        long nextStepId) {
+    static final String CURRENT_SCHEMA_VERSION = "1.1";
 
     /**
      * Creates an immutable recording.
