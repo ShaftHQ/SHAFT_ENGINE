@@ -319,6 +319,7 @@ public final class ApiTestRenderer {
                     + " (" + transaction.statusCode() + ")");
             String pathExpression = interpolate(relativePath(transaction), valueToVariable);
             line(source, "        " + apiField + "." + requestMethod + "(" + pathExpression + ")");
+            renderRedirectControl(source, transaction);
             renderRequestHeaders(source, transaction, valueToVariable);
             renderRequestBody(source, transaction, valueToVariable);
             line(source, "                .setTargetStatusCode(" + transaction.statusCode() + ")");
@@ -372,6 +373,7 @@ public final class ApiTestRenderer {
         Map<String, String> noCorrelation = Map.of();
         line(source, "        " + apiField + "." + requestMethod + "("
                 + interpolate(relativePath(transaction), noCorrelation) + ")");
+        renderRedirectControl(source, transaction);
         renderRequestHeaders(source, transaction, noCorrelation);
         renderRequestBody(source, transaction, noCorrelation);
         line(source, "                .setTargetStatusCode(" + transaction.statusCode() + ")");
@@ -397,6 +399,20 @@ public final class ApiTestRenderer {
             }
             line(source, "                .addHeader(\"" + escape(header.getKey()) + "\", "
                     + headerOrInterpolatedValueExpression(header.getValue(), valueToVariable) + ")");
+        }
+    }
+
+    /**
+     * Emits {@code setFollowRedirects(false)} for a recorded 3xx transaction so the generated test
+     * observes the redirect itself (issue #3530 A3 redirect fidelity). REST-Assured follows
+     * redirects by default, which would turn a recorded 302 into the final 200 and fail the status
+     * assertion; a non-redirect status leaves the default follow behaviour untouched.
+     */
+    private static void renderRedirectControl(StringBuilder source, ApiTransaction transaction) {
+        int status = transaction.statusCode();
+        if (status >= 300 && status < 400) {
+            line(source, "                // Recorded status is a redirect; do not follow it so the 3xx status can be asserted.");
+            line(source, "                .setFollowRedirects(false)");
         }
     }
 
