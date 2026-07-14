@@ -6,10 +6,21 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.w3c.dom.Document;
 
 /**
  * Renders a self-contained HTML "assertion evidence" card for a single {@code Assert}/{@code Verify}
@@ -152,6 +163,15 @@ public final class AssertionEvidenceReporter {
             shape = "JSON";
             String prettyExpected = prettyPrint(expectedJson, expectedText.text());
             String prettyActual = prettyPrint(actualJson, actualText.text());
+            body = diffSection(prettyExpected, prettyActual) + rawSection(expectedText, actualText);
+        } else if (bothParseAsXml(expectedText.text(), actualText.text())) {
+            // API response bodies are just as commonly XML (SOAP / XML REST) as JSON; when both
+            // sides are well-formed XML, pretty-print and diff them structurally rather than letting
+            // them fall through to the flat text branch, so the card gives API-body-specific
+            // affordances on top of the JSON branch (issue #3532 E).
+            shape = "XML";
+            String prettyExpected = prettyPrintXml(expectedText.text());
+            String prettyActual = prettyPrintXml(actualText.text());
             body = diffSection(prettyExpected, prettyActual) + rawSection(expectedText, actualText);
         } else if (isTextShape(expectedText.text(), actualText.text())) {
             shape = "Text";
@@ -351,6 +371,67 @@ public final class AssertionEvidenceReporter {
             return JSON_MAPPER.writeValueAsString(node);
         } catch (RuntimeException e) {
             return fallback;
+        }
+    }
+
+    /**
+     * True only when both sides are well-formed XML documents (not JSON — JSON is checked first).
+     * A leading {@code <} gate keeps the common non-XML case from paying for a parser attempt.
+     */
+    private static boolean bothParseAsXml(String expected, String actual) {
+        return parseXml(expected) != null && parseXml(actual) != null;
+    }
+
+    /**
+     * Parses a string into an XML {@link Document} with a hardened, non-validating parser (DTDs and
+     * external entities disabled to prevent XXE / entity-expansion against untrusted API bodies),
+     * or {@code null} when the value is blank or not well-formed XML.
+     */
+    private static Document parseXml(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || trimmed.charAt(0) != '<') {
+            return null;
+        }
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setExpandEntityReferences(false);
+            factory.setNamespaceAware(true);
+            return factory.newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(trimmed.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Pretty-prints XML with a hardened transformer; falls back to the original text on any failure
+     * so evidence rendering can never break because of an awkward document.
+     */
+    private static String prettyPrintXml(String value) {
+        Document document = parseXml(value);
+        if (document == null) {
+            return value;
+        }
+        try {
+            document.normalizeDocument();
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(document), new StreamResult(writer));
+            return writer.toString().trim();
+        } catch (Exception e) {
+            return value;
         }
     }
 
