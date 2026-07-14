@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/workflows/shaft-capture-e2e-use-system-mvn-jdk25-not-mvnw-read-surefire-xml-for-the-verdict.md",
+  "content_hash": "sha256:b43412b7b7d9dba2289d420dd1e01aab3a878f160c53f068d61f784a6d239970",
+  "created_at": "2026-07-14T15:55:31+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "workflow"
+  },
+  "id": "workflow.shaft-capture-e2e-use-system-mvn-jdk25-not-mvnw-read-surefire-xml-for-the-verdict",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ initial->recorder->codegen end-user workflow audit (2026-07-14 close-all-open-issues loop)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "shaft-capture E2E: use system mvn (JDK25), not ./mvnw; read surefire XML for the verdict",
+  "type": "workflow",
+  "updated_at": "2026-07-14T15:55:31+03:00"
+}
