@@ -757,6 +757,10 @@ public class ValidationsHelper {
         AtomicBoolean actual = new AtomicBoolean(false);
         AtomicBoolean validationState = new AtomicBoolean(false);
         AtomicReference<List<List<Object>>> attachmentsRef = new AtomicReference<>(new ArrayList<>());
+        // Hoisted out of the fluentWait lambda so the reporting block can render a domain-consistent
+        // accessibility evidence card from the aria YAML (issue #3532 E).
+        AtomicReference<String> baselineYamlRef = new AtomicReference<>("");
+        AtomicReference<String> actualYamlRef = new AtomicReference<>("");
         String baselinePath = resolveAriaSnapshotPath(snapshotFileName);
 
         try {
@@ -785,6 +789,8 @@ public class ValidationsHelper {
                 }
                 attachments.add(List.of("Expected Aria Snapshot", snapshotFileName + ".yaml", baselineYaml));
                 attachments.add(List.of("Actual Aria Snapshot", snapshotFileName + "_actual.yaml", actualYaml));
+                baselineYamlRef.set(baselineYaml);
+                actualYamlRef.set(actualYaml);
                 attachmentsRef.set(attachments);
 
                 expected.set(validationType.getValue());
@@ -803,7 +809,15 @@ public class ValidationsHelper {
         parameters.put("Should match", String.valueOf(expected.get()));
         parameters.put("Actual value", String.valueOf(actual.get()));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, locator, attachmentsRef.get());
+        // Prepend a domain-consistent accessibility evidence card (summary + aria-YAML diff) so the
+        // aria-snapshot outcome reads like an assertion card instead of a raw YAML dump (#3532 E).
+        List<List<Object>> ariaAttachments = attachmentsRef.get();
+        String accessibilityCard = AssertionEvidenceReporter.renderAccessibilityCard(
+                validationState.get(), baselineYamlRef.get(), actualYamlRef.get());
+        if (!accessibilityCard.isBlank()) {
+            ariaAttachments.add(0, Arrays.asList("Accessibility evidence", "accessibility-evidence.html", accessibilityCard));
+        }
+        reportValidationState(validationState.get(), expected, actual, driver, locator, ariaAttachments);
     }
 
     private static String resolveAriaSnapshotPath(String snapshotFileName) {

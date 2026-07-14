@@ -58,6 +58,32 @@ public final class AssertionEvidenceReporter {
         }
     }
 
+    /**
+     * Renders a domain-consistent evidence card for an accessibility (aria snapshot) validation.
+     *
+     * <p>Accessibility validations report their outcome as a pass/fail boolean, which
+     * {@link #renderCard} deliberately skips because a "true vs false" flag carries no comparable
+     * content. This overload instead takes the expected/actual aria-snapshot YAML so the card can
+     * show the same bounded, redacted line diff assertion cards use — a summary line plus a deep
+     * attachment, rather than a full YAML dump in the step name (issue #3532 E).
+     *
+     * @param passed       true when the aria snapshot matched its baseline
+     * @param expectedYaml the baseline aria-snapshot YAML (may be null/blank on first capture)
+     * @param actualYaml   the captured aria-snapshot YAML
+     * @return a complete self-contained HTML document string, or "" when there is nothing
+     * meaningful to show (both sides are null/blank)
+     */
+    public static String renderAccessibilityCard(boolean passed, Object expectedYaml, Object actualYaml) {
+        if (isBlank(expectedYaml) && isBlank(actualYaml)) {
+            return "";
+        }
+        try {
+            return render("Accessibility", passed, expectedYaml, actualYaml);
+        } catch (RuntimeException e) {
+            return renderFallback("Accessibility", passed, expectedYaml, actualYaml);
+        }
+    }
+
     private static String render(String categoryLabel, boolean passed, Object expected, Object actual) {
         Capped expectedText = cap(safeRedact(rawValue(expected)));
         Capped actualText = cap(safeRedact(rawValue(actual)));
