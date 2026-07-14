@@ -397,6 +397,43 @@ final class AssistantTranscriptView extends JPanel {
         return row;
     }
 
+    /**
+     * Renders an assistant-styled bubble containing {@code markdown} plus a trailing
+     * {@code actions} row (for example a "Got it" dismiss button), sharing the exact bubble chrome
+     * and word-wrap-safe {@link WidthAwareHtmlPane} rendering that persisted transcript messages
+     * use via {@link #fallbackMessage}. Intended for {@link #showWidget(String, JComponent)}
+     * callers (namely the first-run welcome) that need an assistant bubble look without adding
+     * anything to the persisted {@link #messages}/{@link #markdown} model. The returned component
+     * is plain content, not a pre-aligned row: {@link #showWidget(String, JComponent)} applies the
+     * same West/East alignment {@link #fallbackMessage} applies directly.
+     */
+    JComponent assistantBubbleWithActions(String markdown, JComponent actions) {
+        Color background = resolvedColor("Panel.background", new Color(0xF6F8FA));
+        Color foreground = resolvedColor("TextArea.foreground", new Color(0x202020));
+        Color stroke = resolvedColor("Component.borderColor", new Color(0xD0D7DE));
+        RoundedBubblePanel bubble = new RoundedBubblePanel(background, stroke, 18);
+        bubble.setLayout(new BorderLayout(0, 8));
+        bubble.setBorder(JBUI.Borders.empty(9, 11));
+        bubble.setBackground(background);
+        bubble.setForeground(foreground);
+        bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, UNKNOWN_ROLE);
+        bubble.getAccessibleContext().setAccessibleName("Assistant welcome message bubble");
+        JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
+        htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, UNKNOWN_ROLE);
+        // Unlike a persisted fallbackMessage() pane, this one can exist in the tree of a freshly
+        // constructed, otherwise message-less panel (the welcome shows before any real message
+        // exists), so it needs its own accessible name rather than relying on siblings for context.
+        htmlPane.getAccessibleContext().setAccessibleName("Assistant welcome message content");
+        bubble.add(htmlPane, BorderLayout.CENTER);
+        if (actions != null) {
+            JPanel actionsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            actionsRow.setOpaque(false);
+            actionsRow.add(actions);
+            bubble.add(actionsRow, BorderLayout.SOUTH);
+        }
+        return bubble;
+    }
+
     private JEditorPane fallbackHtmlPane(String html, Color foreground, Color background) {
         JEditorPane htmlPane = new WidthAwareHtmlPane(this::fallbackBubbleContentWidth);
         htmlPane.setContentType("text/html");

@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
+import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
@@ -1341,16 +1342,52 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
 
-        assertNotNull(findByAccessibleName(toolWindow, "First run happy path coach", JLabel.class),
-                "The first-run coach must show on an empty transcript before dismissal.");
+        // Issue #3540: the first-run coach moved from a bottom strip under the chips into the
+        // transcript itself, as the Assistant's own first (non-persisted) message.
+        assertNotNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
+                "The first-run welcome must show as the Assistant's first transcript message before dismissal.");
         JButton dismiss = findByAccessibleName(toolWindow, "Dismiss first run coach", JButton.class);
         assertNotNull(dismiss);
         dismiss.doClick();
-        assertTrue(settings.firstRunCoachDismissed, "Dismissing the coach must persist the acknowledgment.");
+        assertAll(
+                () -> assertTrue(settings.firstRunCoachDismissed,
+                        "Dismissing the coach must persist the acknowledgment."),
+                () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
+                        "Dismissing must remove the welcome bubble from the transcript immediately."));
 
         ShaftToolWindowPanel reopened = new ShaftToolWindowPanel(fakeProject(), settings);
-        assertNull(findByAccessibleName(reopened, "First run happy path coach", JLabel.class),
-                "The coach must never reappear once acknowledged.");
+        assertNull(findByAccessibleName(reopened, "Assistant welcome message bubble", JComponent.class),
+                "The welcome must never reappear once acknowledged.");
+    }
+
+    /**
+     * Root cause of the original clip (issue #3540): a plain {@code FlowLayout} row's
+     * {@code getPreferredSize()} does not depend on the row's own width, so it under-reports height
+     * once its content wraps to more than one line in a narrow tool window -- whatever the parent
+     * lays out below the row then collides with the wrapped second line. {@code WrapLayout}
+     * computes preferred size from the row's actual current width, so a narrower row correctly
+     * reports a taller preferred size once its chips no longer fit on one line.
+     */
+    @Test
+    void emptyStateChipRowReportsWrappedHeightInNarrowToolWindowWithoutClipping() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JPanel chipRow = (JPanel) getField(panel, "emptyStateChips");
+        assertNotNull(chipRow);
+
+        chipRow.setSize(new Dimension(1200, chipRow.getPreferredSize().height));
+        int wideHeight = chipRow.getPreferredSize().height;
+        chipRow.setSize(new Dimension(140, wideHeight));
+        int narrowHeight = chipRow.getPreferredSize().height;
+
+        assertAll(
+                () -> assertTrue(chipRow.getLayout() instanceof WrapLayout,
+                        "The empty-state chip row must use WrapLayout, not a plain FlowLayout that "
+                                + "under-reports wrapped preferred height (issue #3540 root cause)."),
+                () -> assertTrue(narrowHeight > wideHeight,
+                        "A narrow chip row wrapping the three chips onto more than one line must "
+                                + "report a taller preferred height than the same row laid out on one "
+                                + "wide line (wide=" + wideHeight + ", narrow=" + narrowHeight + "), "
+                                + "otherwise whatever follows it clips the wrapped second line."));
     }
 
     @Test
@@ -3866,6 +3903,7 @@ class ShaftPanelSetupTest {
     @Test
     void gateToolDispatchesImmediatelyWhenApproveAllToolsFlagIsSet() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        clearFirstRunWelcome(panel);
         approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
         AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool("capture_start", new JsonObject());
 
@@ -3936,6 +3974,7 @@ class ShaftPanelSetupTest {
     @Test
     void sequenceSkipsARepeatPromptForAToolAlreadyApprovedThisRun() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        clearFirstRunWelcome(panel);
         setField(panel, "currentToolSequence", List.of(
                 new AssistantCommand.ToolCall("capture_start", new JsonObject()),
                 new AssistantCommand.ToolCall("capture_start", new JsonObject())));
@@ -4053,6 +4092,7 @@ class ShaftPanelSetupTest {
     @Test
     void localAgentApprovalIsAutoDeniedWhenTheRunHasEnded() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        clearFirstRunWelcome(panel);
         setField(panel, "activeLocalAgentStreamToken", -1);
 
         LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 11);
@@ -4174,6 +4214,16 @@ class ShaftPanelSetupTest {
     private static JComponent transcriptWidget(ShaftAssistantPanel panel) throws Exception {
         AssistantTranscriptView transcript = (AssistantTranscriptView) getField(panel, "transcript");
         return transcript.pendingWidgetForTest();
+    }
+
+    /**
+     * Clears the first-run welcome bubble a fresh panel shows in the transcript widget slot (#3540),
+     * so approval-flow tests that assert an empty widget slot exercise the returning-user /
+     * post-first-message state — real tool dispatch only happens after the user's first message,
+     * which already clears the welcome.
+     */
+    private static void clearFirstRunWelcome(ShaftAssistantPanel panel) throws Exception {
+        ((AssistantTranscriptView) getField(panel, "transcript")).clearWidget();
     }
 
     private static JButton approvalDecisionButton(ToolApprovalPromptPanel panel, String label) {
