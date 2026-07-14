@@ -2196,6 +2196,8 @@
       confirmPanel.hidden = true;
       confirmPanel.innerHTML = "";
     }
+    // Restore the first-run coach once the dialog closes (#3536).
+    maybeShowCoach();
   };
   const confirmStop = () => {
     commitPendingDelete();
@@ -2226,6 +2228,10 @@
       </div>`;
     document.getElementById("shaft-capture-stop-confirm-yes").addEventListener("click", confirmStop);
     document.getElementById("shaft-capture-stop-confirm-no").addEventListener("click", closeStopConfirm);
+    // Free vertical space for the dialog's buttons on a first session (#3536): the coach is
+    // orientation noise while a stop decision is on screen, and the fixed-height panel cannot
+    // stack the labeled header, the coach, and the dialog at once without clipping.
+    maybeShowCoach();
     const sessionUrl = sessionEndpointUrl();
     if (sessionUrl && stepsEndpoint.token && typeof fetch === "function") {
       fetch(sessionUrl + "?token=" + encodeURIComponent(stepsEndpoint.token), {method: "GET"})
@@ -2405,6 +2411,14 @@
     renderSuppressedLog();
     renderActions();
   };
+  // #3536: the panel is a fixed-height flex column (overflow:hidden), so first-run orientation
+  // chrome and a modal sub-panel compete for the same vertical space. When the stop confirmation
+  // is open, suppress the coach so its buttons are never pushed out of the interactable area — the
+  // labeled toolbar's extra header line would otherwise clip the dialog on a first session.
+  const modalSubPanelOpen = () => {
+    const stop = document.getElementById("shaft-capture-stop-confirm");
+    return Boolean(stop && !stop.hidden);
+  };
   // A1 (#3536): first-session labeled toolbar, gated the same way as maybeShowCoach — top-frame
   // only, and hidden once dismissed or once the session stops (mirroring stop hiding the coach).
   function maybeShowToolbarLabels() {
@@ -2423,7 +2437,7 @@
   function maybeShowCoach() {
     const coach = document.getElementById("shaft-capture-coach");
     if (!coach) return;
-    coach.hidden = !(topLevel && !uiState.coachDismissed && !uiState.stopped);
+    coach.hidden = !(topLevel && !uiState.coachDismissed && !uiState.stopped && !modalSubPanelOpen());
   }
   // Draggable panel (#3496 B1): the header is the drag handle; the remembered position is
   // page-session-scoped via the same top-frame-only persisted UI state as everything else.
