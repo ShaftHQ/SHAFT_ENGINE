@@ -419,6 +419,10 @@ final class AssistantTranscriptView extends JPanel {
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, UNKNOWN_ROLE);
         bubble.getAccessibleContext().setAccessibleName("Assistant welcome message bubble");
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
+        // JEditorPane under-reports the preferred height of a trailing HTML list by roughly its last
+        // item's bottom margin, which cropped the final "Review code into a test" step against the
+        // actions row below. Reserve extra bottom room so BorderLayout gives the pane enough height.
+        htmlPane.setBorder(JBUI.Borders.emptyBottom(JBUI.scale(10)));
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, UNKNOWN_ROLE);
         // Unlike a persisted fallbackMessage() pane, this one can exist in the tree of a freshly
         // constructed, otherwise message-less panel (the welcome shows before any real message
