@@ -58,6 +58,9 @@ public class HTMLHelperUnitTest {
         Assert.assertTrue(value.contains("${CHECKPOINTS_TEST_OPTIONS}"), "expected the test-options placeholder");
         Assert.assertTrue(value.contains("test-hidden"), "expected the test-hidden CSS hook");
         Assert.assertTrue(value.contains("shaftFilterCheckpointsByTest"), "expected the test-filter function");
+        // Jump-to-test: clicking a Test cell focuses the table on that test.
+        Assert.assertTrue(value.contains("shaftFocusTestFromCell"), "expected the jump-to-test function");
+        Assert.assertTrue(value.contains("checkpoint-test-link"), "expected the jump-to-test link styling");
     }
 
     @Test(description = "CHECKPOINT_DETAILS_FORMAT should carry a filterable data-status (#3523) and per-test data-test (#3534)")

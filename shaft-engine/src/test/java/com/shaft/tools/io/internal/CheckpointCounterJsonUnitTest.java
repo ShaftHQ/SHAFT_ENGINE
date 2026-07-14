@@ -129,7 +129,9 @@ public class CheckpointCounterJsonUnitTest {
         // The attributed checkpoint carries its test both as a filterable data-test attribute and a visible cell.
         Assert.assertTrue(html.contains("data-test=\"" + className + "#" + methodName + "\""), html);
         Assert.assertTrue(html.contains(">" + className + "#" + methodName + "<"), html);
-        // A checkpoint with no captured identity renders the suite-level placeholder, never a blank test.
+        // The Test cell is a "jump to test" control (link-styled button that focuses the table on that test).
+        Assert.assertTrue(html.contains("class=\"checkpoint-test-link\" onclick=\"shaftFocusTestFromCell(this)\""), html);
+        // A checkpoint with no captured identity renders the suite-level placeholder, never a blank test or a jump link.
         Assert.assertTrue(html.contains("data-test=\"\""), html);
         Assert.assertTrue(html.contains(">(suite)<"), html);
     }
