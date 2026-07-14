@@ -76,6 +76,41 @@ public class ValidationsHelper {
     }
 
     /**
+     * Writes an end-of-test Allure step summarizing every accumulated soft (verify) failure, in the
+     * order they occurred, before the test is force-failed. This gives a single place to see all
+     * verification failures instead of scanning the step list. No-op when there were no soft
+     * failures. Must be called before {@link #resetVerificationStateAfterFailing()} clears the list.
+     */
+    public static void attachVerificationSummary() {
+        String summary = verificationSummaryText();
+        if (summary == null) {
+            return;
+        }
+        ReportManagerHelper.writeStepToReport(summary, Level.ERROR, Status.FAILED,
+                System.currentTimeMillis());
+    }
+
+    /**
+     * Builds the numbered soft-verification summary text from the accumulated failures, or
+     * {@code null} when there were none.
+     *
+     * @return the summary text, or {@code null} if there are no accumulated soft failures
+     */
+    static String verificationSummaryText() {
+        List<String> failures = verificationFailuresList.get();
+        if (failures == null || failures.isEmpty()) {
+            return null;
+        }
+        StringBuilder summary = new StringBuilder("Soft verification summary: " + failures.size()
+                + " failure(s) before the test was force-failed");
+        int index = 0;
+        for (String failure : failures) {
+            summary.append(System.lineSeparator()).append("  ").append(++index).append(". ").append(failure);
+        }
+        return summary.toString();
+    }
+
+    /**
      * Records a soft verification failure so it can be reported at the end of the test.
      *
      * @param failureMessage the verification failure message to accumulate
@@ -1034,17 +1069,20 @@ public class ValidationsHelper {
             TraceEventRecorder.finish(traceEvent, "failed",
                     this.validationCategoryString.replace("erify", "erificat") + "ion failed",
                     assertionError, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
-            // single timed outcome step: the failure message is reported exactly once,
-            // spanning the real validation duration
-            ReportManagerHelper.writeStepToReport(finalFailureMessage, Level.ERROR, Status.FAILED, this.validationStartTime);
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                // the outcome step is already reported above; throw without re-logging
+                // single timed outcome step spanning the real validation duration, then fail hard
+                ReportManagerHelper.writeStepToReport(finalFailureMessage, Level.ERROR, Status.FAILED, this.validationStartTime);
                 throw new AssertionError(finalFailureMessage);
             } else {
-                // soft assert
+                // soft assert: accumulate first so the running failure count is accurate, then
+                // report the outcome step tagged with its running position, so soft failures are
+                // easy to count at a glance and are visibly distinct from a hard assertion failure
                 ValidationsHelper.recordVerificationFailure(failureMessage);
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
+                int softFailureNumber = verificationFailuresList.get().size();
+                ReportManagerHelper.writeStepToReport("Soft failure #" + softFailureNumber + " — " + finalFailureMessage,
+                        Level.ERROR, Status.FAILED, this.validationStartTime);
             }
         } else {
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);

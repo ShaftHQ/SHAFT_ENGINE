@@ -29,6 +29,8 @@ public class IssueReporter {
         if (testResult != null && ValidationsHelper.getVerificationErrorToForceFail() != null) {
             testResult.setStatus(ITestResult.FAILURE);
             testResult.setThrowable(ValidationsHelper.getVerificationErrorToForceFail());
+            // list every soft failure in one end-of-test step before clearing the accumulated state
+            ValidationsHelper.attachVerificationSummary();
             ValidationsHelper.resetVerificationStateAfterFailing();
         }
     }
