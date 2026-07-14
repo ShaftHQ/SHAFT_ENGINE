@@ -173,6 +173,7 @@ final class AssistantMarkdown {
             case "autobot_provider_status" -> providerStatusMarkdown(parsed);
             case "shaft_coding_partner_diff" -> codingPartnerDiffMarkdown(parsed);
             case "verify_run_focused" -> verifyMarkdown(parsed);
+            case "healer_run_failed_test", "playwright_healer_run_failed_test" -> healerMarkdown(parsed);
             default -> "";
         };
     }
@@ -886,19 +887,23 @@ final class AssistantMarkdown {
     }
 
     private static String doctorActionsMarkdown(JsonArray actions) {
+        return titledActionsMarkdown("Recommended actions", actions);
+    }
+
+    private static String titledActionsMarkdown(String title, JsonArray actions) {
         if (actions.isEmpty()) {
             return "";
         }
-        StringBuilder markdown = new StringBuilder("**Recommended actions**");
+        StringBuilder markdown = new StringBuilder("**").append(title).append("**");
         for (JsonElement item : actions) {
             if (!item.isJsonObject()) {
                 continue;
             }
             JsonObject action = item.getAsJsonObject();
-            String title = string(action, "title", "Action");
+            String actionTitle = string(action, "title", "Action");
             String text = string(action, "action", "");
             String status = string(action, "status", "");
-            markdown.append("\n- **").append(title).append("**");
+            markdown.append("\n- **").append(actionTitle).append("**");
             if (!status.isBlank()) {
                 markdown.append(" (`").append(status).append("`)");
             }
@@ -907,6 +912,91 @@ final class AssistantMarkdown {
             }
         }
         return markdown.toString();
+    }
+
+    /**
+     * Renders an {@code McpHealerRunResult} ({@code healer_run_failed_test},
+     * {@code playwright_healer_run_failed_test}) as a readable card: the overall status, each
+     * guarded rerun attempt, the nested Doctor {@code analysis} (delegated to {@link
+     * #doctorMarkdown(JsonObject)} so a manual doctor run and a healer's embedded diagnosis read
+     * identically — issue #3552), and the top-level review-only actions/code blocks. The top-level
+     * {@code actions}/{@code codeBlocks} are a superset of {@code analysis}'s own (the healer merges
+     * the doctor's remediation into its own list plus an agent-handoff action/snippet — see
+     * {@code HealerService}), so they are labelled "Healer actions"/"Handoff snippets" rather than
+     * reusing the Doctor card's "Recommended actions"/"Fix snippets" headers, to avoid two
+     * identically-labelled sections that would read as a plain duplicate.
+     */
+    private static String healerMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("schemaVersion") || !object.has("attempts") || !object.has("analysis")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        String status = string(object, "status", "");
+        sections.add("**" + healerStatusIcon(status) + " Healer:** " + status);
+        if (object.get("attempts").isJsonArray()) {
+            appendNonBlank(sections, healerAttemptsMarkdown(object.getAsJsonArray("attempts")));
+        }
+        JsonElement analysis = object.get("analysis");
+        if (analysis != null && analysis.isJsonObject()) {
+            appendNonBlank(sections, doctorMarkdown(analysis.getAsJsonObject()));
+        }
+        if (object.has("actions") && object.get("actions").isJsonArray()) {
+            appendNonBlank(sections, titledActionsMarkdown("Healer actions", object.getAsJsonArray("actions")));
+        }
+        if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
+            String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
+            if (!blocks.isBlank()) {
+                sections.add("**Handoff snippets**\n\n" + blocks);
+            }
+        }
+        appendNonBlank(sections, warnings(object));
+        return joinSections(sections);
+    }
+
+    private static String healerAttemptsMarkdown(JsonArray attempts) {
+        if (attempts.isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**Attempts**");
+        for (JsonElement item : attempts) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject attempt = item.getAsJsonObject();
+            markdown.append("\n- Attempt ").append(string(attempt, "attemptNumber", "?")).append(": ")
+                    .append(healerAttemptOutcome(attempt));
+            String exitCode = string(attempt, "exitCode", "");
+            if (!exitCode.isBlank()) {
+                markdown.append(" (exit ").append(exitCode).append(")");
+            }
+            String diagnostics = string(attempt, "diagnostics", "");
+            if (!diagnostics.isBlank()) {
+                markdown.append(" — ").append(diagnostics);
+            }
+        }
+        return markdown.toString();
+    }
+
+    private static String healerAttemptOutcome(JsonObject attempt) {
+        if (booleanValue(attempt, "passed")) {
+            return ShaftStatusPresentation.SUCCESS_ICON + " passed";
+        }
+        if (booleanValue(attempt, "timedOut")) {
+            return ShaftStatusPresentation.WARNING_ICON + " timed out";
+        }
+        return ShaftStatusPresentation.ERROR_ICON + " failed";
+    }
+
+    private static String healerStatusIcon(String status) {
+        return switch (status) {
+            case "PASSED" -> ShaftStatusPresentation.SUCCESS_ICON;
+            case "FAILED_WITH_SUGGESTIONS", "PRODUCT_BUG_SUSPECTED" -> ShaftStatusPresentation.WARNING_ICON;
+            default -> ShaftStatusPresentation.ERROR_ICON;
+        };
     }
 
     private static String mobileMarkdown(JsonObject object) {

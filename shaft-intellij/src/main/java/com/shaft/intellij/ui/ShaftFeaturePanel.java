@@ -59,6 +59,10 @@ final class ShaftFeaturePanel extends JPanel {
     private final JLabel templateDescription;
     private final JBTextArea argumentsArea;
     private final JBTextArea outputArea;
+    private final AssistantTranscriptView outputCard;
+    private final JPanel outputCards;
+    private final JButton toggleRawOutputButton;
+    private boolean showingRawOutput;
     private final JButton runButton;
     private final JButton cancelButton;
     private final JButton restoreDefaultsButton;
@@ -112,10 +116,22 @@ final class ShaftFeaturePanel extends JPanel {
         argumentsArea.setLineWrap(true);
         argumentsArea.setWrapStyleWord(true);
         outputArea = new JBTextArea(10, 32);
-        outputArea.getAccessibleContext().setAccessibleName("SHAFT tool output");
+        outputArea.getAccessibleContext().setAccessibleName("SHAFT tool output (raw JSON)");
         outputArea.setEditable(false);
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
+        // Humanized card is the default view (issue #3552); outputArea keeps holding the untouched
+        // raw text so copyOutputButton and the "View raw JSON" toggle always show the exact bytes.
+        outputCard = new AssistantTranscriptView(project);
+        outputCard.getAccessibleContext().setAccessibleName("SHAFT tool output");
+        outputCards = new JPanel(new java.awt.CardLayout());
+        outputCards.add(outputCard, "card");
+        outputCards.add(new JBScrollPane(outputArea), "raw");
+        toggleRawOutputButton = new JButton();
+        ShaftIconButtons.apply(toggleRawOutputButton, "View raw JSON", "Toggle raw SHAFT tool output",
+                ShaftIcons.CODE);
+        toggleRawOutputButton.setEnabled(false);
+        toggleRawOutputButton.addActionListener(event -> toggleRawOutput());
         status = new JLabel("Ready");
         progress = new JProgressBar();
         progress.setIndeterminate(true);
@@ -203,8 +219,11 @@ final class ShaftFeaturePanel extends JPanel {
 
         JPanel output = new JPanel(new BorderLayout(4, 4));
         JLabel outputLabel = label("Output", 'O', outputArea);
-        output.add(outputLabel, BorderLayout.NORTH);
-        output.add(new JBScrollPane(outputArea), BorderLayout.CENTER);
+        JPanel outputHeader = new JPanel(new BorderLayout());
+        outputHeader.add(outputLabel, BorderLayout.WEST);
+        outputHeader.add(toggleRawOutputButton, BorderLayout.EAST);
+        output.add(outputHeader, BorderLayout.NORTH);
+        output.add(outputCards, BorderLayout.CENTER);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, output);
         splitPane.setResizeWeight(0.66);
@@ -263,11 +282,10 @@ final class ShaftFeaturePanel extends JPanel {
         }
         if (!mcpConfigured()) {
             status.setText("Configure MCP");
-            outputArea.setText("Configure SHAFT MCP in Settings before running Tools requests.");
-            copyOutputButton.setEnabled(true);
+            setOutput(template.toolName(), "Configure SHAFT MCP in Settings before running Tools requests.");
             return;
         }
-        if (!projectAvailable(project)) {
+        if (!projectAvailable(project, template.toolName())) {
             return;
         }
         if (template.confirmationRequired()
@@ -289,20 +307,18 @@ final class ShaftFeaturePanel extends JPanel {
             status.setText("Invalid JSON");
             JsonText.JsonErrorLocation location = JsonText.findErrorLocation(argumentsArea.getText());
             String message = location != null ? "Invalid JSON at " + location : "Invalid JSON";
-            outputArea.setText(message);
+            setOutput(template.toolName(), message);
             if (location != null) {
                 selectJsonErrorLocation(location);
             }
-            copyOutputButton.setEnabled(true);
             return;
         }
         setRunning(true, "Running: " + template.toolName() + " …");
-        outputArea.setText("");
-        copyOutputButton.setEnabled(false);
+        clearOutput();
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(
                 template.toolName(), arguments, this::onToolProgress);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                () -> showResult(result, error)));
+                () -> showResult(template.toolName(), result, error)));
     }
 
     /**
@@ -329,17 +345,15 @@ final class ShaftFeaturePanel extends JPanel {
         }
         if (!mcpConfigured()) {
             status.setText("Configure MCP");
-            outputArea.setText("Configure SHAFT MCP in Settings before refreshing the tool catalog.");
-            copyOutputButton.setEnabled(true);
+            setOutput("", "Configure SHAFT MCP in Settings before refreshing the tool catalog.");
             return;
         }
-        if (!projectAvailable(project)) {
+        if (!projectAvailable(project, "")) {
             return;
         }
         setRunning(true, "Refreshing tools...");
         refreshCatalogButton.setToolTipText(REFRESHING_TOOLTIP);
-        outputArea.setText("");
-        copyOutputButton.setEnabled(false);
+        clearOutput();
         // The button is an explicit user request for fresh data, so it must bypass the cache
         // unlike the silent auto-populate warm-up (which serves the cache when present).
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startListTools(true);
@@ -347,11 +361,10 @@ final class ShaftFeaturePanel extends JPanel {
                 () -> showCatalogResult(result, error)));
     }
 
-    private void showResult(ShaftMcpToolResult result, Throwable error) {
+    private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
         if (error instanceof CancellationException) {
             setRunning(false, "Cancelled");
-            outputArea.setText("Cancelled.");
-            copyOutputButton.setEnabled(true);
+            setOutput(toolName, "Cancelled.");
             return;
         }
         setRunning(false, error == null && result != null && result.success() ? "Finished" : "Failed");
@@ -362,23 +375,21 @@ final class ShaftFeaturePanel extends JPanel {
             if (category.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(category.recoveryAction());
             }
-            outputArea.setText(sb.toString());
+            setOutput(toolName, sb.toString());
         } else if (result == null) {
-            outputArea.setText("No result returned.");
+            setOutput(toolName, "No result returned.");
         } else if (result.success()) {
-            outputArea.setText(JsonText.prettyOrOriginal(result.output()));
+            setOutput(toolName, JsonText.prettyOrOriginal(result.output()));
         } else {
-            formatErrorOutput(result);
+            setOutput(toolName, formatErrorOutput(result));
         }
-        copyOutputButton.setEnabled(!outputArea.getText().isBlank());
     }
 
     private void showCatalogResult(ShaftMcpToolResult result, Throwable error) {
         refreshCatalogButton.setToolTipText(REFRESH_TOOLS_TOOLTIP);
         if (error instanceof CancellationException) {
             setRunning(false, "Cancelled");
-            outputArea.setText("Cancelled.");
-            copyOutputButton.setEnabled(true);
+            setOutput("", "Cancelled.");
             return;
         }
         boolean success = error == null && result != null && result.success();
@@ -390,7 +401,7 @@ final class ShaftFeaturePanel extends JPanel {
         if (success) {
             categories = ToolTemplates.categories(result.output());
             reloadCategories();
-            outputArea.setText(JsonText.prettyOrOriginal(result.output()));
+            setOutput("", JsonText.prettyOrOriginal(result.output()));
         } else if (error != null) {
             McpInvocationError category = McpInvocationError.categorize(error);
             StringBuilder sb = new StringBuilder();
@@ -398,16 +409,15 @@ final class ShaftFeaturePanel extends JPanel {
             if (category.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(category.recoveryAction());
             }
-            outputArea.setText(sb.toString());
+            setOutput("", sb.toString());
         } else if (result == null) {
-            outputArea.setText("No result returned.");
+            setOutput("", "No result returned.");
         } else {
-            formatErrorOutput(result);
+            setOutput("", formatErrorOutput(result));
         }
         status.setText(success
                 ? ShaftStatusPresentation.SUCCESS_ICON + " Tools refreshed"
                 : ShaftStatusPresentation.ERROR_ICON + " Failed");
-        copyOutputButton.setEnabled(!outputArea.getText().isBlank());
     }
 
     private void reloadCategories() {
@@ -544,14 +554,45 @@ final class ShaftFeaturePanel extends JPanel {
         return settings.mcpReady();
     }
 
-    private boolean projectAvailable(Project project) {
+    private boolean projectAvailable(Project project, String toolName) {
         if (project != null) {
             return true;
         }
         status.setText("Open project");
-        outputArea.setText("Open an IntelliJ project before running SHAFT MCP tools.");
-        copyOutputButton.setEnabled(true);
+        setOutput(toolName, "Open an IntelliJ project before running SHAFT MCP tools.");
         return false;
+    }
+
+    /**
+     * Renders a tool result as a humanized card (issue #3552), reusing the same
+     * {@link AssistantMarkdown} the Assistant chat renders with so a Tools-panel run and an
+     * Assistant-routed run of the same tool read identically. {@code outputArea} keeps holding the
+     * exact, untouched {@code rawText} so {@link #copyOutputButton} and the raw-JSON toggle always
+     * expose the real bytes, one click away from the card.
+     */
+    private void setOutput(String toolName, String rawText) {
+        outputArea.setText(rawText);
+        outputCard.setMarkdown(AssistantMarkdown.fromMcpOutput(toolName, rawText));
+        showRawOutput(false);
+        boolean hasOutput = !rawText.isBlank();
+        copyOutputButton.setEnabled(hasOutput);
+        toggleRawOutputButton.setEnabled(hasOutput);
+    }
+
+    private void clearOutput() {
+        setOutput("", "");
+    }
+
+    private void toggleRawOutput() {
+        showRawOutput(!showingRawOutput);
+    }
+
+    private void showRawOutput(boolean raw) {
+        showingRawOutput = raw;
+        ((java.awt.CardLayout) outputCards.getLayout()).show(outputCards, raw ? "raw" : "card");
+        // Icon-only button (issue #3538 icon-only-and-symmetric convention): the state flips in the
+        // tooltip, never in visible text.
+        toggleRawOutputButton.setToolTipText(raw ? "View summarized output" : "View raw JSON");
     }
 
     private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
@@ -670,17 +711,16 @@ final class ShaftFeaturePanel extends JPanel {
         return template.description().isBlank() ? template.toolName() : template.description();
     }
 
-    private void formatErrorOutput(ShaftMcpToolResult result) {
+    private static String formatErrorOutput(ShaftMcpToolResult result) {
         if (result.errorCategory() != null) {
             StringBuilder sb = new StringBuilder();
             sb.append(result.output());
             if (result.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(result.recoveryAction());
             }
-            outputArea.setText(sb.toString());
-        } else {
-            outputArea.setText(result.output());
+            return sb.toString();
         }
+        return result.output();
     }
 
     private void selectJsonErrorLocation(JsonText.JsonErrorLocation location) {

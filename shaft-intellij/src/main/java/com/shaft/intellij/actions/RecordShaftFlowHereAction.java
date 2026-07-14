@@ -53,17 +53,19 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         arguments.addProperty("insertAfter", context.methodName());
         arguments.addProperty("driverVariableName", "driver");
 
+        if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
+            // Default mode: route to the Assistant with an equivalent plain-language request instead
+            // of copying raw MCP JSON to the clipboard and leaving the user to paste it somewhere
+            // (issue #3552) -- prefillTool() only exists on the raw Tools panel that stays hidden here.
+            openAssistantPrompt(project, recordFlowPrompt(context));
+            ShaftNotifier.info(project, "SHAFT",
+                    "Record-at-target request ready in the Assistant for " + context.displayName() + ".");
+            return;
+        }
         JsonObject request = new JsonObject();
         request.addProperty("tool", "capture_record_at_target_code_blocks");
         request.add("arguments", arguments);
         CopyPasteManager.getInstance().setContents(new StringSelection(request.toString()));
-        if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
-            // prefillTool silently no-ops while advanced workflows are off (the default), so notifying
-            // "prepared" here would claim the tool window opened when nothing actually did.
-            ShaftNotifier.warn(project, "SHAFT", "Record-at-target request copied to the clipboard for "
-                    + context.displayName() + ". Enable advanced workflows in Settings | SHAFT to open it there.");
-            return;
-        }
         openToolWindow(project, arguments);
         ShaftNotifier.info(project, "SHAFT", "Record-at-target tool prepared for " + context.displayName() + ".");
     }
@@ -78,6 +80,29 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
             available = JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset()) != null;
         }
         event.getPresentation().setEnabledAndVisible(available);
+    }
+
+    /**
+     * Plain-language Assistant equivalent of the {@code capture_record_at_target_code_blocks} MCP
+     * request. Package-private for {@code RecordShaftFlowHereActionTest}.
+     */
+    static String recordFlowPrompt(JavaTargetContext context) {
+        return "Record a SHAFT flow at " + context.methodName() + " in " + context.className();
+    }
+
+    private static void openAssistantPrompt(Project project, String text) {
+        ToolWindowManager.getInstance(project).invokeLater(() -> {
+            ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
+            if (toolWindow == null) {
+                return;
+            }
+            toolWindow.show(() -> {
+                Content content = toolWindow.getContentManager().getContent(0);
+                if (content != null && content.getComponent() instanceof ShaftToolWindowPanel panel) {
+                    panel.prefillAssistantPrompt(text);
+                }
+            });
+        });
     }
 
     private static void openToolWindow(Project project, JsonObject arguments) {

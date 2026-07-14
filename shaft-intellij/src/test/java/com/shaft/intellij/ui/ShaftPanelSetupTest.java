@@ -4355,9 +4355,9 @@ class ShaftPanelSetupTest {
 
     private static void showToolResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
         Method showResult = ShaftFeaturePanel.class.getDeclaredMethod(
-                "showResult", ShaftMcpToolResult.class, Throwable.class);
+                "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
-        showResult.invoke(panel, result, null);
+        showResult.invoke(panel, "", result, null);
     }
 
     private static void showCatalogResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {

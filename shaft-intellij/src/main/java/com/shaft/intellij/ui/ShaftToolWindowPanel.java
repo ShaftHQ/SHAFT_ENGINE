@@ -40,6 +40,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private final ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe;
     private final ShaftMcpSetupPanel.AgentReadinessProbe deepReadinessProbe;
     private ShaftFeaturePanel advancedTools;
+    private ShaftAssistantPanel assistantPanel;
     private List<ShaftFeaturePanel> featurePanels = List.of();
     private List<WorkflowView> workflowViews = List.of();
     private ApiRecordingSessionPanel apiRecordingPanel;
@@ -99,6 +100,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         workflowCards = null;
         workflowLayout = null;
         advancedTools = null;
+        assistantPanel = null;
         featurePanels = List.of();
         workflowViews = List.of();
         add(setup, BorderLayout.CENTER);
@@ -117,6 +119,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         removeAll();
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
                 assistantChatState, this::showSetupView);
+        assistantPanel = assistant;
         preferredFocusComponent = assistant.preferredFocusComponent();
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
@@ -342,6 +345,27 @@ public final class ShaftToolWindowPanel extends JPanel {
         }
         advancedTools.prefillTool(toolName, arguments);
         selectWorkflow(advancedTools);
+    }
+
+    /**
+     * Selects the Assistant tab and fills its composer with {@code text} for the user to review and
+     * send themselves (issue #3552). The Assistant is the product for regular users, so this is the
+     * "act" half of the advancedUiEnabled gate audit: entry points that used to silently no-op or
+     * dead-end in a warning while advanced workflows are off now route here instead, landing a
+     * ready-to-send plain-language request rather than leaving the user to retype it. A no-op here
+     * (main view not yet built, e.g. the setup view is showing) is not a silent dead end: the tool
+     * window itself already surfaces the setup panel explaining what to do next.
+     *
+     * @param text plain-language prompt to prefill
+     */
+    public void prefillAssistantPrompt(@NotNull String text) {
+        if (assistantPanel == null) {
+            return;
+        }
+        assistantPanel.prefillPrompt(text);
+        if (workflowSelector != null) {
+            selectWorkflow(assistantPanel);
+        }
     }
 
     /**
