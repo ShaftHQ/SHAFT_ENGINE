@@ -121,15 +121,34 @@ class ApiTestRendererTest {
 
     @Test
     void unsupportedHttpMethodIsSkippedNotRenderedAsABrokenCall() throws Exception {
-        ApiTransaction headRequest = transaction("tx-1", "HEAD", "https://api.example.test/probe",
+        // TRACE has no SHAFT.API builder, so it must be skipped rather than rendered as a broken call.
+        ApiTransaction traceRequest = transaction("tx-1", "TRACE", "https://api.example.test/probe",
                 Map.of(), "", 200, Map.of(), "");
 
         RenderedApiTest rendered = ApiTestRenderer.render(
-                "tests.generated", "RecordedApiTest_Unsupported", List.of(headRequest),
+                "tests.generated", "RecordedApiTest_Unsupported", List.of(traceRequest),
                 ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
 
         assertCompiles(rendered.source(), "RecordedApiTest_Unsupported");
         assertEquals(List.of("tx-1"), rendered.skippedTransactionIds());
+    }
+
+    @Test
+    void headAndOptionsMethodsRenderCompilingBuilderCallsNotSkips() throws Exception {
+        ApiTransaction headRequest = transaction("tx-1", "HEAD", "https://api.example.test/probe",
+                Map.of(), "", 200, Map.of(), "");
+        ApiTransaction optionsRequest = transaction("tx-2", "OPTIONS", "https://api.example.test/orders",
+                Map.of(), "", 204, Map.of("Allow", "GET,POST"), "");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_HeadOptions", List.of(headRequest, optionsRequest),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+
+        assertCompiles(rendered.source(), "RecordedApiTest_HeadOptions");
+        // Both verbs now map to real SHAFT.API builders, so nothing is skipped.
+        assertTrue(rendered.skippedTransactionIds().isEmpty(), rendered.skippedTransactionIds().toString());
+        assertTrue(rendered.source().contains(".head(\"/probe\")"), rendered.source());
+        assertTrue(rendered.source().contains(".options(\"/orders\")"), rendered.source());
     }
 
     @Test
