@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/decisions/intellij-plugin-ux-program-umbrella-3553-tracks-children-3546-3552.md",
+  "content_hash": "sha256:a9df3c061f31abcae5fc2dff1f4bab106dbea2271d96c52410fb087ebc71cfc4",
+  "created_at": "2026-07-14T15:59:26+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.intellij-plugin-ux-program-umbrella-3553-tracks-children-3546-3552",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Ideation session: scan shaft-intellij plugin and file a UX-hardening program tracked via GitHub tickets"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "plugin",
+    "ux",
+    "tracking"
+  ],
+  "title": "IntelliJ plugin UX program: umbrella #3553 tracks children #3546-#3552",
+  "type": "decision",
+  "updated_at": "2026-07-14T15:59:26+03:00"
+}

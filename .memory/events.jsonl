@@ -217,3 +217,5 @@
 {"actor":"agent","event":"memory.created","id":"workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a-self-polling-monitor","timestamp":"2026-07-14T12:45:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync","timestamp":"2026-07-14T12:45:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.capture-overlay-is-fixed-height-overflow-hidden-added-content-clips-modal-sub-panels-e2e-runs-the-full-class","timestamp":"2026-07-14T12:45:52+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-plugin-ux-program-umbrella-3553-tracks-children-3546-3552","timestamp":"2026-07-14T15:59:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.always-commit-learned-lessons-to-github-via-a-pr","timestamp":"2026-07-14T15:59:26+03:00"}
