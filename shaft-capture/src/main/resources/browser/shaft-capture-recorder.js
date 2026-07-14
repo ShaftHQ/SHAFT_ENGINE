@@ -47,12 +47,17 @@
     stopped: false,
     minimized: false,
     coachDismissed: false,
+    // #3536 A1/C1: first-session control labels and the opt-in suppressed-events log follow the
+    // exact coachDismissed precedent (default here, sanitize below, write out in persist()).
+    toolbarLabelsDismissed: false,
+    suppressedLogVisible: false,
     assertionMode: false,
     locatorMode: false,
     locatorPreferences: {},
     panelPosition: null,
     readinessState: "READY",
     readinessWarnings: [],
+    suppressedEvents: [],
     actions: [],
     pendingSignals: [],
     nextId: 1,
@@ -71,6 +76,8 @@
   uiState.locatorMode = Boolean(uiState.locatorMode);
   uiState.minimized = Boolean(uiState.minimized);
   uiState.coachDismissed = Boolean(uiState.coachDismissed);
+  uiState.toolbarLabelsDismissed = Boolean(uiState.toolbarLabelsDismissed);
+  uiState.suppressedLogVisible = Boolean(uiState.suppressedLogVisible);
   uiState.lastInteractionAt = Number(uiState.lastInteractionAt) || 0;
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
     ? uiState.locatorPreferences
@@ -85,6 +92,9 @@
   uiState.readinessWarnings = Array.isArray(uiState.readinessWarnings)
     ? uiState.readinessWarnings.slice(-20)
     : [];
+  uiState.suppressedEvents = Array.isArray(uiState.suppressedEvents)
+    ? uiState.suppressedEvents.slice(-50)
+    : [];
   globalThis.__shaftCaptureUiState = uiState;
   const persist = () => {
     if (!topLevel) return;
@@ -94,12 +104,15 @@
         stopped: uiState.stopped,
         minimized: uiState.minimized,
         coachDismissed: uiState.coachDismissed,
+        toolbarLabelsDismissed: uiState.toolbarLabelsDismissed,
+        suppressedLogVisible: uiState.suppressedLogVisible,
         assertionMode: uiState.assertionMode,
         locatorMode: uiState.locatorMode,
         locatorPreferences: uiState.locatorPreferences,
         panelPosition: uiState.panelPosition,
         readinessState: uiState.readinessState,
         readinessWarnings: uiState.readinessWarnings.slice(-20),
+        suppressedEvents: uiState.suppressedEvents.slice(-50),
         actions: uiState.actions.slice(-80),
         pendingSignals: uiState.pendingSignals.slice(-200),
         nextId: uiState.nextId,
@@ -1459,9 +1472,38 @@
       }
       #shaft-capture-actions .action-row {
         display: grid;
-        grid-template-columns: 1fr repeat(5, 28px);
+        /* B5 (#3536): assert/edit/delete moved into the row overflow menu, so only up/down and
+           the overflow toggle stay inline; each gets a larger 32px touch target. */
+        grid-template-columns: 1fr repeat(3, 32px);
         gap: 6px;
         align-items: start;
+      }
+      #shaft-capture-actions .action-row button,
+      #shaft-capture-actions .row-overflow-menu button {
+        min-width: 32px;
+        min-height: 32px;
+      }
+      #shaft-capture-actions li { position: relative; }
+      #shaft-capture-actions .row-overflow-menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        z-index: 5;
+        display: grid;
+        gap: 4px;
+        margin-top: 4px;
+        padding: 6px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 8px;
+        background: var(--shaft-surface);
+        box-shadow: var(--shaft-shadow);
+      }
+      #shaft-capture-actions .row-overflow-menu[hidden] { display: none; }
+      #shaft-capture-actions .row-overflow-menu button {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 6px;
+        padding: 0 8px;
       }
       #shaft-capture-actions span,
       #shaft-capture-actions small {
@@ -1657,6 +1699,53 @@
         border-radius: 6px;
         box-shadow: 0 0 0 3px rgba(0, 110, 192, .2);
       }
+      /* A1 (#3536): first-session labeled toolbar. Labels stay hidden until
+         .show-ctrl-labels is toggled on the panel root by maybeShowToolbarLabels(). */
+      .ctrl-label { display: none; }
+      #shaft-capture-ui.show-ctrl-labels header button {
+        display: inline-flex;
+        align-items: center;
+        width: auto;
+        padding: 0 8px;
+      }
+      #shaft-capture-ui.show-ctrl-labels .ctrl-label {
+        display: inline;
+        margin-inline-start: 4px;
+      }
+      #shaft-capture-labels-dismiss {
+        width: auto;
+        height: auto;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      /* C1 (#3536): opt-in persistent log of suppressed (transparently-ignored) navigations. */
+      #shaft-capture-suppressed-toggle {
+        display: block;
+        width: auto;
+        height: auto;
+        margin: 6px 0 0;
+        padding: 2px 0;
+        border: none;
+        background: none;
+        color: var(--shaft-primary);
+        font-size: 11px;
+        font-weight: 700;
+        text-align: left;
+      }
+      #shaft-capture-suppressed-toggle[hidden] { display: none; }
+      #shaft-capture-suppressed-log {
+        margin: 4px 0 0;
+        padding: 6px 8px;
+        max-height: 120px;
+        overflow-y: auto;
+        border: 1px dashed var(--shaft-border);
+        border-radius: 6px;
+        color: var(--shaft-text-muted);
+        font-size: 11px;
+      }
+      #shaft-capture-suppressed-log[hidden] { display: none; }
+      #shaft-capture-suppressed-log div { padding: 2px 0; overflow-wrap: anywhere; }
     `;
     (document.head || document.documentElement).appendChild(style);
   };
@@ -1727,7 +1816,10 @@
       warningLine.textContent = latestWarning;
       warningLine.hidden = !latestWarning;
     }
-    pause.innerHTML = icon(uiState.paused ? "play" : "pause");
+    // A1 (#3536): pause's label is dynamic (Pause/Resume), so it is rebuilt here alongside the icon
+    // rather than baked into the static header markup like the assert/pick/stop labels.
+    pause.innerHTML = icon(uiState.paused ? "play" : "pause")
+      + '<span class="ctrl-label">' + (uiState.paused ? "Resume" : "Pause") + "</span>";
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
     pause.setAttribute("aria-label", pause.title);
     assert.setAttribute("aria-pressed", String(uiState.assertionMode || assertionPanelOpen));
@@ -1873,6 +1965,29 @@
     if (/^Stop recording/.test(value)) return "Stop";
     return "Step";
   };
+  // B5 (#3536): only one row's overflow menu is open at a time; a single document-level listener
+  // (installed once here, not per row) closes it on outside click or Esc so listeners never leak
+  // across re-renders.
+  let openRowOverflowMenu = null;
+  const closeRowOverflowMenu = () => {
+    if (!openRowOverflowMenu) return;
+    openRowOverflowMenu.menu.hidden = true;
+    openRowOverflowMenu.button.setAttribute("aria-expanded", "false");
+    openRowOverflowMenu = null;
+  };
+  const toggleRowOverflowMenu = (button, menu) => {
+    const opening = menu.hidden;
+    closeRowOverflowMenu();
+    if (opening) {
+      menu.hidden = false;
+      button.setAttribute("aria-expanded", "true");
+      openRowOverflowMenu = {button, menu};
+    }
+  };
+  document.addEventListener("click", () => closeRowOverflowMenu());
+  document.addEventListener("keydown", event => {
+    if (String(event.key || "") === "Escape") closeRowOverflowMenu();
+  });
   function renderActions() {
     const list = document.getElementById("shaft-capture-action-list");
     if (!list) return;
@@ -1898,8 +2013,12 @@
       assert.innerHTML = icon("assert");
       assert.title = "Add visible assertion for this target";
       assert.setAttribute("aria-label", "Add visible assertion for this target");
+      assert.setAttribute("role", "menuitem");
       assert.disabled = !details.target;
-      assert.addEventListener("click", () => quickAssertion(item));
+      assert.addEventListener("click", () => {
+        closeRowOverflowMenu();
+        quickAssertion(item);
+      });
       const up = document.createElement("button");
       up.type = "button";
       up.innerHTML = icon("up");
@@ -1919,19 +2038,48 @@
       edit.innerHTML = icon("edit");
       edit.title = "Edit captured action";
       edit.setAttribute("aria-label", "Edit captured action");
-      edit.addEventListener("click", () => editAction(item));
+      edit.setAttribute("role", "menuitem");
+      edit.addEventListener("click", () => {
+        closeRowOverflowMenu();
+        editAction(item);
+      });
       const remove = document.createElement("button");
       remove.type = "button";
       remove.innerHTML = icon("delete");
       remove.title = "Delete captured action";
       remove.setAttribute("aria-label", "Delete captured action");
-      remove.addEventListener("click", () => deleteAction(item));
-      body.append(textWrap, assert, up, down, edit, remove);
-      row.append(body);
+      remove.setAttribute("role", "menuitem");
+      remove.addEventListener("click", () => {
+        closeRowOverflowMenu();
+        deleteAction(item);
+      });
+      // B5 (#3536): secondary actions (assert/edit/delete) live in the overflow menu; up/down
+      // stay inline so reordering never needs an extra click.
+      const overflow = document.createElement("button");
+      overflow.type = "button";
+      overflow.className = "row-overflow-toggle";
+      overflow.textContent = "⋯";
+      overflow.title = "More actions";
+      overflow.setAttribute("aria-label", "More actions");
+      overflow.setAttribute("aria-haspopup", "menu");
+      overflow.setAttribute("aria-expanded", "false");
+      const menu = document.createElement("div");
+      menu.className = "row-overflow-menu";
+      menu.setAttribute("role", "menu");
+      menu.hidden = true;
+      menu.append(assert, edit, remove);
+      overflow.addEventListener("click", event => {
+        event.stopPropagation();
+        toggleRowOverflowMenu(overflow, menu);
+      });
+      body.append(textWrap, up, down, overflow);
+      row.append(body, menu);
       list.appendChild(row);
     });
     setStatus();
     maybeShowCoach();
+    maybeShowToolbarLabels();
+    renderSuppressedLog();
   }
   const renderLocatorPanel = target => {
     const panel = document.getElementById("shaft-capture-locator-panel");
@@ -2112,11 +2260,12 @@
         <span class="brand-mark" aria-hidden="true">S</span>
         <strong id="shaft-capture-title">SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
-        <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}</button>
-        <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}</button>
-        <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
+        <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}<span class="ctrl-label">Assert</span></button>
+        <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}<span class="ctrl-label">Pick</span></button>
+        <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}<span class="ctrl-label">Stop</span></button>
         <button id="shaft-capture-help-toggle" type="button" title="Show recorder help" aria-label="Show recorder help" aria-expanded="false">?</button>
         <button id="shaft-capture-minimize" type="button" aria-expanded="true"></button>
+        <button id="shaft-capture-labels-dismiss" type="button" hidden>Hide labels</button>
       </header>
       <div id="shaft-capture-status" class="status-chip shaft-capture-readiness">
         <span id="shaft-capture-readiness-pill" class="status-pill"></span>
@@ -2146,7 +2295,7 @@
       </div>
       <div id="shaft-capture-stop-confirm" hidden></div>
       <div id="shaft-capture-locator-panel" hidden></div>
-      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><div id="shaft-capture-sync-note" hidden></div><div id="shaft-capture-undo-note" hidden><span>Step deleted.</span><button id="shaft-capture-undo" type="button">Undo</button></div><ol id="shaft-capture-action-list"></ol></div>
+      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><div id="shaft-capture-sync-note" hidden></div><div id="shaft-capture-undo-note" hidden><span>Step deleted.</span><button id="shaft-capture-undo" type="button">Undo</button></div><ol id="shaft-capture-action-list"></ol><button id="shaft-capture-suppressed-toggle" type="button" hidden aria-expanded="false"></button><div id="shaft-capture-suppressed-log" role="log" hidden></div></div>
     `;
     document.body.appendChild(panel);
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
@@ -2221,6 +2370,25 @@
         if (coach) coach.hidden = true;
       });
     }
+    // A1 (#3536): dismissing the first-session labels is one-way for the rest of the session,
+    // mirroring coachDismissed.
+    const labelsDismiss = document.getElementById("shaft-capture-labels-dismiss");
+    if (labelsDismiss) {
+      labelsDismiss.addEventListener("click", () => {
+        uiState.toolbarLabelsDismissed = true;
+        persist();
+        maybeShowToolbarLabels();
+      });
+    }
+    // C1 (#3536): toggling the suppressed-events log is opt-in and stays persisted for the session.
+    const suppressedToggle = document.getElementById("shaft-capture-suppressed-toggle");
+    if (suppressedToggle) {
+      suppressedToggle.addEventListener("click", () => {
+        uiState.suppressedLogVisible = !uiState.suppressedLogVisible;
+        persist();
+        renderSuppressedLog();
+      });
+    }
     installPanelDrag(panel);
     if (uiState.panelPosition) {
       applyPanelPosition(panel, uiState.panelPosition.left, uiState.panelPosition.top);
@@ -2233,8 +2401,20 @@
       persist();
     });
     maybeShowCoach();
+    maybeShowToolbarLabels();
+    renderSuppressedLog();
     renderActions();
   };
+  // A1 (#3536): first-session labeled toolbar, gated the same way as maybeShowCoach — top-frame
+  // only, and hidden once dismissed or once the session stops (mirroring stop hiding the coach).
+  function maybeShowToolbarLabels() {
+    const panel = document.getElementById("shaft-capture-ui");
+    if (!panel) return;
+    const show = topLevel && !uiState.toolbarLabelsDismissed && !uiState.stopped;
+    panel.classList.toggle("show-ctrl-labels", show);
+    const dismiss = document.getElementById("shaft-capture-labels-dismiss");
+    if (dismiss) dismiss.hidden = !show;
+  }
   // First-run coach marks (#3510 A3): a dismissible, session-scoped set of at-most-three tips shown
   // until the user dismisses them, so a first-time user is oriented without nagging returning users
   // (the "seen" flag rides the same top-frame sessionStorage as the rest of the UI state). The count
@@ -2311,6 +2491,29 @@
   // recorded step (and therefore NOT recorded as its own step), say so briefly instead of
   // silently dropping it, so users trust that "missing" rows are deliberate.
   let ignoredNoteTimer = null;
+  // C1 (#3536): renders the toggle button (always, so its "(N)" count stays live even while the
+  // log itself is collapsed) and the log body (only while uiState.suppressedLogVisible).
+  function renderSuppressedLog() {
+    const toggle = document.getElementById("shaft-capture-suppressed-toggle");
+    const log = document.getElementById("shaft-capture-suppressed-log");
+    if (!toggle || !log) return;
+    const count = uiState.suppressedEvents.length;
+    toggle.hidden = !(topLevel && count > 0);
+    toggle.textContent = (uiState.suppressedLogVisible ? "Hide" : "Show") + " suppressed events (" + count + ")";
+    toggle.setAttribute("aria-expanded", String(uiState.suppressedLogVisible));
+    log.hidden = !uiState.suppressedLogVisible;
+    if (!uiState.suppressedLogVisible) return;
+    log.textContent = "";
+    uiState.suppressedEvents.slice().reverse().forEach(event => {
+      const line = document.createElement("div");
+      // textContent, never innerHTML: reason strings come from page-observed navigation state.
+      line.textContent = new Date(Number(event.timestamp) || 0).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      }) + " — " + String(event.reason || "");
+      log.appendChild(line);
+    });
+  }
   const noteIgnored = reason => {
     const note = document.getElementById("shaft-capture-ignored-note");
     if (!note) return;
@@ -2320,6 +2523,13 @@
     ignoredNoteTimer = setTimeout(() => {
       note.hidden = true;
     }, 6000);
+    // Persistent opt-in log (#3536 C1): the transient note above still auto-hides, but the toggle
+    // count is refreshed unconditionally (not only "if visible") so it never goes stale between
+    // renderActions()/renderPanel() calls.
+    uiState.suppressedEvents.push({reason: String(reason), timestamp: Date.now()});
+    uiState.suppressedEvents = uiState.suppressedEvents.slice(-50);
+    persist();
+    renderSuppressedLog();
   };
   // Server-sync transparency (#3510 C3): when a background re-sync from the durable session changes
   // the visible step list (a cross-origin navigation rehydrated rows this page had not seen), say
