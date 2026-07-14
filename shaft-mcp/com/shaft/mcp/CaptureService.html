@@ -69,6 +69,7 @@
 <li><a href="#setMode(java.lang.String)" tabindex="0">setMode(String)</a></li>
 <li><a href="#pickLocator(java.util.List)" tabindex="0">pickLocator(List)</a></li>
 <li><a href="#generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String)" tabindex="0">generateReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String)</a></li>
+<li><a href="#generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String,java.lang.String,io.modelcontextprotocol.server.McpSyncServerExchange)" tabindex="0">generateReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String, String, McpSyncServerExchange)</a></li>
 <li><a href="#generatePlaywrightReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String)" tabindex="0">generatePlaywrightReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String)</a></li>
 <li><a href="#codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">codeBlocks(String, String, String, String, boolean, String)</a></li>
 <li><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">recordAtTargetCodeBlocks(String, String, String, String, boolean, String, String, String)</a></li>
@@ -289,24 +290,41 @@ session's API transactions.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureService.McpPickLocatorResult.html" title="class in com.shaft.mcp">CaptureService.McpPickLocatorResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pickLocator(java.util.List)" class="member-name-link">pickLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CaptureService.McpLocatorCandidate.html" title="class in com.shaft.mcp">CaptureService.McpLocatorCandidate</a>&gt;&nbsp;candidates)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String,java.lang.String,io.modelcontextprotocol.server.McpSyncServerExchange)" class="member-name-link">generateReplay</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
+ boolean&nbsp;overwrite,
+ boolean&nbsp;replay,
+ boolean&nbsp;useAi,
+ boolean&nbsp;allowLocalAi,
+ boolean&nbsp;allowRemoteAi,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;progressToken,
+ io.modelcontextprotocol.server.McpSyncServerExchange&nbsp;exchange)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session,
+streaming best-effort milestone progress over the MCP exchange when the caller requested it.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureService.McpPickLocatorResult.html" title="class in com.shaft.mcp">CaptureService.McpPickLocatorResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pickLocator(java.util.List)" class="member-name-link">pickLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CaptureService.McpLocatorCandidate.html" title="class in com.shaft.mcp">CaptureService.McpLocatorCandidate</a>&gt;&nbsp;candidates)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Ranks caller-supplied locator candidates for one picked element (best-first) and renders a
 copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">playwrightCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">playwrightCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
  boolean&nbsp;overwrite,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates deterministic copy-paste SHAFT Playwright code blocks from a persisted Capture session.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">recordAtTargetCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">recordAtTargetCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
@@ -314,42 +332,42 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetSourcePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;insertAfter,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates focused record-at-target code blocks for an existing Java source anchor.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setMode(java.lang.String)" class="member-name-link">setMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setMode(java.lang.String)" class="member-name-link">setMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reads or toggles the active recorder's live authoring mode.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  boolean&nbsp;headless,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionGoal)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Launches a fresh SHAFT-managed browser and starts deterministic capture.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startWithOptions(com.shaft.mcp.CaptureService.CaptureCodegenStartRequest)" class="member-name-link">startWithOptions</a><wbr>(<a href="CaptureService.CaptureCodegenStartRequest.html" title="class in com.shaft.mcp">CaptureService.CaptureCodegenStartRequest</a>&nbsp;request)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startWithOptions(com.shaft.mcp.CaptureService.CaptureCodegenStartRequest)" class="member-name-link">startWithOptions</a><wbr>(<a href="CaptureService.CaptureCodegenStartRequest.html" title="class in com.shaft.mcp">CaptureService.CaptureCodegenStartRequest</a>&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Launches a fresh SHAFT-managed browser with Playwright-codegen-shaped options.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns safe recorder status without captured values.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(boolean)" class="member-name-link">stop</a><wbr>(boolean&nbsp;discard)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(boolean)" class="member-name-link">stop</a><wbr>(boolean&nbsp;discard)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Stops the active recording.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;com.shaft.mcp.McpJavaTargetScanner.Candidate&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#targetCandidates(java.lang.String,int)" class="member-name-link">targetCandidates</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;com.shaft.mcp.McpJavaTargetScanner.Candidate&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#targetCandidates(java.lang.String,int)" class="member-name-link">targetCandidates</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryPath,
  int&nbsp;maxResults)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Suggests existing Java classes and anchors for record-at-target insertion.</div>
 </div>
 </div>
@@ -661,9 +679,7 @@ v1; see <code>CaptureControlFiles.LastPick.capturedAtMillis()</code>.</div>
 <section class="detail" id="generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String)">
 <h3>generateReplay</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="capture_generate_replay",
-      description="generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">generateReplay</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">generateReplay</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
@@ -673,7 +689,10 @@ v1; see <code>CaptureControlFiles.LastPick.capturedAtMillis()</code>.</div>
  boolean&nbsp;allowLocalAi,
  boolean&nbsp;allowRemoteAi,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
-<div class="block">Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session.</div>
+<div class="block">Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session.
+
+<p>Plain Java overload with no progress reporting, preserved for direct callers (for example,
+white-box tests); the MCP-exposed tool is <a href="#generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String,java.lang.String,io.modelcontextprotocol.server.McpSyncServerExchange)"><code>generateReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String, String, McpSyncServerExchange)</code></a>.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>sessionPath</code> - persisted Capture JSON path inside the MCP workspace</dd>
@@ -686,6 +705,49 @@ v1; see <code>CaptureControlFiles.LastPick.capturedAtMillis()</code>.</div>
 <dd><code>allowLocalAi</code> - explicit approval for local inference</dd>
 <dd><code>allowRemoteAi</code> - explicit approval for remote inference</dd>
 <dd><code>driverVariableName</code> - Java driver variable name used in extracted snippets</dd>
+<dt>Returns:</dt>
+<dd>generation report plus copy-paste code blocks</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String,java.lang.String,io.modelcontextprotocol.server.McpSyncServerExchange)">
+<h3>generateReplay</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@McpTool(name="capture_generate_replay",
+         description="generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">generateReplay</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
+ boolean&nbsp;overwrite,
+ boolean&nbsp;replay,
+ boolean&nbsp;useAi,
+ boolean&nbsp;allowLocalAi,
+ boolean&nbsp;allowRemoteAi,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
+ @McpProgressToken
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;progressToken,
+ io.modelcontextprotocol.server.McpSyncServerExchange&nbsp;exchange)</span></div>
+<div class="block">Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session,
+streaming best-effort milestone progress over the MCP exchange when the caller requested it.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>sessionPath</code> - persisted Capture JSON path inside the MCP workspace</dd>
+<dd><code>outputDirectory</code> - generated project root inside the MCP workspace</dd>
+<dd><code>packageName</code> - generated Java package</dd>
+<dd><code>className</code> - optional generated class name</dd>
+<dd><code>overwrite</code> - whether existing generated source and test-data files may be replaced; status reports are always refreshed</dd>
+<dd><code>replay</code> - whether to execute the generated test</dd>
+<dd><code>useAi</code> - whether to request optional AI enrichment preview</dd>
+<dd><code>allowLocalAi</code> - explicit approval for local inference</dd>
+<dd><code>allowRemoteAi</code> - explicit approval for remote inference</dd>
+<dd><code>driverVariableName</code> - Java driver variable name used in extracted snippets</dd>
+<dd><code>progressToken</code> - MCP progress token supplied by the requester; null when the client did
+                     not request progress notifications</dd>
+<dd><code>exchange</code> - live MCP server exchange used to emit progress notifications; injected by the
+                annotation-scanning MCP tool provider, never exposed in the tool's input schema</dd>
 <dt>Returns:</dt>
 <dd>generation report plus copy-paste code blocks</dd>
 </dl>

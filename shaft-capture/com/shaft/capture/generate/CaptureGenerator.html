@@ -58,6 +58,7 @@
 <ol class="toc-list">
 <li><a href="#generate(com.shaft.capture.generate.CaptureGenerationRequest)" tabindex="0">generate(CaptureGenerationRequest)</a></li>
 <li><a href="#generate(com.shaft.capture.generate.CaptureGenerationRequest,com.shaft.capture.generate.CaptureGenerator.CodegenBackend)" tabindex="0">generate(CaptureGenerationRequest, CaptureGenerator.CodegenBackend)</a></li>
+<li><a href="#generate(com.shaft.capture.generate.CaptureGenerationRequest,com.shaft.capture.generate.CaptureGenerator.CodegenBackend,java.util.function.BiConsumer)" tabindex="0">generate(CaptureGenerationRequest, CaptureGenerator.CodegenBackend, BiConsumer)</a></li>
 </ol>
 </li>
 </ol>
@@ -141,6 +142,14 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates, validates, and reports one SHAFT TestNG test for a selected GUI backend.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureGenerationResult.html" title="class in com.shaft.capture.generate">CaptureGenerationResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generate(com.shaft.capture.generate.CaptureGenerationRequest,com.shaft.capture.generate.CaptureGenerator.CodegenBackend,java.util.function.BiConsumer)" class="member-name-link">generate</a><wbr>(<a href="CaptureGenerationRequest.html" title="class in com.shaft.capture.generate">CaptureGenerationRequest</a>&nbsp;request,
+ <a href="CaptureGenerator.CodegenBackend.html" title="enum class in com.shaft.capture.generate">CaptureGenerator.CodegenBackend</a>&nbsp;backend,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/BiConsumer.html" title="class or interface in java.util.function" class="external-link">BiConsumer</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;progress)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Generates, validates, and reports one SHAFT TestNG test for a selected GUI backend, reporting
+best-effort milestone progress as generation advances.</div>
+</div>
 </div>
 </div>
 </div>
@@ -220,6 +229,27 @@
 <dt>Parameters:</dt>
 <dd><code>request</code> - generation options</dd>
 <dd><code>backend</code> - generated SHAFT GUI backend</dd>
+<dt>Returns:</dt>
+<dd>generated artifacts and report</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="generate(com.shaft.capture.generate.CaptureGenerationRequest,com.shaft.capture.generate.CaptureGenerator.CodegenBackend,java.util.function.BiConsumer)">
+<h3>generate</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="CaptureGenerationResult.html" title="class in com.shaft.capture.generate">CaptureGenerationResult</a></span>&nbsp;<span class="element-name">generate</span><wbr><span class="parameters">(<a href="CaptureGenerationRequest.html" title="class in com.shaft.capture.generate">CaptureGenerationRequest</a>&nbsp;request,
+ <a href="CaptureGenerator.CodegenBackend.html" title="enum class in com.shaft.capture.generate">CaptureGenerator.CodegenBackend</a>&nbsp;backend,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/BiConsumer.html" title="class or interface in java.util.function" class="external-link">BiConsumer</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;progress)</span></div>
+<div class="block">Generates, validates, and reports one SHAFT TestNG test for a selected GUI backend, reporting
+best-effort milestone progress as generation advances.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>request</code> - generation options</dd>
+<dd><code>backend</code> - generated SHAFT GUI backend</dd>
+<dd><code>progress</code> - receives (fraction 0.0-1.0, milestone message) callbacks; never invoked with
+                a null argument, safe to pass a no-op consumer</dd>
 <dt>Returns:</dt>
 <dd>generated artifacts and report</dd>
 </dl>
