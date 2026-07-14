@@ -112,6 +112,9 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyUpgradeCommand;
     private final JButton checkUpgrade;
     private final JLabel upgradeDetail;
+    private final JButton checkMcpVersion;
+    private final JButton copyMcpInstallCommand;
+    private final JLabel mcpVersionDetail;
     private final JButton copyInstallerCommand;
     private final JButton test;
     private final JButton startChatting;
@@ -130,6 +133,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JLabel installState;
     private final JLabel testStep;
     private final JLabel testState;
+    private final JLabel mcpVersionStep;
+    private final JLabel mcpVersionState;
     private final JLabel readyState;
     private final JLabel status;
     private final JLabel recommendedAgent;
@@ -151,6 +156,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JPanel chooseRow;
     private final JPanel installRow;
     private final JPanel checkRow;
+    private final JPanel mcpVersionRow;
     private final JPanel chatRow;
     private java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>> prerequisitesDetector =
             SetupPrerequisites::detect;
@@ -166,6 +172,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     /** Runs the real project-vs-latest SHAFT version comparison; injectable for tests. */
     private java.util.function.Supplier<ShaftProjectVersionCheck.Result> upgradeChecker = () ->
             ShaftProjectVersionCheck.check(projectRoot(), SetupPrerequisites.knownLatestEngineVersion());
+    private ShaftMcpVersionCheck.Result mcpVersionCheckResult;
+    /** Runs the real installed-vs-latest shaft-mcp version comparison; injectable for tests. */
+    private java.util.function.Supplier<ShaftMcpVersionCheck.Result> mcpVersionChecker = () ->
+            ShaftMcpVersionCheck.check(installedShaftMcpVersion(), SetupPrerequisites.knownLatestMcpVersion());
     /**
      * Opens a terminal tab (name, command) with the command pre-typed; injectable for tests.
      * Returns whether the terminal actually opened so status text can say what really happened.
@@ -293,6 +303,18 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(checkUpgrade, ShaftIcons.CHECK);
         checkUpgrade.addActionListener(event -> runUpgradeCheck(true));
         upgradeDetail = setupStatusLabel("SHAFT project version status");
+        checkMcpVersion = new JButton("Check");
+        checkMcpVersion.getAccessibleContext().setAccessibleName("Check SHAFT MCP version");
+        checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
+        applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
+        checkMcpVersion.addActionListener(event -> runMcpVersionCheck(true));
+        copyMcpInstallCommand = new JButton("Copy command");
+        copyMcpInstallCommand.getAccessibleContext().setAccessibleName("Copy SHAFT MCP install command");
+        copyMcpInstallCommand.setToolTipText("Copy the SHAFT MCP install/update command and open a terminal with "
+                + "it pre-typed — just press Enter there to run it");
+        applyLabeledAction(copyMcpInstallCommand, ShaftIcons.COPY);
+        copyMcpInstallCommand.addActionListener(event -> copyMcpInstallCommand());
+        mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
         copyInstallerCommand = new JButton("Copy command");
         copyInstallerCommand.getAccessibleContext().setAccessibleName("Copy MCP installer command");
         copyInstallerCommand.setToolTipText("Copy the installer command and open a terminal with it pre-typed "
@@ -418,6 +440,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         installState = setupStateLabel("Install SHAFT MCP setup state");
         testStep = setupStepLabel("Check now setup step");
         testState = setupStateLabel("Check now setup state");
+        mcpVersionStep = setupStepLabel("SHAFT MCP version setup step");
+        mcpVersionState = setupStateLabel("SHAFT MCP version setup state");
         readyState = setupStateLabel("Start chatting setup state");
         JPanel agentControls = new JPanel();
         agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
@@ -444,10 +468,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         installActions.setOpaque(false);
         installActions.add(copyInstallerCommand);
         installActions.add(installShaftCli);
+        JPanel mcpVersionActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        mcpVersionActions.setOpaque(false);
+        mcpVersionActions.add(checkMcpVersion);
+        mcpVersionActions.add(copyMcpInstallCommand);
+        mcpVersionActions.add(mcpVersionDetail);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
         installRow = stepRow(installStep, installState, installActions);
         checkRow = stepRow(testStep, testState, checkActions);
+        mcpVersionRow = stepRow(mcpVersionStep, mcpVersionState, mcpVersionActions);
         prerequisitesList = new JPanel();
         prerequisitesList.setLayout(new javax.swing.BoxLayout(prerequisitesList, javax.swing.BoxLayout.Y_AXIS));
         prerequisitesList.setOpaque(false);
@@ -460,6 +490,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         JButton copyEngineWarmup = new JButton("Copy SHAFT Engine warm-up command");
         // Resolve the latest engine release off-EDT now so the click below can pin a real version.
         SetupPrerequisites.prefetchLatestEngineVersion();
+        // Same fire-once, off-EDT pattern for the latest shaft-mcp release (issue #3538).
+        SetupPrerequisites.prefetchLatestMcpVersion();
         copyEngineWarmup.getAccessibleContext().setAccessibleName("Copy SHAFT Engine warm-up command");
         copyEngineWarmup.setToolTipText("Copy a Maven command that downloads SHAFT Engine and its dependencies "
                 + "into the local Maven repository so future projects reuse them without re-downloading; "
@@ -509,6 +541,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         workflow.add(installRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
         workflow.add(checkRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(6));
+        workflow.add(mcpVersionRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
         workflow.add(chatRow);
         JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -605,6 +639,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         refreshPrerequisites();
         refreshRealChecks();
         runUpgradeCheck(false);
+        runMcpVersionCheck(false);
         if (!currentCommand().isBlank()) {
             setStatusText(CHECK_NEXT_STEP);
         }
@@ -668,6 +703,41 @@ final class ShaftMcpSetupPanel extends JPanel {
                     + "workflow) to scaffold one, then press Check.";
             case LATEST_UNKNOWN -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected, but the latest "
                     + "release could not be determined (offline?). Press Check to retry.";
+        };
+    }
+
+    /**
+     * Runs the real "SHAFT MCP version" check: compares the installed shaft-mcp version (detected
+     * from disk) against the latest released version, and reflects the truth in the step badge and
+     * detail label. This row never gates the rest of the setup flow — an unknown latest version
+     * (offline) is a neutral state, never a failure (issue #3538).
+     */
+    private void runMcpVersionCheck(boolean announce) {
+        mcpVersionCheckResult = mcpVersionChecker.get();
+        mcpVersionDetail.setText(mcpVersionDetailText());
+        mcpVersionDetail.setForeground(switch (mcpVersionCheckResult.state()) {
+            case UP_TO_DATE -> ShaftStatusPresentation.success();
+            case UPGRADE_AVAILABLE -> ShaftStatusPresentation.progress();
+            default -> ShaftStatusPresentation.pending();
+        });
+        if (announce) {
+            setStatusText(mcpVersionDetailText());
+        }
+        updateActionState(false);
+    }
+
+    private String mcpVersionDetailText() {
+        if (mcpVersionCheckResult == null) {
+            return "";
+        }
+        return switch (mcpVersionCheckResult.state()) {
+            case UP_TO_DATE -> "SHAFT MCP " + mcpVersionCheckResult.installedVersion() + " is up to date.";
+            case UPGRADE_AVAILABLE -> "Update available — installed " + mcpVersionCheckResult.installedVersion()
+                    + ", latest " + mcpVersionCheckResult.latestVersion() + ".";
+            case NOT_INSTALLED -> "SHAFT MCP is not installed yet.";
+            case LATEST_UNKNOWN -> "Couldn't check the latest SHAFT MCP version (offline); installed: "
+                    + (mcpVersionCheckResult.installedVersion().isBlank()
+                    ? "none" : mcpVersionCheckResult.installedVersion()) + ".";
         };
     }
 
@@ -924,6 +994,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyUpgradeCommand.setVisible(!upgradeDone);
         copyUpgradeCommand.setEnabled(!running && !upgradeDone);
         checkUpgrade.setEnabled(!running);
+        // Never gates the rest of setup (issue #3538): the copy button stays available for every
+        // state except an already-up-to-date install, including the offline LATEST_UNKNOWN state.
+        boolean mcpVersionUpToDate = mcpVersionCheckResult != null
+                && mcpVersionCheckResult.state() == ShaftMcpVersionCheck.State.UP_TO_DATE;
+        copyMcpInstallCommand.setVisible(!mcpVersionUpToDate);
+        copyMcpInstallCommand.setEnabled(!running && !mcpVersionUpToDate);
+        checkMcpVersion.setEnabled(!running);
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
         startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
@@ -1240,6 +1317,25 @@ final class ShaftMcpSetupPanel extends JPanel {
         test.requestFocusInWindow();
     }
 
+    /**
+     * Copies the SHAFT MCP install/update command for the selected client. Install and upgrade are
+     * the same command — re-running the installer script always fetches the latest release — so
+     * there is no separate "install" vs "upgrade" flavor of this command (issue #3538).
+     */
+    private void copyMcpInstallCommand() {
+        String command = installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
+        copy(command, "Copied SHAFT MCP install command");
+        boolean opened = terminalOpener.test("SHAFT MCP install", command);
+        if (opened) {
+            openIntellijTerminal();
+        }
+        setStatusText(opened
+                ? "Terminal opened with the SHAFT MCP install command pre-typed. Press Enter there to run it; "
+                + "when it finishes, press Check."
+                : "SHAFT MCP install command copied. Paste it into a terminal, run it; when it finishes, press Check.");
+        updateActionState(false);
+    }
+
     private void resetAndCopyInstaller() {
         clearDiagnostics();
         mcpCommand.setText("");
@@ -1321,6 +1417,24 @@ final class ShaftMcpSetupPanel extends JPanel {
         }
         Path java = installerJava(bootstrapRoot);
         return quote(java == null ? "java" : java.toString()) + " " + quote("@" + argsFile);
+    }
+
+    /**
+     * Installed shaft-mcp version, read from the parent directory name of the newest
+     * {@code versions/<version>/shaft-mcp.args} on disk — the same file
+     * {@link #inferInstalledStdioCommand(Path, Path)} already reads to build the stdio command
+     * (issue #3538). Blank when nothing is installed.
+     */
+    static String installedShaftMcpVersion(Path applicationDataRoot) {
+        Path argsFile = latestArgsFile(applicationDataRoot);
+        if (argsFile == null || argsFile.getParent() == null) {
+            return "";
+        }
+        return String.valueOf(argsFile.getParent().getFileName());
+    }
+
+    private static String installedShaftMcpVersion() {
+        return installedShaftMcpVersion(applicationDataRoot());
     }
 
     private static Path latestArgsFile(Path applicationDataRoot) {
@@ -1693,6 +1807,22 @@ final class ShaftMcpSetupPanel extends JPanel {
         return installedCommandDetected || hasCommand ? "next" : "wait";
     }
 
+    /**
+     * Never "failed" (issue #3538): an offline latest-version lookup is surfaced as "optional" —
+     * the same neutral badge the upgrade step's LATEST_UNKNOWN uses — so this row can never block
+     * the rest of setup.
+     */
+    private String mcpVersionStepState() {
+        if (mcpVersionCheckResult == null) {
+            return "optional";
+        }
+        return switch (mcpVersionCheckResult.state()) {
+            case UP_TO_DATE -> "done";
+            case UPGRADE_AVAILABLE, NOT_INSTALLED -> "next";
+            case LATEST_UNKNOWN -> "optional";
+        };
+    }
+
     private void updateSetupSteps(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
@@ -1700,6 +1830,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         setStep(chooseStep, chooseState, "2 Pick agent", chooseStepState());
         setStep(installStep, installState, "3 Install SHAFT MCP", installStepState(hasCommand));
         setStep(testStep, testState, "4 Check setup", checkStepState(running, complete, hasCommand));
+        setStep(mcpVersionStep, mcpVersionState, "SHAFT MCP version", mcpVersionStepState());
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
     }
 
@@ -1710,6 +1841,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         styleStepRow(chooseRow, chooseStepState());
         styleStepRow(installRow, installStepState(hasCommand));
         styleStepRow(checkRow, checkStepState(running, complete, hasCommand));
+        styleStepRow(mcpVersionRow, mcpVersionStepState());
         styleStepRow(chatRow, complete ? "next" : "wait");
     }
 

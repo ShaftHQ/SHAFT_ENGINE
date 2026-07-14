@@ -91,10 +91,14 @@ final class SetupPrerequisites {
 
     private static final String ENGINE_METADATA_URL =
             "https://repo1.maven.org/maven2/io/github/shafthq/SHAFT_ENGINE/maven-metadata.xml";
+    private static final String MCP_METADATA_URL =
+            "https://repo1.maven.org/maven2/io/github/shafthq/shaft-mcp/maven-metadata.xml";
     private static final Pattern METADATA_RELEASE = Pattern.compile("<release>\\s*([^<\\s]+)\\s*</release>");
     private static final Pattern VERSION_LIKE = Pattern.compile("\\d+(\\.\\d+)+");
     private static final AtomicReference<String> RESOLVED_ENGINE_VERSION = new AtomicReference<>();
     private static final AtomicReference<CompletableFuture<Void>> ENGINE_VERSION_PREFETCH = new AtomicReference<>();
+    private static final AtomicReference<String> RESOLVED_MCP_VERSION = new AtomicReference<>();
+    private static final AtomicReference<CompletableFuture<Void>> MCP_VERSION_PREFETCH = new AtomicReference<>();
 
     /**
      * Pre-downloads SHAFT Engine and its transitive dependencies into the local Maven repository so
@@ -175,7 +179,40 @@ final class SetupPrerequisites {
         }
     }
 
+    /**
+     * Starts (at most once) a background resolution of the latest released shaft-mcp version from
+     * Maven Central, mirroring {@link #prefetchLatestEngineVersion()}, so a later EDT call to
+     * {@link #knownLatestMcpVersion()} never blocks on the network (issue #3538).
+     */
+    static void prefetchLatestMcpVersion() {
+        if (MCP_VERSION_PREFETCH.compareAndSet(null, new CompletableFuture<>())) {
+            CompletableFuture
+                    .runAsync(() -> {
+                        String release = releaseVersionFromMavenCentral(MCP_METADATA_URL);
+                        if (!release.isBlank()) {
+                            RESOLVED_MCP_VERSION.set(release);
+                        }
+                    })
+                    .whenComplete((ignored, error) -> MCP_VERSION_PREFETCH.get().complete(null));
+        }
+    }
+
+    /**
+     * Best-known latest shaft-mcp release as a concrete version number, or blank when the background
+     * resolution has not completed (yet) or the machine is offline. The setup flow's "SHAFT MCP
+     * version" step treats blank as a neutral, non-blocking "unknown" state — it never fails setup
+     * (issue #3538).
+     */
+    static String knownLatestMcpVersion() {
+        String resolved = RESOLVED_MCP_VERSION.get();
+        return isVersionLike(resolved) ? resolved : "";
+    }
+
     private static String releaseVersionFromMavenCentral() {
+        return releaseVersionFromMavenCentral(ENGINE_METADATA_URL);
+    }
+
+    private static String releaseVersionFromMavenCentral(String metadataUrl) {
         // No try-with-resources: HttpClient is only AutoCloseable on JDK 21+, and this module
         // still compiles with --release 17.
         try {
@@ -184,7 +221,7 @@ final class SetupPrerequisites {
                     .followRedirects(HttpClient.Redirect.NORMAL)
                     .build();
             HttpResponse<String> response = client.send(
-                    HttpRequest.newBuilder(URI.create(ENGINE_METADATA_URL))
+                    HttpRequest.newBuilder(URI.create(metadataUrl))
                             .timeout(Duration.ofSeconds(10))
                             .GET()
                             .build(),
