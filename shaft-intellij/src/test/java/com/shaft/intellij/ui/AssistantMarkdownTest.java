@@ -493,6 +493,30 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void toolFailureMarkdownGivesGenericFailuresAHeadlineAndOneNextAction() {
+        String rendered = AssistantMarkdown.toolFailureMarkdown("capture_start",
+                "The SHAFT MCP server is not reachable.");
+
+        assertAll(
+                () -> assertTrue(rendered.contains("`capture_start` couldn't finish"), rendered),
+                () -> assertTrue(rendered.contains("The SHAFT MCP server is not reachable."), rendered),
+                () -> assertTrue(rendered.contains("_Next:"), rendered),
+                () -> assertTrue(rendered.contains("Settings"), rendered));
+    }
+
+    @Test
+    void toolFailureMarkdownLeavesAnAlreadyHeadlinedNarrativeUntouched() {
+        // A structured failure narrative (e.g. the Capture codegen report) already leads with its
+        // own bold headline and must not be double-headlined.
+        String structured = "**⚠ Test generation finished with problems — details below**\n\nbody";
+        String rendered = AssistantMarkdown.toolFailureMarkdown("capture_generate_replay", structured);
+
+        assertAll(
+                () -> assertEquals(structured, rendered),
+                () -> assertFalse(rendered.contains("couldn't finish"), rendered));
+    }
+
+    @Test
     void formatsDoctorAnalysisReportWithActionsSnippetsAndReportPaths() {
         String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
                 {
