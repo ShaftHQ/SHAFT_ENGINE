@@ -163,19 +163,36 @@ public class CheckpointCounter {
         StringBuilder detailsBuilder = new StringBuilder();
         for (CheckpointEntry entry : checkpoints) {
             String testId = entry.testId();
-            String testDisplay = testId.isEmpty() ? "(suite)" : testId;
             detailsBuilder.append(String.format(
                     HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
                     entry.status(),
                     ReportHtmlTheme.escapeHtml(testId),
                     entry.id(),
-                    ReportHtmlTheme.escapeHtml(testDisplay),
+                    testCellHtml(testId),
                     ReportHtmlTheme.escapeHtml(entry.type()),
                     ReportHtmlTheme.escapeHtml(entry.message()),
                     ReportHtmlTheme.statusClass(entry.status()),
                     entry.status()));
         }
         return detailsBuilder.toString();
+    }
+
+    /**
+     * Builds the inner HTML for a checkpoint row's "Test" cell. A checkpoint with an owning test
+     * renders a "jump to test" control: a link-styled button that, on click, focuses the details
+     * table on that test (it reads the row's {@code data-test} in the browser, so no identifier is
+     * embedded in JavaScript and nothing needs script-escaping). A suite-level checkpoint (no
+     * captured identity) renders plain "(suite)" text (issue #3534 checkpoint browser).
+     *
+     * @param testId the owning test's {@code class#method} id, or {@code ""} for suite-level
+     * @return the escaped inner HTML for the Test cell
+     */
+    private static String testCellHtml(String testId) {
+        if (testId.isEmpty()) {
+            return "(suite)";
+        }
+        return "<button type=\"button\" class=\"checkpoint-test-link\" onclick=\"shaftFocusTestFromCell(this)\">"
+                + ReportHtmlTheme.escapeHtml(testId) + "</button>";
     }
 
     /**

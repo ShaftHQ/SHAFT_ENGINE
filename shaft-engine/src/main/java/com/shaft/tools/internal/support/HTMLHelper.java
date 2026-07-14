@@ -26,6 +26,8 @@ public enum HTMLHelper {
                 .filter-bar select { font: inherit; padding: 2px 6px; border: 1px solid var(--shaft-border); border-radius: 4px; background: var(--shaft-surface); color: var(--shaft-text); max-width: 60ch; }
                 .table-wrap.fail-only tr.checkpoint-row[data-status="PASS"] { display: none; }
                 tr.checkpoint-row.test-hidden { display: none; }
+                .checkpoint-test-link { font: inherit; color: var(--shaft-primary); background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+                .checkpoint-test-link:hover { text-decoration: none; }
               </style>
             </head>
             <body>
@@ -101,6 +103,14 @@ public enum HTMLHelper {
                         document.querySelectorAll('#shaft-checkpoints tr.checkpoint-row').forEach(function (row) {
                           row.classList.toggle('test-hidden', selectedTest !== '' && row.getAttribute('data-test') !== selectedTest);
                         });
+                      }
+                      function shaftFocusTestFromCell(cell) {
+                        var row = cell.closest('tr.checkpoint-row');
+                        if (!row) { return; }
+                        var testId = row.getAttribute('data-test');
+                        var selector = document.getElementById('shaft-test-filter');
+                        if (selector) { selector.value = testId; }
+                        shaftFilterCheckpointsByTest(testId);
                       }
                     </script>
                   </section>
