@@ -1,26 +1,4 @@
 {
-  "extraKnownMarketplaces": {
-    "anthropics/knowledge-work-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/knowledge-work-plugins"
-      }
-    },
-    "anthropics/skills": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/skills"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "jdtls-lsp@claude-plugins-official": true,
-    "design@anthropics/knowledge-work-plugins": true,
-    "frontend-design@claude-plugins-official": true,
-    "mcp-server-dev@claude-plugins-official": true,
-    "chrome-devtools-mcp@claude-plugins-official": true,
-    "example-skills@anthropics/skills": true
-  },
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -100,7 +78,9 @@
           {
             "type": "command",
             "command": "python3",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"
+            ],
             "timeout": 10
           }
         ]
@@ -113,11 +93,37 @@
           {
             "type": "command",
             "command": "python3",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py", "--session-start"],
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py",
+              "--session-start"
+            ],
             "timeout": 10
           }
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "jdtls-lsp@claude-plugins-official": true,
+    "design@anthropics/knowledge-work-plugins": true,
+    "frontend-design@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "example-skills@anthropics/skills": true,
+    "fable@fable-method": true,
+    "superpowers@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropics/knowledge-work-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/knowledge-work-plugins"
+      }
+    },
+    "anthropics/skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    }
   }
 }
