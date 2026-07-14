@@ -38,6 +38,20 @@ public final class ApiTestRenderer {
     private static final String VOLATILE_PLACEHOLDER = "[NORMALIZED]";
 
     /**
+     * JSON property names that typically carry a machine-readable error code in a 4xx/5xx body
+     * (e.g. {@code {"code":"NOT_FOUND"}}, {@code {"error":"invalid_grant"}}).
+     */
+    private static final Set<String> ERROR_CODE_KEYS = Set.of(
+            "code", "error", "errorcode", "error_code", "status", "type", "reason");
+
+    /**
+     * JSON property names that typically carry a human-readable error message in a 4xx/5xx body
+     * (e.g. {@code {"message":"Order not found"}}, {@code {"error_description":"..."}}).
+     */
+    private static final Set<String> ERROR_MESSAGE_KEYS = Set.of(
+            "message", "detail", "details", "description", "error_description", "error_message", "title");
+
+    /**
      * Request headers that are mechanical/transport-level and never meaningfully replayed:
      * content negotiation and framing are already handled by {@code setContentType}/
      * {@code setRequestBody}, and connection/host/user-agent/cookie headers describe the
@@ -401,12 +415,19 @@ public final class ApiTestRenderer {
             case STATUS_HEADERS -> renderHeaderAssertions(source, apiField, transaction);
             case SCHEMA -> renderSchemaAssertion(source, artifacts, className, apiField, transaction);
             case FULL_BODY -> renderFullBodyAssertion(source, artifacts, className, apiField, transaction, leaves);
-            case BUSINESS -> renderBusinessAssertions(source, apiField, leaves);
+            case BUSINESS -> renderBusinessAssertions(source, apiField, transaction, leaves);
             default -> throw new IllegalArgumentException("Unsupported validation depth: " + depth);
         }
     }
 
-    private static void renderBusinessAssertions(StringBuilder source, String apiField, List<ResponseLeaf> leaves) {
+    private static void renderBusinessAssertions(
+            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves) {
+        // A 4xx/5xx response is a negative case: render a dedicated error-shape template that pins
+        // the error code and message fields first, rather than the happy-path stable-field pinning.
+        if (transaction.statusCode() >= 400) {
+            renderErrorShapeAssertions(source, apiField, transaction, leaves);
+            return;
+        }
         for (ResponseLeaf leaf : leaves) {
             // Pin only business-meaningful fields: stable values a human would check. Volatile,
             // correlated (chained), and sensitive leaves are deliberately skipped so the assertion
@@ -414,12 +435,66 @@ public final class ApiTestRenderer {
             if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
                 continue;
             }
-            line(source, "        SHAFT.Validations.assertThat()");
-            line(source, "                .object(" + apiField + ".getResponseJSONValue(\""
-                    + escape(leaf.jsonPath()) + "\"))");
-            line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\")");
-            line(source, "                .perform();");
+            pinStableLeaf(source, apiField, leaf);
         }
+    }
+
+    /**
+     * Renders a negative-case (4xx/5xx) error-shape assertion template: the HTTP status is already
+     * asserted via {@code setTargetStatusCode(...)}, so this pins the stable error <em>code</em> and
+     * <em>message</em> fields (recognized by well-known property names) first, then any remaining
+     * stable fields. Volatile/correlated/sensitive leaves are skipped exactly as in the happy path,
+     * so timestamps and trace IDs never flake the assertion (issue #3530 negative-case templates).
+     */
+    private static void renderErrorShapeAssertions(
+            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves) {
+        line(source, "        // Negative-case error shape (HTTP " + transaction.statusCode()
+                + "): the status code is asserted above; pin the stable error code and message");
+        line(source, "        // fields, skipping volatile diagnostics (timestamps, trace IDs) so the test documents the error contract.");
+        List<ResponseLeaf> ordered = orderedErrorLeaves(leaves);
+        for (ResponseLeaf leaf : ordered) {
+            pinStableLeaf(source, apiField, leaf);
+        }
+        if (ordered.isEmpty()) {
+            line(source, "        // No stable error fields were recorded; the HTTP "
+                    + transaction.statusCode() + " status assertion above stands alone.");
+        }
+    }
+
+    /**
+     * Orders an error response's stable leaves so the contract-relevant fields lead: recognized
+     * error <em>code</em> fields first, then <em>message</em> fields, then any remaining stable
+     * field. Volatile/correlated/sensitive and blank leaves are dropped.
+     */
+    private static List<ResponseLeaf> orderedErrorLeaves(List<ResponseLeaf> leaves) {
+        List<ResponseLeaf> codeLeaves = new ArrayList<>();
+        List<ResponseLeaf> messageLeaves = new ArrayList<>();
+        List<ResponseLeaf> otherStable = new ArrayList<>();
+        for (ResponseLeaf leaf : leaves) {
+            if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
+                continue;
+            }
+            String key = leaf.key().toLowerCase(Locale.ROOT);
+            if (ERROR_CODE_KEYS.contains(key)) {
+                codeLeaves.add(leaf);
+            } else if (ERROR_MESSAGE_KEYS.contains(key)) {
+                messageLeaves.add(leaf);
+            } else {
+                otherStable.add(leaf);
+            }
+        }
+        List<ResponseLeaf> ordered = new ArrayList<>(codeLeaves);
+        ordered.addAll(messageLeaves);
+        ordered.addAll(otherStable);
+        return ordered;
+    }
+
+    private static void pinStableLeaf(StringBuilder source, String apiField, ResponseLeaf leaf) {
+        line(source, "        SHAFT.Validations.assertThat()");
+        line(source, "                .object(" + apiField + ".getResponseJSONValue(\""
+                + escape(leaf.jsonPath()) + "\"))");
+        line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\")");
+        line(source, "                .perform();");
     }
 
     private static void renderHeaderAssertions(StringBuilder source, String apiField, ApiTransaction transaction) {
