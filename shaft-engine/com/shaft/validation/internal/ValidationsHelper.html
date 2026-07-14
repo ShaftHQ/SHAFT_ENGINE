@@ -50,6 +50,7 @@
 <ol class="toc-list">
 <li><a href="#getVerificationErrorToForceFail()" tabindex="0">getVerificationErrorToForceFail()</a></li>
 <li><a href="#resetVerificationStateAfterFailing()" tabindex="0">resetVerificationStateAfterFailing()</a></li>
+<li><a href="#attachVerificationSummary()" tabindex="0">attachVerificationSummary()</a></li>
 <li><a href="#recordVerificationFailure(java.lang.String)" tabindex="0">recordVerificationFailure(String)</a></li>
 <li><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)" tabindex="0">reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List)</a></li>
 <li><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)" tabindex="0">reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List, long)</a></li>
@@ -85,39 +86,45 @@
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AssertionError.html" title="class or interface in java.lang" class="external-link">AssertionError</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getVerificationErrorToForceFail()" class="member-name-link">getVerificationErrorToForceFail</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordVerificationFailure(java.lang.String)" class="member-name-link">recordVerificationFailure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureMessage)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#attachVerificationSummary()" class="member-name-link">attachVerificationSummary</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Writes an end-of-test Allure step summarizing every accumulated soft (verify) failure, in the
+order they occurred, before the test is force-failed.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AssertionError.html" title="class or interface in java.lang" class="external-link">AssertionError</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getVerificationErrorToForceFail()" class="member-name-link">getVerificationErrorToForceFail</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordVerificationFailure(java.lang.String)" class="member-name-link">recordVerificationFailure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureMessage)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Records a soft verification failure so it can be reported at the end of the test.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)" class="member-name-link">reportValidationState</a><wbr>(<a href="../ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)" class="member-name-link">reportValidationState</a><wbr>(<a href="../ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  boolean&nbsp;validationState,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;expected,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Reports a validation outcome that was evaluated by a non-WebDriver backend while preserving
 the same checkpoint, attachment, and failure-reporting semantics used by WebDriver validations.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)" class="member-name-link">reportValidationState</a><wbr>(<a href="../ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)" class="member-name-link">reportValidationState</a><wbr>(<a href="../ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  boolean&nbsp;validationState,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;expected,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
  long&nbsp;validationStartTime)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Same as <a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)"><code>reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List)</code></a>
 with an explicit validation start timestamp so the reported outcome step carries the real
 validation duration.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resetVerificationStateAfterFailing()" class="member-name-link">resetVerificationStateAfterFailing</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resetVerificationStateAfterFailing()" class="member-name-link">resetVerificationStateAfterFailing</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -148,6 +155,18 @@ validation duration.</div>
 <h3>resetVerificationStateAfterFailing</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">resetVerificationStateAfterFailing</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="attachVerificationSummary()">
+<h3>attachVerificationSummary</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">attachVerificationSummary</span>()</div>
+<div class="block">Writes an end-of-test Allure step summarizing every accumulated soft (verify) failure, in the
+order they occurred, before the test is force-failed. This gives a single place to see all
+verification failures instead of scanning the step list. No-op when there were no soft
+failures. Must be called before <a href="#resetVerificationStateAfterFailing()"><code>resetVerificationStateAfterFailing()</code></a> clears the list.</div>
 </div>
 </section>
 </li>
