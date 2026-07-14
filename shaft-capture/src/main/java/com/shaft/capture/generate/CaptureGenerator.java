@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -72,6 +73,7 @@ public final class CaptureGenerator {
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
             .build();
     private static final DefaultPrettyPrinter PRINTER = printer();
+    private static final BiConsumer<Double, String> NO_OP_PROGRESS = (fraction, message) -> { };
 
     private final CaptureJsonCodec codec;
     private final LocatorRanker locatorRanker;
@@ -122,9 +124,25 @@ public final class CaptureGenerator {
      * @param backend generated SHAFT GUI backend
      * @return generated artifacts and report
      */
-    @SuppressWarnings("PMD.NPathComplexity")
     public CaptureGenerationResult generate(CaptureGenerationRequest request, CodegenBackend backend) {
+        return generate(request, backend, NO_OP_PROGRESS);
+    }
+
+    /**
+     * Generates, validates, and reports one SHAFT TestNG test for a selected GUI backend, reporting
+     * best-effort milestone progress as generation advances.
+     *
+     * @param request generation options
+     * @param backend generated SHAFT GUI backend
+     * @param progress receives (fraction 0.0-1.0, milestone message) callbacks; never invoked with
+     *                 a null argument, safe to pass a no-op consumer
+     * @return generated artifacts and report
+     */
+    @SuppressWarnings("PMD.NPathComplexity")
+    public CaptureGenerationResult generate(
+            CaptureGenerationRequest request, CodegenBackend backend, BiConsumer<Double, String> progress) {
         Objects.requireNonNull(request, "request");
+        BiConsumer<Double, String> reporter = progress == null ? NO_OP_PROGRESS : progress;
         CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
         Path sessionPath = request.sessionPath().toAbsolutePath().normalize();
         Path outputRoot = request.outputDirectory().toAbsolutePath().normalize();
@@ -134,6 +152,7 @@ public final class CaptureGenerator {
         ArtifactPaths paths = null;
         try {
             session = codec.read(sessionPath);
+            reporter.accept(0.1, "Read capture session " + sessionPath.getFileName());
             validatePackage(request.packageName());
             String deterministicClassName = request.className().isBlank()
                     ? defaultClassName(session)
@@ -143,10 +162,12 @@ public final class CaptureGenerator {
             paths = artifactPaths(outputRoot, request.packageName(), deterministicClassName);
 
             GenerationState state = analyze(session, sessionPath, targetBackend);
+            reporter.accept(0.3, "Analyzed " + session.events().size() + " captured event(s)");
             Map<String, String> elementNames = defaultElementNames(state.targets());
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
                     deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
                     request.fallbackLocators(), Set.of());
+            reporter.accept(0.5, "Generated deterministic test source for " + deterministicClassName);
             String fingerprint = fingerprint(codec.write(session), deterministicSource);
             Set<Long> appliedControlFlowGuards = Set.of();
             if (request.controlFlowMode() == CaptureGenerationRequest.ControlFlowMode.PREVIEW) {
@@ -249,6 +270,7 @@ public final class CaptureGenerator {
                         CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
                         enrichment);
                 writeReportIfPossible(reportPath, report);
+                reporter.accept(1.0, "Generation complete: FAILED");
                 return result(paths.source(), paths.data(), reportPath,
                         request.enrichmentPreviewPath(), report);
             }
@@ -258,6 +280,7 @@ public final class CaptureGenerator {
             CaptureGenerationReport.Validation compilation = request.compile()
                     ? validator.compile(paths.source(), paths.classes())
                     : CaptureGenerationReport.Validation.skipped("Compilation was not requested.");
+            reporter.accept(request.replay() ? 0.75 : 0.9, "Compiled generated test: " + compilation.status());
             CaptureGenerationReport.Validation replay = CaptureGenerationReport.Validation.skipped(
                     "Replay was not requested.");
             if (request.replay()
@@ -268,9 +291,11 @@ public final class CaptureGenerator {
                         outputRoot.resolve("src/test/resources"),
                         outputRoot,
                         request.replayTimeout());
+                reporter.accept(0.9, "Replayed generated test: " + replay.status());
             } else if (request.replay()) {
                 replay = CaptureGenerationReport.Validation.skipped(
                         "Replay was skipped because compilation failed.");
+                reporter.accept(0.9, "Replay skipped: compilation failed");
             }
             boolean successful = compilation.status()
                     != CaptureGenerationReport.Validation.ValidationStatus.FAILED
@@ -295,10 +320,12 @@ public final class CaptureGenerator {
                         replay,
                         enrichment);
                 atomicWrite(reportPath, writeJson(privacyFailure));
+                reporter.accept(1.0, "Generation complete: FAILED");
                 return result(paths.source(), paths.data(), reportPath,
                         request.enrichmentPreviewPath(), privacyFailure);
             }
             atomicWrite(reportPath, reportJson);
+            reporter.accept(1.0, "Generation complete: " + (successful ? "SUCCESS" : "FAILED"));
             return result(paths.source(), paths.data(), reportPath,
                     request.enrichmentPreviewPath(), report);
         } catch (RuntimeException exception) {
@@ -316,6 +343,7 @@ public final class CaptureGenerator {
                     CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
                     CaptureGenerationReport.Enrichment.notRequested());
             writeReportIfPossible(reportPath, report);
+            reporter.accept(1.0, "Generation complete: FAILED");
             return result(safePaths.source(), safePaths.data(), reportPath,
                     request.enrichmentPreviewPath(), report);
         }

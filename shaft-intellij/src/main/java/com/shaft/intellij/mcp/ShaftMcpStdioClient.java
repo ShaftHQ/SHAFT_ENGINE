@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * Minimal JSON-RPC MCP stdio client used by the IntelliJ shell.
@@ -61,6 +62,14 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService ioExecutor;
     private final Map<Integer, CompletableFuture<JsonObject>> pendingRequests = new ConcurrentHashMap<>();
+    /**
+     * Callbacks for in-flight tool calls that requested progress streaming, keyed by the
+     * {@code progressToken} sent in the request's {@code _meta}. Registered right before the
+     * request is sent and always removed once that call finishes (success, failure, or
+     * cancellation) — an unknown or late token in an inbound {@code notifications/progress} frame
+     * is simply a no-op (see {@link #handleProgressNotification(JsonObject)}).
+     */
+    private final Map<String, Consumer<ShaftMcpProgress>> progressCallbacks = new ConcurrentHashMap<>();
     private final Object initializationLock = new Object();
     private final Object sendLock = new Object();
     private volatile boolean initialized;
@@ -100,14 +109,45 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     }
 
     JsonElement callTool(String toolName, JsonObject arguments, Duration timeout) throws IOException {
+        return callTool(toolName, arguments, timeout, null);
+    }
+
+    /**
+     * Invokes an MCP tool, optionally streaming {@code notifications/progress} milestones back to
+     * {@code onProgress} while the call is in flight (issue #3546). Purely additive: when
+     * {@code onProgress} is {@code null} no progress token is sent, matching the server's opt-in
+     * design, and a server that never emits progress (every tool but {@code capture_generate_replay}
+     * today) behaves exactly as before.
+     *
+     * @param toolName   MCP tool name
+     * @param arguments  JSON object arguments
+     * @param timeout    request timeout
+     * @param onProgress callback for streamed progress updates, or {@code null} to opt out
+     * @return the tool call result
+     */
+    JsonElement callTool(String toolName, JsonObject arguments, Duration timeout, Consumer<ShaftMcpProgress> onProgress)
+            throws IOException {
         initialize(timeout);
         int requestId = id.getAndIncrement();
         JsonObject request = request(requestId, "tools/call");
         JsonObject params = new JsonObject();
         params.addProperty("name", toolName);
         params.add("arguments", arguments);
+        String progressToken = onProgress == null ? null : String.valueOf(requestId);
+        if (progressToken != null) {
+            JsonObject meta = new JsonObject();
+            meta.addProperty("progressToken", progressToken);
+            params.add("_meta", meta);
+            progressCallbacks.put(progressToken, onProgress);
+        }
         request.add("params", params);
-        return awaitResult(sendRequest(requestId, request), timeout);
+        try {
+            return awaitResult(sendRequest(requestId, request), timeout);
+        } finally {
+            if (progressToken != null) {
+                progressCallbacks.remove(progressToken);
+            }
+        }
     }
 
     private void initialize(Duration timeout) throws IOException {
@@ -119,6 +159,10 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             JsonObject request = request(requestId, "initialize");
             JsonObject params = new JsonObject();
             params.addProperty("protocolVersion", PROTOCOL_VERSION);
+            // No "progress" capability to declare here: the server (CaptureService#generateReplay,
+            // shaft-mcp) emits notifications/progress purely from the per-request _meta.progressToken
+            // it receives via @McpProgressToken, not from any client-declared capability (issue
+            // #3546). Progress is opted into per tool call in callTool(...), not at handshake time.
             params.add("capabilities", new JsonObject());
             JsonObject clientInfo = new JsonObject();
             clientInfo.addProperty("name", "shaft-intellij");
@@ -258,12 +302,66 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         }
         Integer requestId = messageId(message);
         if (requestId == null) {
+            // JSON-RPC notifications carry no id. The only one this client understands today is
+            // notifications/progress; anything else (for example a future notifications/* the
+            // server starts sending) is silently ignored, matching this method's behavior before
+            // progress streaming existed (issue #3546).
+            if (isProgressNotification(message)) {
+                handleProgressNotification(message);
+            }
             return;
         }
         CompletableFuture<JsonObject> pending = pendingRequests.remove(requestId);
         if (pending != null) {
             pending.complete(message);
         }
+    }
+
+    private static boolean isProgressNotification(JsonObject message) {
+        JsonElement method = message.get("method");
+        return method != null && method.isJsonPrimitive() && method.getAsJsonPrimitive().isString()
+                && "notifications/progress".equals(method.getAsString());
+    }
+
+    /**
+     * Routes an inbound {@code notifications/progress} frame to the callback registered for its
+     * {@code progressToken}, if any. A missing token, an unrecognized/late token (the tool call it
+     * belonged to already finished and unregistered it), or a missing/non-numeric {@code progress}
+     * field are all treated as a no-op — progress is best-effort and must never fail the call it
+     * describes.
+     */
+    private void handleProgressNotification(JsonObject message) {
+        JsonElement paramsElement = message.get("params");
+        if (paramsElement == null || !paramsElement.isJsonObject()) {
+            return;
+        }
+        JsonObject params = paramsElement.getAsJsonObject();
+        String token = asString(params.get("progressToken"));
+        if (token == null) {
+            return;
+        }
+        Consumer<ShaftMcpProgress> callback = progressCallbacks.get(token);
+        if (callback == null) {
+            return;
+        }
+        Double progress = asDouble(params.get("progress"));
+        if (progress == null) {
+            return;
+        }
+        callback.accept(new ShaftMcpProgress(progress, asDouble(params.get("total")), asString(params.get("message"))));
+    }
+
+    private static Double asDouble(JsonElement element) {
+        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            return null;
+        }
+        return element.getAsDouble();
+    }
+
+    private static String asString(JsonElement element) {
+        // A progressToken may legally be a JSON-RPC string or number; JsonPrimitive#getAsString()
+        // renders either, so both forms resolve to the same map key.
+        return element == null || !element.isJsonPrimitive() ? null : element.getAsString();
     }
 
     private static Integer messageId(JsonObject message) {

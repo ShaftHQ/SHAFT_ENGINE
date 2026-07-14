@@ -122,6 +122,7 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
+        Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
         Path mcpSetupPostSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-post-setup.png");
         Path guidedScreenshot = outputPath.resolve("intellij-plugin-guided.png");
@@ -152,6 +153,7 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
+        write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
         write(mcpSetupPostSetupScreenshot, renderPostSetupSettings(LIGHT_THEME, false));
         write(guidedScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
@@ -182,6 +184,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantLiveDarkScreenshot) > 0, assistantLiveDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantProgressMilestonesScreenshot) > 0,
+                        assistantProgressMilestonesScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupPostSetupScreenshot) > 0, mcpSetupPostSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(guidedScreenshot) > 0, guidedScreenshot + " should be non-empty"),
@@ -211,6 +215,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantLiveDarkScreenshot),
+                () -> assertDimensions(assistantProgressMilestonesScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
                 () -> assertDimensions(mcpSetupPostSetupScreenshot),
                 () -> assertDimensions(guidedScreenshot),
@@ -433,6 +438,58 @@ class ShaftPluginScreenshotRendererTest {
             invokeSetRunning(component, false, "Try asking me to do something...");
         });
         return image.get();
+    }
+
+    /**
+     * Renders the Assistant run timeline mid-{@code capture_generate_replay}, with several
+     * streamed {@code notifications/progress} milestones already appended (issue #3546), so the
+     * screenshot documents live-execution transparency instead of a static "Running" placeholder
+     * that never changes. The milestone text mirrors what {@code CaptureGenerator#generate}
+     * actually reports server-side (shaft-capture), for a realistic shot.
+     *
+     * <p>Driven through {@code addTimeline} directly — the same rendering path {@code
+     * onToolProgress} feeds in production — rather than a real {@code dispatchApprovedTool} call,
+     * because this harness's fake {@link #screenshotProject()} has no live
+     * {@code ShaftMcpInvocationService} to dispatch through.
+     */
+    private static BufferedImage renderAssistantProgressMilestones(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/codegen recordings/demo-recording.json", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.defaultAutobotMode = "AGENT";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            invokeAddTimeline(component, "Tool selected: capture_generate_replay");
+            invokeAddTimeline(component, "Running");
+            invokeSetRunning(component, true, "Running: capture_generate_replay …");
+            invokeAddTimeline(component, "Read capture session demo-recording.json");
+            invokeAddTimeline(component, "Analyzed 12 captured event(s)");
+            invokeAddTimeline(component, "Generated deterministic test source for DemoRecordingTest");
+            invokeAddTimeline(component, "Compiled generated test: PASSED");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+            invokeSetRunning(component, false, "Try asking me to do something...");
+        });
+        return image.get();
+    }
+
+    private static void invokeAddTimeline(ShaftAssistantPanel component, String step) {
+        try {
+            Method method = ShaftAssistantPanel.class.getDeclaredMethod("addTimeline", String.class);
+            method.setAccessible(true);
+            method.invoke(component, step);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to render the progress-milestones timeline", exception);
+        }
     }
 
     private static BufferedImage renderApprovalPrompt(String lookAndFeelClassName, boolean dark)

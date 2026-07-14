@@ -21,6 +21,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Project service that invokes SHAFT MCP tools through the configured stdio command.
@@ -264,7 +265,23 @@ public final class ShaftMcpInvocationService implements Disposable {
      * @return cancellable invocation
      */
     public ShaftMcpInvocation startTool(String toolName, JsonObject arguments) {
-        return startTool(toolName, arguments, ShaftSettingsState.getInstance().getState());
+        return startTool(toolName, arguments, ShaftSettingsState.getInstance().getState(), null);
+    }
+
+    /**
+     * Starts a cancellable SHAFT MCP tool invocation, streaming {@code notifications/progress}
+     * milestones to {@code onProgress} while the call is in flight (issue #3546). The server only
+     * emits progress for tools that opted in (currently {@code capture_generate_replay}); calling
+     * this for any other tool is harmless and simply never invokes {@code onProgress}.
+     *
+     * @param toolName   MCP tool name
+     * @param arguments  JSON object arguments
+     * @param onProgress callback for streamed progress updates, invoked on the caller's background
+     *                   thread — callers touching UI state must marshal to the UI thread themselves
+     * @return cancellable invocation
+     */
+    public ShaftMcpInvocation startTool(String toolName, JsonObject arguments, Consumer<ShaftMcpProgress> onProgress) {
+        return startTool(toolName, arguments, ShaftSettingsState.getInstance().getState(), onProgress);
     }
 
     /**
@@ -278,6 +295,21 @@ public final class ShaftMcpInvocationService implements Disposable {
      * @return cancellable invocation
      */
     ShaftMcpInvocation startTool(String toolName, JsonObject arguments, ShaftSettingsState.Settings settings) {
+        return startTool(toolName, arguments, settings, null);
+    }
+
+    /**
+     * Test seam: same logic as {@link #startTool(String, JsonObject, Consumer)} with explicit
+     * settings. Not public API.
+     *
+     * @param toolName   MCP tool name
+     * @param arguments  JSON object arguments
+     * @param settings   explicit settings, bypassing {@code ShaftSettingsState.getInstance()}
+     * @param onProgress callback for streamed progress updates, or {@code null} to opt out
+     * @return cancellable invocation
+     */
+    ShaftMcpInvocation startTool(String toolName, JsonObject arguments, ShaftSettingsState.Settings settings,
+            Consumer<ShaftMcpProgress> onProgress) {
         List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
@@ -294,7 +326,7 @@ public final class ShaftMcpInvocationService implements Disposable {
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> call(command, settings, clientReference, cancellationRequested,
                         client -> client.callTool(toolName,
-                                arguments == null ? new JsonObject() : arguments, DEFAULT_TIMEOUT)));
+                                arguments == null ? new JsonObject() : arguments, DEFAULT_TIMEOUT, onProgress)));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),

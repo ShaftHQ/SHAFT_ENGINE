@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +91,33 @@ class CaptureGeneratorTest {
         assertTrue(workbench.contains("--shaft-primary"));
         assertTrue(workbench.contains("status-chip"));
 
+    }
+
+    @Test
+    void generateReportsMilestoneProgressWithoutChangingTheResult() throws Exception {
+        Path session = session(CaptureFixtures.representativeSession());
+        writeCaptureData("alice");
+
+        List<double[]> fractions = new ArrayList<>();
+        List<String> messages = new ArrayList<>();
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                request(session, temp.resolve("progress")),
+                CaptureGenerator.CodegenBackend.WEBDRIVER,
+                (fraction, message) -> {
+                    fractions.add(new double[] {fraction});
+                    messages.add(message);
+                });
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(fractions.size() >= 2,
+                "expected at least two progress milestones, got: " + messages);
+        assertTrue(messages.stream().anyMatch(message -> !message.isBlank()));
+        for (int index = 1; index < fractions.size(); index++) {
+            assertTrue(fractions.get(index)[0] >= fractions.get(index - 1)[0],
+                    "progress fractions should be non-decreasing: " + messages);
+        }
+        assertEquals(1.0, fractions.get(fractions.size() - 1)[0], 0.0001,
+                "the final milestone should report full completion");
     }
 
     @Test

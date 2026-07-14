@@ -24,7 +24,19 @@ SOURCE_DIR = REPO_ROOT / "shaft-mcp" / "src" / "main" / "java" / "com" / "shaft"
 OUTPUT_PATH = REPO_ROOT / "shaft-skills" / "references" / "shaft-mcp-tools.md"
 GENERATOR_RELATIVE_PATH = "scripts/mcp/generate_shaft_skills_tool_catalog.py"
 TOOL_MARKER = "@Tool("
+# Spring AI exposes MCP tools via two annotations: the plain @Tool (registered through
+# ToolCallbacks.from) and @McpTool (annotation-scanned; the only form that can receive an
+# McpSyncServerExchange / @McpProgressToken and emit notifications/progress — see #3546). Both
+# carry the same name/description attributes, so the catalog scans them identically. "@McpTool("
+# never contains "@Tool(" as a substring, so the two markers count disjointly.
+MCP_TOOL_MARKER = "@McpTool("
+TOOL_MARKERS = (TOOL_MARKER, MCP_TOOL_MARKER)
 SERVICE_CLASS_SUFFIX = "Service"
+
+
+def count_tool_markers(text: str) -> int:
+    """Total @Tool( plus @McpTool( literal occurrences in one file."""
+    return sum(text.count(marker) for marker in TOOL_MARKERS)
 
 # Basic Java escape sequences that can legally appear inside a string literal in these
 # annotations. Anything not listed here is passed through unescaped (the backslash is dropped
@@ -82,22 +94,23 @@ def find_source_files(source_dir: Path) -> list[Path]:
     for path in sorted(source_dir.rglob("*.java")):
         if path in flat_set:
             continue
-        if TOOL_MARKER in path.read_text(encoding="utf-8"):
+        if count_tool_markers(path.read_text(encoding="utf-8")) > 0:
             nested_files.append(path)
     return flat_files + nested_files
 
 
 def find_tool_annotations(text: str) -> list[int]:
-    """Returns the index right after each literal "@Tool(" occurrence, in source order."""
+    """Returns the index right after each literal "@Tool(" / "@McpTool(" occurrence, in source order."""
     positions = []
-    index = 0
-    while True:
-        index = text.find(TOOL_MARKER, index)
-        if index == -1:
-            break
-        positions.append(index + len(TOOL_MARKER))
-        index += len(TOOL_MARKER)
-    return positions
+    for marker in TOOL_MARKERS:
+        index = 0
+        while True:
+            index = text.find(marker, index)
+            if index == -1:
+                break
+            positions.append(index + len(marker))
+            index += len(marker)
+    return sorted(positions)
 
 
 def extract_annotation_body(text: str, start: int) -> str | None:
@@ -285,13 +298,13 @@ def build_catalog(source_dir: Path) -> tuple[list[ServiceSection], int]:
 
     for path in files:
         text = path.read_text(encoding="utf-8")
-        raw_count = text.count(TOOL_MARKER)
+        raw_count = count_tool_markers(text)
         if raw_count == 0:
             continue
         entries, errors = parse_file(path, text)
         if errors or len(entries) != raw_count:
             mismatched_files.append(
-                f"{display_path(path)}: found {raw_count} @Tool( occurrence(s), parsed {len(entries)}"
+                f"{display_path(path)}: found {raw_count} @Tool(/@McpTool( occurrence(s), parsed {len(entries)}"
             )
             all_errors.extend(errors)
             continue

@@ -21,7 +21,11 @@ import com.shaft.capture.runtime.NetworkCaptureOptions;
 import com.shaft.capture.runtime.NetworkTransaction;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PreDestroy;
+import org.springframework.ai.mcp.annotation.McpProgressToken;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +42,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 /**
@@ -621,6 +626,10 @@ public class CaptureService {
     /**
      * Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session.
      *
+     * <p>Plain Java overload with no progress reporting, preserved for direct callers (for example,
+     * white-box tests); the MCP-exposed tool is {@link #generateReplay(String, String, String, String,
+     * boolean, boolean, boolean, boolean, boolean, String, String, McpSyncServerExchange)}.
+     *
      * @param sessionPath persisted Capture JSON path inside the MCP workspace
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
@@ -633,7 +642,42 @@ public class CaptureService {
      * @param driverVariableName Java driver variable name used in extracted snippets
      * @return generation report plus copy-paste code blocks
      */
-    @Tool(name = "capture_generate_replay",
+    public McpCaptureReplayResult generateReplay(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            boolean replay,
+            boolean useAi,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            String driverVariableName) {
+        return generateReplay(sessionPath, outputDirectory, packageName, className, overwrite, replay, useAi,
+                allowLocalAi, allowRemoteAi, driverVariableName, null, null);
+    }
+
+    /**
+     * Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session,
+     * streaming best-effort milestone progress over the MCP exchange when the caller requested it.
+     *
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param outputDirectory generated project root inside the MCP workspace
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
+     * @param replay whether to execute the generated test
+     * @param useAi whether to request optional AI enrichment preview
+     * @param allowLocalAi explicit approval for local inference
+     * @param allowRemoteAi explicit approval for remote inference
+     * @param driverVariableName Java driver variable name used in extracted snippets
+     * @param progressToken MCP progress token supplied by the requester; null when the client did
+     *                      not request progress notifications
+     * @param exchange live MCP server exchange used to emit progress notifications; injected by the
+     *                 annotation-scanning MCP tool provider, never exposed in the tool's input schema
+     * @return generation report plus copy-paste code blocks
+     */
+    @McpTool(name = "capture_generate_replay",
             description = "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a "
                     + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
     public McpCaptureReplayResult generateReplay(
@@ -646,7 +690,9 @@ public class CaptureService {
             boolean useAi,
             boolean allowLocalAi,
             boolean allowRemoteAi,
-            String driverVariableName) {
+            String driverVariableName,
+            @McpProgressToken String progressToken,
+            McpSyncServerExchange exchange) {
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
@@ -659,8 +705,29 @@ public class CaptureService {
                 false,
                 allowLocalAi,
                 allowRemoteAi,
-                CodegenBackend.WEBDRIVER);
+                CodegenBackend.WEBDRIVER,
+                progressReporter(progressToken, exchange));
         return replayResult(result, driverVariableName);
+    }
+
+    /**
+     * Builds a best-effort progress-notification sink for a Capture generation call: a no-op when
+     * the client did not request progress (no token) or the tool is invoked outside a live MCP
+     * exchange (for example, direct unit tests).
+     *
+     * @param progressToken MCP progress token supplied by the requester, or null/blank
+     * @param exchange live MCP server exchange, or null outside a real MCP call
+     * @return a progress sink safe to pass to {@link CaptureGenerator#generate}
+     */
+    private static BiConsumer<Double, String> progressReporter(String progressToken, McpSyncServerExchange exchange) {
+        if (exchange == null || progressToken == null || progressToken.isBlank()) {
+            return (fraction, message) -> { };
+        }
+        return (fraction, message) -> exchange.progressNotification(
+                McpSchema.ProgressNotification.builder(progressToken, fraction)
+                        .total(1.0)
+                        .message(message)
+                        .build());
     }
 
     /**
@@ -989,6 +1056,36 @@ public class CaptureService {
             boolean allowLocalAi,
             boolean allowRemoteAi,
             CodegenBackend backend) {
+        return generateInternal(
+                sessionPath,
+                outputDirectory,
+                packageName,
+                className,
+                overwrite,
+                replay,
+                aiPreview,
+                applyEnrichment,
+                approveEnrichment,
+                allowLocalAi,
+                allowRemoteAi,
+                backend,
+                (fraction, message) -> { });
+    }
+
+    private CaptureGenerationResult generateInternal(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            boolean replay,
+            boolean aiPreview,
+            boolean applyEnrichment,
+            boolean approveEnrichment,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            CodegenBackend backend,
+            BiConsumer<Double, String> progress) {
         Path output = outputDirectory == null || outputDirectory.isBlank()
                 ? workspacePolicy.output("generated-tests", "Capture generation output directory")
                 : workspacePolicy.output(outputDirectory, "Capture generation output directory");
@@ -1014,7 +1111,8 @@ public class CaptureService {
                         allowLocalAi || aiPreview || applyEnrichment,
                         allowRemoteAi || aiPreview || applyEnrichment,
                         EnumSet.of(EvidenceCategory.TEXT))),
-                backend);
+                backend,
+                progress);
     }
 
     private String workspacePath(String value, String label) {

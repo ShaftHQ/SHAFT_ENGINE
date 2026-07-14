@@ -14,6 +14,7 @@ import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
+import com.shaft.intellij.mcp.ShaftMcpProgress;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
@@ -298,9 +299,25 @@ final class ShaftFeaturePanel extends JPanel {
         setRunning(true, "Running: " + template.toolName() + " …");
         outputArea.setText("");
         copyOutputButton.setEnabled(false);
-        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(template.toolName(), arguments);
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(
+                template.toolName(), arguments, this::onToolProgress);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(result, error)));
+    }
+
+    /**
+     * Reflects a streamed {@code notifications/progress} milestone in the status line while a tool
+     * runs, so a long call (for example {@code capture_generate_replay}) shows what it is doing
+     * instead of a static "Running: <tool> …" the whole time (issue #3546). The server streams
+     * progress best-effort for opted-in tools only; every other tool call never invokes this.
+     * Called from the MCP client's background thread, so the UI update is marshaled to the EDT.
+     */
+    private void onToolProgress(ShaftMcpProgress progress) {
+        String message = progress.message();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        ApplicationManager.getApplication().invokeLater(() -> status.setText(message));
     }
 
     private void refreshCatalog(Project project) {
