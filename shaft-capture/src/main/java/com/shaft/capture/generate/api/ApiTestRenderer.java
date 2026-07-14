@@ -401,7 +401,24 @@ public final class ApiTestRenderer {
             case STATUS_HEADERS -> renderHeaderAssertions(source, apiField, transaction);
             case SCHEMA -> renderSchemaAssertion(source, artifacts, className, apiField, transaction);
             case FULL_BODY -> renderFullBodyAssertion(source, artifacts, className, apiField, transaction, leaves);
+            case BUSINESS -> renderBusinessAssertions(source, apiField, leaves);
             default -> throw new IllegalArgumentException("Unsupported validation depth: " + depth);
+        }
+    }
+
+    private static void renderBusinessAssertions(StringBuilder source, String apiField, List<ResponseLeaf> leaves) {
+        for (ResponseLeaf leaf : leaves) {
+            // Pin only business-meaningful fields: stable values a human would check. Volatile,
+            // correlated (chained), and sensitive leaves are deliberately skipped so the assertion
+            // does not flake on generated IDs/timestamps or leak secrets.
+            if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
+                continue;
+            }
+            line(source, "        SHAFT.Validations.assertThat()");
+            line(source, "                .object(" + apiField + ".getResponseJSONValue(\""
+                    + escape(leaf.jsonPath()) + "\"))");
+            line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\")");
+            line(source, "                .perform();");
         }
     }
 

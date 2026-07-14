@@ -25,5 +25,14 @@ public enum ApiValidationDepth {
      * placeholder, sensitive leaves masked, so the assertion doesn't flake on values that
      * legitimately change every run).
      */
-    FULL_BODY
+    FULL_BODY,
+    /**
+     * {@link #STATUS} plus a targeted business-value assertion on every response leaf classified
+     * {@link LeafClassification#STABLE}, asserting the recorded value at its JSON path via
+     * {@code getResponseJSONValue}. Volatile, correlated, and sensitive leaves are skipped so the
+     * generated test pins only the business-meaningful fields that a human would check, without
+     * flaking on generated IDs/timestamps or leaking secrets. This is the assertion model the
+     * business-logic recorder (#3499) uses for chained domain scenarios.
+     */
+    BUSINESS
 }

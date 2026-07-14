@@ -427,6 +427,47 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void mobileApiCaptureStatusRendersTransactionsReadinessAndReviewCta() {
+        String active = AssistantMarkdown.fromMcpOutput("mobile_api_record_status", mcpText("""
+                {
+                  "active": true,
+                  "sessionId": "mobile-api-20260714-030000",
+                  "proxyPort": 51099,
+                  "caCertificatePem": "-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----",
+                  "transactionCount": 5,
+                  "warnings": ["Run `adb reverse` to route device traffic through the proxy."],
+                  "outputPath": "recordings/mobile-api.json",
+                  "readiness": "RISKY"
+                }
+                """));
+        String stopped = AssistantMarkdown.fromMcpOutput("mobile_api_record_stop", mcpText("""
+                {
+                  "active": false,
+                  "sessionId": "mobile-api-20260714-030000",
+                  "proxyPort": 0,
+                  "caCertificatePem": "-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----",
+                  "transactionCount": 5,
+                  "warnings": [],
+                  "outputPath": "recordings/mobile-api.json",
+                  "readiness": "READY"
+                }
+                """));
+
+        assertAll(
+                // API capture unit is "transactions", not "steps".
+                () -> assertTrue(active.contains("**Transactions:** 5")),
+                () -> assertFalse(active.contains("**Steps:**")),
+                () -> assertTrue(active.contains("RISKY")),
+                () -> assertTrue(active.contains("Install the returned CA certificate")),
+                () -> assertFalse(active.contains("caCertificatePem")),
+                () -> assertFalse(active.contains("Generate a SHAFT API test from")),
+                // Review-code CTA fires once stopped with transactions.
+                () -> assertTrue(stopped.contains("READY")),
+                () -> assertTrue(stopped.contains("Review code next")),
+                () -> assertTrue(stopped.contains("Generate a SHAFT API test from recordings/mobile-api.json")));
+    }
+
+    @Test
     void playwrightRecordingStatusInheritsTheSharedGlossaryRendering() {
         // The Playwright recorder returns the same McpMobileRecordingStatus DTO, and markdown
         // dispatch is structural (not tool-name based), so playwright_record_stop must render the

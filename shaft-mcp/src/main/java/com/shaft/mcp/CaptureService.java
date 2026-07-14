@@ -397,8 +397,9 @@ public class CaptureService {
      *              {@code PER_REQUEST} (one independent test per transaction), or
      *              {@code HYBRID_UI_API} (interleaves API assertions after their correlated UI
      *              anchor; deterministic even with no AI enrichment)
-     * @param validationDepth {@code STATUS}, {@code STATUS_HEADERS}, {@code SCHEMA} (default), or
-     *                        {@code FULL_BODY}
+     * @param validationDepth {@code STATUS}, {@code STATUS_HEADERS}, {@code SCHEMA} (default),
+     *                        {@code FULL_BODY}, or {@code BUSINESS} (pins each stable business
+     *                        field by JSON path; skips volatile/correlated/sensitive leaves)
      * @param overwrite whether existing artifacts may be replaced
      * @param replay whether to execute the generated test after compiling (off by default; unsafe
      *               to enable automatically for non-idempotent methods)
