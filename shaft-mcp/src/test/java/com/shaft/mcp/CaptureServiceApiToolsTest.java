@@ -204,7 +204,7 @@ class CaptureServiceApiToolsTest {
 
             McpCaptureReplayResult result = service.generateApi(
                     "recordings/session-mcp.json", "generated", "tests.generated", "",
-                    "SCENARIO", "STATUS", true, false, "openapi.json");
+                    "SCENARIO", "STATUS", true, false, "openapi.json", List.of());
 
             assertTrue(result.successful(), "Generation report: " + result.report());
             assertNotNull(result.report().openApiCoverage());
@@ -227,13 +227,87 @@ class CaptureServiceApiToolsTest {
 
             McpCaptureReplayResult result = service.generateApi(
                     "recordings/session-mcp.json", "generated", "tests.generated", "",
-                    "SCENARIO", "STATUS", true, false, "");
+                    "SCENARIO", "STATUS", true, false, "", List.of());
 
             assertTrue(result.successful(), "Generation report: " + result.report());
             assertFalse(result.report().openApiCoverage().loadable());
         } finally {
             service.close();
         }
+    }
+
+    @Test
+    void generateApiOmitsExcludedTransactionsFromTheGeneratedTest() throws Exception {
+        // Issue #3548 item 3: deselecting a transaction in the recorder table must remove it from
+        // generated output, not just decorate the table client-side.
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSessionWithTwoTransactions();
+
+            McpCaptureReplayResult result = service.generateApi(
+                    "recordings/session-mcp-two.json", "generated-excluded", "tests.generated", "",
+                    "SCENARIO", "STATUS", true, false, "", List.of("tx-2"));
+
+            assertTrue(result.successful(), "Generation report: " + result.report());
+            String source = Files.readString(result.sourcePath());
+            assertTrue(source.contains("/orders"), "Included transaction missing from generated source: " + source);
+            assertFalse(source.contains("/admin"), "Excluded transaction leaked into generated source: " + source);
+        } finally {
+            service.close();
+        }
+    }
+
+    private Path writeRecordedSessionWithTwoTransactions() throws Exception {
+        Path sessionPath = temp.resolve("recordings/session-mcp-two.json");
+        Files.createDirectories(sessionPath.getParent());
+        Path bodiesDirectory = sessionPath.getParent().resolve("session-mcp-two-network-bodies");
+        Files.createDirectories(bodiesDirectory);
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef ordersResponse = bodyStore.store(
+                "{\"id\":\"1\"}".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+        BodyRef adminResponse = bodyStore.store(
+                "{\"id\":\"2\"}".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+
+        Instant started = Instant.parse("2026-01-02T03:04:05Z");
+        BrowserMetadata browser = new BrowserMetadata("chrome", "137", "Windows 11", "browser-1", Map.of());
+        CaptureEvent.NetworkEvent createOrder = new CaptureEvent.NetworkEvent(
+                context(1, started),
+                "tx-1",
+                ResourceKind.FETCH,
+                new HttpRequestRecord("POST", "https://api.example.test/orders", headers(), null),
+                new HttpResponseRecord(201, headers(), ordersResponse),
+                new NetworkTiming(null, null, null, null, null, null),
+                "",
+                "https://app.example.test/",
+                null);
+        CaptureEvent.NetworkEvent deleteAdmin = new CaptureEvent.NetworkEvent(
+                context(2, started),
+                "tx-2",
+                ResourceKind.FETCH,
+                new HttpRequestRecord("DELETE", "https://api.example.test/admin", headers(), null),
+                new HttpResponseRecord(204, headers(), adminResponse),
+                new NetworkTiming(null, null, null, null, null, null),
+                "",
+                "https://app.example.test/",
+                null);
+
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "session-mcp-two",
+                CaptureSession.SessionStatus.COMPLETED,
+                started,
+                started.plusSeconds(5),
+                browser,
+                List.of(createOrder, deleteAdmin),
+                List.of(),
+                List.of(),
+                RedactionSummary.empty(),
+                Map.of());
+        new CaptureJsonCodec().write(sessionPath, session);
+        return sessionPath;
     }
 
     private Path writeRecordedSession() throws Exception {

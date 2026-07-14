@@ -11,6 +11,8 @@ import java.util.concurrent.CompletionException;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssistantMarkdownTest {
@@ -91,6 +93,30 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.startsWith("```java")),
                 () -> assertTrue(markdown.contains("public class LoginTest")),
                 () -> assertFalse(markdown.contains("\"content\"")));
+    }
+
+    @Test
+    void jsonArrayFromMcpOutputUnwrapsAListReturningToolsBareArrayResult() {
+        // Regression for the bug behind issue #3548 item 3: a tool whose return type serializes as
+        // a bare JSON array (e.g. List<NetworkTransaction>) previously left jsonObjectFromMcpOutput
+        // returning null forever, since the unwrapped payload is never a JSON object.
+        String output = mcpText("""
+                [{"transactionId": "tx-1", "method": "GET", "url": "https://api.example.test/orders"}]
+                """.strip());
+
+        JsonArray transactions = AssistantMarkdown.jsonArrayFromMcpOutput(output);
+
+        assertAll(
+                () -> assertNotNull(transactions),
+                () -> assertEquals(1, transactions.size()),
+                () -> assertEquals("tx-1", transactions.get(0).getAsJsonObject().get("transactionId").getAsString()));
+    }
+
+    @Test
+    void jsonArrayFromMcpOutputReturnsNullForAnObjectResult() {
+        String output = mcpText("{\"state\": \"ACTIVE\"}");
+
+        assertNull(AssistantMarkdown.jsonArrayFromMcpOutput(output));
     }
 
     @Test

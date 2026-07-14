@@ -410,6 +410,9 @@ public class CaptureService {
      *               to enable automatically for non-idempotent methods)
      * @param openApiSpecPath optional path (inside the MCP workspace) to an OpenAPI JSON/YAML spec
      *                        to cross-report recorded endpoints against; blank skips coverage
+     * @param excludedTransactionIds recorded transaction IDs to omit from generation entirely
+     *                               (drives a recorder transaction-table include/exclude selection);
+     *                               empty includes every renderable transaction
      * @return generated artifacts, compile/replay result, and copy-paste code blocks
      */
     @Tool(name = "capture_api_generate",
@@ -423,7 +426,8 @@ public class CaptureService {
             String validationDepth,
             boolean overwrite,
             boolean replay,
-            String openApiSpecPath) {
+            String openApiSpecPath,
+            List<String> excludedTransactionIds) {
         Path output = outputDirectory == null || outputDirectory.isBlank()
                 ? workspacePolicy.output("generated-tests", "Capture generation output directory")
                 : workspacePolicy.output(outputDirectory, "Capture generation output directory");
@@ -440,7 +444,12 @@ public class CaptureService {
                 true,
                 replay,
                 overwrite,
-                openApiSpec));
+                openApiSpec,
+                CaptureGenerationRequest.EnrichmentMode.NONE,
+                null,
+                false,
+                null,
+                excludedTransactionIds));
         boolean successful = result.report().status() == CaptureGenerationReport.Status.SUCCESS;
         List<McpCodeBlock> blocks = successful && result.sourcePath() != null
                 ? codeBlocks.fromGeneratedSource(result.sourcePath(), "api", result.report())
