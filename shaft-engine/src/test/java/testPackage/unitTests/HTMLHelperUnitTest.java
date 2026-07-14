@@ -54,11 +54,14 @@ public class HTMLHelperUnitTest {
         Assert.assertTrue(value.contains("fail-only"), "expected the fail-only CSS/class hook");
     }
 
-    @Test(description = "CHECKPOINT_DETAILS_FORMAT should carry a filterable data-status (#3523)")
+    @Test(description = "CHECKPOINT_DETAILS_FORMAT should carry a filterable data-status (#3523) and per-test data-test (#3534)")
     public void checkpointDetailsFormatShouldCarryDataStatus() {
         String value = HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue();
         Assert.assertTrue(value.contains("data-status=\"%s\""), "expected a filterable data-status attribute");
         Assert.assertTrue(value.contains("checkpoint-row"), "expected the checkpoint-row class hook");
+        // Per-test attribution for the checkpoint browser: a filterable data-test attribute plus a Test cell.
+        Assert.assertTrue(value.contains("data-test=\"%s\""), "expected a filterable data-test attribute");
+        Assert.assertTrue(value.contains("checkpoint-test"), "expected the checkpoint-test cell hook");
     }
 
     @Test(description = "CHECKPOINT_DETAILS_FORMAT should have non-null, non-empty value")
