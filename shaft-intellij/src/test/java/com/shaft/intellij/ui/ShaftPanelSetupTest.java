@@ -624,7 +624,7 @@ class ShaftPanelSetupTest {
         AtomicReference<String> terminalTab = new AtomicReference<>();
         AtomicReference<String> terminalCommand = new AtomicReference<>();
         setField(panel, "copySink", (Consumer<String>) copied::set);
-        setField(panel, "terminalOpener", (java.util.function.BiPredicate<String, String>) (tab, command) -> {
+        setField(panel, "terminalOpener", (ShaftMcpSetupPanel.TerminalOpener) (tab, command, onOutcome) -> {
             terminalTab.set(tab);
             terminalCommand.set(command);
             return true;
@@ -658,7 +658,7 @@ class ShaftPanelSetupTest {
         List<String> copied = new ArrayList<>();
         List<String> terminalCommands = new ArrayList<>();
         setField(panel, "copySink", (Consumer<String>) copied::add);
-        setField(panel, "terminalOpener", (java.util.function.BiPredicate<String, String>) (tab, command) -> {
+        setField(panel, "terminalOpener", (ShaftMcpSetupPanel.TerminalOpener) (tab, command, onOutcome) -> {
             terminalCommands.add(command);
             return true;
         });
@@ -679,6 +679,59 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(2, terminalCommands.size()),
                 () -> assertTrue(terminalCommands.get(0).contains("mvn"), terminalCommands.get(0)),
                 () -> assertEquals("java -version", terminalCommands.get(1)));
+    }
+
+    @Test
+    void copyCommandIntoTerminalShowsInterimStatusThenReconcilesOnAFailedPreType() throws Exception {
+        // The pre-type is async (issue #3551): opening the tab alone must not yet claim success.
+        // No ApplicationManager/EDT plumbing is needed here since copyCommandIntoTerminal calls
+        // onOutcome directly (the real javax.swing.Timer caller already runs on the EDT).
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<Consumer<Boolean>> capturedOutcome = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) text -> {
+        });
+        setField(panel, "terminalOpener", (ShaftMcpSetupPanel.TerminalOpener) (tab, command, onOutcome) -> {
+            capturedOutcome.set(onOutcome);
+            return true;
+        });
+        setField(panel, "diagnosticCommand", "java -version");
+        JButton diagnostic = findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class);
+        diagnostic.setEnabled(true);
+
+        diagnostic.doClick();
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Terminal opened — typing the command..."),
+                        "opening the tab must not yet claim the command was typed"),
+                () -> assertNotNull(capturedOutcome.get(), "the outcome callback must be captured"));
+
+        capturedOutcome.get().accept(Boolean.FALSE);
+
+        assertTrue(containsText(panel, "Copied — paste into a terminal (couldn't auto-type it there)."),
+                "a failed async pre-type must retract the earlier 'pre-typed' framing");
+    }
+
+    @Test
+    void copyCommandIntoTerminalConfirmsPreTypeSuccessOnceTheOutcomeArrives() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<Consumer<Boolean>> capturedOutcome = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) text -> {
+        });
+        setField(panel, "terminalOpener", (ShaftMcpSetupPanel.TerminalOpener) (tab, command, onOutcome) -> {
+            capturedOutcome.set(onOutcome);
+            return true;
+        });
+        setField(panel, "diagnosticCommand", "java -version");
+        JButton diagnostic = findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class);
+        diagnostic.setEnabled(true);
+
+        diagnostic.doClick();
+        capturedOutcome.get().accept(Boolean.TRUE);
+
+        assertTrue(containsText(panel, "Terminal opened with it pre-typed — press Enter there to run it."),
+                "a genuine write() success must confirm the command really was pre-typed");
     }
 
     @Test
@@ -749,14 +802,17 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(
                         findByAccessibleName(panel, "Copy SHAFT MCP install command", JButton.class).isVisible()));
 
-        // Offline (latest unknown) is a neutral, non-blocking "Optional" badge — never "Failed"
-        // and never disables the rest of setup (issue #3538).
+        // Offline (latest unknown) is a neutral, non-blocking badge — never "Failed" and never
+        // disables the rest of setup (issue #3538); it reads as "Offline" with a retry callout,
+        // not "Optional"/"not needed" (issue #3551).
         setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
                 new ShaftMcpVersionCheck.Result(ShaftMcpVersionCheck.State.LATEST_UNKNOWN, "10.3.20260703", ""));
         clickAccessible(panel, "Check SHAFT MCP version");
         assertAll(
-                () -> assertEquals("Optional", mcpVersionState.getText()),
+                () -> assertEquals("Offline", mcpVersionState.getText()),
                 () -> assertTrue(mcpVersionDetail.getText().contains("offline")),
+                () -> assertTrue(mcpVersionDetail.getText().contains("Press Check to retry."),
+                        mcpVersionDetail.getText()),
                 () -> assertTrue(mcpVersionDetail.getText().contains("10.3.20260703")),
                 () -> assertTrue(
                         findByAccessibleName(panel, "Copy SHAFT MCP install command", JButton.class).isVisible()),
@@ -1132,6 +1188,33 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(effort.isVisible()),
                 () -> assertEquals("DEFAULT", effort.getSelectedItem()),
                 () -> assertTrue(effort.getItemCount() >= 4));
+    }
+
+    @Test
+    void assistantLocalModelTooltipReflectsFallbackWhenCliReportsNoModels() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+
+        applyLocalModels(panel, "CODEX", List.of());
+        assertTrue(localModel.getToolTipText().contains("Fallback model list"), localModel.getToolTipText());
+
+        applyLocalModels(panel, "CODEX", List.of("o1", "o1-mini"));
+        assertFalse(localModel.getToolTipText().contains("Fallback model list"), localModel.getToolTipText());
+    }
+
+    @Test
+    void assistantRefreshLocalModelsButtonIsVisibleForLocalCliAndResetsModelListFamily() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JButton refresh = findByAccessibleName(panel, "Refresh local agent models", JButton.class);
+
+        assertNotNull(refresh);
+        assertTrue(refresh.isVisible(), "refresh should be visible for the default local CLI route");
+
+        applyLocalModels(panel, "CODEX", List.of("o1"));
+        assertEquals("CODEX", getField(panel, "modelListFamily"));
+
+        clickAccessible(panel, "Refresh local agent models");
+        assertEquals("", getField(panel, "modelListFamily"));
     }
 
     @Test
@@ -2110,6 +2193,9 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(killed.get()),
                 () -> assertTrue(transcriptMarkdown(panel).contains("visible before kill")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("Killed"),
+                        "a killed run with rendered content must still show a terminal marker: "
+                                + transcriptMarkdown(panel)),
                 () -> assertFalse(transcriptMarkdown(panel).contains("late output after kill")));
     }
 
@@ -2166,7 +2252,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantKilledNonVerboseRunReplacesBarePlaceholderWithCancelled() throws Exception {
+    void assistantKilledNonVerboseRunReplacesBarePlaceholderWithKilled() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         AtomicBoolean killed = new AtomicBoolean();
         ShaftMcpInvocation invocation = new ShaftMcpInvocation(
@@ -2184,7 +2270,7 @@ class ShaftPanelSetupTest {
         String markdown = transcriptMarkdown(panel);
         assertAll(
                 () -> assertTrue(killed.get()),
-                () -> assertTrue(markdown.contains("Cancelled"),
+                () -> assertTrue(markdown.contains("Killed"),
                         "A killed non-verbose run must not leave the bare placeholder stuck forever: " + markdown),
                 () -> assertFalse(markdown.contains("Running local assistant"), markdown));
     }
@@ -2430,6 +2516,33 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantCancelAfterPartialStreamedOutputPreservesPartialAndShowsCancelled() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 301);
+        appendLocalAgentOutput(panel, 301, "partial answer streamed before cancel");
+
+        // A single cancel click only requests cancellation -- it must not escalate to a kill.
+        cancelOrKillCurrent(panel);
+        assertEquals(false, getField(panel, "killRequested"));
+
+        showAgentResult(panel, 301, null, new CancellationException("cancelled"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("partial answer streamed before cancel"), markdown),
+                () -> assertTrue(markdown.contains("Cancelled"), markdown),
+                () -> assertFalse(markdown.contains("Killed"), markdown));
+    }
+
+    @Test
     void assistantKillRequestTerminalEntryIsKilledNotCancelled() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
@@ -2480,10 +2593,35 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(workflowSuggestions.stream()
                         .noneMatch(suggestion -> suggestion.insertion().startsWith("/")),
                         "workflow insertions must be plain language"),
-                // The '/' trigger is retired along with the slash-command UX.
-                () -> assertTrue(slashSuggestions.isEmpty()),
+                // The '/' trigger reinstates slash-command autocomplete (issue #3540): core commands
+                // only by default (Expert mode off), backed by AssistantCommand's command registry.
+                () -> assertFalse(slashSuggestions.isEmpty(), "slash commands should be suggested"),
+                () -> assertTrue(slashSuggestions.stream().anyMatch(
+                        suggestion -> suggestion.insertion().equals("/record ")
+                                && suggestion.label().contains("/record")
+                                && suggestion.label().contains("Record web actions")),
+                        slashSuggestions.toString()),
+                () -> assertTrue(slashSuggestions.stream()
+                        .noneMatch(suggestion -> suggestion.label().contains("/guardrails")),
+                        "expert-only commands must stay hidden when Expert mode is off: " + slashSuggestions),
                 () -> assertTrue(fileSuggestions.isEmpty()),
                 () -> assertTrue(unsupportedSuggestions.isEmpty()));
+    }
+
+    @Test
+    void slashCommandPopupOnlyTriggersAtTheStartOfTheComposerLine() {
+        // A leading "/" is a command; a "/" inside a URL/path (https://, a/b) must not pop the menu
+        // (issue #3550). "@"/"#" keep firing anywhere, so this guard is slash-only.
+        assertAll(
+                () -> assertTrue(ShaftAssistantPanel.slashTriggerAllowed(""),
+                        "an empty composer must offer commands"),
+                () -> assertTrue(ShaftAssistantPanel.slashTriggerAllowed("   "),
+                        "leading whitespace still counts as line start"),
+                () -> assertTrue(ShaftAssistantPanel.slashTriggerAllowed(null)),
+                () -> assertFalse(ShaftAssistantPanel.slashTriggerAllowed("https:/"),
+                        "a slash inside a URL is not a command"),
+                () -> assertFalse(ShaftAssistantPanel.slashTriggerAllowed("open the "),
+                        "a slash mid-sentence is not a command"));
     }
 
     @Test
@@ -4475,10 +4613,16 @@ class ShaftPanelSetupTest {
 
     private static void showAgentResult(ShaftAssistantPanel panel, int streamToken, ShaftMcpToolResult result)
             throws Exception {
+        showAgentResult(panel, streamToken, result, null);
+    }
+
+    private static void showAgentResult(
+            ShaftAssistantPanel panel, int streamToken, ShaftMcpToolResult result, Throwable error)
+            throws Exception {
         Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
                 "showAgentResult", int.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
-        showResult.invoke(panel, streamToken, result, null);
+        showResult.invoke(panel, streamToken, result, error);
     }
 
     private static void appendStreamingLocalAgentBubble(ShaftAssistantPanel panel, int streamToken) throws Exception {
@@ -4497,6 +4641,13 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("cancelOrKillCurrent");
         method.setAccessible(true);
         method.invoke(panel);
+    }
+
+    private static void applyLocalModels(ShaftAssistantPanel panel, String family, List<String> models)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("applyLocalModels", String.class, List.class);
+        method.setAccessible(true);
+        method.invoke(panel, family, models);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {

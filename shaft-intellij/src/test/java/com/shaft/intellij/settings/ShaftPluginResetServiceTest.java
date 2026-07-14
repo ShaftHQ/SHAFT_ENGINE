@@ -21,13 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShaftPluginResetServiceTest {
 
     @Test
-    void factoryDefaultsForceNotSetUpStateEvenThoughBeanDefaultsToComplete() {
+    void factoryDefaultsForceNotSetUpStateMatchingTheBeansOwnDefault() {
         ShaftSettingsState.Settings bareBeanDefaults = new ShaftSettingsState.Settings();
         ShaftSettingsState.Settings factoryDefaults = ShaftSettingsState.factoryDefaults();
 
         assertAll(
-                () -> assertTrue(bareBeanDefaults.mcpSetupComplete,
-                        "Sanity check: the bean's own default is mcpSetupComplete = true"),
+                () -> assertFalse(bareBeanDefaults.mcpSetupComplete,
+                        "Sanity check: the bean's own default is mcpSetupComplete = false (issue #3551)"),
                 () -> assertFalse(factoryDefaults.mcpReady(), "Factory defaults must not be MCP-ready"),
                 () -> assertEquals("", factoryDefaults.mcpCommand),
                 () -> assertFalse(factoryDefaults.mcpSetupComplete,

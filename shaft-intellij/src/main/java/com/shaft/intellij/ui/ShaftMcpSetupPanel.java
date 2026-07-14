@@ -89,6 +89,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         void saveKey(String keyName, char[] secret);
     }
 
+    /**
+     * Opens a terminal tab (name, command) with the command pre-typed; injectable for tests.
+     * Returns whether the terminal actually opened (the pre-type was scheduled) — that alone does
+     * not mean the command was actually typed, since the pre-type is async and can still fail after
+     * the widget opens (issue #3551). {@code onOutcome} fires exactly once, off the EDT boundary of
+     * the caller's choosing, with the real outcome once it is known; callers that don't need it may
+     * pass a no-op consumer.
+     */
+    @FunctionalInterface
+    interface TerminalOpener {
+        boolean open(String tabName, String command, Consumer<Boolean> onOutcome);
+    }
+
     private final Project project;
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
@@ -176,11 +189,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     /** Runs the real installed-vs-latest shaft-mcp version comparison; injectable for tests. */
     private java.util.function.Supplier<ShaftMcpVersionCheck.Result> mcpVersionChecker = () ->
             ShaftMcpVersionCheck.check(installedShaftMcpVersion(), SetupPrerequisites.knownLatestMcpVersion());
-    /**
-     * Opens a terminal tab (name, command) with the command pre-typed; injectable for tests.
-     * Returns whether the terminal actually opened so status text can say what really happened.
-     */
-    private java.util.function.BiPredicate<String, String> terminalOpener = this::openTerminalWithPreparedCommand;
+    private TerminalOpener terminalOpener = this::openTerminalWithPreparedCommand;
     private Consumer<String> copySink = ShaftMcpSetupPanel::copyToClipboard;
     private Consumer<String> toastSink = this::showToast;
     private Timer toastTimer;
@@ -737,7 +746,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             case NOT_INSTALLED -> "SHAFT MCP is not installed yet.";
             case LATEST_UNKNOWN -> "Couldn't check the latest SHAFT MCP version (offline); installed: "
                     + (mcpVersionCheckResult.installedVersion().isBlank()
-                    ? "none" : mcpVersionCheckResult.installedVersion()) + ".";
+                    ? "none" : mcpVersionCheckResult.installedVersion()) + ". Press Check to retry.";
         };
     }
 
@@ -834,10 +843,14 @@ final class ShaftMcpSetupPanel extends JPanel {
             }
         }
         settings.mcpCommand = command;
+        // Race fix (issue #3551): a check is starting, so readiness must go false for the whole
+        // in-flight window — mcpReady() would otherwise still read true from a previous successful
+        // check while this one is running (mcpCommand is already set above, above the failure and
+        // commandChanged() branches that are the only other places this used to be reset).
+        settings.mcpSetupComplete = false;
         applySelectionToSettings();
         if (command.isBlank()) {
             showAssistError();
-            settings.mcpSetupComplete = false;
             settings.agentGuidanceOptimizationPromptPending = false;
             setStatusText("Run installer, then check again.");
             setDiagnosticText(troubleshootingDetails("Probe failed",
@@ -853,11 +866,20 @@ final class ShaftMcpSetupPanel extends JPanel {
         boolean cloudSelected = cloudFamilySelected();
         String selectedClient = settings.defaultAutobotClient;
         String selectedRuntime = settings.assistantRuntime;
+        String selectedClientLabel = assistantRuntimeLabel();
         ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) -> {
+            boolean phaseOnePassed = error == null && result != null && result.success() && !cloudSelected;
+            if (phaseOnePassed) {
+                // Incremental feedback only (issue #3551): the deep readiness probe below spawns
+                // the client CLI and blocks on Process.waitFor() for up to ~10s with no streaming
+                // hook to attach to, so this is a plain "still working" message posted before that
+                // wait starts — never a claim of real protocol visibility into the CLI's progress.
+                ApplicationManager.getApplication().invokeLater(() -> setStatusText(
+                        "SHAFT MCP connected — asking " + selectedClientLabel
+                                + " to verify access (~10s)..."));
+            }
             ShaftMcpToolResult precomputedReadiness =
-                    error == null && result != null && result.success() && !cloudSelected
-                            ? deepReadinessProbe.test(selectedClient, selectedRuntime)
-                            : null;
+                    phaseOnePassed ? deepReadinessProbe.test(selectedClient, selectedRuntime) : null;
             ApplicationManager.getApplication().invokeLater(
                     () -> showTestResult(result, error, precomputedReadiness));
         });
@@ -1293,7 +1315,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void copyUpgradeCommand() {
         String command = upgradeCommand();
         copy(command, "Copied SHAFT upgrade command");
-        boolean opened = terminalOpener.test("SHAFT upgrade", command);
+        boolean opened = terminalOpener.open("SHAFT upgrade", command, typed -> { });
         if (opened) {
             openIntellijTerminal();
         }
@@ -1306,7 +1328,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void copyInstallerCommand() {
         String command = installerCommand();
         copy(command, "Copied MCP installer command");
-        boolean opened = terminalOpener.test("SHAFT MCP install", command);
+        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> { });
         if (opened) {
             openIntellijTerminal();
         }
@@ -1325,7 +1347,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void copyMcpInstallCommand() {
         String command = installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
         copy(command, "Copied SHAFT MCP install command");
-        boolean opened = terminalOpener.test("SHAFT MCP install", command);
+        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> { });
         if (opened) {
             openIntellijTerminal();
         }
@@ -1386,8 +1408,9 @@ final class ShaftMcpSetupPanel extends JPanel {
                 Messages.getWarningIcon()) == Messages.YES;
     }
 
-    private boolean openTerminalWithPreparedCommand(String tabName, String command) {
-        return ShaftTerminalCommands.openWithPreparedCommand(project, projectRoot().toString(), tabName, command);
+    private boolean openTerminalWithPreparedCommand(String tabName, String command, Consumer<Boolean> onOutcome) {
+        return ShaftTerminalCommands.openWithPreparedCommand(
+                project, projectRoot().toString(), tabName, command, onOutcome);
     }
 
     private void openIntellijTerminal() {
@@ -1845,10 +1868,21 @@ final class ShaftMcpSetupPanel extends JPanel {
         styleStepRow(chatRow, complete ? "next" : "wait");
     }
 
+    /**
+     * Human-readable step-state word for tooltips/badges. Kept separate from the internal
+     * {@code state} string keys used by every {@code switch} in this class: {@code "optional"}
+     * used to display as the literal word "Optional", which reads as "not needed" even though it
+     * only ever means "the latest-version lookup was offline" (issue #3551). Only this display
+     * copy changes; the state key itself, and every color/badge switch keyed on it, is untouched.
+     */
+    private static String displayState(String state) {
+        return "optional".equals(state) ? "Offline" : state;
+    }
+
     private static void setStep(JLabel label, JLabel stateLabel, String name, String state) {
         if (label != null) {
             label.setText(name);
-            label.setToolTipText(name + " is " + state);
+            label.setToolTipText(name + " is " + displayState(state));
             label.getAccessibleContext().setAccessibleName(name + " setup step: " + state);
             label.setFont(label.getFont().deriveFont("next".equals(state) || "checking".equals(state)
                     || "optional".equals(state)
@@ -1866,10 +1900,10 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "failed" -> "Failed";
             case "next" -> "Next";
             case "checking" -> "Checking";
-            case "optional" -> "Optional";
+            case "optional" -> "Offline";
             default -> "Waiting";
         });
-        stateLabel.setToolTipText(name + " is " + state);
+        stateLabel.setToolTipText(name + " is " + displayState(state));
         stateLabel.getAccessibleContext().setAccessibleDescription(name + " setup state: " + state);
         stateLabel.setBackground(switch (state) {
             case "done" -> UIManagerColors.doneBackground();
@@ -2036,16 +2070,23 @@ final class ShaftMcpSetupPanel extends JPanel {
      * Every runnable command copied from this setup screen behaves the same way: it lands on the
      * clipboard AND a terminal tab opens with the command pre-typed, so the user only presses
      * Enter. Falls back to clipboard-only messaging when the Terminal plugin is unavailable.
+     * Opening the tab is synchronous, but the pre-type itself is async and can still silently fail
+     * afterward (issue #3551), so the "opened" branch first shows a neutral interim status and only
+     * claims the command was actually pre-typed once {@code onOutcome} confirms it. No
+     * {@code invokeLater} here: the real {@code onOutcome} caller is a {@code javax.swing.Timer}
+     * listener, which the Swing contract already guarantees runs on the EDT.
      */
     private void copyCommandIntoTerminal(String command, String tabName, String copiedMessage) {
         if (command == null || command.isBlank()) {
             return;
         }
         copy(command, copiedMessage);
-        boolean opened = terminalOpener.test(tabName, command);
+        boolean opened = terminalOpener.open(tabName, command, typed -> setStatusText(typed
+                ? copiedMessage + ". Terminal opened with it pre-typed — press Enter there to run it."
+                : "Copied — paste into a terminal (couldn't auto-type it there)."));
         if (opened) {
             openIntellijTerminal();
-            setStatusText(copiedMessage + ". Terminal opened with it pre-typed — press Enter there to run it.");
+            setStatusText(copiedMessage + ". Terminal opened — typing the command...");
         } else {
             setStatusText(copiedMessage + ". Paste it into a terminal to run it.");
         }

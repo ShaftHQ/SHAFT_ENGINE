@@ -288,7 +288,8 @@ class ShaftSettingsConfigurableTest {
         assertAll(
                 () -> assertFalse(testMcp.isEnabled(), "button should be disabled while the probe is in flight"),
                 () -> assertEquals("Testing...", testMcp.getToolTipText()),
-                () -> assertEquals(Boolean.TRUE, getField(configurable, "testMcpInFlight")));
+                () -> assertEquals(Boolean.TRUE, getField(configurable, "testMcpInFlight")),
+                () -> assertFalse(settings.mcpSetupComplete, "must not read ready while a check is in flight"));
 
         // Re-entry guard: invoking the real completion-guarded method again while
         // testMcpInFlight is still true must be a no-op, not start a second probe.

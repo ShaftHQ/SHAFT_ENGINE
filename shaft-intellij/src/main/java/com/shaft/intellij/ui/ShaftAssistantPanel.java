@@ -92,6 +92,9 @@ final class ShaftAssistantPanel extends JPanel {
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
+    private static final String LOCAL_MODEL_TOOLTIP_LIVE = "Model reported by the connected agent CLI";
+    private static final String LOCAL_MODEL_TOOLTIP_FALLBACK =
+            "Fallback model list (CLI did not report models) — click refresh to try again";
     /**
      * Prefix applied to a local-agent CLI's own tool names (e.g. {@code "Bash"}, {@code "Write"})
      * before recording/checking approval decisions, so they can never collide with SHAFT MCP tool
@@ -132,6 +135,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JComboBox<String> cloudProvider;
     private final JComboBox<String> cloudModel;
     private final JComboBox<String> localModel;
+    private final JButton refreshLocalModels;
     private final JComboBox<String> effort;
     private final JBTextField customCommand;
     private final JPanel cloudKeyPanel;
@@ -188,6 +192,8 @@ final class ShaftAssistantPanel extends JPanel {
     /** True once the user's second cancel click escalates to a kill for the current invocation. */
     private boolean killRequested;
     private boolean refreshingChats;
+    /** True when {@link #localModel} shows the curated catalog because the CLI reported no models. */
+    private boolean localModelListIsFallback;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
     private int killedLocalAgentStreamToken = -1;
@@ -304,15 +310,22 @@ final class ShaftAssistantPanel extends JPanel {
         localModel = new JComboBox<>();
         localModel.setEditable(true);
         localModel.getAccessibleContext().setAccessibleName("Assistant local agent model");
-        localModel.setToolTipText("Model reported by the connected agent CLI");
+        localModel.setToolTipText(LOCAL_MODEL_TOOLTIP_LIVE);
         if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
             localModelEditor.getAccessibleContext().setAccessibleName("Assistant local agent model text");
-            localModelEditor.setToolTipText("Model reported by the connected agent CLI");
+            localModelEditor.setToolTipText(LOCAL_MODEL_TOOLTIP_LIVE);
         }
         // Seed the selector from the curated catalog so it is never empty; the async CLI listing
         // replaces these entries when the connected agent can report its own models.
         applyLocalModels(resolveFamily(settings), List.of());
         modelListFamily = "";
+        refreshLocalModels = button("Refresh", "Refresh local agent models", event -> {
+            // Bypass refreshLocalModelsIfNeeded's already-fetched guard so a manual click always
+            // asks the CLI again, even when it already reported (or failed to report) for this family.
+            modelListFamily = "";
+            refreshLocalModelsIfNeeded();
+        });
+        ShaftIconButtons.apply(refreshLocalModels, ShaftIcons.RERUN);
         effort = combo("Assistant effort", AssistantModelCatalog.effortLevels().toArray(new String[0]));
         effort.setSelectedItem(normalize(settings.assistantEffort, AssistantModelCatalog.DEFAULT_EFFORT));
         effort.setToolTipText("Reasoning effort requested from the selected model");
@@ -540,6 +553,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(cloudProvider);
         routeRow.add(cloudModel);
         routeRow.add(localModel);
+        routeRow.add(refreshLocalModels);
         routeRow.add(effort);
         routeRow.add(allowSourceMutation);
         routeRow.add(verboseAgentOutput);
@@ -844,18 +858,11 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
-     * TODO(#3540 slash-command autocomplete, deferred): a "/" trigger case was NOT added here.
-     * Issue #3428 deliberately retired the slash-command UX (no picker, no "/" popup, no slash
-     * mentions anywhere) in favor of plain-language intents routed by the agent, and
-     * {@code assistantContextSuggestionsAppearOnlyForImplementedTriggers} /
-     * {@code assistantComposerUsesPlainLanguageInputAndModernThinkingIndicator} in
-     * {@code ShaftPanelSetupTest} assert that retirement. Reintroducing a "/" popup would directly
-     * reverse that decision and break both tests, so it needs an explicit product call, not a
-     * silent revival inside an unrelated first-run-welcome change. If reinstated, mirror this exact
+     * Slash-command autocomplete (issue #3540, reversing the #3428 retirement): mirrors the
      * {@code @}/{@code #} mechanism ({@link #bindContextInsertion()}, {@link
      * #showContextSuggestions(char)}, {@link #populateContextPopup(List)}, {@link
-     * #insertContextSuggestion(char, ContextSuggestion)}) with a new {@code case '/'} here backed by
-     * a small static command list, exactly as originally planned.
+     * #insertContextSuggestion(char, ContextSuggestion)}) with the {@code case '/'} below, backed by
+     * {@link AssistantCommand#commandHints(boolean)}.
      */
     private List<ContextSuggestion> contextSuggestions(
             char trigger,
@@ -866,6 +873,9 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (trigger == '#') {
             return projectContextSuggestions(project, openFileContext);
+        }
+        if (trigger == '/') {
+            return slashCommandSuggestions(expertEnabled());
         }
         return List.of();
     }
@@ -885,6 +895,22 @@ final class ShaftAssistantPanel extends JPanel {
                         "Generate a SHAFT test from "),
                 new ContextSuggestion("@workflow:doctor", "Diagnose my last failed test run"),
                 new ContextSuggestion("@workflow:upgrade", "Upgrade this project to the latest SHAFT"));
+    }
+
+    /**
+     * Command entries for the {@code /} popup: canonical name, summary, and example from each
+     * {@link AssistantCommand.CommandHint}, core-only unless Expert mode is on. Synonyms are folded
+     * into {@code matchText} (never shown) so filtering by an alias, e.g. typing {@code /docs},
+     * still surfaces the {@code /guide} entry.
+     */
+    private static List<ContextSuggestion> slashCommandSuggestions(boolean expertEnabled) {
+        return AssistantCommand.commandHints(expertEnabled).stream()
+                .map(hint -> new ContextSuggestion(
+                        "<html><b>" + hint.canonical() + "</b> — " + hint.summary()
+                                + "<br><small>" + hint.example() + "</small></html>",
+                        hint.canonical() + " ",
+                        hint.canonical() + " " + String.join(" ", hint.synonyms())))
+                .toList();
     }
 
     private static List<ContextSuggestion> projectContextSuggestions(
@@ -909,7 +935,7 @@ final class ShaftAssistantPanel extends JPanel {
             @Override
             public void keyTyped(KeyEvent event) {
                 char trigger = event.getKeyChar();
-                if (trigger == '@' || trigger == '#') {
+                if (trigger == '@' || trigger == '#' || trigger == '/') {
                     SwingUtilities.invokeLater(() -> showContextSuggestions(trigger));
                 }
             }
@@ -936,11 +962,26 @@ final class ShaftAssistantPanel extends JPanel {
         });
     }
 
+    /**
+     * Slash commands are only offered when "/" opens the composer line, matching the Slack / Discord /
+     * CLI convention (issue #3550); a "/" inside a URL or path (e.g. {@code https://}) must not pop the
+     * command menu. "@" and "#" keep firing anywhere, matching their existing in-text mention behaviour.
+     */
+    static boolean slashTriggerAllowed(String textBeforeTrigger) {
+        return textBeforeTrigger == null || textBeforeTrigger.isBlank();
+    }
+
     private void showContextSuggestions(char trigger) {
         hideContextPopup();
+        if (trigger == '/'
+                && !slashTriggerAllowed(prompt.getText().substring(0, Math.max(0, prompt.getCaretPosition() - 1)))) {
+            return;
+        }
         List<ContextSuggestion> suggestions = contextSuggestionsForTest(trigger);
         if (suggestions.isEmpty()) {
-            setStatus(trigger == '#' ? "No project context available" : "No Assistant context available");
+            setStatus(trigger == '#' ? "No project context available"
+                    : trigger == '/' ? "No matching command"
+                    : "No Assistant context available");
             return;
         }
         if (!prompt.isShowing()) {
@@ -1712,6 +1753,12 @@ final class ShaftAssistantPanel extends JPanel {
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
         boolean captureIntegrationRun = captureIntegrationRunning;
+        // Capture whatever the streaming bubble already rendered before it is cleared below: a plain
+        // Cancel (as opposed to Kill, which finalizes synchronously in stopLocalAgentStreaming) reaches
+        // this method asynchronously once the future completes, and the partial output the user already
+        // saw would otherwise be silently discarded by showAgentCancelled's hardcoded "_Cancelled._".
+        boolean hadPartialOutput = localAgentBubbleRendersContent && localAgentOutput != null && !localAgentOutput.isEmpty();
+        String partialOutput = hadPartialOutput ? localAgentOutput.toString() : "";
         localAgentOutput = null;
         if (currentStream) {
             activeLocalAgentStreamToken = -1;
@@ -1726,7 +1773,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (cancelled) {
             String terminalStep = killed ? "Killed" : "Cancelled";
             addTerminalTimeline(terminalStep);
-            showAgentCancelled(streamToken, currentStream);
+            showAgentCancelled(streamToken, currentStream, killed, partialOutput);
             setStatus(terminalStep);
             return;
         }
@@ -1801,8 +1848,11 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private void showAgentCancelled(int streamToken, boolean currentStream) {
-        String canceledResponse = "_Cancelled._";
+    private void showAgentCancelled(int streamToken, boolean currentStream, boolean killed, String partialOutput) {
+        String label = killed ? "Killed" : "Cancelled";
+        String canceledResponse = partialOutput == null || partialOutput.isBlank()
+                ? "_" + label + "._"
+                : formatLocalAgentStreamingResponse(partialOutput) + "\n\n_" + label + "._ (partial output above)";
         showAgentResponse(streamToken, currentStream, canceledResponse, "");
     }
 
@@ -1896,13 +1946,17 @@ final class ShaftAssistantPanel extends JPanel {
     private void stopLocalAgentStreaming() {
         if (activeLocalAgentStreamToken > 0) {
             killedLocalAgentStreamToken = activeLocalAgentStreamToken;
-            // A killed run never reaches finishLocalAgentResponse, so if the bubble never rendered any
-            // live content (Verbose was off, or no output arrived before the kill), it would otherwise
-            // be left showing the bare "Running local assistant..." header forever. Content that WAS
-            // rendered is left frozen as-is -- it's real output the user already saw.
-            if (!localAgentBubbleRendersContent) {
-                replaceLastTranscriptAndChatState("assistant", "_Cancelled._");
-            }
+            // A killed run never reaches finishLocalAgentResponse (handleKilledOrStaleAgentStream
+            // short-circuits the eventual async completion for this stream token), so this synchronous
+            // path must append the terminal marker itself -- otherwise a bubble that already rendered
+            // live content would be left frozen with no indication the run was killed, and a bubble
+            // that never rendered anything would be left showing the bare "Running local assistant..."
+            // header forever.
+            String finalized = localAgentBubbleRendersContent
+                    ? formatLocalAgentStreamingResponse(localAgentOutput.toString())
+                            + "\n\n_Killed._ (partial output above)"
+                    : "_Killed._";
+            replaceLastTranscriptAndChatState("assistant", finalized);
         }
         activeLocalAgentStreamToken = -1;
         localAgentOutput = null;
@@ -2252,6 +2306,8 @@ final class ShaftAssistantPanel extends JPanel {
         verboseAgentOutput.setEnabled(controlsEnabled);
         localModel.setVisible(localCli);
         localModel.setEnabled(controlsEnabled && localCli);
+        refreshLocalModels.setVisible(localCli);
+        refreshLocalModels.setEnabled(controlsEnabled && localCli);
         effort.setVisible(cloud || localCli);
         effort.setEnabled(controlsEnabled && (cloud || localCli));
         autoCompact.setVisible(localAgent && localCli);
@@ -2288,9 +2344,15 @@ final class ShaftAssistantPanel extends JPanel {
                 : String.valueOf(localModel.getEditor().getItem());
         // The CLI-reported list wins; the curated catalog keeps the selector useful when the CLI
         // cannot list its models (issue #3369).
-        List<String> effectiveModels = models.isEmpty() ? AssistantModelCatalog.localModels(family) : models;
+        localModelListIsFallback = models.isEmpty();
+        List<String> effectiveModels = localModelListIsFallback ? AssistantModelCatalog.localModels(family) : models;
         DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(effectiveModels.toArray(new String[0]));
         localModel.setModel(model);
+        String tooltip = localModelListIsFallback ? LOCAL_MODEL_TOOLTIP_FALLBACK : LOCAL_MODEL_TOOLTIP_LIVE;
+        localModel.setToolTipText(tooltip);
+        if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
+            localModelEditor.setToolTipText(tooltip);
+        }
         if (previousSelection != null && !previousSelection.isBlank()) {
             localModel.setSelectedItem(previousSelection);
         } else if (settings.localModel != null && !settings.localModel.isBlank()) {
