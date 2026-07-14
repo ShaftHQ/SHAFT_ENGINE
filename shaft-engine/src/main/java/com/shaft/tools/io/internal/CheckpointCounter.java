@@ -19,9 +19,44 @@ import java.util.concurrent.atomic.AtomicInteger;
  * publish the generated report attachment.
  */
 public class CheckpointCounter {
-    private static final List<ArrayList<String>> checkpoints = new CopyOnWriteArrayList<>();
+    private static final List<CheckpointEntry> checkpoints = new CopyOnWriteArrayList<>();
     private static final AtomicInteger passedCheckpoints = new AtomicInteger(0);
     private static final AtomicInteger failedCheckpoints = new AtomicInteger(0);
+    /**
+     * Monotonic, process-wide checkpoint id source. Unlike the former per-attach ordinal (which
+     * regenerated 1..N on every {@link #attach()}), an id assigned here is stable for the life of
+     * the JVM, so Doctor / MCP and the report checkpoint-browser can correlate a checkpoint to a
+     * test across attaches and re-generations (issues #3532 D / #3534 P3).
+     */
+    private static final AtomicInteger checkpointSequence = new AtomicInteger(0);
+
+    /**
+     * One recorded checkpoint. Carries a {@code stable} id assigned at capture time plus the
+     * owning test's identity (as resolved from the current report context), so downstream
+     * consumers can attribute and deep-link a checkpoint to its test.
+     *
+     * @param id stable, process-wide checkpoint id
+     * @param type checkpoint type string ({@code ASSERTION}/{@code VERIFICATION})
+     * @param message the checkpoint message
+     * @param status checkpoint status string ({@code PASS}/{@code FAIL})
+     * @param testClass owning test class name, or {@code ""} when unknown
+     * @param testMethod owning test method name, or {@code ""} when unknown
+     */
+    record CheckpointEntry(int id, String type, String message, String status, String testClass,
+                           String testMethod) {
+        /**
+         * Builds a stable {@code class#method} test identifier, or {@code ""} when no identity was
+         * captured. Used by MCP / the report checkpoint-browser to correlate and "jump to test".
+         *
+         * @return the {@code class#method} test id, or an empty string
+         */
+        String testId() {
+            if (testClass.isEmpty() && testMethod.isEmpty()) {
+                return "";
+            }
+            return testClass + "#" + testMethod;
+        }
+    }
 
     /**
      * Creates a new checkpoint counter instance.
@@ -31,23 +66,49 @@ public class CheckpointCounter {
     }
 
     /**
-     * Creates a new checkpoint entry and updates the pass/fail counters.
+     * Creates a new checkpoint entry and updates the pass/fail counters. The entry is stamped with
+     * a stable, process-wide id and the current test's identity (class/method), so it can be
+     * attributed and deep-linked to its owning test even though the checkpoint list is cumulative.
      *
      * @param type the checkpoint type (assertion or verification)
      * @param message the checkpoint message
      * @param status the final status of the checkpoint
      */
     public static void increment(CheckpointType type, String message, CheckpointStatus status) {
-        ArrayList<String> entry = new ArrayList<>();
-        entry.add(type.toString());
-        entry.add(message);
-        entry.add(status.toString());
-        checkpoints.add(entry);
+        checkpoints.add(new CheckpointEntry(checkpointSequence.incrementAndGet(), type.toString(),
+                message, status.toString(), currentTestClass(), currentTestMethod()));
 
         if (status == CheckpointStatus.PASS) {
             passedCheckpoints.incrementAndGet();
         } else {
             failedCheckpoints.incrementAndGet();
+        }
+    }
+
+    /**
+     * Resolves the current test class from the per-thread report context, best-effort. Identity
+     * lookup must never prevent a checkpoint from being recorded, so any failure yields {@code ""}.
+     *
+     * @return the current test class name, or {@code ""} when unavailable
+     */
+    private static String currentTestClass() {
+        try {
+            return ReportContext.getTestClassName();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /**
+     * Resolves the current test method from the per-thread report context, best-effort.
+     *
+     * @return the current test method name, or {@code ""} when unavailable
+     */
+    private static String currentTestMethod() {
+        try {
+            return ReportContext.getTestMethodName();
+        } catch (RuntimeException e) {
+            return "";
         }
     }
 
@@ -61,16 +122,15 @@ public class CheckpointCounter {
             return;
         }
         StringBuilder detailsBuilder = new StringBuilder();
-        int checkpointId = 0;
-        for (ArrayList<String> value : checkpoints) {
+        for (CheckpointEntry entry : checkpoints) {
             detailsBuilder.append(String.format(
                     HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
-                    value.get(2),
-                    ++checkpointId,
-                    ReportHtmlTheme.escapeHtml(value.get(0)),
-                    ReportHtmlTheme.escapeHtml(value.get(1)),
-                    ReportHtmlTheme.statusClass(value.get(2)),
-                    value.get(2)));
+                    entry.status(),
+                    entry.id(),
+                    ReportHtmlTheme.escapeHtml(entry.type()),
+                    ReportHtmlTheme.escapeHtml(entry.message()),
+                    ReportHtmlTheme.statusClass(entry.status()),
+                    entry.status()));
         }
 
         long assertionsPassed = typeStatusCount(ASSERTION, PASS);
@@ -113,7 +173,7 @@ public class CheckpointCounter {
      */
     static long typeStatusCount(String type, String status) {
         return checkpoints.stream()
-                .filter(row -> row.get(0).equals(type) && row.get(2).equals(status))
+                .filter(entry -> entry.type().equals(type) && entry.status().equals(status))
                 .count();
     }
 
@@ -128,19 +188,23 @@ public class CheckpointCounter {
 
     /**
      * Builds the machine-readable checkpoint payload (totals plus one row per checkpoint with a
-     * per-attach ordinal id, type, message, and status).
+     * stable id, owning test identity, type, message, and status). The stable id and {@code testId}
+     * let Doctor / MCP and the report checkpoint-browser correlate and deep-link a checkpoint to its
+     * test across attaches (issues #3532 D / #3534 P3).
      *
      * @return the pretty-printed JSON payload
      */
     static String checkpointsJson() {
         List<Map<String, Object>> rows = new ArrayList<>();
-        int checkpointId = 0;
-        for (ArrayList<String> value : checkpoints) {
+        for (CheckpointEntry entry : checkpoints) {
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("id", ++checkpointId);
-            row.put("type", value.get(0));
-            row.put("message", value.get(1));
-            row.put("status", value.get(2));
+            row.put("id", entry.id());
+            row.put("testId", entry.testId());
+            row.put("testClass", entry.testClass());
+            row.put("testMethod", entry.testMethod());
+            row.put("type", entry.type());
+            row.put("message", entry.message());
+            row.put("status", entry.status());
             rows.add(row);
         }
         Map<String, Object> payload = new LinkedHashMap<>();

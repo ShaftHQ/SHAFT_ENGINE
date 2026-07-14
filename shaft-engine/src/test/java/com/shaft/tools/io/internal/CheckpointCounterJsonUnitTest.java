@@ -1,12 +1,47 @@
 package com.shaft.tools.io.internal;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.shaft.listeners.internal.TestExecutionInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * Covers the machine-readable checkpoint JSON emitter added for issue #3516 (D).
+ * Covers the machine-readable checkpoint JSON emitter added for issue #3516 (D), plus the stable
+ * per-test checkpoint ids and per-test attribution added for issues #3532 (D) / #3534 (P3).
  */
 public class CheckpointCounterJsonUnitTest {
+
+    /**
+     * Returns the {@code id} of the first checkpoint row whose {@code message} equals the marker,
+     * or {@code -1} when no such row exists in the payload.
+     */
+    private static int idForMessage(String json, String marker) {
+        JsonArray rows = JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("checkpoints");
+        for (JsonElement element : rows) {
+            JsonObject row = element.getAsJsonObject();
+            if (marker.equals(row.get("message").getAsString())) {
+                return row.get("id").getAsInt();
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Returns the first checkpoint row whose {@code message} equals the marker, or {@code null}.
+     */
+    private static JsonObject rowForMessage(String json, String marker) {
+        JsonArray rows = JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("checkpoints");
+        for (JsonElement element : rows) {
+            JsonObject row = element.getAsJsonObject();
+            if (marker.equals(row.get("message").getAsString())) {
+                return row;
+            }
+        }
+        return null;
+    }
 
     @Test(description = "checkpointsJson emits structured, machine-readable checkpoint rows (#3516 D)")
     public void checkpointsJsonEmitsStructuredRows() {
@@ -53,5 +88,45 @@ public class CheckpointCounterJsonUnitTest {
         Assert.assertTrue(json.contains("\"byType\""), json);
         Assert.assertTrue(json.contains("\"assertion\""), json);
         Assert.assertTrue(json.contains("\"verification\""), json);
+    }
+
+    @Test(description = "checkpoints get stable, strictly-increasing, distinct ids stamped at capture (#3532 D / #3534 P3)")
+    public void checkpointsGetStableDistinctIds() {
+        String firstMarker = "stable-id-marker-first";
+        String secondMarker = "stable-id-marker-second";
+        CheckpointCounter.increment(CheckpointType.ASSERTION, firstMarker, CheckpointStatus.PASS);
+        int firstId = idForMessage(CheckpointCounter.checkpointsJson(), firstMarker);
+
+        // A later, unrelated checkpoint must not renumber the already-captured one (the old
+        // per-attach ordinal was regenerated on every attach; the stable id must not move).
+        CheckpointCounter.increment(CheckpointType.VERIFICATION, secondMarker, CheckpointStatus.FAIL);
+        String json = CheckpointCounter.checkpointsJson();
+        int firstIdAfter = idForMessage(json, firstMarker);
+        int secondId = idForMessage(json, secondMarker);
+
+        Assert.assertTrue(firstId > 0, "id must be a positive, process-wide value: " + firstId);
+        Assert.assertEquals(firstIdAfter, firstId, "an already-captured checkpoint id must stay stable");
+        Assert.assertTrue(secondId > firstId, "ids must strictly increase: " + firstId + " -> " + secondId);
+    }
+
+    @Test(description = "checkpoints are attributed to the owning test (class/method/testId) (#3532 D / #3534 P3)")
+    public void checkpointsAttributeToOwningTest() {
+        String marker = "attribution-marker";
+        String className = "com.example.OrderServiceTest";
+        String methodName = "placesOrder";
+        ReportContext.start(new TestExecutionInfo(
+                className + "#" + methodName, className, methodName, methodName, null, null, null, false));
+        try {
+            CheckpointCounter.increment(CheckpointType.ASSERTION, marker, CheckpointStatus.PASS);
+        } finally {
+            // never leak identity into sibling tests sharing the cumulative counter
+            ReportContext.clear();
+        }
+
+        JsonObject row = rowForMessage(CheckpointCounter.checkpointsJson(), marker);
+        Assert.assertNotNull(row, "attributed checkpoint row must be present");
+        Assert.assertEquals(row.get("testClass").getAsString(), className);
+        Assert.assertEquals(row.get("testMethod").getAsString(), methodName);
+        Assert.assertEquals(row.get("testId").getAsString(), className + "#" + methodName);
     }
 }
