@@ -49,6 +49,7 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(boolean,java.lang.String,int,java.lang.String,long,java.util.List,java.lang.String,com.shaft.capture.model.CaptureReadiness.State)" tabindex="0">MobileApiCaptureStatus(boolean, String, int, String, long, List, String, CaptureReadiness.State)</a></li>
 <li><a href="#%3Cinit%3E(boolean,java.lang.String,int,java.lang.String,long,java.util.List)" tabindex="0">MobileApiCaptureStatus(boolean, String, int, String, long, List)</a></li>
 </ol>
 </li>
@@ -63,6 +64,8 @@
 <li><a href="#caCertificatePem()" tabindex="0">caCertificatePem()</a></li>
 <li><a href="#transactionCount()" tabindex="0">transactionCount()</a></li>
 <li><a href="#warnings()" tabindex="0">warnings()</a></li>
+<li><a href="#outputPath()" tabindex="0">outputPath()</a></li>
+<li><a href="#readiness()" tabindex="0">readiness()</a></li>
 </ol>
 </li>
 </ol>
@@ -89,12 +92,20 @@
 <dd><code><span id="param-transactionCount">transactionCount</span></code> - number of transactions captured so far</dd>
 <dd><code><span id="param-warnings">warnings</span></code> - safe warnings (pairing limitations, pinned hosts, transactions that could not
                 be recorded)</dd>
+<dd><code><span id="param-outputPath">outputPath</span></code> - the persisted capture-session JSON path, always visible so the caller can
+                  generate an API test from it after stopping (empty before a session starts)</dd>
+<dd><code><span id="param-readiness">readiness</span></code> - Ready/Risky/Blocked verdict rolled up from warnings; never <code>null</code></dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">MobileApiCaptureStatus</span>(boolean&nbsp;active, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId, int&nbsp;proxyPort, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;caCertificatePem, long&nbsp;transactionCount, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">MobileApiCaptureStatus</span>(boolean&nbsp;active, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId, int&nbsp;proxyPort, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;caCertificatePem, long&nbsp;transactionCount, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath, com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
-<div class="block">Safe status of a mobile API capture session -- no bodies, no raw headers, nothing sensitive.</div>
+<div class="block">Safe status of a mobile API capture session -- no bodies, no raw headers, nothing sensitive.
+
+<p>Shares the recorder readiness vocabulary (#3499): <code>readiness</code> reuses the frozen web
+<code>CaptureReadiness.State</code> (Ready/Risky/Blocked) so the mobile API capture speaks the same
+language as the web/mobile/Playwright recorders. The atomic unit here is a <em>transaction</em>
+(an HTTP request/response), not a GUI "step".</div>
 </div>
 </section>
 <section class="summary">
@@ -114,6 +125,18 @@
  long&nbsp;transactionCount,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings)</code></div>
 <div class="col-last even-row-color">
+<div class="block">Back-compatible constructor matching the original pre-#3499 shape; defaults the session path
+to empty and readiness to <code>CaptureReadiness.State.READY</code>.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(boolean,java.lang.String,int,java.lang.String,long,java.util.List,java.lang.String,com.shaft.capture.model.CaptureReadiness.State)" class="member-name-link">MobileApiCaptureStatus</a><wbr>(boolean&nbsp;active,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ int&nbsp;proxyPort,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;caCertificatePem,
+ long&nbsp;transactionCount,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+ com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Creates an instance of a <code>MobileApiCaptureStatus</code> record class.</div>
 </div>
 </div>
@@ -150,10 +173,20 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a hash code value for this object.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proxyPort()" class="member-name-link">proxyPort</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#outputPath()" class="member-name-link">outputPath</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-outputPath"><code>outputPath</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proxyPort()" class="member-name-link">proxyPort</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-proxyPort"><code>proxyPort</code></a> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.model.CaptureReadiness.State</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#readiness()" class="member-name-link">readiness</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-readiness"><code>readiness</code></a> record component.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sessionId()" class="member-name-link">sessionId</a>()</code></div>
@@ -193,7 +226,7 @@
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(boolean,java.lang.String,int,java.lang.String,long,java.util.List)">
+<section class="detail" id="&lt;init&gt;(boolean,java.lang.String,int,java.lang.String,long,java.util.List,java.lang.String,com.shaft.capture.model.CaptureReadiness.State)">
 <h3>MobileApiCaptureStatus</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">MobileApiCaptureStatus</span><wbr><span class="parameters">(boolean&nbsp;active,
@@ -201,7 +234,9 @@
  int&nbsp;proxyPort,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;caCertificatePem,
  long&nbsp;transactionCount,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+ com.shaft.capture.model.CaptureReadiness.State&nbsp;readiness)</span></div>
 <div class="block">Creates an instance of a <code>MobileApiCaptureStatus</code> record class.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -211,7 +246,24 @@
 <dd><code>caCertificatePem</code> - the value for the <a href="#param-caCertificatePem"><code>caCertificatePem</code></a> record component</dd>
 <dd><code>transactionCount</code> - the value for the <a href="#param-transactionCount"><code>transactionCount</code></a> record component</dd>
 <dd><code>warnings</code> - the value for the <a href="#param-warnings"><code>warnings</code></a> record component</dd>
+<dd><code>outputPath</code> - the value for the <a href="#param-outputPath"><code>outputPath</code></a> record component</dd>
+<dd><code>readiness</code> - the value for the <a href="#param-readiness"><code>readiness</code></a> record component</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(boolean,java.lang.String,int,java.lang.String,long,java.util.List)">
+<h3>MobileApiCaptureStatus</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">MobileApiCaptureStatus</span><wbr><span class="parameters">(boolean&nbsp;active,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ int&nbsp;proxyPort,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;caCertificatePem,
+ long&nbsp;transactionCount,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings)</span></div>
+<div class="block">Back-compatible constructor matching the original pre-#3499 shape; defaults the session path
+to empty and readiness to <code>CaptureReadiness.State.READY</code>.</div>
 </div>
 </section>
 </li>
@@ -344,6 +396,32 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-warnings"><code>warnings</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="outputPath()">
+<h3>outputPath</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">outputPath</span>()</div>
+<div class="block">Returns the value of the <a href="#param-outputPath"><code>outputPath</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-outputPath"><code>outputPath</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="readiness()">
+<h3>readiness</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.model.CaptureReadiness.State</span>&nbsp;<span class="element-name">readiness</span>()</div>
+<div class="block">Returns the value of the <a href="#param-readiness"><code>readiness</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-readiness"><code>readiness</code></a> record component</dd>
 </dl>
 </div>
 </section>

@@ -54,6 +54,7 @@
 <li><a href="#STATUS_HEADERS" tabindex="0">STATUS_HEADERS</a></li>
 <li><a href="#SCHEMA" tabindex="0">SCHEMA</a></li>
 <li><a href="#FULL_BODY" tabindex="0">FULL_BODY</a></li>
+<li><a href="#BUSINESS" tabindex="0">BUSINESS</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -105,24 +106,30 @@
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Enum Constant</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code><a href="#FULL_BODY" class="member-name-link">FULL_BODY</a></code></div>
+<div class="col-first even-row-color"><code><a href="#BUSINESS" class="member-name-link">BUSINESS</a></code></div>
 <div class="col-last even-row-color">
+<div class="block"><a href="#STATUS"><code>STATUS</code></a> plus a targeted business-value assertion on every response leaf classified
+<a href="LeafClassification.html#STABLE"><code>LeafClassification.STABLE</code></a>, asserting the recorded value at its JSON path via
+<code>getResponseJSONValue</code>.</div>
+</div>
+<div class="col-first odd-row-color"><code><a href="#FULL_BODY" class="member-name-link">FULL_BODY</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block"><a href="#STATUS"><code>STATUS</code></a> plus a full-body <code>isEqualToFileContentIgnoringOrder</code> assertion
 against a normalized golden file (volatile/correlated leaves replaced with a stable
 placeholder, sensitive leaves masked, so the assertion doesn't flake on values that
 legitimately change every run).</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="#SCHEMA" class="member-name-link">SCHEMA</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code><a href="#SCHEMA" class="member-name-link">SCHEMA</a></code></div>
+<div class="col-last even-row-color">
 <div class="block"><a href="#STATUS"><code>STATUS</code></a> plus a <code>matchesSchema</code> assertion against a schema inferred by
 <a href="JsonSchemaInferencer.html" title="class in com.shaft.capture.generate.api"><code>JsonSchemaInferencer</code></a> from the recorded response body.</div>
 </div>
-<div class="col-first even-row-color"><code><a href="#STATUS" class="member-name-link">STATUS</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code><a href="#STATUS" class="member-name-link">STATUS</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Only the recorded HTTP status code is asserted (via <code>setTargetStatusCode</code>).</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="#STATUS_HEADERS" class="member-name-link">STATUS_HEADERS</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code><a href="#STATUS_HEADERS" class="member-name-link">STATUS_HEADERS</a></code></div>
+<div class="col-last even-row-color">
 <div class="block"><a href="#STATUS"><code>STATUS</code></a> plus an assertion on every response header classified
 <a href="LeafClassification.html#STABLE"><code>LeafClassification.STABLE</code></a> (sensitive headers are never asserted; volatile ones
 would flake on replay, so both are skipped).</div>
@@ -211,6 +218,20 @@ would flake on replay, so both are skipped).</div>
 against a normalized golden file (volatile/correlated leaves replaced with a stable
 placeholder, sensitive leaves masked, so the assertion doesn't flake on values that
 legitimately change every run).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="BUSINESS">
+<h3>BUSINESS</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a></span>&nbsp;<span class="element-name">BUSINESS</span></div>
+<div class="block"><a href="#STATUS"><code>STATUS</code></a> plus a targeted business-value assertion on every response leaf classified
+<a href="LeafClassification.html#STABLE"><code>LeafClassification.STABLE</code></a>, asserting the recorded value at its JSON path via
+<code>getResponseJSONValue</code>. Volatile, correlated, and sensitive leaves are skipped so the
+generated test pins only the business-meaningful fields that a human would check, without
+flaking on generated IDs/timestamps or leaking secrets. This is the assertion model the
+business-logic recorder (#3499) uses for chained domain scenarios.</div>
 </div>
 </section>
 </li>

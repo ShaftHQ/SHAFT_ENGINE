@@ -578,8 +578,9 @@ session's API transactions.</div>
              <code>PER_REQUEST</code> (one independent test per transaction), or
              <code>HYBRID_UI_API</code> (interleaves API assertions after their correlated UI
              anchor; deterministic even with no AI enrichment)</dd>
-<dd><code>validationDepth</code> - <code>STATUS</code>, <code>STATUS_HEADERS</code>, <code>SCHEMA</code> (default), or
-                       <code>FULL_BODY</code></dd>
+<dd><code>validationDepth</code> - <code>STATUS</code>, <code>STATUS_HEADERS</code>, <code>SCHEMA</code> (default),
+                       <code>FULL_BODY</code>, or <code>BUSINESS</code> (pins each stable business
+                       field by JSON path; skips volatile/correlated/sensitive leaves)</dd>
 <dd><code>overwrite</code> - whether existing artifacts may be replaced</dd>
 <dd><code>replay</code> - whether to execute the generated test after compiling (off by default; unsafe
               to enable automatically for non-idempotent methods)</dd>
