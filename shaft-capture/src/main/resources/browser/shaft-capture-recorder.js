@@ -1926,6 +1926,14 @@
       }
     });
   };
+  // Expose any soft-delete still inside its undo grace window so a server-driven stop can finalize
+  // it before the browser is torn down (#3560). The IDE's Stop button reaches the capture_stop tool
+  // directly and never runs the in-overlay confirmStop that would otherwise commit the pending
+  // delete, so without this a step deleted in the last few seconds of recording survives in the
+  // session store and resurfaces in the generated JSON/code. Read-only: it never sends or mutates,
+  // so the overlay's own undo-grace behaviour is untouched.
+  globalThis.__shaftCapturePendingDeletes = () =>
+    pendingDelete ? [clientActionId(pendingDelete.item)] : [];
   const undoDelete = () => {
     if (!pendingDelete) return;
     const restored = pendingDelete;

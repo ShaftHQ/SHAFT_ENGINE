@@ -91,6 +91,55 @@ class ManagedCaptureRecorderControlTest {
     }
 
     @Test
+    void stopFinalizesAStepSoftDeletedInsideTheUndoGraceWindowBeforeTeardown() {
+        // Regression for issue #3560: the IDE's Stop button reaches capture_stop -> stop() directly,
+        // never the in-overlay confirmStop that commits a pending soft delete, so a step deleted in
+        // the last few seconds of recording used to survive the undo grace window's teardown and
+        // resurface in the generated JSON/code. stop() must now read the overlay's not-yet-committed
+        // deletes and finalize them before the pipeline (and browser) is torn down.
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "soft-delete-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+
+        recorder.acceptSignal(userTraversal("ui-keep", "https://example.test/keep"));
+        recorder.acceptSignal(userTraversal("ui-drop", "https://example.test/drop"));
+        assertTrue(store.steps().stream().anyMatch(step -> "ui-keep".equals(step.clientActionId())),
+                "The kept step must be persisted before stop.");
+        assertTrue(store.steps().stream().anyMatch(step -> "ui-drop".equals(step.clientActionId())),
+                "The soft-deleted step is still persisted server-side until the delete is committed.");
+
+        // The overlay reports "ui-drop" as soft-deleted but not yet committed when stop is pressed.
+        recorder.pendingBrowserDeletesReaderForTesting(() -> List.of("ui-drop"));
+        CaptureStatus status = recorder.stop(false);
+
+        assertEquals(CaptureStatus.State.COMPLETED, status.state());
+        assertTrue(store.steps().stream().anyMatch(step -> "ui-keep".equals(step.clientActionId())),
+                "The step the user did not delete must survive.");
+        assertFalse(store.steps().stream().anyMatch(step -> "ui-drop".equals(step.clientActionId())),
+                "A step soft-deleted in the undo grace window must not resurface after stop.");
+    }
+
+    private static BrowserSignal userTraversal(String clientActionId, String url) {
+        return BrowserSignal.generated(
+                "navigation",
+                "window-1",
+                Map.of("url", url, "title", url),
+                Map.of("action", "OPEN", "navigationSource", "user_traversal",
+                        "clientActionId", clientActionId, "stepDescription", "Navigate to " + url));
+    }
+
+    @Test
     void stopCompletesOnAnAlreadyInterruptedThreadAndRestoresTheInterruptFlag() throws Exception {
         // Regression for issue #3409: the overlay Stop button delivered its STOP control on a
         // collector-owned thread that stop() itself interrupts while closing that collector.

@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Owns one SHAFT-managed browser and its deterministic capture pipeline.
@@ -89,6 +90,11 @@ class ManagedCaptureRecorder {
     private CaptureEventPipeline pipeline;
     private CaptureNetworkRecorder networkRecorder;
     private final Path networkBodiesDirectory;
+    /**
+     * Reads the client action ids the overlay has soft-deleted but not yet committed (#3560);
+     * injectable so the stop-time flush can be tested without launching a real browser.
+     */
+    private Supplier<List<String>> pendingBrowserDeletesReader = this::readPendingBrowserDeletesFromOverlay;
     private String currentUrl;
     private volatile boolean paused;
     private volatile boolean uiStopRequested;
@@ -384,6 +390,14 @@ class ManagedCaptureRecorder {
         this.store = store;
         this.pipeline = pipeline;
         this.state = CaptureStatus.State.ACTIVE;
+    }
+
+    /**
+     * Overrides the overlay-pending-delete reader so the stop-time flush (#3560) can be exercised
+     * without launching a real browser to script {@code __shaftCapturePendingDeletes} against.
+     */
+    void pendingBrowserDeletesReaderForTesting(Supplier<List<String>> reader) {
+        this.pendingBrowserDeletesReader = reader;
     }
 
     private void configureShaft() {
@@ -1207,11 +1221,55 @@ class ManagedCaptureRecorder {
             }
         }
         if (pipeline != null) {
+            // Finalize any step the user soft-deleted inside the undo grace window before the
+            // pipeline (and, right after, the browser) is torn down (#3560). The collector is
+            // already closed above, so there is no competing drain; the browser is still alive
+            // (closeBrowser() runs later in stop()/interrupt()), so the overlay can still be read.
+            flushPendingBrowserDeletes();
             try {
                 pipeline.close();
             } catch (RuntimeException ignored) {
                 warn("Pending browser events could not all be finalized.");
             }
+        }
+    }
+
+    /**
+     * Replays, through the normal {@code step_delete} path, every step the overlay has soft-deleted
+     * but not yet committed (#3560). The IDE's Stop button drives {@code capture_stop -> stop()}
+     * directly and never runs the in-overlay {@code confirmStop} that would otherwise commit the
+     * pending delete, so without this a step deleted in the last few seconds of recording survives
+     * in the session store and resurfaces in the generated JSON/code. {@code deleteStep} is
+     * idempotent (guarded by its own deleted-id set), so a delete the overlay timer had already
+     * committed is harmlessly re-applied.
+     */
+    private void flushPendingBrowserDeletes() {
+        if (pipeline == null) {
+            return;
+        }
+        String context = safeWindowHandle();
+        for (String clientActionId : pendingBrowserDeletesReader.get()) {
+            if (clientActionId != null && !clientActionId.isBlank()) {
+                pipeline.accept(BrowserSignal.generated(
+                        "step_delete", context, Map.of(), Map.of("clientActionId", clientActionId)));
+            }
+        }
+    }
+
+    private List<String> readPendingBrowserDeletesFromOverlay() {
+        if (!(driver instanceof JavascriptExecutor javascript)) {
+            return List.of();
+        }
+        try {
+            Object result = javascript.executeScript(
+                    "return (globalThis.__shaftCapturePendingDeletes && globalThis.__shaftCapturePendingDeletes()) || [];");
+            if (!(result instanceof List<?> list)) {
+                return List.of();
+            }
+            return list.stream().filter(item -> item != null).map(String::valueOf).toList();
+        } catch (RuntimeException ignored) {
+            // The browser may already be gone or unresponsive during shutdown; nothing else to do.
+            return List.of();
         }
     }
 
@@ -1271,7 +1329,7 @@ class ManagedCaptureRecorder {
 
     private String safeWindowHandle() {
         try {
-            return driver.getWindowHandle();
+            return driver == null ? "" : driver.getWindowHandle();
         } catch (WebDriverException exception) {
             return "";
         }
