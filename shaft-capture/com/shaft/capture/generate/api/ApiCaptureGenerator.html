@@ -45,6 +45,7 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#constructor-summary" tabindex="0">Constructor Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
@@ -57,6 +58,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#generate(com.shaft.capture.generate.api.ApiCaptureGenerationRequest)" tabindex="0">generate(ApiCaptureGenerationRequest)</a></li>
+<li><a href="#listResponseLeaves(java.nio.file.Path,java.util.List)" tabindex="0">listResponseLeaves(Path, List)</a></li>
 </ol>
 </li>
 </ol>
@@ -83,6 +85,23 @@ compile-&gt;replay-&gt;report staging, reusing <a href="../GeneratedTestValidato
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="ApiCaptureGenerator.TransactionLeaves.html" class="type-name-link" title="class in com.shaft.capture.generate.api">ApiCaptureGenerator.TransactionLeaves</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">One transaction's classified response leaves, for a "pin this path" picker UI.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
 <li>
 <section class="constructor-summary" id="constructor-summary">
@@ -123,6 +142,14 @@ fake the provider boundary without any network/process call.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generate(com.shaft.capture.generate.api.ApiCaptureGenerationRequest)" class="member-name-link">generate</a><wbr>(<a href="ApiCaptureGenerationRequest.html" title="class in com.shaft.capture.generate.api">ApiCaptureGenerationRequest</a>&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates, validates, and reports one <code>SHAFT.API</code> test class.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="ApiCaptureGenerator.TransactionLeaves.html" title="class in com.shaft.capture.generate.api">ApiCaptureGenerator.TransactionLeaves</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#listResponseLeaves(java.nio.file.Path,java.util.List)" class="member-name-link">listResponseLeaves</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Lists classified response leaves for each renderable transaction in a recorded session,
+without generating any test source -- the basis for a "pin this path as a business
+assertion" picker UI (issue #3530 negative-case).</div>
 </div>
 </div>
 </div>
@@ -199,6 +226,28 @@ fake the provider boundary without any network/process call.</div>
 <dd><code>request</code> - generation options</dd>
 <dt>Returns:</dt>
 <dd>generated artifacts and report</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="listResponseLeaves(java.nio.file.Path,java.util.List)">
+<h3>listResponseLeaves</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ApiCaptureGenerator.TransactionLeaves.html" title="class in com.shaft.capture.generate.api">ApiCaptureGenerator.TransactionLeaves</a>&gt;</span>&nbsp;<span class="element-name">listResponseLeaves</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</span></div>
+<div class="block">Lists classified response leaves for each renderable transaction in a recorded session,
+without generating any test source -- the basis for a "pin this path as a business
+assertion" picker UI (issue #3530 negative-case). A <a href="LeafClassification.html#SENSITIVE"><code>LeafClassification.SENSITIVE</code></a>
+leaf's value is never returned, even redacted-in-source values like tokens must not leave
+this method.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>sessionPath</code> - persisted Capture JSON path</dd>
+<dd><code>excludedTransactionIds</code> - transaction ids to omit, same semantics as <a href="#generate(com.shaft.capture.generate.api.ApiCaptureGenerationRequest)"><code>generate(ApiCaptureGenerationRequest)</code></a></dd>
+<dt>Returns:</dt>
+<dd>one entry per renderable transaction, in recorded order; empty if the session
+        cannot be read</dd>
 </dl>
 </div>
 </section>

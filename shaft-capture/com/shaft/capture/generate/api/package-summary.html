@@ -91,67 +91,71 @@
 <div class="block">Generates, optionally compiles, and optionally replays a <code>SHAFT.API</code> TestNG class from a
 recorded session's API transactions.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="ApiCaptureGenerator.TransactionLeaves.html" title="class in com.shaft.capture.generate.api">ApiCaptureGenerator.TransactionLeaves</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="block">One transaction's classified response leaves, for a "pin this path" picker UI.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">How recorded transactions are grouped into generated test methods.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="ApiTestRenderer.html" title="class in com.shaft.capture.generate.api">ApiTestRenderer</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="ApiTestRenderer.html" title="class in com.shaft.capture.generate.api">ApiTestRenderer</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Renders a compiling <code>SHAFT.API</code> TestNG class from recorded, classified, and correlated
 API transactions.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="ApiTransaction.html" title="class in com.shaft.capture.generate.api">ApiTransaction</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="col-first even-row-color class-summary class-summary-tab4"><a href="ApiTransaction.html" title="class in com.shaft.capture.generate.api">ApiTransaction</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab4">
 <div class="block">One recorded API transaction with resolved (not just referenced) request/response body text,
 ready for classification, correlation, and rendering.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">How thoroughly generated code validates each response.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="CorrelatedTransaction.html" title="class in com.shaft.capture.generate.api">CorrelatedTransaction</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="col-first even-row-color class-summary class-summary-tab4"><a href="CorrelatedTransaction.html" title="class in com.shaft.capture.generate.api">CorrelatedTransaction</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab4">
 <div class="block">One transaction's response leaves after <a href="TransactionCorrelator.html" title="class in com.shaft.capture.generate.api"><code>TransactionCorrelator</code></a> has run, with any
 <code>VOLATILE</code> leaf found reused by a later request upgraded to
 <a href="LeafClassification.html#CORRELATED"><code>LeafClassification.CORRELATED</code></a>.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab4"><a href="CorrelationUse.html" title="class in com.shaft.capture.generate.api">CorrelationUse</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab4">
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="CorrelationUse.html" title="class in com.shaft.capture.generate.api">CorrelationUse</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">
 <div class="block">One place a correlated (previously VOLATILE) response value was found reused by a later
 transaction's outbound request.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="CorrelationUse.Location.html" title="enum class in com.shaft.capture.generate.api">CorrelationUse.Location</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="CorrelationUse.Location.html" title="enum class in com.shaft.capture.generate.api">CorrelationUse.Location</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">Where a correlated value was found reused in a later request.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="JsonSchemaInferencer.html" title="class in com.shaft.capture.generate.api">JsonSchemaInferencer</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="JsonSchemaInferencer.html" title="class in com.shaft.capture.generate.api">JsonSchemaInferencer</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Infers a standard (draft-04-compatible) JSON Schema document from one recorded sample response
 body, for use with <code>SHAFT.API</code>'s <code>assertThatResponse().matchesSchema(path)</code>, which
 is backed by REST-Assured's <code>io.restassured.module.jsv.JsonSchemaValidator</code>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="LeafClassification.html" title="enum class in com.shaft.capture.generate.api">LeafClassification</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="LeafClassification.html" title="enum class in com.shaft.capture.generate.api">LeafClassification</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">Classification of one scalar JSON leaf discovered in a recorded API response body.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab4"><a href="RenderedApiTest.html" title="class in com.shaft.capture.generate.api">RenderedApiTest</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab4">
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="RenderedApiTest.html" title="class in com.shaft.capture.generate.api">RenderedApiTest</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">
 <div class="block">Result of rendering one API test class.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="ResponseLeaf.html" title="class in com.shaft.capture.generate.api">ResponseLeaf</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="col-first even-row-color class-summary class-summary-tab4"><a href="ResponseLeaf.html" title="class in com.shaft.capture.generate.api">ResponseLeaf</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab4">
 <div class="block">One classified scalar leaf discovered while walking a recorded JSON response body.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="ResponseNormalizer.html" title="class in com.shaft.capture.generate.api">ResponseNormalizer</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="ResponseNormalizer.html" title="class in com.shaft.capture.generate.api">ResponseNormalizer</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Classifies each scalar leaf of a recorded JSON response body as <a href="LeafClassification.html#STABLE"><code>LeafClassification.STABLE</code></a>,
 <a href="LeafClassification.html#VOLATILE"><code>LeafClassification.VOLATILE</code></a>, or <a href="LeafClassification.html#SENSITIVE"><code>LeafClassification.SENSITIVE</code></a>, reusing the exact
 same key/value volatility and sensitivity detection <code>HttpContractRecorder</code> uses for HTTP
 contract normalization, so API codegen and contract capture agree on what counts as noise vs. a
 stable, assertable value.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="TransactionCorrelator.html" title="class in com.shaft.capture.generate.api">TransactionCorrelator</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="TransactionCorrelator.html" title="class in com.shaft.capture.generate.api">TransactionCorrelator</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Finds <code>VOLATILE</code> response leaves that a later transaction's request reuses (the common
 create -&gt; read/update case: a generated ID from a POST response reappears in a later GET's
 URL, or a later PATCH's request body), and upgrades them to
