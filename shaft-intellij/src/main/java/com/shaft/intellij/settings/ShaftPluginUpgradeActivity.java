@@ -1,8 +1,6 @@
 package com.shaft.intellij.settings;
 
-import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
-import com.intellij.openapi.extensions.PluginId;
+import com.intellij.ide.plugins.cl.PluginAwareClassLoader;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
 import kotlin.Unit;
@@ -28,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class ShaftPluginUpgradeActivity implements ProjectActivity {
     private static final AtomicBoolean CHECKED = new AtomicBoolean();
-    private static final String PLUGIN_ID = "io.github.shafthq.shaft";
 
     /** Outcome of comparing the stored last-seen version against the running version. */
     enum UpgradeDecision {
@@ -100,7 +97,13 @@ public final class ShaftPluginUpgradeActivity implements ProjectActivity {
 
     @Nullable
     private static String runningPluginVersion() {
-        IdeaPluginDescriptor plugin = PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID));
-        return plugin == null ? null : plugin.getVersion();
+        // PluginManagerCore#getPlugin(PluginId) is @ApiStatus.Internal on recent platform versions
+        // and fails shaft-intellij's INTERNAL_API_USAGES verifyPlugin gate; PluginAwareClassLoader's
+        // getPluginDescriptor()/getVersion() resolve this plugin's own version without it.
+        ClassLoader classLoader = ShaftPluginUpgradeActivity.class.getClassLoader();
+        if (classLoader instanceof PluginAwareClassLoader pluginAwareClassLoader) {
+            return pluginAwareClassLoader.getPluginDescriptor().getVersion();
+        }
+        return null;
     }
 }

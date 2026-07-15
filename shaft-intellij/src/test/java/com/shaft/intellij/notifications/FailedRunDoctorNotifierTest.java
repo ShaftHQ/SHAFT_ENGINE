@@ -17,9 +17,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * which need a live IntelliJ platform and are not exercised by this lightweight Gradle unit test
  * JVM (same documented gap as {@link ShaftToolWorkflowLauncherTest}). This class instead covers
  * every pure piece {@code processTerminated} delegates to: argument building, evidence-path
- * resolution, and real-test-identity normalization (issue #3547).
+ * resolution, real-test-identity normalization (issue #3547), and the user-cancellation skip
+ * decision (issue #3591).
  */
 class FailedRunDoctorNotifierTest {
+    @Test
+    void isUserCancelledRunIsFalseWhenNeverRecorded() {
+        // The common case: a run that fails on its own (assertion failure, non-zero JVM exit) never
+        // goes through destroyProcess(), so processWillTerminate is never called and no value is
+        // ever stored. This must NOT be treated as a cancellation, or genuinely failed runs would
+        // silently stop notifying (issue #3591).
+        assertFalse(FailedRunDoctorNotifier.isUserCancelledRun(null));
+    }
+
+    @Test
+    void isUserCancelledRunIsFalseWhenRecordedAsNotDestroyed() {
+        // processWillTerminate(event, false) corresponds to detachProcess(), not a user Stop.
+        assertFalse(FailedRunDoctorNotifier.isUserCancelledRun(Boolean.FALSE));
+    }
+
+    @Test
+    void isUserCancelledRunIsTrueWhenRecordedAsForciblyDestroyed() {
+        // processWillTerminate(event, true) corresponds to destroyProcess() -- the user pressed
+        // Stop, or the IDE force-killed the run.
+        assertTrue(FailedRunDoctorNotifier.isUserCancelledRun(Boolean.TRUE));
+    }
+
     @Test
     void doctorArgumentsBuildsCorrectJsonStructure() {
         JsonObject arguments = FailedRunDoctorNotifier.doctorArguments("allure-results");

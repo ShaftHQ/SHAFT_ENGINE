@@ -63,6 +63,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JLabel recorderStatus;
     private final ToolPrefill prefill;
     private final ShaftSettingsState.Settings settings;
+    // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
+    // one process-wide flag (issue #3591 item 3).
+    private final String recordingKey = "guided#" + Integer.toHexString(System.identityHashCode(this));
     // Created lazily on the first poll so headless panel tests never touch platform executors.
     private Alarm statusPollAlarm;
     private volatile boolean pollingActive;
@@ -970,7 +973,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
         boolean active = isRecorderActive(status);
         // Feeds the shared readiness strip's recording badge (issue #3500 A4).
-        ShaftRecordingActivity.publish(active);
+        if (active) {
+            ShaftRecordingActivity.started(recordingKey);
+        } else {
+            ShaftRecordingActivity.stopped(recordingKey);
+        }
         if (active) {
             recorderSeenActive = true;
             pollsWithoutActivity = 0;
@@ -1096,6 +1103,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         if (statusPollAlarm != null && !statusPollAlarm.isDisposed()) {
             statusPollAlarm.cancelAllRequests();
         }
+        // Prevents a stuck-active recording key if the panel closes mid-recording (#3591 item 3).
+        ShaftRecordingActivity.stopped(recordingKey);
     }
 
     private boolean playwright() {

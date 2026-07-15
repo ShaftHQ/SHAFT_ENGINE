@@ -3,7 +3,9 @@ package com.shaft.intellij.notifications;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.intellij.execution.ExecutionListener;
+import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
+import com.intellij.execution.process.ProcessListener;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationAction;
@@ -11,6 +13,7 @@ import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Key;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,8 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 /**
@@ -35,7 +37,47 @@ import java.util.stream.Stream;
 public final class FailedRunDoctorNotifier implements ExecutionListener {
     private static final String GROUP_ID = "SHAFT Notifications";
     private static final long THROTTLE_MILLIS = 60_000;
-    private static final Map<String, Long> LAST_NOTIFIED_BY_PROJECT = new ConcurrentHashMap<>();
+
+    /**
+     * Records, per {@link ProcessHandler} instance, whether that specific run was forcibly
+     * destroyed (the user pressed Stop, or the IDE force-killed it) rather than exiting on its
+     * own. {@code ProcessHandler} already extends {@code UserDataHolderBase}, so storing the flag
+     * here scopes it to exactly one run and lets it die with the handler itself -- no static
+     * collection to leak or to key by anything (issue #3591).
+     */
+    private static final Key<Boolean> USER_CANCELLED = Key.create("SHAFT_RUN_USER_CANCELLED");
+
+    /**
+     * Throttle timestamp for this listener's project. {@code <projectListeners>} registration in
+     * plugin.xml gives every project its own {@code FailedRunDoctorNotifier} instance for the life
+     * of that project, so a plain instance field already scopes the throttle correctly -- the
+     * previous {@code static Map<basePath, Long>} could only ever grow, never shrink, across every
+     * project ever opened in the IDE session (issue #3591).
+     */
+    private final AtomicLong lastNotifiedAt = new AtomicLong();
+
+    @Override
+    public void processStarted(@NotNull String executorId,
+                               @NotNull ExecutionEnvironment environment,
+                               @NotNull ProcessHandler handler) {
+        if (!looksLikeTestRun(environment)) {
+            return;
+        }
+        // Attached per-run on the real ProcessHandler so processTerminated can tell a user Stop
+        // apart from the process simply exiting with a failing test's non-zero code. There is no
+        // single "was this cancelled" flag on ExecutionListener itself; processWillTerminate's
+        // willBeDestroyed parameter is true only on the destroyProcess() path (Stop / force-kill)
+        // and false on detachProcess(), and is never invoked at all for a process that just exits
+        // on its own -- verified against the platform's ProcessHandler bytecode (issue #3591).
+        handler.addProcessListener(new ProcessListener() {
+            @Override
+            public void processWillTerminate(@NotNull ProcessEvent event, boolean willBeDestroyed) {
+                if (willBeDestroyed) {
+                    handler.putUserData(USER_CANCELLED, Boolean.TRUE);
+                }
+            }
+        });
+    }
 
     @Override
     public void processTerminated(@NotNull String executorId,
@@ -44,6 +86,12 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
                                   int exitCode) {
         Project project = environment.getProject();
         if (exitCode == 0 || project.isDisposed()) {
+            return;
+        }
+        if (isUserCancelledRun(handler.getUserData(USER_CANCELLED))) {
+            // The user pressed Stop (or the IDE force-killed the run): a non-zero exit here is
+            // expected and intentional, not a failure to triage. Running Doctor anyway would burn
+            // MCP time on every deliberate cancel.
             return;
         }
         if (!looksLikeTestRun(environment)) {
@@ -62,12 +110,28 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
             // would immediately fail is worse than no notification.
             return;
         }
-        if (throttled(basePath)) {
+        if (throttled()) {
             return;
         }
         String testIdentity = environment.getRunProfile().getName();
         notifyDoctorAvailable(project, testIdentity, allureResultsPath, tracePath);
         openDoctorWorkflow(project, allureResultsPath, tracePath);
+    }
+
+    /**
+     * Pure decision extracted from {@link #processTerminated} so it is unit-testable without any
+     * platform types (mirrors {@code ShaftTestMethodAnnotations}'s PSI-free predicate style): a
+     * run counts as user-cancelled only when {@code processWillTerminate} actually recorded
+     * {@code willBeDestroyed == true} on that process. A {@code null} value -- the common case,
+     * since most terminations never call {@code destroyProcess()} at all -- must NOT be treated as
+     * cancelled, or every genuinely failed run would silently stop notifying.
+     *
+     * @param recordedWillBeDestroyed the value stored by {@link #processStarted}'s listener, or
+     *                                {@code null} when the process was never force-destroyed
+     * @return {@code true} only when the run was an explicit user Stop / forced kill
+     */
+    static boolean isUserCancelledRun(@Nullable Boolean recordedWillBeDestroyed) {
+        return Boolean.TRUE.equals(recordedWillBeDestroyed);
     }
 
     private static boolean looksLikeTestRun(ExecutionEnvironment environment) {
@@ -150,10 +214,10 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
         return projectRoot.relativize(candidate).toString().replace('\\', '/');
     }
 
-    private static boolean throttled(String basePath) {
+    private boolean throttled() {
         long now = System.currentTimeMillis();
-        Long previous = LAST_NOTIFIED_BY_PROJECT.put(basePath, now);
-        return previous != null && now - previous < THROTTLE_MILLIS;
+        long previous = lastNotifiedAt.getAndSet(now);
+        return previous != 0 && now - previous < THROTTLE_MILLIS;
     }
 
     private static void notifyDoctorAvailable(

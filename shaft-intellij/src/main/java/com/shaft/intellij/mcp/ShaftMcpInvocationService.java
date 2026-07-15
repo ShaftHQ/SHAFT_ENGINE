@@ -388,7 +388,7 @@ public final class ShaftMcpInvocationService implements Disposable {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
             }
-            dropClientIfDead(client);
+            dropClientIfWedged(client);
             McpInvocationError category = McpInvocationError.categorize(exception);
             return ShaftMcpToolResult.failure(
                     McpInvocationError.detail(exception, category), category, category.recoveryAction());
@@ -483,8 +483,15 @@ public final class ShaftMcpInvocationService implements Disposable {
         }
     }
 
-    private void dropClientIfDead(ShaftMcpStdioClient client) {
-        if (client == null || client.isAlive()) {
+    /**
+     * Drops the shared client after a failed dispatch when it is either dead or was never
+     * initialized (an alive process whose {@code initialize} handshake hung or was rejected):
+     * either way it can never serve another call, so the next action must respawn a fresh one.
+     * An alive, initialized client is left in place — a single tool-call failure (a bad
+     * argument, a server-side error) must not tear down a live capture/driver session.
+     */
+    private void dropClientIfWedged(ShaftMcpStdioClient client) {
+        if (client == null || !shouldDropAfterFailure(client.isAlive(), client.isInitialized())) {
             return;
         }
         synchronized (clientLock) {
@@ -492,6 +499,16 @@ public final class ShaftMcpInvocationService implements Disposable {
                 closeSharedClientLocked();
             }
         }
+    }
+
+    /**
+     * Pure decision of whether a client that just failed a dispatch should be dropped as the
+     * shared client (issue #3591): dead clients always go, and so does an alive client that never
+     * completed the {@code initialize} handshake, since it will only keep re-failing the same
+     * handshake forever otherwise. An alive, initialized client is kept.
+     */
+    static boolean shouldDropAfterFailure(boolean alive, boolean initialized) {
+        return !alive || !initialized;
     }
 
     private void closeSharedClientLocked() {

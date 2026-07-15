@@ -125,6 +125,9 @@ final class ShaftAssistantPanel extends JPanel {
                     + "3. 🧪 Review code to turn it into a real test.\n"
                     + "4. 💬 Or just tell me what you need below.";
     private final Project project;
+    // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
+    // one process-wide flag (issue #3591 item 3).
+    private final String recordingKey = "assistant#" + Integer.toHexString(System.identityHashCode(this));
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
     private final JButton newChat;
@@ -754,6 +757,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (connectionState != null) {
             connectionState.removeStateChangeListener(this::onConnectionStateChanged);
         }
+        // Prevents a stuck-active recording key if the panel closes mid-recording (#3591 item 3).
+        ShaftRecordingActivity.stopped(recordingKey);
         super.removeNotify();
     }
 
@@ -1728,11 +1733,11 @@ final class ShaftAssistantPanel extends JPanel {
         if (success && ("capture_start".equals(toolName) || "playwright_record_start".equals(toolName)
                 || "mobile_record_start".equals(toolName))) {
             // Feeds the shared readiness strip's recording badge (issue #3500 A4).
-            ShaftRecordingActivity.publish(true);
+            ShaftRecordingActivity.started(recordingKey);
         }
         if (success && ("capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName)
                 || "mobile_record_stop".equals(toolName))) {
-            ShaftRecordingActivity.publish(false);
+            ShaftRecordingActivity.stopped(recordingKey);
         }
         if (success && "capture_start".equals(toolName)) {
             scheduleCaptureStartDiagnostic(output);
