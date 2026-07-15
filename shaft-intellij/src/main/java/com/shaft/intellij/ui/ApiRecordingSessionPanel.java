@@ -5,8 +5,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.ui.table.JBTable;
 import com.intellij.util.Alarm;
@@ -27,22 +29,55 @@ import javax.swing.table.TableRowSorter;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Displays a live SHAFT API recording session: transactions are polled from
- * {@code capture_api_transactions} roughly every 2 seconds on a background
- * thread, and the {@link JBTable} model is only ever mutated on the EDT.
- * Polling stops on panel disposal or when the Stop button ends the session.
+ * Displays a live SHAFT API recording session: transactions are polled roughly every 2 seconds on
+ * a background thread, and the {@link JBTable} model is only ever mutated on the EDT. Polling
+ * stops on panel disposal or when the Stop button ends the session.
+ *
+ * <p>Backs both the browser-based recorder ({@link CaptureMode#WEB}, polling
+ * {@code capture_api_transactions}/{@code capture_api_stop}) and the no-browser mobile API proxy
+ * ({@link CaptureMode#PURE_API}, polling {@code mobile_api_record_transactions}/
+ * {@code mobile_api_record_stop}) -- issue #3530 A2. {@code capture_api_generate} is shared by
+ * both: it is already session-path-agnostic, taking only the persisted session JSON path.
  */
 public final class ApiRecordingSessionPanel extends JPanel implements Disposable {
     private static final int POLL_INTERVAL_MILLIS = 2_000;
-    private static final String TRANSACTIONS_TOOL_NAME = "capture_api_transactions";
-    private static final String STOP_TOOL_NAME = "capture_api_stop";
     private static final String GENERATE_TOOL_NAME = "capture_api_generate";
 
+    /**
+     * Selects which MCP tool pair a session polls. Both pairs return the same body-free
+     * {@code NetworkTransaction} array shape, so {@link #parseTransactions} needs no mode
+     * awareness of its own.
+     */
+    public enum CaptureMode {
+        WEB("capture_api_transactions", "capture_api_stop"),
+        PURE_API("mobile_api_record_transactions", "mobile_api_record_stop");
+
+        private final String transactionsTool;
+        private final String stopTool;
+
+        CaptureMode(String transactionsTool, String stopTool) {
+            this.transactionsTool = transactionsTool;
+            this.stopTool = stopTool;
+        }
+
+        /** Package-private for {@code ApiRecordingSessionPanelTest}. */
+        String transactionsTool() {
+            return transactionsTool;
+        }
+
+        /** Package-private for {@code ApiRecordingSessionPanelTest}. */
+        String stopTool() {
+            return stopTool;
+        }
+    }
+
     private final Project project;
+    private final CaptureMode mode;
     private final TransactionTableModel tableModel = new TransactionTableModel();
     private final JBTable table = new JBTable(tableModel);
     private final TableRowSorter<TransactionTableModel> rowSorter = new TableRowSorter<>(tableModel);
@@ -51,6 +86,13 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private final JButton generateButton = new JButton("Generate");
     private final JLabel statusLabel = new JLabel("Recording...");
     private final Alarm pollAlarm;
+
+    // PURE_API only: the loopback proxy has no browser to drive, so the device/emulator needs the
+    // proxy port plus a one-click copy of the CA certificate the MITM proxy signs traffic with
+    // (issue #3530 A2 -- session panel/status parity for the pure-API path).
+    private final JBTextArea pairingInfoArea = new JBTextArea("Waiting for the loopback proxy to start...");
+    private final JButton copyCertificateButton = new JButton("Copy CA Certificate");
+    private String caCertificatePem = "";
 
     private volatile boolean stopped;
     // Written on the pooled poll thread (pollOnce) and read on the EDT (stopRecording/dispose);
@@ -61,15 +103,30 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private volatile ShaftMcpInvocation currentInvocation;
 
     /**
-     * Creates the panel and immediately begins polling for transactions.
+     * Creates a {@link CaptureMode#WEB} panel and immediately begins polling for transactions.
      *
      * @param project current IntelliJ project
      * @param targetUrl the URL the session was started for
      * @param sessionId the session identifier returned by {@code capture_api_start}, or null if unknown yet
      */
     public ApiRecordingSessionPanel(@NotNull Project project, @NotNull String targetUrl, @Nullable String sessionId) {
+        this(project, CaptureMode.WEB, "Recording: " + targetUrl, sessionId);
+    }
+
+    /**
+     * Creates the panel for the given {@link CaptureMode} and immediately begins polling for
+     * transactions.
+     *
+     * @param project current IntelliJ project
+     * @param mode which MCP tool pair to poll (issue #3530 A2)
+     * @param headerText title shown above the transactions table
+     * @param sessionId the session identifier returned by the mode's start tool, or null if unknown yet
+     */
+    public ApiRecordingSessionPanel(@NotNull Project project, @NotNull CaptureMode mode, @NotNull String headerText,
+            @Nullable String sessionId) {
         super(new BorderLayout(6, 6));
         this.project = project;
+        this.mode = mode;
         this.sessionId = sessionId;
         this.pollAlarm = new Alarm(Alarm.ThreadToUse.POOLED_THREAD, this);
         setBorder(JBUI.Borders.empty(8));
@@ -104,7 +161,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         generateButton.addActionListener(event -> generateCode());
 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-        JLabel titleLabel = new JLabel("Recording: " + targetUrl);
+        JLabel titleLabel = new JLabel(headerText);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
         header.add(titleLabel);
 
@@ -119,12 +176,67 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(header, BorderLayout.NORTH);
         north.add(toolbar, BorderLayout.SOUTH);
+        if (mode == CaptureMode.PURE_API) {
+            north.add(buildPairingInfoPanel(), BorderLayout.CENTER);
+        }
 
         add(north, BorderLayout.NORTH);
         add(new JBScrollPane(table), BorderLayout.CENTER);
         add(statusLabel, BorderLayout.SOUTH);
 
         startPolling();
+    }
+
+    /**
+     * Builds the pure-API pairing panel: the loopback proxy has no browser to drive, so the
+     * device/emulator needs the proxy host:port plus the CA certificate the proxy signs traffic
+     * with, populated once the start tool call returns (see {@link #showPairingInfo}).
+     */
+    private JComponent buildPairingInfoPanel() {
+        pairingInfoArea.setEditable(false);
+        pairingInfoArea.setLineWrap(true);
+        pairingInfoArea.setWrapStyleWord(true);
+        pairingInfoArea.getAccessibleContext().setAccessibleName("Mobile API capture pairing instructions");
+
+        copyCertificateButton.setEnabled(false);
+        copyCertificateButton.getAccessibleContext().setAccessibleDescription(
+                "Copy the loopback proxy's CA certificate to install on the device or emulator");
+        copyCertificateButton.addActionListener(event -> {
+            if (!caCertificatePem.isBlank()) {
+                CopyPasteManager.getInstance().setContents(new StringSelection(caCertificatePem));
+            }
+        });
+
+        JPanel pairingActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        pairingActions.add(copyCertificateButton);
+
+        JPanel pairingPanel = new JPanel(new BorderLayout(4, 4));
+        pairingPanel.setBorder(JBUI.Borders.empty(4, 0));
+        pairingPanel.add(new JBScrollPane(pairingInfoArea), BorderLayout.CENTER);
+        pairingPanel.add(pairingActions, BorderLayout.SOUTH);
+        return pairingPanel;
+    }
+
+    /**
+     * Populates the pure-API pairing panel once {@code mobile_api_record_start} (or a later
+     * {@code mobile_api_record_status} poll) returns the proxy port, CA certificate, and any
+     * pairing warnings. A no-op for a {@link CaptureMode#WEB} panel.
+     *
+     * @param proxyPort loopback port the MITM proxy is listening on
+     * @param caCertificatePem PEM-encoded CA certificate for the device/emulator to trust
+     * @param warnings pairing guidance and any capture warnings
+     */
+    public void showPairingInfo(int proxyPort, @NotNull String caCertificatePem, @NotNull List<String> warnings) {
+        if (mode != CaptureMode.PURE_API) {
+            return;
+        }
+        this.caCertificatePem = caCertificatePem;
+        copyCertificateButton.setEnabled(!caCertificatePem.isBlank());
+        StringBuilder text = new StringBuilder("Loopback proxy listening on 127.0.0.1:").append(proxyPort).append('.');
+        for (String warning : warnings) {
+            text.append('\n').append(warning);
+        }
+        pairingInfoArea.setText(text.toString());
     }
 
     /**
@@ -194,7 +306,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
             arguments.addProperty("sessionId", sessionId);
         }
         currentInvocation = ShaftMcpInvocationService.getInstance(project)
-                .startTool(TRANSACTIONS_TOOL_NAME, arguments);
+                .startTool(mode.transactionsTool, arguments);
         currentInvocation.future().whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (stopped) {
@@ -291,7 +403,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
             arguments.addProperty("sessionId", sessionId);
         }
         ShaftMcpInvocationService.getInstance(project)
-                .startTool(STOP_TOOL_NAME, arguments)
+                .startTool(mode.stopTool, arguments)
                 .future()
                 .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
                     if (error != null || result == null || !result.success()) {

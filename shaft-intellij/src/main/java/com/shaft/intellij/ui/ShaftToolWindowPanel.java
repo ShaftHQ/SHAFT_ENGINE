@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
@@ -432,6 +433,80 @@ public final class ShaftToolWindowPanel extends JPanel {
                                                 + (result != null ? result.output() : String.valueOf(error)));
                             }
                         }));
+    }
+
+    /**
+     * Opens (or reuses) the API Recording tab for a no-browser pure-API session, starting
+     * {@code mobile_api_record_start} and populating the pairing panel (proxy port + CA
+     * certificate) once it returns (issue #3530 A2).
+     *
+     * @param headerText title shown above the transactions table (e.g. the target platform)
+     * @param startArguments arguments for the {@code mobile_api_record_start} MCP call
+     */
+    public void showPureApiRecordingTab(@NotNull String headerText, @NotNull JsonObject startArguments) {
+        if (workflowCards == null || workflowLayout == null) {
+            return;
+        }
+        disposeApiRecordingPanel();
+        apiRecordingPanel = new ApiRecordingSessionPanel(
+                project, ApiRecordingSessionPanel.CaptureMode.PURE_API, headerText, null);
+        WorkflowView apiRecordingView = new WorkflowView("API Recording", apiRecordingPanel, ShaftIcons.VIEW);
+        List<WorkflowView> updated = new ArrayList<>(workflowViews);
+        updated.removeIf(view -> "API Recording".equals(view.label()));
+        updated.add(apiRecordingView);
+        workflowViews = updated;
+        workflowCards.add(apiRecordingPanel, apiRecordingView.label());
+        workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+        refreshWorkflowSelectorVisibility();
+        selectWorkflow(apiRecordingPanel);
+
+        ShaftMcpInvocationService.getInstance(project)
+                .startTool("mobile_api_record_start", startArguments)
+                .future()
+                .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager.getApplication()
+                        .invokeLater(() -> applyMobileApiRecordStartResult(result, error)));
+    }
+
+    /**
+     * Applies the {@code mobile_api_record_start} result to the current API Recording panel: an
+     * error/failure surfaces as a status message, otherwise the pairing panel is populated.
+     * Split from {@link #showPureApiRecordingTab} (and further split below) to keep each method's
+     * branching within PMD's NPath complexity threshold.
+     */
+    private void applyMobileApiRecordStartResult(ShaftMcpToolResult result, Throwable error) {
+        if (apiRecordingPanel == null) {
+            return;
+        }
+        if (error != null || result == null || !result.success()) {
+            apiRecordingPanel.statusLabel().setText(
+                    "Failed to start recording: " + (result != null ? result.output() : String.valueOf(error)));
+            return;
+        }
+        JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        if (status != null) {
+            applyPairingInfo(apiRecordingPanel, status);
+        }
+    }
+
+    /**
+     * Extracts the proxy port, CA certificate, and warnings from a {@code MobileApiCaptureStatus}
+     * JSON object and hands them to the panel's pairing display.
+     */
+    private static void applyPairingInfo(ApiRecordingSessionPanel panel, JsonObject status) {
+        int proxyPort = status.has("proxyPort") ? status.get("proxyPort").getAsInt() : 0;
+        String caCertificatePem = status.has("caCertificatePem") ? status.get("caCertificatePem").getAsString() : "";
+        panel.showPairingInfo(proxyPort, caCertificatePem, warningsOf(status));
+    }
+
+    /**
+     * Reads the {@code warnings} JSON array off a {@code MobileApiCaptureStatus} object.
+     */
+    private static List<String> warningsOf(JsonObject status) {
+        List<String> warnings = new ArrayList<>();
+        if (status.has("warnings") && status.get("warnings").isJsonArray()) {
+            status.get("warnings").getAsJsonArray().forEach(warning -> warnings.add(warning.getAsString()));
+        }
+        return warnings;
     }
 
     /**
