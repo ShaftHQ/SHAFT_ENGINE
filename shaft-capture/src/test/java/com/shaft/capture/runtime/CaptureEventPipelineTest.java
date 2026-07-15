@@ -491,6 +491,45 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void navigationRemainsAConsequenceOfItsCausingInteractionAfterALaterUnrelatedInteraction(@TempDir Path temp) {
+        // Regression (the ENTER-triggered "second-replace search journey"): a navigation genuinely
+        // caused by an earlier interaction (ENTER) must stay suppressed even when a later,
+        // unrelated interaction (a click on the newly loaded page) is recorded before this
+        // buffered navigation is evaluated. A single scalar "lastInteractionAt" would be
+        // overwritten by the later click, wrongly making the navigation appear to predate its own
+        // real, earlier cause once compared only against whatever interaction is currently most
+        // recent instead of the one that actually preceded it.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/search")));
+        pipeline.accept(signal("keyboard", START.plusMillis(50), buttonTarget(),
+                Map.of("keys", List.of("ENTER")), Map.of()));
+        // The ENTER-caused navigation's own timestamp: genuinely after ENTER, but it still sits in
+        // pendingNavigations when the unrelated click below is recorded.
+        pipeline.accept(signal("navigation", START.plusMillis(120), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/results")));
+        pipeline.accept(signal("click", START.plusMillis(400), buttonTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent.NavigationEvent> navigations = store.read().events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .toList();
+        assertEquals(1, navigations.size(),
+                "The ENTER-caused navigation must stay suppressed even after a later unrelated click; got: "
+                        + navigations.stream().map(CaptureEvent.NavigationEvent::targetUrl).toList());
+        assertEquals("https://example.test/search", navigations.getFirst().targetUrl());
+        assertEquals(1, store.read().events().stream().filter(CaptureEvent.ClickEvent.class::isInstance).count());
+    }
+
+    @Test
     void recordsStandaloneNavigationWithNoPrecedingInteraction(@TempDir Path temp) {
         // Address-bar navigation (or the initial page open) with no click anywhere near it must
         // still be recorded even though it now goes through the pendingNavigations buffer like
