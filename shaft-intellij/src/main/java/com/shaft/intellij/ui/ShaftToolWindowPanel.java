@@ -435,6 +435,61 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     /**
+     * Opens (or reuses) the API Recording tab for a no-browser pure-API session, starting
+     * {@code mobile_api_record_start} and populating the pairing panel (proxy port + CA
+     * certificate) once it returns (issue #3530 A2).
+     *
+     * @param headerText title shown above the transactions table (e.g. the target platform)
+     * @param startArguments arguments for the {@code mobile_api_record_start} MCP call
+     */
+    public void showPureApiRecordingTab(@NotNull String headerText, @NotNull JsonObject startArguments) {
+        if (workflowCards == null || workflowLayout == null) {
+            return;
+        }
+        disposeApiRecordingPanel();
+        apiRecordingPanel = new ApiRecordingSessionPanel(
+                project, ApiRecordingSessionPanel.CaptureMode.PURE_API, headerText, null);
+        WorkflowView apiRecordingView = new WorkflowView("API Recording", apiRecordingPanel, ShaftIcons.VIEW);
+        List<WorkflowView> updated = new ArrayList<>(workflowViews);
+        updated.removeIf(view -> "API Recording".equals(view.label()));
+        updated.add(apiRecordingView);
+        workflowViews = updated;
+        workflowCards.add(apiRecordingPanel, apiRecordingView.label());
+        workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+        refreshWorkflowSelectorVisibility();
+        selectWorkflow(apiRecordingPanel);
+
+        ShaftMcpInvocationService.getInstance(project)
+                .startTool("mobile_api_record_start", startArguments)
+                .future()
+                .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager.getApplication()
+                        .invokeLater(() -> {
+                            if (apiRecordingPanel == null) {
+                                return;
+                            }
+                            if (error != null || result == null || !result.success()) {
+                                apiRecordingPanel.statusLabel().setText(
+                                        "Failed to start recording: "
+                                                + (result != null ? result.output() : String.valueOf(error)));
+                                return;
+                            }
+                            com.google.gson.JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+                            if (status == null) {
+                                return;
+                            }
+                            int proxyPort = status.has("proxyPort") ? status.get("proxyPort").getAsInt() : 0;
+                            String caCertificatePem = status.has("caCertificatePem")
+                                    ? status.get("caCertificatePem").getAsString() : "";
+                            List<String> warnings = new ArrayList<>();
+                            if (status.has("warnings") && status.get("warnings").isJsonArray()) {
+                                status.get("warnings").getAsJsonArray()
+                                        .forEach(warning -> warnings.add(warning.getAsString()));
+                            }
+                            apiRecordingPanel.showPairingInfo(proxyPort, caCertificatePem, warnings);
+                        }));
+    }
+
+    /**
      * Disposes the current API Recording panel, if any, cancelling its poller.
      */
     private void disposeApiRecordingPanel() {

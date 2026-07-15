@@ -38,6 +38,14 @@
                 iconDark="/icons/shaftToolWindow_dark.svg">
             <add-to-group group-id="Shaft.ToolsMenu" anchor="last"/>
         </action>
+        <action id="Shaft.RecordApiMobile"
+                class="com.shaft.intellij.actions.RecordApiMobileAction"
+                text="Record SHAFT API Session (No Browser)"
+                description="Start a no-browser mobile API recording session via the mobile_api_record_start MCP tool"
+                icon="/icons/shaftToolWindow.svg"
+                iconDark="/icons/shaftToolWindow_dark.svg">
+            <add-to-group group-id="Shaft.ToolsMenu" anchor="last"/>
+        </action>
         <action id="Shaft.ShowTraceViewer"
                 class="com.shaft.intellij.actions.ShowTraceViewerAction"
                 text="Show SHAFT Trace Viewer"
