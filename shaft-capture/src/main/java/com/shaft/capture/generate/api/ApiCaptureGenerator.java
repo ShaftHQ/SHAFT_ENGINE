@@ -151,7 +151,8 @@ public final class ApiCaptureGenerator {
         ensureWithin(outputRoot, classesDirectory);
 
         RenderedApiTest rendered = ApiTestRenderer.render(request.packageName(), className,
-                analysis.transactions(), request.style(), request.validationDepth());
+                analysis.transactions(), request.style(), request.validationDepth(), java.util.Map.of(),
+                java.util.Set.copyOf(request.pinnedJsonPaths()));
         List<String> warnings = warningsFor(rendered);
 
         if (!request.overwrite() && Files.exists(sourcePath)) {
