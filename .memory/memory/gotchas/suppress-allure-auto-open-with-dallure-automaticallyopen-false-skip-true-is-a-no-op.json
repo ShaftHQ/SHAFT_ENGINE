@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op.md",
+  "content_hash": "sha256:5582938401d9536aff6dd65d74a2f1455fa2d5b05168b1406aaa5e4e1a4822e4",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "allure",
+    "reporting",
+    "validation",
+    "testing"
+  ],
+  "title": "Suppress Allure auto-open with -Dallure.automaticallyOpen=false (skip=true is a no-op)",
+  "type": "gotcha",
+  "updated_at": "2026-07-15T10:08:58+03:00"
+}
