@@ -100,6 +100,54 @@ public final class ApiCaptureGenerator {
     }
 
     /**
+     * Lists classified response leaves for each renderable transaction in a recorded session,
+     * without generating any test source -- the basis for a "pin this path as a business
+     * assertion" picker UI (issue #3530 negative-case). A {@link LeafClassification#SENSITIVE}
+     * leaf's value is never returned, even redacted-in-source values like tokens must not leave
+     * this method.
+     *
+     * @param sessionPath persisted Capture JSON path
+     * @param excludedTransactionIds transaction ids to omit, same semantics as {@link #generate}
+     * @return one entry per renderable transaction, in recorded order; empty if the session
+     *         cannot be read
+     */
+    public List<TransactionLeaves> listResponseLeaves(Path sessionPath, List<String> excludedTransactionIds) {
+        Path absoluteSessionPath = sessionPath.toAbsolutePath().normalize();
+        CaptureSession session;
+        try {
+            session = codec.read(absoluteSessionPath);
+        } catch (RuntimeException exception) {
+            return List.of();
+        }
+        Path bodiesDirectory = absoluteSessionPath.getParent().resolve(session.sessionId() + "-network-bodies");
+        List<ApiTransaction> transactions = extractTransactions(
+                session, bodiesDirectory, excludedTransactionIds == null ? List.of() : excludedTransactionIds);
+        List<TransactionLeaves> result = new ArrayList<>(transactions.size());
+        for (ApiTransaction transaction : transactions) {
+            result.add(new TransactionLeaves(transaction.transactionId(), transaction.method(), transaction.url(),
+                    transaction.responseLeaves().stream().map(ApiCaptureGenerator::redactIfSensitive).toList()));
+        }
+        return result;
+    }
+
+    private static ResponseLeaf redactIfSensitive(ResponseLeaf leaf) {
+        return leaf.classification() == LeafClassification.SENSITIVE
+                ? new ResponseLeaf(leaf.jsonPath(), leaf.key(), "", leaf.classification())
+                : leaf;
+    }
+
+    /**
+     * One transaction's classified response leaves, for a "pin this path" picker UI.
+     *
+     * @param transactionId stable transaction identifier
+     * @param method HTTP method
+     * @param url request URL
+     * @param leaves classified leaves, with {@link LeafClassification#SENSITIVE} values redacted
+     */
+    public record TransactionLeaves(String transactionId, String method, String url, List<ResponseLeaf> leaves) {
+    }
+
+    /**
      * Resolves the generated class name, validates it and the package name, and extracts
      * renderable transactions. Isolated from {@link #generate} purely to keep that method's own
      * cyclomatic/NPath complexity low -- PMD's NPath metric is multiplicative across sequential

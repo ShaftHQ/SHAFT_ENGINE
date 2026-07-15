@@ -164,6 +164,12 @@
       "deprecated": false
     },
     {
+      "name": "capture_api_response_leaves",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "capture_api_start",
       "mutation": true,
       "sensitive": false,

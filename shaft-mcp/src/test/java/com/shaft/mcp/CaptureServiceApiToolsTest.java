@@ -286,6 +286,49 @@ class CaptureServiceApiToolsTest {
         }
     }
 
+    @Test
+    void apiResponseLeavesReturnsClassifiedLeavesWithoutGeneratingATest() throws Exception {
+        // Issue #3530 negative-case: capture_api_response_leaves is the data source for a
+        // "pin this path" picker -- it must classify leaves without writing any generated source.
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSessionWithTwoTransactions();
+
+            List<com.shaft.capture.generate.api.ApiCaptureGenerator.TransactionLeaves> leaves =
+                    service.apiResponseLeaves("recordings/session-mcp-two.json", List.of());
+
+            assertEquals(2, leaves.size());
+            assertEquals("tx-1", leaves.get(0).transactionId());
+            assertEquals("tx-2", leaves.get(1).transactionId());
+            assertFalse(Files.exists(temp.resolve("generated-tests")),
+                    "Listing response leaves must not generate any test source");
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void apiResponseLeavesHonorsExcludedTransactionIds() throws Exception {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSessionWithTwoTransactions();
+
+            List<com.shaft.capture.generate.api.ApiCaptureGenerator.TransactionLeaves> leaves =
+                    service.apiResponseLeaves("recordings/session-mcp-two.json", List.of("tx-1"));
+
+            assertEquals(1, leaves.size());
+            assertEquals("tx-2", leaves.get(0).transactionId());
+        } finally {
+            service.close();
+        }
+    }
+
     private Path writeRecordedSessionWithTwoTransactions() throws Exception {
         Path sessionPath = temp.resolve("recordings/session-mcp-two.json");
         Files.createDirectories(sessionPath.getParent());

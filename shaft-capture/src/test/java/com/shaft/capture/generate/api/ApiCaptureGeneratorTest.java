@@ -220,6 +220,95 @@ class ApiCaptureGeneratorTest {
                 result.report().enrichment().status());
     }
 
+    @Test
+    void listResponseLeavesReturnsOneEntryPerRenderableTransactionInRecordedOrder() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-leaves"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-leaves");
+
+        List<ApiCaptureGenerator.TransactionLeaves> leaves =
+                new ApiCaptureGenerator().listResponseLeaves(sessionPath, List.of());
+
+        assertEquals(2, leaves.size());
+        assertEquals("tx-1", leaves.get(0).transactionId());
+        assertEquals("POST", leaves.get(0).method());
+        assertEquals("tx-2", leaves.get(1).transactionId());
+        assertTrue(leaves.get(1).leaves().stream().anyMatch(leaf -> "$.status".equals(leaf.jsonPath())
+                && "active".equals(leaf.value())));
+    }
+
+    @Test
+    void listResponseLeavesRedactsSensitiveValuesButKeepsTheirClassification() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-leaves-sensitive"));
+        Path sessionPath = writeSessionWithResponseBody(
+                outputRoot, "session-leaves-sensitive", "{\"token\":\"super-secret-value\"}");
+
+        List<ApiCaptureGenerator.TransactionLeaves> leaves =
+                new ApiCaptureGenerator().listResponseLeaves(sessionPath, List.of());
+
+        ResponseLeaf tokenLeaf = leaves.get(0).leaves().stream()
+                .filter(leaf -> "$.token".equals(leaf.jsonPath()))
+                .findFirst().orElseThrow();
+        assertEquals(LeafClassification.SENSITIVE, tokenLeaf.classification());
+        assertEquals("", tokenLeaf.value(), "A sensitive leaf's value must never leave listResponseLeaves");
+    }
+
+    @Test
+    void listResponseLeavesHonorsExcludedTransactionIds() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-leaves-excluded"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-leaves-excluded");
+
+        List<ApiCaptureGenerator.TransactionLeaves> leaves =
+                new ApiCaptureGenerator().listResponseLeaves(sessionPath, List.of("tx-1"));
+
+        assertEquals(1, leaves.size());
+        assertEquals("tx-2", leaves.get(0).transactionId());
+    }
+
+    @Test
+    void listResponseLeavesReturnsEmptyForAnUnreadableSessionRatherThanThrowing() {
+        List<ApiCaptureGenerator.TransactionLeaves> leaves = new ApiCaptureGenerator()
+                .listResponseLeaves(tempDir.resolve("does-not-exist.json"), List.of());
+
+        assertEquals(List.of(), leaves);
+    }
+
+    private Path writeSessionWithResponseBody(Path outputRoot, String sessionId, String responseBodyJson)
+            throws Exception {
+        Path sessionPath = outputRoot.resolve("recordings/" + sessionId + ".json");
+        Files.createDirectories(sessionPath.getParent());
+        Path bodiesDirectory = sessionPath.getParent().resolve(sessionId + "-network-bodies");
+        Files.createDirectories(bodiesDirectory);
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef responseRef = bodyStore.store(
+                responseBodyJson.getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+
+        CaptureEvent.NetworkEvent event = new CaptureEvent.NetworkEvent(
+                CaptureFixtures.context(1),
+                "tx-1",
+                ResourceKind.FETCH,
+                new HttpRequestRecord("GET", "https://api.example.test/session", headers(), null),
+                new HttpResponseRecord(200, headers(), responseRef),
+                new NetworkTiming(null, null, null, null, null, null),
+                "",
+                "https://app.example.test/",
+                null);
+
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                sessionId,
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(5),
+                CaptureFixtures.browser(),
+                List.of(event),
+                List.of(),
+                List.of(),
+                null,
+                Map.of());
+        new CaptureJsonCodec().write(sessionPath, session);
+        return sessionPath;
+    }
+
     private static CaptureEnrichmentService fakeAiNaming(String className, String methodName) {
         ObjectNode payload = new JsonMapper().createObjectNode();
         payload.put("className", className);

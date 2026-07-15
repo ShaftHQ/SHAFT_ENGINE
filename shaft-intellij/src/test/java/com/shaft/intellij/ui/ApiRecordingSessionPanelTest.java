@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -96,6 +97,61 @@ class ApiRecordingSessionPanelTest {
         // of capture_api_*, sharing the same transaction-parsing/table-model logic above.
         assertEquals("mobile_api_record_transactions", ApiRecordingSessionPanel.CaptureMode.PURE_API.transactionsTool());
         assertEquals("mobile_api_record_stop", ApiRecordingSessionPanel.CaptureMode.PURE_API.stopTool());
+    }
+
+    @Test
+    void parsePinnableLeavesReturnsOnlyVolatileNonBlankLeavesAcrossTransactions() {
+        // issue #3530 negative-case: a pin can only affect a VOLATILE leaf (STABLE is already
+        // asserted automatically; SENSITIVE and blank leaves are never asserted regardless).
+        String output = mcpArrayText("""
+                [
+                  {"transactionId": "tx-1", "method": "GET", "url": "https://api.example.test/orders/42",
+                   "leaves": [
+                     {"jsonPath": "$.status", "key": "status", "value": "shipped", "classification": "STABLE"},
+                     {"jsonPath": "$.orderId", "key": "orderId", "value": "uuid-1", "classification": "VOLATILE"},
+                     {"jsonPath": "$.token", "key": "token", "value": "", "classification": "SENSITIVE"},
+                     {"jsonPath": "$.note", "key": "note", "value": "", "classification": "VOLATILE"}
+                   ]},
+                  {"transactionId": "tx-2", "method": "DELETE", "url": "https://api.example.test/orders/42",
+                   "leaves": [
+                     {"jsonPath": "$.traceId", "key": "traceId", "value": "trace-99", "classification": "VOLATILE"}
+                   ]}
+                ]
+                """.strip());
+
+        List<ApiRecordingSessionPanel.PinnableLeafRow> rows = ApiRecordingSessionPanel.parsePinnableLeaves(output);
+
+        assertEquals(2, rows.size());
+        ApiRecordingSessionPanel.PinnableLeafRow first = rows.get(0);
+        assertEquals("GET", first.method());
+        assertEquals("https://api.example.test/orders/42", first.url());
+        assertEquals("$.orderId", first.jsonPath());
+        assertEquals("uuid-1", first.value());
+        assertEquals("$.traceId", rows.get(1).jsonPath());
+    }
+
+    @Test
+    void parsePinnableLeavesReturnsEmptyForNonArrayOutput() {
+        assertEquals(List.of(),
+                ApiRecordingSessionPanel.parsePinnableLeaves(mcpArrayText("{\"state\": \"ACTIVE\"}")));
+    }
+
+    @Test
+    void pinnableLeafTableModelTracksCheckedJsonPathsAndStartsFromAPriorSelection() {
+        ApiRecordingSessionPanel.PinnableLeafTableModel model = new ApiRecordingSessionPanel.PinnableLeafTableModel(
+                List.of(
+                        new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.orderId", "uuid-1"),
+                        new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.note", "n/a")),
+                Set.of("$.note"));
+
+        assertEquals(Boolean.FALSE, model.getValueAt(0, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN));
+        assertEquals(Boolean.TRUE, model.getValueAt(1, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN));
+        assertEquals(Set.of("$.note"), model.pinnedJsonPaths());
+
+        model.setValueAt(true, 0, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN);
+        model.setValueAt(false, 1, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN);
+
+        assertEquals(Set.of("$.orderId"), model.pinnedJsonPaths());
     }
 
     private static String mcpArrayText(String text) {
