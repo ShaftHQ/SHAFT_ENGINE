@@ -1,6 +1,7 @@
 package com.shaft.doctor.shard;
 
 import com.shaft.doctor.model.ExecutionIntelligence;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -207,9 +208,16 @@ public final class ShardMerger {
         StringBuilder html = new StringBuilder();
         html.append("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">")
                 .append("<title>SHAFT Merged Report Speedboard</title>")
-                .append("<style>body{font-family:sans-serif;margin:24px}table{border-collapse:collapse;width:100%}")
-                .append("th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}th{background:#f4f4f4}")
-                .append(".flaky{background:#fff3cd}.failed{color:#a33}.passed{color:#292}</style></head><body>")
+                // Converge the Doctor speedboard onto the shared SHAFT report theme (issue #3534):
+                // ReportHtmlTheme.style() supplies the canonical, theme-aware palette, and the
+                // speedboard-specific layout below draws its colors from that palette (border,
+                // surface, pass/fail/warn) instead of the former hardcoded off-palette hexes.
+                .append("<style>").append(ReportHtmlTheme.style())
+                .append("body{margin:24px}table{border-collapse:collapse;width:100%;margin:12px 0}")
+                .append("th,td{border:1px solid var(--shaft-border);padding:6px 10px;text-align:left}")
+                .append("th{background:var(--shaft-surface)}")
+                .append("tr.flaky{background:color-mix(in srgb, var(--shaft-warn) 20%, transparent)}")
+                .append(".failed{color:var(--shaft-fail)}.passed{color:var(--shaft-pass)}</style></head><body>")
                 .append("<h1>SHAFT Merged Report Speedboard</h1>")
                 .append("<p>Shards merged: ").append(shardCount)
                 .append(" &middot; Total results: ").append(results.size())
