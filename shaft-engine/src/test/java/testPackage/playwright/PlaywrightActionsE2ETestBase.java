@@ -15,7 +15,6 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
@@ -132,7 +131,7 @@ public abstract class PlaywrightActionsE2ETestBase {
     }
 
     private int checkpointsSize() throws IllegalAccessException {
-        return ((ConcurrentHashMap<?, ?>) CHECKPOINTS_FIELD.get(null)).size();
+        return ((List<?>) CHECKPOINTS_FIELD.get(null)).size();
     }
 
     private long screenshotAttachments() throws IOException {
