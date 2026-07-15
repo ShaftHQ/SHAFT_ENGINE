@@ -102,6 +102,80 @@ class ToolApprovalPromptPanelTest {
         assertEquals(ToolApprovalDecision.DENY, decided.get());
     }
 
+    @Test
+    void plainLanguageSummaryIsHumanReadableNotRawJson() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("url", "https://example.com");
+        arguments.addProperty("headless", false);
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments, ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+
+        String plainLanguageText = plainLanguageAreaText(panel);
+
+        assertAll(
+                () -> assertFalse(plainLanguageText.contains("{"), "should not contain raw JSON punctuation"),
+                () -> assertFalse(plainLanguageText.contains("}"), "should not contain raw JSON punctuation"),
+                () -> assertFalse(plainLanguageText.contains("\":\""), "should not contain raw JSON punctuation"),
+                () -> assertTrue(plainLanguageText.contains("url: https://example.com"),
+                        "should contain the argument value in readable form"),
+                () -> assertTrue(plainLanguageText.contains("headless: false"),
+                        "should contain the argument value in readable form"));
+    }
+
+    @Test
+    void broadScopeButtonsAreVisuallyDeemphasizedComparedToOnceAndDeny() {
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+        List<JButton> buttons = panel.decisionButtonsForTest();
+
+        JButton approveOnce = findByLabel(buttons, "Approve once");
+        JButton deny = findByLabel(buttons, "Deny");
+        JButton approveToolAlways = findByLabel(buttons, "Approve tool always");
+        JButton approveAllTools = findByLabel(buttons, "Approve all tools");
+
+        assertAll(
+                () -> assertTrue(isVisuallyDeemphasized(approveOnce, approveToolAlways),
+                        "Approve tool always should be visually de-emphasized relative to Approve once"),
+                () -> assertTrue(isVisuallyDeemphasized(approveOnce, approveAllTools),
+                        "Approve all tools should be visually de-emphasized relative to Approve once"),
+                () -> assertTrue(isVisuallyDeemphasized(deny, approveToolAlways),
+                        "Approve tool always should be visually de-emphasized relative to Deny"),
+                () -> assertTrue(isVisuallyDeemphasized(deny, approveAllTools),
+                        "Approve all tools should be visually de-emphasized relative to Deny"));
+    }
+
+    private static boolean isVisuallyDeemphasized(JButton narrowScope, JButton broadScope) {
+        boolean smallerFont = broadScope.getFont().getSize2D() < narrowScope.getFont().getSize2D();
+        boolean differentForeground = !broadScope.getForeground().equals(narrowScope.getForeground());
+        return smallerFont || differentForeground;
+    }
+
+    private static JButton findByLabel(List<JButton> buttons, String label) {
+        return buttons.stream().filter(button -> label.equals(button.getText())).findFirst().orElseThrow();
+    }
+
+    private static String plainLanguageAreaText(ToolApprovalPromptPanel panel) {
+        List<javax.swing.JTextArea> textAreas = new java.util.ArrayList<>();
+        collectTextAreas(panel, textAreas);
+        return textAreas.stream()
+                .filter(area -> "Tool approval plain-language summary".equals(
+                        area.getAccessibleContext().getAccessibleName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("plain-language summary text area not found"))
+                .getText();
+    }
+
+    private static void collectTextAreas(java.awt.Container container, List<javax.swing.JTextArea> found) {
+        for (java.awt.Component component : container.getComponents()) {
+            if (component instanceof javax.swing.JTextArea textArea) {
+                found.add(textArea);
+            }
+            if (component instanceof java.awt.Container child) {
+                collectTextAreas(child, found);
+            }
+        }
+    }
+
     private static JsonObject arguments() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("targetUrl", "https://example.com");
