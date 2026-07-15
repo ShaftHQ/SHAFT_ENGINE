@@ -2,6 +2,8 @@ package com.shaft.intellij.testrunner;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -43,5 +45,39 @@ class ShaftTestMethodAnnotationsTest {
     void recognizesTestAnnotationMixedWithOthers() {
         assertTrue(ShaftTestMethodAnnotations.isShaftRunnableTestMethod(
                 Set.of("java.lang.Override", "org.junit.jupiter.api.Test")));
+    }
+
+    @Test
+    void hasRunnableTestMethodReturnsFalseForNullOuterCollection() {
+        assertFalse(ShaftTestMethodAnnotations.hasRunnableTestMethod(null));
+    }
+
+    @Test
+    void hasRunnableTestMethodReturnsFalseForEmptyOuterCollection() {
+        assertFalse(ShaftTestMethodAnnotations.hasRunnableTestMethod(List.of()));
+    }
+
+    @Test
+    void hasRunnableTestMethodReturnsFalseWhenNoEntryIsRunnable() {
+        assertFalse(ShaftTestMethodAnnotations.hasRunnableTestMethod(
+                List.of(List.of(), List.of("java.lang.Override"))));
+    }
+
+    @Test
+    void hasRunnableTestMethodReturnsTrueForSingleTestNgEntry() {
+        assertTrue(ShaftTestMethodAnnotations.hasRunnableTestMethod(
+                List.of(List.of(ShaftTestMethodAnnotations.TESTNG_TEST))));
+    }
+
+    @Test
+    void hasRunnableTestMethodReturnsTrueWhenOneOfMixedEntriesIsRunnable() {
+        assertTrue(ShaftTestMethodAnnotations.hasRunnableTestMethod(
+                List.of(List.of("java.lang.Override"), List.of(ShaftTestMethodAnnotations.JUNIT5_TEST))));
+    }
+
+    @Test
+    void hasRunnableTestMethodReturnsTrueWhenANullEntryIsMixedWithARunnableEntry() {
+        List<List<String>> methodsAnnotationQualifiedNames = new ArrayList<>(Arrays.asList(null, List.of(ShaftTestMethodAnnotations.TESTNG_TEST)));
+        assertTrue(ShaftTestMethodAnnotations.hasRunnableTestMethod(methodsAnnotationQualifiedNames));
     }
 }

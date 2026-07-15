@@ -34,4 +34,21 @@ public final class ShaftTestMethodAnnotations {
         }
         return annotationQualifiedNames.stream().anyMatch(RUNNABLE_TEST_ANNOTATION_FQNS::contains);
     }
+
+    /**
+     * Returns whether any method of a class is a runnable SHAFT test, given each method's annotation
+     * fully-qualified names. Kept PSI-free so the run-configuration producers' class-scan decision
+     * ({@code hasRunnableMethod}) is unit testable; the producers extract the per-method FQN lists
+     * from PSI and hand them here.
+     *
+     * @param methodsAnnotationQualifiedNames one entry per method, each the annotation FQNs on that
+     *                                        method (entries or the outer value may be {@code null})
+     * @return {@code true} when at least one method carries a recognized test annotation
+     */
+    public static boolean hasRunnableTestMethod(Collection<? extends Collection<String>> methodsAnnotationQualifiedNames) {
+        if (methodsAnnotationQualifiedNames == null || methodsAnnotationQualifiedNames.isEmpty()) {
+            return false;
+        }
+        return methodsAnnotationQualifiedNames.stream().anyMatch(ShaftTestMethodAnnotations::isShaftRunnableTestMethod);
+    }
 }

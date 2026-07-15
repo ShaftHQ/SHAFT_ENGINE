@@ -68,12 +68,11 @@ public final class ShaftJUnitRunConfigurationProducer extends LazyRunConfigurati
     }
 
     private static boolean hasRunnableMethod(PsiClass psiClass) {
+        List<List<String>> methodAnnotations = new ArrayList<>();
         for (PsiMethod method : psiClass.getMethods()) {
-            if (ShaftTestMethodAnnotations.isShaftRunnableTestMethod(annotationQualifiedNames(method))) {
-                return true;
-            }
+            methodAnnotations.add(annotationQualifiedNames(method));
         }
-        return false;
+        return ShaftTestMethodAnnotations.hasRunnableTestMethod(methodAnnotations);
     }
 
     private static List<String> annotationQualifiedNames(PsiMethod method) {
