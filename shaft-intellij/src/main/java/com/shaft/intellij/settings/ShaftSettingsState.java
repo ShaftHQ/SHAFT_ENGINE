@@ -103,6 +103,14 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
          * assistant web/mobile recording flows.
          */
         public boolean recorderHeadless = false;
+        /**
+         * The plugin version last seen by {@code ShaftPluginUpgradeActivity} (issue: plugin-upgrade
+         * auto-reset). Blank on a fresh install. Deliberately left out of {@link #factoryDefaults()}'s
+         * special-cased overrides: a plain {@code new Settings()} already defaults it to {@code ""},
+         * and an upgrade reset must overwrite it with the running version <em>after</em> the reset runs
+         * so it survives that same reset instead of being wiped by it.
+         */
+        public String lastSeenPluginVersion = "";
 
         /**
          * Returns whether the configured MCP command has passed setup verification.

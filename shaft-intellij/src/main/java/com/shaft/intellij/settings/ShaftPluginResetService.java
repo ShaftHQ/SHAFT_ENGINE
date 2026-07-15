@@ -63,11 +63,29 @@ public final class ShaftPluginResetService {
      * the setup view.
      */
     public void resetEverything() {
+        resetState(true);
+    }
+
+    /**
+     * Factory-resets settings, stored provider credentials, and tool approvals exactly like
+     * {@link #resetEverything()} does, but preserves every open project's Assistant chat history.
+     * Used when an upgrade is detected ({@code ShaftPluginUpgradeActivity}): the stale UI/setup
+     * state (including a cached {@code mcpCommand} that would otherwise keep launching an old
+     * shaft-mcp) must not survive the upgrade, but a user's conversation history is not "stale" and
+     * must not be silently deleted just because the plugin updated.
+     */
+    public void resetForUpgrade() {
+        resetState(false);
+    }
+
+    private void resetState(boolean clearChat) {
         settingsReset.run();
         credentialsReset.run();
         approvalsReset.run();
-        for (ShaftAssistantChatState chatState : chatStatesSupplier.get()) {
-            chatState.clearAll();
+        if (clearChat) {
+            for (ShaftAssistantChatState chatState : chatStatesSupplier.get()) {
+                chatState.clearAll();
+            }
         }
         toolWindowRerenderer.run();
     }
