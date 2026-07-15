@@ -64,6 +64,16 @@ final class CaptureEventPipeline implements AutoCloseable {
     /** Last flushed input value per target, to drop the duplicate change-on-submit re-emission. */
     private final Map<String, String> lastEmittedInputValues = new LinkedHashMap<>();
     private final Map<String, BrowserSignal> pendingClicks = new LinkedHashMap<>();
+    // Collector-synthesized navigations (BiDi navigationCommitted / URL polling, blank
+    // navigationSource) race the click that caused them: the native signal often reaches accept()
+    // before the click's own slower JS-channel signal, so lastInteractionAt would still be stale
+    // when interactionConsequence is evaluated, misclassifying a click-caused navigation as
+    // spontaneous (phantom step). Buffering them one debounce window lets the click's signal —
+    // which stamps lastInteractionAt as soon as accept() sees it, regardless of buffering — win
+    // the race. Keyed by an incrementing counter, not targetKey(signal): several redirect hops
+    // within the window must each get their own consequence/duplicate evaluation, not coalesce.
+    private final Map<String, BrowserSignal> pendingNavigations = new LinkedHashMap<>();
+    private long pendingNavigationSequence;
     private final Map<String, String> logicalWindows = new LinkedHashMap<>();
     private final Map<String, LocatorPreference> locatorPreferences = new LinkedHashMap<>();
     private final Map<String, Instant> recentSignals = new LinkedHashMap<>();
@@ -124,10 +134,28 @@ final class CaptureEventPipeline implements AutoCloseable {
                 case "input" -> {
                     pendingInputs.put(targetKey(signal), signal);
                     if (signal.dataBoolean("committed")) {
+                        // This commit flushes immediately, bypassing flushPendingBefore; an
+                        // older buffered navigation must still be appended first so persisted
+                        // step order matches browser occurrence order.
+                        List<BrowserSignal> readyNavigations = new ArrayList<>();
+                        collectReady(pendingNavigations, signal.timestamp(), readyNavigations);
+                        flushOrdered(readyNavigations);
                         flushSignal(pendingInputs.remove(targetKey(signal)));
                     }
                 }
                 case "click" -> pendingClicks.put(targetKey(signal), signal);
+                case "navigation" -> {
+                    if (signal.dataString("navigationSource").isBlank()) {
+                        pendingNavigations.put(
+                                "navigation-" + (++pendingNavigationSequence), signal);
+                    } else {
+                        // history/user_annotation/user_traversal/user_reported are authoritative
+                        // (user_traversal in particular must never be delayed or swallowed): keep
+                        // their existing immediate handling.
+                        flushPendingBefore(signal.timestamp());
+                        emit(signal);
+                    }
+                }
                 case "keyboard" -> {
                     // Suppress standalone editing key actions (Backspace, Delete, arrow keys)
                     // when recorded on a text-entry element without modifiers.
@@ -165,12 +193,13 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     /**
-     * Returns the number of debounced signals (uncommitted typed input, pending clicks) that have
-     * not yet been persisted as semantic events. During that window {@link #eventCount()}
-     * under-reports; status consumers surface this so live monitors do not misread a quiet count.
+     * Returns the number of debounced signals (uncommitted typed input, pending clicks, buffered
+     * blank-source navigations) that have not yet been persisted as semantic events. During that
+     * window {@link #eventCount()} under-reports; status consumers surface this so live monitors
+     * do not misread a quiet count.
      */
     synchronized int pendingSignalCount() {
-        return pendingInputs.size() + pendingClicks.size();
+        return pendingInputs.size() + pendingClicks.size() + pendingNavigations.size();
     }
 
     @Override
@@ -190,6 +219,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         Instant now = Instant.now();
         List<BrowserSignal> ready = new ArrayList<>();
         collectReady(pendingClicks, now.minus(CLICK_DEBOUNCE), ready);
+        collectReady(pendingNavigations, now.minus(CLICK_DEBOUNCE), ready);
         flushOrdered(ready);
     }
 
@@ -197,6 +227,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         List<BrowserSignal> ready = new ArrayList<>();
         collectReady(pendingInputs, timestamp, ready);
         collectReady(pendingClicks, timestamp, ready);
+        collectReady(pendingNavigations, timestamp, ready);
         flushOrdered(ready);
     }
 
@@ -214,8 +245,10 @@ final class CaptureEventPipeline implements AutoCloseable {
     private void flushAll() {
         List<BrowserSignal> pending = new ArrayList<>(pendingInputs.values());
         pending.addAll(pendingClicks.values());
+        pending.addAll(pendingNavigations.values());
         pendingInputs.clear();
         pendingClicks.clear();
+        pendingNavigations.clear();
         flushOrdered(pending);
     }
 
@@ -279,8 +312,14 @@ final class CaptureEventPipeline implements AutoCloseable {
         boolean duplicateDelivery = url.equals(lastNavigationUrl)
                 && Duration.between(lastNavigationAt, signal.timestamp()).abs()
                 .compareTo(NAVIGATION_DEBOUNCE) < 0;
-        boolean interactionConsequence = Duration.between(lastInteractionAt, signal.timestamp()).abs()
-                .compareTo(INTERACTION_NAVIGATION_WINDOW) < 0;
+        // Forward-only: buffered navigations are now evaluated after lastInteractionAt may have
+        // advanced past their own timestamp (a later, unrelated interaction stamped it while this
+        // navigation sat in pendingNavigations). Only a navigation at or after the interaction can
+        // be its consequence; a negative gap means this navigation predates the interaction and
+        // must never be suppressed by it.
+        Duration sinceInteraction = Duration.between(lastInteractionAt, signal.timestamp());
+        boolean interactionConsequence = !sinceInteraction.isNegative()
+                && sinceInteraction.compareTo(INTERACTION_NAVIGATION_WINDOW) < 0;
         lastNavigationUrl = url;
         lastNavigationAt = signal.timestamp();
         currentUrlConsumer.accept(url);
