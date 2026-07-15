@@ -166,6 +166,32 @@ public final class ApiTestRenderer {
         boolean hybrid = style == ApiCodegenStyle.HYBRID_UI_API;
 
         StringBuilder source = new StringBuilder();
+        renderClassPreamble(source, packageName, className, hybrid, origins, fieldNames, byOrigin);
+        renderTestMethods(source, artifacts, skippedTransactionIds, className, style, byOrigin, depth,
+                uiActionsBySequence, pinnedJsonPaths);
+        if (hybrid) {
+            renderHybridTeardown(source);
+        }
+        renderHelperMethods(source);
+        line(source, "}");
+        line(source, "");
+
+        return new RenderedApiTest(source.toString(), artifacts, List.copyOf(skippedTransactionIds));
+    }
+
+    /**
+     * Renders the package declaration, imports, class declaration, {@code SHAFT.API} field
+     * declarations, and the {@code @BeforeClass} session-setup method -- everything above the
+     * generated test methods. Extracted from {@link #renderInternal} to keep that method flat.
+     */
+    private static void renderClassPreamble(
+            StringBuilder source,
+            String packageName,
+            String className,
+            boolean hybrid,
+            List<String> origins,
+            Map<String, String> fieldNames,
+            Map<String, List<ApiTransaction>> byOrigin) {
         line(source, "package " + packageName + ";");
         line(source, "");
         line(source, "import com.shaft.driver.SHAFT;");
@@ -199,8 +225,26 @@ public final class ApiTestRenderer {
         }
         line(source, "    }");
         line(source, "");
+    }
 
-        if (hybrid) {
+    /**
+     * Renders the generated {@code @Test} methods for every origin, dispatching on the codegen
+     * style (hybrid UI+API, scenario, or per-request). Extracted from {@link #renderInternal} to
+     * keep that method flat.
+     */
+    private static void renderTestMethods(
+            StringBuilder source,
+            Map<String, String> artifacts,
+            List<String> skippedTransactionIds,
+            String className,
+            ApiCodegenStyle style,
+            Map<String, List<ApiTransaction>> byOrigin,
+            ApiValidationDepth depth,
+            Map<Long, List<String>> uiActionsBySequence,
+            Set<String> pinnedJsonPaths) {
+        List<String> origins = List.copyOf(byOrigin.keySet());
+        Map<String, String> fieldNames = fieldNamesByOrigin(origins);
+        if (style == ApiCodegenStyle.HYBRID_UI_API) {
             int scenarioIndex = 0;
             for (String origin : origins) {
                 scenarioIndex++;
@@ -225,19 +269,17 @@ public final class ApiTestRenderer {
                 }
             }
         }
+    }
 
-        if (hybrid) {
-            line(source, "    @org.testng.annotations.AfterClass(alwaysRun = true)");
-            line(source, "    public void tearDownDriver() {");
-            line(source, "        driver.quit();");
-            line(source, "    }");
-            line(source, "");
-        }
-        renderHelperMethods(source);
-        line(source, "}");
+    /**
+     * Renders the hybrid-style {@code @AfterClass} WebDriver teardown method.
+     */
+    private static void renderHybridTeardown(StringBuilder source) {
+        line(source, "    @org.testng.annotations.AfterClass(alwaysRun = true)");
+        line(source, "    public void tearDownDriver() {");
+        line(source, "        driver.quit();");
+        line(source, "    }");
         line(source, "");
-
-        return new RenderedApiTest(source.toString(), artifacts, List.copyOf(skippedTransactionIds));
     }
 
     // ---- HYBRID_UI_API style: UI codegen lines interleaved with API assertResponse(...) blocks ----
