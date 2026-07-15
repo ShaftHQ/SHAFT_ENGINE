@@ -457,6 +457,12 @@
       "deprecated": false
     },
     {
+      "name": "mobile_api_record_transactions",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "mobile_background_app",
       "mutation": true,
       "sensitive": false,

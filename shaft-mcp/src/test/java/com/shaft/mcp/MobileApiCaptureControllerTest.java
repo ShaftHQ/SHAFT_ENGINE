@@ -71,6 +71,52 @@ class MobileApiCaptureControllerTest {
     }
 
     @Test
+    void transactionsReflectsCapturedTransactionsLiveAndOmitsBodies() {
+        MobileApiCaptureController controller = new MobileApiCaptureController(
+                () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));
+        Path sessionPath = tempDir.resolve("recordings/mobile-transactions.json");
+
+        assertTrue(controller.transactions().isEmpty(),
+                "transactions() must be empty before a session has started");
+
+        MobileApiCaptureStatus started = controller.start("Android", "emulator-5554", sessionPath);
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
+
+        Map<String, String> requestHeaders = new TreeMap<>();
+        requestHeaders.put("Content-Type", "application/json");
+        Map<String, String> responseHeaders = new TreeMap<>();
+        responseHeaders.put("Content-Type", "application/json");
+
+        controller.acceptTransaction(new ProxyTransaction(
+                "GET", "https://api.example.test/orders", requestHeaders, new byte[0],
+                200, responseHeaders, "{\"status\":\"ok\"}".getBytes(StandardCharsets.UTF_8)));
+        controller.acceptTransaction(new ProxyTransaction(
+                "POST", "https://api.example.test/orders", requestHeaders,
+                "{\"item\":\"widget\"}".getBytes(StandardCharsets.UTF_8),
+                201, responseHeaders, "{\"id\":\"abc-123\"}".getBytes(StandardCharsets.UTF_8)));
+
+        var liveTransactions = controller.transactions();
+        assertEquals(2, liveTransactions.size(), "transactions() must reflect mid-session appends");
+        assertEquals("GET", liveTransactions.get(0).method());
+        assertEquals("https://api.example.test/orders", liveTransactions.get(0).url());
+        assertEquals(200, liveTransactions.get(0).statusCode());
+        assertEquals("POST", liveTransactions.get(1).method());
+        assertEquals("https://api.example.test/orders", liveTransactions.get(1).url());
+        assertEquals(201, liveTransactions.get(1).statusCode());
+
+        for (var transaction : liveTransactions) {
+            for (Object metadata : transaction.bodyRefMetadata().values()) {
+                assertFalse(String.valueOf(metadata).contains("widget"),
+                        "transaction summaries must not carry raw body content: " + metadata);
+                assertFalse(String.valueOf(metadata).contains("abc-123"),
+                        "transaction summaries must not carry raw body content: " + metadata);
+            }
+        }
+
+        controller.stop(false);
+    }
+
+    @Test
     void startingTwiceIsIdempotentAndDoesNotReplaceTheActiveSession() {
         MobileApiCaptureController controller = new MobileApiCaptureController(
                 () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));

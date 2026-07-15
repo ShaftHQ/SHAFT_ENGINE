@@ -15,6 +15,7 @@ import com.shaft.capture.network.SecretHeaderReplacer;
 import com.shaft.capture.proxy.ApiCaptureProxyServer;
 import com.shaft.capture.proxy.CaptureCertificateAuthority;
 import com.shaft.capture.proxy.ProxyTransaction;
+import com.shaft.capture.runtime.NetworkTransaction;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.capture.storage.NetworkBodyStore;
 
@@ -131,6 +132,27 @@ final class MobileApiCaptureController {
                 List.copyOf(warnings),
                 outputPath == null ? "" : outputPath.toString(),
                 readiness());
+    }
+
+    /**
+     * Returns the transactions captured so far in this session as safe, body-free summaries, so a
+     * pure-API session panel can list rows live as they arrive -- mirroring the browser path's
+     * {@code capture_api_transactions}. Reads the same on-disk session through
+     * {@link CaptureSessionStore#networkTransactions()}, so the shape is identical and reusable by
+     * the existing recorder transaction-table parser.
+     *
+     * @return ordered, body-free network transaction summaries; empty before a session has started
+     */
+    synchronized List<NetworkTransaction> transactions() {
+        if (store == null) {
+            return List.of();
+        }
+        try {
+            return store.networkTransactions();
+        } catch (RuntimeException failure) {
+            warnings.add("Mobile API transactions could not be read: " + safeMessage(failure));
+            return List.of();
+        }
     }
 
     /**
