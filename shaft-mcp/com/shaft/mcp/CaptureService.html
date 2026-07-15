@@ -64,7 +64,7 @@
 <li><a href="#apiStatus()" tabindex="0">apiStatus()</a></li>
 <li><a href="#apiStop(boolean)" tabindex="0">apiStop(boolean)</a></li>
 <li><a href="#apiTransactions(boolean,java.lang.String)" tabindex="0">apiTransactions(boolean, String)</a></li>
-<li><a href="#generateApi(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.util.List)" tabindex="0">generateApi(String, String, String, String, String, String, boolean, boolean, String, List)</a></li>
+<li><a href="#generateApi(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.util.List,java.util.List)" tabindex="0">generateApi(String, String, String, String, String, String, boolean, boolean, String, List, List)</a></li>
 <li><a href="#checkpoint(java.lang.String,java.lang.String)" tabindex="0">checkpoint(String, String)</a></li>
 <li><a href="#setMode(java.lang.String)" tabindex="0">setMode(String)</a></li>
 <li><a href="#pickLocator(java.util.List)" tabindex="0">pickLocator(List)</a></li>
@@ -249,7 +249,7 @@
 <div class="block">Generates a deterministic SHAFT TestNG test from a persisted Capture session.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generateApi(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.util.List)" class="member-name-link">generateApi</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generateApi(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.util.List,java.util.List)" class="member-name-link">generateApi</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
@@ -258,7 +258,8 @@
  boolean&nbsp;overwrite,
  boolean&nbsp;replay,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;openApiSpecPath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</code></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates, compiles, and returns copy-paste <code>SHAFT.API</code> code blocks from a recorded
 session's API transactions.</div>
@@ -570,7 +571,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 </section>
 </li>
 <li>
-<section class="detail" id="generateApi(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.util.List)">
+<section class="detail" id="generateApi(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.util.List,java.util.List)">
 <h3>generateApi</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_api_generate",
@@ -584,7 +585,8 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
  boolean&nbsp;overwrite,
  boolean&nbsp;replay,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;openApiSpecPath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)</span></div>
 <div class="block">Generates, compiles, and returns copy-paste <code>SHAFT.API</code> code blocks from a recorded
 session's API transactions.</div>
 <dl class="notes">
@@ -609,6 +611,10 @@ session's API transactions.</div>
 <dd><code>excludedTransactionIds</code> - recorded transaction IDs to omit from generation entirely
                               (drives a recorder transaction-table include/exclude selection);
                               empty includes every renderable transaction</dd>
+<dd><code>pinnedJsonPaths</code> - response JSON paths (e.g. <code>$.status</code>) to force-assert as business
+                       assertions at <code>BUSINESS</code> validation depth even when the leaf is
+                       classified volatile or correlated; a sensitive or blank-value leaf is
+                       never asserted regardless of pinning; empty pins nothing (the default)</dd>
 <dt>Returns:</dt>
 <dd>generated artifacts, compile/replay result, and copy-paste code blocks</dd>
 </dl>
