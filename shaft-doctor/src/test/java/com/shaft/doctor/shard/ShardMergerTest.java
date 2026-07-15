@@ -1,5 +1,6 @@
 package com.shaft.doctor.shard;
 
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -62,6 +63,30 @@ class ShardMergerTest {
         int fastIndex = html.indexOf("com.example.Fast.test");
         assertTrue(slowIndex >= 0 && fastIndex >= 0 && slowIndex < fastIndex,
                 "The slower test must be listed before the faster one, got:\n" + html);
+    }
+
+    @Test
+    void speedboardUsesTheSharedShaftReportThemeNotOffPaletteHardcodedColors() throws Exception {
+        Path shard = writeShard("shard-1",
+                result("t1", "com.example.Flaky.test", "passed", 0, 100));
+        Path shard2 = writeShard("shard-2",
+                result("t2", "com.example.Flaky.test", "failed", 0, 120));
+
+        MergedReport report = ShardMerger.merge(List.of(shard, shard2), tempDir.resolve("merged"));
+        String html = Files.readString(report.speedboardHtmlPath(), StandardCharsets.UTF_8);
+
+        // Convergence (#3534 "cheap first convergence step"): the speedboard embeds the canonical,
+        // theme-aware SHAFT report stylesheet and draws its colors from the shared palette.
+        assertTrue(html.contains(ReportHtmlTheme.style()),
+                "Speedboard must embed the shared ReportHtmlTheme stylesheet.");
+        assertTrue(html.contains("var(--shaft-fail)") && html.contains("var(--shaft-pass)")
+                        && html.contains("var(--shaft-border)"),
+                "Speedboard colors must reference the shared palette variables.");
+        // Drift guard: the former off-palette hardcoded colors must not creep back in.
+        for (String offPalette : List.of("#fff3cd", "#a33", "#292", "#f4f4f4", "#ccc", "font-family:sans-serif")) {
+            assertFalse(html.contains(offPalette),
+                    "Off-palette token \"" + offPalette + "\" must not appear in the themed speedboard:\n" + html);
+        }
     }
 
     @Test
