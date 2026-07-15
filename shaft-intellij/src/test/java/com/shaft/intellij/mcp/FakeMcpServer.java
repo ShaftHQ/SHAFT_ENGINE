@@ -30,6 +30,8 @@ final class FakeMcpServer {
             case "echoTool" -> runEchoToolServer();
             case "silentToolCalls" -> runSilentToolCallServer();
             case "progressStream" -> runProgressStreamServer();
+            case "rejectInitialize" -> runRejectInitializeServer();
+            case "toolCallJsonRpcError" -> runToolCallJsonRpcErrorServer();
             case "hang" -> Thread.sleep(Long.MAX_VALUE);
             default -> Thread.sleep(Long.MAX_VALUE);
         }
@@ -94,6 +96,52 @@ final class FakeMcpServer {
             if ("initialize".equals(requestMethod(message))) {
                 writeMessage(output, requestId(message),
                         "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{\"protocolVersion\":\"2024-11-05\"}}");
+            }
+        }
+    }
+
+    /**
+     * Rejects the {@code initialize} handshake with a JSON-RPC error but keeps reading lines
+     * afterward, so the process stays alive (issue #3591): this reproduces a server that starts
+     * but never completes the handshake, wedging the shared client as alive-but-uninitialized.
+     */
+    private static void runRejectInitializeServer() throws Exception {
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        OutputStream output = System.out;
+        while (true) {
+            String message = input.readLine();
+            if (message == null) {
+                return;
+            }
+            if ("initialize".equals(requestMethod(message))) {
+                writeMessage(output, requestId(message),
+                        "{\"jsonrpc\":\"2.0\",\"id\":%d,\"error\":{\"code\":-32000,\"message\":\"handshake refused\"}}");
+            }
+        }
+    }
+
+    /**
+     * Completes the {@code initialize} handshake normally, but answers {@code tools/call} with a
+     * top-level JSON-RPC {@code error} (as opposed to {@code toolCallIsError}'s {@code isError:true}
+     * success envelope). Used to prove an already-initialized client is retained after a tool-call
+     * failure — only a never-initialized client should be evicted (issue #3591).
+     */
+    private static void runToolCallJsonRpcErrorServer() throws Exception {
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        OutputStream output = System.out;
+        while (true) {
+            String message = input.readLine();
+            if (message == null) {
+                return;
+            }
+            int requestId = requestId(message);
+            switch (requestMethod(message)) {
+                case "initialize" -> writeMessage(output, requestId,
+                        "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{\"protocolVersion\":\"2024-11-05\"}}");
+                case "tools/call" -> writeMessage(output, requestId,
+                        "{\"jsonrpc\":\"2.0\",\"id\":%d,\"error\":{\"code\":-32000,\"message\":\"tool call refused\"}}");
+                default -> {
+                }
             }
         }
     }

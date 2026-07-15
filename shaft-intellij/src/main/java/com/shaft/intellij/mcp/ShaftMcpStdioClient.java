@@ -96,6 +96,15 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         return !closed.get() && process.isAlive();
     }
 
+    /**
+     * Reports whether the {@code initialize} handshake has completed successfully.
+     *
+     * @return true once {@code notifications/initialized} has been sent to the server
+     */
+    boolean isInitialized() {
+        return initialized;
+    }
+
     String initializeOnly(Duration timeout) throws IOException {
         initialize(timeout);
         return "SHAFT MCP connection is ready.";

@@ -116,6 +116,18 @@ class ShaftMcpInvocationServiceLifecycleTest {
     }
 
     @Test
+    void shouldDropAfterFailureDropsUnlessAliveAndInitialized() {
+        assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(true, false),
+                "alive but never initialized (wedged handshake) must be dropped");
+        assertFalse(ShaftMcpInvocationService.shouldDropAfterFailure(true, true),
+                "alive and initialized must be kept");
+        assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(false, true),
+                "dead, even if previously initialized, must be dropped");
+        assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(false, false),
+                "dead and never initialized must be dropped");
+    }
+
+    @Test
     void deadServerDuringDispatchIsCategorizedAsProcessExitedAndEvicted() {
         RecordingFactory factory = new RecordingFactory();
         ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
@@ -128,6 +140,36 @@ class ShaftMcpInvocationServiceLifecycleTest {
         assertTrue(result.output().contains("process exit code"), result.output());
         assertTrue(service.peekSharedClientAlive().isEmpty(),
                 "a dead client encountered mid-dispatch must be evicted, not kept as the shared client");
+    }
+
+    @Test
+    void rejectedInitializeHandshakeLeavesAnAliveButUninitializedClientEvictedAfterDispatchFailure() {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftSettingsState.Settings settings = settingsForMode("rejectInitialize");
+
+        ShaftMcpToolResult result = service.startListTools(false, settings).future().join();
+
+        assertFalse(result.success());
+        assertEquals(Optional.empty(), service.peekSharedClientAlive(),
+                "an alive-but-never-initialized client (handshake rejected, process still alive) must be "
+                        + "evicted after a failed dispatch so the next action respawns instead of re-firing "
+                        + "the same failing handshake forever");
+    }
+
+    @Test
+    void toolCallJsonRpcErrorOnAnInitializedClientKeepsItAsTheSharedClient() {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftSettingsState.Settings settings = settingsForMode("toolCallJsonRpcError");
+
+        ShaftMcpToolResult result = service.startTool("fake_tool", new JsonObject(), settings).future().join();
+
+        assertFalse(result.success());
+        assertEquals(Optional.of(true), service.peekSharedClientAlive(),
+                "a tool-call failure on an already-initialized, still-alive client must not evict it "
+                        + "(that would kill a live capture/driver session) -- only the never-initialized "
+                        + "handshake-failure case evicts");
     }
 
     @Test
