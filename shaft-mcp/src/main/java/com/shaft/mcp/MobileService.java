@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.runtime.NetworkTransaction;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
@@ -335,6 +336,18 @@ public class MobileService {
             description = "stops mobile API capture, finalizing or discarding the JSON capture session")
     public MobileApiCaptureStatus mobileApiRecordStop(boolean discard) {
         return apiCaptureController.stop(discard);
+    }
+
+    /**
+     * Returns the mobile API transactions captured so far in the active session, without bodies or
+     * sensitive headers, so a pure-API session view can list rows live as they arrive.
+     *
+     * @return ordered, body-free network transaction summaries; empty when no session is active
+     */
+    @Tool(name = "mobile_api_record_transactions",
+            description = "returns the mobile API transactions captured so far without bodies or sensitive headers, for a live pure-API session view")
+    public List<NetworkTransaction> mobileApiRecordTransactions() {
+        return apiCaptureController.transactions();
     }
 
     /**
