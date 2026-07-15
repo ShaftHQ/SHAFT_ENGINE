@@ -12,7 +12,6 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
-import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftPluginResetService;
@@ -37,8 +36,11 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
@@ -128,7 +130,6 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton checkMcpVersion;
     private final JButton copyMcpInstallCommand;
     private final JLabel mcpVersionDetail;
-    private final JButton copyInstallerCommand;
     private final JButton test;
     private final JButton startChatting;
     private final JButton startWithoutAgent;
@@ -146,8 +147,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JLabel installState;
     private final JLabel testStep;
     private final JLabel testState;
-    private final JLabel mcpVersionStep;
-    private final JLabel mcpVersionState;
+    private final JLabel readyStep;
     private final JLabel readyState;
     private final JLabel status;
     private final JLabel recommendedAgent;
@@ -169,7 +169,6 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JPanel chooseRow;
     private final JPanel installRow;
     private final JPanel checkRow;
-    private final JPanel mcpVersionRow;
     private final JPanel chatRow;
     private java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>> prerequisitesDetector =
             SetupPrerequisites::detect;
@@ -177,10 +176,16 @@ final class ShaftMcpSetupPanel extends JPanel {
     private String diagnosticOutput = "";
     /** Real on-disk state (issue #3426 A5): whether an installed shaft-mcp was found locally. */
     private boolean installedCommandDetected;
-    /** Whether the selected agent's runtime was actually detected on this machine. */
-    private boolean selectedAgentDetected;
     /** Whether the last explicit "Check now" run failed, for the failed step badge. */
     private boolean lastCheckFailed;
+    /**
+     * Whether the user has explicitly pressed "Check" for the upgrade/MCP-version rows
+     * (issue #3560): a step badge only earns green after this real, user-triggered check passes —
+     * never from passive on-disk detection alone, so a fresh landing (or a post-reset re-render)
+     * never shows green by default.
+     */
+    private boolean upgradeChecked;
+    private boolean mcpVersionChecked;
     private ShaftProjectVersionCheck.Result upgradeCheckResult;
     /** Runs the real project-vs-latest SHAFT version comparison; injectable for tests. */
     private java.util.function.Supplier<ShaftProjectVersionCheck.Result> upgradeChecker = () ->
@@ -298,7 +303,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 + "a terminal interface to the same SHAFT MCP tools");
         installShaftCli.addActionListener(event -> installerTargetChanged());
         installerCommand.setText(installerCommand());
-        copyUpgradeCommand = new JButton("Copy command");
+        copyUpgradeCommand = new JButton("Copy");
         copyUpgradeCommand.getAccessibleContext().setAccessibleName("Copy SHAFT upgrade command");
         copyUpgradeCommand.setToolTipText("Copy the SHAFT upgrade command and open a terminal with it pre-typed "
                 + "— just press Enter there to run it");
@@ -317,21 +322,15 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
         applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
         checkMcpVersion.addActionListener(event -> runMcpVersionCheck(true));
-        copyMcpInstallCommand = new JButton("Copy command");
+        copyMcpInstallCommand = new JButton("Copy");
         copyMcpInstallCommand.getAccessibleContext().setAccessibleName("Copy SHAFT MCP install command");
         copyMcpInstallCommand.setToolTipText("Copy the SHAFT MCP install/update command and open a terminal with "
                 + "it pre-typed — just press Enter there to run it");
+        copyMcpInstallCommand.setMnemonic(KeyEvent.VK_C);
         applyLabeledAction(copyMcpInstallCommand, ShaftIcons.COPY);
         copyMcpInstallCommand.addActionListener(event -> copyMcpInstallCommand());
         mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
-        copyInstallerCommand = new JButton("Copy command");
-        copyInstallerCommand.getAccessibleContext().setAccessibleName("Copy MCP installer command");
-        copyInstallerCommand.setToolTipText("Copy the installer command and open a terminal with it pre-typed "
-                + "— just press Enter there to run it");
-        copyInstallerCommand.setMnemonic(KeyEvent.VK_C);
-        applyLabeledAction(copyInstallerCommand, ShaftIcons.COPY);
-        copyInstallerCommand.addActionListener(event -> copyInstallerCommand());
-        test = new JButton("Check now");
+        test = new JButton("Check");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         test.setToolTipText("Infer the stdio command and verify SHAFT MCP");
         test.setMnemonic(KeyEvent.VK_K);
@@ -351,7 +350,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(startWithoutAgent, ShaftIcons.SEND);
         startWithoutAgent.setVisible(false);
         startWithoutAgent.addActionListener(event -> connected.run());
-        resetAndReinstall = new JButton("Reset / reinstall");
+        resetAndReinstall = new JButton("Reinstall");
         resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
         resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
         resetAndReinstall.setMnemonic(KeyEvent.VK_R);
@@ -449,8 +448,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         installState = setupStateLabel("Install SHAFT MCP setup state");
         testStep = setupStepLabel("Check now setup step");
         testState = setupStateLabel("Check now setup state");
-        mcpVersionStep = setupStepLabel("SHAFT MCP version setup step");
-        mcpVersionState = setupStateLabel("SHAFT MCP version setup state");
+        readyStep = setupStepLabel("Start chatting setup step");
         readyState = setupStateLabel("Start chatting setup state");
         JPanel agentControls = new JPanel();
         agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
@@ -473,20 +471,17 @@ final class ShaftMcpSetupPanel extends JPanel {
         upgradeActions.add(checkUpgrade);
         upgradeActions.add(copyUpgradeCommand);
         upgradeActions.add(upgradeDetail);
+        // Merged row #3 (issue #3560): the old separate "SHAFT MCP version" row is folded into
+        // "3 Install SHAFT MCP" — one row, one Check, one Copy, badge driven by mcpVersionStepState().
         JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         installActions.setOpaque(false);
-        installActions.add(copyInstallerCommand);
-        installActions.add(installShaftCli);
-        JPanel mcpVersionActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        mcpVersionActions.setOpaque(false);
-        mcpVersionActions.add(checkMcpVersion);
-        mcpVersionActions.add(copyMcpInstallCommand);
-        mcpVersionActions.add(mcpVersionDetail);
+        installActions.add(checkMcpVersion);
+        installActions.add(copyMcpInstallCommand);
+        installActions.add(mcpVersionDetail);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
         installRow = stepRow(installStep, installState, installActions);
         checkRow = stepRow(testStep, testState, checkActions);
-        mcpVersionRow = stepRow(mcpVersionStep, mcpVersionState, mcpVersionActions);
         prerequisitesList = new JPanel();
         prerequisitesList.setLayout(new javax.swing.BoxLayout(prerequisitesList, javax.swing.BoxLayout.Y_AXIS));
         prerequisitesList.setOpaque(false);
@@ -496,7 +491,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         recheckPrerequisites.setToolTipText("Detect the required tools again after installing one");
         applyLabeledAction(recheckPrerequisites, ShaftIcons.CHECK);
         recheckPrerequisites.addActionListener(event -> refreshPrerequisites());
-        JButton copyEngineWarmup = new JButton("Copy SHAFT Engine warm-up command");
+        JButton copyEngineWarmup = new JButton("Warm up Engine");
         // Resolve the latest engine release off-EDT now so the click below can pin a real version.
         SetupPrerequisites.prefetchLatestEngineVersion();
         // Same fire-once, off-EDT pattern for the latest shaft-mcp release (issue #3538).
@@ -521,7 +516,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         prerequisitesStep = setupStepLabel("Prerequisites setup step");
         prerequisitesState = setupStateLabel("Prerequisites setup state");
         prerequisitesRow = stepRow(prerequisitesStep, prerequisitesState, prerequisitesControls);
-        JLabel readyStep = setupStepLabel("Start chatting setup step");
         readyStep.setText("Ready");
         JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         readyActions.setOpaque(false);
@@ -550,8 +544,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         workflow.add(installRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
         workflow.add(checkRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(6));
-        workflow.add(mcpVersionRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
         workflow.add(chatRow);
         JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -586,6 +578,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         intro.add(summary, BorderLayout.CENTER);
         installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
+                .addComponent(installShaftCli)
                 .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
                 .getPanel();
         installerDetailsPanel.setVisible(false);
@@ -647,8 +640,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         add(footer, BorderLayout.SOUTH);
         refreshPrerequisites();
         refreshRealChecks();
-        runUpgradeCheck(false);
-        runMcpVersionCheck(false);
         if (!currentCommand().isBlank()) {
             setStatusText(CHECK_NEXT_STEP);
         }
@@ -656,24 +647,14 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     /**
-     * Re-runs the cheap on-disk/PATH detections every step badge is derived from, so no step is
-     * ever marked done just because a button was clicked (issue #3426 A5): the install step is
-     * done only when an installed shaft-mcp is actually found, and the agent step only when the
-     * selected agent runtime is really detected.
+     * Re-runs the cheap on-disk detection the "4 Check setup" badge falls back to, so its Waiting
+     * vs. Next distinction reflects whether an installed shaft-mcp actually exists on disk rather
+     * than a button click (issue #3426 A5). Agent readiness is no longer derived here: the "2 Pick
+     * agent" badge earns green only from a verified connection check (issue #3560), never from a
+     * passive PATH probe at construction time.
      */
     private void refreshRealChecks() {
         installedCommandDetected = !inferInstalledStdioCommand().isBlank();
-        selectedAgentDetected = detectSelectedAgent();
-    }
-
-    private boolean detectSelectedAgent() {
-        if (cloudFamilySelected()) {
-            return cloudKeyStore.hasKey(GEMINI_KEY_NAME);
-        }
-        ShaftMcpToolResult result = readinessProbe.test(
-                clientFromFamily(normalize(String.valueOf(family.getSelectedItem()), "CODEX")),
-                normalize(String.valueOf(runtime.getSelectedItem()), "CLI"));
-        return result != null && result.success();
     }
 
     /**
@@ -682,6 +663,9 @@ final class ShaftMcpSetupPanel extends JPanel {
      */
     private void runUpgradeCheck(boolean announce) {
         upgradeCheckResult = upgradeChecker.get();
+        if (announce) {
+            upgradeChecked = true;
+        }
         upgradeDetail.setText(upgradeDetailText());
         upgradeDetail.setForeground(switch (upgradeCheckResult.state()) {
             case UP_TO_DATE -> ShaftStatusPresentation.success();
@@ -723,6 +707,9 @@ final class ShaftMcpSetupPanel extends JPanel {
      */
     private void runMcpVersionCheck(boolean announce) {
         mcpVersionCheckResult = mcpVersionChecker.get();
+        if (announce) {
+            mcpVersionChecked = true;
+        }
         mcpVersionDetail.setText(mcpVersionDetailText());
         mcpVersionDetail.setForeground(switch (mcpVersionCheckResult.state()) {
             case UP_TO_DATE -> ShaftStatusPresentation.success();
@@ -811,7 +798,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             label.getAccessibleContext().setAccessibleName(prerequisite.name() + stateText.trim());
             row.add(label);
             if (!prerequisite.present()) {
-                JButton copyInstall = new JButton("Copy install command");
+                JButton copyInstall = new JButton("Copy");
                 copyInstall.getAccessibleContext().setAccessibleName(
                         "Copy " + prerequisite.name() + " install command");
                 copyInstall.setToolTipText("Copy the terminal command that installs " + prerequisite.name());
@@ -825,6 +812,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         }
         setStep(prerequisitesStep, prerequisitesState, "0 Prerequisites", allRequiredPresent ? "done" : "next");
         styleStepRow(prerequisitesRow, allRequiredPresent ? "done" : "next");
+        alignStepLabelWidths();
         prerequisitesList.revalidate();
         prerequisitesList.repaint();
     }
@@ -1001,28 +989,15 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void updateActionState(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        boolean showCopy = !complete && !(installedCommandDetected || hasCommand);
-        // The real check is always available while setup is incomplete: verification is how a
-        // step earns its Done badge, never a button click (issue #3426 A5).
-        boolean showTest = !complete;
-        copyInstallerCommand.setVisible(showCopy);
-        copyInstallerCommand.setEnabled(!running && showCopy);
-        installShaftCli.setVisible(showCopy);
+        // Check and Copy stay visible in every state (issue #3560): verification is how a step
+        // earns its Done badge, never a button click or button visibility (issue #3426 A5) — the
+        // row's own blue/green/red styling is what conveys pass/fail now.
+        test.setEnabled(!running);
         installShaftCli.setEnabled(!running);
-        test.setVisible(showTest);
-        test.setEnabled(!running && showTest);
-        boolean upgradeDone = upgradeCheckResult != null
-                && upgradeCheckResult.state() == ShaftProjectVersionCheck.State.UP_TO_DATE;
-        copyUpgradeCommand.setVisible(!upgradeDone);
-        copyUpgradeCommand.setEnabled(!running && !upgradeDone);
         checkUpgrade.setEnabled(!running);
-        // Never gates the rest of setup (issue #3538): the copy button stays available for every
-        // state except an already-up-to-date install, including the offline LATEST_UNKNOWN state.
-        boolean mcpVersionUpToDate = mcpVersionCheckResult != null
-                && mcpVersionCheckResult.state() == ShaftMcpVersionCheck.State.UP_TO_DATE;
-        copyMcpInstallCommand.setVisible(!mcpVersionUpToDate);
-        copyMcpInstallCommand.setEnabled(!running && !mcpVersionUpToDate);
+        copyUpgradeCommand.setEnabled(!running);
         checkMcpVersion.setEnabled(!running);
+        copyMcpInstallCommand.setEnabled(!running);
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
         startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
@@ -1325,27 +1300,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         updateActionState(false);
     }
 
-    private void copyInstallerCommand() {
-        String command = installerCommand();
-        copy(command, "Copied MCP installer command");
-        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> { });
-        if (opened) {
-            openIntellijTerminal();
-        }
-        setStatusText(opened
-                ? "Terminal opened with the installer pre-typed. Press Enter there to run it; when it finishes, press Check now."
-                : "Installer command copied. Paste it into a terminal, run it; when it finishes, press Check now.");
-        updateActionState(false);
-        test.requestFocusInWindow();
-    }
-
     /**
      * Copies the SHAFT MCP install/update command for the selected client. Install and upgrade are
      * the same command — re-running the installer script always fetches the latest release — so
-     * there is no separate "install" vs "upgrade" flavor of this command (issue #3538).
+     * there is no separate "install" vs "upgrade" flavor of this command (issue #3538). This is now
+     * the single copy action for the merged "3 Install SHAFT MCP" row (issue #3560), so it goes
+     * through {@link #installerCommand()} — the same helper the Advanced installer options panel
+     * uses — to honor the "Also install shaft-cli" checkbox.
      */
     private void copyMcpInstallCommand() {
-        String command = installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
+        String command = installerCommand();
         copy(command, "Copied SHAFT MCP install command");
         boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> { });
         if (opened) {
@@ -1373,7 +1337,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install",
                 "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
-        copyInstallerCommand.requestFocusInWindow();
+        copyMcpInstallCommand.requestFocusInWindow();
     }
 
     /**
@@ -1765,7 +1729,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         JLabel label = new JLabel();
         label.setOpaque(true);
         label.setHorizontalAlignment(JLabel.CENTER);
-        label.setPreferredSize(JBUI.size(74, 22));
+        Dimension badgeSize = JBUI.size(74, 22);
+        label.setPreferredSize(badgeSize);
+        // Also pin the minimum size (issue #3560): a JLabel's UI-computed minimum size ignores an
+        // overridden preferred size and falls back to its own short text's natural width (e.g.
+        // "Next"), so under a width-constrained row a GridBagLayout column can silently shrink this
+        // badge below its intended 74px unless the minimum matches the preferred size exactly.
+        label.setMinimumSize(badgeSize);
         label.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
                 JBUI.Borders.empty(2, 6)));
@@ -1792,15 +1762,18 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     /**
-     * Every step badge below reflects a real check, never a click (issue #3426 A4/A5): the
-     * upgrade step compares the project pom against the latest release, the agent step requires
-     * the selected runtime to actually be detected, the install step requires an installed
-     * shaft-mcp (or an explicit command) to exist on disk, and the check step requires the probe
-     * to have actually passed — with an explicit Failed badge when it did not.
+     * Every step badge below reflects a real, user-triggered check, never a click's mere
+     * side-effect or passive on-disk detection (issue #3426 A4/A5, issue #3560): a badge only
+     * turns green once the user has pressed that row's Check and it passed — a fresh landing (or a
+     * post-"Reset everything" re-render) always starts neutral/blue, never green. The upgrade step
+     * compares the project pom against the latest release once checked, the agent step requires the
+     * connection check to have verified the agent (not just detected it), the merged install/MCP-
+     * version row borrows the version check's state, and the check step requires the probe to have
+     * actually passed — with an explicit Failed badge when it did not.
      */
     private String upgradeStepState() {
-        if (upgradeCheckResult == null) {
-            return "optional";
+        if (!upgradeChecked || upgradeCheckResult == null) {
+            return "next";
         }
         return switch (upgradeCheckResult.state()) {
             case UP_TO_DATE -> "done";
@@ -1810,11 +1783,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private String chooseStepState() {
-        return selectedAgentDetected ? "done" : "next";
-    }
-
-    private String installStepState(boolean hasCommand) {
-        return installedCommandDetected || hasCommand ? "done" : "next";
+        return settings.agentLaneReady ? "done" : "next";
     }
 
     private String checkStepState(boolean running, boolean complete, boolean hasCommand) {
@@ -1833,11 +1802,12 @@ final class ShaftMcpSetupPanel extends JPanel {
     /**
      * Never "failed" (issue #3538): an offline latest-version lookup is surfaced as "optional" —
      * the same neutral badge the upgrade step's LATEST_UNKNOWN uses — so this row can never block
-     * the rest of setup.
+     * the rest of setup. Also drives the merged "3 Install SHAFT MCP" row's badge (issue #3560):
+     * that row is green only once this check has actually run and passed.
      */
     private String mcpVersionStepState() {
-        if (mcpVersionCheckResult == null) {
-            return "optional";
+        if (!mcpVersionChecked || mcpVersionCheckResult == null) {
+            return "next";
         }
         return switch (mcpVersionCheckResult.state()) {
             case UP_TO_DATE -> "done";
@@ -1851,10 +1821,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         boolean complete = settings.mcpSetupComplete && hasCommand;
         setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
         setStep(chooseStep, chooseState, "2 Pick agent", chooseStepState());
-        setStep(installStep, installState, "3 Install SHAFT MCP", installStepState(hasCommand));
+        setStep(installStep, installState, "3 Install SHAFT MCP", mcpVersionStepState());
         setStep(testStep, testState, "4 Check setup", checkStepState(running, complete, hasCommand));
-        setStep(mcpVersionStep, mcpVersionState, "SHAFT MCP version", mcpVersionStepState());
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
+        alignStepLabelWidths();
     }
 
     private void updateWorkflowRows(boolean running) {
@@ -1862,9 +1832,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         boolean complete = settings.mcpSetupComplete && hasCommand;
         styleStepRow(upgradeRow, upgradeStepState());
         styleStepRow(chooseRow, chooseStepState());
-        styleStepRow(installRow, installStepState(hasCommand));
+        styleStepRow(installRow, mcpVersionStepState());
         styleStepRow(checkRow, checkStepState(running, complete, hasCommand));
-        styleStepRow(mcpVersionRow, mcpVersionStepState());
         styleStepRow(chatRow, complete ? "next" : "wait");
     }
 
@@ -1918,16 +1887,75 @@ final class ShaftMcpSetupPanel extends JPanel {
         });
     }
 
+    /**
+     * Symmetric row (issue #3560): step label and state badge sit in consistent, aligned columns
+     * across every workflow row — fixing the ragged left edges a wrapping FlowLayout produced —
+     * with the (often much wider, per-row-variable) actions content given its own full-width line
+     * underneath. Actions cannot share the label/badge line: the setup panel also renders at a
+     * deliberately narrow width (see the plugin's narrow-tool-window screenshot coverage), and a
+     * three-column single-line GridBagLayout row has no minimum width to shrink into without
+     * cropping — GridBagLayout, once a row's assigned width falls below the combined minimum width
+     * of all its columns, shrinks every column proportionally including "no-fill" ones, with no
+     * escape valve short of literal text clipping. Splitting the wide, variable-width actions
+     * content onto its own line sidesteps that degenerate case entirely: it always gets the row's
+     * full width to itself.
+     */
     private static JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
-        JPanel row = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 4));
+        JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(true);
-        row.add(label);
-        row.add(stateLabel);
-        row.add(action);
+        GridBagConstraints labelConstraints = new GridBagConstraints();
+        labelConstraints.gridx = 0;
+        labelConstraints.gridy = 0;
+        labelConstraints.anchor = GridBagConstraints.WEST;
+        labelConstraints.insets = JBUI.insets(0, 0, 0, 10);
+        row.add(label, labelConstraints);
+        GridBagConstraints stateConstraints = new GridBagConstraints();
+        stateConstraints.gridx = 1;
+        stateConstraints.gridy = 0;
+        stateConstraints.anchor = GridBagConstraints.WEST;
+        stateConstraints.insets = JBUI.insets(0, 0, 0, 10);
+        row.add(stateLabel, stateConstraints);
+        GridBagConstraints actionConstraints = new GridBagConstraints();
+        actionConstraints.gridx = 0;
+        actionConstraints.gridy = 1;
+        actionConstraints.gridwidth = 2;
+        actionConstraints.anchor = GridBagConstraints.WEST;
+        actionConstraints.fill = GridBagConstraints.HORIZONTAL;
+        actionConstraints.weightx = 1.0;
+        actionConstraints.insets = JBUI.insets(6, 0, 0, 0);
+        row.add(action, actionConstraints);
         row.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
                 JBUI.Borders.empty(8, 10)));
         return row;
+    }
+
+    /**
+     * Keeps every workflow row's step-label column the same width (issue #3560) so the state
+     * badges and action columns line up across rows despite each row being an independently laid
+     * out {@link GridBagLayout} panel. The shared width is the widest label's own natural preferred
+     * width — recomputed on every call since bold/plain font weight (see {@link #setStep}) shifts a
+     * label's natural width slightly — so no label is ever clamped narrower than its own text needs.
+     */
+    private void alignStepLabelWidths() {
+        JLabel[] stepLabels = {prerequisitesStep, upgradeStep, chooseStep, installStep, testStep, readyStep};
+        int maxWidth = 0;
+        for (JLabel label : stepLabels) {
+            label.setMinimumSize(null);
+            label.setPreferredSize(null);
+            maxWidth = Math.max(maxWidth, label.getPreferredSize().width);
+        }
+        for (JLabel label : stepLabels) {
+            Dimension shared = new Dimension(maxWidth, label.getPreferredSize().height);
+            label.setPreferredSize(shared);
+            // Pin the minimum to the same shared width (issue #3560): a JLabel's UI-computed
+            // minimum size ignores an overridden preferred size and falls back to that label's own
+            // (narrower) natural width, so a width-constrained row's GridBagLayout would otherwise
+            // silently shrink this column back down and break the cross-row alignment/cropping
+            // guarantee — the row's actions column (weightx=1, fill=HORIZONTAL) is the one column
+            // meant to absorb any width pressure instead.
+            label.setMinimumSize(shared);
+        }
     }
 
     private void updateLiveSummary() {
