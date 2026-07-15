@@ -405,10 +405,12 @@ class CaptureEventPipelineTest {
                 Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-2"),
                 Map.of("domSnapshot", "<html><body><button id=\"submit\">Save</button>"
                         + "<span>bearer abcdefghijklmnop</span></body></html>")));
-        // The navigation flushes the debounced click immediately; it is itself a consequence of
-        // that click (within the interaction window) so it never becomes a recorded step.
+        // The navigation is buffered (blank navigationSource); it is itself a consequence of that
+        // click (within the interaction window) so once flushed at stop it never becomes a
+        // recorded step.
         pipeline.accept(signal("navigation", START.plusMillis(1), Map.of(),
                 Map.of("action", "OPEN"), Map.of("url", "https://example.test/next")));
+        pipeline.close();
 
         CaptureSession session = store.read();
         assertEquals(1, session.events().size());
@@ -455,6 +457,59 @@ class CaptureEventPipelineTest {
         assertEquals("https://example.test/home", navigations.get(0).targetUrl());
         assertEquals("https://example.test/pricing", navigations.get(1).targetUrl());
         assertEquals(1, events.stream().filter(CaptureEvent.ClickEvent.class::isInstance).count());
+    }
+
+    @Test
+    void suppressesNavigationWhenCollectorSignalWinsTheRaceAgainstItsCausingClick(@TempDir Path temp) {
+        // Root cause of the phantom-navigation bug: the BiDi collector's navigationCommitted /
+        // URL-polling signal (blank navigationSource) can reach accept() before the click's own
+        // slower JS-channel signal, even though the click happened first and caused the
+        // navigation. Simulate the race directly: accept() the navigation before the click, with
+        // the navigation's own timestamp after the click's (it really is the click's consequence).
+        // Buffering the navigation lets the click's accept() call -- which stamps
+        // lastInteractionAt immediately regardless of buffering -- win before the navigation is
+        // evaluated at the debounce flush.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START.plusMillis(50), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/redirected")));
+        pipeline.accept(signal("click", START, buttonTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(1, events.stream().filter(CaptureEvent.ClickEvent.class::isInstance).count(),
+                "The click that caused the navigation must still be recorded.");
+        assertFalse(events.stream().anyMatch(CaptureEvent.NavigationEvent.class::isInstance),
+                "The racy collector-generated navigation must be suppressed as a click consequence, "
+                        + "not persisted as a phantom step.");
+    }
+
+    @Test
+    void recordsStandaloneNavigationWithNoPrecedingInteraction(@TempDir Path temp) {
+        // Address-bar navigation (or the initial page open) with no click anywhere near it must
+        // still be recorded even though it now goes through the pendingNavigations buffer like
+        // every other blank-navigationSource signal.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/standalone")));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(1, events.size());
+        assertEquals("https://example.test/standalone",
+                assertInstanceOf(CaptureEvent.NavigationEvent.class, events.getFirst()).targetUrl());
     }
 
     @Test
