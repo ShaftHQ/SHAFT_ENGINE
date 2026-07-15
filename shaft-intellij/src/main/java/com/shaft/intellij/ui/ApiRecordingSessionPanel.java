@@ -53,9 +53,12 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private final Alarm pollAlarm;
 
     private volatile boolean stopped;
-    private String sessionId;
-    private String sessionOutputPath = "";
-    private ShaftMcpInvocation currentInvocation;
+    // Written on the pooled poll thread (pollOnce) and read on the EDT (stopRecording/dispose);
+    // volatile so a Stop/close on the EDT always observes the in-flight invocation to cancel it,
+    // and so the poll thread and EDT never disagree on the session identity/output path.
+    private volatile String sessionId;
+    private volatile String sessionOutputPath = "";
+    private volatile ShaftMcpInvocation currentInvocation;
 
     /**
      * Creates the panel and immediately begins polling for transactions.
