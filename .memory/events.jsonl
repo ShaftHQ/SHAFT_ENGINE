@@ -242,3 +242,4 @@
 {"actor":"agent","event":"memory.created","id":"workflow.agent-loop-operating-rhythm-compact-after-every-merge-overlap-ci-ping-or-close-delegates","timestamp":"2026-07-15T10:08:58+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.maintainer-local-environment-jdk-gradle-consumer-project-docs-repo-paths-mohab","timestamp":"2026-07-15T10:08:58+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.docusaurus-v4-future-v4-true-upgrade-gotchas-on-the-shaft-docs-site","timestamp":"2026-07-15T10:08:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.adding-removing-a-shaft-mcp-tool-requires-regenerating-shaft-mcp-tools-md-updating-the-manifest-fixture-and-bumping-the-hardcoded-tool-count-test","timestamp":"2026-07-15T11:52:04+03:00"}
