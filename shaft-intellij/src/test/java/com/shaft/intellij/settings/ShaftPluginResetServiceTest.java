@@ -187,6 +187,39 @@ class ShaftPluginResetServiceTest {
     }
 
     @Test
+    void resetForUpgradeRunsEveryResetStepButPreservesEveryOpenProjectChatState() {
+        // Mirrors resetEverythingRunsEveryResetStepAndClearsEveryOpenProjectChatState above, but
+        // asserts the opposite outcome for chat: an upgrade must reset the same stale UI/setup state
+        // (settings, credentials, approvals) while leaving a user's conversation history alone.
+        ShaftAssistantChatState projectOne = new ShaftAssistantChatState();
+        ShaftAssistantChatState projectTwo = new ShaftAssistantChatState();
+        projectOne.loadState(sessionWithOneMessage("session-1", "hello from project one"));
+        projectTwo.loadState(sessionWithOneMessage("session-2", "hello from project two"));
+
+        boolean[] settingsResetRan = {false};
+        boolean[] credentialsResetRan = {false};
+        boolean[] approvalsResetRan = {false};
+        boolean[] toolWindowRerendered = {false};
+
+        ShaftPluginResetService service = new ShaftPluginResetService(
+                () -> settingsResetRan[0] = true,
+                () -> credentialsResetRan[0] = true,
+                () -> approvalsResetRan[0] = true,
+                () -> List.of(projectOne, projectTwo),
+                () -> toolWindowRerendered[0] = true);
+
+        service.resetForUpgrade();
+
+        assertAll(
+                () -> assertTrue(settingsResetRan[0], "Settings reset step must run"),
+                () -> assertTrue(credentialsResetRan[0], "Credential clear step must run"),
+                () -> assertTrue(approvalsResetRan[0], "Tool approval clear step must run"),
+                () -> assertFalse(projectOne.isCleared(), "resetForUpgrade must preserve chat history"),
+                () -> assertFalse(projectTwo.isCleared(), "resetForUpgrade must preserve chat history"),
+                () -> assertTrue(toolWindowRerendered[0], "Tool window re-render step must run"));
+    }
+
+    @Test
     void productionNoArgConstructorDoesNotEagerlyResolvePlatformServices() {
         // The no-arg constructor (the one plugin.xml's <applicationService> instantiates) wires
         // ShaftSettingsState.getInstance(), ShaftCredentialService.getInstance(),
@@ -227,6 +260,19 @@ class ShaftPluginResetServiceTest {
                 () -> assertTrue(pluginXml.contains(
                         "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftPluginResetService\"/>"),
                         "ShaftPluginResetService must be registered as an applicationService"));
+    }
+
+    @Test
+    void pluginXmlRegistersThePostStartupActivityAndTheClassResolves() throws Exception {
+        // ShaftPluginUpgradeActivity must be registered as a postStartupActivity or it never fires at
+        // IDE runtime, silently disabling plugin-upgrade auto-reset.
+        String pluginXml = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
+
+        assertTrue(pluginXml.contains(
+                "<postStartupActivity implementation=\"com.shaft.intellij.settings.ShaftPluginUpgradeActivity\"/>"),
+                "ShaftPluginUpgradeActivity must be registered as a postStartupActivity");
+        assertDoesNotThrow(() -> Class.forName("com.shaft.intellij.settings.ShaftPluginUpgradeActivity"),
+                "The registered class must resolve");
     }
 
     private static ShaftAssistantChatState.StateData sessionWithOneMessage(String sessionId, String markdown) {
