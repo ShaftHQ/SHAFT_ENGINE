@@ -49,6 +49,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth)" tabindex="0">render(String, String, List, ApiCodegenStyle, ApiValidationDepth)</a></li>
+<li><a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map,java.util.Set)" tabindex="0">render(String, String, List, ApiCodegenStyle, ApiValidationDepth, Map, Set)</a></li>
 <li><a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map)" tabindex="0">render(String, String, List, ApiCodegenStyle, ApiValidationDepth, Map)</a></li>
 </ol>
 </li>
@@ -117,6 +118,19 @@ across origins or across <code>PER_REQUEST</code> methods.</div>
 <div class="block">Renders one API test class, as <a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth)"><code>render(String, String, List, ApiCodegenStyle, ApiValidationDepth)</code></a>, additionally accepting pre-rendered UI action source lines for
 <a href="ApiCodegenStyle.html#HYBRID_UI_API"><code>ApiCodegenStyle.HYBRID_UI_API</code></a>.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="RenderedApiTest.html" title="class in com.shaft.capture.generate.api">RenderedApiTest</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map,java.util.Set)" class="member-name-link">render</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ApiTransaction.html" title="class in com.shaft.capture.generate.api">ApiTransaction</a>&gt;&nbsp;transactions,
+ <a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a>&nbsp;style,
+ <a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a>&nbsp;depth,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Long.html" title="class or interface in java.lang" class="external-link">Long</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;&nbsp;uiActionsBySequence,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Renders one API test class, as <a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map)"><code>render(String, String, List, ApiCodegenStyle, ApiValidationDepth, Map)</code></a>, additionally accepting an explicit set of response JSON paths to
+force-assert as <a href="ApiValidationDepth.html#BUSINESS"><code>ApiValidationDepth.BUSINESS</code></a> business assertions even when their leaf
+is classified <code>VOLATILE</code> or <code>CORRELATED</code> (issue #3530 pinned-path render gate).</div>
+</div>
 </div>
 </div>
 </div>
@@ -155,6 +169,39 @@ across origins or across <code>PER_REQUEST</code> methods.</div>
 <dt>Returns:</dt>
 <dd>generated source, any test-data artifacts (schema/golden files) it references, and
         any transaction IDs skipped because SHAFT.API has no builder for their HTTP method</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map,java.util.Set)">
+<h3>render</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="RenderedApiTest.html" title="class in com.shaft.capture.generate.api">RenderedApiTest</a></span>&nbsp;<span class="element-name">render</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ApiTransaction.html" title="class in com.shaft.capture.generate.api">ApiTransaction</a>&gt;&nbsp;transactions,
+ <a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a>&nbsp;style,
+ <a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a>&nbsp;depth,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Long.html" title="class or interface in java.lang" class="external-link">Long</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;&nbsp;uiActionsBySequence,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)</span></div>
+<div class="block">Renders one API test class, as <a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map)"><code>render(String, String, List, ApiCodegenStyle, ApiValidationDepth, Map)</code></a>, additionally accepting an explicit set of response JSON paths to
+force-assert as <a href="ApiValidationDepth.html#BUSINESS"><code>ApiValidationDepth.BUSINESS</code></a> business assertions even when their leaf
+is classified <code>VOLATILE</code> or <code>CORRELATED</code> (issue #3530 pinned-path render gate). A
+<code>SENSITIVE</code> leaf or a blank-value leaf is never asserted, regardless of pinning.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>packageName</code> - generated class package</dd>
+<dd><code>className</code> - generated class name</dd>
+<dd><code>transactions</code> - renderable transactions in recorded order</dd>
+<dd><code>style</code> - how transactions are grouped into test methods</dd>
+<dd><code>depth</code> - how thoroughly each response is validated</dd>
+<dd><code>uiActionsBySequence</code> - for <a href="ApiCodegenStyle.html#HYBRID_UI_API"><code>ApiCodegenStyle.HYBRID_UI_API</code></a> only: see <a href="#render(java.lang.String,java.lang.String,java.util.List,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,java.util.Map)"><code>render(String, String, List, ApiCodegenStyle, ApiValidationDepth, Map)</code></a></dd>
+<dd><code>pinnedJsonPaths</code> - response JSON paths (e.g. <code>$.status</code>) to force-include as
+                       business assertions at <code>BUSINESS</code> depth; ignored at every other
+                       depth. <code>null</code> is treated as empty.</dd>
+<dt>Returns:</dt>
+<dd>generated source, any test-data artifacts it references, and any transaction IDs
+        skipped because SHAFT.API has no builder for their HTTP method</dd>
 </dl>
 </div>
 </section>

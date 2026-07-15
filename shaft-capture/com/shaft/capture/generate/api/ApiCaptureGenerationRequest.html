@@ -49,6 +49,7 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,java.util.List,java.util.List)" tabindex="0">ApiCaptureGenerationRequest(Path, Path, String, String, ApiCodegenStyle, ApiValidationDepth, boolean, boolean, boolean, Path, CaptureGenerationRequest.EnrichmentMode, Path, boolean, ApprovalPolicy, List, List)</a></li>
 <li><a href="#%3Cinit%3E(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,java.util.List)" tabindex="0">ApiCaptureGenerationRequest(Path, Path, String, String, ApiCodegenStyle, ApiValidationDepth, boolean, boolean, boolean, Path, CaptureGenerationRequest.EnrichmentMode, Path, boolean, ApprovalPolicy, List)</a></li>
 <li><a href="#%3Cinit%3E(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy)" tabindex="0">ApiCaptureGenerationRequest(Path, Path, String, String, ApiCodegenStyle, ApiValidationDepth, boolean, boolean, boolean, Path, CaptureGenerationRequest.EnrichmentMode, Path, boolean, ApprovalPolicy)</a></li>
 <li><a href="#%3Cinit%3E(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path)" tabindex="0">ApiCaptureGenerationRequest(Path, Path, String, String, ApiCodegenStyle, ApiValidationDepth, boolean, boolean, boolean, Path)</a></li>
@@ -75,6 +76,7 @@
 <li><a href="#enrichmentApproved()" tabindex="0">enrichmentApproved()</a></li>
 <li><a href="#aiApprovalPolicy()" tabindex="0">aiApprovalPolicy()</a></li>
 <li><a href="#excludedTransactionIds()" tabindex="0">excludedTransactionIds()</a></li>
+<li><a href="#pinnedJsonPaths()" tabindex="0">pinnedJsonPaths()</a></li>
 </ol>
 </li>
 </ol>
@@ -118,10 +120,14 @@
                               to omit from the generated test entirely, driven by a caller-side
                               transaction include/exclude selection; empty includes every renderable
                               transaction (the default)</dd>
+<dd><code><span id="param-pinnedJsonPaths">pinnedJsonPaths</span></code> - response JSON paths (e.g. <code>$.status</code>) to force-assert as a business
+                       assertion at <a href="ApiValidationDepth.html#BUSINESS"><code>ApiValidationDepth.BUSINESS</code></a> even when the leaf is
+                       classified <code>VOLATILE</code> or <code>CORRELATED</code>; a <code>SENSITIVE</code> or
+                       blank-value leaf is never asserted regardless of pinning (empty by default)</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">ApiCaptureGenerationRequest</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputDirectory, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className, <a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a>&nbsp;style, <a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a>&nbsp;validationDepth, boolean&nbsp;compile, boolean&nbsp;replay, boolean&nbsp;overwrite, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;openApiSpecPath, <a href="../CaptureGenerationRequest.EnrichmentMode.html" title="enum class in com.shaft.capture.generate">CaptureGenerationRequest.EnrichmentMode</a>&nbsp;enrichmentMode, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;enrichmentPreviewPath, boolean&nbsp;enrichmentApproved, com.shaft.pilot.ai.ApprovalPolicy&nbsp;aiApprovalPolicy, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">ApiCaptureGenerationRequest</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputDirectory, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className, <a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a>&nbsp;style, <a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a>&nbsp;validationDepth, boolean&nbsp;compile, boolean&nbsp;replay, boolean&nbsp;overwrite, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;openApiSpecPath, <a href="../CaptureGenerationRequest.EnrichmentMode.html" title="enum class in com.shaft.capture.generate">CaptureGenerationRequest.EnrichmentMode</a>&nbsp;enrichmentMode, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;enrichmentPreviewPath, boolean&nbsp;enrichmentApproved, com.shaft.pilot.ai.ApprovalPolicy&nbsp;aiApprovalPolicy, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Options for generating a <code>SHAFT.API</code> test class from a recorded session.</div>
 </div>
@@ -195,6 +201,26 @@ was added.</div>
  com.shaft.pilot.ai.ApprovalPolicy&nbsp;aiApprovalPolicy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Compatibility constructor for callers compiled before pinned business-assertion JSON paths
+were added.</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,java.util.List,java.util.List)" class="member-name-link">ApiCaptureGenerationRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputDirectory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
+ <a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a>&nbsp;style,
+ <a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a>&nbsp;validationDepth,
+ boolean&nbsp;compile,
+ boolean&nbsp;replay,
+ boolean&nbsp;overwrite,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;openApiSpecPath,
+ <a href="../CaptureGenerationRequest.EnrichmentMode.html" title="enum class in com.shaft.capture.generate">CaptureGenerationRequest.EnrichmentMode</a>&nbsp;enrichmentMode,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;enrichmentPreviewPath,
+ boolean&nbsp;enrichmentApproved,
+ com.shaft.pilot.ai.ApprovalPolicy&nbsp;aiApprovalPolicy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Creates an instance of a <code>ApiCaptureGenerationRequest</code> record class.</div>
 </div>
 </div>
@@ -276,29 +302,34 @@ was added.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-packageName"><code>packageName</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#replay()" class="member-name-link">replay</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pinnedJsonPaths()" class="member-name-link">pinnedJsonPaths</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-pinnedJsonPaths"><code>pinnedJsonPaths</code></a> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#replay()" class="member-name-link">replay</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-replay"><code>replay</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sessionPath()" class="member-name-link">sessionPath</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sessionPath()" class="member-name-link">sessionPath</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-sessionPath"><code>sessionPath</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#style()" class="member-name-link">style</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#style()" class="member-name-link">style</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-style"><code>style</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#validationDepth()" class="member-name-link">validationDepth</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#validationDepth()" class="member-name-link">validationDepth</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-validationDepth"><code>validationDepth</code></a> record component.</div>
 </div>
 </div>
@@ -319,7 +350,7 @@ was added.</div>
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,java.util.List)">
+<section class="detail" id="&lt;init&gt;(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,java.util.List,java.util.List)">
 <h3>ApiCaptureGenerationRequest</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">ApiCaptureGenerationRequest</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath,
@@ -336,7 +367,8 @@ was added.</div>
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;enrichmentPreviewPath,
  boolean&nbsp;enrichmentApproved,
  com.shaft.pilot.ai.ApprovalPolicy&nbsp;aiApprovalPolicy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;pinnedJsonPaths)</span></div>
 <div class="block">Creates an instance of a <code>ApiCaptureGenerationRequest</code> record class.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -355,6 +387,49 @@ was added.</div>
 <dd><code>enrichmentApproved</code> - the value for the <a href="#param-enrichmentApproved"><code>enrichmentApproved</code></a> record component</dd>
 <dd><code>aiApprovalPolicy</code> - the value for the <a href="#param-aiApprovalPolicy"><code>aiApprovalPolicy</code></a> record component</dd>
 <dd><code>excludedTransactionIds</code> - the value for the <a href="#param-excludedTransactionIds"><code>excludedTransactionIds</code></a> record component</dd>
+<dd><code>pinnedJsonPaths</code> - the value for the <a href="#param-pinnedJsonPaths"><code>pinnedJsonPaths</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(java.nio.file.Path,java.nio.file.Path,java.lang.String,java.lang.String,com.shaft.capture.generate.api.ApiCodegenStyle,com.shaft.capture.generate.api.ApiValidationDepth,boolean,boolean,boolean,java.nio.file.Path,com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode,java.nio.file.Path,boolean,com.shaft.pilot.ai.ApprovalPolicy,java.util.List)">
+<h3>ApiCaptureGenerationRequest</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">ApiCaptureGenerationRequest</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;outputDirectory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
+ <a href="ApiCodegenStyle.html" title="enum class in com.shaft.capture.generate.api">ApiCodegenStyle</a>&nbsp;style,
+ <a href="ApiValidationDepth.html" title="enum class in com.shaft.capture.generate.api">ApiValidationDepth</a>&nbsp;validationDepth,
+ boolean&nbsp;compile,
+ boolean&nbsp;replay,
+ boolean&nbsp;overwrite,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;openApiSpecPath,
+ <a href="../CaptureGenerationRequest.EnrichmentMode.html" title="enum class in com.shaft.capture.generate">CaptureGenerationRequest.EnrichmentMode</a>&nbsp;enrichmentMode,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;enrichmentPreviewPath,
+ boolean&nbsp;enrichmentApproved,
+ com.shaft.pilot.ai.ApprovalPolicy&nbsp;aiApprovalPolicy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</span></div>
+<div class="block">Compatibility constructor for callers compiled before pinned business-assertion JSON paths
+were added.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>sessionPath</code> - path to the recorded <code>CaptureSession</code> JSON file</dd>
+<dd><code>outputDirectory</code> - project root the generated source/test-data/report are written under</dd>
+<dd><code>packageName</code> - generated class package</dd>
+<dd><code>className</code> - generated class name; blank derives one deterministically from the session ID</dd>
+<dd><code>style</code> - how transactions are grouped into test methods</dd>
+<dd><code>validationDepth</code> - how thoroughly each response is validated</dd>
+<dd><code>compile</code> - whether to compile the generated source</dd>
+<dd><code>replay</code> - whether to replay the compiled class</dd>
+<dd><code>overwrite</code> - whether existing output files may be overwritten</dd>
+<dd><code>openApiSpecPath</code> - optional path to an OpenAPI spec to cross-report recorded endpoints against</dd>
+<dd><code>enrichmentMode</code> - optional AI naming-enrichment phase</dd>
+<dd><code>enrichmentPreviewPath</code> - preview path to write or read</dd>
+<dd><code>enrichmentApproved</code> - whether a reviewed preview may be applied</dd>
+<dd><code>aiApprovalPolicy</code> - explicit evidence and processing-location approval for preview generation</dd>
+<dd><code>excludedTransactionIds</code> - recorded transaction IDs to omit from the generated test entirely</dd>
 </dl>
 </div>
 </section>
@@ -705,6 +780,19 @@ was added.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-excludedTransactionIds"><code>excludedTransactionIds</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="pinnedJsonPaths()">
+<h3>pinnedJsonPaths</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">pinnedJsonPaths</span>()</div>
+<div class="block">Returns the value of the <a href="#param-pinnedJsonPaths"><code>pinnedJsonPaths</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-pinnedJsonPaths"><code>pinnedJsonPaths</code></a> record component</dd>
 </dl>
 </div>
 </section>
