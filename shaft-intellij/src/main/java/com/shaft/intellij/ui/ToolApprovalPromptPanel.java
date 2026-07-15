@@ -227,10 +227,18 @@ final class ToolApprovalPromptPanel extends JPanel {
 
         @Override
         public Dimension getPreferredSize() {
-            int cappedWidth = Math.min(super.getPreferredSize().width, JBUI.scale(MAX_WIDTH));
-            setSize(new Dimension(cappedWidth, Short.MAX_VALUE));
+            // Always wrap at a fixed width instead of deriving a cap from super.getPreferredSize()'s
+            // natural width: that query happens while this component's own size is still (0, 0) on
+            // its first layout pass, and a line-wrapped JTextArea measured at zero width collapses to
+            // near-zero preferred width too - wrapping every subsequent line one character at a time.
+            // That stayed invisible while this was the sole BorderLayout.CENTER child (which discards
+            // the child's preferred width and stretches it to the real available width regardless),
+            // but a second wrapping area stacked via BoxLayout honors the (broken) preferred width as
+            // the real allocated width, so the fixed-width component must actually be correct.
+            int width = JBUI.scale(MAX_WIDTH);
+            setSize(new Dimension(width, Short.MAX_VALUE));
             Dimension preferred = super.getPreferredSize();
-            preferred.width = cappedWidth;
+            preferred.width = width;
             return preferred;
         }
 
