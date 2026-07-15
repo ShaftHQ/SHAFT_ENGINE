@@ -2,6 +2,8 @@ package testPackage.mockedTests;
 
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
+import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -14,6 +16,8 @@ import javax.sql.rowset.RowSetFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -93,6 +97,27 @@ public class DatabaseActionsMockedTests {
             "testpass"
         );
         Assert.assertNotNull(dbActions);
+    }
+
+    @Test
+    public void testConstructorFailureMasksPassword() {
+        List<String> reportedMessages = new ArrayList<>();
+        try (MockedStatic<ReportManagerHelper> reportMock = mockStatic(ReportManagerHelper.class)) {
+            reportMock.when(() -> ReportManagerHelper.log(anyString(), any(), any(CheckpointStatus.class)))
+                    .thenAnswer(invocation -> {
+                        reportedMessages.add(invocation.getArgument(0));
+                        return null;
+                    });
+            try {
+                new DatabaseActions(DatabaseType.MY_SQL, "", "3306", "db", "user", "secretPass");
+            } catch (Exception e) {
+                // constructor reports the failure before throwing
+            }
+        }
+
+        String reported = String.join("\n", reportedMessages);
+        Assert.assertFalse(reported.contains("secretPass"));
+        Assert.assertTrue(reported.contains("Password: \"**********\""));
     }
 
     @Test
@@ -180,6 +205,13 @@ public class DatabaseActionsMockedTests {
         String customReportMessage = (String) getReportMessageMethod.invoke(customConnectionDatabase, "UPDATE", "UPDATE test");
         Assert.assertTrue(customReportMessage.contains("User=****"));
         Assert.assertTrue(customReportMessage.contains("Password=*****"));
+
+        DatabaseActions structuredConnectionDatabase = new DatabaseActions(
+                DatabaseType.MY_SQL, "127.0.0.1", "3306", "db", "user", "secretPass");
+        String structuredReportMessage = (String) getReportMessageMethod.invoke(
+                structuredConnectionDatabase, "SELECT", "SELECT 1");
+        Assert.assertFalse(structuredReportMessage.contains("secretPass"));
+        Assert.assertTrue(structuredReportMessage.contains("Password: \"**********\""));
     }
 
     @Test
