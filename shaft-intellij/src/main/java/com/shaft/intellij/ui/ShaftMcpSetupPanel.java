@@ -409,14 +409,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyOutput = new JButton("Copy output");
         copyOutput.getAccessibleContext().setAccessibleName("Copy setup diagnostic output");
         copyOutput.setToolTipText("Copy the setup diagnostic output");
-        ShaftIconButtons.apply(copyOutput, ShaftIcons.COPY);
+        applyLabeledAction(copyOutput, ShaftIcons.COPY);
         copyOutput.setEnabled(false);
         copyOutput.addActionListener(event -> copyDiagnosticOutput());
         copyDocs = new JButton("Copy docs link");
         copyDocs.getAccessibleContext().setAccessibleName("Copy SHAFT MCP docs link");
         copyDocs.setToolTipText("Copy the SHAFT MCP setup docs link");
         copyDocs.setMnemonic(KeyEvent.VK_D);
-        ShaftIconButtons.apply(copyDocs, ShaftIcons.HELP);
+        applyLabeledAction(copyDocs, ShaftIcons.HELP);
         copyDocs.setEnabled(false);
         copyDocs.setVisible(false);
         copyDocs.addActionListener(event -> copyDocsLink());
@@ -426,7 +426,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 "Copy a command that stops any running sessions of the selected assistant CLI and "
                         + "re-checks its shaft-mcp access, so it picks up a fresh shaft-mcp install; "
                         + "also opens a terminal with it pre-typed");
-        ShaftIconButtons.apply(copyRestartCommand, ShaftIcons.RESET);
+        applyLabeledAction(copyRestartCommand, ShaftIcons.RESET);
         copyRestartCommand.setEnabled(false);
         copyRestartCommand.setVisible(false);
         copyRestartCommand.addActionListener(event -> copyCommandIntoTerminal(
