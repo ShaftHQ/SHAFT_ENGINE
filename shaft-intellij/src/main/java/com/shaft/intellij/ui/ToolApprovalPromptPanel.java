@@ -1,10 +1,13 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.intellij.ui.JBColor;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -14,6 +17,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -73,15 +77,30 @@ final class ToolApprovalPromptPanel extends JPanel {
 
         JLabel summary = new JLabel("<html>SHAFT wants to run <b>" + escapeHtml(toolName) + "</b></html>");
         summary.getAccessibleContext().setAccessibleName("Tool approval summary");
+
+        WrappingArgumentsArea plainLanguageArea = new WrappingArgumentsArea(plainLanguageSummary(arguments));
+        plainLanguageArea.getAccessibleContext().setAccessibleName("Tool approval plain-language summary");
+        plainLanguageArea.getAccessibleContext().setAccessibleDescription(
+                "Plain-language description of the arguments for the " + toolName + " tool call awaiting approval: "
+                        + plainLanguageSummary(arguments));
+
         JTextArea argumentsLabel = new WrappingArgumentsArea(argumentsSummary(arguments));
+        argumentsLabel.setFont(argumentsLabel.getFont().deriveFont(Math.max(10f, argumentsLabel.getFont().getSize2D() - 1f)));
+        argumentsLabel.setForeground(JBColor.namedColor("Label.disabledForeground", JBColor.GRAY));
         argumentsLabel.getAccessibleContext().setAccessibleName("Tool approval arguments");
         argumentsLabel.getAccessibleContext().setAccessibleDescription(
                 "Arguments for the " + toolName + " tool call awaiting approval: " + argumentsSummary(arguments));
 
+        JPanel argumentsPanel = new JPanel();
+        argumentsPanel.setOpaque(false);
+        argumentsPanel.setLayout(new BoxLayout(argumentsPanel, BoxLayout.Y_AXIS));
+        argumentsPanel.add(plainLanguageArea);
+        argumentsPanel.add(argumentsLabel);
+
         JPanel header = new JPanel(new BorderLayout(2, 2));
         header.setOpaque(false);
         header.add(summary, BorderLayout.NORTH);
-        header.add(argumentsLabel, BorderLayout.CENTER);
+        header.add(argumentsPanel, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.setOpaque(false);
@@ -100,8 +119,21 @@ final class ToolApprovalPromptPanel extends JPanel {
         button.getAccessibleContext().setAccessibleDescription(buttonDescription(toolName, decision));
         button.setToolTipText(buttonDescription(toolName, decision));
         button.addActionListener(event -> decide(decision));
+        if (isBroadScope(decision)) {
+            button.setFont(button.getFont().deriveFont(Math.max(10f, button.getFont().getSize2D() - 1f)));
+            button.setForeground(JBColor.namedColor("Label.disabledForeground", JBColor.GRAY));
+        }
         decisionButtons.add(button);
         return button;
+    }
+
+    /**
+     * {@code APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} grant broader, longer-lived
+     * trust than {@code APPROVE_ONCE} or {@code DENY}; they're rendered with a lighter visual
+     * weight so the narrowest/safest choices remain the default-looking path.
+     */
+    private static boolean isBroadScope(ToolApprovalDecision decision) {
+        return decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS || decision == ToolApprovalDecision.APPROVE_ALL_TOOLS;
     }
 
     private static String buttonDescription(String toolName, ToolApprovalDecision decision) {
@@ -144,6 +176,31 @@ final class ToolApprovalPromptPanel extends JPanel {
         return json.length() > maxLength ? json.substring(0, maxLength) + "..." : json;
     }
 
+    /**
+     * Renders the top-level entries of {@code arguments} as a plain-language sentence instead of
+     * raw JSON, e.g. {@code {"url":"https://example.com","headless":false}} becomes
+     * {@code "This will run with url: https://example.com, headless: false."}. SHAFT MCP tool
+     * arguments are effectively flat, so nested object/array values are rendered with their own
+     * {@code toString()} rather than recursively flattened; this is a one-level flattening, not a
+     * general JSON-to-English engine.
+     */
+    private static String plainLanguageSummary(JsonObject arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return "No arguments.";
+        }
+        StringBuilder pairs = new StringBuilder();
+        for (Map.Entry<String, JsonElement> entry : arguments.entrySet()) {
+            if (pairs.length() > 0) {
+                pairs.append(", ");
+            }
+            JsonElement value = entry.getValue();
+            String plainValue = value == null || value.isJsonNull() ? "none"
+                    : value.isJsonPrimitive() ? value.getAsString() : value.toString();
+            pairs.append(entry.getKey()).append(": ").append(plainValue);
+        }
+        return "This will run with " + pairs + ".";
+    }
+
     private static String escapeHtml(String value) {
         return value == null ? "" : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
@@ -170,10 +227,18 @@ final class ToolApprovalPromptPanel extends JPanel {
 
         @Override
         public Dimension getPreferredSize() {
-            int cappedWidth = Math.min(super.getPreferredSize().width, JBUI.scale(MAX_WIDTH));
-            setSize(new Dimension(cappedWidth, Short.MAX_VALUE));
+            // Always wrap at a fixed width instead of deriving a cap from super.getPreferredSize()'s
+            // natural width: that query happens while this component's own size is still (0, 0) on
+            // its first layout pass, and a line-wrapped JTextArea measured at zero width collapses to
+            // near-zero preferred width too - wrapping every subsequent line one character at a time.
+            // That stayed invisible while this was the sole BorderLayout.CENTER child (which discards
+            // the child's preferred width and stretches it to the real available width regardless),
+            // but a second wrapping area stacked via BoxLayout honors the (broken) preferred width as
+            // the real allocated width, so the fixed-width component must actually be correct.
+            int width = JBUI.scale(MAX_WIDTH);
+            setSize(new Dimension(width, Short.MAX_VALUE));
             Dimension preferred = super.getPreferredSize();
-            preferred.width = cappedWidth;
+            preferred.width = width;
             return preferred;
         }
 

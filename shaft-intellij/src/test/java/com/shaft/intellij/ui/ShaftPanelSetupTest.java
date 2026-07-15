@@ -2832,6 +2832,8 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Recheck prerequisites".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT Engine warm-up command".equals(accessibleName(button)))
                 .filter(button -> !"Copy assistant CLI restart command".equals(accessibleName(button)))
+                .filter(button -> !"Copy setup diagnostic output".equals(accessibleName(button)))
+                .filter(button -> !"Copy SHAFT MCP docs link".equals(accessibleName(button)))
                 .filter(button -> !String.valueOf(accessibleName(button)).matches("Copy .+ install command"))
                 // Empty-state suggestion chips (issue #3500 A6) are content affordances that name
                 // the exact request they pre-fill — an icon alone cannot convey that on first run.
