@@ -413,6 +413,10 @@ public class CaptureService {
      * @param excludedTransactionIds recorded transaction IDs to omit from generation entirely
      *                               (drives a recorder transaction-table include/exclude selection);
      *                               empty includes every renderable transaction
+     * @param pinnedJsonPaths response JSON paths (e.g. {@code $.status}) to force-assert as business
+     *                        assertions at {@code BUSINESS} validation depth even when the leaf is
+     *                        classified volatile or correlated; a sensitive or blank-value leaf is
+     *                        never asserted regardless of pinning; empty pins nothing (the default)
      * @return generated artifacts, compile/replay result, and copy-paste code blocks
      */
     @Tool(name = "capture_api_generate",
@@ -427,7 +431,8 @@ public class CaptureService {
             boolean overwrite,
             boolean replay,
             String openApiSpecPath,
-            List<String> excludedTransactionIds) {
+            List<String> excludedTransactionIds,
+            List<String> pinnedJsonPaths) {
         Path output = outputDirectory == null || outputDirectory.isBlank()
                 ? workspacePolicy.output("generated-tests", "Capture generation output directory")
                 : workspacePolicy.output(outputDirectory, "Capture generation output directory");
@@ -449,7 +454,8 @@ public class CaptureService {
                 null,
                 false,
                 null,
-                excludedTransactionIds));
+                excludedTransactionIds,
+                pinnedJsonPaths == null ? List.of() : pinnedJsonPaths));
         boolean successful = result.report().status() == CaptureGenerationReport.Status.SUCCESS;
         List<McpCodeBlock> blocks = successful && result.sourcePath() != null
                 ? codeBlocks.fromGeneratedSource(result.sourcePath(), "api", result.report())

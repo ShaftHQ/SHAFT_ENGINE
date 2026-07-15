@@ -204,7 +204,7 @@ class CaptureServiceApiToolsTest {
 
             McpCaptureReplayResult result = service.generateApi(
                     "recordings/session-mcp.json", "generated", "tests.generated", "",
-                    "SCENARIO", "STATUS", true, false, "openapi.json", List.of());
+                    "SCENARIO", "STATUS", true, false, "openapi.json", List.of(), List.of());
 
             assertTrue(result.successful(), "Generation report: " + result.report());
             assertNotNull(result.report().openApiCoverage());
@@ -227,7 +227,7 @@ class CaptureServiceApiToolsTest {
 
             McpCaptureReplayResult result = service.generateApi(
                     "recordings/session-mcp.json", "generated", "tests.generated", "",
-                    "SCENARIO", "STATUS", true, false, "", List.of());
+                    "SCENARIO", "STATUS", true, false, "", List.of(), List.of());
 
             assertTrue(result.successful(), "Generation report: " + result.report());
             assertFalse(result.report().openApiCoverage().loadable());
@@ -249,12 +249,38 @@ class CaptureServiceApiToolsTest {
 
             McpCaptureReplayResult result = service.generateApi(
                     "recordings/session-mcp-two.json", "generated-excluded", "tests.generated", "",
-                    "SCENARIO", "STATUS", true, false, "", List.of("tx-2"));
+                    "SCENARIO", "STATUS", true, false, "", List.of("tx-2"), List.of());
 
             assertTrue(result.successful(), "Generation report: " + result.report());
             String source = Files.readString(result.sourcePath());
             assertTrue(source.contains("/orders"), "Included transaction missing from generated source: " + source);
             assertFalse(source.contains("/admin"), "Excluded transaction leaked into generated source: " + source);
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void generateApiThreadsPinnedJsonPathsIntoBusinessDepthGenerationWithoutError() throws Exception {
+        // Issue #3530 negative-case: capture_api_generate now accepts pinnedJsonPaths so an agent can
+        // force-assert an otherwise-skipped response leaf at BUSINESS depth. The pin *semantics*
+        // (volatile/correlated pinned -> asserted; sensitive/blank never) are unit-tested in
+        // shaft-capture ApiTestRendererTest; here we prove the MCP tool threads the param end to end
+        // into real generation without error.
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSessionWithTwoTransactions();
+
+            McpCaptureReplayResult result = service.generateApi(
+                    "recordings/session-mcp-two.json", "generated-pinned", "tests.generated", "",
+                    "SCENARIO", "BUSINESS", true, false, "", List.of(), List.of("$.id"));
+
+            assertTrue(result.successful(), "Generation report: " + result.report());
+            String source = Files.readString(result.sourcePath());
+            assertTrue(source.contains("/orders"), "Generated source missing recorded transaction: " + source);
         } finally {
             service.close();
         }
