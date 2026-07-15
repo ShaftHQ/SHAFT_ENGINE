@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
@@ -463,30 +464,35 @@ public final class ShaftToolWindowPanel extends JPanel {
                 .startTool("mobile_api_record_start", startArguments)
                 .future()
                 .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager.getApplication()
-                        .invokeLater(() -> {
-                            if (apiRecordingPanel == null) {
-                                return;
-                            }
-                            if (error != null || result == null || !result.success()) {
-                                apiRecordingPanel.statusLabel().setText(
-                                        "Failed to start recording: "
-                                                + (result != null ? result.output() : String.valueOf(error)));
-                                return;
-                            }
-                            com.google.gson.JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
-                            if (status == null) {
-                                return;
-                            }
-                            int proxyPort = status.has("proxyPort") ? status.get("proxyPort").getAsInt() : 0;
-                            String caCertificatePem = status.has("caCertificatePem")
-                                    ? status.get("caCertificatePem").getAsString() : "";
-                            List<String> warnings = new ArrayList<>();
-                            if (status.has("warnings") && status.get("warnings").isJsonArray()) {
-                                status.get("warnings").getAsJsonArray()
-                                        .forEach(warning -> warnings.add(warning.getAsString()));
-                            }
-                            apiRecordingPanel.showPairingInfo(proxyPort, caCertificatePem, warnings);
-                        }));
+                        .invokeLater(() -> applyMobileApiRecordStartResult(result, error)));
+    }
+
+    /**
+     * Applies the {@code mobile_api_record_start} result to the current API Recording panel: an
+     * error/failure surfaces as a status message, otherwise the proxy port, CA certificate, and
+     * warnings populate the pairing panel. Extracted from {@link #showPureApiRecordingTab} to keep
+     * that method's branching within PMD's NPath complexity threshold.
+     */
+    private void applyMobileApiRecordStartResult(ShaftMcpToolResult result, Throwable error) {
+        if (apiRecordingPanel == null) {
+            return;
+        }
+        if (error != null || result == null || !result.success()) {
+            apiRecordingPanel.statusLabel().setText(
+                    "Failed to start recording: " + (result != null ? result.output() : String.valueOf(error)));
+            return;
+        }
+        JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        if (status == null) {
+            return;
+        }
+        int proxyPort = status.has("proxyPort") ? status.get("proxyPort").getAsInt() : 0;
+        String caCertificatePem = status.has("caCertificatePem") ? status.get("caCertificatePem").getAsString() : "";
+        List<String> warnings = new ArrayList<>();
+        if (status.has("warnings") && status.get("warnings").isJsonArray()) {
+            status.get("warnings").getAsJsonArray().forEach(warning -> warnings.add(warning.getAsString()));
+        }
+        apiRecordingPanel.showPairingInfo(proxyPort, caCertificatePem, warnings);
     }
 
     /**
