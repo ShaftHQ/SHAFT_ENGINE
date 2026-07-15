@@ -118,8 +118,28 @@ public class CheckpointCounter {
      * <p>If no checkpoints were recorded, this method does nothing.
      */
     public static void attach() {
-        if (checkpoints.isEmpty()) {
+        String overviewHtml = overviewReportHtml();
+        if (overviewHtml.isEmpty()) {
             return;
+        }
+        ReportManagerHelper.attach("HTML", "SHAFT Overview", overviewHtml);
+        attachCheckpointsJson();
+    }
+
+    /**
+     * Builds the full standalone "SHAFT Overview" HTML document from the accumulated checkpoints
+     * (summary metrics, per-type breakdown, and the filterable checkpoint-details table), or an
+     * empty string when no checkpoints were recorded.
+     *
+     * <p>Shared by the Allure HTML attachment ({@link #attach()}) and the embedded overview panel
+     * that {@code AllureManager} patches into the generated Allure report (issue #3534 P2), so both
+     * surfaces render from the exact same data instead of drifting apart.
+     *
+     * @return the built HTML document, or {@code ""} when {@link #checkpoints} is empty
+     */
+    static String overviewReportHtml() {
+        if (checkpoints.isEmpty()) {
+            return "";
         }
         String checkpointsDetails = checkpointDetailsHtml();
 
@@ -128,25 +148,21 @@ public class CheckpointCounter {
         long verificationsPassed = typeStatusCount(VERIFICATION, PASS);
         long verificationsFailed = typeStatusCount(VERIFICATION, FAIL);
 
-        ReportManagerHelper.attach("HTML",
-                "SHAFT Overview",
-                HTMLHelper.CHECKPOINT_COUNTER.getValue()
-                        .replace("${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}", String.valueOf(Math.round(passedCheckpoints.get() * 100d / checkpoints.size())))
-                        .replace("${CHECKPOINTS_PASSED_DEGREES}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
-                        .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
-                        .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
-                        .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
-                        .replace("${TRACES_CAPTURED}", String.valueOf(capturedTraceCount()))
-                        .replace("${ASSERTIONS_PASSED}", String.valueOf(assertionsPassed))
-                        .replace("${ASSERTIONS_FAILED}", String.valueOf(assertionsFailed))
-                        .replace("${ASSERTIONS_TOTAL}", String.valueOf(assertionsPassed + assertionsFailed))
-                        .replace("${VERIFICATIONS_PASSED}", String.valueOf(verificationsPassed))
-                        .replace("${VERIFICATIONS_FAILED}", String.valueOf(verificationsFailed))
-                        .replace("${VERIFICATIONS_TOTAL}", String.valueOf(verificationsPassed + verificationsFailed))
-                        .replace("${CHECKPOINTS_TEST_OPTIONS}", checkpointTestFilterOptions())
-                        .replace("${CHECKPOINTS_DETAILS}", checkpointsDetails));
-
-        attachCheckpointsJson();
+        return HTMLHelper.CHECKPOINT_COUNTER.getValue()
+                .replace("${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}", String.valueOf(Math.round(passedCheckpoints.get() * 100d / checkpoints.size())))
+                .replace("${CHECKPOINTS_PASSED_DEGREES}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
+                .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
+                .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
+                .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
+                .replace("${TRACES_CAPTURED}", String.valueOf(capturedTraceCount()))
+                .replace("${ASSERTIONS_PASSED}", String.valueOf(assertionsPassed))
+                .replace("${ASSERTIONS_FAILED}", String.valueOf(assertionsFailed))
+                .replace("${ASSERTIONS_TOTAL}", String.valueOf(assertionsPassed + assertionsFailed))
+                .replace("${VERIFICATIONS_PASSED}", String.valueOf(verificationsPassed))
+                .replace("${VERIFICATIONS_FAILED}", String.valueOf(verificationsFailed))
+                .replace("${VERIFICATIONS_TOTAL}", String.valueOf(verificationsPassed + verificationsFailed))
+                .replace("${CHECKPOINTS_TEST_OPTIONS}", checkpointTestFilterOptions())
+                .replace("${CHECKPOINTS_DETAILS}", checkpointsDetails);
     }
 
     /**

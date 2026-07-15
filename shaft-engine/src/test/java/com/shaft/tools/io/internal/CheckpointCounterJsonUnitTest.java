@@ -166,6 +166,19 @@ public class CheckpointCounterJsonUnitTest {
         Assert.assertFalse(options.contains("value=\"\""), options);
     }
 
+    @Test(description = "overviewReportHtml renders the same checkpoint data published via attach() (issue #3534 P2 embedded panel)")
+    public void overviewReportHtmlRendersRecordedCheckpoints() {
+        String marker = "overview-report-html-marker";
+        CheckpointCounter.increment(CheckpointType.ASSERTION, marker, CheckpointStatus.PASS);
+
+        String html = CheckpointCounter.overviewReportHtml();
+
+        Assert.assertFalse(html.isEmpty(), "overviewReportHtml() must be non-empty once a checkpoint has been recorded");
+        Assert.assertTrue(html.contains("SHAFT Overview"), html);
+        Assert.assertTrue(html.contains(marker), html);
+        Assert.assertTrue(html.contains("<table>"), html);
+    }
+
     private static int countOccurrences(String haystack, String needle) {
         int count = 0;
         for (int i = haystack.indexOf(needle); i >= 0; i = haystack.indexOf(needle, i + needle.length())) {
