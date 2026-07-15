@@ -74,6 +74,12 @@ public final class FailureTraceReporter {
             String html = renderTraceHtml(json, omitted);
             byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get(), screenshots);
             persistTraceArtifacts(info, zip, screenshots, attempt, omitted);
+            // In-report trace launcher (issue #3534 P2): the viewer HTML is fully self-contained --
+            // it embeds the trace JSON (with base64 screenshots and inline DOM snapshots) and reads
+            // everything from that embedded data, referencing no sibling files -- so attach it
+            // directly for a one-click, in-report open, alongside the zip kept for full-fidelity
+            // offline download.
+            attach("html", "shaft-trace.html", html.getBytes(StandardCharsets.UTF_8), traceViewerLabel(info, attempt));
             attach("zip", "shaft-trace.zip", zip, traceAttachmentLabel(info, attempt));
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
@@ -226,7 +232,19 @@ public final class FailureTraceReporter {
     }
 
     private static String traceAttachmentLabel(TestExecutionInfo info, int attempt) {
-        String label = "SHAFT Trace Report - " + safeTestId(info);
+        return traceLabel("SHAFT Trace Report", info, attempt);
+    }
+
+    /**
+     * Label for the one-click, in-report trace viewer HTML attachment (issue #3534 P2), distinct
+     * from the "SHAFT Trace Report" zip label so the two are unambiguous in the report.
+     */
+    private static String traceViewerLabel(TestExecutionInfo info, int attempt) {
+        return traceLabel("SHAFT Trace Viewer", info, attempt);
+    }
+
+    private static String traceLabel(String prefix, TestExecutionInfo info, int attempt) {
+        String label = prefix + " - " + safeTestId(info);
         return attempt > 1 || (info != null && info.retried()) ? label + " (attempt " + attempt + ")" : label;
     }
 

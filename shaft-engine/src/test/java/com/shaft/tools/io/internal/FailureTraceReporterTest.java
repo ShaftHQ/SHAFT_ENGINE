@@ -63,12 +63,16 @@ public class FailureTraceReporterTest {
             FailureTraceReporter.attachOnFailure(failingInfo, "token=raw-secret", List.of());
 
             List<Attachment> added = attachments().subList(beforePassing, attachments().size());
-            Assert.assertEquals(added.size(), 1, "Only the self-contained trace archive should be attached.");
-            Assert.assertEquals(added.getFirst().getName(), "SHAFT Trace Report - id-failingScenario",
-                    "Attachment label carries the test id (and attempt suffix once retried) for retry-aware trace attribution.");
-            Assert.assertEquals(added.getFirst().getType(), "application/zip");
-            Assert.assertFalse(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())),
-                    "No dangling HTML attachment outside the archive.");
+            // In-report trace launcher (#3534 P2): the one-click self-contained viewer HTML plus the
+            // full-fidelity zip download. Both carry the test id (and attempt suffix once retried).
+            Assert.assertEquals(added.size(), 2, "The trace viewer HTML and the trace archive should both be attached.");
+            Assert.assertTrue(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())
+                            && "SHAFT Trace Viewer - id-failingScenario".equals(attachment.getName())),
+                    "Expected a one-click, in-report trace viewer HTML attachment.");
+            Assert.assertTrue(added.stream().anyMatch(attachment -> "application/zip".equals(attachment.getType())
+                            && "SHAFT Trace Report - id-failingScenario".equals(attachment.getName())),
+                    "Expected the full-fidelity trace archive attachment for offline download.");
+            // The JSON is embedded in the viewer HTML and the zip, never dangled as its own attachment.
             Assert.assertFalse(added.stream().anyMatch(attachment -> "application/json".equals(attachment.getType())));
             Assert.assertFalse(Files.exists(traceDirectory.resolve("SHAFT Trace Report.html")));
             Assert.assertFalse(Files.exists(traceDirectory.resolve("shaft-trace.json")));
