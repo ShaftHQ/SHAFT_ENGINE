@@ -230,6 +230,8 @@ public class AllureManagerCoverageUnitTest {
         Path index = reportDirectory.resolve("index.html");
         Files.writeString(index, "<html><head></head><body></body></html>", StandardCharsets.UTF_8);
 
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "overview-panel-injection-marker", CheckpointStatus.PASS);
+
         invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
         invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
 
@@ -247,6 +249,15 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertFalse(html.contains("--color-bg-"), html);
         Assert.assertTrue(html.contains("width: 100% !important"), html);
         Assert.assertTrue(html.contains("height: auto !important"), html);
+        Assert.assertEquals(html.split("id=\"shaft-overview-panel-style\"", -1).length - 1, 1, html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-overview-panel-style\"") > html.indexOf("</head>"), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-toggle\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-backdrop\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-panel\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-close\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-frame\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-panel-script\""), html);
+        Assert.assertTrue(html.contains("overview-panel-injection-marker"), html);
     }
 
     @Test
@@ -311,6 +322,7 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(scan.previewFixPresent());
         Assert.assertFalse(scan.previewScriptPresent());
         Assert.assertFalse(scan.themeColorsPresent());
+        Assert.assertFalse(scan.overviewPanelPresent());
         Assert.assertEquals(scan.headEndOffset(), headEndOffset);
         Assert.assertEquals(scan.bodyEndOffset(), lastBodyEndOffset);
     }

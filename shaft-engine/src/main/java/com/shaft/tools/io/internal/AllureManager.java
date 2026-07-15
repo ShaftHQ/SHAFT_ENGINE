@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.BufferedInputStream;
@@ -89,6 +90,7 @@ public class AllureManager {
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_ID = "shaft-allure-attachment-preview-fix";
     private static final String ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID = "shaft-allure-attachment-preview-script";
     private static final String ALLURE_THEME_COLORS_ID = "shaft-allure-theme-colors";
+    private static final String ALLURE_OVERVIEW_PANEL_ID = "shaft-overview-panel-style";
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE = """
             <style id="shaft-allure-attachment-preview-fix">
             .shaft-allure-image-modal {
@@ -305,6 +307,184 @@ public class AllureManager {
      */
     static String allureThemeColorsStyle() {
         return ALLURE_THEME_COLORS_STYLE;
+    }
+
+    private static final String ALLURE_OVERVIEW_PANEL_STYLE = """
+            <style id="shaft-overview-panel-style">
+            #shaft-overview-toggle-wrap {
+                position: fixed;
+                right: 20px;
+                bottom: 20px;
+                z-index: 2147483000;
+            }
+
+            #shaft-overview-toggle {
+                font-family: inherit;
+                font-size: 14px;
+                font-weight: 600;
+                line-height: 1.2;
+                padding: 10px 18px;
+                border: none;
+                border-radius: 999px;
+                cursor: pointer;
+                background: var(--color-intent-primary-bg);
+                color: var(--color-intent-primary-on-bg);
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+                transition: background-color 0.15s ease;
+            }
+
+            #shaft-overview-toggle:hover {
+                background: var(--color-intent-primary-bg-hover);
+            }
+
+            #shaft-overview-toggle:active {
+                background: var(--color-intent-primary-bg-active);
+            }
+
+            #shaft-overview-toggle:focus-visible {
+                outline: 2px solid var(--color-focus-ring);
+                outline-offset: 2px;
+            }
+
+            #shaft-overview-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 2147483001;
+            }
+
+            #shaft-overview-panel {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                width: min(1100px, 92vw);
+                height: min(88vh, 900px);
+                border: 1px solid var(--color-border-default);
+                border-radius: 16px;
+                background: var(--color-control-bg-active);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+                overflow: hidden;
+            }
+
+            #shaft-overview-close {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                z-index: 1;
+                width: 34px;
+                height: 34px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: none;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 20px;
+                line-height: 1;
+                background: var(--color-control-bg);
+                color: var(--color-icon-primary);
+            }
+
+            #shaft-overview-close:hover {
+                background: var(--color-control-bg-hover);
+            }
+
+            #shaft-overview-close:focus-visible {
+                outline: 2px solid var(--color-focus-ring);
+                outline-offset: 2px;
+            }
+
+            #shaft-overview-frame {
+                flex: 1 1 auto;
+                width: 100%;
+                height: 100%;
+                border: 0;
+                border-radius: 15px;
+                background: #fff;
+            }
+
+            @media (max-width: 640px) {
+                #shaft-overview-toggle {
+                    padding: 8px 14px;
+                    font-size: 13px;
+                }
+
+                #shaft-overview-panel {
+                    width: 96vw;
+                    height: 92vh;
+                }
+            }
+            </style>
+            """;
+
+    private static final String ALLURE_OVERVIEW_PANEL_SCRIPT = """
+            <script id="shaft-overview-panel-script">
+            (function () {
+                var toggle = document.getElementById('shaft-overview-toggle');
+                var closeBtn = document.getElementById('shaft-overview-close');
+                var backdrop = document.getElementById('shaft-overview-backdrop');
+                var root = document.documentElement;
+
+                if (!backdrop) return;
+
+                function openPanel() {
+                    backdrop.style.display = 'flex';
+                    root.classList.add('shaft-overview-open');
+                }
+
+                function closePanel() {
+                    backdrop.style.display = 'none';
+                    root.classList.remove('shaft-overview-open');
+                }
+
+                if (toggle) toggle.addEventListener('click', openPanel);
+                if (closeBtn) closeBtn.addEventListener('click', closePanel);
+
+                backdrop.addEventListener('click', function (event) {
+                    if (event.target === backdrop) closePanel();
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && backdrop.style.display === 'flex') closePanel();
+                });
+            })();
+            </script>
+            """;
+
+    /**
+     * Builds the embedded "SHAFT Overview" toggle button + modal panel patched into the generated
+     * Allure report's {@code <body>} (issue #3534 P2), or {@code ""} when no checkpoints were
+     * recorded. The panel's content is {@link CheckpointCounter#overviewReportHtml()} — the exact
+     * same standalone document already published as the "SHAFT Overview" HTML attachment — embedded
+     * via {@code <iframe srcdoc="...">} so it renders fully isolated from Allure's own obfuscated,
+     * client-rendered app DOM (which exposes no stable, documented extension point to hook a native
+     * tab into; verified against the real Allure 3 "awesome" plugin output before choosing this
+     * approach over reverse-engineering that internal DOM).
+     *
+     * @return the HTML fragment to splice before {@code </body>}, or {@code ""} when there is
+     *         nothing to show
+     */
+    private static String allureOverviewPanelPatch() {
+        String overviewHtml = CheckpointCounter.overviewReportHtml();
+        if (overviewHtml.isEmpty()) {
+            return "";
+        }
+        String escapedOverviewHtml = ReportHtmlTheme.escapeHtml(overviewHtml);
+        return ALLURE_OVERVIEW_PANEL_STYLE
+                + "<div id=\"shaft-overview-toggle-wrap\">"
+                + "<button type=\"button\" id=\"shaft-overview-toggle\" aria-label=\"Open SHAFT Overview\">SHAFT Overview</button>"
+                + "</div>"
+                + "<div id=\"shaft-overview-backdrop\">"
+                + "<div id=\"shaft-overview-panel\" role=\"dialog\" aria-modal=\"true\" aria-label=\"SHAFT Overview\">"
+                + "<button type=\"button\" id=\"shaft-overview-close\" aria-label=\"Close SHAFT Overview\">&times;</button>"
+                + "<iframe id=\"shaft-overview-frame\" title=\"SHAFT Overview\" srcdoc=\"" + escapedOverviewHtml + "\"></iframe>"
+                + "</div>"
+                + "</div>"
+                + ALLURE_OVERVIEW_PANEL_SCRIPT;
     }
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
@@ -760,7 +940,8 @@ public class AllureManager {
      */
     // package-private so unit tests can assert scan results without reflection
     record IndexMarkerScan(boolean previewFixPresent, boolean previewScriptPresent,
-                           boolean themeColorsPresent, long headEndOffset, long bodyEndOffset) {
+                           boolean themeColorsPresent, boolean overviewPanelPresent,
+                           long headEndOffset, long bodyEndOffset) {
     }
 
     /** A byte-range insertion to apply while streaming {@code index.html} to its patched copy. */
@@ -797,6 +978,9 @@ public class AllureManager {
                 headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
             }
             String bodyPatch = scan.themeColorsPresent() ? "" : ALLURE_THEME_COLORS_STYLE;
+            if (!scan.overviewPanelPresent()) {
+                bodyPatch += allureOverviewPanelPatch();
+            }
             if (headPatch.isEmpty() && bodyPatch.isEmpty()) {
                 return;
             }
@@ -815,12 +999,14 @@ public class AllureManager {
         byte[] previewFixMarker = ("id=\"" + ALLURE_ATTACHMENT_PREVIEW_FIX_ID + "\"").getBytes(StandardCharsets.UTF_8);
         byte[] previewScriptMarker = ("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"").getBytes(StandardCharsets.UTF_8);
         byte[] themeColorsMarker = ("id=\"" + ALLURE_THEME_COLORS_ID + "\"").getBytes(StandardCharsets.UTF_8);
+        byte[] overviewPanelMarker = ("id=\"" + ALLURE_OVERVIEW_PANEL_ID + "\"").getBytes(StandardCharsets.UTF_8);
         byte[] headEndMarker = "</head>".getBytes(StandardCharsets.UTF_8);
         byte[] bodyEndMarker = "</body>".getBytes(StandardCharsets.UTF_8);
 
         boolean previewFixPresent = false;
         boolean previewScriptPresent = false;
         boolean themeColorsPresent = false;
+        boolean overviewPanelPresent = false;
         boolean headFound = false;
         long headEndOffset = -1;
         long bodyEndOffset = -1;
@@ -828,7 +1014,8 @@ public class AllureManager {
         int maxMarkerLength = Math.max(previewFixMarker.length,
                 Math.max(previewScriptMarker.length,
                         Math.max(themeColorsMarker.length,
-                                Math.max(headEndMarker.length, bodyEndMarker.length))));
+                                Math.max(overviewPanelMarker.length,
+                                        Math.max(headEndMarker.length, bodyEndMarker.length)))));
         int carryLength = maxMarkerLength - 1;
         byte[] window = new byte[carryLength + INDEX_PATCH_BUFFER_SIZE];
         int carried = 0;
@@ -856,6 +1043,10 @@ public class AllureManager {
                 int minStart = Math.max(0, carried - themeColorsMarker.length + 1);
                 themeColorsPresent = indexOfMarker(window, windowLength, minStart, themeColorsMarker, false) >= 0;
             }
+            if (!overviewPanelPresent) {
+                int minStart = Math.max(0, carried - overviewPanelMarker.length + 1);
+                overviewPanelPresent = indexOfMarker(window, windowLength, minStart, overviewPanelMarker, false) >= 0;
+            }
             if (!headFound) {
                 int minStart = Math.max(0, carried - headEndMarker.length + 1);
                 int matchIndex = indexOfMarker(window, windowLength, minStart, headEndMarker, false);
@@ -876,7 +1067,7 @@ public class AllureManager {
             carried = newCarry;
         }
 
-        return new IndexMarkerScan(previewFixPresent, previewScriptPresent, themeColorsPresent, headEndOffset, bodyEndOffset);
+        return new IndexMarkerScan(previewFixPresent, previewScriptPresent, themeColorsPresent, overviewPanelPresent, headEndOffset, bodyEndOffset);
     }
 
     /**
