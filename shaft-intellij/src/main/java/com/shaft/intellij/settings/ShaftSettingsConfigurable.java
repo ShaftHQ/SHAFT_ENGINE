@@ -6,7 +6,6 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
@@ -54,6 +53,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JBTextField mcpCommand;
     private JButton testMcp;
     private JLabel testStatus;
+    private JLabel testRecovery;
     private JLabel currentAgentConfigurationTitle;
     private JLabel currentAgentConfiguration;
     private JPanel currentAgentConfigurationRow;
@@ -147,6 +147,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         testMcp.addActionListener(event -> testMcpConnection());
         testStatus = statusLabel("Not tested");
         testStatus.getAccessibleContext().setAccessibleName("SHAFT MCP test status");
+        testRecovery = new JLabel();
+        testRecovery.getAccessibleContext().setAccessibleName("SHAFT MCP test recovery");
+        testRecovery.setVisible(false);
         mcpCommand.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent event) {
@@ -259,10 +262,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         cloudModelLabel = label("Cloud model", 'W', cloudModel);
         defaultModeLabel = label("Default assistant mode", 'D', defaultMode);
         shaftAiSection = section("Advanced");
-        shaftAiProviderLabel = label("Provider", 'P', pilotAiProvider);
+        shaftAiProviderLabel = label("Provider for Doctor/Healer AI features", 'P', pilotAiProvider);
         shaftAiModelLabel = label("Model", 'L', pilotAiModel);
         providerKeysSection = section("Credentials");
-        shaftAiHelp = help("Provider settings apply only to MCP tools that explicitly request configured SHAFT AI assistance.");
+        shaftAiHelp = help("This provider powers only SHAFT MCP's own AI-assisted tools, such as Doctor/Healer diagnosis, separate and independent from the Assistant's cloud provider selection above.");
         providerKeysHelp = help("Passing keys exposes them only to the SHAFT MCP process. Disable to keep provider credentials local to IntelliJ only.");
         providerKeysStorageHelp = help("Provider keys are stored in IntelliJ Password Safe. Use 'Clear' only to remove a stored key.");
         openAiKeyLabel = label("OpenAI API key", 'O', openAiKey);
@@ -274,6 +277,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(section("Connection"))
                 .addLabeledComponent(label("MCP stdio command", 'M', mcpCommand), mcpCommand)
                 .addLabeledComponent(testMcp, testStatus)
+                .addComponent(testRecovery)
                 .addComponent(help("Visit the SHAFT MCP user guide, install the MCP integration, paste the stdio command, then test the connection."))
                 .addComponent(section("Execution"))
                 .addLabeledComponent(currentAgentConfigurationTitle, currentAgentConfigurationRow)
@@ -412,6 +416,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommand = null;
         testMcp = null;
         testStatus = null;
+        testRecovery = null;
         currentAgentConfigurationTitle = null;
         currentAgentConfiguration = null;
         currentAgentConfigurationRow = null;
@@ -519,6 +524,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (testStatus != null) {
             testStatus.setText("Not tested");
             testStatus.setEnabled(false);
+        }
+        if (testRecovery != null) {
+            testRecovery.setVisible(false);
         }
     }
 
@@ -631,6 +639,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         statusLabel.setEnabled(true);
         statusLabel.setText("Testing...");
         statusLabel.setForeground(ShaftStatusPresentation.progress());
+        if (testRecovery != null) {
+            testRecovery.setVisible(false);
+        }
         // Race fix (issue #3551): a check is starting, so the persisted state must not read ready
         // for the whole in-flight window (mirrors ShaftMcpSetupPanel#testConnection()).
         settingsProvider.get().mcpSetupComplete = false;
@@ -652,7 +663,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                         if (category.recoveryAction() != null) {
                             sb.append("\n\nRecovery: ").append(category.recoveryAction());
                         }
-                        Messages.showErrorDialog(host, sb.toString(), "SHAFT MCP");
+                        if (testRecovery != null) {
+                            testRecovery.setText(sb.toString());
+                            testRecovery.setVisible(true);
+                        }
                     } else {
                         showProbeResult(host, statusLabel, result);
                     }
@@ -683,6 +697,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (result != null && result.success()) {
             statusLabel.setText(ShaftStatusPresentation.SUCCESS_ICON + " Connected");
             statusLabel.setForeground(ShaftStatusPresentation.success());
+            if (testRecovery != null) {
+                testRecovery.setVisible(false);
+            }
             saveConnectedSettings();
             editingAgentConfiguration = false;
             updateAgentConfigurationControls();
@@ -690,7 +707,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             statusLabel.setText(ShaftStatusPresentation.ERROR_ICON + " Failed");
             statusLabel.setForeground(ShaftStatusPresentation.error());
             String message = formatErrorMessage(result);
-            Messages.showErrorDialog(host, message, "SHAFT MCP");
+            if (testRecovery != null) {
+                testRecovery.setText(message);
+                testRecovery.setVisible(true);
+            }
         }
     }
 

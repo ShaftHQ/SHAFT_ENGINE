@@ -16,7 +16,6 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftSettingsConfigurableTest {
@@ -321,40 +319,29 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
-    void showProbeResultAppliesErrorGlyphThroughRealCompletionPathBeforeReportingTheFailure() throws Exception {
+    void showProbeResultShowsInlineRecoveryTextOnFailure() throws Exception {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpSetupComplete = false;
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
         JComponent panel = (JComponent) configurable.createComponent();
         JLabel statusLabel = findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class);
+        JLabel recoveryLabel = findByAccessibleName(panel, "SHAFT MCP test recovery", JLabel.class);
         assertNotNull(statusLabel);
+        assertNotNull(recoveryLabel);
         statusLabel.setText("Testing...");
 
-        // showProbeResult's failure branch reports the outcome via Messages.showErrorDialog(host, ...).
-        // This module has no test-only seam (e.g. TestDialogManager.setTestDialog) wired up for that
-        // call - there is no existing precedent for stubbing Messages in this suite. The JUnit5 IntelliJ
-        // test framework attached to this module's test JVM enforces its own EDT-thread assertion
-        // before DialogWrapper ever reaches real AWT/Swing dialog code, so invoking this off the EDT (as
-        // any plain JUnit test body runs) surfaces as a real, deterministic IntelliJ threading exception
-        // instead of popping a blocking modal. We still invoke the real, private
-        // showProbeResult(JPanel, JLabel, ShaftMcpToolResult) method via reflection - not a hand-written
-        // stand-in - and the assertions below confirm the ERROR_ICON glyph the method sets on the label
-        // (which happens before the dialog call in production code) really came from that invocation.
-        InvocationTargetException wrapped = assertThrows(InvocationTargetException.class,
-                () -> invokeShowProbeResult(configurable, (JPanel) panel, statusLabel,
-                        ShaftMcpToolResult.failure("MCP server process exited.")));
+        // showProbeResult's failure branch now reports the outcome via an inline recovery JLabel
+        // (mirroring ShaftMcpSetupPanel's recoveryStatus pattern) instead of a blocking
+        // Messages.showErrorDialog(host, ...) call, so the method completes normally.
+        invokeShowProbeResult(configurable, (JPanel) panel, statusLabel,
+                ShaftMcpToolResult.failure("MCP server process exited."));
 
         assertAll(
-                () -> assertNotNull(wrapped.getCause()),
-                () -> assertTrue(wrapped.getCause() instanceof RuntimeException,
-                        "expected the real Messages.showErrorDialog call to fail with a runtime exception, got: "
-                                + wrapped.getCause()),
-                () -> assertTrue(wrapped.getCause().getMessage() != null
-                                && wrapped.getCause().getMessage().contains("Event Dispatch Thread"),
-                        "expected IntelliJ's EDT-only threading assertion inside Messages.showErrorDialog, got: "
-                                + wrapped.getCause()),
                 () -> assertEquals(ShaftStatusPresentation.ERROR_ICON + " Failed", statusLabel.getText()),
-                () -> assertFalse(settings.mcpSetupComplete));
+                () -> assertFalse(settings.mcpSetupComplete),
+                () -> assertTrue(recoveryLabel.isVisible(), "recovery label should be shown on failure"),
+                () -> assertTrue(recoveryLabel.getText().contains("MCP server process exited."),
+                        "recovery label should contain the failure detail, got: " + recoveryLabel.getText()));
     }
 
     private static void invokeShowProbeResult(
