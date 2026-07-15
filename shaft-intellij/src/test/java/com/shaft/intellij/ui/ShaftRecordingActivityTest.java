@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -17,6 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * stray {@code false} must never be published while another session is still active.
  */
 class ShaftRecordingActivityTest {
+    // Reset before AND after each test: ShaftRecordingActivity's listener list is process-wide
+    // static, and in the full module suite another test constructs a ShaftReadinessSummary that
+    // registers a real (UI-touching) listener into it. Clearing only afterwards left that leaked
+    // listener in place for this class's first test, where a published transition fired it and
+    // threw in the headless harness. Clearing beforehand makes each test hermetic.
+    @BeforeEach
     @AfterEach
     void resetState() {
         ShaftRecordingActivity.resetForTests();
