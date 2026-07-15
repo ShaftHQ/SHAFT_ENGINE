@@ -70,7 +70,7 @@ public class DatabaseActions {
             this.password = password;
         } else {
             failAction("Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
-                    + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
+                    + name + "\", Username: \"" + username + "\", Password: \"" + maskSecret(password) + "\"");
         }
     }
 
@@ -587,10 +587,14 @@ public class DatabaseActions {
                     "| Server: \"" + dbServerIP + ":" + dbPort + "\"" +
                     "| Name: \"" + dbName + "\"" +
                     "| Username: \"" + username + "\"" +
-                    "| Password: \"" + password.replaceAll(".", "*") + "\"" +
+                    "| Password: \"" + maskSecret(password) + "\"" +
                     "| Query Type: \"" + queryType + "\"" +
                     "| Query: \"" + query + "\"";
         }
+    }
+
+    private static String maskSecret(String value) {
+        return value == null ? "" : value.replaceAll(".", "*");
     }
 
     /**
