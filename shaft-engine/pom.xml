@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.github.shafthq</groupId>
         <artifactId>shaft-parent</artifactId>
-        <version>10.3.20260713</version>
+        <version>10.3.20260714</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>shaft-engine</artifactId>
@@ -131,7 +131,7 @@
             <exclusions>
                 <!-- java-client declares open selenium ranges ([4.42.0, 5.0)); through this
                      unexcluded path they resolve against live Central metadata, so a new
-                     Selenium release silently mixes versions on the classpath (10.3.20260713
+                     Selenium release silently mixes versions on the classpath (10.3.20260714
                      delivery failed on 4.46-compiled bytecode vs pinned 4.45 runtime).
                      The direct java-client dependency above already prunes its selenium edges. -->
                 <exclusion>

@@ -9,7 +9,7 @@
     <description>Compiles against Pilot contracts without the optional direct-provider module.</description>
 
     <properties>
-        <shaft.version>10.3.20260713</shaft.version>
+        <shaft.version>10.3.20260714</shaft.version>
         <maven.compiler.release>25</maven.compiler.release>
     </properties>
 
