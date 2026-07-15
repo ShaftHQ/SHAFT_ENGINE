@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/facts/maintainer-local-environment-jdk-gradle-consumer-project-docs-repo-paths-mohab.md",
+  "content_hash": "sha256:7469d01b5283d8782c11f533e5a19af1af9c32a6e5b36d31398220821e185a07",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "debugging-fact"
+  },
+  "id": "fact.maintainer-local-environment-jdk-gradle-consumer-project-docs-repo-paths-mohab",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "environment",
+    "jdk",
+    "gradle",
+    "maven"
+  ],
+  "title": "Maintainer local environment: JDK/Gradle/consumer-project/docs-repo paths (Mohab)",
+  "type": "fact",
+  "updated_at": "2026-07-15T10:08:58+03:00"
+}

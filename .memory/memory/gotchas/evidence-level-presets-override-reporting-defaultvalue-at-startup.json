@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/evidence-level-presets-override-reporting-defaultvalue-at-startup.md",
+  "content_hash": "sha256:ddb40651721ade4c84fc1d986576f73863611ac4a1a5fd73563c985bf17539cf",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.evidence-level-presets-override-reporting-defaultvalue-at-startup",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "reporting",
+    "properties",
+    "testing"
+  ],
+  "title": "Evidence-level presets override Reporting @DefaultValue at startup",
+  "type": "gotcha",
+  "updated_at": "2026-07-15T10:08:58+03:00"
+}
