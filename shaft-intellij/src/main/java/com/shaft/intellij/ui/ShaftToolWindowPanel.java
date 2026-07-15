@@ -469,9 +469,9 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     /**
      * Applies the {@code mobile_api_record_start} result to the current API Recording panel: an
-     * error/failure surfaces as a status message, otherwise the proxy port, CA certificate, and
-     * warnings populate the pairing panel. Extracted from {@link #showPureApiRecordingTab} to keep
-     * that method's branching within PMD's NPath complexity threshold.
+     * error/failure surfaces as a status message, otherwise the pairing panel is populated.
+     * Split from {@link #showPureApiRecordingTab} (and further split below) to keep each method's
+     * branching within PMD's NPath complexity threshold.
      */
     private void applyMobileApiRecordStartResult(ShaftMcpToolResult result, Throwable error) {
         if (apiRecordingPanel == null) {
@@ -483,16 +483,30 @@ public final class ShaftToolWindowPanel extends JPanel {
             return;
         }
         JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
-        if (status == null) {
-            return;
+        if (status != null) {
+            applyPairingInfo(apiRecordingPanel, status);
         }
+    }
+
+    /**
+     * Extracts the proxy port, CA certificate, and warnings from a {@code MobileApiCaptureStatus}
+     * JSON object and hands them to the panel's pairing display.
+     */
+    private static void applyPairingInfo(ApiRecordingSessionPanel panel, JsonObject status) {
         int proxyPort = status.has("proxyPort") ? status.get("proxyPort").getAsInt() : 0;
         String caCertificatePem = status.has("caCertificatePem") ? status.get("caCertificatePem").getAsString() : "";
+        panel.showPairingInfo(proxyPort, caCertificatePem, warningsOf(status));
+    }
+
+    /**
+     * Reads the {@code warnings} JSON array off a {@code MobileApiCaptureStatus} object.
+     */
+    private static List<String> warningsOf(JsonObject status) {
         List<String> warnings = new ArrayList<>();
         if (status.has("warnings") && status.get("warnings").isJsonArray()) {
             status.get("warnings").getAsJsonArray().forEach(warning -> warnings.add(warning.getAsString()));
         }
-        apiRecordingPanel.showPairingInfo(proxyPort, caCertificatePem, warnings);
+        return warnings;
     }
 
     /**
