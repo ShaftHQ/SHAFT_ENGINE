@@ -46,6 +46,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
@@ -671,6 +672,10 @@ public class ValidationsHelper {
         AtomicBoolean validationState = new AtomicBoolean(false);
         List<List<Object>> attachments = new ArrayList<>();
         AtomicBoolean visualComparisonAttached = new AtomicBoolean(false);
+        // Hoisted out of the fluentWait lambda so the reporting block can render a domain-consistent
+        // visual evidence card from the numeric diff metadata (issue #3532 E).
+        AtomicLong diffPixelsRef = new AtomicLong(0);
+        AtomicReference<Double> diffRatioRef = new AtomicReference<>(0.0);
         String pageBaselineKey = pageLevel ? "page_" + ReportManagerHelper.getCallingMethodFullName() : null;
 
         try {
@@ -710,6 +715,8 @@ public class ValidationsHelper {
                 if (baselineImage != null) {
                     visualComparisonAttached.set(attachVisualComparison(baselineImage, actualScreenshot, comparisonResult.diffImage()));
                 }
+                diffPixelsRef.set(comparisonResult.diffPixels());
+                diffRatioRef.set(comparisonResult.diffRatio());
 
                 expected.set(validationType.getValue());
                 actual.set(comparisonResult.matched());
@@ -726,6 +733,15 @@ public class ValidationsHelper {
         parameters.put("Should match", String.valueOf(expected.get()));
         parameters.put("Actual value", String.valueOf(actual.get()));
         updateAllureParameters(parameters);
+        // Prepend a domain-consistent visual evidence card (diff pixels/ratio vs budget + pointer to
+        // the attached image diff) whenever an actual baseline comparison happened (#3532 E).
+        if (visualComparisonAttached.get()) {
+            String visualCard = AssertionEvidenceReporter.renderVisualCard(validationState.get(),
+                    diffPixelsRef.get(), maxDiffPixels, diffRatioRef.get(), maxDiffPixelRatio);
+            if (!visualCard.isBlank()) {
+                attachments.add(0, Arrays.asList("Visual evidence", "visual-evidence.html", visualCard));
+            }
+        }
         // force take page screenshot, (rather than element highlighted screenshot)
         reportValidationState(validationState.get(), expected, actual, driver, pageLevel ? null : locator, attachments, visualComparisonAttached.get());
     }
@@ -757,6 +773,10 @@ public class ValidationsHelper {
         AtomicBoolean actual = new AtomicBoolean(false);
         AtomicBoolean validationState = new AtomicBoolean(false);
         AtomicReference<List<List<Object>>> attachmentsRef = new AtomicReference<>(new ArrayList<>());
+        // Hoisted out of the fluentWait lambda so the reporting block can render a domain-consistent
+        // accessibility evidence card from the aria YAML (issue #3532 E).
+        AtomicReference<String> baselineYamlRef = new AtomicReference<>("");
+        AtomicReference<String> actualYamlRef = new AtomicReference<>("");
         String baselinePath = resolveAriaSnapshotPath(snapshotFileName);
 
         try {
@@ -785,6 +805,8 @@ public class ValidationsHelper {
                 }
                 attachments.add(List.of("Expected Aria Snapshot", snapshotFileName + ".yaml", baselineYaml));
                 attachments.add(List.of("Actual Aria Snapshot", snapshotFileName + "_actual.yaml", actualYaml));
+                baselineYamlRef.set(baselineYaml);
+                actualYamlRef.set(actualYaml);
                 attachmentsRef.set(attachments);
 
                 expected.set(validationType.getValue());
@@ -803,7 +825,15 @@ public class ValidationsHelper {
         parameters.put("Should match", String.valueOf(expected.get()));
         parameters.put("Actual value", String.valueOf(actual.get()));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, locator, attachmentsRef.get());
+        // Prepend a domain-consistent accessibility evidence card (summary + aria-YAML diff) so the
+        // aria-snapshot outcome reads like an assertion card instead of a raw YAML dump (#3532 E).
+        List<List<Object>> ariaAttachments = attachmentsRef.get();
+        String accessibilityCard = AssertionEvidenceReporter.renderAccessibilityCard(
+                validationState.get(), baselineYamlRef.get(), actualYamlRef.get());
+        if (!accessibilityCard.isBlank()) {
+            ariaAttachments.add(0, Arrays.asList("Accessibility evidence", "accessibility-evidence.html", accessibilityCard));
+        }
+        reportValidationState(validationState.get(), expected, actual, driver, locator, ariaAttachments);
     }
 
     private static String resolveAriaSnapshotPath(String snapshotFileName) {

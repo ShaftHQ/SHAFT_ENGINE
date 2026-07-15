@@ -5,6 +5,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Step;
+import io.restassured.config.RedirectConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
@@ -298,6 +299,22 @@ public class RequestBuilder {
      */
     public RequestBuilder addCookies(Map<String, String> cookies) {
         this.sessionCookies.putAll(cookies);
+        return this;
+    }
+
+    /**
+     * Controls whether this request automatically follows HTTP redirects (3xx). By default
+     * REST-Assured follows them, so a request to a redirecting endpoint returns the final response.
+     * Pass {@code false} to receive the redirect response itself — required when asserting a 3xx
+     * status code or inspecting the {@code Location} header of the redirect.
+     *
+     * @param followRedirects {@code true} to follow redirects (the default), {@code false} to
+     *                        return the redirect response without following it
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder setFollowRedirects(boolean followRedirects) {
+        this.sessionConfig = this.sessionConfig.redirect(
+                RedirectConfig.redirectConfig().followRedirects(followRedirects));
         return this;
     }
 

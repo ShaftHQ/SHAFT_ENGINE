@@ -52,13 +52,25 @@ public class HTMLHelperUnitTest {
                 "expected per-type breakdown placeholders");
         Assert.assertTrue(value.contains("Show failures only"), "expected a fail-only filter control");
         Assert.assertTrue(value.contains("fail-only"), "expected the fail-only CSS/class hook");
+        // Checkpoint-browser per-test filter (#3534): a test dropdown, its options placeholder,
+        // the composable test-hidden CSS hook, and the filter function.
+        Assert.assertTrue(value.contains("Filter by test"), "expected a per-test filter control");
+        Assert.assertTrue(value.contains("${CHECKPOINTS_TEST_OPTIONS}"), "expected the test-options placeholder");
+        Assert.assertTrue(value.contains("test-hidden"), "expected the test-hidden CSS hook");
+        Assert.assertTrue(value.contains("shaftFilterCheckpointsByTest"), "expected the test-filter function");
+        // Jump-to-test: clicking a Test cell focuses the table on that test.
+        Assert.assertTrue(value.contains("shaftFocusTestFromCell"), "expected the jump-to-test function");
+        Assert.assertTrue(value.contains("checkpoint-test-link"), "expected the jump-to-test link styling");
     }
 
-    @Test(description = "CHECKPOINT_DETAILS_FORMAT should carry a filterable data-status (#3523)")
+    @Test(description = "CHECKPOINT_DETAILS_FORMAT should carry a filterable data-status (#3523) and per-test data-test (#3534)")
     public void checkpointDetailsFormatShouldCarryDataStatus() {
         String value = HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue();
         Assert.assertTrue(value.contains("data-status=\"%s\""), "expected a filterable data-status attribute");
         Assert.assertTrue(value.contains("checkpoint-row"), "expected the checkpoint-row class hook");
+        // Per-test attribution for the checkpoint browser: a filterable data-test attribute plus a Test cell.
+        Assert.assertTrue(value.contains("data-test=\"%s\""), "expected a filterable data-test attribute");
+        Assert.assertTrue(value.contains("checkpoint-test"), "expected the checkpoint-test cell hook");
     }
 
     @Test(description = "CHECKPOINT_DETAILS_FORMAT should have non-null, non-empty value")

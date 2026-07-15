@@ -882,6 +882,29 @@ public class SHAFT {
         }
 
         /**
+         * Builds a HEAD request for the specified service endpoint. HEAD returns
+         * the same headers/status as GET without a response body, so it is useful
+         * for existence, cache, and header assertions.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder head(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.HEAD);
+        }
+
+        /**
+         * Builds an OPTIONS request for the specified service endpoint, typically
+         * used to inspect the allowed methods (CORS/preflight) an endpoint exposes.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder options(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.OPTIONS);
+        }
+
+        /**
          * Builds a GraphQL POST request with a JSON body containing only the
          * supplied query.
          *

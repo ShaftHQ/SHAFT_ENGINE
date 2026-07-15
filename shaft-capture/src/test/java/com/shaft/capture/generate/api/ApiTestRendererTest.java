@@ -104,6 +104,44 @@ class ApiTestRendererTest {
     }
 
     @Test
+    void recordedSessionCookieIsReplayedAsAnAuthBootstrapNeverDropped() throws Exception {
+        // Capture tokenizes the Cookie header as a secret-ref, so it must replay from the
+        // environment (auth bootstrap) rather than being silently dropped (#3530 A3).
+        ApiTransaction authenticated = transaction("tx-1", "GET", "https://api.example.test/me",
+                Map.of("Cookie", "secret-ref:COOKIE_ABC_DEF"), "", 200, Map.of(), "{\"name\":\"Ada\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Cookie", List.of(authenticated),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Cookie");
+        assertTrue(source.contains("Auth bootstrap"), source);
+        assertTrue(source.contains(".addHeader(\"Cookie\", requiredEnvironment(\"COOKIE_ABC_DEF\"))"), source);
+        // The raw secret-ref token must never appear literally.
+        assertTrue(!source.contains("secret-ref:"), source);
+        // The cookie is rendered once (per request), not also hoisted into the session setup.
+        assertEquals(1, source.split("\\.addHeader\\(\"Cookie\"", -1).length - 1, source);
+        String setup = source.substring(source.indexOf("setupApiSessions"), source.indexOf("recordedApiScenario"));
+        assertTrue(!setup.contains("Cookie"), setup);
+    }
+
+    @Test
+    void blankCookieHeaderCarriesNoAuthAndIsSkipped() throws Exception {
+        ApiTransaction noCookie = transaction("tx-1", "GET", "https://api.example.test/public",
+                Map.of("Cookie", ""), "", 200, Map.of(), "{\"ok\":true}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_BlankCookie", List.of(noCookie),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_BlankCookie");
+        assertTrue(!source.contains(".addHeader(\"Cookie\""), source);
+        assertTrue(!source.contains("Auth bootstrap"), source);
+    }
+
+    @Test
     void commonHeaderAcrossAllTransactionsIsHoistedToBeforeClass() throws Exception {
         Map<String, String> sharedHeader = Map.of("X-Api-Version", "2026-07");
         ApiTransaction first = transaction("tx-1", "GET", "https://api.example.test/a", sharedHeader, "", 200, Map.of(), "{}");
@@ -121,15 +159,34 @@ class ApiTestRendererTest {
 
     @Test
     void unsupportedHttpMethodIsSkippedNotRenderedAsABrokenCall() throws Exception {
-        ApiTransaction headRequest = transaction("tx-1", "HEAD", "https://api.example.test/probe",
+        // TRACE has no SHAFT.API builder, so it must be skipped rather than rendered as a broken call.
+        ApiTransaction traceRequest = transaction("tx-1", "TRACE", "https://api.example.test/probe",
                 Map.of(), "", 200, Map.of(), "");
 
         RenderedApiTest rendered = ApiTestRenderer.render(
-                "tests.generated", "RecordedApiTest_Unsupported", List.of(headRequest),
+                "tests.generated", "RecordedApiTest_Unsupported", List.of(traceRequest),
                 ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
 
         assertCompiles(rendered.source(), "RecordedApiTest_Unsupported");
         assertEquals(List.of("tx-1"), rendered.skippedTransactionIds());
+    }
+
+    @Test
+    void headAndOptionsMethodsRenderCompilingBuilderCallsNotSkips() throws Exception {
+        ApiTransaction headRequest = transaction("tx-1", "HEAD", "https://api.example.test/probe",
+                Map.of(), "", 200, Map.of(), "");
+        ApiTransaction optionsRequest = transaction("tx-2", "OPTIONS", "https://api.example.test/orders",
+                Map.of(), "", 204, Map.of("Allow", "GET,POST"), "");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_HeadOptions", List.of(headRequest, optionsRequest),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+
+        assertCompiles(rendered.source(), "RecordedApiTest_HeadOptions");
+        // Both verbs now map to real SHAFT.API builders, so nothing is skipped.
+        assertTrue(rendered.skippedTransactionIds().isEmpty(), rendered.skippedTransactionIds().toString());
+        assertTrue(rendered.source().contains(".head(\"/probe\")"), rendered.source());
+        assertTrue(rendered.source().contains(".options(\"/orders\")"), rendered.source());
     }
 
     @Test
@@ -228,6 +285,178 @@ class ApiTestRendererTest {
         // BUSINESS depth pins live values; it needs no golden/schema artifacts.
         assertTrue(rendered.testDataArtifacts().isEmpty(),
                 "BUSINESS depth should not need test-data artifacts");
+    }
+
+    @Test
+    void businessDepthErrorResponseRendersErrorShapeTemplatePinningCodeThenMessage() throws Exception {
+        // A 4xx negative case: code + message are the stable error contract; traceId is volatile.
+        ApiTransaction notFound = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 404, Map.of(),
+                "{\"message\":\"Order not found\",\"code\":\"NOT_FOUND\",\"traceId\":\"" + CREATED_ID + "\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Error", List.of(notFound),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Error");
+        // Negative-case template is labelled and reports the HTTP status.
+        assertTrue(source.contains("Negative-case error shape (HTTP 404)"), source);
+        // Both the error code and message are pinned by JSON path.
+        assertTrue(source.contains(".object(api.getResponseJSONValue(\"$.code\"))"), source);
+        assertTrue(source.contains(".isEqualTo(\"NOT_FOUND\")"), source);
+        assertTrue(source.contains(".object(api.getResponseJSONValue(\"$.message\"))"), source);
+        assertTrue(source.contains(".isEqualTo(\"Order not found\")"), source);
+        // Contract-relevant fields lead: the code assertion is rendered before the message one,
+        // regardless of their order in the recorded body.
+        assertTrue(source.indexOf("$.code") < source.indexOf("$.message"),
+                "Error code must be pinned before the message, got:\n" + source);
+        // The volatile traceId is never pinned as a business value.
+        assertTrue(!source.contains(CREATED_ID),
+                "The volatile traceId must not be pinned, got:\n" + source);
+    }
+
+    @Test
+    void businessDepthErrorResponseWithOnlyVolatileFieldsFallsBackToStatusOnlyComment() throws Exception {
+        // A 5xx whose body carries no stable field -- the status assertion must stand alone.
+        ApiTransaction serverError = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 500, Map.of(), "{\"traceId\":\"" + CREATED_ID + "\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_ServerError", List.of(serverError),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_ServerError");
+        assertTrue(source.contains("Negative-case error shape (HTTP 500)"), source);
+        assertTrue(source.contains("status assertion above stands alone"), source);
+        assertTrue(!source.contains(CREATED_ID),
+                "The volatile traceId must not be pinned, got:\n" + source);
+    }
+
+    @Test
+    void formUrlEncodedBodyRendersSetParametersFormNotRawBody() throws Exception {
+        ApiTransaction login = transaction("tx-1", "POST", "https://api.example.test/login",
+                Map.of("Content-Type", "application/x-www-form-urlencoded"),
+                "username=john&password=secret%21", 200, Map.of(), "{\"status\":\"ok\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Form", List.of(login),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Form");
+        assertTrue(source.contains(".setContentType(\"application/x-www-form-urlencoded\")"), source);
+        assertTrue(source.contains("com.shaft.api.RestActions.ParametersType.FORM"), source);
+        assertTrue(source.contains("java.util.Map.entry(\"username\", \"john\")"), source);
+        // The %21 escape is URL-decoded to '!' before being pinned as a parameter value.
+        assertTrue(source.contains("java.util.Map.entry(\"password\", \"secret!\")"), source);
+        // A form body must not be replayed as an opaque JSON-defaulted request body.
+        assertTrue(!source.contains(".setRequestBody(\"username=john"), source);
+    }
+
+    @Test
+    void formUrlEncodedBodyWithCorrelationKeepsInterpolatedRawBody() throws Exception {
+        // A correlated value flows into the form body, so setParameters (which cannot interpolate)
+        // must be skipped in favour of the interpolated raw body -- with the content type preserved.
+        ApiTransaction createOrder = transaction("tx-1", "POST", "https://api.example.test/orders",
+                Map.of(), "{\"item\":\"widget\"}", 201, Map.of(), "{\"id\":\"" + CREATED_ID + "\"}");
+        ApiTransaction confirm = transaction("tx-2", "POST", "https://api.example.test/orders/confirm",
+                Map.of("Content-Type", "application/x-www-form-urlencoded"),
+                "orderId=" + CREATED_ID + "&note=ok", 200, Map.of(), "{\"status\":\"confirmed\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_FormCorrelated", List.of(createOrder, confirm),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_FormCorrelated");
+        assertTrue(source.contains(".setContentType(\"application/x-www-form-urlencoded\")"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+        // The correlated id is chained through a variable, never emitted as a literal or a form param.
+        assertTrue(!source.contains("ParametersType.FORM"), source);
+        assertTrue(!source.contains(CREATED_ID), source);
+    }
+
+    @Test
+    void multipartBodyPreservesContentTypeAndFlagsFileParts() throws Exception {
+        ApiTransaction upload = transaction("tx-1", "POST", "https://api.example.test/upload",
+                Map.of("Content-Type", "multipart/form-data; boundary=X"),
+                "--X\r\nContent-Disposition: form-data; name=\"f\"\r\n\r\nhi\r\n--X--", 201, Map.of(), "{\"id\":\"1\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Multipart", List.of(upload),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Multipart");
+        assertTrue(source.contains("Multipart body captured as raw text"), source);
+        assertTrue(source.contains(".setContentType(\"multipart/form-data; boundary=X\")"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+    }
+
+    @Test
+    void graphQlJsonBodyIsFlaggedAndTheWorkingBodyPreserved() throws Exception {
+        ApiTransaction query = transaction("tx-1", "POST", "https://api.example.test/graphql",
+                Map.of("Content-Type", "application/json"),
+                "{\"query\":\"{ user { id } }\"}", 200, Map.of(), "{\"data\":{\"user\":{\"id\":\"1\"}}}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_GraphQl", List.of(query),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_GraphQl");
+        assertTrue(source.contains("sendGraphQlRequest"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+        // JSON is SHAFT's default, so the content type is not re-stated for a GraphQL JSON body.
+        assertTrue(!source.contains(".setContentType(\"application/json\")"), source);
+    }
+
+    @Test
+    void nonJsonBodyPreservesTheRecordedContentType() throws Exception {
+        ApiTransaction xml = transaction("tx-1", "POST", "https://api.example.test/soap",
+                Map.of("Content-Type", "application/xml"),
+                "<user><id>1</id></user>", 200, Map.of(), "<ok/>");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Xml", List.of(xml),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Xml");
+        assertTrue(source.contains(".setContentType(\"application/xml\")"), source);
+        assertTrue(source.contains(".setRequestBody("), source);
+    }
+
+    @Test
+    void redirectTransactionDisablesRedirectFollowingSoTheStatusCanBeAsserted() throws Exception {
+        ApiTransaction redirect = transaction("tx-1", "GET", "https://api.example.test/old",
+                Map.of(), "", 302, Map.of("Location", "/new"), "");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Redirect", List.of(redirect),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_Redirect");
+        // The redirect must not be followed, so the recorded 302 status assertion holds.
+        assertTrue(source.contains(".setFollowRedirects(false)"), source);
+        assertTrue(source.contains(".setTargetStatusCode(302)"), source);
+    }
+
+    @Test
+    void nonRedirectTransactionKeepsDefaultRedirectFollowing() throws Exception {
+        ApiTransaction ok = transaction("tx-1", "GET", "https://api.example.test/ok",
+                Map.of(), "", 200, Map.of(), "{\"ok\":true}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_NoRedirect", List.of(ok),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS);
+
+        assertCompiles(rendered.source(), "RecordedApiTest_NoRedirect");
+        // A 2xx must not touch the default follow behaviour.
+        assertTrue(!rendered.source().contains("setFollowRedirects"), rendered.source());
     }
 
     private void assertCompiles(String source, String className) throws Exception {

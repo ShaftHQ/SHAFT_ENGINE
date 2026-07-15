@@ -6,6 +6,8 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -38,14 +40,30 @@ public final class ApiTestRenderer {
     private static final String VOLATILE_PLACEHOLDER = "[NORMALIZED]";
 
     /**
+     * JSON property names that typically carry a machine-readable error code in a 4xx/5xx body
+     * (e.g. {@code {"code":"NOT_FOUND"}}, {@code {"error":"invalid_grant"}}).
+     */
+    private static final Set<String> ERROR_CODE_KEYS = Set.of(
+            "code", "error", "errorcode", "error_code", "status", "type", "reason");
+
+    /**
+     * JSON property names that typically carry a human-readable error message in a 4xx/5xx body
+     * (e.g. {@code {"message":"Order not found"}}, {@code {"error_description":"..."}}).
+     */
+    private static final Set<String> ERROR_MESSAGE_KEYS = Set.of(
+            "message", "detail", "details", "description", "error_description", "error_message", "title");
+
+    /**
      * Request headers that are mechanical/transport-level and never meaningfully replayed:
      * content negotiation and framing are already handled by {@code setContentType}/
-     * {@code setRequestBody}, and connection/host/user-agent/cookie headers describe the
-     * recording browser session, not the API contract.
+     * {@code setRequestBody}, and connection/host/user-agent headers describe the recording
+     * browser session, not the API contract. The {@code Cookie} header is handled separately as an
+     * auth bootstrap (see {@link #renderRequestHeaders}), not skipped, so recorded session auth is
+     * preserved rather than silently dropped.
      */
     private static final Set<String> SKIPPED_REQUEST_HEADERS = Set.of(
             "content-length", "content-type", "host", "connection", "accept-encoding",
-            "user-agent", "cookie", "origin", "referer");
+            "user-agent", "origin", "referer");
 
     private ApiTestRenderer() {
     }
@@ -301,6 +319,7 @@ public final class ApiTestRenderer {
                     + " (" + transaction.statusCode() + ")");
             String pathExpression = interpolate(relativePath(transaction), valueToVariable);
             line(source, "        " + apiField + "." + requestMethod + "(" + pathExpression + ")");
+            renderRedirectControl(source, transaction);
             renderRequestHeaders(source, transaction, valueToVariable);
             renderRequestBody(source, transaction, valueToVariable);
             line(source, "                .setTargetStatusCode(" + transaction.statusCode() + ")");
@@ -354,6 +373,7 @@ public final class ApiTestRenderer {
         Map<String, String> noCorrelation = Map.of();
         line(source, "        " + apiField + "." + requestMethod + "("
                 + interpolate(relativePath(transaction), noCorrelation) + ")");
+        renderRedirectControl(source, transaction);
         renderRequestHeaders(source, transaction, noCorrelation);
         renderRequestBody(source, transaction, noCorrelation);
         line(source, "                .setTargetStatusCode(" + transaction.statusCode() + ")");
@@ -370,6 +390,10 @@ public final class ApiTestRenderer {
             StringBuilder source, ApiTransaction transaction, Map<String, String> valueToVariable) {
         for (Map.Entry<String, String> header : transaction.requestHeaders().entrySet()) {
             String name = header.getKey().toLowerCase(Locale.ROOT);
+            if (name.equals("cookie")) {
+                renderAuthCookie(source, header.getValue(), valueToVariable);
+                continue;
+            }
             if (SKIPPED_REQUEST_HEADERS.contains(name)) {
                 continue;
             }
@@ -378,12 +402,172 @@ public final class ApiTestRenderer {
         }
     }
 
-    private static void renderRequestBody(
-            StringBuilder source, ApiTransaction transaction, Map<String, String> valueToVariable) {
-        if (transaction.requestBody().isBlank()) {
+    /**
+     * Emits {@code setFollowRedirects(false)} for a recorded 3xx transaction so the generated test
+     * observes the redirect itself (issue #3530 A3 redirect fidelity). REST-Assured follows
+     * redirects by default, which would turn a recorded 302 into the final 200 and fail the status
+     * assertion; a non-redirect status leaves the default follow behaviour untouched.
+     */
+    private static void renderRedirectControl(StringBuilder source, ApiTransaction transaction) {
+        int status = transaction.statusCode();
+        if (status >= 300 && status < 400) {
+            line(source, "                // Recorded status is a redirect; do not follow it so the 3xx status can be asserted.");
+            line(source, "                .setFollowRedirects(false)");
+        }
+    }
+
+    /**
+     * Renders the recorded session {@code Cookie} header as an auth bootstrap (issue #3530 A3),
+     * rather than dropping it (which left the replay unauthenticated). A sensitive cookie is
+     * captured as a {@code secret-ref} token, so it is replayed from the environment via
+     * {@code requiredEnvironment(...)} and never written to source as a literal; a non-sensitive
+     * cookie is emitted directly (with correlation applied). Blank cookies carry nothing to
+     * bootstrap and are skipped.
+     */
+    private static void renderAuthCookie(
+            StringBuilder source, String cookieValue, Map<String, String> valueToVariable) {
+        if (cookieValue == null || cookieValue.isBlank()) {
             return;
         }
-        line(source, "                .setRequestBody(" + interpolate(transaction.requestBody(), valueToVariable) + ")");
+        line(source, "                // Auth bootstrap: replay the recorded session cookie so the request is authenticated.");
+        line(source, "                .addHeader(\"Cookie\", "
+                + headerOrInterpolatedValueExpression(cookieValue, valueToVariable) + ")");
+    }
+
+    /**
+     * Renders the request body with content-type fidelity (issue #3530 A3). The recorder captures
+     * the {@code Content-Type} request header but drops it from the generated {@code addHeader}
+     * calls (it is a mechanical/transport header), which previously made every replay default to
+     * JSON. This detects the captured content type and renders each family faithfully:
+     * <ul>
+     *   <li>{@code application/x-www-form-urlencoded} &rarr; parsed into a {@code setParameters(...,
+     *       FORM)} map (unless a correlated value flows through the body, in which case the raw
+     *       interpolated body is preserved so chaining still works);</li>
+     *   <li>{@code multipart/form-data} &rarr; content type preserved plus a note to wire file
+     *       parts, since binary parts cannot be reconstructed from a captured string;</li>
+     *   <li>GraphQL (a {@code graphql} content type, or a JSON body with a top-level {@code query})
+     *       &rarr; a pointer to {@code sendGraphQlRequest} plus the working JSON body;</li>
+     *   <li>any other non-JSON content type &rarr; preserved via {@code setContentType} before the
+     *       body;</li>
+     *   <li>JSON / no content type &rarr; the existing {@code setRequestBody} default.</li>
+     * </ul>
+     */
+    private static void renderRequestBody(
+            StringBuilder source, ApiTransaction transaction, Map<String, String> valueToVariable) {
+        String body = transaction.requestBody();
+        if (body.isBlank()) {
+            return;
+        }
+        String rawContentType = requestHeaderValue(transaction, "content-type");
+        String contentType = rawContentType == null ? "" : rawContentType.toLowerCase(Locale.ROOT);
+
+        if (contentType.contains("x-www-form-urlencoded") && !bodyCarriesCorrelation(body, valueToVariable)) {
+            Map<String, String> formParameters = parseFormUrlEncoded(body);
+            if (!formParameters.isEmpty()) {
+                renderFormParameters(source, formParameters);
+                return;
+            }
+        }
+        if (contentType.contains("multipart/form-data")) {
+            line(source, "                // Multipart body captured as raw text; add file parts with"
+                    + " setParameters(..., RestActions.ParametersType.MULTIPART) if this endpoint uploads files.");
+        } else if (isGraphQlRequest(contentType, body)) {
+            line(source, "                // GraphQL request; SHAFT.API.sendGraphQlRequest(service, query[, variables])"
+                    + " is the idiomatic alternative to this raw body.");
+        }
+        if (shouldPreserveContentType(contentType)) {
+            line(source, "                .setContentType(\"" + escape(rawContentType) + "\")");
+        }
+        line(source, "                .setRequestBody(" + interpolate(body, valueToVariable) + ")");
+    }
+
+    /**
+     * Returns the raw value of the first request header matching {@code name} (case-insensitive),
+     * or {@code null} when absent.
+     */
+    private static String requestHeaderValue(ApiTransaction transaction, String name) {
+        for (Map.Entry<String, String> header : transaction.requestHeaders().entrySet()) {
+            if (header.getKey().equalsIgnoreCase(name)) {
+                return header.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * True when a correlated value flows through this body, so switching to {@code setParameters}
+     * (which cannot interpolate) would drop the chaining -- the raw interpolated body is kept instead.
+     */
+    private static boolean bodyCarriesCorrelation(String body, Map<String, String> valueToVariable) {
+        for (String capturedValue : valueToVariable.keySet()) {
+            if (!capturedValue.isEmpty() && body.contains(capturedValue)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A content type worth pinning on the generated request: present and not JSON (SHAFT already
+     * defaults an unset content type to JSON, so re-stating it would be noise).
+     */
+    private static boolean shouldPreserveContentType(String contentType) {
+        return !contentType.isBlank() && !contentType.contains("application/json");
+    }
+
+    private static boolean isGraphQlRequest(String contentType, String body) {
+        if (contentType.contains("graphql")) {
+            return true;
+        }
+        String trimmed = body.trim();
+        return contentType.contains("json") && trimmed.startsWith("{") && trimmed.contains("\"query\"");
+    }
+
+    /**
+     * Parses an {@code a=1&b=2} form body into an ordered, URL-decoded key/value map. Malformed
+     * pairs (empty key) are skipped; a value-less key maps to the empty string.
+     */
+    private static Map<String, String> parseFormUrlEncoded(String body) {
+        Map<String, String> parameters = new LinkedHashMap<>();
+        for (String pair : body.split("&")) {
+            if (pair.isEmpty()) {
+                continue;
+            }
+            int equals = pair.indexOf('=');
+            String rawKey = equals < 0 ? pair : pair.substring(0, equals);
+            String rawValue = equals < 0 ? "" : pair.substring(equals + 1);
+            String key = urlDecode(rawKey);
+            if (key.isEmpty()) {
+                continue;
+            }
+            parameters.put(key, urlDecode(rawValue));
+        }
+        return parameters;
+    }
+
+    private static String urlDecode(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            // A malformed percent-escape is left as-is rather than dropping the value.
+            return value;
+        }
+    }
+
+    private static void renderFormParameters(StringBuilder source, Map<String, String> parameters) {
+        line(source, "                .setContentType(\"application/x-www-form-urlencoded\")");
+        StringBuilder entries = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> parameter : parameters.entrySet()) {
+            if (!first) {
+                entries.append(", ");
+            }
+            entries.append("java.util.Map.entry(\"").append(escape(parameter.getKey()))
+                    .append("\", \"").append(escape(parameter.getValue())).append("\")");
+            first = false;
+        }
+        line(source, "                .setParameters(java.util.Map.<String, Object>ofEntries(" + entries
+                + "), com.shaft.api.RestActions.ParametersType.FORM)");
     }
 
     private static void renderValidation(
@@ -401,12 +585,19 @@ public final class ApiTestRenderer {
             case STATUS_HEADERS -> renderHeaderAssertions(source, apiField, transaction);
             case SCHEMA -> renderSchemaAssertion(source, artifacts, className, apiField, transaction);
             case FULL_BODY -> renderFullBodyAssertion(source, artifacts, className, apiField, transaction, leaves);
-            case BUSINESS -> renderBusinessAssertions(source, apiField, leaves);
+            case BUSINESS -> renderBusinessAssertions(source, apiField, transaction, leaves);
             default -> throw new IllegalArgumentException("Unsupported validation depth: " + depth);
         }
     }
 
-    private static void renderBusinessAssertions(StringBuilder source, String apiField, List<ResponseLeaf> leaves) {
+    private static void renderBusinessAssertions(
+            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves) {
+        // A 4xx/5xx response is a negative case: render a dedicated error-shape template that pins
+        // the error code and message fields first, rather than the happy-path stable-field pinning.
+        if (transaction.statusCode() >= 400) {
+            renderErrorShapeAssertions(source, apiField, transaction, leaves);
+            return;
+        }
         for (ResponseLeaf leaf : leaves) {
             // Pin only business-meaningful fields: stable values a human would check. Volatile,
             // correlated (chained), and sensitive leaves are deliberately skipped so the assertion
@@ -414,12 +605,66 @@ public final class ApiTestRenderer {
             if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
                 continue;
             }
-            line(source, "        SHAFT.Validations.assertThat()");
-            line(source, "                .object(" + apiField + ".getResponseJSONValue(\""
-                    + escape(leaf.jsonPath()) + "\"))");
-            line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\")");
-            line(source, "                .perform();");
+            pinStableLeaf(source, apiField, leaf);
         }
+    }
+
+    /**
+     * Renders a negative-case (4xx/5xx) error-shape assertion template: the HTTP status is already
+     * asserted via {@code setTargetStatusCode(...)}, so this pins the stable error <em>code</em> and
+     * <em>message</em> fields (recognized by well-known property names) first, then any remaining
+     * stable fields. Volatile/correlated/sensitive leaves are skipped exactly as in the happy path,
+     * so timestamps and trace IDs never flake the assertion (issue #3530 negative-case templates).
+     */
+    private static void renderErrorShapeAssertions(
+            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves) {
+        line(source, "        // Negative-case error shape (HTTP " + transaction.statusCode()
+                + "): the status code is asserted above; pin the stable error code and message");
+        line(source, "        // fields, skipping volatile diagnostics (timestamps, trace IDs) so the test documents the error contract.");
+        List<ResponseLeaf> ordered = orderedErrorLeaves(leaves);
+        for (ResponseLeaf leaf : ordered) {
+            pinStableLeaf(source, apiField, leaf);
+        }
+        if (ordered.isEmpty()) {
+            line(source, "        // No stable error fields were recorded; the HTTP "
+                    + transaction.statusCode() + " status assertion above stands alone.");
+        }
+    }
+
+    /**
+     * Orders an error response's stable leaves so the contract-relevant fields lead: recognized
+     * error <em>code</em> fields first, then <em>message</em> fields, then any remaining stable
+     * field. Volatile/correlated/sensitive and blank leaves are dropped.
+     */
+    private static List<ResponseLeaf> orderedErrorLeaves(List<ResponseLeaf> leaves) {
+        List<ResponseLeaf> codeLeaves = new ArrayList<>();
+        List<ResponseLeaf> messageLeaves = new ArrayList<>();
+        List<ResponseLeaf> otherStable = new ArrayList<>();
+        for (ResponseLeaf leaf : leaves) {
+            if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
+                continue;
+            }
+            String key = leaf.key().toLowerCase(Locale.ROOT);
+            if (ERROR_CODE_KEYS.contains(key)) {
+                codeLeaves.add(leaf);
+            } else if (ERROR_MESSAGE_KEYS.contains(key)) {
+                messageLeaves.add(leaf);
+            } else {
+                otherStable.add(leaf);
+            }
+        }
+        List<ResponseLeaf> ordered = new ArrayList<>(codeLeaves);
+        ordered.addAll(messageLeaves);
+        ordered.addAll(otherStable);
+        return ordered;
+    }
+
+    private static void pinStableLeaf(StringBuilder source, String apiField, ResponseLeaf leaf) {
+        line(source, "        SHAFT.Validations.assertThat()");
+        line(source, "                .object(" + apiField + ".getResponseJSONValue(\""
+                + escape(leaf.jsonPath()) + "\"))");
+        line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\")");
+        line(source, "                .perform();");
     }
 
     private static void renderHeaderAssertions(StringBuilder source, String apiField, ApiTransaction transaction) {
@@ -480,6 +725,8 @@ public final class ApiTestRenderer {
             case "PUT" -> "put";
             case "PATCH" -> "patch";
             case "DELETE" -> "delete";
+            case "HEAD" -> "head";
+            case "OPTIONS" -> "options";
             default -> null;
         };
     }
@@ -625,7 +872,9 @@ public final class ApiTestRenderer {
         }
         for (Map.Entry<String, String> candidate : transactions.get(0).requestHeaders().entrySet()) {
             String name = candidate.getKey().toLowerCase(Locale.ROOT);
-            if (SKIPPED_REQUEST_HEADERS.contains(name)) {
+            if (SKIPPED_REQUEST_HEADERS.contains(name) || name.equals("cookie")) {
+                // The Cookie header is rendered per request as an auth bootstrap (renderAuthCookie),
+                // which owns its blank-skip and secret-ref handling, so it is never hoisted here.
                 continue;
             }
             boolean sharedByAll = transactions.stream()

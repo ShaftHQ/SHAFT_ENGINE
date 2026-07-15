@@ -6,10 +6,21 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.w3c.dom.Document;
 
 /**
  * Renders a self-contained HTML "assertion evidence" card for a single {@code Assert}/{@code Verify}
@@ -58,6 +69,86 @@ public final class AssertionEvidenceReporter {
         }
     }
 
+    /**
+     * Renders a domain-consistent evidence card for an accessibility (aria snapshot) validation.
+     *
+     * <p>Accessibility validations report their outcome as a pass/fail boolean, which
+     * {@link #renderCard} deliberately skips because a "true vs false" flag carries no comparable
+     * content. This overload instead takes the expected/actual aria-snapshot YAML so the card can
+     * show the same bounded, redacted line diff assertion cards use — a summary line plus a deep
+     * attachment, rather than a full YAML dump in the step name (issue #3532 E).
+     *
+     * @param passed       true when the aria snapshot matched its baseline
+     * @param expectedYaml the baseline aria-snapshot YAML (may be null/blank on first capture)
+     * @param actualYaml   the captured aria-snapshot YAML
+     * @return a complete self-contained HTML document string, or "" when there is nothing
+     * meaningful to show (both sides are null/blank)
+     */
+    public static String renderAccessibilityCard(boolean passed, Object expectedYaml, Object actualYaml) {
+        if (isBlank(expectedYaml) && isBlank(actualYaml)) {
+            return "";
+        }
+        try {
+            return render("Accessibility", passed, expectedYaml, actualYaml);
+        } catch (RuntimeException e) {
+            return renderFallback("Accessibility", passed, expectedYaml, actualYaml);
+        }
+    }
+
+    /**
+     * Renders a domain-consistent evidence card for a visual (screenshot) validation.
+     *
+     * <p>Visual validations also report their outcome as a pass/fail boolean, so {@link #renderCard}
+     * skips them; the pixel diff is attached separately as a native Allure image-diff viewer. This
+     * overload surfaces the numeric comparison metadata — diff pixels and diff ratio against their
+     * budgets — as a compact summary card, so the report answers "how far off was it?" in text
+     * without a full dump, and points at the attached image diff (issue #3532 E).
+     *
+     * @param passed        true when the screenshot matched its baseline within budget
+     * @param diffPixels    number of differing pixels reported by the comparison
+     * @param maxDiffPixels the pixel-count budget, or {@code null} when none was configured
+     * @param diffRatio     the differing-pixel ratio reported by the comparison
+     * @param maxDiffRatio  the ratio budget, or {@code null} when none was configured
+     * @return a complete self-contained HTML document string
+     */
+    public static String renderVisualCard(boolean passed, long diffPixels, Integer maxDiffPixels,
+                                          double diffRatio, Double maxDiffRatio) {
+        try {
+            return document("Visual", passed, "Image",
+                    visualMetadataSection(diffPixels, maxDiffPixels, diffRatio, maxDiffRatio));
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    private static String visualMetadataSection(long diffPixels, Integer maxDiffPixels, double diffRatio,
+                                                Double maxDiffRatio) {
+        String pixels = diffPixels + (maxDiffPixels == null ? "" : " (budget " + maxDiffPixels + ")");
+        String ratio = formatRatio(diffRatio) + (maxDiffRatio == null ? "" : " (budget " + formatRatio(maxDiffRatio) + ")");
+        return "<div class=\"aer-scalar\">"
+                + "<div class=\"aer-scalar-row\"><span class=\"aer-scalar-label\">Diff pixels</span>"
+                + "<span class=\"aer-scalar-value\">" + escapeHtml(pixels) + "</span></div>"
+                + "<div class=\"aer-scalar-row\"><span class=\"aer-scalar-label\">Diff ratio</span>"
+                + "<span class=\"aer-scalar-value\">" + escapeHtml(ratio) + "</span></div>"
+                + "</div>"
+                + "<p class=\"aer-visual-note\">The full pixel-level image diff is attached separately as the image-diff viewer.</p>";
+    }
+
+    /**
+     * Formats a diff ratio compactly: up to six significant digits, trailing zeros trimmed, so a
+     * ratio like {@code 0.0125000} reads as {@code 0.0125} and an exact match reads as {@code 0}.
+     */
+    private static String formatRatio(double ratio) {
+        if (ratio == 0d) {
+            return "0";
+        }
+        String formatted = String.format("%.6f", ratio);
+        if (formatted.contains(".")) {
+            formatted = formatted.replaceAll("0+$", "").replaceAll("\\.$", "");
+        }
+        return formatted;
+    }
+
     private static String render(String categoryLabel, boolean passed, Object expected, Object actual) {
         Capped expectedText = cap(safeRedact(rawValue(expected)));
         Capped actualText = cap(safeRedact(rawValue(actual)));
@@ -72,6 +163,15 @@ public final class AssertionEvidenceReporter {
             shape = "JSON";
             String prettyExpected = prettyPrint(expectedJson, expectedText.text());
             String prettyActual = prettyPrint(actualJson, actualText.text());
+            body = diffSection(prettyExpected, prettyActual) + rawSection(expectedText, actualText);
+        } else if (bothParseAsXml(expectedText.text(), actualText.text())) {
+            // API response bodies are just as commonly XML (SOAP / XML REST) as JSON; when both
+            // sides are well-formed XML, pretty-print and diff them structurally rather than letting
+            // them fall through to the flat text branch, so the card gives API-body-specific
+            // affordances on top of the JSON branch (issue #3532 E).
+            shape = "XML";
+            String prettyExpected = prettyPrintXml(expectedText.text());
+            String prettyActual = prettyPrintXml(actualText.text());
             body = diffSection(prettyExpected, prettyActual) + rawSection(expectedText, actualText);
         } else if (isTextShape(expectedText.text(), actualText.text())) {
             shape = "Text";
@@ -271,6 +371,67 @@ public final class AssertionEvidenceReporter {
             return JSON_MAPPER.writeValueAsString(node);
         } catch (RuntimeException e) {
             return fallback;
+        }
+    }
+
+    /**
+     * True only when both sides are well-formed XML documents (not JSON — JSON is checked first).
+     * A leading {@code <} gate keeps the common non-XML case from paying for a parser attempt.
+     */
+    private static boolean bothParseAsXml(String expected, String actual) {
+        return parseXml(expected) != null && parseXml(actual) != null;
+    }
+
+    /**
+     * Parses a string into an XML {@link Document} with a hardened, non-validating parser (DTDs and
+     * external entities disabled to prevent XXE / entity-expansion against untrusted API bodies),
+     * or {@code null} when the value is blank or not well-formed XML.
+     */
+    private static Document parseXml(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || trimmed.charAt(0) != '<') {
+            return null;
+        }
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setExpandEntityReferences(false);
+            factory.setNamespaceAware(true);
+            return factory.newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(trimmed.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Pretty-prints XML with a hardened transformer; falls back to the original text on any failure
+     * so evidence rendering can never break because of an awkward document.
+     */
+    private static String prettyPrintXml(String value) {
+        Document document = parseXml(value);
+        if (document == null) {
+            return value;
+        }
+        try {
+            document.normalizeDocument();
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(document), new StreamResult(writer));
+            return writer.toString().trim();
+        } catch (Exception e) {
+            return value;
         }
     }
 
