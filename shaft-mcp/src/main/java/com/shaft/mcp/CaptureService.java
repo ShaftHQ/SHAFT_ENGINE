@@ -471,6 +471,26 @@ public class CaptureService {
                 result.report() == null ? List.of() : result.report().warnings());
     }
 
+    /**
+     * Lists classified response leaves (stable/volatile/sensitive) per transaction for a recorded
+     * session, without generating any test source -- the data source for a "pin this path as a
+     * business assertion" picker (issue #3530 negative-case). A sensitive leaf's value is redacted.
+     *
+     * @param sessionPath persisted Capture JSON path
+     * @param excludedTransactionIds transaction ids to omit, same semantics as
+     *                               {@code capture_api_generate}
+     * @return one entry per renderable transaction, each carrying its classified leaves
+     */
+    @Tool(name = "capture_api_response_leaves",
+            description = "returns classified response-body leaves (stable/volatile/sensitive) per transaction for a "
+                    + "recorded session without generating any test source, for a pin-this-path picker; sensitive values are redacted")
+    public List<ApiCaptureGenerator.TransactionLeaves> apiResponseLeaves(
+            String sessionPath, List<String> excludedTransactionIds) {
+        return new ApiCaptureGenerator().listResponseLeaves(
+                workspacePolicy.existing(sessionPath, "Capture session path"),
+                excludedTransactionIds == null ? List.of() : excludedTransactionIds);
+    }
+
     private static ApiCodegenStyle parseStyle(String value) {
         if (value == null || value.isBlank()) {
             return ApiCodegenStyle.SCENARIO;

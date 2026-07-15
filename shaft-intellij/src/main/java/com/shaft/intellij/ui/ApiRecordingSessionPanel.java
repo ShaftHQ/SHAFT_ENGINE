@@ -21,9 +21,11 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.RowFilter;
+import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.BorderLayout;
@@ -31,7 +33,9 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Displays a live SHAFT API recording session: transactions are polled roughly every 2 seconds on
@@ -47,6 +51,7 @@ import java.util.List;
 public final class ApiRecordingSessionPanel extends JPanel implements Disposable {
     private static final int POLL_INTERVAL_MILLIS = 2_000;
     private static final String GENERATE_TOOL_NAME = "capture_api_generate";
+    private static final String RESPONSE_LEAVES_TOOL_NAME = "capture_api_response_leaves";
 
     /**
      * Selects which MCP tool pair a session polls. Both pairs return the same body-free
@@ -84,8 +89,13 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     private final JBTextField filterField = new JBTextField();
     private final JButton stopButton = new JButton("Stop");
     private final JButton generateButton = new JButton("Generate");
+    private final JButton pinFieldsButton = new JButton("Pin Fields...");
     private final JLabel statusLabel = new JLabel("Recording...");
     private final Alarm pollAlarm;
+
+    // Populated by the pin-fields dialog (issue #3530 negative-case: "pin this path as a business
+    // assertion" panel control) and threaded into capture_api_generate's pinnedJsonPaths argument.
+    private final Set<String> pinnedJsonPaths = new LinkedHashSet<>();
 
     // PURE_API only: the loopback proxy has no browser to drive, so the device/emulator needs the
     // proxy port plus a one-click copy of the CA certificate the MITM proxy signs traffic with
@@ -159,6 +169,10 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         generateButton.getAccessibleContext().setAccessibleDescription(
                 "Generate a SHAFT.API test from the included transactions");
         generateButton.addActionListener(event -> generateCode());
+        pinFieldsButton.setEnabled(false);
+        pinFieldsButton.getAccessibleContext().setAccessibleDescription(
+                "Pick volatile response fields to force-assert as business assertions");
+        pinFieldsButton.addActionListener(event -> openPinFieldsDialog());
 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         JLabel titleLabel = new JLabel(headerText);
@@ -167,6 +181,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         actions.add(stopButton);
+        actions.add(pinFieldsButton);
         actions.add(generateButton);
 
         JPanel toolbar = new JPanel(new BorderLayout(6, 0));
@@ -267,6 +282,10 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
 
     JButton generateButton() {
         return generateButton;
+    }
+
+    JButton pinFieldsButton() {
+        return pinFieldsButton;
     }
 
     JLabel statusLabel() {
@@ -417,13 +436,203 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
                             ? status.get("outputPath").getAsString()
                             : "";
                     generateButton.setEnabled(!sessionOutputPath.isBlank());
+                    pinFieldsButton.setEnabled(!sessionOutputPath.isBlank());
                     statusLabel.setText("Stopped. " + tableModel.getRowCount() + " transaction(s).");
                 }));
     }
 
     /**
+     * Fetches classified response leaves for the stopped session via
+     * {@code capture_api_response_leaves} and opens a picker dialog over the volatile ones -- the
+     * only leaves a pin can actually affect (stable leaves are already asserted; sensitive leaves
+     * are never asserted regardless of pinning) -- issue #3530 negative-case.
+     */
+    private void openPinFieldsDialog() {
+        pinFieldsButton.setEnabled(false);
+        statusLabel.setText("Loading response fields...");
+
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", sessionOutputPath);
+        JsonArray excludedTransactionIds = new JsonArray();
+        tableModel.excludedTransactionIds().forEach(excludedTransactionIds::add);
+        arguments.add("excludedTransactionIds", excludedTransactionIds);
+
+        ShaftMcpInvocationService.getInstance(project)
+                .startTool(RESPONSE_LEAVES_TOOL_NAME, arguments)
+                .future()
+                .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
+                    pinFieldsButton.setEnabled(true);
+                    if (error != null || result == null || !result.success()) {
+                        statusLabel.setText("Could not load response fields: "
+                                + (result != null ? result.output() : String.valueOf(error)));
+                        return;
+                    }
+                    showPinFieldsDialog(parsePinnableLeaves(result.output()));
+                }));
+    }
+
+    private void showPinFieldsDialog(List<PinnableLeafRow> rows) {
+        if (rows.isEmpty()) {
+            statusLabel.setText("No volatile response fields to pin -- stable fields are already asserted.");
+            return;
+        }
+        PinnableLeafTableModel pickerModel = new PinnableLeafTableModel(rows, pinnedJsonPaths);
+        JBTable picker = new JBTable(pickerModel);
+        picker.getColumnModel().getColumn(PinnableLeafTableModel.PIN_COLUMN).setMaxWidth(50);
+        picker.getAccessibleContext().setAccessibleName("Volatile response fields to pin as business assertions");
+
+        JDialog dialog = new JDialog(
+                SwingUtilities.getWindowAncestor(this), "Pin Response Fields", JDialog.ModalityType.APPLICATION_MODAL);
+        dialog.getContentPane().add(new JBScrollPane(picker), BorderLayout.CENTER);
+        JButton ok = new JButton("OK");
+        ok.addActionListener(event -> {
+            pinnedJsonPaths.clear();
+            pinnedJsonPaths.addAll(pickerModel.pinnedJsonPaths());
+            dialog.dispose();
+        });
+        JButton cancel = new JButton("Cancel");
+        cancel.addActionListener(event -> dialog.dispose());
+        JPanel dialogActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 6));
+        dialogActions.add(cancel);
+        dialogActions.add(ok);
+        dialog.getContentPane().add(dialogActions, BorderLayout.SOUTH);
+        dialog.setSize(640, 360);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    /**
+     * Parses {@code capture_api_response_leaves}'s per-transaction leaf array into one row per
+     * {@code VOLATILE} leaf -- the only classification a pin can affect. Package-private for
+     * {@code ApiRecordingSessionPanelTest}.
+     *
+     * @param output raw MCP tool output ({@code List<ApiCaptureGenerator.TransactionLeaves>} JSON)
+     * @return one row per volatile, non-blank leaf, in encounter order
+     */
+    static List<PinnableLeafRow> parsePinnableLeaves(String output) {
+        List<PinnableLeafRow> rows = new ArrayList<>();
+        JsonArray transactions = AssistantMarkdown.jsonArrayFromMcpOutput(output);
+        if (transactions == null) {
+            return rows;
+        }
+        for (JsonElement transactionElement : transactions) {
+            if (!transactionElement.isJsonObject()) {
+                continue;
+            }
+            JsonObject transaction = transactionElement.getAsJsonObject();
+            String method = stringOf(transaction, "method");
+            String url = stringOf(transaction, "url");
+            JsonElement leavesElement = transaction.get("leaves");
+            if (leavesElement == null || !leavesElement.isJsonArray()) {
+                continue;
+            }
+            for (JsonElement leafElement : leavesElement.getAsJsonArray()) {
+                if (!leafElement.isJsonObject()) {
+                    continue;
+                }
+                JsonObject leaf = leafElement.getAsJsonObject();
+                String value = stringOf(leaf, "value");
+                if (!"VOLATILE".equals(stringOf(leaf, "classification")) || value.isBlank()) {
+                    continue;
+                }
+                rows.add(new PinnableLeafRow(method, url, stringOf(leaf, "jsonPath"), value));
+            }
+        }
+        return rows;
+    }
+
+    /**
+     * One volatile, pinnable response leaf shown in the pin-fields picker.
+     *
+     * @param method HTTP method of the transaction the leaf came from
+     * @param url request URL of the transaction the leaf came from
+     * @param jsonPath JSONPath pointer this pin targets; {@code capture_api_generate}'s
+     *                 {@code pinnedJsonPaths} matches by this path across every transaction
+     * @param value recorded sample value, for the user's reference
+     */
+    record PinnableLeafRow(String method, String url, String jsonPath, String value) {
+    }
+
+    /**
+     * Table model backing the pin-fields picker dialog.
+     */
+    static final class PinnableLeafTableModel extends AbstractTableModel {
+        static final int PIN_COLUMN = 0;
+        private static final String[] COLUMNS = {"Pin", "Transaction", "JSON Path", "Sample Value"};
+        private final List<PinnableLeafRow> rows;
+        private final Set<String> pinned = new LinkedHashSet<>();
+
+        PinnableLeafTableModel(List<PinnableLeafRow> rows, Set<String> initiallyPinned) {
+            this.rows = List.copyOf(rows);
+            this.pinned.addAll(initiallyPinned);
+        }
+
+        /**
+         * Returns the JSON paths currently checked, for {@code capture_api_generate}'s
+         * {@code pinnedJsonPaths} argument.
+         *
+         * @return checked JSON paths
+         */
+        Set<String> pinnedJsonPaths() {
+            return Set.copyOf(pinned);
+        }
+
+        @Override
+        public int getRowCount() {
+            return rows.size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return COLUMNS.length;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return COLUMNS[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return columnIndex == PIN_COLUMN ? Boolean.class : String.class;
+        }
+
+        @Override
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return columnIndex == PIN_COLUMN;
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            PinnableLeafRow row = rows.get(rowIndex);
+            return switch (columnIndex) {
+                case PIN_COLUMN -> pinned.contains(row.jsonPath());
+                case 1 -> row.method() + " " + row.url();
+                case 2 -> row.jsonPath();
+                case 3 -> row.value();
+                default -> "";
+            };
+        }
+
+        @Override
+        public void setValueAt(Object value, int rowIndex, int columnIndex) {
+            if (columnIndex != PIN_COLUMN || !(value instanceof Boolean checked)) {
+                return;
+            }
+            String jsonPath = rows.get(rowIndex).jsonPath();
+            if (checked) {
+                pinned.add(jsonPath);
+            } else {
+                pinned.remove(jsonPath);
+            }
+            fireTableCellUpdated(rowIndex, columnIndex);
+        }
+    }
+
+    /**
      * Generates a {@code SHAFT.API} test from the stopped session via {@code capture_api_generate},
-     * excluding any transaction whose Include checkbox is unchecked (issue #3548 item 3).
+     * excluding any transaction whose Include checkbox is unchecked (issue #3548 item 3) and
+     * force-asserting any response leaf pinned via {@link #openPinFieldsDialog}.
      */
     private void generateCode() {
         if (sessionOutputPath.isBlank()) {
@@ -446,6 +655,9 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         JsonArray excludedTransactionIds = new JsonArray();
         tableModel.excludedTransactionIds().forEach(excludedTransactionIds::add);
         arguments.add("excludedTransactionIds", excludedTransactionIds);
+        JsonArray pinnedJsonPathsArray = new JsonArray();
+        pinnedJsonPaths.forEach(pinnedJsonPathsArray::add);
+        arguments.add("pinnedJsonPaths", pinnedJsonPathsArray);
 
         ShaftMcpInvocationService.getInstance(project)
                 .startTool(GENERATE_TOOL_NAME, arguments)
