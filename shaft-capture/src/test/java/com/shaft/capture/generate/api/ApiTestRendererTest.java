@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -332,6 +333,74 @@ class ApiTestRendererTest {
         assertTrue(source.contains("status assertion above stands alone"), source);
         assertTrue(!source.contains(CREATED_ID),
                 "The volatile traceId must not be pinned, got:\n" + source);
+    }
+
+    @Test
+    void pinnedVolatileLeafIsForceAssertedAsABusinessPin() throws Exception {
+        // traceId is a VOLATILE key by default, but it is explicitly pinned by JSON path here.
+        ApiTransaction order = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 200, Map.of(), "{\"traceId\":\"trace-xyz-001\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_PinnedVolatile", List.of(order),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS, Map.of(), Set.of("$.traceId"));
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_PinnedVolatile");
+        assertTrue(source.contains(".object(api.getResponseJSONValue(\"$.traceId\"))"),
+                "Expected the pinned volatile leaf to be asserted, got:\n" + source);
+        assertTrue(source.contains(".isEqualTo(\"trace-xyz-001\")"), source);
+    }
+
+    @Test
+    void unpinnedVolatileLeafIsStillSkippedAsABusinessAssertion() throws Exception {
+        // Same VOLATILE leaf as above, but NOT pinned -- baseline/regression behaviour.
+        ApiTransaction order = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 200, Map.of(), "{\"traceId\":\"trace-xyz-001\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_UnpinnedVolatile", List.of(order),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS, Map.of(), Set.of());
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_UnpinnedVolatile");
+        assertTrue(!source.contains(".object(api.getResponseJSONValue(\"$.traceId\"))"),
+                "An unpinned volatile leaf must not be asserted, got:\n" + source);
+        assertTrue(!source.contains("trace-xyz-001"), source);
+    }
+
+    @Test
+    void pinnedSensitiveLeafIsNeverAssertedOrLeakedIntoSource() throws Exception {
+        // token is a SENSITIVE key by default; pinning it must not embed the secret in source.
+        ApiTransaction authResponse = transaction("tx-1", "GET", "https://api.example.test/session",
+                Map.of(), "", 200, Map.of(), "{\"token\":\"super-secret-value\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_PinnedSensitive", List.of(authResponse),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS, Map.of(), Set.of("$.token"));
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_PinnedSensitive");
+        assertTrue(!source.contains(".object(api.getResponseJSONValue(\"$.token\"))"),
+                "A pinned SENSITIVE leaf must never be asserted, got:\n" + source);
+        assertTrue(!source.contains("super-secret-value"),
+                "A pinned SENSITIVE leaf's value must never leak into generated source, got:\n" + source);
+    }
+
+    @Test
+    void pinnedBlankValueLeafIsNeverAsserted() throws Exception {
+        // note is present but blank -- nothing to assert, even though it is explicitly pinned.
+        ApiTransaction order = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 200, Map.of(), "{\"note\":\"\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_PinnedBlank", List.of(order),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS, Map.of(), Set.of("$.note"));
+        String source = rendered.source();
+
+        assertCompiles(source, "RecordedApiTest_PinnedBlank");
+        assertTrue(!source.contains(".object(api.getResponseJSONValue(\"$.note\"))"),
+                "A pinned blank-value leaf must never be asserted, got:\n" + source);
     }
 
     @Test

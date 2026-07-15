@@ -91,6 +91,38 @@ public final class ApiTestRenderer {
 
     /**
      * Renders one API test class, as {@link #render(String, String, List, ApiCodegenStyle,
+     * ApiValidationDepth, Map)}, additionally accepting an explicit set of response JSON paths to
+     * force-assert as {@link ApiValidationDepth#BUSINESS} business assertions even when their leaf
+     * is classified {@code VOLATILE} or {@code CORRELATED} (issue #3530 pinned-path render gate). A
+     * {@code SENSITIVE} leaf or a blank-value leaf is never asserted, regardless of pinning.
+     *
+     * @param packageName generated class package
+     * @param className generated class name
+     * @param transactions renderable transactions in recorded order
+     * @param style how transactions are grouped into test methods
+     * @param depth how thoroughly each response is validated
+     * @param uiActionsBySequence for {@link ApiCodegenStyle#HYBRID_UI_API} only: see {@link
+     *                            #render(String, String, List, ApiCodegenStyle, ApiValidationDepth, Map)}
+     * @param pinnedJsonPaths response JSON paths (e.g. {@code $.status}) to force-include as
+     *                        business assertions at {@code BUSINESS} depth; ignored at every other
+     *                        depth. {@code null} is treated as empty.
+     * @return generated source, any test-data artifacts it references, and any transaction IDs
+     *         skipped because SHAFT.API has no builder for their HTTP method
+     */
+    public static RenderedApiTest render(
+            String packageName,
+            String className,
+            List<ApiTransaction> transactions,
+            ApiCodegenStyle style,
+            ApiValidationDepth depth,
+            Map<Long, List<String>> uiActionsBySequence,
+            Set<String> pinnedJsonPaths) {
+        Set<String> pins = pinnedJsonPaths == null ? Set.of() : pinnedJsonPaths;
+        return renderInternal(packageName, className, transactions, style, depth, uiActionsBySequence, pins);
+    }
+
+    /**
+     * Renders one API test class, as {@link #render(String, String, List, ApiCodegenStyle,
      * ApiValidationDepth)}, additionally accepting pre-rendered UI action source lines for
      * {@link ApiCodegenStyle#HYBRID_UI_API}.
      *
@@ -115,6 +147,17 @@ public final class ApiTestRenderer {
             ApiCodegenStyle style,
             ApiValidationDepth depth,
             Map<Long, List<String>> uiActionsBySequence) {
+        return render(packageName, className, transactions, style, depth, uiActionsBySequence, Set.of());
+    }
+
+    private static RenderedApiTest renderInternal(
+            String packageName,
+            String className,
+            List<ApiTransaction> transactions,
+            ApiCodegenStyle style,
+            ApiValidationDepth depth,
+            Map<Long, List<String>> uiActionsBySequence,
+            Set<String> pinnedJsonPaths) {
         Map<String, List<ApiTransaction>> byOrigin = groupByOrigin(transactions);
         List<String> origins = List.copyOf(byOrigin.keySet());
         Map<String, String> fieldNames = fieldNamesByOrigin(origins);
@@ -123,6 +166,32 @@ public final class ApiTestRenderer {
         boolean hybrid = style == ApiCodegenStyle.HYBRID_UI_API;
 
         StringBuilder source = new StringBuilder();
+        renderClassPreamble(source, packageName, className, hybrid, origins, fieldNames, byOrigin);
+        renderTestMethods(source, artifacts, skippedTransactionIds, className, style, byOrigin, depth,
+                uiActionsBySequence, pinnedJsonPaths);
+        if (hybrid) {
+            renderHybridTeardown(source);
+        }
+        renderHelperMethods(source);
+        line(source, "}");
+        line(source, "");
+
+        return new RenderedApiTest(source.toString(), artifacts, List.copyOf(skippedTransactionIds));
+    }
+
+    /**
+     * Renders the package declaration, imports, class declaration, {@code SHAFT.API} field
+     * declarations, and the {@code @BeforeClass} session-setup method -- everything above the
+     * generated test methods. Extracted from {@link #renderInternal} to keep that method flat.
+     */
+    private static void renderClassPreamble(
+            StringBuilder source,
+            String packageName,
+            String className,
+            boolean hybrid,
+            List<String> origins,
+            Map<String, String> fieldNames,
+            Map<String, List<ApiTransaction>> byOrigin) {
         line(source, "package " + packageName + ";");
         line(source, "");
         line(source, "import com.shaft.driver.SHAFT;");
@@ -156,8 +225,26 @@ public final class ApiTestRenderer {
         }
         line(source, "    }");
         line(source, "");
+    }
 
-        if (hybrid) {
+    /**
+     * Renders the generated {@code @Test} methods for every origin, dispatching on the codegen
+     * style (hybrid UI+API, scenario, or per-request). Extracted from {@link #renderInternal} to
+     * keep that method flat.
+     */
+    private static void renderTestMethods(
+            StringBuilder source,
+            Map<String, String> artifacts,
+            List<String> skippedTransactionIds,
+            String className,
+            ApiCodegenStyle style,
+            Map<String, List<ApiTransaction>> byOrigin,
+            ApiValidationDepth depth,
+            Map<Long, List<String>> uiActionsBySequence,
+            Set<String> pinnedJsonPaths) {
+        List<String> origins = List.copyOf(byOrigin.keySet());
+        Map<String, String> fieldNames = fieldNamesByOrigin(origins);
+        if (style == ApiCodegenStyle.HYBRID_UI_API) {
             int scenarioIndex = 0;
             for (String origin : origins) {
                 scenarioIndex++;
@@ -171,29 +258,28 @@ public final class ApiTestRenderer {
                 scenarioIndex++;
                 String methodName = origins.size() == 1 ? "recordedApiScenario" : "recordedApiScenario" + scenarioIndex;
                 renderScenario(source, artifacts, skippedTransactionIds, className, methodName,
-                        fieldNames.get(origin), byOrigin.get(origin), depth);
+                        fieldNames.get(origin), byOrigin.get(origin), depth, pinnedJsonPaths);
             }
         } else {
             for (String origin : origins) {
                 String field = fieldNames.get(origin);
                 for (ApiTransaction transaction : byOrigin.get(origin)) {
-                    renderPerRequestTest(source, artifacts, skippedTransactionIds, className, field, transaction, depth);
+                    renderPerRequestTest(source, artifacts, skippedTransactionIds, className, field, transaction,
+                            depth, pinnedJsonPaths);
                 }
             }
         }
+    }
 
-        if (hybrid) {
-            line(source, "    @org.testng.annotations.AfterClass(alwaysRun = true)");
-            line(source, "    public void tearDownDriver() {");
-            line(source, "        driver.quit();");
-            line(source, "    }");
-            line(source, "");
-        }
-        renderHelperMethods(source);
-        line(source, "}");
+    /**
+     * Renders the hybrid-style {@code @AfterClass} WebDriver teardown method.
+     */
+    private static void renderHybridTeardown(StringBuilder source) {
+        line(source, "    @org.testng.annotations.AfterClass(alwaysRun = true)");
+        line(source, "    public void tearDownDriver() {");
+        line(source, "        driver.quit();");
+        line(source, "    }");
         line(source, "");
-
-        return new RenderedApiTest(source.toString(), artifacts, List.copyOf(skippedTransactionIds));
     }
 
     // ---- HYBRID_UI_API style: UI codegen lines interleaved with API assertResponse(...) blocks ----
@@ -299,7 +385,8 @@ public final class ApiTestRenderer {
             String methodName,
             String apiField,
             List<ApiTransaction> originTransactions,
-            ApiValidationDepth depth) {
+            ApiValidationDepth depth,
+            Set<String> pinnedJsonPaths) {
         List<CorrelatedTransaction> correlated = TransactionCorrelator.correlate(originTransactions);
         Map<String, String> valueToVariable = new LinkedHashMap<>();
         Set<String> usedVariableNames = new LinkedHashSet<>();
@@ -324,7 +411,7 @@ public final class ApiTestRenderer {
             renderRequestBody(source, transaction, valueToVariable);
             line(source, "                .setTargetStatusCode(" + transaction.statusCode() + ")");
             line(source, "                .perform();");
-            renderValidation(source, artifacts, className, apiField, transaction, ct.leaves(), depth);
+            renderValidation(source, artifacts, className, apiField, transaction, ct.leaves(), depth, pinnedJsonPaths);
             renderCorrelatedExtractions(source, apiField, ct, valueToVariable, usedVariableNames);
         }
         line(source, "    }");
@@ -357,7 +444,8 @@ public final class ApiTestRenderer {
             String className,
             String apiField,
             ApiTransaction transaction,
-            ApiValidationDepth depth) {
+            ApiValidationDepth depth,
+            Set<String> pinnedJsonPaths) {
         String requestMethod = requestMethodFor(transaction.method());
         String methodName = "recordedApiRequest_" + sanitizeIdentifier(transaction.transactionId());
         line(source, "    @Test");
@@ -379,7 +467,7 @@ public final class ApiTestRenderer {
         line(source, "                .setTargetStatusCode(" + transaction.statusCode() + ")");
         line(source, "                .perform();");
         renderValidation(source, artifacts, className, apiField, transaction,
-                ResponseNormalizer.classify(transaction.responseBody()), depth);
+                ResponseNormalizer.classify(transaction.responseBody()), depth, pinnedJsonPaths);
         line(source, "    }");
         line(source, "");
     }
@@ -577,7 +665,8 @@ public final class ApiTestRenderer {
             String apiField,
             ApiTransaction transaction,
             List<ResponseLeaf> leaves,
-            ApiValidationDepth depth) {
+            ApiValidationDepth depth,
+            Set<String> pinnedJsonPaths) {
         switch (depth) {
             case STATUS -> {
                 // setTargetStatusCode(...).perform() above already asserted the status code.
@@ -585,24 +674,45 @@ public final class ApiTestRenderer {
             case STATUS_HEADERS -> renderHeaderAssertions(source, apiField, transaction);
             case SCHEMA -> renderSchemaAssertion(source, artifacts, className, apiField, transaction);
             case FULL_BODY -> renderFullBodyAssertion(source, artifacts, className, apiField, transaction, leaves);
-            case BUSINESS -> renderBusinessAssertions(source, apiField, transaction, leaves);
+            case BUSINESS -> renderBusinessAssertions(source, apiField, transaction, leaves, pinnedJsonPaths);
             default -> throw new IllegalArgumentException("Unsupported validation depth: " + depth);
         }
     }
 
+    /**
+     * True when {@code leaf} should be pinned as a {@code BUSINESS}-depth assertion: every
+     * non-blank {@code STABLE} leaf always is; a {@code VOLATILE} or {@code CORRELATED} leaf is
+     * only pinned when its JSON path was explicitly listed in {@code pinnedJsonPaths} (issue #3530
+     * pinned-path render gate); a {@code SENSITIVE} leaf is never pinned, so a secret value is
+     * never embedded into generated source even when explicitly requested.
+     */
+    private static boolean shouldPinLeaf(ResponseLeaf leaf, Set<String> pinnedJsonPaths) {
+        if (leaf.value().isBlank()) {
+            return false;
+        }
+        if (leaf.classification() == LeafClassification.SENSITIVE) {
+            return false; // never embed a secret value in generated source, even if explicitly pinned
+        }
+        if (leaf.classification() == LeafClassification.STABLE) {
+            return true;
+        }
+        return pinnedJsonPaths.contains(leaf.jsonPath()); // explicit override for volatile/correlated leaves
+    }
+
     private static void renderBusinessAssertions(
-            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves) {
+            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves,
+            Set<String> pinnedJsonPaths) {
         // A 4xx/5xx response is a negative case: render a dedicated error-shape template that pins
         // the error code and message fields first, rather than the happy-path stable-field pinning.
         if (transaction.statusCode() >= 400) {
-            renderErrorShapeAssertions(source, apiField, transaction, leaves);
+            renderErrorShapeAssertions(source, apiField, transaction, leaves, pinnedJsonPaths);
             return;
         }
         for (ResponseLeaf leaf : leaves) {
-            // Pin only business-meaningful fields: stable values a human would check. Volatile,
-            // correlated (chained), and sensitive leaves are deliberately skipped so the assertion
-            // does not flake on generated IDs/timestamps or leak secrets.
-            if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
+            // Pin business-meaningful fields: stable values a human would check, plus any
+            // volatile/correlated leaf explicitly pinned by JSON path. Sensitive leaves are never
+            // pinned so the assertion never leaks a secret; see shouldPinLeaf.
+            if (!shouldPinLeaf(leaf, pinnedJsonPaths)) {
                 continue;
             }
             pinStableLeaf(source, apiField, leaf);
@@ -613,15 +723,17 @@ public final class ApiTestRenderer {
      * Renders a negative-case (4xx/5xx) error-shape assertion template: the HTTP status is already
      * asserted via {@code setTargetStatusCode(...)}, so this pins the stable error <em>code</em> and
      * <em>message</em> fields (recognized by well-known property names) first, then any remaining
-     * stable fields. Volatile/correlated/sensitive leaves are skipped exactly as in the happy path,
-     * so timestamps and trace IDs never flake the assertion (issue #3530 negative-case templates).
+     * stable fields. Volatile/correlated/sensitive leaves are skipped exactly as in the happy path
+     * unless explicitly pinned by JSON path, so timestamps and trace IDs never flake the assertion
+     * (issue #3530 negative-case templates and pinned-path render gate).
      */
     private static void renderErrorShapeAssertions(
-            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves) {
+            StringBuilder source, String apiField, ApiTransaction transaction, List<ResponseLeaf> leaves,
+            Set<String> pinnedJsonPaths) {
         line(source, "        // Negative-case error shape (HTTP " + transaction.statusCode()
                 + "): the status code is asserted above; pin the stable error code and message");
         line(source, "        // fields, skipping volatile diagnostics (timestamps, trace IDs) so the test documents the error contract.");
-        List<ResponseLeaf> ordered = orderedErrorLeaves(leaves);
+        List<ResponseLeaf> ordered = orderedErrorLeaves(leaves, pinnedJsonPaths);
         for (ResponseLeaf leaf : ordered) {
             pinStableLeaf(source, apiField, leaf);
         }
@@ -632,16 +744,18 @@ public final class ApiTestRenderer {
     }
 
     /**
-     * Orders an error response's stable leaves so the contract-relevant fields lead: recognized
-     * error <em>code</em> fields first, then <em>message</em> fields, then any remaining stable
-     * field. Volatile/correlated/sensitive and blank leaves are dropped.
+     * Orders an error response's assertable leaves so the contract-relevant fields lead: recognized
+     * error <em>code</em> fields first, then <em>message</em> fields, then any remaining assertable
+     * field. A leaf is assertable when {@link #shouldPinLeaf} allows it -- every non-blank
+     * {@code STABLE} leaf, plus any {@code VOLATILE}/{@code CORRELATED} leaf explicitly pinned by
+     * JSON path; {@code SENSITIVE} and blank leaves are always dropped.
      */
-    private static List<ResponseLeaf> orderedErrorLeaves(List<ResponseLeaf> leaves) {
+    private static List<ResponseLeaf> orderedErrorLeaves(List<ResponseLeaf> leaves, Set<String> pinnedJsonPaths) {
         List<ResponseLeaf> codeLeaves = new ArrayList<>();
         List<ResponseLeaf> messageLeaves = new ArrayList<>();
         List<ResponseLeaf> otherStable = new ArrayList<>();
         for (ResponseLeaf leaf : leaves) {
-            if (leaf.classification() != LeafClassification.STABLE || leaf.value().isBlank()) {
+            if (!shouldPinLeaf(leaf, pinnedJsonPaths)) {
                 continue;
             }
             String key = leaf.key().toLowerCase(Locale.ROOT);

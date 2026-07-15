@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Generates, optionally compiles, and optionally replays a {@code SHAFT.API} TestNG class from a
@@ -151,7 +152,8 @@ public final class ApiCaptureGenerator {
         ensureWithin(outputRoot, classesDirectory);
 
         RenderedApiTest rendered = ApiTestRenderer.render(request.packageName(), className,
-                analysis.transactions(), request.style(), request.validationDepth());
+                analysis.transactions(), request.style(), request.validationDepth(), Map.of(),
+                Set.copyOf(request.pinnedJsonPaths()));
         List<String> warnings = warningsFor(rendered);
 
         if (!request.overwrite() && Files.exists(sourcePath)) {
