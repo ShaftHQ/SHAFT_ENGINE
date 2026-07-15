@@ -66,12 +66,13 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Map<String, BrowserSignal> pendingClicks = new LinkedHashMap<>();
     // Collector-synthesized navigations (BiDi navigationCommitted / URL polling, blank
     // navigationSource) race the click that caused them: the native signal often reaches accept()
-    // before the click's own slower JS-channel signal, so lastInteractionAt would still be stale
+    // before the click's own slower JS-channel signal, so no interaction would be recorded yet
     // when interactionConsequence is evaluated, misclassifying a click-caused navigation as
     // spontaneous (phantom step). Buffering them one debounce window lets the click's signal —
-    // which stamps lastInteractionAt as soon as accept() sees it, regardless of buffering — win
-    // the race. Keyed by an incrementing counter, not targetKey(signal): several redirect hops
-    // within the window must each get their own consequence/duplicate evaluation, not coalesce.
+    // recorded into recentInteractionTimestamps as soon as accept() sees it, regardless of
+    // buffering — win the race. Keyed by an incrementing counter, not targetKey(signal): several
+    // redirect hops within the window must each get their own consequence/duplicate evaluation,
+    // not coalesce.
     private final Map<String, BrowserSignal> pendingNavigations = new LinkedHashMap<>();
     private long pendingNavigationSequence;
     private final Map<String, String> logicalWindows = new LinkedHashMap<>();
@@ -85,11 +86,19 @@ final class CaptureEventPipeline implements AutoCloseable {
     // A step the user revoked (dblclick coalescing, the overlay delete button) must stay deleted
     // even when the revocation overtakes the original event across channels.
     private final Set<String> deletedClientActionIds = new LinkedHashSet<>();
+    // Bounded history (not a single scalar) of recent user-interaction timestamps: a scalar
+    // "lastInteractionAt" gets overwritten by a *later, unrelated* interaction that occurs while an
+    // earlier interaction's caused navigation still sits buffered in pendingNavigations, wrongly
+    // making that navigation appear to predate its own (real, earlier) cause once evaluated
+    // against the newer interaction's timestamp instead. Regression: an ENTER-triggered search
+    // whose results page performs a second location.replace() navigation, followed shortly after
+    // by an unrelated click, misclassified both buffered navigations as spontaneous once the click
+    // advanced the old scalar past them. Pruned to the interaction window's worth of history.
+    private final List<Instant> recentInteractionTimestamps = new ArrayList<>();
     private final ScheduledExecutorService debounceExecutor;
     private long sequence;
     private String lastNavigationUrl = "";
     private Instant lastNavigationAt = Instant.EPOCH;
-    private Instant lastInteractionAt = Instant.EPOCH;
     private String lastAppendedNavigationUrl = "";
     private Instant lastAppendedNavigationAt = Instant.EPOCH;
     private String lastWindow = "";
@@ -126,8 +135,8 @@ final class CaptureEventPipeline implements AutoCloseable {
         if (isDuplicate(signal)) {
             return;
         }
-        if (isUserInteraction(signal.kind()) && signal.timestamp().isAfter(lastInteractionAt)) {
-            lastInteractionAt = signal.timestamp();
+        if (isUserInteraction(signal.kind())) {
+            recordInteraction(signal.timestamp());
         }
         try {
             switch (signal.kind()) {
@@ -312,14 +321,14 @@ final class CaptureEventPipeline implements AutoCloseable {
         boolean duplicateDelivery = url.equals(lastNavigationUrl)
                 && Duration.between(lastNavigationAt, signal.timestamp()).abs()
                 .compareTo(NAVIGATION_DEBOUNCE) < 0;
-        // Forward-only: buffered navigations are now evaluated after lastInteractionAt may have
-        // advanced past their own timestamp (a later, unrelated interaction stamped it while this
-        // navigation sat in pendingNavigations). Only a navigation at or after the interaction can
-        // be its consequence; a negative gap means this navigation predates the interaction and
-        // must never be suppressed by it.
-        Duration sinceInteraction = Duration.between(lastInteractionAt, signal.timestamp());
-        boolean interactionConsequence = !sinceInteraction.isNegative()
-                && sinceInteraction.compareTo(INTERACTION_NAVIGATION_WINDOW) < 0;
+        // Forward-only, searched against history rather than a single scalar: a buffered
+        // navigation is a consequence only of an interaction that happened at or before it, within
+        // the window. Using the closest preceding interaction (not whatever is currently most
+        // recent) keeps this correct even when a later, unrelated interaction has since occurred
+        // while this navigation sat in pendingNavigations.
+        Instant causingInteraction = mostRecentInteractionAtOrBefore(signal.timestamp());
+        boolean interactionConsequence = causingInteraction != null
+                && Duration.between(causingInteraction, signal.timestamp()).compareTo(INTERACTION_NAVIGATION_WINDOW) < 0;
         lastNavigationUrl = url;
         lastNavigationAt = signal.timestamp();
         currentUrlConsumer.accept(url);
@@ -401,6 +410,36 @@ final class CaptureEventPipeline implements AutoCloseable {
             case "click", "input", "select", "toggle", "upload", "keyboard" -> true;
             default -> false;
         };
+    }
+
+    /**
+     * Records an interaction timestamp and prunes entries older than the interaction window
+     * relative to it, keeping {@link #recentInteractionTimestamps} bounded.
+     */
+    private void recordInteraction(Instant timestamp) {
+        recentInteractionTimestamps.add(timestamp);
+        Instant cutoff = timestamp.minus(INTERACTION_NAVIGATION_WINDOW);
+        recentInteractionTimestamps.removeIf(candidate -> candidate.isBefore(cutoff));
+    }
+
+    /**
+     * Finds the most recent recorded interaction at or before {@code navigationTimestamp} -- the
+     * interaction that could plausibly have caused a navigation observed at that time. Searching
+     * history instead of comparing against whatever interaction is currently most recent is what
+     * keeps a navigation's classification stable even after a later, unrelated interaction occurs
+     * while that navigation still sits buffered in {@link #pendingNavigations}.
+     *
+     * @param navigationTimestamp the navigation's own timestamp
+     * @return the closest preceding interaction timestamp, or {@code null} if none qualifies
+     */
+    private Instant mostRecentInteractionAtOrBefore(Instant navigationTimestamp) {
+        Instant candidate = null;
+        for (Instant interaction : recentInteractionTimestamps) {
+            if (!interaction.isAfter(navigationTimestamp) && (candidate == null || interaction.isAfter(candidate))) {
+                candidate = interaction;
+            }
+        }
+        return candidate;
     }
 
     /**
