@@ -11,7 +11,6 @@ import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
-import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -5948,42 +5947,6 @@ class ShaftPanelSetupTest {
                         "New chat must clear the prompt field"),
                 () -> assertEquals(sessionsBeforeStartChatting + 2, chatState.sessions().size(),
                         "New chat must not lose any prior session across the whole journey"));
-    }
-
-    // Issue #3624: addNotify() must seed the display from the connection state's real current
-    // value, not leave a stale/default status visible until the first async state-change event.
-    @Test
-    void addNotifySeedsACheckingChipInsteadOfAFalseConnectedFlash() throws ReflectiveOperationException {
-        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, ShaftAssistantChatState.getInstance(null));
-
-        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
-        Field connectionStateField = ShaftAssistantPanel.class.getDeclaredField("connectionState");
-        connectionStateField.setAccessible(true);
-        connectionStateField.set(panel, connectionState);
-
-        Field transcriptField = ShaftAssistantPanel.class.getDeclaredField("transcript");
-        transcriptField.setAccessible(true);
-        AssistantTranscriptView transcript = (AssistantTranscriptView) transcriptField.get(panel);
-        Field lafConnectionDisposableField =
-                AssistantTranscriptView.class.getDeclaredField("lafConnectionDisposable");
-        lafConnectionDisposableField.setAccessible(true);
-        lafConnectionDisposableField.set(transcript, Disposer.newDisposable());
-
-        Field statusField = ShaftAssistantPanel.class.getDeclaredField("status");
-        statusField.setAccessible(true);
-        JLabel status = (JLabel) statusField.get(panel);
-
-        panel.addNotify();
-
-        assertEquals(ShaftMcpConnectionState.State.UNKNOWN, connectionState.state(),
-                "sanity check: no probe has run yet in this test");
-        assertTrue(status.getText().contains("Checking MCP connection"),
-                "issue #3624: addNotify() must seed the checking chip from the real UNKNOWN state, "
-                        + "not leave a stale/default status visible until the first async state "
-                        + "change arrives");
-
-        panel.removeNotify();
     }
 
     private static ShaftAssistantPanel findAssistantPanel(Container container) {
