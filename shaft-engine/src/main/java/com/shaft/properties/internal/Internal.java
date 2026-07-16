@@ -18,7 +18,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("10.3.20260715")
+    @DefaultValue("10.3.20260716")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -82,7 +82,7 @@ public interface Internal extends EngineProperties<Internal> {
      * tools are already available on the machine.
      */
     @Key("androidCommandLineToolsVersion")
-    @DefaultValue("15641748")
+    @DefaultValue("15859902")
     String androidCommandLineToolsVersion();
 
     /**
