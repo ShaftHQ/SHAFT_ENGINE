@@ -277,3 +277,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.gbrain-slug-mismatch-blocks-83-shaft-userguide-pages-extract-needs-source-db-on-db-only-brains","timestamp":"2026-07-16T22:08:23+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.managed-desktop-claude-sessions-bypass-the-headroom-proxy","timestamp":"2026-07-16T22:08:23+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.headroom-deployment-preset-migrated-to-persistent-docker-0-31-0-cli","timestamp":"2026-07-16T22:09:41+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.gbrain-always-on-setup-on-windows-schtasks-pair-not-autopilot-install","timestamp":"2026-07-16T22:22:05+03:00"}
