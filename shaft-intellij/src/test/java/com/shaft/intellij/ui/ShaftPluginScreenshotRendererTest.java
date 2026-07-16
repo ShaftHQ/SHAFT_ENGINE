@@ -43,6 +43,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -1055,8 +1056,8 @@ class ShaftPluginScreenshotRendererTest {
                     "com.shaft.intellij.settings.ShaftSettingsConfigurable$CredentialAccess");
             Object credentials = Proxy.newProxyInstance(credentialAccess.getClassLoader(), new Class<?>[]{credentialAccess},
                     (proxy, method, arguments) -> switch (method.getName()) {
-                        case "hasApiKey" -> false;
-                        case "setApiKey" -> null;
+                        case "hasApiKeyAsync" -> CompletableFuture.completedFuture(false);
+                        case "setApiKeyAsync" -> CompletableFuture.completedFuture(null);
                         default -> defaultValue(method.getReturnType());
                     });
             Constructor<ShaftSettingsConfigurable> constructor = ShaftSettingsConfigurable.class.getDeclaredConstructor(
