@@ -248,6 +248,42 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
+    void mcpCommandStartsEditableWhenNoWizardValueIsConfiguredYet() {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JBTextField command = findByAccessibleName(panel, "MCP stdio command", JBTextField.class);
+        JCheckBox manualEdit = findByAccessibleName(panel, "Edit MCP command manually", JCheckBox.class);
+
+        assertAll(
+                () -> assertTrue(command.isEditable(), "a fresh install has nothing to protect yet"),
+                () -> assertFalse(manualEdit.isVisible(), "the toggle only makes sense once there is a managed value"));
+    }
+
+    @Test
+    void mcpCommandStartsReadOnlyWhenAlreadyWizardConfiguredAndUnlocksViaManualEditToggle() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JBTextField command = findByAccessibleName(panel, "MCP stdio command", JBTextField.class);
+        JCheckBox manualEdit = findByAccessibleName(panel, "Edit MCP command manually", JCheckBox.class);
+
+        assertAll(
+                () -> assertFalse(command.isEditable(), "a managed command starts read-only"),
+                () -> assertTrue(command.isVisible(), "the configured value must still be visible, only not editable"),
+                () -> assertEquals(settings.mcpCommand, command.getText()),
+                () -> assertTrue(manualEdit.isVisible()),
+                () -> assertFalse(manualEdit.isSelected()));
+
+        manualEdit.doClick();
+
+        assertTrue(command.isEditable(), "checking the toggle should unlock direct editing");
+    }
+
+    @Test
     void clearButtonClearsFieldAndFlagsSettingsModified() {
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
                 new ShaftSettingsState.Settings(), new InMemoryCredentials());
