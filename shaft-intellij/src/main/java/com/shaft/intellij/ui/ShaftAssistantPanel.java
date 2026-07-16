@@ -119,7 +119,12 @@ final class ShaftAssistantPanel extends JPanel {
      * read as plain text, not the five-emoji list this used to be -- this was the one place emoji
      * appeared anywhere in the plugin, breaking from the wizard/Settings/rest-of-panel voice
      * (#3601 B3.3); the opening "Hi!" keeps its own emoji as the one deliberate warm-greeting
-     * accent.
+     * accent. The closing line is a first-session tooltip coach for the icon-only toolbar (#3601
+     * A3): every button in this panel is icon-only via {@code ShaftIconButtons.apply(...)} with a
+     * hover tooltip and an accessible name, but a first-time user sees a row of unlabeled icons
+     * with no hover yet. No codebase precedent for a Balloon/JBPopupFactory coach-mark exists to
+     * point at a specific control, so this reuses the same show-once welcome mechanism instead of
+     * introducing a new popup widget, naming only the two or three controls needed first.
      */
     private static final String FIRST_RUN_WELCOME_MARKDOWN =
             "👋 Hi! I'm the SHAFT Assistant — I turn what you do in your app into real tests.\n\n"
@@ -127,7 +132,9 @@ final class ShaftAssistantPanel extends JPanel {
                     + "1. Check your setup in the status strip up top.\n"
                     + "2. Record a sample flow — just click around your app.\n"
                     + "3. Review code to turn it into a real test.\n"
-                    + "4. Or just tell me what you need below.";
+                    + "4. Or just tell me what you need below.\n\n"
+                    + "Every button around this panel is an icon with a tooltip — hover any of them "
+                    + "for its name; the ones you'll reach for first are New chat, Send, and Copy response.";
     private final Project project;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
     // one process-wide flag (issue #3591 item 3).
