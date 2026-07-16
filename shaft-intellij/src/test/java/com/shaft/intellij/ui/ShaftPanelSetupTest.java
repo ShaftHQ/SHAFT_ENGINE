@@ -1430,6 +1430,61 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void doneStepRowCollapsesOnceLaterStepIsActiveAndReExpandsOnClick() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        // "2 Pick agent" reaches done, and "3 Install SHAFT MCP" is still next -- the flow has
+        // moved past the choose row, so it should collapse (issue #3601 S2) while install stays
+        // fully expanded, since it is the step actually in front of the user.
+        settings.agentLaneReady = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JPanel installRow = (JPanel) getField(panel, "installRow");
+        JComboBox<?> familyCombo = findByAccessibleName(chooseRow, "Assistant family", JComboBox.class);
+        JButton checkMcpVersionButton = findByAccessibleName(installRow, "Check SHAFT MCP version", JButton.class);
+        JLabel chooseState = (JLabel) getField(panel, "chooseState");
+        JComponent chooseAction = stepRowAction(panel, chooseRow);
+        JComponent installAction = stepRowAction(panel, installRow);
+
+        assertAll(
+                () -> assertNotNull(familyCombo),
+                () -> assertNotNull(checkMcpVersionButton),
+                () -> assertFalse(chooseAction.isVisible(),
+                        "Choose-agent row is done and a later step is active, so its detail should collapse"),
+                () -> assertTrue(installAction.isVisible(),
+                        "Install row is the active/next step and must stay fully expanded"),
+                () -> assertFalse(effectivelyVisible(familyCombo, chooseRow),
+                        "The collapsed row's own controls (e.g. the agent combo) must not render either"),
+                () -> assertTrue(countVisibleComponents(chooseRow) < countVisibleComponents(installRow),
+                        "A collapsed done row should show fewer visible sub-components than the active row"));
+
+        // A click on the collapsed row's remaining state badge re-expands it for inspection.
+        notifyMouseListeners(chooseState, new MouseEvent(
+                chooseState, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, 2, 2, 1, false,
+                MouseEvent.BUTTON1));
+        assertTrue(chooseAction.isVisible(), "A click on a collapsed done row must re-expand it for inspection");
+    }
+
+    private static JComponent stepRowAction(ShaftMcpSetupPanel panel, JPanel row) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("stepRowAction", JPanel.class);
+        method.setAccessible(true);
+        return (JComponent) method.invoke(panel, row);
+    }
+
+    private static boolean effectivelyVisible(Component component, Component root) {
+        for (Component current = component; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+            if (current == root) {
+                break;
+            }
+        }
+        return true;
+    }
+
+    @Test
     void toolWindowHidesAdvancedWorkflowsByDefault() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
@@ -5307,6 +5362,19 @@ class ShaftPanelSetupTest {
                 walkComponents(child, visitor);
             }
         }
+    }
+
+    private static int countVisibleComponents(Component root) {
+        AtomicInteger count = new AtomicInteger();
+        // A descendant's own isVisible() flag does not fall when an ancestor is hidden (Swing only
+        // skips it at paint/layout time), so "effectively visible" is what a collapsed row's
+        // reduced footprint actually means here.
+        walkComponents(root, component -> {
+            if (effectivelyVisible(component, root)) {
+                count.incrementAndGet();
+            }
+        });
+        return count.get();
     }
 
     // ------------------------------------------------------------------
