@@ -257,3 +257,11 @@
 {"actor":"agent","event":"memory.updated","id":"decision.shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename","timestamp":"2026-07-16T12:36:26+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.agent-guidance-token-audit-3606-restructured-test-driven-development-only-declined-act-as-fable-and-ponytail-with-documented-reasoning","timestamp":"2026-07-16T12:49:41+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-loads-token-budget-flag-is-advisory-only-not-enforced-real-output-can-run-15-60x-over-the-requested-budget","timestamp":"2026-07-16T12:49:41+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.mcp-gbrain-put-page-write-through-can-drop-a-real-file-into-the-callers-working-directory","timestamp":"2026-07-16T16:30:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.gbrain-mcp-adoption-spike-3611-not-ready-to-replace-or-pair-with-memory-as-of-2026-07-16","timestamp":"2026-07-16T16:31:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.graphify-nudge-test-minimal","timestamp":"2026-07-16T16:32:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.graphify-nudge-test-with-env-var-token","timestamp":"2026-07-16T16:33:04+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.issue-3611-graphify-pre-check-added-a-non-blocking-pretooluse-nudge-to-guard-py-r5-not-enforcement","timestamp":"2026-07-16T16:33:21+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.graphify-nudge-full-body-test","timestamp":"2026-07-16T16:33:41+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.graphify-nudge-full-body-test-part2","timestamp":"2026-07-16T16:34:01+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.issue-3611-graphify-pre-check-added-a-non-blocking-pretooluse-nudge-to-guard-py-r5-not-enforcement","timestamp":"2026-07-16T16:35:22+03:00"}

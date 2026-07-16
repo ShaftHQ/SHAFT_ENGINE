@@ -1,0 +1,1 @@
+Calling mcp__gbrain__put_page from within a git working directory produced a response with write_through.written=true and write_through.path pointing at a real .md file created at the repo root (not inside gbrain's own store). This is an untracked-file side effect that git status will show and that must be cleaned up before committing -- it is not merely a remote database write.
