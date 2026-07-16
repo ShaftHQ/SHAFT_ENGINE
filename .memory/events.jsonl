@@ -255,3 +255,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftsettingsconfigurable-createcomponent-calls-reset-internally-so-a-just-constructed-panel-never-observes-raw-constructor-default-label-state","timestamp":"2026-07-16T12:36:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftmcpsetuppanel-recommendedagent-text-is-frozen-at-construction-recommendfamily-settings-runs-exactly-once-into-a-final-field","timestamp":"2026-07-16T12:36:05+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename","timestamp":"2026-07-16T12:36:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.agent-guidance-token-audit-3606-restructured-test-driven-development-only-declined-act-as-fable-and-ponytail-with-documented-reasoning","timestamp":"2026-07-16T12:49:41+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.memory-loads-token-budget-flag-is-advisory-only-not-enforced-real-output-can-run-15-60x-over-the-requested-budget","timestamp":"2026-07-16T12:49:41+03:00"}
