@@ -35,6 +35,7 @@ ALLOWED_GLOBS = (
     ".github/skills/**/*.md",
     ".memory/memory/*.md",
     ".memory/memory/**/*.md",
+    "skills/*/SKILL.md",
     "shaft-skills/*.md",
     "shaft-skills/**/*.md",
     "tools/**/*.md",
@@ -50,6 +51,7 @@ IGNORED_DIRECTORIES = {
     "allure-report",
     "allure-results",
     "build",
+    "graphify-out",
     "node_modules",
     "target",
 }

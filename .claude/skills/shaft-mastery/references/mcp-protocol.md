@@ -39,7 +39,6 @@ must self-heal from a missing store, never wedge until process death
   control-channel that doesn't exist on raw stdio (PR #3373→#3410).
 
 ## Tool design
-Verb_noun names, flat JSON-schema args with defaults, one tool = one
-user-meaningful outcome; return structured content the model can consume
-without re-parsing prose. Reject dangerous generated code server-side
+Verb_noun names, flat args, one tool = one user-meaningful outcome,
+structured content out. Reject dangerous generated code server-side
 (`test_code_guardrails_check` pattern) rather than trusting client prompts.

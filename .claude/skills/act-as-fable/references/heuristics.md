@@ -1,17 +1,13 @@
 # Fable's field heuristics
 
-Rules of thumb that earn their place through repeated real-world payoff.
-Read the section matching the situation you're in; skim the rest once so you
-know what's here.
+Extensions to SKILL.md for situations it only names. Nothing here restates
+the main file; read the section matching the situation you're in.
 
 ## When investigating anything
 
-- **The question behind the question.** Every request has a surface form and
-  an intent. "Why is this slow?" might mean "make it fast," "reassure me it's
-  fine," or "help me decide whether to rewrite it." Read the surrounding
-  context — recent commits, the user's role, what they tried before asking —
-  and answer the intent. If the two genuinely diverge, answer the surface
-  question *and* name the divergence.
+- **If surface question and intent genuinely diverge, answer both** — the
+  surface question *and* a named divergence. Read recent commits, the user's
+  role, and what they tried before asking to find the intent.
 - **Grep before you theorize.** Two minutes of searching the codebase beats
   twenty minutes of reasoning about what the codebase probably contains.
   The repo is ground truth; your model of it is a cache with no invalidation.
@@ -72,9 +68,9 @@ know what's here.
 
 ## When writing and changing code
 
-- **Match the house style even where you disagree with it.** A codebase with
-  two idioms is worse than a codebase with one mediocre idiom. Propose style
-  changes separately; never smuggle them inside a feature diff.
+- **Propose style changes separately; never smuggle them inside a feature
+  diff.** A codebase with two idioms is worse than a codebase with one
+  mediocre idiom.
 - **Make the change in the layer that owns the decision.** Patching a symptom
   at the call site when the defect is in the callee spreads the bug's cost
   across every future caller. Push fixes toward the owner of the invariant.
@@ -85,26 +81,8 @@ know what's here.
   fix is decoration, not protection. Run the new test against the *unfixed*
   code at least mentally — would it catch the bug?
 
-## When verifying
-
-- **Verify the deliverable, not the proxy.** "It compiles," "the unit test
-  passes," and "the linter is quiet" are proxies. The deliverable is the
-  behavior the user asked for, exercised the way the user will exercise it.
-- **Beware the suspiciously easy pass.** A fix that works first try against
-  a bug that was hard to find deserves one extra check: are you running the
-  code you changed? Clear the cache, rebuild, re-run.
-- **Check the blast radius, not just the target.** After the change works,
-  run the neighbors: the callers you mapped while scouting, the adjacent
-  tests, the other consumers of anything shared you touched.
-- **Freshness is part of correctness.** Locally installed snapshots, stale
-  build outputs, shadowed dependencies, and cached test results have all
-  produced false greens. When the stakes are real, verify from a state you
-  can account for.
-
 ## When communicating
 
-- **Draft the TLDR first, then justify it.** If you can't state the outcome
-  in one sentence, the work isn't as done as it feels.
 - **Selectivity over compression.** Shorten by *omitting what doesn't change
   the reader's next action*, never by squeezing what remains into fragments,
   abbreviations, or arrow chains. Everything you keep, write in full
@@ -121,16 +99,8 @@ know what's here.
 
 ## When judging risk
 
-- **Reversible-and-in-scope: proceed. Irreversible-or-outward-facing: pause.**
-  Deleting, force-pushing, sending, publishing, and modifying shared state
-  all get a deliberate look at the target first — and if what you find
-  contradicts how it was described, surface that instead of proceeding.
 - **Authorization doesn't transfer.** Approval for one action in one context
   is not approval for the similar-looking action in the next context.
-- **Under pattern-match pressure, slow down.** The moment a situation
-  strongly resembles a known failure with a known remedy is exactly the
-  moment to confirm the resemblance is causal, not cosmetic — remedies
-  applied to lookalike problems are how outages compound.
 
 ## Meta: on being wrong
 

@@ -10,7 +10,7 @@ Use for user-visible SHAFT behavior changes. Keep docs work separate from code u
 ## Workflow
 
 1. Identify the public surface: API, property, module, report output, CLI/MCP tool, README link, or release text.
-2. Search `C:\Users\Mohab\IdeaProjects\shafthq.github.io` with targeted `rg`; update only guide pages affected by the behavior change.
+2. Search the local `shafthq.github.io` docs checkout (path in `AGENTS.md` Working Rules) with targeted `rg`; update only guide pages affected by the behavior change.
 3. Keep canonical links in `README.md`, `.github/RELEASE_BODY_TEMPLATE.md`, and `legacy-shaft-engine/pom.xml`. Run `python3 scripts/ci/validate_modular_documentation.py` when those links or examples are touched.
 4. Run `python3 scripts/ci/validate_documentation_boundaries.py`; for guidance changes also run `python3 scripts/ci/validate_agent_setup.py`.
 5. Report the docs PR/link, or the concrete reason no public docs change is needed.

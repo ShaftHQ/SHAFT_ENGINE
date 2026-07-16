@@ -10,7 +10,7 @@ Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure
 
 ## New Task Flow
 
-For edits: preserve work; at session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse for the whole session -- sub-tasks are commits, not new branches. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR for the session. Draft only if blocked/incomplete/requested.
+At session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse all session -- sub-tasks are commits, not new branches. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR per session. Draft only if blocked/incomplete/requested.
 
 ## Working Rules
 
@@ -21,7 +21,7 @@ For edits: preserve work; at session start fetch/prune, branch/worktree fresh `c
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`/excerpts. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
-- Blockers/small issues in path: fix inline. Enhancements/non-blocking issues noticed: never silently drop -- route via the Learning Loop. Don't hunt for extras.
+- Blockers/small issues in path: fix inline. Enhancements/non-blocking issues: never silently drop -- route via the Learning Loop. Don't hunt for extras.
 
 ## Windows/Codex Safety
 
@@ -29,7 +29,7 @@ No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`/`ii`, `Start-Process
 
 ## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`. Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`; `gbrain query`/`code-def` for semantic retrieval -- supplements, never replaces (`skills/retrieval-reflex/`; autopilot syncs). Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
 
 Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> followup GitHub issue (search first; consolidate related). Nothing durable is a valid outcome -- say so.
 
@@ -37,31 +37,36 @@ Learning Loop (every session): note learnings as they surface; before Completion
 
 Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or disposable copy. Use the smallest non-redundant check; rerun passing checks only after edits/rebases/dependency changes.
 
-- Guidance/memory: `python3 scripts/ci/validate_agent_setup.py`; Win `py -3 ...`
+- Guidance/memory: `py -3`/`python3 scripts/ci/validate_agent_setup.py`
 - Local code: affected tests, then one compile/package.
 - IntelliJ plugin: Gradle 9+ + JDK 21; screenshots via `ShaftPluginScreenshotRendererTest -Dshaft.intellij.screenshotDir=...`.
 - Shared API/build/release: targeted, then full compile/package.
-- Visual: relevant test plus image/browser evidence.
+- Visual: relevant test + image/browser evidence.
 - UI/report PRs need screenshots; draft/report if blocked.
 - External/cloud E2E: required infra only.
 
 PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`, `|`. Confirm Allure before SHAFT verdicts.
 
-## Agentic Skills & MCP Tools
+## Skills & MCP
 
-#3292 adopted 8 skills/MCP servers (`.claude/settings.json`, `.mcp.json`). Route by task shape; skip-rules bind:
+`.claude/settings.json` + `.mcp.json`. Route by task shape; skip-rules bind:
 
-- Plugin Swing UI: `frontend-design` (net-new surfaces only) -> `design` critique/UX copy -> `jdtls-lsp` -> JetBrains IDE MCP inspections when enabled (optional, per-dev) -> plugin screenshot renderer -> heuristic `accessibility-review` on renders. `webapp-testing` is Playwright; it cannot see Swing.
+- Plugin Swing UI: `frontend-design` (net-new surfaces only) -> `design` critique/UX copy -> `jdtls-lsp` -> JetBrains IDE MCP inspections (optional, per-dev) -> plugin screenshot renderer -> `accessibility-review` on renders. `webapp-testing` (Playwright) cannot see Swing.
 - Docs/report web UI: `frontend-design` -> `design` critique -> implement -> `webapp-testing` evidence -> `accessibility-review`. `chrome-devtools-mcp` only for perf/network regressions.
-- Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (skip when in-tree: `rg` a pom beats a Docker cold start) -> `ci-failure-investigator` on breakage.
-- `context7`: only past-training-cutoff APIs (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Jackson 3, Selenium 4.45, Docusaurus 3.10/React 19); else repo exemplars win.
-- Skip `jdtls-lsp` for one-liners; value scales with cross-module symbol impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
-- Repo `.claude/skills/`: `act-as-fable` methodology (binding for non-Fable models on nontrivial work); `shaft-mastery` 10 domain chapters -- load the matching chapter before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor with scoped headless runs; `graphify`.
+- Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree facts: just `rg` the pom) -> `ci-failure-investigator` on breakage.
+- `context7`: past-cutoff library APIs only, else repo exemplars.
+- Skip `jdtls-lsp` for one-liners; value scales with cross-module impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
+- Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model); `shaft-mastery` 10 chapters -- load the matching one before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor, scoped headless runs; `graphify`.
+- Local infra: headroom proxy fronts Claude Code (`127.0.0.1:8787/readyz`); gbrain autopilot + `gbrain-ollama` Docker back retrieval (docs `maintainers/agent-tooling`).
 
 ## Agent Hierarchy & Model Routing
 
-Main thread owns all substantive implementation, integration, and final verification with real checks. Never create/run workflows (no Workflow tool or saved workflows; `.claude/workflows/` stays deleted) or orchestrators. Bounded, main-thread-reviewed delegation by model tier: Opus -- read-only architecture/planning research (Explore/Plan; load `act-as-fable`; verify claims against real files/logs). Sonnet -- implementation; a subagent may build one well-bounded component against a detailed written spec, with main-thread review/tests/integration (#3433 precedent). Haiku -- minor low-risk mechanical edits under review; summarizing long logs/reports; bulk repetitive triage. Token discipline: subagents return conclusions, not file dumps; check the graphify cache before broad exploration. PDCA personas Kevin/Bob/Bruce are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways.
+Main thread owns substantive implementation, integration, and final verification with real checks. No Workflow tool, saved workflows (`.claude/workflows/` stays deleted), or orchestrators. Bounded, main-thread-reviewed delegation by model tier: Opus -- read-only architecture/planning research (Explore/Plan; verify claims against real files/logs). Sonnet -- one well-bounded component against a detailed written spec, main-thread review/tests/integration. Haiku -- low-risk mechanical edits under review; log/report summaries; bulk triage. Subagents return conclusions, not file dumps; check the graphify cache before broad exploration. PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
 
 ## Completion
 
-Report changes/checks/outcomes plus Learning Loop results: memory/graphify/skill/issue updates, or none.
+Report changes/checks/outcomes + Learning Loop results: memory/graphify/skill/issue updates, or none.
+
+<!-- gbrain:retrieval-reflex:resolver-rows -->
+- retrieval-reflex | salient class/module/subsystem/incident; brain-page pointer in context; asserting a non-trivial repo detail
+<!-- /gbrain:retrieval-reflex:resolver-rows -->
