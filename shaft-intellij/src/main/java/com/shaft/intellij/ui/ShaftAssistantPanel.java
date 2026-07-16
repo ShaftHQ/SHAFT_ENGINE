@@ -802,6 +802,10 @@ final class ShaftAssistantPanel extends JPanel {
         startHeartbeat();
         if (connectionState != null) {
             connectionState.addStateChangeListener(connectionStateListener);
+            // Issue #3624: seed the display from the real current state immediately, instead of
+            // leaving whatever text was last set (or the constructor default) visible until the
+            // first async state-change event arrives.
+            updateConnectionDisplay();
         }
     }
 
@@ -3596,12 +3600,18 @@ final class ShaftAssistantPanel extends JPanel {
         if (connectionState == null) {
             return;
         }
-        boolean connected = connectionState.isConnected();
-        reconnect.setVisible(!connected);
-        if (!connected && !running) {
+        ShaftMcpConnectionState.State state = connectionState.state();
+        reconnect.setVisible(state == ShaftMcpConnectionState.State.DISCONNECTED);
+        if (state == ShaftMcpConnectionState.State.DISCONNECTED && !running) {
             setStatus(ShaftStatusPresentation.DISCONNECTED_ICON + " MCP disconnected. Click 'Reconnect' to restore.");
             status.setForeground(ShaftStatusPresentation.disconnected());
-        } else if (connected && status.getText().contains("MCP disconnected")) {
+        } else if (state == ShaftMcpConnectionState.State.UNKNOWN && !running) {
+            // Issue #3624: neutral "checking" chip instead of assuming connected while the first
+            // heartbeat probe is still in flight.
+            setStatus(ShaftStatusPresentation.PENDING_ICON + " Checking MCP connection...");
+            status.setForeground(ShaftStatusPresentation.pending());
+        } else if (state == ShaftMcpConnectionState.State.CONNECTED
+                && (status.getText().contains("MCP disconnected") || status.getText().contains("Checking MCP connection"))) {
             setStatus(READY_STATUS);
             status.setForeground(javax.swing.UIManager.getColor("Label.foreground"));
         }

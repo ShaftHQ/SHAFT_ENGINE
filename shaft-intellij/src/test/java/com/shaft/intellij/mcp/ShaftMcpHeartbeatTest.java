@@ -100,16 +100,46 @@ class ShaftMcpHeartbeatTest {
     }
 
     @Test
+    void connectionStateStartsUnknownNotAssumedConnected() {
+        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+
+        assertTrue(connectionState.isUnknown(), "Should start UNKNOWN, not assumed connected (issue #3624)");
+        assertFalse(connectionState.isConnected(), "isConnected() must be false while UNKNOWN");
+        assertEquals(ShaftMcpConnectionState.State.UNKNOWN, connectionState.state());
+    }
+
+    @Test
     void connectionStateTracksConnectedStatus() {
         ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
 
-        assertTrue(connectionState.isConnected(), "Should start connected");
-
         connectionState.setConnected(false);
         assertFalse(connectionState.isConnected(), "Should be disconnected after setConnected(false)");
+        assertEquals(ShaftMcpConnectionState.State.DISCONNECTED, connectionState.state());
 
         connectionState.setConnected(true);
         assertTrue(connectionState.isConnected(), "Should be connected after setConnected(true)");
+        assertEquals(ShaftMcpConnectionState.State.CONNECTED, connectionState.state());
+    }
+
+    @Test
+    @org.junit.jupiter.api.Timeout(10)
+    void startProbesImmediatelyInsteadOfWaitingTheFullPingInterval() throws Exception {
+        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+        CountDownLatch probeRan = new CountDownLatch(1);
+        ShaftMcpHeartbeat heartbeat = new ShaftMcpHeartbeat(connectionState,
+                Optional::empty,
+                () -> {
+                    probeRan.countDown();
+                    return CompletableFuture.completedFuture(ShaftMcpToolResult.success("pong"));
+                });
+        try {
+            heartbeat.start();
+            assertTrue(probeRan.await(5, TimeUnit.SECONDS),
+                    "issue #3624: the first probe must run immediately on start(), not after the "
+                            + "full 30s PING_INTERVAL_MILLIS");
+        } finally {
+            heartbeat.dispose();
+        }
     }
 
     @Test
