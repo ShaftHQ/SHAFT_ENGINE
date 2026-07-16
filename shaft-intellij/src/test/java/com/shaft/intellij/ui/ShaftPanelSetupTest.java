@@ -1522,6 +1522,31 @@ class ShaftPanelSetupTest {
         assertTrue(chooseAction.isVisible(), "A click on a collapsed done row must re-expand it for inspection");
     }
 
+    @Test
+    void doneStepRowToggleIsKeyboardReachable() throws Exception {
+        // The re-expand toggle above is threaded through a MouseAdapter only; a screen-reader or
+        // keyboard-only user has no mouse to click with, so the row itself must be focusable and
+        // carry an Enter/Space key binding equivalent to the click (#3601 a11y audit).
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.agentLaneReady = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JComponent chooseAction = stepRowAction(panel, chooseRow);
+        assertFalse(chooseAction.isVisible(), "Choose-agent row should start collapsed for this scenario");
+        assertTrue(chooseRow.isFocusable(), "A collapsed row's re-expand toggle must be reachable by keyboard");
+        assertNotNull(accessibleName(chooseRow), "The focusable row needs an accessible name for screen readers");
+
+        Action enterAction = shortcutAction(chooseRow, JComponent.WHEN_FOCUSED, KeyEvent.VK_ENTER, 0);
+        enterAction.actionPerformed(new ActionEvent(chooseRow, ActionEvent.ACTION_PERFORMED, "toggle"));
+        assertTrue(chooseAction.isVisible(), "Enter on a focused collapsed row must re-expand it, like a click");
+
+        Action spaceAction = shortcutAction(chooseRow, JComponent.WHEN_FOCUSED, KeyEvent.VK_SPACE, 0);
+        spaceAction.actionPerformed(new ActionEvent(chooseRow, ActionEvent.ACTION_PERFORMED, "toggle"));
+        assertFalse(chooseAction.isVisible(), "Space toggles the row again, collapsing it back");
+    }
+
     private static JComponent stepRowAction(ShaftMcpSetupPanel panel, JPanel row) throws Exception {
         Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("stepRowAction", JPanel.class);
         method.setAccessible(true);

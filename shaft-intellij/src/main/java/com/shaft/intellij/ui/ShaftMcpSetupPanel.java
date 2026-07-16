@@ -2019,10 +2019,15 @@ final class ShaftMcpSetupPanel extends JPanel {
      * the file's only row-click idiom, so both the row panel and its two always-visible labels get
      * the same listener — otherwise a click landing on the label/badge text itself (the only visible
      * surface once collapsed) would be swallowed by the child component instead of reaching the row.
+     * Focusable with an Enter/Space key binding (#3601 a11y audit): a plain {@code MouseListener}
+     * has no keyboard equivalent, so without this the toggle would be unreachable without a mouse.
      */
     private void installRowInspectionToggle(JPanel row, JLabel label, JLabel stateLabel) {
+        row.setFocusable(true);
+        row.getAccessibleContext().setAccessibleName(label.getAccessibleContext().getAccessibleName() + " row");
         row.getAccessibleContext().setAccessibleDescription(
-                "Click to show or hide this step's detail once it is complete.");
+                "Click, or focus and press Enter or Space, to show or hide this step's detail once it is "
+                        + "complete.");
         java.awt.event.MouseAdapter toggle = new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent event) {
@@ -2032,6 +2037,17 @@ final class ShaftMcpSetupPanel extends JPanel {
         row.addMouseListener(toggle);
         label.addMouseListener(toggle);
         stateLabel.addMouseListener(toggle);
+        javax.swing.Action toggleAction = new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                toggleStepRowInspection(row);
+            }
+        };
+        row.getInputMap(JComponent.WHEN_FOCUSED).put(
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "toggleStepRowInspection");
+        row.getInputMap(JComponent.WHEN_FOCUSED).put(
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "toggleStepRowInspection");
+        row.getActionMap().put("toggleStepRowInspection", toggleAction);
     }
 
     private void toggleStepRowInspection(JPanel row) {
