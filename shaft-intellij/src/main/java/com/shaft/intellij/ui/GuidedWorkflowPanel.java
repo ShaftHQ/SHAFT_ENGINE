@@ -116,6 +116,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         codeSnippet.setWrapStyleWord(true);
         recorderStatus = new JLabel("Recorder idle.");
         recorderStatus.getAccessibleContext().setAccessibleName("Recorder status");
+        // Accessible description mirrors the live status text (issue #3603): the name above stays a
+        // stable, test-id-safe category label, but a screen reader also needs the actual live status
+        // -- see setRecorderStatus(String), the single choke point every later update runs through.
+        recorderStatus.getAccessibleContext().setAccessibleDescription(recorderStatus.getText());
         recorderStatus.setBorder(JBUI.Borders.empty(2, 0));
         // Status is the primary surface signal (issue #3500 G2): louder than the collapsed form.
         recorderStatus.setFont(recorderStatus.getFont().deriveFont(Font.BOLD, recorderStatus.getFont().getSize2D() + 2f));
@@ -189,6 +193,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         JLabel advancedHint = new JLabel(
                 "Need a starting template or advanced controls? Open Advanced options below.");
         advancedHint.getAccessibleContext().setAccessibleName("Advanced options hint");
+        // Issue #3603: the name above is a stable category label; the description carries the
+        // actual informational text so a screen reader hears it, not just the generic name.
+        advancedHint.getAccessibleContext().setAccessibleDescription(advancedHint.getText());
         advancedHint.setForeground(JBColor.namedColor("Label.disabledForeground", JBColor.GRAY));
         advancedHint.setBorder(JBUI.Borders.empty(2, 0));
         advancedHint.setVisible(!this.settings.advancedUiEnabled);
@@ -1101,6 +1108,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void setRecorderStatus(String text) {
         recorderStatus.setText(text);
         recorderStatus.setToolTipText(text);
+        recorderStatus.getAccessibleContext().setAccessibleDescription(text);
     }
 
     private static void onEdt(Runnable action) {

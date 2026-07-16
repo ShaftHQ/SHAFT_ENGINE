@@ -803,7 +803,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         ShaftSettingsState.Settings state = settingsProvider.get();
-        currentAgentConfiguration.setText(currentAgentConfigurationText(state));
+        String currentAgentConfigurationText = currentAgentConfigurationText(state);
+        currentAgentConfiguration.setText(currentAgentConfigurationText);
+        // Accessible description mirrors the live agent configuration text (issue #3603): the name
+        // stays a stable category label, but a screen reader also needs to hear which agent/runtime
+        // is actually configured, which changes as the user reconfigures the route.
+        currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(currentAgentConfigurationText);
         boolean advanced = advancedUiEnabled != null && advancedUiEnabled.isSelected();
         if (!advanced && "CLOUD".equals(assistantProviderType.getSelectedItem())) {
             assistantProviderType.setSelectedItem("LOCAL");

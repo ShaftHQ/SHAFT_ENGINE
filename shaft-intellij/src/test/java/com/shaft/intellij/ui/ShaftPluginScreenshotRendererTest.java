@@ -128,6 +128,7 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
         Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
         Path assistantFailureRecoveryCardScreenshot = outputPath.resolve("intellij-plugin-assistant-failure-recovery-card.png");
+        Path assistantToolResultRawOutputScreenshot = outputPath.resolve("intellij-plugin-assistant-tool-result-raw-output.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
         Path assistantModelFallbackScreenshot = outputPath.resolve("intellij-plugin-assistant-model-fallback.png");
         Path assistantSlashCommandsScreenshot = outputPath.resolve("intellij-plugin-assistant-slash-commands.png");
@@ -165,6 +166,7 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
         write(assistantFailureRecoveryCardScreenshot, renderAssistantFailureRecoveryCard(LIGHT_THEME, false));
+        write(assistantToolResultRawOutputScreenshot, renderAssistantToolResultRawOutput(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
         write(assistantModelFallbackScreenshot, renderAssistantModelFallback(LIGHT_THEME, false));
         write(assistantSlashCommandsScreenshot, renderAssistantSlashCommands(LIGHT_THEME, false));
@@ -571,6 +573,48 @@ class ShaftPluginScreenshotRendererTest {
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /**
+     * Renders a tool-result bubble with its "Show raw output" disclosure expanded (issue #3601 A5):
+     * narrative-first tool results now carry the raw evidence behind a real per-message Swing
+     * toggle instead of only a bulk "Copy full transcript" appendix. Seeded the same way {@link
+     * #renderAssistantFailureRecoveryCard} is, but through the 3-arg {@link
+     * ShaftAssistantPanel#simulateAppendForTest} with non-blank raw evidence so the disclosure
+     * actually renders, then {@link #clickAccessible} drives the same toggle a user would click.
+     */
+    private static BufferedImage renderAssistantToolResultRawOutput(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            String rawOutput = """
+                    {
+                      "schemaVersion": "1.0",
+                      "status": "DETERMINISTIC",
+                      "bundleId": "bundle-789",
+                      "primaryCause": "LOCATOR",
+                      "confidence": "HIGH",
+                      "summary": "The checkout submit button locator no longer matches the page after a redesign."
+                    }
+                    """;
+            String cardMarkdown = ShaftAssistantPanel.toolCardMarkdown(
+                    "doctor_analyze_failed_allure", ShaftMcpToolResult.success(rawOutput), null);
+            component.simulateAppendForTest("assistant", cardMarkdown, rawOutput);
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            clickAccessible(component, "Show raw output");
             layout(component, !dark);
             image.set(render(component, WIDTH, HEIGHT));
         });

@@ -1168,7 +1168,11 @@ class ShaftPanelSetupTest {
                     () -> assertNotNull(adoptedHint),
                     () -> assertFalse(effectivelyVisible(adoptedHint, adoptedPanel),
                             "Hint must not show for a project already on SHAFT"),
-                    () -> assertNotNull(dismiss));
+                    () -> assertNotNull(dismiss),
+                    // Issue #3603: the accessible name stays the short, stable "Fresh project
+                    // hint" (test-id-safe), but a screen reader also needs the actual hint text.
+                    () -> assertEquals(freshHint.getText(),
+                            freshHint.getAccessibleContext().getAccessibleDescription()));
 
             dismiss.doClick();
             assertFalse(effectivelyVisible(freshHint, freshPanel),
@@ -1423,6 +1427,86 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(findByAccessibleName(testPanel, "Test SHAFT MCP connection", JButton.class).isEnabled()));
         clickAccessible(testPanel, "Copy setup diagnostic output");
         assertTrue(copied.get().contains("Category: Maven artifact resolution"));
+    }
+
+    @Test
+    void setupPanelAccessibleDescriptionsTrackLiveStatusRecoveryChecklistAndToastAcrossUpdates() throws Exception {
+        // Issue #3603: setupSummary/status/recoveryStatus/readyChecklist/toast keep a short,
+        // stable accessible NAME (test-id-safe, e.g. "SHAFT MCP setup next step"), but a screen
+        // reader also needs the live, real content those labels display -- carried by the
+        // accessible DESCRIPTION, which must keep tracking every later update, not just the first.
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe());
+        AtomicReference<String> copied = new AtomicReference<>();
+        // toastSink is intentionally left as the real showToast(...) (unlike other tests that
+        // override it to capture the message) so the toast JLabel itself is actually driven --
+        // that live-updated label is what this test verifies the accessible description of.
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+
+        JLabel status = findByAccessibleName(panel, "SHAFT MCP setup next step", JLabel.class);
+        JLabel readyChecklist = findByAccessibleName(panel, "Setup ready checklist", JLabel.class);
+        JLabel recoveryStatus = findByAccessibleName(panel, "SHAFT MCP recovery summary", JLabel.class);
+        JLabel toastLabel = findByAccessibleName(panel, "SHAFT setup clipboard toast", JLabel.class);
+        JLabel setupSummary = findByAccessibleName(panel, "SHAFT MCP setup summary", JLabel.class);
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
+        assertAll(
+                () -> assertNotNull(status),
+                () -> assertNotNull(readyChecklist),
+                () -> assertNotNull(recoveryStatus),
+                () -> assertNotNull(toastLabel),
+                () -> assertNotNull(setupSummary));
+        // setupSummary already reflects the live target/runtime selection as soon as the panel is
+        // built (updateLiveSummary() runs during construction), so the description must already
+        // mirror that live text rather than the static placeholder setText() was first given.
+        String initialSetupSummaryDescription = setupSummary.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(setupSummary.getText(), initialSetupSummaryDescription),
+                () -> assertTrue(initialSetupSummaryDescription.contains("CODEX"), initialSetupSummaryDescription));
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
+        String firstStatusDescription = status.getAccessibleContext().getAccessibleDescription();
+        String firstChecklistDescription = readyChecklist.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(status.getToolTipText(), firstStatusDescription),
+                () -> assertFalse(firstStatusDescription.isBlank()),
+                () -> assertEquals(readyChecklist.getText(), firstChecklistDescription),
+                () -> assertTrue(firstChecklistDescription.contains("Ready to record"), firstChecklistDescription));
+
+        // Live-update proof for setupSummary: switching the assistant family/runtime must update
+        // the description to the NEW target/runtime text, not just retain the initial selection.
+        family.setSelectedItem("CLAUDE");
+        runtime.setSelectedItem("DESKTOP_APP");
+        String secondSetupSummaryDescription = setupSummary.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(setupSummary.getText(), secondSetupSummaryDescription),
+                () -> assertTrue(secondSetupSummaryDescription.contains("CLAUDE"), secondSetupSummaryDescription),
+                () -> assertNotEquals(initialSetupSummaryDescription, secondSetupSummaryDescription,
+                        "the description must track the live target/runtime summary after it changes"));
+
+        // Live-update proof: a second, different result (a failure) must update the descriptions to
+        // their NEW text, not just retain what the first successful check produced.
+        showTestResult(panel, ShaftMcpToolResult.failure("Could not resolve artifact io.github.shafthq:shaft-mcp"));
+        String secondStatusDescription = status.getAccessibleContext().getAccessibleDescription();
+        String secondChecklistDescription = readyChecklist.getAccessibleContext().getAccessibleDescription();
+        String recoveryDescription = recoveryStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(status.getToolTipText(), secondStatusDescription),
+                () -> assertNotEquals(firstStatusDescription, secondStatusDescription,
+                        "the description must track the live status text after it changes again"),
+                () -> assertEquals(readyChecklist.getText(), secondChecklistDescription),
+                () -> assertEquals("", secondChecklistDescription),
+                () -> assertNotEquals(firstChecklistDescription, secondChecklistDescription),
+                () -> assertEquals(recoveryStatus.getText(), recoveryDescription),
+                () -> assertFalse(recoveryDescription.isBlank()));
+
+        clickAccessible(panel, "Copy setup diagnostic output");
+        String toastDescription = toastLabel.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(toastLabel.getText(), toastDescription),
+                () -> assertFalse(toastDescription.isBlank()),
+                () -> assertTrue(copied.get().contains("Probe failed")));
     }
 
     @Test
@@ -3138,12 +3222,15 @@ class ShaftPanelSetupTest {
     void assistantPanelShowsConfigureButtonWhenSetupCallbackIsConfigured() {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         AtomicBoolean openedSetup = new AtomicBoolean();
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings(), chatState,
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, chatState,
                 () -> openedSetup.set(true));
 
         JButton configure = findButton(panel, "Configure");
         JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
+        JComboBox<?> mode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
 
         assertAll(
                 () -> assertNotNull(configure),
@@ -3153,13 +3240,53 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(family.isVisible()),
                 () -> assertFalse(runtime.isVisible()),
                 () -> assertTrue(containsText(panel, "Codex CLI")),
-                () -> assertEquals("Agent: Local / Codex / CLI",
-                        findByAccessibleName(panel, "Current agent configuration", JLabel.class).getToolTipText()),
+                () -> assertEquals("Agent: Local / Codex / CLI", currentAgent.getToolTipText()),
+                // Issue #3603: the description mirrors the same live text as the visible label,
+                // not a static generic explanation.
+                () -> assertEquals(currentAgent.getText(),
+                        currentAgent.getAccessibleContext().getAccessibleDescription()),
                 () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertFalse(openedSetup.get()));
 
+        // Live-update proof: reconfiguring the route must update the description to the NEW live
+        // text, not just retain what was captured at construction.
+        String firstDescription = currentAgent.getAccessibleContext().getAccessibleDescription();
+        settings.assistantFamily = "CLAUDE";
+        mode.setSelectedItem("PLAN");
+        String secondDescription = currentAgent.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(currentAgent.getText(), secondDescription),
+                () -> assertNotEquals(firstDescription, secondDescription,
+                        "the description must track the live agent configuration after it changes"));
+
         configure.doClick();
         assertTrue(openedSetup.get());
+    }
+
+    @Test
+    void captureReviewStatusAccessibleDescriptionTracksLiveSummaryAcrossUpdates() throws Exception {
+        // Issue #3603: captureReviewStatus's accessible name stays the short, stable "Capture
+        // review status" (test-id-safe), but the description must mirror the live summary text --
+        // and keep tracking each later update, not just the first.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings(), new ShaftAssistantChatState());
+        JLabel captureReviewStatus = findByAccessibleName(panel, "Capture review status", JLabel.class);
+        assertNotNull(captureReviewStatus);
+        assertEquals("Capture review ready", captureReviewStatus.getText());
+        assertEquals(captureReviewStatus.getText(),
+                captureReviewStatus.getAccessibleContext().getAccessibleDescription());
+
+        setPendingCaptureReview(panel, "```java\ncode\n```");
+        String firstDescription = captureReviewStatus.getAccessibleContext().getAccessibleDescription();
+
+        setPendingCaptureReview(panel, "```java\ncode\n```\n\n```java\nmore\n```");
+        String secondDescription = captureReviewStatus.getAccessibleContext().getAccessibleDescription();
+
+        assertAll(
+                () -> assertEquals("Capture review ready: 1 code block", firstDescription),
+                () -> assertEquals("Capture review ready: 2 code blocks", secondDescription),
+                () -> assertNotEquals(firstDescription, secondDescription,
+                        "the description must track each live update, not just the first"),
+                () -> assertEquals(captureReviewStatus.getText(), secondDescription));
     }
 
     @Test
@@ -4747,6 +4874,24 @@ class ShaftPanelSetupTest {
                 "showTestResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
+    }
+
+    /**
+     * Sets the pending Capture review and re-renders it, mirroring what a real captured-code
+     * response drives in {@code ShaftAssistantPanel#applyCaptureReview} -- used to prove the
+     * {@code captureReviewStatus} accessible description tracks each live summary update (issue
+     * #3603).
+     */
+    private static void setPendingCaptureReview(ShaftAssistantPanel panel, String markdown) throws Exception {
+        Class<?> captureReviewClass = Class.forName("com.shaft.intellij.ui.ShaftAssistantPanel$CaptureReview");
+        java.lang.reflect.Constructor<?> constructor =
+                captureReviewClass.getDeclaredConstructor(String.class, String.class);
+        constructor.setAccessible(true);
+        Object review = constructor.newInstance(markdown, "");
+        setField(panel, "pendingCaptureReview", review);
+        Method showPendingCaptureReview = ShaftAssistantPanel.class.getDeclaredMethod("showPendingCaptureReview");
+        showPendingCaptureReview.setAccessible(true);
+        showPendingCaptureReview.invoke(panel);
     }
 
     private static ShaftMcpSetupPanel setupPanel(ShaftToolWindowPanel toolWindow) {

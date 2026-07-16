@@ -15,6 +15,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -268,6 +269,20 @@ class GuidedWorkflowPanelTest {
         javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
         assertNotNull(status);
         assertTrue(status.getText().contains("idle"), status.getText());
+        // Issue #3603: the accessible name stays the short, stable "Recorder status" (test-id-safe),
+        // but a screen reader also needs the live recorder status text, and that description must
+        // keep tracking every later update -- not just the first -- since setRecorderStatus() is the
+        // single choke point every status change runs through.
+        String initialDescription = accessibleDescription(status);
+        assertEquals(status.getText(), initialDescription);
+
+        findButton(panel, "Try SHAFT on a sample page").doClick();
+
+        String updatedDescription = accessibleDescription(status);
+        assertAll(
+                () -> assertEquals(status.getText(), updatedDescription),
+                () -> assertNotEquals(initialDescription, updatedDescription,
+                        "the description must track the live status text after it changes"));
     }
 
     @Test
@@ -375,7 +390,10 @@ class GuidedWorkflowPanelTest {
 
         assertAll(
                 () -> assertFalse(toggle.isSelected(), "Advanced options must default to collapsed"),
-                () -> assertTrue(isVisibleInHierarchy(hint), "Hint must show while Advanced options is collapsed"));
+                () -> assertTrue(isVisibleInHierarchy(hint), "Hint must show while Advanced options is collapsed"),
+                // Issue #3603: the accessible name stays the short, stable "Advanced options hint"
+                // (test-id-safe), but a screen reader also needs the actual hint text.
+                () -> assertEquals(hint.getText(), accessibleDescription(hint)));
 
         toggle.doClick();
         assertAll(

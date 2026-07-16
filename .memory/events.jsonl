@@ -248,3 +248,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-a-click-to-toggle-swing-row-wired-only-with-mouselistener-is-not-keyboard-reachable","timestamp":"2026-07-16T09:46:44+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.shaft-intellij-jlabel-accessible-name-overrides-commonly-mask-live-dynamic-label-text-from-screen-readers","timestamp":"2026-07-16T09:46:44+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.shaft-intellij-jlabel-accessible-name-overrides-commonly-hide-live-dynamic-label-text-from-screen-readers","timestamp":"2026-07-16T09:48:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaftmcpsetuppanel-test-overriding-toastsink-via-reflection-bypasses-the-real-toast-jlabel-update","timestamp":"2026-07-16T10:54:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename","timestamp":"2026-07-16T10:54:12+03:00"}

@@ -474,6 +474,9 @@ final class ShaftAssistantPanel extends JPanel {
         ShaftIconButtons.apply(copyTranscript, ShaftIcons.COPY);
         captureReviewStatus = new JLabel("Capture review ready");
         captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
+        // Accessible description mirrors the live status text (issue #3603): see
+        // showPendingCaptureReview(), the choke point every later update runs through.
+        captureReviewStatus.getAccessibleContext().setAccessibleDescription(captureReviewStatus.getText());
         approveCaptureReview = button("Approve", "Approve Capture review", event -> approvePendingCaptureReview());
         ShaftIconButtons.apply(approveCaptureReview, ShaftIcons.CHECK);
         copyCaptureReview = button("Copy review", "Copy Capture review", event -> copyPendingCaptureReview());
@@ -2174,7 +2177,7 @@ final class ShaftAssistantPanel extends JPanel {
         // called while an approval widget occupies the same slot (see showFirstRunWelcomeIfNeeded's
         // javadoc), so this never fights that widget for the slot.
         transcript.clearWidget();
-        transcript.append(role, text);
+        transcript.append(role, text, rawResponse);
         chatState.append(role, text, rawResponse);
         updateContextTruncationBoundary();
         refreshChatSelector();
@@ -2332,7 +2335,12 @@ final class ShaftAssistantPanel extends JPanel {
         assistantRuntime.setVisible(advanced && !lockedRoute && !cloud);
         assistantFamily.setEnabled(controlsEnabled && advanced && !lockedRoute);
         assistantRuntime.setEnabled(controlsEnabled && advanced && !lockedRoute);
-        currentAgentConfiguration.setText(currentAgentConfigurationText());
+        String currentAgentConfigurationText = currentAgentConfigurationText();
+        currentAgentConfiguration.setText(currentAgentConfigurationText);
+        // Accessible description mirrors the live agent configuration text (issue #3603): the name
+        // stays a stable category label, but a screen reader also needs to hear which agent/runtime
+        // is actually configured, which changes as the user reconfigures the route.
+        currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(currentAgentConfigurationText);
         currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
         currentAgentConfiguration.setVisible(lockedRoute);
         customCommand.setVisible(advanced && !lockedRoute && localCli);
@@ -2798,7 +2806,9 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewPanel.setVisible(false);
             return;
         }
-        captureReviewStatus.setText(captureReviewSummary(pendingCaptureReview.markdown()));
+        String captureReviewStatusText = captureReviewSummary(pendingCaptureReview.markdown());
+        captureReviewStatus.setText(captureReviewStatusText);
+        captureReviewStatus.getAccessibleContext().setAccessibleDescription(captureReviewStatusText);
         approveCaptureReview.setEnabled(!running);
         copyCaptureReview.setEnabled(!running);
         dismissCaptureReview.setEnabled(!running);
@@ -3400,6 +3410,9 @@ final class ShaftAssistantPanel extends JPanel {
         JLabel label = new JLabel(
                 "Starting fresh? The Guided tab has a \"Create a new SHAFT project\" template to help set one up.");
         label.getAccessibleContext().setAccessibleName("Fresh project hint");
+        // Issue #3603: the name above is a stable category label; the description carries the
+        // actual informational text so a screen reader hears it, not just the generic name.
+        label.getAccessibleContext().setAccessibleDescription(label.getText());
         panel.add(label);
         // Distinct visible text from the existing "Dismiss" button on the Capture review panel
         // (dismissCaptureReview): tests and users alike locate buttons by their plain label, and

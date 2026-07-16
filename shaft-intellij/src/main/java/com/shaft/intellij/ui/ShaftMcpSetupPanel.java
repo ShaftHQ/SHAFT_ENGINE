@@ -402,6 +402,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         setupSummary = new JLabel();
         setupSummary.getAccessibleContext().setAccessibleName("SHAFT MCP setup summary");
         setupSummary.setText("Installs SHAFT MCP locally and configures the selected client.");
+        // Accessible description mirrors the live summary text (issue #3603): see
+        // updateLiveSummary(), the choke point every later update runs through.
+        setupSummary.getAccessibleContext().setAccessibleDescription(setupSummary.getText());
         // Muted caption weight (issue #3601 B1.2), matching the ShaftAssistantPanel status-line
         // idiom: this line restates the live target/runtime selection already visible in the form
         // above it, so it should read as secondary detail, not a peer of the intro copy.
@@ -571,6 +574,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         // same dimensions as the tool-window readiness strip.
         readyChecklist = new JLabel();
         readyChecklist.getAccessibleContext().setAccessibleName("Setup ready checklist");
+        // Accessible description mirrors the live checklist text (issue #3603): see showTestResult(),
+        // the choke point every later update runs through.
+        readyChecklist.getAccessibleContext().setAccessibleDescription("");
         readyChecklist.setForeground(ShaftStatusPresentation.success());
         JPanel readyControls = new JPanel();
         readyControls.setLayout(new javax.swing.BoxLayout(readyControls, javax.swing.BoxLayout.Y_AXIS));
@@ -1022,7 +1028,9 @@ final class ShaftMcpSetupPanel extends JPanel {
             settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
             startChatting.setVisible(agentReady);
             startWithoutAgent.setVisible(!agentReady);
-            readyChecklist.setText(readyChecklistText(agentReady));
+            String readyChecklistText = readyChecklistText(agentReady);
+            readyChecklist.setText(readyChecklistText);
+            readyChecklist.getAccessibleContext().setAccessibleDescription(readyChecklistText);
             (agentReady ? startChatting : startWithoutAgent).requestFocusInWindow();
         } else {
             settings.mcpSetupComplete = false;
@@ -1031,6 +1039,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             startChatting.setVisible(false);
             startWithoutAgent.setVisible(false);
             readyChecklist.setText("");
+            readyChecklist.getAccessibleContext().setAccessibleDescription("");
             showRuntimeSelected();
         }
         updateActionState(false);
@@ -1651,7 +1660,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         }
         copyRestartCommand.setVisible(true);
         copyRestartCommand.setEnabled(true);
-        recoveryStatus.setText("Recovery: run the installer or copy the restart command, then check again.");
+        String recoveryStatusText = "Recovery: run the installer or copy the restart command, then check again.";
+        recoveryStatus.setText(recoveryStatusText);
+        recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
         recoveryStatus.setVisible(true);
     }
 
@@ -1832,6 +1843,10 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void setStatusText(String text) {
         status.setToolTipText(text);
+        // Accessible description mirrors the live, unescaped status text (issue #3603): the name
+        // stays a stable category label ("SHAFT MCP setup next step"), but a screen reader also
+        // needs to hear the actual next-step guidance, which changes throughout the setup flow.
+        status.getAccessibleContext().setAccessibleDescription(text);
         if (GUIDE_SETUP_STEP.equals(text)) {
             status.setText(GUIDE_SETUP_STEP);
             status.setVisible(false);
@@ -2140,7 +2155,9 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void updateLiveSummary() {
         String target = String.valueOf(installerTarget.getSelectedItem()).replace('_', ' ');
-        setupSummary.setText("Target: " + target + ". Runtime: " + assistantRuntimeLabel() + ".");
+        String setupSummaryText = "Target: " + target + ". Runtime: " + assistantRuntimeLabel() + ".";
+        setupSummary.setText(setupSummaryText);
+        setupSummary.getAccessibleContext().setAccessibleDescription(setupSummaryText);
         recommendedAgent.setText(recommendedAgentText());
     }
 
@@ -2241,7 +2258,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyOutput.setEnabled(!diagnosticOutput.isBlank());
         copyDocs.setVisible(!diagnosticOutput.isBlank());
         copyDocs.setEnabled(!diagnosticOutput.isBlank());
-        recoveryStatus.setText("Recovery: retry Check setup, copy diagnostics, or open the SHAFT MCP docs link.");
+        String recoveryStatusText = "Recovery: retry Check setup, copy diagnostics, or open the SHAFT MCP docs link.";
+        recoveryStatus.setText(recoveryStatusText);
+        recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
         recoveryStatus.setVisible(!diagnosticOutput.isBlank());
         details.setText(diagnosticOutput);
         details.setCaretPosition(details.getDocument().getLength());
@@ -2352,6 +2371,9 @@ final class ShaftMcpSetupPanel extends JPanel {
             toastTimer.stop();
         }
         toast.setText(message);
+        // Accessible description mirrors the live toast text (issue #3603): the name stays a stable
+        // category label, but a screen reader needs to hear which clipboard action just happened.
+        toast.getAccessibleContext().setAccessibleDescription(message);
         toast.setVisible(true);
         if (!isShowing()) {
             toast.setVisible(false);
