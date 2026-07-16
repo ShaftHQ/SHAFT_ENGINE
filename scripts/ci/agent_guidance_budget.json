@@ -15,6 +15,12 @@
     },
     ".github/instructions/java-tests.instructions.md": {
       "max_chars": 3999
+    },
+    "shaft-mcp/.github/copilot-instructions.md": {
+      "max_chars": 1500
+    },
+    ".github/codex/prompts/refresh-agent-instructions.md": {
+      "max_chars": 2500
     }
   },
   "host_contexts": {

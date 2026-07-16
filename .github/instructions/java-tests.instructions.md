@@ -20,7 +20,8 @@ applyTo: "**/src/test/java/**/*.java"
   lock or prerequisites set inside each test, followed by always-run
   restoration.
 - Use `Properties.clearForCurrentThread()` when tests set per-thread SHAFT
-  properties.
+  properties — except JVM-global `SHAFT.Properties.flags`: capture and
+  restore the original in `finally`/`@AfterMethod`.
 - Preserve the live `allure-results` directory and delete only its contents.
   Replacing the root can race with Allure writers on Windows.
 - Confirm result JSON files are populated before interpreting Allure status.

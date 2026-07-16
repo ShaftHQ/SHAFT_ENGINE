@@ -78,8 +78,9 @@ update, and troubleshooting runbook:
   `gbrain apply-migrations --yes` and `gbrain doctor`). Embeddings come
   from the `gbrain-ollama` Docker container (`ollama/ollama` with
   `nomic-embed-text`, restart policy `unless-stopped`). Keep the scheduled
-  sync + dream tasks (Windows) or the autopilot daemon (macOS/Linux)
-  installed so the brain stays current.
+  sync + dream tasks installed (Windows:
+  `tools/agent-infra/install-agent-tasks.ps1`; macOS/Linux:
+  `gbrain autopilot --install`) so the brain and repo map stay current.
 - **headroom** — local context-compression proxy fronting Claude Code:
   `pip install -U headroom-ai`, then `headroom install apply
   --preset persistent-docker --scope provider --providers manual

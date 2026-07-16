@@ -10,7 +10,7 @@ Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure
 
 ## New Task Flow
 
-At session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse all session -- sub-tasks are commits, not new branches. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR per session. Draft only if blocked/incomplete/requested.
+At session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse all session -- sub-tasks are commits. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR per session. Draft only if blocked/incomplete/requested.
 
 ## Working Rules
 
@@ -18,20 +18,20 @@ At session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`
 - Use structured APIs for structured data.
 - Reproduce defects; add focused regressions.
 - Preserve public API; deprecate before removal.
-- Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`/excerpts. Function changes need guide + docs PR.
+- Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
 - Blockers/small issues in path: fix inline. Enhancements/non-blocking issues: never silently drop -- route via the Learning Loop. Don't hunt for extras.
 
 ## Windows/Codex Safety
 
-No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`/`ii`, `Start-Process`, `cmd /c start`, `rundll32`, `os.startfile`, browsers/editors/installers/dialogs. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: add GUI-off Allure/Lighthouse `-D...=false`.
+No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`/`ii`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers/dialogs. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: add GUI-off Allure/Lighthouse `-D...=false`.
 
 ## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`; `gbrain query`/`code-def` for semantic retrieval -- supplements, never replaces (`skills/retrieval-reflex/`; autopilot syncs). Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`; `gbrain query`/`code-def` for semantic retrieval -- supplements, never replaces (`skills/retrieval-reflex/`; auto-synced). Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
 
-Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> followup GitHub issue (search first; consolidate related). Nothing durable is a valid outcome -- say so.
+Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> followup GitHub issue (search first; consolidate). Nothing durable is a valid outcome -- say so.
 
 ## Validation
 
@@ -57,16 +57,16 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - `context7`: past-cutoff library APIs only, else repo exemplars.
 - Skip `jdtls-lsp` for one-liners; value scales with cross-module impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
 - Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model); `shaft-mastery` 10 chapters -- load the matching one before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor, scoped headless runs; `graphify`.
-- Local infra: headroom proxy fronts Claude Code (`127.0.0.1:8787/readyz`); gbrain autopilot + `gbrain-ollama` Docker back retrieval (docs `maintainers/agent-tooling`).
+- Local infra: headroom proxy fronts Claude Code (`127.0.0.1:8787/readyz`); gbrain + `gbrain-ollama` Docker back retrieval (docs `maintainers/agent-tooling`).
 
 ## Agent Hierarchy & Model Routing
 
-Main thread owns substantive implementation, integration, and final verification with real checks. No Workflow tool, saved workflows (`.claude/workflows/` stays deleted), or orchestrators. Bounded, main-thread-reviewed delegation by model tier: Opus -- read-only architecture/planning research (Explore/Plan; verify claims against real files/logs). Sonnet -- one well-bounded component against a detailed written spec, main-thread review/tests/integration. Haiku -- low-risk mechanical edits under review; log/report summaries; bulk triage. Subagents return conclusions, not file dumps; check the graphify cache before broad exploration. PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
+Main thread owns substantive implementation, integration, and final verification with real checks. No Workflow tool, saved workflows (`.claude/workflows/` stays deleted), or orchestrators. Bounded delegation by tier (main-thread review): Opus -- read-only research (Explore/Plan; verify claims against real files/logs). Sonnet -- one well-bounded component against a detailed written spec, main-thread review/tests/integration. Haiku -- low-risk mechanical edits under review; log/report summaries; bulk triage. Subagents return conclusions, not file dumps; check the graphify cache before broad exploration. PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
 
 ## Completion
 
 Report changes/checks/outcomes + Learning Loop results: memory/graphify/skill/issue updates, or none.
 
 <!-- gbrain:retrieval-reflex:resolver-rows -->
-- retrieval-reflex | salient class/module/subsystem/incident; brain-page pointer in context; asserting a non-trivial repo detail
+- retrieval-reflex | salient class/module/incident; brain-page pointer; asserting non-trivial repo detail
 <!-- /gbrain:retrieval-reflex:resolver-rows -->

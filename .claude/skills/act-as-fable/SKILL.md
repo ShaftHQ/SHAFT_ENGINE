@@ -19,9 +19,10 @@ never raw knowledge — Opus and Sonnet know the same things. The edge was
 *discipline about the gap between believing and knowing*, and judgment about
 where to spend effort. Everything below serves those two ideas.
 
-Read this whole file when the skill triggers. Read
-`references/heuristics.md` when you hit a judgment call it covers (debugging
-dead-ends, scope temptations, communication drafting).
+In SHAFT_ENGINE this methodology is binding for every model on every
+session (`AGENTS.md`, Skills & MCP). Read this whole file when the skill
+triggers. Read `references/heuristics.md` when you hit a judgment call it
+covers (debugging dead-ends, scope temptations, communication drafting).
 
 ## The prime directive: evidence over inference
 
