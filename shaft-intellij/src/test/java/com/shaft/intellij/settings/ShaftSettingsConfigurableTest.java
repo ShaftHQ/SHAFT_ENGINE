@@ -236,6 +236,9 @@ class ShaftSettingsConfigurableTest {
         assertTrue(currentAgent.getText().contains("Agent: Local / Claude / Desktop app"));
         assertFalse(family.isVisible());
         assertFalse(runtime.isVisible());
+        // Issue #3603: the accessible name stays the short, stable "Current agent configuration"
+        // (test-id-safe), but a screen reader also needs the live agent/runtime text.
+        assertEquals(currentAgent.getText(), currentAgent.getAccessibleContext().getAccessibleDescription());
         boolean modifiedBeforeConfigure = configurable.isModified();
 
         configure.doClick();
@@ -245,6 +248,37 @@ class ShaftSettingsConfigurableTest {
         assertTrue(family.isVisible());
         assertTrue(runtime.isVisible());
         assertEquals(modifiedBeforeConfigure, configurable.isModified());
+    }
+
+    @Test
+    void currentAgentConfigurationAccessibleDescriptionTracksLiveConfigurationAcrossUpdates() {
+        // Issue #3603 live-update proof: reconfiguring the route must update the description to
+        // the NEW live text, not just retain what was captured when the panel was first built.
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        settings.assistantFamily = "CLAUDE";
+        settings.assistantRuntime = "DESKTOP_APP";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
+        assertNotNull(currentAgent);
+        String firstDescription = currentAgent.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(currentAgent.getText(), firstDescription),
+                () -> assertTrue(firstDescription.contains("Claude"), firstDescription));
+
+        settings.assistantFamily = "CODEX";
+        settings.assistantRuntime = "CLI";
+        configurable.reset();
+        String secondDescription = currentAgent.getAccessibleContext().getAccessibleDescription();
+
+        assertAll(
+                () -> assertEquals(currentAgent.getText(), secondDescription),
+                () -> assertTrue(secondDescription.contains("Codex"), secondDescription),
+                () -> assertNotEquals(firstDescription, secondDescription,
+                        "the description must track the live agent configuration after it changes"));
     }
 
     @Test
