@@ -224,6 +224,12 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private JComponent buildHealthChip() {
         // Shared readiness summary (issue #3500 O4/A4): MCP, workspace, agent lane, and live
         // recording activity answered by one component with the same words as the setup ready row.
+        // showMainView() already disposes the previous one via disposeActiveChildren() before
+        // reaching here, but guard the reassignment itself too (issue #3620): buildHealthChip() is
+        // the actual construction site, and a future caller that reaches it without going through
+        // showMainView() first must not be able to silently leak the outgoing instance's static
+        // ShaftRecordingActivity listener.
+        disposeReadinessSummary();
         readinessSummary = new ShaftReadinessSummary(settings, projectBasePath());
         recheckHealth = new javax.swing.JButton("Recheck");
         recheckHealth.getAccessibleContext().setAccessibleName("Recheck SHAFT MCP health");
@@ -547,6 +553,20 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private void disposeActiveChildren() {
         disposeApiRecordingPanel();
         disposeGuidedWorkflowPanel();
+        disposeReadinessSummary();
+    }
+
+    /**
+     * Disposes the current readiness summary, if any, detaching its {@code ShaftRecordingActivity}
+     * listener. Guarded for {@code null} because {@link #disposeActiveChildren()} also runs from
+     * {@link #showSetupView()}, which can execute before any main view -- and therefore any
+     * readiness summary -- has ever been built.
+     */
+    private void disposeReadinessSummary() {
+        if (readinessSummary != null) {
+            readinessSummary.dispose();
+            readinessSummary = null;
+        }
     }
 
     /**
