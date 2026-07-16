@@ -1,6 +1,7 @@
 package com.shaft.intellij.settings;
 
 import com.intellij.ide.plugins.cl.PluginAwareClassLoader;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
 import kotlin.Unit;
@@ -23,6 +24,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * version compare-and-reset must run exactly once per IDE session; {@link #CHECKED} guards that,
  * mirroring the process-wide {@code AtomicBoolean} pattern used by
  * {@link com.shaft.intellij.ui.ShaftRecordingActivity#active()}.
+ *
+ * <p>{@code execute} itself only schedules the check via {@code invokeLater} rather than running
+ * it inline: the platform invokes {@code ProjectActivity.execute} on its shared background
+ * coroutine dispatcher, and the actual work (settings I/O, credential/tool-approval reset) has no
+ * reason to hold that thread once scheduling is possible -- returning immediately keeps this
+ * activity's footprint on the platform's startup coroutine dispatcher as small as possible.
  */
 public final class ShaftPluginUpgradeActivity implements ProjectActivity {
     private static final AtomicBoolean CHECKED = new AtomicBoolean();
@@ -41,8 +48,9 @@ public final class ShaftPluginUpgradeActivity implements ProjectActivity {
     @Override
     public Object execute(@NotNull Project project, @NotNull Continuation<? super Unit> continuation) {
         if (CHECKED.compareAndSet(false, true)) {
-            checkForUpgrade(runningPluginVersion(), ShaftSettingsState.getInstance(),
-                    ShaftPluginResetService.getInstance());
+            ApplicationManager.getApplication().invokeLater(() ->
+                    checkForUpgrade(runningPluginVersion(), ShaftSettingsState.getInstance(),
+                            ShaftPluginResetService.getInstance()));
         }
         return Unit.INSTANCE;
     }
