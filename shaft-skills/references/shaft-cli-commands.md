@@ -4,7 +4,10 @@ shaft-cli is a command-line interface to the same shaft-mcp tool set. When a
 `shaft-cli` launcher is installed, prefer it over raw MCP tool calls — a plain
 shell command costs fewer agent tokens than an MCP schema load. Fall back to
 the `shaft-mcp:<tool>` MCP calls in `shaft-mcp-tools.md` when shaft-cli is not
-installed or a command fails.
+installed or a command fails. For stateful work (recordings, live browser or
+mobile drivers) start a `shaft-cli session` first or stay on a persistent MCP
+client — a recording must never belong to a one-shot process (see Sessions
+below).
 
 Install: pass `--install-shaft-cli` to the shaft-mcp installer (see
 `https://shafthq.github.io/docs/agentic/cli`). The launcher lands under the
