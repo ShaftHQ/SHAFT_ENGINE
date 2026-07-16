@@ -115,15 +115,19 @@ final class ShaftAssistantPanel extends JPanel {
                     + "ask for a test generated from that recording._";
     /**
      * First-run welcome (issue #3500 O1, follow-up #3540): the Assistant's own first message,
-     * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed.
+     * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed. The numbered steps
+     * read as plain text, not the five-emoji list this used to be -- this was the one place emoji
+     * appeared anywhere in the plugin, breaking from the wizard/Settings/rest-of-panel voice
+     * (#3601 B3.3); the opening "Hi!" keeps its own emoji as the one deliberate warm-greeting
+     * accent.
      */
     private static final String FIRST_RUN_WELCOME_MARKDOWN =
             "👋 Hi! I'm the SHAFT Assistant — I turn what you do in your app into real tests.\n\n"
-                    + "**Let's get started 🚀**\n\n"
-                    + "1. ⚙️ Check your setup in the status strip up top.\n"
-                    + "2. 🎬 Record a sample flow — just click around your app.\n"
-                    + "3. 🧪 Review code to turn it into a real test.\n"
-                    + "4. 💬 Or just tell me what you need below.";
+                    + "**Let's get started**\n\n"
+                    + "1. Check your setup in the status strip up top.\n"
+                    + "2. Record a sample flow — just click around your app.\n"
+                    + "3. Review code to turn it into a real test.\n"
+                    + "4. Or just tell me what you need below.";
     private final Project project;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
     // one process-wide flag (issue #3591 item 3).
