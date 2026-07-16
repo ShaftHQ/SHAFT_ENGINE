@@ -250,3 +250,5 @@
 {"actor":"agent","event":"memory.created","id":"fact.shaft-intellij-jlabel-accessible-name-overrides-commonly-hide-live-dynamic-label-text-from-screen-readers","timestamp":"2026-07-16T09:48:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftmcpsetuppanel-test-overriding-toastsink-via-reflection-bypasses-the-real-toast-jlabel-update","timestamp":"2026-07-16T10:54:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename","timestamp":"2026-07-16T10:54:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.intellij-2024-3-daemonfusreporter-codeinsightcontext-multiverse-read-access-soft-assert-is-a-platform-bug-not-shaft-intellij","timestamp":"2026-07-16T11:13:45+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.intellij-2024-3-daemonfusreporter-codeinsightcontext-multiverse-read-access-soft-assert-is-a-platform-bug-not-shaft-intellij","timestamp":"2026-07-16T11:57:15+03:00"}
