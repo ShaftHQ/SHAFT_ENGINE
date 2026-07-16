@@ -244,6 +244,12 @@ final class ShaftAssistantPanel extends JPanel {
     private char contextPopupTrigger;
     private int contextTriggerOffset = -1;
     private final ShaftMcpConnectionState connectionState;
+    // Captured once so addNotify()/removeNotify() pass the same listener reference to
+    // ShaftMcpConnectionState's add/remove pair; re-evaluating `this::onConnectionStateChanged` at
+    // each call site is not guaranteed to produce an identity-equal object, which silently broke
+    // removeStateChangeListener's List.remove(Object) and leaked one stale listener per
+    // addNotify()/removeNotify() cycle (issue #3621).
+    private final Runnable connectionStateListener = this::onConnectionStateChanged;
     private ShaftMcpHeartbeat heartbeat;
     private JButton reconnect;
     private int contextTruncationBoundaryIndex = -1;
@@ -794,7 +800,7 @@ final class ShaftAssistantPanel extends JPanel {
         super.addNotify();
         startHeartbeat();
         if (connectionState != null) {
-            connectionState.addStateChangeListener(this::onConnectionStateChanged);
+            connectionState.addStateChangeListener(connectionStateListener);
         }
     }
 
@@ -802,7 +808,7 @@ final class ShaftAssistantPanel extends JPanel {
     public void removeNotify() {
         stopHeartbeat();
         if (connectionState != null) {
-            connectionState.removeStateChangeListener(this::onConnectionStateChanged);
+            connectionState.removeStateChangeListener(connectionStateListener);
         }
         // Prevents a stuck-active recording key if the panel closes mid-recording (#3591 item 3).
         ShaftRecordingActivity.stopped(recordingKey);

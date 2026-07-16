@@ -18,6 +18,12 @@ visible UI changes must regenerate screenshots for the PR.
   property for tests (SHAFT's `PlaceholderTextArea`).
 - Long-lived background pollers (heartbeats spawning a fresh MCP process
   every 30s per panel) are a leak pattern — lifecycle-scope them.
+- Capture `this::method` as a field when the same reference must later be
+  removed (e.g. `addStateChangeListener`/`removeStateChangeListener` pairs in
+  `addNotify()`/`removeNotify()`) — re-evaluating a method-reference
+  expression is not guaranteed to produce an identity-equal object, so a
+  fresh one at the removal call site silently fails to remove anything
+  (issue #3621).
 
 ## Trust & failure surfacing (hard-won)
 - An MCP tool result with `isError: true` inside a successful JSON-RPC
