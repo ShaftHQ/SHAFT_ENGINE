@@ -1510,6 +1510,178 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelAccessibleDescriptionsTrackLiveUpgradeMcpVersionRuntimeAssistAndGeminiKeyStatusAcrossUpdates()
+            throws Exception {
+        // Issue #3605: upgradeDetail/mcpVersionDetail/runtimeStatus/assistStatus/geminiKeyStatus
+        // keep a short, stable accessible NAME (test-id-safe), but a screen reader also needs the
+        // live, real content those labels display -- carried by the accessible DESCRIPTION, which
+        // must keep tracking every later update, not just the first.
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        ShaftMcpSetupPanel.CloudKeyStore keyStore = fakeKeyStore(storedKeys);
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), keyStore);
+
+        JLabel upgradeDetail = findByAccessibleName(panel, "SHAFT project version status", JLabel.class);
+        JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
+        JLabel runtimeStatus = findByAccessibleName(panel, "Assistant runtime setup status", JLabel.class);
+        JLabel assistStatus = findByAccessibleName(panel, "Assistant connection setup status", JLabel.class);
+        JLabel geminiKeyStatus = findByAccessibleName(panel, "Gemini API key status", JLabel.class);
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        assertAll(
+                () -> assertNotNull(upgradeDetail),
+                () -> assertNotNull(mcpVersionDetail),
+                () -> assertNotNull(runtimeStatus),
+                () -> assertNotNull(assistStatus),
+                () -> assertNotNull(geminiKeyStatus));
+
+        // runtimeStatus/assistStatus already reflect their construction-time state (issue #3605:
+        // both route through showStatus(), the single choke point) before any check runs.
+        String initialRuntimeDescription = runtimeStatus.getAccessibleContext().getAccessibleDescription();
+        String initialAssistDescription = assistStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(runtimeStatus.getText(), initialRuntimeDescription),
+                () -> assertTrue(initialRuntimeDescription.contains("selected"), initialRuntimeDescription),
+                () -> assertEquals(assistStatus.getText(), initialAssistDescription),
+                () -> assertEquals("Assist: Not configured", initialAssistDescription));
+
+        // Live-update proof for upgradeDetail: switching the checker result must update the
+        // description to the NEW text, not just retain the initial placeholder.
+        setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
+                new ShaftProjectVersionCheck.Result(
+                        ShaftProjectVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
+        clickAccessible(panel, "Check SHAFT project version");
+        String firstUpgradeDescription = upgradeDetail.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(upgradeDetail.getText(), firstUpgradeDescription),
+                () -> assertTrue(firstUpgradeDescription.contains("already the latest"), firstUpgradeDescription));
+
+        setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
+                new ShaftProjectVersionCheck.Result(
+                        ShaftProjectVersionCheck.State.UPGRADE_AVAILABLE, "10.2.20260101", "10.3.20260710"));
+        clickAccessible(panel, "Check SHAFT project version");
+        String secondUpgradeDescription = upgradeDetail.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(upgradeDetail.getText(), secondUpgradeDescription),
+                () -> assertTrue(secondUpgradeDescription.contains("10.3.20260710 is available"),
+                        secondUpgradeDescription),
+                () -> assertNotEquals(firstUpgradeDescription, secondUpgradeDescription,
+                        "the description must track the live upgrade check result after it changes"));
+
+        // Live-update proof for mcpVersionDetail: same pattern as upgradeDetail.
+        setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
+                new ShaftMcpVersionCheck.Result(
+                        ShaftMcpVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
+        clickAccessible(panel, "Check SHAFT MCP version");
+        String firstMcpVersionDescription = mcpVersionDetail.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(mcpVersionDetail.getText(), firstMcpVersionDescription),
+                () -> assertTrue(firstMcpVersionDescription.contains("is up to date"), firstMcpVersionDescription));
+
+        setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
+                new ShaftMcpVersionCheck.Result(ShaftMcpVersionCheck.State.NOT_INSTALLED, "", ""));
+        clickAccessible(panel, "Check SHAFT MCP version");
+        String secondMcpVersionDescription = mcpVersionDetail.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(mcpVersionDetail.getText(), secondMcpVersionDescription),
+                () -> assertTrue(secondMcpVersionDescription.contains("not installed yet"), secondMcpVersionDescription),
+                () -> assertNotEquals(firstMcpVersionDescription, secondMcpVersionDescription,
+                        "the description must track the live MCP version check result after it changes"));
+
+        // Live-update proof for runtimeStatus/assistStatus: a successful connection test with a
+        // ready agent moves both through showStatus() to their "verified"/"Configured" states.
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        String verifiedRuntimeDescription = runtimeStatus.getAccessibleContext().getAccessibleDescription();
+        String configuredAssistDescription = assistStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(runtimeStatus.getText(), verifiedRuntimeDescription),
+                () -> assertTrue(verifiedRuntimeDescription.contains("verified"), verifiedRuntimeDescription),
+                () -> assertNotEquals(initialRuntimeDescription, verifiedRuntimeDescription,
+                        "the description must track the live runtime status after it changes"),
+                () -> assertEquals(assistStatus.getText(), configuredAssistDescription),
+                () -> assertEquals("Assist: Configured", configuredAssistDescription),
+                () -> assertNotEquals(initialAssistDescription, configuredAssistDescription,
+                        "the description must track the live assist status after it changes"));
+
+        // Live-update proof for assistStatus continuing to track: a subsequent failed probe must
+        // move the description to its NEW "Error" text, not retain "Configured".
+        showTestResult(panel, ShaftMcpToolResult.failure("Could not resolve artifact io.github.shafthq:shaft-mcp"));
+        String erroredAssistDescription = assistStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(assistStatus.getText(), erroredAssistDescription),
+                () -> assertEquals("Assist: Error", erroredAssistDescription),
+                () -> assertNotEquals(configuredAssistDescription, erroredAssistDescription,
+                        "the description must track the live assist status after it changes again"));
+
+        // Live-update proof for geminiKeyStatus: switching to the Gemini family with no stored key,
+        // then completing a successful probe that stores the entered key, must update the
+        // description to the NEW live text at each step (issue #3605's updateCloudControls() choke
+        // point).
+        family.setSelectedItem("GEMINI");
+        String noKeyDescription = geminiKeyStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(geminiKeyStatus.getText(), noKeyDescription),
+                () -> assertEquals("Paste your Google AI Studio API key.", noKeyDescription));
+
+        javax.swing.JPasswordField apiKey =
+                findByAccessibleName(panel, "Gemini API key", javax.swing.JPasswordField.class);
+        apiKey.setText("test-gemini-key");
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        String storedKeyDescription = geminiKeyStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(geminiKeyStatus.getText(), storedKeyDescription),
+                () -> assertEquals("Key stored in Password Safe.", storedKeyDescription),
+                () -> assertNotEquals(noKeyDescription, storedKeyDescription,
+                        "the description must track the live Gemini key status after it changes"));
+    }
+
+    @Test
+    void recommendedAgentAccessibleDescriptionTracksLiveRecommendationAcrossConstructionAndSummaryUpdate()
+            throws Exception {
+        // Issue #3605: unlike the other setupStatusLabel-style labels above, recommendedAgent's
+        // text is fixed once at construction -- recommendFamily(settings) runs exactly once into a
+        // final field, so both of its setText() call sites (the constructor and
+        // updateLiveSummary()) always write the identical value for a given panel instance. A
+        // later family/runtime combo change re-runs updateLiveSummary() but can never change what
+        // recommendedAgentText() returns. Proving the description "tracks live text" therefore
+        // means: (a) both call sites correctly mirror text into description, verified across two
+        // panels built with genuinely different real recommendation outcomes, and (b) a real combo
+        // change that re-invokes the second call site does not desync the description from the
+        // (unchanged) text.
+        ShaftMcpSetupPanel detected = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        }, readyProbe());
+        ShaftMcpSetupPanel notDetected = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure("not installed"));
+
+        JLabel detectedRecommendedAgent = findByAccessibleName(detected, "Recommended assistant agent", JLabel.class);
+        JLabel notDetectedRecommendedAgent =
+                findByAccessibleName(notDetected, "Recommended assistant agent", JLabel.class);
+        String detectedDescription = detectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
+        String notDetectedDescription = notDetectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(detectedRecommendedAgent.getText(), detectedDescription),
+                () -> assertTrue(detectedDescription.contains("detected"), detectedDescription),
+                () -> assertEquals(notDetectedRecommendedAgent.getText(), notDetectedDescription),
+                () -> assertTrue(notDetectedDescription.contains("not detected yet"), notDetectedDescription),
+                () -> assertNotEquals(detectedDescription, notDetectedDescription,
+                        "two panels with genuinely different real recommendation outcomes must carry "
+                                + "different descriptions"));
+
+        // Live-update proof for the second call site (updateLiveSummary()): a real family combo
+        // change re-runs it, and the description must stay in sync with the text rather than going
+        // stale or blank -- even though the mirrored value itself is unchanged here, since
+        // recommendedAgentText() is frozen at construction.
+        JComboBox<?> family = findByAccessibleName(detected, "Assistant family", JComboBox.class);
+        family.setSelectedItem("CLAUDE");
+        String afterUpdateDescription = detectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(detectedRecommendedAgent.getText(), afterUpdateDescription),
+                () -> assertEquals(detectedDescription, afterUpdateDescription,
+                        "the second call site must keep description == text even when the frozen "
+                                + "recommendation value does not itself change"));
+    }
+
+    @Test
     void setupPanelHasNoLabelCroppingAndPaintsStepBackgroundContinuously() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });

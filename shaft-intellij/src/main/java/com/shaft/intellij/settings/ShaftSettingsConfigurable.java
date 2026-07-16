@@ -539,6 +539,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private void resetTestStatus() {
         if (testStatus != null) {
             testStatus.setText("Not tested");
+            testStatus.getAccessibleContext().setAccessibleDescription(testStatus.getText());
             testStatus.setEnabled(false);
         }
         if (testRecovery != null) {
@@ -590,7 +591,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private static JLabel keyStatusLabel(String providerName) {
         JLabel label = new JLabel("Checking...");
         label.getAccessibleContext().setAccessibleName(providerName + " key storage status");
-        label.getAccessibleContext().setAccessibleDescription("Shows whether a key is stored for this provider.");
+        // Accessible description mirrors the live text (issue #3605), not a static generic
+        // explanation: see updateStoredState(), the choke point every later update runs through.
+        label.getAccessibleContext().setAccessibleDescription(label.getText());
         return label;
     }
 
@@ -653,6 +656,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         String text = stored ? "Stored in Password Safe." : "No stored key.";
         statusLabel.setText(text);
+        statusLabel.getAccessibleContext().setAccessibleDescription(text);
     }
 
     private void testMcpConnection() {
@@ -670,6 +674,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         button.setToolTipText(TESTING_MCP_TOOLTIP);
         statusLabel.setEnabled(true);
         statusLabel.setText("Testing...");
+        statusLabel.getAccessibleContext().setAccessibleDescription(statusLabel.getText());
         statusLabel.setForeground(ShaftStatusPresentation.progress());
         if (testRecovery != null) {
             testRecovery.setVisible(false);
@@ -688,6 +693,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                     button.setToolTipText(TEST_MCP_TOOLTIP);
                     if (error != null) {
                         statusLabel.setText(ShaftStatusPresentation.ERROR_ICON + " Failed");
+                        statusLabel.getAccessibleContext().setAccessibleDescription(statusLabel.getText());
                         statusLabel.setForeground(ShaftStatusPresentation.error());
                         McpInvocationError category = McpInvocationError.categorize(error);
                         StringBuilder sb = new StringBuilder();
@@ -696,7 +702,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                             sb.append("\n\nRecovery: ").append(category.recoveryAction());
                         }
                         if (testRecovery != null) {
-                            testRecovery.setText(sb.toString());
+                            String testRecoveryText = sb.toString();
+                            testRecovery.setText(testRecoveryText);
+                            testRecovery.getAccessibleContext().setAccessibleDescription(testRecoveryText);
                             testRecovery.setVisible(true);
                         }
                     } else {
@@ -728,6 +736,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         if (result != null && result.success()) {
             statusLabel.setText(ShaftStatusPresentation.SUCCESS_ICON + " Connected");
+            statusLabel.getAccessibleContext().setAccessibleDescription(statusLabel.getText());
             statusLabel.setForeground(ShaftStatusPresentation.success());
             if (testRecovery != null) {
                 testRecovery.setVisible(false);
@@ -737,10 +746,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             updateAgentConfigurationControls();
         } else {
             statusLabel.setText(ShaftStatusPresentation.ERROR_ICON + " Failed");
+            statusLabel.getAccessibleContext().setAccessibleDescription(statusLabel.getText());
             statusLabel.setForeground(ShaftStatusPresentation.error());
             String message = formatErrorMessage(result);
             if (testRecovery != null) {
                 testRecovery.setText(message);
+                testRecovery.getAccessibleContext().setAccessibleDescription(message);
                 testRecovery.setVisible(true);
             }
         }

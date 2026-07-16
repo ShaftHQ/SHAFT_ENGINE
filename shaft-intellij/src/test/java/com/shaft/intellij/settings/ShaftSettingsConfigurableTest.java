@@ -282,6 +282,124 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
+    void keyStatusLabelsAccessibleDescriptionsTrackLiveStoredStateAcrossUpdates() {
+        // Issue #3605: keyStatusLabel(...) used to hard-code a static, generic accessible
+        // description ("Shows whether a key is stored for this provider.") that never reflected
+        // the live "Stored in Password Safe."/"No stored key." text -- exactly the anti-pattern
+        // this sweep fixes. updateStoredState() is the single choke point all 4 provider labels
+        // route through.
+        InMemoryCredentials credentials = new InMemoryCredentials();
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, credentials);
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel openAiStatus = findByAccessibleName(panel, "OpenAI key storage status", JLabel.class);
+        JLabel anthropicStatus = findByAccessibleName(panel, "Anthropic key storage status", JLabel.class);
+        JLabel geminiStatus = findByAccessibleName(panel, "Gemini key storage status", JLabel.class);
+        JLabel githubStatus = findByAccessibleName(panel, "GitHub key storage status", JLabel.class);
+        assertAll(
+                () -> assertNotNull(openAiStatus),
+                () -> assertNotNull(anthropicStatus),
+                () -> assertNotNull(geminiStatus),
+                () -> assertNotNull(githubStatus));
+
+        // createComponent() (line ~324) already calls reset() internally before returning, so by
+        // the time a caller can observe the label, keyStatusLabel(...)'s fleeting "Checking..."
+        // constructor state has already been replaced by updateStoredState()'s real result -- here,
+        // "No stored key." from the fresh InMemoryCredentials. What matters is that the description
+        // already mirrors that live text rather than the old static generic explanation.
+        String noKeyDescription = openAiStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(openAiStatus.getText(), noKeyDescription),
+                () -> assertEquals("No stored key.", noKeyDescription));
+
+        // Live-update proof: storing a key and resetting again must move all 4 descriptions to
+        // their NEW "Stored in Password Safe." text, not retain "No stored key.".
+        credentials.setApiKey("OPENAI_API_KEY", "sk-test".toCharArray());
+        credentials.setApiKey("ANTHROPIC_API_KEY", "sk-test".toCharArray());
+        credentials.setApiKey("GEMINI_API_KEY", "sk-test".toCharArray());
+        credentials.setApiKey("GITHUB_TOKEN", "sk-test".toCharArray());
+        configurable.reset();
+        String storedOpenAiDescription = openAiStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(openAiStatus.getText(), storedOpenAiDescription),
+                () -> assertEquals("Stored in Password Safe.", storedOpenAiDescription),
+                () -> assertNotEquals(noKeyDescription, storedOpenAiDescription,
+                        "the description must track the live stored-key state after it changes again"),
+                () -> assertEquals("Stored in Password Safe.",
+                        anthropicStatus.getAccessibleContext().getAccessibleDescription()),
+                () -> assertEquals("Stored in Password Safe.",
+                        geminiStatus.getAccessibleContext().getAccessibleDescription()),
+                () -> assertEquals("Stored in Password Safe.",
+                        githubStatus.getAccessibleContext().getAccessibleDescription()));
+    }
+
+    @Test
+    void testStatusAndTestRecoveryAccessibleDescriptionsTrackLiveProbeOutcomeAcrossUpdates() throws Exception {
+        // Issue #3605: testStatus/testRecovery's accessible descriptions must mirror each live
+        // update -- "Testing..." while a probe is in flight, the glyph+outcome text once it
+        // completes, and "Not tested" again once the command changes and resetTestStatus() fires
+        // -- not just the first value captured.
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"" + Path.of("does", "not", "exist", "shaft-mcp-missing.exe") + "\"";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JButton testMcp = findByAccessibleName(panel, "Test MCP", JButton.class);
+        JLabel testStatus = findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class);
+        JLabel testRecovery = findByAccessibleName(panel, "SHAFT MCP test recovery", JLabel.class);
+        JBTextField command = findByAccessibleName(panel, "MCP stdio command", JBTextField.class);
+        assertAll(
+                () -> assertNotNull(testMcp),
+                () -> assertNotNull(testStatus),
+                () -> assertNotNull(testRecovery));
+
+        // Real click drives testMcpConnection()'s synchronous "Testing..." update; the background
+        // probe never completes within this synchronous test (mirrors
+        // testMcpButtonEntersBusyStateAndBlocksReentryWhileInFlight's established assumption).
+        testMcp.doClick();
+        String testingDescription = testStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals("Testing...", testStatus.getText()),
+                () -> assertEquals(testStatus.getText(), testingDescription));
+
+        // showProbeResult(...)'s success branch is the real completion path testMcpConnection()
+        // hands off to on its background thread; invoked directly here mirrors
+        // showProbeResultAppliesSuccessGlyphThroughRealCompletionPath's approach.
+        invokeShowProbeResult(configurable, (JPanel) panel, testStatus,
+                ShaftMcpToolResult.success("Handshake acknowledged."));
+        String connectedDescription = testStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(ShaftStatusPresentation.SUCCESS_ICON + " Connected", testStatus.getText()),
+                () -> assertEquals(testStatus.getText(), connectedDescription),
+                () -> assertNotEquals(testingDescription, connectedDescription,
+                        "the description must track the live probe outcome after it changes"));
+
+        // showProbeResult(...)'s failure branch updates both testStatus and testRecovery.
+        invokeShowProbeResult(configurable, (JPanel) panel, testStatus,
+                ShaftMcpToolResult.failure("MCP server process exited."));
+        String failedDescription = testStatus.getAccessibleContext().getAccessibleDescription();
+        String recoveryDescription = testRecovery.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals(ShaftStatusPresentation.ERROR_ICON + " Failed", testStatus.getText()),
+                () -> assertEquals(testStatus.getText(), failedDescription),
+                () -> assertNotEquals(connectedDescription, failedDescription,
+                        "the description must track the live probe outcome after it changes again"),
+                () -> assertEquals(testRecovery.getText(), recoveryDescription),
+                () -> assertTrue(recoveryDescription.contains("MCP server process exited."), recoveryDescription));
+
+        // resetTestStatus() is the reset path: editing the command must move testStatus back to
+        // "Not tested" and keep the description in sync, not stale at "Failed".
+        command.setText(command.getText() + "-edited");
+        String resetDescription = testStatus.getAccessibleContext().getAccessibleDescription();
+        assertAll(
+                () -> assertEquals("Not tested", testStatus.getText()),
+                () -> assertEquals(testStatus.getText(), resetDescription),
+                () -> assertNotEquals(failedDescription, resetDescription,
+                        "the description must track the live reset back to \"Not tested\""));
+    }
+
+    @Test
     void mcpCommandStartsEditableWhenNoWizardValueIsConfiguredYet() {
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
                 new ShaftSettingsState.Settings(), new InMemoryCredentials());

@@ -397,7 +397,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         runtimeStatus = setupStatusLabel("Assistant runtime setup status");
         assistStatus = setupStatusLabel("Assistant connection setup status");
         recommendedAgent = setupStatusLabel("Recommended assistant agent");
-        recommendedAgent.setText(recommendedAgentText());
+        String recommendedAgentText = recommendedAgentText();
+        recommendedAgent.setText(recommendedAgentText);
+        recommendedAgent.getAccessibleContext().setAccessibleDescription(recommendedAgentText);
         recommendedAgent.setVisible(true);
         setupSummary = new JLabel();
         setupSummary.getAccessibleContext().setAccessibleName("SHAFT MCP setup summary");
@@ -734,7 +736,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         if (announce) {
             upgradeChecked = true;
         }
-        upgradeDetail.setText(upgradeDetailText());
+        String upgradeDetailText = upgradeDetailText();
+        upgradeDetail.setText(upgradeDetailText);
+        upgradeDetail.getAccessibleContext().setAccessibleDescription(upgradeDetailText);
         upgradeDetail.setForeground(switch (upgradeCheckResult.state()) {
             case UP_TO_DATE -> ShaftStatusPresentation.success();
             case UPGRADE_AVAILABLE -> ShaftStatusPresentation.progress();
@@ -778,7 +782,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         if (announce) {
             mcpVersionChecked = true;
         }
-        mcpVersionDetail.setText(mcpVersionDetailText());
+        String mcpVersionDetailText = mcpVersionDetailText();
+        mcpVersionDetail.setText(mcpVersionDetailText);
+        mcpVersionDetail.getAccessibleContext().setAccessibleDescription(mcpVersionDetailText);
         mcpVersionDetail.setForeground(switch (mcpVersionCheckResult.state()) {
             case UP_TO_DATE -> ShaftStatusPresentation.success();
             case UPGRADE_AVAILABLE -> ShaftStatusPresentation.progress();
@@ -1216,9 +1222,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         // The CLI recommendation only applies to local agent families.
         recommendedAgent.setVisible(!cloud);
         if (cloud) {
-            geminiKeyStatus.setText(cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+            String geminiKeyStatusText = cloudKeyStore.hasKey(GEMINI_KEY_NAME)
                     ? "Key stored in Password Safe."
-                    : "Paste your Google AI Studio API key.");
+                    : "Paste your Google AI Studio API key.";
+            geminiKeyStatus.setText(geminiKeyStatusText);
+            geminiKeyStatus.getAccessibleContext().setAccessibleDescription(geminiKeyStatusText);
         }
     }
 
@@ -2158,7 +2166,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         String setupSummaryText = "Target: " + target + ". Runtime: " + assistantRuntimeLabel() + ".";
         setupSummary.setText(setupSummaryText);
         setupSummary.getAccessibleContext().setAccessibleDescription(setupSummaryText);
-        recommendedAgent.setText(recommendedAgentText());
+        String recommendedAgentText = recommendedAgentText();
+        recommendedAgent.setText(recommendedAgentText);
+        recommendedAgent.getAccessibleContext().setAccessibleDescription(recommendedAgentText);
     }
 
     private static JPanel labeledControl(String text, JComponent control) {
@@ -2245,6 +2255,9 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private static void showStatus(JLabel label, String prefix, String state, Color color) {
         label.setText(prefix + ": " + state);
+        // Accessible description mirrors the live status text (issue #3605): the single choke
+        // point every runtimeStatus/assistStatus update runs through.
+        label.getAccessibleContext().setAccessibleDescription(label.getText());
         label.setForeground(color);
     }
 
