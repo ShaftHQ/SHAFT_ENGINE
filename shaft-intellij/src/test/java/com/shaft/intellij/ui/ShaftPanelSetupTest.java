@@ -1126,6 +1126,62 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void freshProjectHintShowsOnlyForANonShaftProjectAndIsDismissible() throws Exception {
+        // Issue #3601 O3: ShaftProjectVersionCheck's NOT_A_SHAFT_PROJECT state already exists for
+        // the setup wizard's "Upgrade project" step; the Assistant panel surfaces that same signal
+        // as a dismissible, non-blocking hint for a project with no SHAFT dependency yet, and stays
+        // quiet for a project that already depends on SHAFT.
+        Path freshProject = tempDirectory("shaft-fresh-project");
+        Path shaftProject = tempDirectory("shaft-adopted-project");
+        try {
+            Files.writeString(freshProject.resolve("pom.xml"), """
+                    <project>
+                      <groupId>com.example</groupId>
+                      <artifactId>fresh</artifactId>
+                      <version>1.0.0</version>
+                    </project>
+                    """);
+            Files.writeString(shaftProject.resolve("pom.xml"), """
+                    <project>
+                      <dependencies>
+                        <dependency>
+                          <groupId>io.github.shafthq</groupId>
+                          <artifactId>SHAFT_ENGINE</artifactId>
+                          <version>10.3.20260715</version>
+                        </dependency>
+                      </dependencies>
+                    </project>
+                    """);
+
+            ShaftAssistantPanel freshPanel = new ShaftAssistantPanel(
+                    fakeProject(new ShaftAssistantChatState(), freshProject.toString()), blankMcpSettings());
+            ShaftAssistantPanel adoptedPanel = new ShaftAssistantPanel(
+                    fakeProject(new ShaftAssistantChatState(), shaftProject.toString()), blankMcpSettings());
+            JLabel freshHint = findByAccessibleName(freshPanel, "Fresh project hint", JLabel.class);
+            JLabel adoptedHint = findByAccessibleName(adoptedPanel, "Fresh project hint", JLabel.class);
+            JButton dismiss = findByAccessibleName(freshPanel, "Dismiss fresh project hint", JButton.class);
+
+            assertAll(
+                    () -> assertNotNull(freshHint),
+                    () -> assertTrue(effectivelyVisible(freshHint, freshPanel),
+                            "Hint must show for a project without a SHAFT dependency"),
+                    () -> assertNotNull(adoptedHint),
+                    () -> assertFalse(effectivelyVisible(adoptedHint, adoptedPanel),
+                            "Hint must not show for a project already on SHAFT"),
+                    () -> assertNotNull(dismiss));
+
+            dismiss.doClick();
+            assertFalse(effectivelyVisible(freshHint, freshPanel),
+                    "Dismiss must hide the hint without touching any other control");
+        } finally {
+            Files.deleteIfExists(freshProject.resolve("pom.xml"));
+            Files.deleteIfExists(freshProject);
+            Files.deleteIfExists(shaftProject.resolve("pom.xml"));
+            Files.deleteIfExists(shaftProject);
+        }
+    }
+
+    @Test
     void setupPanelOffersNoAgentLaneWhenSelectedAgentIsNotReady() throws Exception {
         // Two-lane readiness (issue #3425 A2): recorder/codegen/doctor only need a verified
         // SHAFT MCP, so a missing agent CLI completes setup on the No-AI lane instead of failing

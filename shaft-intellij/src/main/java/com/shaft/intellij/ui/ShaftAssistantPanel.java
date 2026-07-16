@@ -60,6 +60,7 @@ import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.GridLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyAdapter;
@@ -629,8 +630,16 @@ final class ShaftAssistantPanel extends JPanel {
         south.add(actionRow, BorderLayout.NORTH);
         south.add(composer, BorderLayout.CENTER);
 
+        JPanel notices = new JPanel(new GridLayout(0, 1));
+        notices.add(setupNotice(project, settings));
+        // Separate signal from showFirstRunWelcomeIfNeeded() (#3601 O3): keyed off the project's
+        // actual pom.xml state via ShaftProjectVersionCheck, not firstRunCoachDismissed, so it
+        // keeps helping a returning user whose project is still fresh after the welcome bubble is
+        // long gone -- and stays quiet for an already-adopted project even on a first run.
+        notices.add(freshProjectNotice(project));
+
         JPanel north = new JPanel(new BorderLayout(4, 4));
-        north.add(setupNotice(project, settings), BorderLayout.NORTH);
+        north.add(notices, BorderLayout.NORTH);
         north.add(header, BorderLayout.CENTER);
         add(north, BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
@@ -3375,6 +3384,49 @@ final class ShaftAssistantPanel extends JPanel {
         panel.add(openSettings);
         panel.setVisible(!mcpReady(settings));
         return panel;
+    }
+
+    /**
+     * Fresh/consumer-project hint (#3601 O3): {@link ShaftProjectVersionCheck} already tells the
+     * setup wizard's "Upgrade project" step whether this project has any SHAFT
+     * ({@code io.github.shafthq}) dependency at all; surfacing that same NOT_A_SHAFT_PROJECT signal
+     * here points a user starting from an empty or non-SHAFT project at the Guided tab's "Create a
+     * new SHAFT project" template. A separate signal from {@link #showFirstRunWelcomeIfNeeded()} --
+     * keyed off project state, not {@code firstRunCoachDismissed} -- and purely a suggestion:
+     * dismissing it, or any other Assistant control, works exactly as before.
+     */
+    private static JPanel freshProjectNotice(Project project) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JLabel label = new JLabel(
+                "Starting fresh? The Guided tab has a \"Create a new SHAFT project\" template to help set one up.");
+        label.getAccessibleContext().setAccessibleName("Fresh project hint");
+        panel.add(label);
+        // Distinct visible text from the existing "Dismiss" button on the Capture review panel
+        // (dismissCaptureReview): tests and users alike locate buttons by their plain label, and
+        // this panel can be present in the tree (just invisible) at the same time as that one.
+        JButton dismiss = new JButton("Got it");
+        dismiss.getAccessibleContext().setAccessibleName("Dismiss fresh project hint");
+        ShaftIconButtons.apply(dismiss, ShaftIcons.CANCEL);
+        dismiss.addActionListener(event -> panel.setVisible(false));
+        panel.add(dismiss);
+        panel.setVisible(isFreshProject(project));
+        return panel;
+    }
+
+    /**
+     * Reuses the same {@code project.getBasePath()} resolution this file already uses elsewhere
+     * (e.g. {@link #addProjectArtifact}) rather than a new path routine. The pom.xml read is the
+     * same cheap, synchronous, local-file check {@code ShaftMcpSetupPanel} already runs straight on
+     * the EDT for its "Upgrade project" step; a blank {@code latestVersion} is enough here because
+     * {@code NOT_A_SHAFT_PROJECT} is decided before any version comparison happens (see {@link
+     * ShaftProjectVersionCheck#check}).
+     */
+    private static boolean isFreshProject(Project project) {
+        if (project == null || project.getBasePath() == null || project.getBasePath().isBlank()) {
+            return false;
+        }
+        return ShaftProjectVersionCheck.check(Path.of(project.getBasePath()), "").state()
+                == ShaftProjectVersionCheck.State.NOT_A_SHAFT_PROJECT;
     }
 
     private static JComboBox<String> combo(String accessibleName, String... values) {
