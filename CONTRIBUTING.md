@@ -88,6 +88,10 @@ update, and troubleshooting runbook:
   `~/.claude/settings.json` wiring is silently skipped. Health:
   `http://127.0.0.1:8787/readyz`. The `persistent-task` preset requires an
   elevated shell (schtasks `ONSTART`); the docker preset does not.
+- **graphify** — deterministic repository map for pre-search file selection:
+  `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
+  from the repo root (cache in gitignored `graphify-out/`; see
+  `tools/repository-map/README.md`).
 - **MCP servers** (`.mcp.json`) — `context7` (npx) and `maven-tools-mcp`
   (Docker) start on demand; they require Node and Docker locally.
 - **Claude Code plugins** — installed automatically from
