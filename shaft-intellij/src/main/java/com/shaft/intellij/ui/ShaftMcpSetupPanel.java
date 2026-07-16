@@ -162,6 +162,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyDocs;
     private final JButton copyRestartCommand;
     private final JTextPane details;
+    private final JBScrollPane detailsScroll;
+    private final JButton toggleDetails;
     private final JPanel installerDetailsPanel;
     private final JPanel detailsPanel;
     private final JPanel prerequisitesRow;
@@ -453,6 +455,20 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setBackground(UIManagerColors.background());
         details.setForeground(UIManagerColors.foreground());
         details.setBorder(JBUI.Borders.compound(JBUI.Borders.empty(6), JBUI.Borders.customLine(UIManagerColors.border(), 1)));
+        detailsScroll = new JBScrollPane(details);
+        // Collapsed behind a toggle by default (issue #3601 B1.4): recoveryStatus is the primary,
+        // actually-useful content of a failure state, so the raw probe output no longer dominates
+        // the view on its own -- see #toggleDetailsVisibility, which the button below drives.
+        detailsScroll.setVisible(false);
+        // Icon-only, tooltip-flip toggle (issue #3538 convention), mirroring
+        // ShaftFeaturePanel#showRawOutput's established raw-output-toggle pattern.
+        toggleDetails = new JButton();
+        ShaftIconButtons.apply(toggleDetails, "Show details", "Toggle raw SHAFT MCP setup output", ShaftIcons.VIEW);
+        toggleDetails.getAccessibleContext().setAccessibleDescription(
+                "Shows or hides the raw diagnostic output below the recovery guidance.");
+        toggleDetails.setEnabled(false);
+        toggleDetails.addActionListener(event -> toggleDetailsVisibility());
+        setDetailsToggleText();
 
         upgradeStep = setupStepLabel("Upgrade project setup step");
         upgradeState = setupStateLabel("Upgrade project setup state");
@@ -588,6 +604,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         diagnosticRow.add(copyOutput);
         diagnosticRow.add(copyDocs);
         diagnosticRow.add(copyRestartCommand);
+        diagnosticRow.add(toggleDetails);
         JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         secondaryActions.add(resetAndReinstall);
         JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -645,7 +662,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 .getPanel();
         detailsPanel = new JPanel(new BorderLayout(4, 4));
         detailsPanel.add(diagnosticRow, BorderLayout.NORTH);
-        detailsPanel.add(new JBScrollPane(details), BorderLayout.CENTER);
+        detailsPanel.add(detailsScroll, BorderLayout.CENTER);
         detailsPanel.setVisible(false);
         // The setup flow has grown taller than many tool-window sizes, so the whole page lives in
         // a vertical scroll pane: the scrollbar appears only when needed and the user can always
@@ -2187,8 +2204,30 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setText(diagnosticOutput);
         details.setCaretPosition(details.getDocument().getLength());
         detailsPanel.setVisible(!diagnosticOutput.isBlank());
+        toggleDetails.setEnabled(!diagnosticOutput.isBlank());
+        toggleDetails.setVisible(!diagnosticOutput.isBlank());
+        // Every new failure re-collapses the raw pane (issue #3601 B1.4): recoveryStatus above is
+        // the guidance a user actually needs, so a fresh failure never re-opens a wall of text a
+        // previous "Show details" click had left expanded.
+        detailsScroll.setVisible(false);
+        setDetailsToggleText();
         updateProgressivePanels();
         detailsPanel.revalidate();
+    }
+
+    private void toggleDetailsVisibility() {
+        detailsScroll.setVisible(!detailsScroll.isVisible());
+        setDetailsToggleText();
+        detailsPanel.revalidate();
+        detailsPanel.repaint();
+    }
+
+    private void setDetailsToggleText() {
+        // Icon-only button (issue #3538 icon-only-and-symmetric convention): the state flips in the
+        // tooltip, never in visible text -- same idiom as ShaftFeaturePanel#showRawOutput.
+        toggleDetails.setToolTipText(detailsScroll.isVisible()
+                ? "Hide the raw diagnostic output"
+                : "Show the raw diagnostic output behind the recovery guidance above");
     }
 
     private void updateProgressivePanels() {
@@ -2208,6 +2247,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         recoveryStatus.setVisible(false);
         details.setText("");
         detailsPanel.setVisible(false);
+        toggleDetails.setEnabled(false);
+        toggleDetails.setVisible(false);
+        detailsScroll.setVisible(false);
+        setDetailsToggleText();
         detailsPanel.revalidate();
     }
 
