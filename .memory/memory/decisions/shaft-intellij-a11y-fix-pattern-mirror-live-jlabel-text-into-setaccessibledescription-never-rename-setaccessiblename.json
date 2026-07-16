@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename.md",
-  "content_hash": "sha256:960dc8d999ad1d7b0f752c37e018537da6236609679d199643e4f587b483d259",
+  "content_hash": "sha256:9e039dcda734133e4dabd808b1c18d162736d6691a83d2e3b07aa7a1e8d2e165",
   "created_at": "2026-07-16T10:54:12+03:00",
   "evidence": [],
   "facets": {
@@ -28,5 +28,5 @@
   ],
   "title": "shaft-intellij a11y fix pattern: mirror live JLabel text into setAccessibleDescription, never rename setAccessibleName",
   "type": "decision",
-  "updated_at": "2026-07-16T10:54:12+03:00"
+  "updated_at": "2026-07-16T12:36:26+03:00"
 }
