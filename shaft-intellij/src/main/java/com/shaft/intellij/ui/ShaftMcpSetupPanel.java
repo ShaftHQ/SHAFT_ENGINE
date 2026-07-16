@@ -555,7 +555,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         readyControls.add(readyActions);
         chatRow = stepRow(readyStep, readyState, readyControls);
         chatRow.setVisible(false);
-        JPanel workflow = new JPanel();
+        // Threads the six step rows into one visual path (issue #3601 B1.3): a thin connector line
+        // shows through the transparent gaps between rows, painted behind each row's own opaque,
+        // state-colored background -- purely additive, styleStepRow's border/background behavior
+        // per row is untouched.
+        JPanel workflow = new JPanel() {
+            @Override
+            protected void paintComponent(java.awt.Graphics graphics) {
+                super.paintComponent(graphics);
+                graphics.setColor(UIManagerColors.border());
+                int lineX = JBUI.scale(15);
+                graphics.fillRect(lineX, 0, JBUI.scale(2), getHeight());
+            }
+        };
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
         workflow.add(prerequisitesRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
