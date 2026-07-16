@@ -27,6 +27,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpProgress;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
 import com.shaft.intellij.settings.ShaftCredentialService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
@@ -2398,7 +2399,8 @@ final class ShaftAssistantPanel extends JPanel {
         modelListRefreshing = true;
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
-        CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.listModels(arguments))
+        CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.listModels(arguments),
+                        ShaftPluginExecutor.getInstance().executor())
                 .whenComplete((models, error) -> runOnEdt(
                         () -> applyLocalModels(family, error == null ? models : List.of())));
     }
