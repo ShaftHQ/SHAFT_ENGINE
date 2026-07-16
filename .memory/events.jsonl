@@ -266,3 +266,8 @@
 {"actor":"agent","event":"memory.created","id":"decision.graphify-nudge-full-body-test-part2","timestamp":"2026-07-16T16:34:01+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.issue-3611-graphify-pre-check-added-a-non-blocking-pretooluse-nudge-to-guard-py-r5-not-enforcement","timestamp":"2026-07-16T16:35:22+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.gbrain-mcp-adoption-spike-3611-not-ready-to-replace-or-pair-with-memory-as-of-2026-07-16","timestamp":"2026-07-16T17:11:11+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.gbrain-embed-coverage-blocker-resolved-via-local-ollama-inline-embedding-2026-07-16","timestamp":"2026-07-16T20:45:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gbrain-full-code-strategy-sync-needs-no-hard-deadline-on-repos-this-size","timestamp":"2026-07-16T20:45:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.headroom-adopted-as-a-local-claude-code-compression-proxy-2026-07-16","timestamp":"2026-07-16T20:45:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.headroom-install-apply-scope-user-silently-skips-the-claude-code-settings-json-wiring","timestamp":"2026-07-16T20:45:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.headroom-proxy-operational-details","timestamp":"2026-07-16T20:45:38+03:00"}
