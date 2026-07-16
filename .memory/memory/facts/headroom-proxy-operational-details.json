@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/facts/headroom-proxy-operational-details.md",
+  "content_hash": "sha256:153a0e6010e1ca77d123fda6792486f3ae0581bf6ca957927b76427c20a76896",
+  "created_at": "2026-07-16T20:45:38+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "debugging-fact"
+  },
+  "id": "fact.headroom-proxy-operational-details",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Complete gbrain implementation and headroom evaluation/setup; capture durable outcomes for both"
+  },
+  "status": "active",
+  "tags": [
+    "headroom",
+    "reference",
+    "ops"
+  ],
+  "title": "headroom proxy operational details",
+  "type": "fact",
+  "updated_at": "2026-07-16T20:45:38+03:00"
+}
