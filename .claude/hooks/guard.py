@@ -19,6 +19,12 @@
 #   R4 (documentation only, not mechanically enforceable here) one
 #      branch/worktree/PR per session -- reported by --session-start as a
 #      reminder since a PreToolUse hook has no cross-tool-call session state.
+#   R5 graphify pre-check nudge -- non-blocking. After several Read/Grep
+#      calls in a session with no sign the graphify repository-map cache
+#      (tools/repository-map/resolve_graph_out.py) was consulted, emit ONE
+#      PreToolUse "allow" + additionalContext reminder. Never denies --
+#      getting the "broad exploration" heuristic wrong should be a mild
+#      nudge, not friction on legitimate targeted lookups. See #3611.
 #
 # Stdlib only. Must run under both `py -3` (Windows launcher, this repo's
 # documented convention) and `python3` (Linux/CI/macOS), so avoid anything
@@ -83,8 +89,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+import tempfile
 
 # ---------------------------------------------------------------------------
 # R1: Maven test scoping + headless execution
@@ -372,6 +380,105 @@ def check_r3_gui_open(command: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# R5: graphify pre-check nudge (non-blocking; PreToolUse only)
+# ---------------------------------------------------------------------------
+#
+# graphify (.claude/skills/graphify/SKILL.md) asks agents to resolve the
+# shared repository-map cache (`python3 tools/repository-map/
+# resolve_graph_out.py --check`) before broad Grep/Read sweeps, but until now
+# that was guidance only -- nothing nudged an agent that skipped straight to
+# Grep/Read. This adds a ONE-TIME, NON-BLOCKING reminder (PreToolUse "allow"
+# + additionalContext, never "deny") once a session has made several
+# Read/Grep calls with no evidence graphify was consulted. State is a small
+# best-effort per-session file in the OS temp dir (or $SHAFT_GUARD_STATE_DIR
+# when set, used by the self-test below); any failure to read/write it fails
+# open (no nudge, no crash, no block).
+
+_BROAD_SEARCH_TOOLS = frozenset({"Read", "Grep"})
+_GRAPHIFY_NUDGE_THRESHOLD = 6  # broad Read/Grep calls before the one-time nudge
+_RESOLVE_GRAPH_OUT_RE = re.compile(r"resolve_graph_out\.py", re.IGNORECASE)
+_GRAPHIFY_OUT_PATH_RE = re.compile(r"graphify-out", re.IGNORECASE)
+_SESSION_ID_SAFE_RE = re.compile(r"[^A-Za-z0-9_.-]")
+
+_GRAPHIFY_NUDGE_MESSAGE = (
+    "Reminder (graphify): this session has made several Read/Grep calls "
+    "with no sign the shared repository-map cache was consulted. Before "
+    "further broad exploration, try `python3 tools/repository-map/"
+    "resolve_graph_out.py --check` -- if it prints a path, query that graph "
+    "first (see .claude/skills/graphify/SKILL.md). One-time, non-blocking "
+    "reminder for this session."
+)
+
+
+def _graphify_state_dir() -> str:
+    override = os.environ.get("SHAFT_GUARD_STATE_DIR")
+    return override if override else os.path.join(tempfile.gettempdir(), "shaft_guard_graphify_state")
+
+
+def _graphify_state_path(session_id: str) -> str:
+    safe_id = _SESSION_ID_SAFE_RE.sub("_", session_id) or "unknown"
+    return os.path.join(_graphify_state_dir(), f"{safe_id}.json")
+
+
+def _load_graphify_state(session_id: str) -> dict:
+    try:
+        with open(_graphify_state_path(session_id), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            if isinstance(data, dict):
+                return data
+    except (OSError, ValueError):
+        pass
+    return {"broad_search_count": 0, "graphify_seen": False, "nudged": False}
+
+
+def _save_graphify_state(session_id: str, state: dict) -> None:
+    try:
+        os.makedirs(_graphify_state_dir(), exist_ok=True)
+        with open(_graphify_state_path(session_id), "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+    except OSError:
+        pass  # best-effort only -- state loss just means a missed/repeated nudge
+
+
+def note_graphify_reference_from_command(command: str, session_id: str) -> None:
+    """Mark graphify as consulted when a Bash/PowerShell command resolves the cache."""
+    if not session_id or not _RESOLVE_GRAPH_OUT_RE.search(command):
+        return
+    state = _load_graphify_state(session_id)
+    if not state.get("graphify_seen"):
+        state["graphify_seen"] = True
+        _save_graphify_state(session_id, state)
+
+
+def graphify_nudge_for_read_or_grep(hook_input: dict, session_id: str) -> str | None:
+    """Return an additionalContext nudge string, or None. Never blocks."""
+    if not session_id:
+        return None
+    tool_input = hook_input.get("tool_input") or {}
+    target = str(tool_input.get("file_path") or tool_input.get("path") or "")
+
+    state = _load_graphify_state(session_id)
+
+    if _GRAPHIFY_OUT_PATH_RE.search(target):
+        if not state.get("graphify_seen"):
+            state["graphify_seen"] = True
+            _save_graphify_state(session_id, state)
+        return None
+
+    if state.get("graphify_seen") or state.get("nudged"):
+        return None
+
+    state["broad_search_count"] = state.get("broad_search_count", 0) + 1
+    if state["broad_search_count"] < _GRAPHIFY_NUDGE_THRESHOLD:
+        _save_graphify_state(session_id, state)
+        return None
+
+    state["nudged"] = True
+    _save_graphify_state(session_id, state)
+    return _GRAPHIFY_NUDGE_MESSAGE
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
@@ -395,19 +502,7 @@ def _extract_command(hook_input: dict) -> str:
     return ""
 
 
-def run_pretooluse(hook_input: dict) -> int:
-    tool_name = hook_input.get("tool_name", "")
-    if tool_name not in ("Bash", "PowerShell"):
-        return 0  # not a shell-command tool: nothing for this hook to check
-
-    command = _extract_command(hook_input)
-    if not command:
-        return 0
-
-    reason = evaluate_command(command)
-    if reason is None:
-        return 0  # ALLOW: exit 0, no output
-
+def _print_deny(reason: str) -> None:
     output = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -416,7 +511,40 @@ def run_pretooluse(hook_input: dict) -> int:
         }
     }
     print(json.dumps(output))
-    return 0  # per protocol: deny is signaled via JSON on stdout with exit 0
+
+
+def _print_allow_with_context(additional_context: str) -> None:
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "additionalContext": additional_context,
+        }
+    }
+    print(json.dumps(output))
+
+
+def run_pretooluse(hook_input: dict) -> int:
+    tool_name = hook_input.get("tool_name", "")
+    session_id = hook_input.get("session_id", "")
+
+    if tool_name in ("Bash", "PowerShell"):
+        command = _extract_command(hook_input)
+        if not command:
+            return 0
+        note_graphify_reference_from_command(command, session_id)
+        reason = evaluate_command(command)
+        if reason is not None:
+            _print_deny(reason)  # per protocol: deny is signaled via JSON on stdout, exit 0
+        return 0
+
+    if tool_name in _BROAD_SEARCH_TOOLS:
+        nudge = graphify_nudge_for_read_or_grep(hook_input, session_id)
+        if nudge is not None:
+            _print_allow_with_context(nudge)
+        return 0
+
+    return 0  # not a tool this hook checks
 
 
 # ---------------------------------------------------------------------------
@@ -545,9 +673,88 @@ def run_self_test() -> int:
 # Entry point
 # ---------------------------------------------------------------------------
 
+def run_graphify_self_test() -> int:
+    """Exercises the R5 nudge across a simulated sequence of PreToolUse calls."""
+    import contextlib
+    import io
+    import shutil
+
+    failures: list[str] = []
+
+    def call(tool_name: str, tool_input: dict, session_id: str) -> str:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run_pretooluse({"tool_name": tool_name, "tool_input": tool_input, "session_id": session_id})
+        return buf.getvalue()
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    tmp_dir = tempfile.mkdtemp(prefix="shaft_guard_graphify_test_")
+    old_override = os.environ.get("SHAFT_GUARD_STATE_DIR")
+    os.environ["SHAFT_GUARD_STATE_DIR"] = tmp_dir
+    try:
+        for i in range(_GRAPHIFY_NUDGE_THRESHOLD - 1):
+            out = call("Grep", {"pattern": "foo", "path": "src"}, "sess-a")
+            check(f"call {i + 1}/{_GRAPHIFY_NUDGE_THRESHOLD - 1} below threshold stays silent", out == "")
+
+        out = call("Read", {"file_path": "src/Foo.java"}, "sess-a")
+        parsed = json.loads(out) if out.strip() else None
+        check(
+            "threshold call emits a non-blocking allow+additionalContext nudge",
+            parsed is not None
+            and parsed["hookSpecificOutput"]["permissionDecision"] == "allow"
+            and "additionalContext" in parsed["hookSpecificOutput"],
+        )
+
+        out = call("Grep", {"pattern": "bar", "path": "src"}, "sess-a")
+        check("nudge does not repeat within the same session", out == "")
+
+        for _ in range(3):
+            call("Grep", {"pattern": "foo", "path": "src"}, "sess-b")
+        call(
+            "Bash",
+            {"command": "python3 tools/repository-map/resolve_graph_out.py --check"},
+            "sess-b",
+        )
+        out = ""
+        for _ in range(_GRAPHIFY_NUDGE_THRESHOLD):
+            out = call("Grep", {"pattern": "foo", "path": "src"}, "sess-b")
+        check("resolve_graph_out.py bash call suppresses the nudge", out == "")
+
+        for _ in range(2):
+            call("Grep", {"pattern": "foo", "path": "src"}, "sess-c")
+        call("Read", {"file_path": "graphify-out/manifest.json"}, "sess-c")
+        out = ""
+        for _ in range(_GRAPHIFY_NUDGE_THRESHOLD):
+            out = call("Grep", {"pattern": "foo", "path": "src"}, "sess-c")
+        check("reading a graphify-out/ path suppresses the nudge", out == "")
+
+        out = call("Grep", {"pattern": "foo", "path": "src"}, "")
+        check("missing session_id fails open (no nudge, no crash)", out == "")
+    finally:
+        if old_override is None:
+            os.environ.pop("SHAFT_GUARD_STATE_DIR", None)
+        else:
+            os.environ["SHAFT_GUARD_STATE_DIR"] = old_override
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    total_checks = len(failures)
+    print(f"\nGraphify nudge self-test summary: {total_checks} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
-        return run_self_test()
+        command_result = run_self_test()
+        graphify_result = run_graphify_self_test()
+        return command_result or graphify_result
 
     if "--session-start" in argv:
         return run_session_start()
