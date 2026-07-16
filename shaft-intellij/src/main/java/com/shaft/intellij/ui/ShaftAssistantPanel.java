@@ -150,6 +150,15 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton saveCloudApiKey;
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
+    /**
+     * Bordered chip wrapping {@link #allowSourceMutation} so the highest-stakes toggle in
+     * {@code routeRow} (it lets Agent mode mutate the user's project source) reads with distinct
+     * visual weight from the neutral {@link #verboseAgentOutput}/{@link #autoCompact} checkboxes
+     * beside it (#3601 B3.4). Purely presentational: its own visibility must mirror
+     * {@link #allowSourceMutation}'s in {@link #updateControlVisibility()} so it never renders as
+     * an empty colored box, but its selection/enable/listener logic stays entirely on the checkbox.
+     */
+    private final JPanel allowSourceMutationChip;
     private final JBCheckBox verboseAgentOutput;
     private final JBCheckBox autoCompact;
     private final JBTextArea prompt;
@@ -361,6 +370,21 @@ final class ShaftAssistantPanel extends JPanel {
         // Checked by default: a first-time user asking for a generated test expects it to land in
         // the project, and the per-send approval gate still confirms before the first mutation.
         allowSourceMutation.setSelected(true);
+        // Warning-tinted chip so this reads as higher-stakes than the plain verboseAgentOutput/
+        // autoCompact checkboxes beside it in routeRow, reusing the same
+        // ShaftStatusPresentation.tint(...)+JBUI.Borders.customLine(...) pairing this file already
+        // uses for the transient status label (#3601 B3.4).
+        allowSourceMutationChip = new JPanel(new BorderLayout());
+        allowSourceMutationChip.setOpaque(true);
+        allowSourceMutationChip.setBackground(ShaftStatusPresentation.tint(
+                javax.swing.UIManager.getColor("Panel.background") == null
+                        ? java.awt.Color.WHITE
+                        : javax.swing.UIManager.getColor("Panel.background"),
+                ShaftStatusPresentation.disconnected(), 0.12D));
+        allowSourceMutationChip.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.disconnected(), 1),
+                JBUI.Borders.empty(2, 6)));
+        allowSourceMutationChip.add(allowSourceMutation, BorderLayout.CENTER);
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -562,7 +586,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(localModel);
         routeRow.add(refreshLocalModels);
         routeRow.add(effort);
-        routeRow.add(allowSourceMutation);
+        routeRow.add(allowSourceMutationChip);
         routeRow.add(verboseAgentOutput);
         routeRow.add(autoCompact);
 
@@ -2309,6 +2333,10 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
+        // Chip has no selection/enable state of its own; it only needs to stay in lockstep with
+        // the checkbox's own visibility above so it never renders as an empty colored box (#3601
+        // B3.4). Selection/enable/listener logic for the checkbox itself is untouched.
+        allowSourceMutationChip.setVisible(agentMode && localAgent);
         // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs,
         // so it stays available on every route (issue #3426 B5).
         verboseAgentOutput.setVisible(true);
