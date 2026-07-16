@@ -138,6 +138,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton startWithoutAgent;
     private final JButton resetAndReinstall;
     private final JCheckBox expertMode;
+    private final JButton connectionAgentsRecheck;
     private final JButton resetEverything;
     private final JProgressBar progress;
     private final JLabel runtimeStatus;
@@ -377,6 +378,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         expertMode.setSelected(settings.advancedUiEnabled);
         expertMode.setVisible(postSetupReentry);
         expertMode.addActionListener(event -> settings.advancedUiEnabled = expertMode.isSelected());
+        connectionAgentsRecheck = new JButton("Connection & agents");
+        connectionAgentsRecheck.getAccessibleContext().setAccessibleName("Re-check connection and agents");
+        connectionAgentsRecheck.setToolTipText(
+                "Re-check your current connection and agent setup without resetting anything");
+        applyLabeledAction(connectionAgentsRecheck, ShaftIcons.CHECK);
+        connectionAgentsRecheck.setVisible(postSetupReentry);
+        connectionAgentsRecheck.addActionListener(event -> recheckConnectionAndAgents());
         resetEverything = new JButton("Reset everything");
         resetEverything.getAccessibleContext().setAccessibleName("Reset everything");
         resetEverything.setToolTipText("Factory-reset SHAFT settings, saved provider API keys, tool approvals, "
@@ -610,6 +618,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         postSetupControls.getAccessibleContext().setAccessibleName("SHAFT plugin post-setup controls");
         postSetupControls.add(expertMode);
+        postSetupControls.add(connectionAgentsRecheck);
         postSetupControls.add(resetEverything);
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
@@ -1392,6 +1401,23 @@ final class ShaftMcpSetupPanel extends JPanel {
                 "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
         copyMcpInstallCommand.requestFocusInWindow();
+    }
+
+    /**
+     * Non-destructive re-check for a returning user (issue #3601 S4): reuses the exact real
+     * connection/readiness check {@link #testConnection()} already runs for "Check now" -- this
+     * never touches {@link ShaftPluginResetService}, so settings, saved credentials, tool
+     * approvals, and chat history are all left alone, unlike {@link #confirmAndReset()}. Forcing
+     * the choose/install/check rows open for the run lets a returning user see current state (and
+     * change {@link #family}/{@link #runtime} in {@link #chooseRow} if needed) without hunting
+     * through the collapsed "Done" summaries {@link #collapseStepsBehindProgress} leaves behind.
+     */
+    private void recheckConnectionAndAgents() {
+        testConnection();
+        manuallyExpandedRows.add(chooseRow);
+        manuallyExpandedRows.add(installRow);
+        manuallyExpandedRows.add(checkRow);
+        collapseStepsBehindProgress(stepStatesForCollapse(true));
     }
 
     /**

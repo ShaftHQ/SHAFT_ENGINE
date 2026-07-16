@@ -2868,6 +2868,9 @@ class ShaftPanelSetupTest {
                 .filter(button -> !isSetupPrimaryAction(button))
                 .filter(button -> !"Reset and reinstall SHAFT MCP".equals(accessibleName(button)))
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
+                // Names the exact non-destructive action it runs, distinguishing it at a glance from
+                // the destructive "Reset everything" button beside it (issue #3601 S4).
+                .filter(button -> !"Re-check connection and agents".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
                 // The shaft-mcp version step's check button is labeled like its upgrade-step peer
@@ -4384,7 +4387,9 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertFalse(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isVisible()),
-                () -> assertFalse(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()));
+                () -> assertFalse(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Re-check connection and agents", JButton.class)
+                        .isVisible()));
     }
 
     @Test
@@ -4398,7 +4403,9 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isVisible()),
                 () -> assertTrue(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isSelected(),
                         "should be pre-selected because advancedUiEnabled is already true"),
-                () -> assertTrue(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()));
+                () -> assertTrue(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Re-check connection and agents", JButton.class)
+                        .isVisible()));
     }
 
     @Test
@@ -4439,6 +4446,25 @@ class ShaftPanelSetupTest {
         setField(panel, "confirmReset", (java.util.function.BooleanSupplier) () -> true);
         clickAccessible(panel, "Reset everything");
         assertEquals(1, resetCalls.get(), "confirming should invoke the reset service exactly once");
+    }
+
+    @Test
+    void recheckConnectionAndAgentsButtonRunsRealCheckWithoutTouchingReset() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+        AtomicInteger resetCalls = new AtomicInteger();
+        setField(panel, "resetAction", (Runnable) resetCalls::incrementAndGet);
+        JProgressBar progress = (JProgressBar) getField(panel, "progress");
+        JLabel status = (JLabel) getField(panel, "status");
+
+        clickAccessible(panel, "Re-check connection and agents");
+
+        assertAll(
+                () -> assertTrue(progress.isVisible(),
+                        "must dispatch through the same real check testConnection() runs from Check now"),
+                () -> assertEquals("Testing...", status.getText()),
+                () -> assertEquals(0, resetCalls.get(), "must never invoke the reset action"));
     }
 
     private static ToolApprovalService approvalServiceOf(ShaftAssistantPanel panel) throws Exception {
