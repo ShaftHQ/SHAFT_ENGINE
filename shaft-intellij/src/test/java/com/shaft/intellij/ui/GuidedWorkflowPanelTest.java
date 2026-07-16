@@ -360,6 +360,35 @@ class GuidedWorkflowPanelTest {
     }
 
     @Test
+    void advancedOptionsHintShowsOnlyWhileCollapsed() {
+        // Issue #3601 G3: templates/backend/session controls all live behind Advanced options, so
+        // a collapsed-by-default user gets a plain-language nudge toward the toggle -- purely
+        // informational, and gone the moment Advanced options is opened.
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        javax.swing.JCheckBox toggle =
+                findByAccessibleName(panel, "Show advanced Guided options", javax.swing.JCheckBox.class);
+        javax.swing.JLabel hint =
+                findByAccessibleName(panel, "Advanced options hint", javax.swing.JLabel.class);
+        assertNotNull(toggle);
+        assertNotNull(hint);
+
+        assertAll(
+                () -> assertFalse(toggle.isSelected(), "Advanced options must default to collapsed"),
+                () -> assertTrue(isVisibleInHierarchy(hint), "Hint must show while Advanced options is collapsed"));
+
+        toggle.doClick();
+        assertAll(
+                () -> assertTrue(toggle.isSelected()),
+                () -> assertFalse(isVisibleInHierarchy(hint), "Hint must hide once Advanced options is expanded"));
+
+        toggle.doClick();
+        assertAll(
+                () -> assertFalse(toggle.isSelected()),
+                () -> assertTrue(isVisibleInHierarchy(hint), "Hint must reappear once Advanced options is collapsed again"));
+    }
+
+    @Test
     void allAccessibleNamesRemainReachableOnceExpanded() {
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
         });

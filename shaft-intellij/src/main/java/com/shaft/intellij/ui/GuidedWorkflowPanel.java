@@ -13,6 +13,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.Alarm;
@@ -179,6 +180,19 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         // (ShaftSettingsState.Settings#advancedUiEnabled) starts expanded instead.
         advancedPanel.setVisible(this.settings.advancedUiEnabled);
 
+        // Soft nudge (issue #3601 G3): templates and the backend/session controls all live behind
+        // Advanced options, so a user who has not discovered that toggle yet has no way to find
+        // them. Purely informational -- it never auto-expands anything -- and keyed off the live
+        // collapsed/expanded state (no ShaftSettingsState.Settings flag tracks "has used advanced"
+        // today) so it hides itself the moment the user opens Advanced options and never nags a
+        // returning user again this session.
+        JLabel advancedHint = new JLabel(
+                "Need a starting template or advanced controls? Open Advanced options below.");
+        advancedHint.getAccessibleContext().setAccessibleName("Advanced options hint");
+        advancedHint.setForeground(JBColor.namedColor("Label.disabledForeground", JBColor.GRAY));
+        advancedHint.setBorder(JBUI.Borders.empty(2, 0));
+        advancedHint.setVisible(!this.settings.advancedUiEnabled);
+
         JCheckBox advancedToggle = new JCheckBox("Advanced options", this.settings.advancedUiEnabled);
         advancedToggle.getAccessibleContext().setAccessibleName("Show advanced Guided options");
         advancedToggle.getAccessibleContext().setAccessibleDescription(
@@ -186,14 +200,19 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         + "generated code, coding partner, and locator controls.");
         advancedToggle.addItemListener(event -> {
             advancedPanel.setVisible(advancedToggle.isSelected());
+            advancedHint.setVisible(!advancedToggle.isSelected());
             revalidate();
             repaint();
         });
 
+        JPanel primarySouth = new JPanel(new BorderLayout(4, 4));
+        primarySouth.add(advancedHint, BorderLayout.NORTH);
+        primarySouth.add(advancedToggle, BorderLayout.SOUTH);
+
         JPanel primaryPanel = new JPanel(new BorderLayout(6, 6));
         primaryPanel.add(primaryFields, BorderLayout.NORTH);
         primaryPanel.add(recorder, BorderLayout.CENTER);
-        primaryPanel.add(advancedToggle, BorderLayout.SOUTH);
+        primaryPanel.add(primarySouth, BorderLayout.SOUTH);
 
         JPanel body = new JPanel(new BorderLayout(6, 6));
         body.add(primaryPanel, BorderLayout.NORTH);
