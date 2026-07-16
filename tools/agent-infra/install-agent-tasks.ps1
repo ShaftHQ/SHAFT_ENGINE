@@ -15,5 +15,5 @@ New-Item -ItemType Directory -Force "$env:USERPROFILE\.gbrain\autopilot" | Out-N
 schtasks /Create /TN gbrain-autosync /TR "`"$here\gbrain-autosync.cmd`"" /SC MINUTE /MO 30 /F
 schtasks /Create /TN gbrain-dream   /TR "`"$here\gbrain-dream.cmd`""   /SC DAILY /ST 05:00 /F
 
-Write-Host "Registered gbrain-autosync (every 30 min) and gbrain-dream (daily 05:00)."
-Write-Host "Verify: schtasks /Query /TN gbrain-autosync; logs in $env:USERPROFILE\.gbrain\autopilot\"
+Write-Output "Registered gbrain-autosync (every 30 min) and gbrain-dream (daily 05:00)."
+Write-Output "Verify: schtasks /Query /TN gbrain-autosync; logs in $env:USERPROFILE\.gbrain\autopilot\"
