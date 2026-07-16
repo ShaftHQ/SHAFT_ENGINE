@@ -25,6 +25,13 @@
 #      PreToolUse "allow" + additionalContext reminder. Never denies --
 #      getting the "broad exploration" heuristic wrong should be a mild
 #      nudge, not friction on legitimate targeted lookups. See #3611.
+#   R6 TDD nudge -- non-blocking. A PreToolUse hook cannot verify real
+#      red-green discipline (no visibility into test pass/fail semantics or
+#      test-to-class mapping); this is a coarse proxy only. The first time a
+#      session edits/writes a production Java file (src/main/java/**/*.java)
+#      with no scoped Maven test-executing command seen yet in that session,
+#      emit ONE PreToolUse "allow" + additionalContext reminder pointing at
+#      test-driven-development. Never denies, same rationale as R5.
 #
 # Stdlib only. Must run under both `py -3` (Windows launcher, this repo's
 # documented convention) and `python3` (Linux/CI/macOS), so avoid anything
@@ -479,6 +486,92 @@ def graphify_nudge_for_read_or_grep(hook_input: dict, session_id: str) -> str | 
 
 
 # ---------------------------------------------------------------------------
+# R6: TDD nudge (non-blocking; PreToolUse only)
+# ---------------------------------------------------------------------------
+#
+# test-driven-development (.claude/skills/test-driven-development/SKILL.md)
+# asks agents to write a failing test before production code. This is a
+# coarse proxy, not real enforcement: it only checks whether ANY scoped
+# Maven test-executing command has been seen in the session before the first
+# edit/write to a production Java file -- it cannot verify the test actually
+# failed first, or that it covers the file being edited. State is a separate
+# per-session file (own namespace, isolated from the R5 state dir) under the
+# same SHAFT_GUARD_STATE_DIR override used by the self-test below.
+
+_PRODUCTION_EDIT_TOOLS = frozenset({"Edit", "Write"})
+_PRODUCTION_JAVA_PATH_RE = re.compile(r"src/main/java/.*\.java$", re.IGNORECASE)
+
+_TDD_NUDGE_MESSAGE = (
+    "Reminder (test-driven-development): this session has edited a "
+    "production Java file with no scoped Maven test run seen yet. This is a "
+    "coarse proxy, not proof either way -- if this is genuinely TDD (test "
+    "written and watched red first), ignore it. Otherwise see "
+    ".claude/skills/test-driven-development/SKILL.md. One-time, "
+    "non-blocking reminder for this session."
+)
+
+
+def _tdd_state_dir() -> str:
+    override = os.environ.get("SHAFT_GUARD_STATE_DIR")
+    return override if override else os.path.join(tempfile.gettempdir(), "shaft_guard_tdd_state")
+
+
+def _tdd_state_path(session_id: str) -> str:
+    safe_id = _SESSION_ID_SAFE_RE.sub("_", session_id) or "unknown"
+    return os.path.join(_tdd_state_dir(), f"{safe_id}.json")
+
+
+def _load_tdd_state(session_id: str) -> dict:
+    try:
+        with open(_tdd_state_path(session_id), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            if isinstance(data, dict):
+                return data
+    except (OSError, ValueError):
+        pass
+    return {"test_run_seen": False, "nudged": False}
+
+
+def _save_tdd_state(session_id: str, state: dict) -> None:
+    try:
+        os.makedirs(_tdd_state_dir(), exist_ok=True)
+        with open(_tdd_state_path(session_id), "w", encoding="utf-8") as handle:
+            json.dump(state, handle)
+    except OSError:
+        pass  # best-effort only -- state loss just means a missed/repeated nudge
+
+
+def note_tdd_test_run_from_command(command: str, session_id: str) -> None:
+    """Mark a scoped Maven test run as seen when a command runs a test goal."""
+    if not session_id:
+        return
+    if not any(_segment_has_test_goal(segment) for segment in _mvn_segments(command)):
+        return
+    state = _load_tdd_state(session_id)
+    if not state.get("test_run_seen"):
+        state["test_run_seen"] = True
+        _save_tdd_state(session_id, state)
+
+
+def tdd_nudge_for_edit_or_write(hook_input: dict, session_id: str) -> str | None:
+    """Return an additionalContext nudge string, or None. Never blocks."""
+    if not session_id:
+        return None
+    tool_input = hook_input.get("tool_input") or {}
+    target = str(tool_input.get("file_path") or "").replace("\\", "/")
+    if not _PRODUCTION_JAVA_PATH_RE.search(target):
+        return None
+
+    state = _load_tdd_state(session_id)
+    if state.get("test_run_seen") or state.get("nudged"):
+        return None
+
+    state["nudged"] = True
+    _save_tdd_state(session_id, state)
+    return _TDD_NUDGE_MESSAGE
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
@@ -533,6 +626,7 @@ def run_pretooluse(hook_input: dict) -> int:
         if not command:
             return 0
         note_graphify_reference_from_command(command, session_id)
+        note_tdd_test_run_from_command(command, session_id)
         reason = evaluate_command(command)
         if reason is not None:
             _print_deny(reason)  # per protocol: deny is signaled via JSON on stdout, exit 0
@@ -540,6 +634,12 @@ def run_pretooluse(hook_input: dict) -> int:
 
     if tool_name in _BROAD_SEARCH_TOOLS:
         nudge = graphify_nudge_for_read_or_grep(hook_input, session_id)
+        if nudge is not None:
+            _print_allow_with_context(nudge)
+        return 0
+
+    if tool_name in _PRODUCTION_EDIT_TOOLS:
+        nudge = tdd_nudge_for_edit_or_write(hook_input, session_id)
         if nudge is not None:
             _print_allow_with_context(nudge)
         return 0
@@ -750,11 +850,75 @@ def run_graphify_self_test() -> int:
     return 0
 
 
+def run_tdd_self_test() -> int:
+    """Exercises the R6 nudge across a simulated sequence of PreToolUse calls."""
+    import contextlib
+    import io
+    import shutil
+
+    failures: list[str] = []
+
+    def call(tool_name: str, tool_input: dict, session_id: str) -> str:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run_pretooluse({"tool_name": tool_name, "tool_input": tool_input, "session_id": session_id})
+        return buf.getvalue()
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    tmp_dir = tempfile.mkdtemp(prefix="shaft_guard_tdd_test_")
+    old_override = os.environ.get("SHAFT_GUARD_STATE_DIR")
+    os.environ["SHAFT_GUARD_STATE_DIR"] = tmp_dir
+    try:
+        out = call("Edit", {"file_path": "shaft-engine/src/test/java/FooTest.java"}, "sess-a")
+        check("editing a test file (src/test/java) never nudges", out == "")
+
+        out = call("Edit", {"file_path": "shaft-engine/src/main/java/com/shaft/Foo.java"}, "sess-a")
+        parsed = json.loads(out) if out.strip() else None
+        check(
+            "first production-Java edit with no test run seen emits a non-blocking nudge",
+            parsed is not None
+            and parsed["hookSpecificOutput"]["permissionDecision"] == "allow"
+            and "additionalContext" in parsed["hookSpecificOutput"],
+        )
+
+        out = call("Write", {"file_path": "shaft-engine/src/main/java/com/shaft/Bar.java"}, "sess-a")
+        check("nudge does not repeat within the same session", out == "")
+
+        call("Bash", {"command": "mvn -pl shaft-engine -Dtest=FooTest test -DheadlessExecution=true"}, "sess-b")
+        out = call("Edit", {"file_path": "shaft-engine/src/main/java/com/shaft/Foo.java"}, "sess-b")
+        check("a scoped Maven test run earlier in the session suppresses the nudge", out == "")
+
+        out = call("Edit", {"file_path": "docs/README.md"}, "sess-c")
+        check("non-Java file never nudges", out == "")
+
+        out = call("Edit", {"file_path": "shaft-engine/src/main/java/com/shaft/Foo.java"}, "")
+        check("missing session_id fails open (no nudge, no crash)", out == "")
+    finally:
+        if old_override is None:
+            os.environ.pop("SHAFT_GUARD_STATE_DIR", None)
+        else:
+            os.environ["SHAFT_GUARD_STATE_DIR"] = old_override
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    total_checks = len(failures)
+    print(f"\nTDD nudge self-test summary: {total_checks} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
         graphify_result = run_graphify_self_test()
-        return command_result or graphify_result
+        tdd_result = run_tdd_self_test()
+        return command_result or graphify_result or tdd_result
 
     if "--session-start" in argv:
         return run_session_start()

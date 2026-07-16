@@ -73,7 +73,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell|Read|Grep",
+        "matcher": "Bash|PowerShell|Read|Grep|Edit|Write",
         "hooks": [
           {
             "type": "command",
