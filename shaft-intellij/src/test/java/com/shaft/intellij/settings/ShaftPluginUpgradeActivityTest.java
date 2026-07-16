@@ -3,6 +3,7 @@ package com.shaft.intellij.settings;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,7 +45,7 @@ class ShaftPluginUpgradeActivityTest {
         ShaftSettingsState settingsState = new ShaftSettingsState();
         boolean[] resetRan = {false};
         ShaftPluginResetService resetService = new ShaftPluginResetService(
-                () -> resetRan[0] = true, () -> { }, () -> { }, List::of, () -> { });
+                () -> resetRan[0] = true, () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { });
 
         ShaftPluginUpgradeActivity.checkForUpgrade("1.2.3", settingsState, resetService);
 
@@ -69,7 +70,7 @@ class ShaftPluginUpgradeActivityTest {
                     resetRan[0] = true;
                     ShaftPluginResetService.resetSettings(settingsState);
                 },
-                () -> { }, () -> { }, List::of, () -> { });
+                () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { });
 
         ShaftPluginUpgradeActivity.checkForUpgrade("1.2.3", settingsState, resetService);
 
@@ -88,7 +89,7 @@ class ShaftPluginUpgradeActivityTest {
         settingsState.getState().lastSeenPluginVersion = "1.2.3";
         boolean[] resetRan = {false};
         ShaftPluginResetService resetService = new ShaftPluginResetService(
-                () -> resetRan[0] = true, () -> { }, () -> { }, List::of, () -> { });
+                () -> resetRan[0] = true, () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { });
 
         ShaftPluginUpgradeActivity.checkForUpgrade("1.2.3", settingsState, resetService);
 
@@ -103,7 +104,7 @@ class ShaftPluginUpgradeActivityTest {
         settingsState.getState().lastSeenPluginVersion = "1.2.2";
         boolean[] resetRan = {false};
         ShaftPluginResetService resetService = new ShaftPluginResetService(
-                () -> resetRan[0] = true, () -> { }, () -> { }, List::of, () -> { });
+                () -> resetRan[0] = true, () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { });
 
         ShaftPluginUpgradeActivity.checkForUpgrade(null, settingsState, resetService);
 

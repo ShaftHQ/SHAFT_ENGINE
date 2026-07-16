@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -666,7 +667,9 @@ class ShaftSettingsConfigurableTest {
     private static final class InMemoryCredentials implements ShaftSettingsConfigurable.CredentialAccess {
         private final Set<String> storedKeys = new HashSet<>();
 
-        @Override
+        // Kept as plain (non-override) methods so existing test call sites that talk to this
+        // concrete type directly (see keyStatusLabelsAccessibleDescriptionsTrackLiveStoredStateAcrossUpdates)
+        // can still exercise the store synchronously without waiting on a future.
         public void setApiKey(String provider, char[] secret) {
             if (secret == null || new String(secret).isBlank()) {
                 storedKeys.remove(provider);
@@ -675,9 +678,19 @@ class ShaftSettingsConfigurableTest {
             }
         }
 
-        @Override
         public boolean hasApiKey(String provider) {
             return storedKeys.contains(provider);
+        }
+
+        @Override
+        public CompletableFuture<Void> setApiKeyAsync(String provider, char[] secret) {
+            setApiKey(provider, secret);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> hasApiKeyAsync(String provider) {
+            return CompletableFuture.completedFuture(hasApiKey(provider));
         }
     }
 }
