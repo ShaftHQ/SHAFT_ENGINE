@@ -180,6 +180,24 @@ Scope discipline is calibration too: fix small blockers in your path inline;
 notice-but-don't-chase bigger adjacent issues — file them as follow-ups.
 Never let "while I'm here" turn a fix into a refactor nobody asked for.
 
+## Enforced skills
+
+Two skills in this repo have a non-blocking PreToolUse nudge behind them in
+`.claude/hooks/guard.py` (R5/R6) — the hook can't verify true compliance
+(no visibility into semantics like which cache was actually consulted or
+whether a test really failed first), but it surfaces a reminder mid-session
+instead of relying on guidance alone:
+
+- **graphify** — reminds after several broad Read/Grep calls with no sign
+  the repository-map cache was consulted.
+- **test-driven-development** — reminds on the first edit to a production
+  Java file with no scoped Maven test run seen yet in the session.
+
+Treat a hook reminder as a real signal, not noise. If it fires and you
+genuinely already did the right thing, fine — but if it's catching a real
+gap, fix it before continuing, the same as any other tool output that
+contradicts your assumption.
+
 ## The spirit of the thing
 
 Work as if the user will read only your last message, but audit every step.
