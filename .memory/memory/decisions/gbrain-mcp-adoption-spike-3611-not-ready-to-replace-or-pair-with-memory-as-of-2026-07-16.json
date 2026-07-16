@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/gbrain-mcp-adoption-spike-3611-not-ready-to-replace-or-pair-with-memory-as-of-2026-07-16.md",
-  "content_hash": "sha256:1a4401851b314953fbab25a9363cb0d25a2a101d983f3e0b51b6af6b9e066198",
+  "content_hash": "sha256:aba48ef3fcdc6af7ef2a76cae4ee90aa1155dfafbf8a52f9d853816db433d428",
   "created_at": "2026-07-16T16:31:26+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "gbrain MCP adoption spike (#3611): not ready to replace or pair with .memory/ as of 2026-07-16",
   "type": "decision",
-  "updated_at": "2026-07-16T16:31:26+03:00"
+  "updated_at": "2026-07-16T17:11:11+03:00"
 }
