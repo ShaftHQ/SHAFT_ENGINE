@@ -245,3 +245,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.adding-removing-a-shaft-mcp-tool-requires-regenerating-shaft-mcp-tools-md-updating-the-manifest-fixture-and-bumping-the-hardcoded-tool-count-test","timestamp":"2026-07-15T11:52:04+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.pluginmanagercore-getplugin-pluginid-is-now-internal-fails-shaft-intellij-verifyplugin-gate","timestamp":"2026-07-15T16:34:01+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.captureeventpipeline-interaction-consequence-checks-need-interaction-history-not-a-single-scalar","timestamp":"2026-07-15T19:45:19+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-a-click-to-toggle-swing-row-wired-only-with-mouselistener-is-not-keyboard-reachable","timestamp":"2026-07-16T09:46:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.shaft-intellij-jlabel-accessible-name-overrides-commonly-mask-live-dynamic-label-text-from-screen-readers","timestamp":"2026-07-16T09:46:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.shaft-intellij-jlabel-accessible-name-overrides-commonly-hide-live-dynamic-label-text-from-screen-readers","timestamp":"2026-07-16T09:48:38+03:00"}

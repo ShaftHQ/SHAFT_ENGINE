@@ -75,6 +75,9 @@ final class ShaftMcpSetupPanel extends JPanel {
     private static final String CHECK_NEXT_STEP = "Press Check now.";
     private static final String GEMINI_FAMILY = "GEMINI";
     private static final String GEMINI_KEY_NAME = "GEMINI_API_KEY";
+    /** Client-property key {@link #stepRow} stashes its action component under, so the row-collapse
+     * logic (issue #3601 S2) can find and hide it without a dedicated field per row. */
+    private static final String STEP_ACTION_KEY = "shaft.stepRow.action";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -135,6 +138,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton startWithoutAgent;
     private final JButton resetAndReinstall;
     private final JCheckBox expertMode;
+    private final JButton connectionAgentsRecheck;
     private final JButton resetEverything;
     private final JProgressBar progress;
     private final JLabel runtimeStatus;
@@ -159,6 +163,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyDocs;
     private final JButton copyRestartCommand;
     private final JTextPane details;
+    private final JBScrollPane detailsScroll;
+    private final JButton toggleDetails;
     private final JPanel installerDetailsPanel;
     private final JPanel detailsPanel;
     private final JPanel prerequisitesRow;
@@ -186,6 +192,12 @@ final class ShaftMcpSetupPanel extends JPanel {
      */
     private boolean upgradeChecked;
     private boolean mcpVersionChecked;
+    /** Last {@link #refreshPrerequisites()} result, mirrored into a field (issue #3601 S2) so the
+     * row-collapse pass can read it without re-running tool detection on every setup update. */
+    private boolean prerequisitesAllPresent = true;
+    /** Step rows a user clicked open to inspect after they auto-collapsed (issue #3601 S2); cleared
+     * on the next real setup update so a manual override never outlives the progress that earned it. */
+    private final java.util.Set<JPanel> manuallyExpandedRows = new java.util.HashSet<>();
     private ShaftProjectVersionCheck.Result upgradeCheckResult;
     /** Runs the real project-vs-latest SHAFT version comparison; injectable for tests. */
     private java.util.function.Supplier<ShaftProjectVersionCheck.Result> upgradeChecker = () ->
@@ -366,6 +378,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         expertMode.setSelected(settings.advancedUiEnabled);
         expertMode.setVisible(postSetupReentry);
         expertMode.addActionListener(event -> settings.advancedUiEnabled = expertMode.isSelected());
+        connectionAgentsRecheck = new JButton("Connection & agents");
+        connectionAgentsRecheck.getAccessibleContext().setAccessibleName("Re-check connection and agents");
+        connectionAgentsRecheck.setToolTipText(
+                "Re-check your current connection and agent setup without resetting anything");
+        applyLabeledAction(connectionAgentsRecheck, ShaftIcons.CHECK);
+        connectionAgentsRecheck.setVisible(postSetupReentry);
+        connectionAgentsRecheck.addActionListener(event -> recheckConnectionAndAgents());
         resetEverything = new JButton("Reset everything");
         resetEverything.getAccessibleContext().setAccessibleName("Reset everything");
         resetEverything.setToolTipText("Factory-reset SHAFT settings, saved provider API keys, tool approvals, "
@@ -383,6 +402,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         setupSummary = new JLabel();
         setupSummary.getAccessibleContext().setAccessibleName("SHAFT MCP setup summary");
         setupSummary.setText("Installs SHAFT MCP locally and configures the selected client.");
+        // Muted caption weight (issue #3601 B1.2), matching the ShaftAssistantPanel status-line
+        // idiom: this line restates the live target/runtime selection already visible in the form
+        // above it, so it should read as secondary detail, not a peer of the intro copy.
+        setupSummary.setFont(setupSummary.getFont().deriveFont(Math.max(10.0F, setupSummary.getFont().getSize2D() - 1.0F)));
+        setupSummary.setForeground(ShaftStatusPresentation.pending());
         recoveryStatus = new JLabel();
         recoveryStatus.getAccessibleContext().setAccessibleName("SHAFT MCP recovery summary");
         recoveryStatus.setVisible(false);
@@ -439,6 +463,20 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setBackground(UIManagerColors.background());
         details.setForeground(UIManagerColors.foreground());
         details.setBorder(JBUI.Borders.compound(JBUI.Borders.empty(6), JBUI.Borders.customLine(UIManagerColors.border(), 1)));
+        detailsScroll = new JBScrollPane(details);
+        // Collapsed behind a toggle by default (issue #3601 B1.4): recoveryStatus is the primary,
+        // actually-useful content of a failure state, so the raw probe output no longer dominates
+        // the view on its own -- see #toggleDetailsVisibility, which the button below drives.
+        detailsScroll.setVisible(false);
+        // Icon-only, tooltip-flip toggle (issue #3538 convention), mirroring
+        // ShaftFeaturePanel#showRawOutput's established raw-output-toggle pattern.
+        toggleDetails = new JButton();
+        ShaftIconButtons.apply(toggleDetails, "Show details", "Toggle raw SHAFT MCP setup output", ShaftIcons.VIEW);
+        toggleDetails.getAccessibleContext().setAccessibleDescription(
+                "Shows or hides the raw diagnostic output below the recovery guidance.");
+        toggleDetails.setEnabled(false);
+        toggleDetails.addActionListener(event -> toggleDetailsVisibility());
+        setDetailsToggleText();
 
         upgradeStep = setupStepLabel("Upgrade project setup step");
         upgradeState = setupStateLabel("Upgrade project setup state");
@@ -516,6 +554,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         prerequisitesStep = setupStepLabel("Prerequisites setup step");
         prerequisitesState = setupStateLabel("Prerequisites setup state");
         prerequisitesRow = stepRow(prerequisitesStep, prerequisitesState, prerequisitesControls);
+        // Threaded click-to-inspect (issue #3601 S2): once a row auto-collapses to its label+badge
+        // line, clicking it re-expands the full detail so a "done" row stays inspectable; the
+        // readyStep/chatRow never collapses (nothing is ever behind it), so it is excluded here.
+        installRowInspectionToggle(prerequisitesRow, prerequisitesStep, prerequisitesState);
+        installRowInspectionToggle(upgradeRow, upgradeStep, upgradeState);
+        installRowInspectionToggle(chooseRow, chooseStep, chooseState);
+        installRowInspectionToggle(installRow, installStep, installState);
+        installRowInspectionToggle(checkRow, testStep, testState);
         readyStep.setText("Ready");
         JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         readyActions.setOpaque(false);
@@ -533,7 +579,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         readyControls.add(readyActions);
         chatRow = stepRow(readyStep, readyState, readyControls);
         chatRow.setVisible(false);
-        JPanel workflow = new JPanel();
+        // Threads the six step rows into one visual path (issue #3601 B1.3): a thin connector line
+        // shows through the transparent gaps between rows, painted behind each row's own opaque,
+        // state-colored background -- purely additive, styleStepRow's border/background behavior
+        // per row is untouched.
+        JPanel workflow = new JPanel() {
+            @Override
+            protected void paintComponent(java.awt.Graphics graphics) {
+                super.paintComponent(graphics);
+                graphics.setColor(UIManagerColors.border());
+                int lineX = JBUI.scale(15);
+                graphics.fillRect(lineX, 0, JBUI.scale(2), getHeight());
+            }
+        };
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
         workflow.add(prerequisitesRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
@@ -554,11 +612,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         diagnosticRow.add(copyOutput);
         diagnosticRow.add(copyDocs);
         diagnosticRow.add(copyRestartCommand);
+        diagnosticRow.add(toggleDetails);
         JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         secondaryActions.add(resetAndReinstall);
         JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         postSetupControls.getAccessibleContext().setAccessibleName("SHAFT plugin post-setup controls");
         postSetupControls.add(expertMode);
+        postSetupControls.add(connectionAgentsRecheck);
         postSetupControls.add(resetEverything);
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
@@ -570,9 +630,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
         // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
+        // First user-visible mention of "MCP" in this file (issue #3601 B1.2): expanded once here,
+        // in plain prose, so the acronym never appears unexplained before this screen defines it.
         JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — recording, code "
                 + "generation, and failure diagnosis work the same on Codex, Claude Code, Copilot, and Gemini. "
-                + "SHAFT handles the wiring.</body></html>");
+                + "SHAFT handles the wiring through MCP (Model Context Protocol).</body></html>");
         summary.setForeground(ShaftStatusPresentation.pending());
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
@@ -609,7 +671,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 .getPanel();
         detailsPanel = new JPanel(new BorderLayout(4, 4));
         detailsPanel.add(diagnosticRow, BorderLayout.NORTH);
-        detailsPanel.add(new JBScrollPane(details), BorderLayout.CENTER);
+        detailsPanel.add(detailsScroll, BorderLayout.CENTER);
         detailsPanel.setVisible(false);
         // The setup flow has grown taller than many tool-window sizes, so the whole page lives in
         // a vertical scroll pane: the scrollbar appears only when needed and the user can always
@@ -810,6 +872,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             }
             prerequisitesList.add(row);
         }
+        prerequisitesAllPresent = allRequiredPresent;
         setStep(prerequisitesStep, prerequisitesState, "0 Prerequisites", allRequiredPresent ? "done" : "next");
         styleStepRow(prerequisitesRow, allRequiredPresent ? "done" : "next");
         alignStepLabelWidths();
@@ -1341,6 +1404,23 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     /**
+     * Non-destructive re-check for a returning user (issue #3601 S4): reuses the exact real
+     * connection/readiness check {@link #testConnection()} already runs for "Check now" -- this
+     * never touches {@link ShaftPluginResetService}, so settings, saved credentials, tool
+     * approvals, and chat history are all left alone, unlike {@link #confirmAndReset()}. Forcing
+     * the choose/install/check rows open for the run lets a returning user see current state (and
+     * change {@link #family}/{@link #runtime} in {@link #chooseRow} if needed) without hunting
+     * through the collapsed "Done" summaries {@link #collapseStepsBehindProgress} leaves behind.
+     */
+    private void recheckConnectionAndAgents() {
+        testConnection();
+        manuallyExpandedRows.add(chooseRow);
+        manuallyExpandedRows.add(installRow);
+        manuallyExpandedRows.add(checkRow);
+        collapseStepsBehindProgress(stepStatesForCollapse(true));
+    }
+
+    /**
      * Confirms with the user, then delegates to {@link ShaftPluginResetService#resetEverything()}.
      * Cancelling the confirmation dialog is a no-op. Both the confirmation prompt and the reset
      * action itself are indirected through overridable fields so tests can drive this without a
@@ -1835,6 +1915,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         styleStepRow(installRow, mcpVersionStepState());
         styleStepRow(checkRow, checkStepState(running, complete, hasCommand));
         styleStepRow(chatRow, complete ? "next" : "wait");
+        manuallyExpandedRows.clear();
+        collapseStepsBehindProgress(stepStatesForCollapse(running));
     }
 
     /**
@@ -1927,7 +2009,105 @@ final class ShaftMcpSetupPanel extends JPanel {
         row.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
                 JBUI.Borders.empty(8, 10)));
+        row.putClientProperty(STEP_ACTION_KEY, action);
         return row;
+    }
+
+    /**
+     * Once a step's action component is hidden ({@link #collapseStepsBehindProgress}), a click on
+     * the row's remaining label+badge line re-expands it for inspection (issue #3601 S2). This is
+     * the file's only row-click idiom, so both the row panel and its two always-visible labels get
+     * the same listener — otherwise a click landing on the label/badge text itself (the only visible
+     * surface once collapsed) would be swallowed by the child component instead of reaching the row.
+     * Focusable with an Enter/Space key binding (#3601 a11y audit): a plain {@code MouseListener}
+     * has no keyboard equivalent, so without this the toggle would be unreachable without a mouse.
+     */
+    private void installRowInspectionToggle(JPanel row, JLabel label, JLabel stateLabel) {
+        row.setFocusable(true);
+        row.getAccessibleContext().setAccessibleName(label.getAccessibleContext().getAccessibleName() + " row");
+        row.getAccessibleContext().setAccessibleDescription(
+                "Click, or focus and press Enter or Space, to show or hide this step's detail once it is "
+                        + "complete.");
+        java.awt.event.MouseAdapter toggle = new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent event) {
+                toggleStepRowInspection(row);
+            }
+        };
+        row.addMouseListener(toggle);
+        label.addMouseListener(toggle);
+        stateLabel.addMouseListener(toggle);
+        javax.swing.Action toggleAction = new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                toggleStepRowInspection(row);
+            }
+        };
+        row.getInputMap(JComponent.WHEN_FOCUSED).put(
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "toggleStepRowInspection");
+        row.getInputMap(JComponent.WHEN_FOCUSED).put(
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "toggleStepRowInspection");
+        row.getActionMap().put("toggleStepRowInspection", toggleAction);
+    }
+
+    private void toggleStepRowInspection(JPanel row) {
+        JComponent action = stepRowAction(row);
+        if (action != null && action.isVisible()) {
+            manuallyExpandedRows.remove(row);
+        } else {
+            manuallyExpandedRows.add(row);
+        }
+        collapseStepsBehindProgress(stepStatesForCollapse(false));
+    }
+
+    private static JComponent stepRowAction(JPanel row) {
+        Object action = row.getClientProperty(STEP_ACTION_KEY);
+        return action instanceof JComponent component ? component : null;
+    }
+
+    private static void setRowCollapsed(JPanel row, boolean collapsed) {
+        JComponent action = stepRowAction(row);
+        if (action != null) {
+            action.setVisible(!collapsed);
+        }
+    }
+
+    private String[] stepStatesForCollapse(boolean running) {
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        return new String[]{
+                prerequisitesAllPresent ? "done" : "next",
+                upgradeStepState(),
+                chooseStepState(),
+                mcpVersionStepState(),
+                checkStepState(running, complete, hasCommand)
+        };
+    }
+
+    /**
+     * Collapses a "done" step row to its single label+badge line once the flow has moved past it
+     * (issue #3601 S2): scanning the five core rows back to front, a done row collapses only once
+     * some later row already shows real progress (done/next/checking) — so the row the user is
+     * actually on, and any row nothing has happened on yet ("wait"), never collapses. A click can
+     * still force a collapsed row open (see {@link #toggleStepRowInspection}); that override is
+     * cleared here whenever the row stops being collapse-eligible, and wiped wholesale on the next
+     * real setup update (see {@link #updateWorkflowRows}) so it never outlives the progress that
+     * earned it.
+     */
+    private void collapseStepsBehindProgress(String[] states) {
+        JPanel[] rows = {prerequisitesRow, upgradeRow, chooseRow, installRow, checkRow};
+        boolean laterRowTouched = false;
+        for (int index = rows.length - 1; index >= 0; index--) {
+            JPanel row = rows[index];
+            boolean collapseEligible = "done".equals(states[index]) && laterRowTouched;
+            if (!collapseEligible) {
+                manuallyExpandedRows.remove(row);
+            }
+            setRowCollapsed(row, collapseEligible && !manuallyExpandedRows.contains(row));
+            if (!"wait".equals(states[index])) {
+                laterRowTouched = true;
+            }
+        }
     }
 
     /**
@@ -2066,8 +2246,30 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setText(diagnosticOutput);
         details.setCaretPosition(details.getDocument().getLength());
         detailsPanel.setVisible(!diagnosticOutput.isBlank());
+        toggleDetails.setEnabled(!diagnosticOutput.isBlank());
+        toggleDetails.setVisible(!diagnosticOutput.isBlank());
+        // Every new failure re-collapses the raw pane (issue #3601 B1.4): recoveryStatus above is
+        // the guidance a user actually needs, so a fresh failure never re-opens a wall of text a
+        // previous "Show details" click had left expanded.
+        detailsScroll.setVisible(false);
+        setDetailsToggleText();
         updateProgressivePanels();
         detailsPanel.revalidate();
+    }
+
+    private void toggleDetailsVisibility() {
+        detailsScroll.setVisible(!detailsScroll.isVisible());
+        setDetailsToggleText();
+        detailsPanel.revalidate();
+        detailsPanel.repaint();
+    }
+
+    private void setDetailsToggleText() {
+        // Icon-only button (issue #3538 icon-only-and-symmetric convention): the state flips in the
+        // tooltip, never in visible text -- same idiom as ShaftFeaturePanel#showRawOutput.
+        toggleDetails.setToolTipText(detailsScroll.isVisible()
+                ? "Hide the raw diagnostic output"
+                : "Show the raw diagnostic output behind the recovery guidance above");
     }
 
     private void updateProgressivePanels() {
@@ -2087,6 +2289,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         recoveryStatus.setVisible(false);
         details.setText("");
         detailsPanel.setVisible(false);
+        toggleDetails.setEnabled(false);
+        toggleDetails.setVisible(false);
+        detailsScroll.setVisible(false);
+        setDetailsToggleText();
         detailsPanel.revalidate();
     }
 

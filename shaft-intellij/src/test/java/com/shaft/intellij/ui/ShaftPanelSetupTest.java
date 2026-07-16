@@ -1126,6 +1126,62 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void freshProjectHintShowsOnlyForANonShaftProjectAndIsDismissible() throws Exception {
+        // Issue #3601 O3: ShaftProjectVersionCheck's NOT_A_SHAFT_PROJECT state already exists for
+        // the setup wizard's "Upgrade project" step; the Assistant panel surfaces that same signal
+        // as a dismissible, non-blocking hint for a project with no SHAFT dependency yet, and stays
+        // quiet for a project that already depends on SHAFT.
+        Path freshProject = tempDirectory("shaft-fresh-project");
+        Path shaftProject = tempDirectory("shaft-adopted-project");
+        try {
+            Files.writeString(freshProject.resolve("pom.xml"), """
+                    <project>
+                      <groupId>com.example</groupId>
+                      <artifactId>fresh</artifactId>
+                      <version>1.0.0</version>
+                    </project>
+                    """);
+            Files.writeString(shaftProject.resolve("pom.xml"), """
+                    <project>
+                      <dependencies>
+                        <dependency>
+                          <groupId>io.github.shafthq</groupId>
+                          <artifactId>SHAFT_ENGINE</artifactId>
+                          <version>10.3.20260715</version>
+                        </dependency>
+                      </dependencies>
+                    </project>
+                    """);
+
+            ShaftAssistantPanel freshPanel = new ShaftAssistantPanel(
+                    fakeProject(new ShaftAssistantChatState(), freshProject.toString()), blankMcpSettings());
+            ShaftAssistantPanel adoptedPanel = new ShaftAssistantPanel(
+                    fakeProject(new ShaftAssistantChatState(), shaftProject.toString()), blankMcpSettings());
+            JLabel freshHint = findByAccessibleName(freshPanel, "Fresh project hint", JLabel.class);
+            JLabel adoptedHint = findByAccessibleName(adoptedPanel, "Fresh project hint", JLabel.class);
+            JButton dismiss = findByAccessibleName(freshPanel, "Dismiss fresh project hint", JButton.class);
+
+            assertAll(
+                    () -> assertNotNull(freshHint),
+                    () -> assertTrue(effectivelyVisible(freshHint, freshPanel),
+                            "Hint must show for a project without a SHAFT dependency"),
+                    () -> assertNotNull(adoptedHint),
+                    () -> assertFalse(effectivelyVisible(adoptedHint, adoptedPanel),
+                            "Hint must not show for a project already on SHAFT"),
+                    () -> assertNotNull(dismiss));
+
+            dismiss.doClick();
+            assertFalse(effectivelyVisible(freshHint, freshPanel),
+                    "Dismiss must hide the hint without touching any other control");
+        } finally {
+            Files.deleteIfExists(freshProject.resolve("pom.xml"));
+            Files.deleteIfExists(freshProject);
+            Files.deleteIfExists(shaftProject.resolve("pom.xml"));
+            Files.deleteIfExists(shaftProject);
+        }
+    }
+
+    @Test
     void setupPanelOffersNoAgentLaneWhenSelectedAgentIsNotReady() throws Exception {
         // Two-lane readiness (issue #3425 A2): recorder/codegen/doctor only need a verified
         // SHAFT MCP, so a missing agent CLI completes setup on the No-AI lane instead of failing
@@ -1427,6 +1483,86 @@ class ShaftPanelSetupTest {
                     "Child panel should be non-opaque or have step background color. " +
                     "Opaque: " + child.isOpaque() + ", Background matches step: " + hasStepBackground);
         }
+    }
+
+    @Test
+    void doneStepRowCollapsesOnceLaterStepIsActiveAndReExpandsOnClick() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        // "2 Pick agent" reaches done, and "3 Install SHAFT MCP" is still next -- the flow has
+        // moved past the choose row, so it should collapse (issue #3601 S2) while install stays
+        // fully expanded, since it is the step actually in front of the user.
+        settings.agentLaneReady = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JPanel installRow = (JPanel) getField(panel, "installRow");
+        JComboBox<?> familyCombo = findByAccessibleName(chooseRow, "Assistant family", JComboBox.class);
+        JButton checkMcpVersionButton = findByAccessibleName(installRow, "Check SHAFT MCP version", JButton.class);
+        JLabel chooseState = (JLabel) getField(panel, "chooseState");
+        JComponent chooseAction = stepRowAction(panel, chooseRow);
+        JComponent installAction = stepRowAction(panel, installRow);
+
+        assertAll(
+                () -> assertNotNull(familyCombo),
+                () -> assertNotNull(checkMcpVersionButton),
+                () -> assertFalse(chooseAction.isVisible(),
+                        "Choose-agent row is done and a later step is active, so its detail should collapse"),
+                () -> assertTrue(installAction.isVisible(),
+                        "Install row is the active/next step and must stay fully expanded"),
+                () -> assertFalse(effectivelyVisible(familyCombo, chooseRow),
+                        "The collapsed row's own controls (e.g. the agent combo) must not render either"),
+                () -> assertTrue(countVisibleComponents(chooseRow) < countVisibleComponents(installRow),
+                        "A collapsed done row should show fewer visible sub-components than the active row"));
+
+        // A click on the collapsed row's remaining state badge re-expands it for inspection.
+        notifyMouseListeners(chooseState, new MouseEvent(
+                chooseState, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, 2, 2, 1, false,
+                MouseEvent.BUTTON1));
+        assertTrue(chooseAction.isVisible(), "A click on a collapsed done row must re-expand it for inspection");
+    }
+
+    @Test
+    void doneStepRowToggleIsKeyboardReachable() throws Exception {
+        // The re-expand toggle above is threaded through a MouseAdapter only; a screen-reader or
+        // keyboard-only user has no mouse to click with, so the row itself must be focusable and
+        // carry an Enter/Space key binding equivalent to the click (#3601 a11y audit).
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.agentLaneReady = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JComponent chooseAction = stepRowAction(panel, chooseRow);
+        assertFalse(chooseAction.isVisible(), "Choose-agent row should start collapsed for this scenario");
+        assertTrue(chooseRow.isFocusable(), "A collapsed row's re-expand toggle must be reachable by keyboard");
+        assertNotNull(accessibleName(chooseRow), "The focusable row needs an accessible name for screen readers");
+
+        Action enterAction = shortcutAction(chooseRow, JComponent.WHEN_FOCUSED, KeyEvent.VK_ENTER, 0);
+        enterAction.actionPerformed(new ActionEvent(chooseRow, ActionEvent.ACTION_PERFORMED, "toggle"));
+        assertTrue(chooseAction.isVisible(), "Enter on a focused collapsed row must re-expand it, like a click");
+
+        Action spaceAction = shortcutAction(chooseRow, JComponent.WHEN_FOCUSED, KeyEvent.VK_SPACE, 0);
+        spaceAction.actionPerformed(new ActionEvent(chooseRow, ActionEvent.ACTION_PERFORMED, "toggle"));
+        assertFalse(chooseAction.isVisible(), "Space toggles the row again, collapsing it back");
+    }
+
+    private static JComponent stepRowAction(ShaftMcpSetupPanel panel, JPanel row) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("stepRowAction", JPanel.class);
+        method.setAccessible(true);
+        return (JComponent) method.invoke(panel, row);
+    }
+
+    private static boolean effectivelyVisible(Component component, Component root) {
+        for (Component current = component; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+            if (current == root) {
+                break;
+            }
+        }
+        return true;
     }
 
     @Test
@@ -2813,6 +2949,9 @@ class ShaftPanelSetupTest {
                 .filter(button -> !isSetupPrimaryAction(button))
                 .filter(button -> !"Reset and reinstall SHAFT MCP".equals(accessibleName(button)))
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
+                // Names the exact non-destructive action it runs, distinguishing it at a glance from
+                // the destructive "Reset everything" button beside it (issue #3601 S4).
+                .filter(button -> !"Re-check connection and agents".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
                 // The shaft-mcp version step's check button is labeled like its upgrade-step peer
@@ -4329,7 +4468,9 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertFalse(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isVisible()),
-                () -> assertFalse(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()));
+                () -> assertFalse(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Re-check connection and agents", JButton.class)
+                        .isVisible()));
     }
 
     @Test
@@ -4343,7 +4484,9 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isVisible()),
                 () -> assertTrue(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isSelected(),
                         "should be pre-selected because advancedUiEnabled is already true"),
-                () -> assertTrue(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()));
+                () -> assertTrue(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Re-check connection and agents", JButton.class)
+                        .isVisible()));
     }
 
     @Test
@@ -4384,6 +4527,25 @@ class ShaftPanelSetupTest {
         setField(panel, "confirmReset", (java.util.function.BooleanSupplier) () -> true);
         clickAccessible(panel, "Reset everything");
         assertEquals(1, resetCalls.get(), "confirming should invoke the reset service exactly once");
+    }
+
+    @Test
+    void recheckConnectionAndAgentsButtonRunsRealCheckWithoutTouchingReset() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+        AtomicInteger resetCalls = new AtomicInteger();
+        setField(panel, "resetAction", (Runnable) resetCalls::incrementAndGet);
+        JProgressBar progress = (JProgressBar) getField(panel, "progress");
+        JLabel status = (JLabel) getField(panel, "status");
+
+        clickAccessible(panel, "Re-check connection and agents");
+
+        assertAll(
+                () -> assertTrue(progress.isVisible(),
+                        "must dispatch through the same real check testConnection() runs from Check now"),
+                () -> assertEquals("Testing...", status.getText()),
+                () -> assertEquals(0, resetCalls.get(), "must never invoke the reset action"));
     }
 
     private static ToolApprovalService approvalServiceOf(ShaftAssistantPanel panel) throws Exception {
@@ -5307,6 +5469,19 @@ class ShaftPanelSetupTest {
                 walkComponents(child, visitor);
             }
         }
+    }
+
+    private static int countVisibleComponents(Component root) {
+        AtomicInteger count = new AtomicInteger();
+        // A descendant's own isVisible() flag does not fall when an ancestor is hidden (Swing only
+        // skips it at paint/layout time), so "effectively visible" is what a collapsed row's
+        // reduced footprint actually means here.
+        walkComponents(root, component -> {
+            if (effectivelyVisible(component, root)) {
+                count.incrementAndGet();
+            }
+        });
+        return count.get();
     }
 
     // ------------------------------------------------------------------

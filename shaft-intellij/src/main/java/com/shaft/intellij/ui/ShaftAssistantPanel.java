@@ -60,6 +60,7 @@ import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.GridLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyAdapter;
@@ -115,15 +116,26 @@ final class ShaftAssistantPanel extends JPanel {
                     + "ask for a test generated from that recording._";
     /**
      * First-run welcome (issue #3500 O1, follow-up #3540): the Assistant's own first message,
-     * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed.
+     * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed. The numbered steps
+     * read as plain text, not the five-emoji list this used to be -- this was the one place emoji
+     * appeared anywhere in the plugin, breaking from the wizard/Settings/rest-of-panel voice
+     * (#3601 B3.3); the opening "Hi!" keeps its own emoji as the one deliberate warm-greeting
+     * accent. The closing line is a first-session tooltip coach for the icon-only toolbar (#3601
+     * A3): every button in this panel is icon-only via {@code ShaftIconButtons.apply(...)} with a
+     * hover tooltip and an accessible name, but a first-time user sees a row of unlabeled icons
+     * with no hover yet. No codebase precedent for a Balloon/JBPopupFactory coach-mark exists to
+     * point at a specific control, so this reuses the same show-once welcome mechanism instead of
+     * introducing a new popup widget, naming only the two or three controls needed first.
      */
     private static final String FIRST_RUN_WELCOME_MARKDOWN =
             "👋 Hi! I'm the SHAFT Assistant — I turn what you do in your app into real tests.\n\n"
-                    + "**Let's get started 🚀**\n\n"
-                    + "1. ⚙️ Check your setup in the status strip up top.\n"
-                    + "2. 🎬 Record a sample flow — just click around your app.\n"
-                    + "3. 🧪 Review code to turn it into a real test.\n"
-                    + "4. 💬 Or just tell me what you need below.";
+                    + "**Let's get started**\n\n"
+                    + "1. Check your setup in the status strip up top.\n"
+                    + "2. Record a sample flow — just click around your app.\n"
+                    + "3. Review code to turn it into a real test.\n"
+                    + "4. Or just tell me what you need below.\n\n"
+                    + "Every button around this panel is an icon with a tooltip — hover any of them "
+                    + "for its name; the ones you'll reach for first are New chat, Send, and Copy response.";
     private final Project project;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
     // one process-wide flag (issue #3591 item 3).
@@ -146,6 +158,15 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton saveCloudApiKey;
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
+    /**
+     * Bordered chip wrapping {@link #allowSourceMutation} so the highest-stakes toggle in
+     * {@code routeRow} (it lets Agent mode mutate the user's project source) reads with distinct
+     * visual weight from the neutral {@link #verboseAgentOutput}/{@link #autoCompact} checkboxes
+     * beside it (#3601 B3.4). Purely presentational: its own visibility must mirror
+     * {@link #allowSourceMutation}'s in {@link #updateControlVisibility()} so it never renders as
+     * an empty colored box, but its selection/enable/listener logic stays entirely on the checkbox.
+     */
+    private final JPanel allowSourceMutationChip;
     private final JBCheckBox verboseAgentOutput;
     private final JBCheckBox autoCompact;
     private final JBTextArea prompt;
@@ -357,6 +378,21 @@ final class ShaftAssistantPanel extends JPanel {
         // Checked by default: a first-time user asking for a generated test expects it to land in
         // the project, and the per-send approval gate still confirms before the first mutation.
         allowSourceMutation.setSelected(true);
+        // Warning-tinted chip so this reads as higher-stakes than the plain verboseAgentOutput/
+        // autoCompact checkboxes beside it in routeRow, reusing the same
+        // ShaftStatusPresentation.tint(...)+JBUI.Borders.customLine(...) pairing this file already
+        // uses for the transient status label (#3601 B3.4).
+        allowSourceMutationChip = new JPanel(new BorderLayout());
+        allowSourceMutationChip.setOpaque(true);
+        allowSourceMutationChip.setBackground(ShaftStatusPresentation.tint(
+                javax.swing.UIManager.getColor("Panel.background") == null
+                        ? java.awt.Color.WHITE
+                        : javax.swing.UIManager.getColor("Panel.background"),
+                ShaftStatusPresentation.disconnected(), 0.12D));
+        allowSourceMutationChip.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.disconnected(), 1),
+                JBUI.Borders.empty(2, 6)));
+        allowSourceMutationChip.add(allowSourceMutation, BorderLayout.CENTER);
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -558,7 +594,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(localModel);
         routeRow.add(refreshLocalModels);
         routeRow.add(effort);
-        routeRow.add(allowSourceMutation);
+        routeRow.add(allowSourceMutationChip);
         routeRow.add(verboseAgentOutput);
         routeRow.add(autoCompact);
 
@@ -594,8 +630,16 @@ final class ShaftAssistantPanel extends JPanel {
         south.add(actionRow, BorderLayout.NORTH);
         south.add(composer, BorderLayout.CENTER);
 
+        JPanel notices = new JPanel(new GridLayout(0, 1));
+        notices.add(setupNotice(project, settings));
+        // Separate signal from showFirstRunWelcomeIfNeeded() (#3601 O3): keyed off the project's
+        // actual pom.xml state via ShaftProjectVersionCheck, not firstRunCoachDismissed, so it
+        // keeps helping a returning user whose project is still fresh after the welcome bubble is
+        // long gone -- and stays quiet for an already-adopted project even on a first run.
+        notices.add(freshProjectNotice(project));
+
         JPanel north = new JPanel(new BorderLayout(4, 4));
-        north.add(setupNotice(project, settings), BorderLayout.NORTH);
+        north.add(notices, BorderLayout.NORTH);
         north.add(header, BorderLayout.CENTER);
         add(north, BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
@@ -2305,6 +2349,10 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
+        // Chip has no selection/enable state of its own; it only needs to stay in lockstep with
+        // the checkbox's own visibility above so it never renders as an empty colored box (#3601
+        // B3.4). Selection/enable/listener logic for the checkbox itself is untouched.
+        allowSourceMutationChip.setVisible(agentMode && localAgent);
         // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs,
         // so it stays available on every route (issue #3426 B5).
         verboseAgentOutput.setVisible(true);
@@ -3336,6 +3384,49 @@ final class ShaftAssistantPanel extends JPanel {
         panel.add(openSettings);
         panel.setVisible(!mcpReady(settings));
         return panel;
+    }
+
+    /**
+     * Fresh/consumer-project hint (#3601 O3): {@link ShaftProjectVersionCheck} already tells the
+     * setup wizard's "Upgrade project" step whether this project has any SHAFT
+     * ({@code io.github.shafthq}) dependency at all; surfacing that same NOT_A_SHAFT_PROJECT signal
+     * here points a user starting from an empty or non-SHAFT project at the Guided tab's "Create a
+     * new SHAFT project" template. A separate signal from {@link #showFirstRunWelcomeIfNeeded()} --
+     * keyed off project state, not {@code firstRunCoachDismissed} -- and purely a suggestion:
+     * dismissing it, or any other Assistant control, works exactly as before.
+     */
+    private static JPanel freshProjectNotice(Project project) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JLabel label = new JLabel(
+                "Starting fresh? The Guided tab has a \"Create a new SHAFT project\" template to help set one up.");
+        label.getAccessibleContext().setAccessibleName("Fresh project hint");
+        panel.add(label);
+        // Distinct visible text from the existing "Dismiss" button on the Capture review panel
+        // (dismissCaptureReview): tests and users alike locate buttons by their plain label, and
+        // this panel can be present in the tree (just invisible) at the same time as that one.
+        JButton dismiss = new JButton("Got it");
+        dismiss.getAccessibleContext().setAccessibleName("Dismiss fresh project hint");
+        ShaftIconButtons.apply(dismiss, ShaftIcons.CANCEL);
+        dismiss.addActionListener(event -> panel.setVisible(false));
+        panel.add(dismiss);
+        panel.setVisible(isFreshProject(project));
+        return panel;
+    }
+
+    /**
+     * Reuses the same {@code project.getBasePath()} resolution this file already uses elsewhere
+     * (e.g. {@link #addProjectArtifact}) rather than a new path routine. The pom.xml read is the
+     * same cheap, synchronous, local-file check {@code ShaftMcpSetupPanel} already runs straight on
+     * the EDT for its "Upgrade project" step; a blank {@code latestVersion} is enough here because
+     * {@code NOT_A_SHAFT_PROJECT} is decided before any version comparison happens (see {@link
+     * ShaftProjectVersionCheck#check}).
+     */
+    private static boolean isFreshProject(Project project) {
+        if (project == null || project.getBasePath() == null || project.getBasePath().isBlank()) {
+            return false;
+        }
+        return ShaftProjectVersionCheck.check(Path.of(project.getBasePath()), "").state()
+                == ShaftProjectVersionCheck.State.NOT_A_SHAFT_PROJECT;
     }
 
     private static JComboBox<String> combo(String accessibleName, String... values) {

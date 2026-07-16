@@ -51,6 +51,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private final Supplier<CredentialAccess> credentialsProvider;
     private JPanel panel;
     private JBTextField mcpCommand;
+    private JBCheckBox mcpCommandManualEdit;
+    /** Whether {@code state.mcpCommand} already carried a wizard-set value as of the last
+     * {@link #reset()} (issue #3601 B2.1): gates {@link #mcpCommand} read-only until the user opts
+     * in via {@link #mcpCommandManualEdit}, so a fresh install (nothing to protect yet) is left
+     * directly editable as before. */
+    private boolean mcpCommandManaged;
     private JButton testMcp;
     private JLabel testStatus;
     private JLabel testRecovery;
@@ -139,6 +145,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommand.getEmptyText().setText("java -jar path/to/shaft-mcp.jar stdio");
         mcpCommand.getAccessibleContext().setAccessibleName("MCP stdio command");
         mcpCommand.getAccessibleContext().setAccessibleDescription("Command used to start SHAFT MCP in stdio mode.");
+        mcpCommandManualEdit = new JBCheckBox("Edit manually");
+        mcpCommandManualEdit.getAccessibleContext().setAccessibleName("Edit MCP command manually");
+        mcpCommandManualEdit.setToolTipText(
+                "Edit the wizard-configured MCP command directly when it is not correct");
+        mcpCommandManualEdit.addActionListener(event -> updateMcpCommandEditableState());
         testMcp = new JButton("Test MCP");
         testMcp.getAccessibleContext().setAccessibleName("Test MCP");
         testMcp.getAccessibleContext().setAccessibleDescription(
@@ -276,6 +287,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         panel = FormBuilder.createFormBuilder()
                 .addComponent(section("Connection"))
                 .addLabeledComponent(label("MCP stdio command", 'M', mcpCommand), mcpCommand)
+                .addComponent(mcpCommandManualEdit)
                 .addLabeledComponent(testMcp, testStatus)
                 .addComponent(testRecovery)
                 .addComponent(help("Visit the SHAFT MCP user guide, install the MCP integration, paste the stdio command, then test the connection."))
@@ -384,6 +396,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public void reset() {
         ShaftSettingsState.Settings state = settingsProvider.get();
         mcpCommand.setText(state.mcpCommand);
+        mcpCommandManaged = state.mcpCommand != null && !state.mcpCommand.isBlank();
+        mcpCommandManualEdit.setSelected(false);
+        updateMcpCommandEditableState();
         advancedUiEnabled.setSelected(state.advancedUiEnabled);
         watchModeEnabled.setSelected(state.watchModeEnabled);
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
@@ -414,6 +429,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public void disposeUIResources() {
         panel = null;
         mcpCommand = null;
+        mcpCommandManualEdit = null;
         testMcp = null;
         testStatus = null;
         testRecovery = null;
@@ -528,6 +544,22 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (testRecovery != null) {
             testRecovery.setVisible(false);
         }
+    }
+
+    /**
+     * Applies the read-only gate (issue #3601 B2.1): once {@link #mcpCommandManaged} is true, a
+     * casual Settings visitor sees the wizard-configured command rather than an editable raw shell
+     * command to construct from scratch -- {@link #mcpCommandManualEdit} is the opt-in escape
+     * hatch, mirroring {@code ShaftMcpSetupPanel}'s manual-installer-target disclosure. A fresh
+     * install with no managed command yet stays directly editable, and the toggle itself only makes
+     * sense once there is something to protect.
+     */
+    private void updateMcpCommandEditableState() {
+        if (mcpCommand == null || mcpCommandManualEdit == null) {
+            return;
+        }
+        mcpCommandManualEdit.setVisible(mcpCommandManaged);
+        mcpCommand.setEditable(!mcpCommandManaged || mcpCommandManualEdit.isSelected());
     }
 
     private static JLabel label(String text, char mnemonic, JComponent target) {
