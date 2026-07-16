@@ -11,5 +11,6 @@ Follow the repository-root `AGENTS.md` and `.github/copilot-instructions.md`.
 - Store executable client examples under
   `src/test/resources/fixtures/shaft-pilot/`; public guidance belongs on the
   [Docusaurus MCP page](https://shafthq.github.io/docs/agentic/mcp).
-- Validate focused changes with the affected `shaft-mcp` tests and the
-  repository release-contract scripts.
+- Validate focused changes with the affected `shaft-mcp` tests plus
+  `python3 scripts/ci/validate_shaft_mcp_configuration.py` and
+  `python3 scripts/ci/validate_shaft_mcp_transports.py`.

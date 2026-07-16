@@ -1,16 +1,11 @@
 # Locator Design & Self-Healing
 
 ## Locator ladder (stop at the first stable rung)
-1. Dedicated test id (`data-testid` etc.) — ask for one when you own the app.
-2. Accessibility semantics: role + accessible name (what aria snapshots and
-   semantic locators use) — stable across styling refactors, matches how
-   users perceive the page.
-3. Stable attributes (name, type, placeholder) scoped to a stable container.
-4. Text content — fine for assertions, brittle for i18n.
-5. Structural CSS/XPath — last resort; never index-based
-   (`div:nth-child(7)`), never style-class-based (`.css-1x2y3z`).
-SHAFT's `By`-based APIs and aria-snapshot assertions
-(`matchesAriaSnapshot`, partial-subset semantics) reward rung 2 heavily.
+test id > role + accessible name > stable attributes in a stable container >
+text (assertions only; i18n-brittle) > structural CSS/XPath (last resort;
+never index- or style-class-based). SHAFT's `By`-based APIs and
+aria-snapshot assertions (`matchesAriaSnapshot`, partial-subset semantics)
+reward the role+name rung heavily.
 
 ## Recorder truth rules (SHAFT-specific, hard-won)
 - Recorded locators must map 1:1 to real user actions; suppress

@@ -36,3 +36,10 @@ Use these prompts through IntelliJ Assistant `/partner` or Guided `Plan coding p
 2. Use `$verifying-and-applying-shaft-changes` when a generated block contains `Thread.sleep` and `driver.findElement`; show that guardrails block the apply and describe the regeneration.
 3. Use `$verifying-and-applying-shaft-changes` to choose and run the smallest `verify_run_focused` command after applying a locator change, and explain why a full suite is not needed.
 4. Use `$verifying-and-applying-shaft-changes` after a cloud provider returns `guardrailStatus` that is not `PASSED`; show that you do not apply and route back to the coding-partner plan.
+
+## `planning-shaft-tests`
+
+1. Use `$planning-shaft-tests` to explore a demo storefront and produce an annotated test plan for guest checkout: discovered flows, priority order, and one automation scenario per flow.
+2. Use `$planning-shaft-tests` when a stakeholder provides only a URL and "test the signup"; show that you explore first with MCP browsing tools and mark unverified assumptions in the plan for human review.
+3. Use `$planning-shaft-tests` to turn an exploration transcript into scenarios ready for `$recording-shaft-tests-with-mcp`, stating which flows need recording versus direct codegen.
+4. Use `$planning-shaft-tests` on a repo that already has smoke coverage for login; show that the plan extends existing coverage via `shaft_coding_partner_plan` instead of duplicating scenarios.

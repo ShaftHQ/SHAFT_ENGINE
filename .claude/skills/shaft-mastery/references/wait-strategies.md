@@ -1,13 +1,11 @@
 # Flaky-Test Stabilization & Wait Strategies
 
 ## Doctrine
-A flaky test is a bug with a probability attached — stabilize by removing
-the race, never by widening a sleep or adding blind retries. Fixed sleeps
-are always wrong: too short on slow CI, wasted time everywhere else.
-Condition-polling (SHAFT SmartWait / explicit waits) with a budget is the
-only correct wait primitive; wait on the ACTUAL readiness condition
-(element interactable, request completed, `sys.boot_completed`), not a
-proxy (time, spinner gone).
+A flaky test is a bug with a probability attached — remove the race; never
+widen a sleep or add blind retries. Condition-polling with a budget (SHAFT
+SmartWait / explicit waits) is the only correct wait primitive; wait on the
+ACTUAL readiness condition (element interactable, request completed,
+`sys.boot_completed`), not a proxy (time, spinner gone).
 
 ## Root-cause taxonomy (check in this order)
 1. **Initialization-order races** — injection vs subframe load, listener vs

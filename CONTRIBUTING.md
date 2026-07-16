@@ -65,6 +65,40 @@ mvn -version
 
 Expected: Java reports version `25.x`, and Maven reports `3.9.0` or newer.
 
+### Maintainer Agent Tooling (optional)
+
+Agent-assisted maintenance expects this third-party stack. Full install,
+update, and troubleshooting runbook:
+[Agent tooling](https://shafthq.github.io/docs/maintainers/agent-tooling).
+
+- **memory CLI** — `npm install -g @aictx/memory@0.1.55` (pin matches
+  `scripts/ci/validate_agent_setup.py`); repo store lives in `.memory/`.
+- **gbrain** — semantic repo index + MCP server, installed from its git
+  checkout (`git pull && bun install`, then
+  `gbrain apply-migrations --yes` and `gbrain doctor`). Embeddings come
+  from the `gbrain-ollama` Docker container (`ollama/ollama` with
+  `nomic-embed-text`, restart policy `unless-stopped`). Keep the scheduled
+  sync + dream tasks installed (Windows:
+  `tools/agent-infra/install-agent-tasks.ps1`; macOS/Linux:
+  `gbrain autopilot --install`) so the brain and repo map stay current.
+- **headroom** — local context-compression proxy fronting Claude Code:
+  `pip install -U headroom-ai`, then `headroom install apply
+  --preset persistent-docker --scope provider --providers manual
+  --target claude --port 8787 --backend anthropic --mode token
+  --no-telemetry`. `--scope provider` is required or the
+  `~/.claude/settings.json` wiring is silently skipped. Health:
+  `http://127.0.0.1:8787/readyz`. The `persistent-task` preset requires an
+  elevated shell (schtasks `ONSTART`); the docker preset does not.
+- **graphify** — deterministic repository map for pre-search file selection:
+  `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
+  from the repo root (cache in gitignored `graphify-out/`; see
+  `tools/repository-map/README.md`).
+- **MCP servers** (`.mcp.json`) — `context7` (npx) and `maven-tools-mcp`
+  (Docker) start on demand; they require Node and Docker locally.
+- **Claude Code plugins** — installed automatically from
+  `.claude/settings.json` `enabledPlugins`/`extraKnownMarketplaces` on
+  first session.
+
 ## 3. Build Locally
 
 PowerShell users should keep Maven `-D` arguments quoted as shown.

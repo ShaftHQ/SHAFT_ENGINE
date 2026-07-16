@@ -1,8 +1,8 @@
 # Selenium WebDriver BiDi
 
 ## Model
-BiDi is a WebSocket protocol alongside classic WebDriver HTTP. Selenium 4.4x
-exposes it via `Augmenter`/`HasBiDi`. Key domains: `script` (preload scripts,
+Selenium exposes BiDi (the WebSocket protocol alongside classic WebDriver
+HTTP) via `Augmenter`/`HasBiDi`; the pinned version lives in the root pom. Key domains: `script` (preload scripts,
 evaluate/callFunction), `browsingContext` (tree, navigation, screenshots),
 `network` (intercept/continue), `log`. Everything is per-browsing-context;
 "the page" is never one context — every iframe, popup, and worker-adjacent

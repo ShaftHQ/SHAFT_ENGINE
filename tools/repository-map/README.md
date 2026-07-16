@@ -8,10 +8,10 @@ Use the official package name, `graphifyy`; the CLI command is still `graphify`.
 
 ```powershell
 # preferred when uv is installed
-uv tool install graphifyy==0.8.50
+uv tool install graphifyy==0.9.17
 
 # Windows fallback
-py -3 -m pip install --user graphifyy==0.8.50
+py -3 -m pip install --user graphifyy==0.9.17
 ```
 
 If `pip` installs `graphify.exe` outside PATH, open a new terminal after updating the user PATH, or run commands as `py -3 -m graphify ...`.
@@ -50,5 +50,5 @@ Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree`
 
 - Resolve it from any worktree with `python3 tools/repository-map/resolve_graph_out.py` (prints the absolute path under the main checkout root, derived from `git rev-parse --git-common-dir`).
 - Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`: exits `0` and prints the path if the cache exists and is non-empty, else exits `1` with a one-line fallback message on stderr.
-- Refresh the cache by rerunning `graphify .` from the **main checkout** (see Build above); worktree sessions only read it, they do not rebuild it.
+- Refresh the cache by rerunning `graphify .` from the **main checkout** (see Build above); worktree sessions only read it, they do not rebuild it. On the primary maintainer machine the nightly maintenance task rebuilds it automatically (see the docs-site maintainers/agent-tooling runbook).
 - The "mandatory entry point" rule is satisfied by running the `--check` resolve, not by building the graph. If the cache is absent, fall back to `rg` and `.memory` instead of blocking the session on a rebuild.

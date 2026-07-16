@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/gbrain-embedding-backend-is-the-gbrain-ollama-docker-container-it-had-no-restart-policy.md",
+  "content_hash": "sha256:531d13aff40ae585c99f9dd7405c95948e8c6ee4f34dc1b62bda71a6e47f1851",
+  "created_at": "2026-07-16T22:08:23+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.gbrain-embedding-backend-is-the-gbrain-ollama-docker-container-it-had-no-restart-policy",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "gbrain/headroom infra hardening + agent-guidance optimization session 2026-07-16 (PR #3617, docs PR 780, issue #3618)"
+  },
+  "status": "active",
+  "tags": [
+    "gbrain",
+    "ollama",
+    "docker",
+    "embeddings",
+    "restart-policy"
+  ],
+  "title": "gbrain embedding backend is the gbrain-ollama Docker container; it had no restart policy",
+  "type": "gotcha",
+  "updated_at": "2026-07-16T22:08:23+03:00"
+}

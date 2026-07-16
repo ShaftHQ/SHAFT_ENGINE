@@ -271,3 +271,11 @@
 {"actor":"agent","event":"memory.created","id":"decision.headroom-adopted-as-a-local-claude-code-compression-proxy-2026-07-16","timestamp":"2026-07-16T20:45:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.headroom-install-apply-scope-user-silently-skips-the-claude-code-settings-json-wiring","timestamp":"2026-07-16T20:45:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.headroom-proxy-operational-details","timestamp":"2026-07-16T20:45:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.headroom-deployment-migrated-from-persistent-task-to-persistent-docker-0-31-0-cli","timestamp":"2026-07-16T22:08:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gbrain-embedding-backend-is-the-gbrain-ollama-docker-container-it-had-no-restart-policy","timestamp":"2026-07-16T22:08:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gbrain-is-a-local-git-checkout-install-npm-gbrain-is-an-unrelated-package","timestamp":"2026-07-16T22:08:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gbrain-slug-mismatch-blocks-83-shaft-userguide-pages-extract-needs-source-db-on-db-only-brains","timestamp":"2026-07-16T22:08:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.managed-desktop-claude-sessions-bypass-the-headroom-proxy","timestamp":"2026-07-16T22:08:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.headroom-deployment-preset-migrated-to-persistent-docker-0-31-0-cli","timestamp":"2026-07-16T22:09:41+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.gbrain-always-on-setup-on-windows-schtasks-pair-not-autopilot-install","timestamp":"2026-07-16T22:22:05+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.graphify-kept-alongside-gbrain-distinct-purpose-nightly-auto-refresh-wired","timestamp":"2026-07-16T22:28:54+03:00"}

@@ -240,6 +240,19 @@ class InstallShaftMcpTest(unittest.TestCase):
         for relative in MODULE.SHAFT_SKILLS_SOURCE_FILES:
             self.assertTrue((source / relative).is_file(), f"manifest entry missing on disk: {relative}")
 
+    def test_every_repo_skill_directory_is_in_manifest(self):
+        # Reverse direction of the check above: a skill added on disk but not
+        # to SHAFT_SKILLS_SOURCE_FILES silently never ships to external users
+        # (planning-shaft-tests regressed this way in 0817029a9f).
+        source = MODULE.local_shaft_skills_source()
+        self.assertIsNotNone(source, "repo checkout should be detected as a shaft-skills source")
+        for skill_md in sorted(source.glob("*/SKILL.md")):
+            relative = skill_md.relative_to(source).as_posix()
+            self.assertIn(relative, MODULE.SHAFT_SKILLS_SOURCE_FILES,
+                          f"skill on disk missing from download manifest: {relative}")
+            self.assertIn(relative, MODULE.SHAFT_SKILLS_SOURCE_MARKERS,
+                          f"skill on disk missing from source markers: {relative}")
+
     def test_codex_auto_approval_is_added_to_shaft_mcp_section(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             config = Path(temp_dir) / "config.toml"

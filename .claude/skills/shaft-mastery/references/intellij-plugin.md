@@ -1,7 +1,8 @@
 # IntelliJ Platform Plugin Development (shaft-intellij)
 
 ## Build reality
-Gradle 9+ with JDK 21 exactly (not 8.x, not 25). UI evidence comes from
+Gradle 9+ with JDK 21 as the build runtime (not Gradle 8.x, not JDK 25;
+source/target compatibility is 17). UI evidence comes from
 `ShaftPluginScreenshotRendererTest -Dshaft.intellij.screenshotDir=...` —
 visible UI changes must regenerate screenshots for the PR.
 
