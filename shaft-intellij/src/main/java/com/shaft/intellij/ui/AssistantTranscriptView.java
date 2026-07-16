@@ -18,9 +18,11 @@ import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 
 import javax.swing.Action;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
@@ -85,6 +87,12 @@ final class AssistantTranscriptView extends JPanel {
     private final JPanel fallbackPanel;
     private final JBScrollPane fallbackScrollPane;
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
+    // Transient side-channel kept in lockstep with `messages` (same index <-> same message), never
+    // persisted through ShaftAssistantChatState -- issue #3601 A5. An empty string means "no raw
+    // evidence for this message". Populated only by the 3-arg append(role, message, rawEvidence);
+    // every other messages-mutating path (clear/setMarkdown/setMessages/replaceLast) keeps this list
+    // sized to match messages, backfilling "" since old evidence was never persisted to restore.
+    private final List<String> messageRawEvidence = new ArrayList<>();
     private String markdown = "";
     private final LafManagerListener lafListener;
     private Disposable lafConnectionDisposable;
@@ -148,12 +156,28 @@ final class AssistantTranscriptView extends JPanel {
     void clear() {
         markdown = "";
         messages.clear();
+        messageRawEvidence.clear();
         pendingWidget = null;
         refresh();
     }
 
     void append(String role, String message) {
-        addMessage(role, message);
+        append(role, message, "");
+    }
+
+    /**
+     * Same as {@link #append(String, String)}, plus a raw evidence string (for example a tool's raw
+     * JSON output) shown behind a per-message "Show raw output" disclosure toggle -- issue #3601 A5.
+     * The evidence is transient view state only: it is never added to {@link #markdown} and never
+     * round-trips through {@link ShaftAssistantChatState}, matching that class's documented
+     * "persisted without raw MCP payloads" contract.
+     *
+     * @param role message role
+     * @param message rendered Markdown for the message
+     * @param rawEvidence raw evidence to show behind the disclosure toggle, or blank/{@code null} for none
+     */
+    void append(String role, String message, String rawEvidence) {
+        addMessage(role, message, rawEvidence);
         markdown = joinMessages(messages);
         refresh();
     }
@@ -169,6 +193,9 @@ final class AssistantTranscriptView extends JPanel {
         ShaftAssistantChatState.Message last = messages.get(messages.size() - 1);
         last.role = normalizedRole(role);
         last.markdown = message;
+        // The replaced content no longer corresponds to whatever evidence (if any) was captured for
+        // the message being overwritten, and replaceLast() has no evidence of its own to carry over.
+        setLastRawEvidence("");
         markdown = joinMessages(messages);
         refresh();
     }
@@ -176,19 +203,22 @@ final class AssistantTranscriptView extends JPanel {
     void setMarkdown(String value) {
         markdown = value == null ? "" : value;
         messages.clear();
-        addMessage(UNKNOWN_ROLE, markdown);
+        messageRawEvidence.clear();
+        addMessage(UNKNOWN_ROLE, markdown, "");
         markdown = joinMessages(messages);
         refresh();
     }
 
     void setMessages(List<ShaftAssistantChatState.Message> restoredMessages) {
         messages.clear();
+        messageRawEvidence.clear();
         if (restoredMessages != null) {
             for (ShaftAssistantChatState.Message message : restoredMessages) {
                 if (message == null || message.markdown == null || message.markdown.isBlank()) {
                     continue;
                 }
-                addMessage(message.role, message.markdown);
+                // Restored messages never carry evidence -- it was never persisted in the first place.
+                addMessage(message.role, message.markdown, "");
             }
         }
         markdown = joinMessages(messages);
@@ -257,7 +287,7 @@ final class AssistantTranscriptView extends JPanel {
         });
     }
 
-    private void addMessage(String role, String value) {
+    private void addMessage(String role, String value, String rawEvidence) {
         if (value == null || value.isBlank()) {
             return;
         }
@@ -265,6 +295,14 @@ final class AssistantTranscriptView extends JPanel {
         message.role = normalizedRole(role);
         message.markdown = value;
         messages.add(message);
+        messageRawEvidence.add(rawEvidence == null ? "" : rawEvidence);
+    }
+
+    private void setLastRawEvidence(String rawEvidence) {
+        if (messageRawEvidence.isEmpty()) {
+            return;
+        }
+        messageRawEvidence.set(messageRawEvidence.size() - 1, rawEvidence == null ? "" : rawEvidence);
     }
 
     private String convertMarkdown(String value) {
@@ -286,7 +324,8 @@ final class AssistantTranscriptView extends JPanel {
                 fallbackPanel.add(createTruncationDivider());
             }
             ShaftAssistantChatState.Message message = messages.get(i);
-            fallbackPanel.add(fallbackMessage(message.role, message.markdown));
+            String rawEvidence = i < messageRawEvidence.size() ? messageRawEvidence.get(i) : "";
+            fallbackPanel.add(fallbackMessage(message.role, message.markdown, rawEvidence));
         }
         if (pendingWidget != null) {
             fallbackPanel.add(widgetRow(pendingWidgetRole, pendingWidget));
@@ -368,7 +407,7 @@ final class AssistantTranscriptView extends JPanel {
         return row;
     }
 
-    private JComponent fallbackMessage(String role, String markdown) {
+    private JComponent fallbackMessage(String role, String markdown, String rawEvidence) {
         String normalizedRole = normalizedRole(role);
         boolean user = USER_ROLE.equals(normalizedRole);
         Color background = user
@@ -393,8 +432,66 @@ final class AssistantTranscriptView extends JPanel {
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
         bubble.add(htmlPane, BorderLayout.CENTER);
+        if (rawEvidence != null && !rawEvidence.isBlank()) {
+            bubble.add(rawEvidenceDisclosure(rawEvidence), BorderLayout.SOUTH);
+        }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
         return row;
+    }
+
+    /**
+     * Builds the collapsed-by-default "Show raw output" disclosure for a message's raw evidence
+     * (issue #3601 A5) -- for example a tool's raw JSON result, available here because {@link
+     * ShaftAssistantPanel#runToolAndRenderCard} passes it straight through {@link #append(String,
+     * String, String)}. Kept as visible button text rather than an icon: #3601/B1.1 already fixed
+     * the opposite mistake elsewhere in this plugin (an icon-only raw-output toggle in {@code
+     * ShaftFeaturePanel} that only flips state in its tooltip), and the raw-data escape hatch is
+     * exactly the control a user most needs to be able to find by reading, not guessing.
+     *
+     * @param rawEvidence non-blank raw evidence text to show, verbatim, once expanded
+     */
+    private JComponent rawEvidenceDisclosure(String rawEvidence) {
+        JPanel container = new JPanel();
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
+        container.setOpaque(false);
+        container.setBorder(JBUI.Borders.emptyTop(6));
+        container.getAccessibleContext().setAccessibleName("Raw tool output disclosure");
+
+        JBTextArea rawArea = new JBTextArea(rawEvidence);
+        rawArea.setEditable(false);
+        rawArea.setLineWrap(true);
+        rawArea.setWrapStyleWord(true);
+        Font monospaced = rawArea.getFont();
+        rawArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, monospaced == null ? 12 : monospaced.getSize()));
+        rawArea.setCaretPosition(0);
+        rawArea.getAccessibleContext().setAccessibleName("Raw tool output");
+
+        JBScrollPane rawScrollPane = new JBScrollPane(rawArea);
+        rawScrollPane.setBorder(BorderFactory.createLineBorder(
+                resolvedColor("Component.borderColor", new Color(0xD0D7DE))));
+        rawScrollPane.setPreferredSize(new Dimension(fallbackBubbleContentWidth(), JBUI.scale(160)));
+        rawScrollPane.setVisible(false);
+        rawScrollPane.getAccessibleContext().setAccessibleName("Raw tool output");
+
+        JButton toggle = new JButton("Show raw output");
+        toggle.getAccessibleContext().setAccessibleName("Show raw output");
+        toggle.addActionListener(event -> {
+            boolean expanding = !rawScrollPane.isVisible();
+            rawScrollPane.setVisible(expanding);
+            String label = expanding ? "Hide raw output" : "Show raw output";
+            toggle.setText(label);
+            toggle.getAccessibleContext().setAccessibleName(label);
+            container.revalidate();
+            container.repaint();
+        });
+
+        JPanel toggleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        toggleRow.setOpaque(false);
+        toggleRow.add(toggle);
+
+        container.add(toggleRow);
+        container.add(rawScrollPane);
+        return container;
     }
 
     /**

@@ -2174,7 +2174,7 @@ final class ShaftAssistantPanel extends JPanel {
         // called while an approval widget occupies the same slot (see showFirstRunWelcomeIfNeeded's
         // javadoc), so this never fights that widget for the slot.
         transcript.clearWidget();
-        transcript.append(role, text);
+        transcript.append(role, text, rawResponse);
         chatState.append(role, text, rawResponse);
         updateContextTruncationBoundary();
         refreshChatSelector();
