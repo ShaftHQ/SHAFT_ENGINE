@@ -392,6 +392,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         setupSummary = new JLabel();
         setupSummary.getAccessibleContext().setAccessibleName("SHAFT MCP setup summary");
         setupSummary.setText("Installs SHAFT MCP locally and configures the selected client.");
+        // Muted caption weight (issue #3601 B1.2), matching the ShaftAssistantPanel status-line
+        // idiom: this line restates the live target/runtime selection already visible in the form
+        // above it, so it should read as secondary detail, not a peer of the intro copy.
+        setupSummary.setFont(setupSummary.getFont().deriveFont(Math.max(10.0F, setupSummary.getFont().getSize2D() - 1.0F)));
+        setupSummary.setForeground(ShaftStatusPresentation.pending());
         recoveryStatus = new JLabel();
         recoveryStatus.getAccessibleContext().setAccessibleName("SHAFT MCP recovery summary");
         recoveryStatus.setVisible(false);
@@ -587,9 +592,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
         // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
+        // First user-visible mention of "MCP" in this file (issue #3601 B1.2): expanded once here,
+        // in plain prose, so the acronym never appears unexplained before this screen defines it.
         JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — recording, code "
                 + "generation, and failure diagnosis work the same on Codex, Claude Code, Copilot, and Gemini. "
-                + "SHAFT handles the wiring.</body></html>");
+                + "SHAFT handles the wiring through MCP (Model Context Protocol).</body></html>");
         summary.setForeground(ShaftStatusPresentation.pending());
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
