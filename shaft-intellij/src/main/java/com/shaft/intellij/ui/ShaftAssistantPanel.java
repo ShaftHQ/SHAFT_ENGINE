@@ -1952,6 +1952,19 @@ final class ShaftAssistantPanel extends JPanel {
         String response = rejectedGeneratedJava
                 ? AssistantMarkdown.nativeSeleniumRejectionMarkdown()
                 : AssistantMarkdown.normalizeMarkdown(AssistantLocalAgentRunner.stripTrailingUsageMetadata(output));
+        // Claude Code's own built-in "propose this plan, ask to proceed" tool call (ExitPlanMode)
+        // sends its proposal in a structured "plan" field that is stripped out of `output` above
+        // along with the rest of the trailing usage-metadata line, so the plan text is folded back
+        // into the persisted response here -- not only into the ephemeral action card below -- so it
+        // survives "Keep refining" dismissing the card and shows up in transcript export/scrollback
+        // (issue #3680: today it "only surfaces, if at all, buried in the final unstructured answer").
+        String planProposal = success && !rejectedGeneratedJava && "PLAN".equals(String.valueOf(mode.getSelectedItem()))
+                ? AssistantLocalAgentRunner.parsePlanProposal(output)
+                : null;
+        boolean hasPlanProposal = planProposal != null && !planProposal.isBlank();
+        if (hasPlanProposal) {
+            response = response + "\n\n---\n\n**Plan proposed:**\n\n" + planProposal;
+        }
         if (!rejectedGeneratedJava && captureIntegrationRun && success && !captureIntegrationProducedFiles(result)) {
             response = response + "\n\n" + ShaftStatusPresentation.WARNING_ICON
                     + " **The approved Capture code was not written to your project.** The reviewed code"
@@ -1966,6 +1979,59 @@ final class ShaftAssistantPanel extends JPanel {
         if (!rejectedGeneratedJava) {
             addTerminalTimeline(success ? "Completed" : "Failed");
         }
+        if (hasPlanProposal) {
+            showPlanProposalActions();
+        }
+    }
+
+    /**
+     * Renders a structured, clickable "proceed to Agent / keep refining" choice below Claude Code's
+     * terminal {@code ExitPlanMode} proposal (whose text was just folded into the persisted response
+     * bubble above, in {@link #showAgentToolResult}) -- instead of leaving the user with only a plain
+     * chat bubble they must act on manually (issue #3680). Shown as a trailing ephemeral widget --
+     * the same {@code transcript.showWidget} mechanism {@link #showLocalAgentApprovalPrompt} uses --
+     * so it never pollutes the persisted chat history/markdown export, and is cleared automatically
+     * the next time {@link #append} runs (the next prompt the user sends, in either mode).
+     */
+    private void showPlanProposalActions() {
+        JButton runInAgentMode = button("Switch to Agent and run this plan",
+                "Switch to Agent mode, allow source edits, and run the proposed plan",
+                event -> proceedWithProposedPlan());
+        JButton keepRefining = button("Keep refining",
+                "Dismiss this plan proposal and keep discussing it in Plan mode",
+                event -> transcript.clearWidget());
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.setOpaque(false);
+        actions.add(runInAgentMode);
+        actions.add(keepRefining);
+        transcript.showWidget("assistant",
+                transcript.assistantBubbleWithActions(
+                        "**Ready to proceed with this plan?**", actions, "Plan proposal actions"));
+    }
+
+    /**
+     * "Switch to Agent and run this plan" handler: prepares Agent-mode state, then resends the exact
+     * prompt that produced the plan (mirroring the existing "Rerun" button) so the CLI now runs it
+     * for real instead of only proposing it.
+     */
+    private void proceedWithProposedPlan() {
+        prepareAgentModeForProposedPlan();
+        rerun(project);
+    }
+
+    /**
+     * State half of {@link #proceedWithProposedPlan}, split out so it can be verified without
+     * exercising the resend/CLI-dispatch tail: auto-selects Agent mode and grants source edits (an
+     * Agent run without "Allow source edits" only auto-approves file edits under {@code
+     * acceptEdits} in {@code AssistantLocalAgentRunner.claudeCommand}, so a plan whose whole point is
+     * to make changes needs the checkbox ticked to actually run unattended), then dismisses the card.
+     */
+    private void prepareAgentModeForProposedPlan() {
+        mode.setSelectedItem("AGENT");
+        if (!allowSourceMutation.isSelected()) {
+            allowSourceMutation.setSelected(true);
+        }
+        transcript.clearWidget();
     }
 
     private void showAgentCancelled(int streamToken, boolean currentStream, boolean killed, String partialOutput) {
