@@ -6,13 +6,13 @@ import com.intellij.ui.JBColor;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
-import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -24,6 +24,9 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.ColorUIResource;
 import javax.swing.text.JTextComponent;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
+import javax.swing.tree.TreePath;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
@@ -41,6 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -324,7 +328,18 @@ class ShaftPluginScreenshotRendererTest {
             testIndex.recordRun("com.example.SignInTest", 0, now - 120_000);
             testIndex.recordRun("com.example.CheckoutTest", 1, now - 60_000);
             testIndex.recordRun("com.example.SearchTest", 0, now);
-            ShaftTestsPanel component = new ShaftTestsPanel(screenshotProject(), testIndex);
+            // Fixed discovery result standing in for real PSI discovery, which this fake
+            // screenshotProject() Proxy cannot back -- mirrors the recorded runs above so every
+            // node in the screenshot's tree carries a decoration.
+            List<ShaftTestDiscovery.DiscoveredTestClass> discoveredClasses = List.of(
+                    new ShaftTestDiscovery.DiscoveredTestClass(
+                            "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn")),
+                    new ShaftTestDiscovery.DiscoveredTestClass(
+                            "com.example.CheckoutTest", "com.example", "CheckoutTest", List.of("testCheckout")),
+                    new ShaftTestDiscovery.DiscoveredTestClass(
+                            "com.example.SearchTest", "com.example", "SearchTest", List.of("testSearch")));
+            ShaftTestsPanel component = new ShaftTestsPanel(
+                    screenshotProject(), testIndex, () -> discoveredClasses);
             selectFailRowIfPresent(component);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
@@ -336,19 +351,29 @@ class ShaftPluginScreenshotRendererTest {
         return image.get();
     }
 
-    /** Selects the first FAIL row so the screenshot shows Doctor/Heal enabled, falling back to
-     * row 0 when nothing failed. */
+    /** Selects the first FAIL class node so the screenshot shows Doctor/Heal enabled, falling back
+     * to the first class node when nothing failed. */
     private static void selectFailRowIfPresent(ShaftTestsPanel component) {
-        DefaultListModel<ShaftTestIndex.TestRowState> model =
-                (DefaultListModel<ShaftTestIndex.TestRowState>) component.rowListForTest().getModel();
-        for (int i = 0; i < model.getSize(); i++) {
-            if (ShaftTestsPanel.isFailRow(model.getElementAt(i))) {
-                component.rowListForTest().setSelectedIndex(i);
-                return;
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) component.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode fallback = null;
+        Enumeration<TreeNode> packages = root.children();
+        while (packages.hasMoreElements()) {
+            DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) packages.nextElement();
+            Enumeration<TreeNode> classes = packageNode.children();
+            while (classes.hasMoreElements()) {
+                DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) classes.nextElement();
+                if (fallback == null) {
+                    fallback = classNode;
+                }
+                if (classNode.getUserObject() instanceof ShaftTestsPanel.TestTreeNode treeNode
+                        && ShaftTestsPanel.isFailRow(treeNode.runState())) {
+                    component.treeForTest().setSelectionPath(new TreePath(classNode.getPath()));
+                    return;
+                }
             }
         }
-        if (model.getSize() > 0) {
-            component.rowListForTest().setSelectedIndex(0);
+        if (fallback != null) {
+            component.treeForTest().setSelectionPath(new TreePath(fallback.getPath()));
         }
     }
 

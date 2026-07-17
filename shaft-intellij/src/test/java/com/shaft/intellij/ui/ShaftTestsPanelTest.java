@@ -1,27 +1,36 @@
 package com.shaft.intellij.ui;
 
+import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JButton;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreePath;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@code isFailRow}/{@code formatRowLabel} tests below need no {@link ShaftTestsPanel} instance.
  * The Run/Navigate wiring tests do construct one, with a {@code null} project -- mirroring
  * {@code VisualBaselinesPanelTest}'s {@code new VisualBaselinesPanel(null)} pattern -- since
- * enablement and the no-selection guard never dereference the project. Clicking Run/Navigate
- * *with* a row selected would call into {@code ShaftRunConfigurationResolver}'s real
- * {@code RunManager}/PSI glue, which needs a live IntelliJ platform Project this plain JUnit
- * environment does not have (see {@code ShaftRunConfigurationResolverTest}'s javadoc); those tests
- * therefore only exercise the no-selection no-op path and the selection-driven enablement.
+ * enablement and the no-selection guard never dereference the project. They drive the tree through
+ * the test-only 3-arg constructor that injects a fixed {@link ShaftTestDiscovery.DiscoveredTestClass}
+ * list instead of running real PSI discovery, which needs a live IntelliJ platform Project this
+ * plain JUnit environment does not have (see {@code ShaftRunConfigurationResolverTest}'s javadoc).
+ * Clicking Run/Navigate *with* a node selected would call into
+ * {@code ShaftRunConfigurationResolver}'s real {@code RunManager}/PSI glue, needing that same live
+ * Project; those tests therefore only exercise the no-selection no-op path and selection-driven
+ * enablement.
  */
 class ShaftTestsPanelTest {
     @Test
@@ -68,14 +77,109 @@ class ShaftTestsPanelTest {
     }
 
     // ------------------------------------------------------------------
+    // Tree-node label logic
+    // ------------------------------------------------------------------
+
+    @Test
+    void formatNodeLabelIsPlainDisplayNameWhenNeverRun() {
+        assertEquals("SearchTest", ShaftTestsPanel.formatNodeLabel("SearchTest", null));
+    }
+
+    @Test
+    void formatNodeLabelIncludesStatusAndDisplayNameWhenRun() {
+        ShaftTestIndex.TestRowState row = new ShaftTestIndex.TestRowState(
+                "com.example.CheckoutTest", ShaftTestIndex.Status.FAIL, 1_000L, 1);
+
+        String label = ShaftTestsPanel.formatNodeLabel("CheckoutTest", row);
+
+        assertTrue(label.startsWith("FAIL"));
+        assertTrue(label.contains("CheckoutTest"));
+    }
+
+    // ------------------------------------------------------------------
+    // Discovery tree structure
+    // ------------------------------------------------------------------
+
+    @Test
+    void refreshBuildsPackageClassMethodTreeFromDiscoveryAndDecoratesMatchingRuns() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("com.example.SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn")),
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SearchTest", "com.example", "SearchTest", List.of("testSearch"))));
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        // Classes sort alphabetically by simple name: "SearchTest" < "SignInTest".
+        DefaultMutableTreeNode searchNode = (DefaultMutableTreeNode) packageNode.getChildAt(0);
+        DefaultMutableTreeNode signInNode = (DefaultMutableTreeNode) packageNode.getChildAt(1);
+
+        assertAll(
+                () -> assertEquals(1, root.getChildCount(), "one package node"),
+                () -> assertEquals(2, packageNode.getChildCount(), "two class nodes"),
+                () -> assertEquals(1, signInNode.getChildCount(), "one method node under SignInTest"),
+                () -> assertFalse(ShaftTestsPanel.isFailRow(
+                        ((ShaftTestsPanel.TestTreeNode) searchNode.getUserObject()).runState()),
+                        "SearchTest has no recorded run"),
+                () -> assertEquals(ShaftTestIndex.Status.PASS,
+                        ((ShaftTestsPanel.TestTreeNode) signInNode.getUserObject()).runState().status(),
+                        "SignInTest is decorated with its matching recorded run"),
+                () -> assertEquals("2 test(s) discovered, 1 with recorded runs.",
+                        panel.statusLabelForTest().getText()));
+    }
+
+    @Test
+    void refreshWithNoDiscoveredClassesShowsEmptyStatusMessage() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, List::of);
+
+        assertEquals("No SHAFT tests found in this project.", panel.statusLabelForTest().getText());
+    }
+
+    @Test
+    void clearResetsDecorationsButKeepsDiscoveredTreeStructure() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("com.example.SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn"))));
+
+        ((JButton) panel.clearButtonForTest()).doClick();
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+
+        assertAll(
+                () -> assertEquals(1, root.getChildCount(), "the discovered structure survives Clear"),
+                () -> assertNull(((ShaftTestsPanel.TestTreeNode) classNode.getUserObject()).runState(),
+                        "the run-history decoration is reset to not-yet-run"));
+    }
+
+    // ------------------------------------------------------------------
     // Run/Navigate wiring
     // ------------------------------------------------------------------
+
+    private static ShaftTestsPanel panelWithOneDiscoveredClass(ShaftTestIndex testIndex) {
+        return new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "SignInTest", "", "SignInTest", List.of("testSignIn"))));
+    }
+
+    private static void selectFirstClassNode(ShaftTestsPanel panel) {
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+        panel.treeForTest().setSelectionPath(new TreePath(classNode.getPath()));
+    }
 
     @Test
     void runAndNavigateAreDisabledWithNoRowSelected() {
         ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
         testIndex.recordRun("SignInTest", 0, 1_000L);
-        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
 
         assertAll(
                 () -> assertFalse(panel.runButtonForTest().isEnabled()),
@@ -86,9 +190,9 @@ class ShaftTestsPanelTest {
     void runAndNavigateAreEnabledForAPassingRowUnlikeDiagnoseAndHeal() {
         ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
         testIndex.recordRun("SignInTest", 0, 1_000L);
-        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
 
-        panel.rowListForTest().setSelectedIndex(0);
+        selectFirstClassNode(panel);
 
         assertAll(
                 () -> assertTrue(panel.runButtonForTest().isEnabled(), "Run enables for any status"),
@@ -101,10 +205,10 @@ class ShaftTestsPanelTest {
     void runAndNavigateAreDisabledAgainAfterClearingSelection() {
         ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
         testIndex.recordRun("SignInTest", 0, 1_000L);
-        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex);
-        panel.rowListForTest().setSelectedIndex(0);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+        selectFirstClassNode(panel);
 
-        panel.rowListForTest().clearSelection();
+        panel.treeForTest().clearSelection();
 
         assertAll(
                 () -> assertFalse(panel.runButtonForTest().isEnabled()),
@@ -115,8 +219,8 @@ class ShaftTestsPanelTest {
     void doubleClickAndCtrlDoubleClickWithNoSelectionAreSafeNoOps() {
         ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
         testIndex.recordRun("SignInTest", 0, 1_000L);
-        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex);
-        MouseListener[] listeners = panel.rowListForTest().getMouseListeners();
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+        MouseListener[] listeners = panel.treeForTest().getMouseListeners();
         assertTrue(listeners.length > 0, "a mouse listener should be registered for double-click run/navigate");
 
         assertAll(
@@ -128,7 +232,7 @@ class ShaftTestsPanelTest {
     void navigateContextMenuItemWithNoSelectionIsASafeNoOp() {
         ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
         testIndex.recordRun("SignInTest", 0, 1_000L);
-        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
         ActionListener[] listeners = panel.navigateMenuItemForTest().getActionListeners();
         assertTrue(listeners.length > 0, "the context-menu Navigate item should have an action listener wired");
 
@@ -139,7 +243,7 @@ class ShaftTestsPanelTest {
 
     private static void dispatchDoubleClick(ShaftTestsPanel panel, MouseListener[] listeners, boolean ctrlDown) {
         int modifiers = ctrlDown ? InputEvent.CTRL_DOWN_MASK : 0;
-        MouseEvent doubleClick = new MouseEvent(panel.rowListForTest(), MouseEvent.MOUSE_CLICKED,
+        MouseEvent doubleClick = new MouseEvent(panel.treeForTest(), MouseEvent.MOUSE_CLICKED,
                 System.currentTimeMillis(), modifiers, 0, 0, 2, false);
         for (MouseListener listener : listeners) {
             listener.mouseClicked(doubleClick);
