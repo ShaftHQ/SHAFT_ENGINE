@@ -311,3 +311,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.git-rebase-onto-upstream-merge-commit-head-silently-drops-first-parent-line-commits-that-predate-the-merge-commit","timestamp":"2026-07-17T09:30:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.memory-events-jsonl-conflicts-during-stacked-branch-rebase-merge-union-both-sides-order-by-timestamp","timestamp":"2026-07-17T09:30:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin","timestamp":"2026-07-17T10:34:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.background-pr-monitor-tasks-survive-clear-and-must-be-terminated-when-work-finishes","timestamp":"2026-07-17T10:57:05+03:00"}
