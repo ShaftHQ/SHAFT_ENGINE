@@ -31,7 +31,6 @@ final class ShaftRunConfigurationOverridesPanel extends JPanel {
     private final JComboBox<String> browserComboBox = new JComboBox<>(BROWSERS);
     private final JBCheckBox headlessCheckBox = new JBCheckBox("Headless");
     private final JBTextField extraVmArgsField = new JBTextField();
-    private final JPanel fields;
 
     ShaftRunConfigurationOverridesPanel() {
         super(new BorderLayout(4, 8));
@@ -45,7 +44,7 @@ final class ShaftRunConfigurationOverridesPanel extends JPanel {
                 "Extra -D system property overrides applied on top of the browser/headless selections above, "
                         + "e.g. -DexecutionAddress=... -DmobileWebDriverName=...");
 
-        fields = new JPanel(new GridLayout(0, 1, 4, 4));
+        JPanel fields = new JPanel(new GridLayout(0, 1, 4, 4));
         fields.add(row("Browser", browserComboBox));
         fields.add(headlessCheckBox);
         fields.add(row("Extra VM args", extraVmArgsField));
