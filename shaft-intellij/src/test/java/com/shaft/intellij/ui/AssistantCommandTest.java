@@ -1273,6 +1273,48 @@ class AssistantCommandTest {
     }
 
     @Test
+    void proseScenarioDescriptionRoutesToAgentWithFullOrchestrationGuidanceInsteadOfBareRecording() {
+        // Issue #3692 item 3: the onboarding "Record a sample flow" quick action sends this prose
+        // scenario description as a chat prompt (see ShaftAssistantPanel's empty-state chip), not a
+        // bare "start recording"/"record a scenario" trigger. Before this fix, isBrowserRecordingIntent
+        // matched "web flow" in the description and deterministically short-circuited it into a bare
+        // capture_start with no target, silently dropping "add one assertion" and "generate a
+        // reviewed test." It must instead reach the agent with the full record -> act -> stop ->
+        // codegen -> self-heal guidance.
+        AssistantCommand.Invocation invocation = command(
+                "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test.");
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertFalse(invocation.arguments().has("targetUrl"),
+                        "must not deterministically dispatch a bare capture_start"));
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
+                () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
+                () -> assertTrue(prompt.contains("capture_generate_replay"), prompt),
+                () -> assertTrue(prompt.contains("healer_run_failed_test"), prompt),
+                () -> assertTrue(prompt.contains("Page Object Model"), prompt),
+                () -> assertTrue(prompt.contains(
+                        "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."),
+                        prompt));
+    }
+
+    @Test
+    void bareRecordingTriggersStillRouteDeterministicallyDespiteScenarioDescriptionCarveOut() {
+        // Regression guard for the isScenarioDescriptionIntent carve-out added alongside the test
+        // above: it must not swallow the narrow, exact-match deterministic triggers (issue #3673)
+        // that other tests already pin down.
+        AssistantCommand.Invocation startRecording = command("start recording");
+        AssistantCommand.Invocation recordAScenario = command("record a scenario");
+
+        assertAll(
+                () -> assertEquals("capture_start", startRecording.toolName()),
+                () -> assertEquals("capture_start", recordAScenario.toolName()));
+    }
+
+    @Test
     void naturalRecorderCommandsCanDiscardAnActiveCaptureSession() {
         AssistantCommand.Invocation discard = command("discard recording");
         AssistantCommand.Invocation discardAlias = command("discard capture session");
