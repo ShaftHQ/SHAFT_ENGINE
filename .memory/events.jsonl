@@ -308,3 +308,5 @@
 {"actor":"agent","event":"memory.created","id":"workflow.user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py","timestamp":"2026-07-17T09:20:42+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.delegation-model-fable-main-thread-plans-delegates-reviews-verifies-and-does-not-implement-haiku-first-tiers","timestamp":"2026-07-17T09:20:42+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.repairing-memory-object-content-hash-mismatches-objectcontenthashmismatch","timestamp":"2026-07-17T09:20:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.git-rebase-onto-upstream-merge-commit-head-silently-drops-first-parent-line-commits-that-predate-the-merge-commit","timestamp":"2026-07-17T09:30:55+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.memory-events-jsonl-conflicts-during-stacked-branch-rebase-merge-union-both-sides-order-by-timestamp","timestamp":"2026-07-17T09:30:55+03:00"}

@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/git-rebase-onto-upstream-merge-commit-head-silently-drops-first-parent-line-commits-that-predate-the-merge-commit.md",
+  "content_hash": "sha256:7bcf01c7736b620b4e8b9a72804f4af8c10aad82fca2e58552360e8aa971de64",
+  "created_at": "2026-07-17T09:30:55+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.git-rebase-onto-upstream-merge-commit-head-silently-drops-first-parent-line-commits-that-predate-the-merge-commit",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Rebasing PR #3647 (phase2) onto main after its stacked-on Phase 1 branch was squash-merged as #3646"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "rebase",
+    "stacked-branches",
+    "shaft-intellij",
+    "squash-merge"
+  ],
+  "title": "git rebase --onto <upstream> <merge-commit> HEAD silently drops first-parent-line commits that predate the merge commit",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T09:30:55+03:00"
+}
