@@ -7,9 +7,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 
-import javax.imageio.ImageIO;
 import javax.swing.DefaultListModel;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -23,9 +21,7 @@ import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
-import java.awt.Image;
 import java.awt.Insets;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +45,8 @@ final class VisualBaselinesPanel extends JPanel {
     private static final String DEFAULT_BASELINE_DIRECTORY = "src/main/resources/dynamicObjectRepository";
     private static final String DIFF_SUFFIX = "_diff.png";
     private static final int MAX_PREVIEW_DIMENSION = 220;
+    private static final String PREVIEW_PLACEHOLDER_TEXT = "Select a row to preview";
+    private static final String PREVIEW_UNAVAILABLE_TEXT = "No preview available";
 
     private final Project project;
     private final JBTextField directoryField;
@@ -220,15 +218,17 @@ final class VisualBaselinesPanel extends JPanel {
             clearSelection();
             return;
         }
-        setPreview(baselinePreview, selected.baselinePath());
-        setPreview(diffPreview, selected.diffPath());
+        ImagePreviewSupport.setPreview(baselinePreview, selected.baselinePath(), MAX_PREVIEW_DIMENSION,
+                PREVIEW_UNAVAILABLE_TEXT);
+        ImagePreviewSupport.setPreview(diffPreview, selected.diffPath(), MAX_PREVIEW_DIMENSION,
+                PREVIEW_UNAVAILABLE_TEXT);
     }
 
     private void clearSelection() {
         acceptButton.setEnabled(false);
         rejectButton.setEnabled(false);
-        resetPreview(baselinePreview);
-        resetPreview(diffPreview);
+        ImagePreviewSupport.resetPreview(baselinePreview, PREVIEW_PLACEHOLDER_TEXT);
+        ImagePreviewSupport.resetPreview(diffPreview, PREVIEW_PLACEHOLDER_TEXT);
     }
 
     private void acceptSelected() {
@@ -271,7 +271,7 @@ final class VisualBaselinesPanel extends JPanel {
     // ------------------------------------------------------------------
 
     private static JLabel previewLabel() {
-        JLabel label = new JLabel("Select a row to preview", SwingConstants.CENTER);
+        JLabel label = new JLabel(PREVIEW_PLACEHOLDER_TEXT, SwingConstants.CENTER);
         label.setVerticalAlignment(SwingConstants.CENTER);
         label.setBorder(JBUI.Borders.customLine(JBColor.namedColor("Component.borderColor", JBColor.GRAY), 1));
         return label;
@@ -284,38 +284,6 @@ final class VisualBaselinesPanel extends JPanel {
         panel.add(titleLabel, BorderLayout.NORTH);
         panel.add(imageLabel, BorderLayout.CENTER);
         return panel;
-    }
-
-    private static void resetPreview(JLabel label) {
-        label.setIcon(null);
-        label.setText("Select a row to preview");
-    }
-
-    private static void setPreview(JLabel label, Path imagePath) {
-        try {
-            BufferedImage image = ImageIO.read(imagePath.toFile());
-            if (image == null) {
-                label.setIcon(null);
-                label.setText("No preview available");
-                return;
-            }
-            label.setIcon(scaledIcon(image));
-            label.setText(null);
-        } catch (IOException | RuntimeException unreadableImage) {
-            label.setIcon(null);
-            label.setText("No preview available");
-        }
-    }
-
-    private static Icon scaledIcon(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        double scale = Math.min(1.0D,
-                (double) MAX_PREVIEW_DIMENSION / Math.max(1, Math.max(width, height)));
-        int scaledWidth = Math.max(1, (int) Math.round(width * scale));
-        int scaledHeight = Math.max(1, (int) Math.round(height * scale));
-        Image scaled = image.getScaledInstance(scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaled);
     }
 
     // ------------------------------------------------------------------

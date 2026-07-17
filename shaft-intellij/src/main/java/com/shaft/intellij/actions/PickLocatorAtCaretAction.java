@@ -41,6 +41,7 @@ public final class PickLocatorAtCaretAction extends AnAction implements DumbAwar
     static final String READ_ONLY_MESSAGE = "The current file could not be made writable.";
     private static final String TOOL_NAME = "capture_pick_locator";
     private static final String COMMAND_NAME = "Insert SHAFT Locator";
+    private static final String NOTIFICATION_TITLE = "Pick locator";
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
@@ -74,22 +75,22 @@ public final class PickLocatorAtCaretAction extends AnAction implements DumbAwar
 
     private static void handleResult(Project project, Editor editor, ShaftMcpToolResult result, Throwable error) {
         if (error != null) {
-            ShaftNotifier.warn(project, "SHAFT", "Pick Locator failed: " + error.getMessage());
+            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Pick Locator failed: " + error.getMessage());
             return;
         }
         PickOutcome outcome = classify(result);
         switch (outcome.kind()) {
-            case TOOL_FAILURE -> ShaftNotifier.warn(project, "SHAFT", "Pick Locator failed: " + outcome.detail());
-            case NO_PICK -> ShaftNotifier.warn(project, "SHAFT", NO_PICK_MESSAGE);
+            case TOOL_FAILURE -> ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Pick Locator failed: " + outcome.detail());
+            case NO_PICK -> ShaftNotifier.warn(project, NOTIFICATION_TITLE, NO_PICK_MESSAGE);
             case SNIPPET -> insertSnippet(project, editor, outcome.detail());
-            default -> ShaftNotifier.warn(project, "SHAFT", "Pick Locator returned an unexpected outcome: " + outcome.kind());
+            default -> ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Pick Locator returned an unexpected outcome: " + outcome.kind());
         }
     }
 
     private static void insertSnippet(Project project, Editor editor, String snippet) {
         Document document = editor.getDocument();
         if (!FileDocumentManager.getInstance().requestWriting(document, project)) {
-            ShaftNotifier.warn(project, "SHAFT", READ_ONLY_MESSAGE);
+            ShaftNotifier.warn(project, NOTIFICATION_TITLE, READ_ONLY_MESSAGE);
             return;
         }
         int offset = resolveInsertionOffset(editor.getCaretModel().getOffset(), document.getTextLength());

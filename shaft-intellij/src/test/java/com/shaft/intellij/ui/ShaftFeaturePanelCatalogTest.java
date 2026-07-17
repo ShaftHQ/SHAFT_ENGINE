@@ -155,7 +155,12 @@ class ShaftFeaturePanelCatalogTest {
      * A {@link Project} stub whose {@code getService} flips the given flag before returning
      * {@code null} (an unwired service, same as {@code ShaftPanelSetupTest}'s {@code fakeProject()}).
      * Used to prove a guard short-circuits before ever reaching the service call, not merely that it
-     * happens to fail once reached.
+     * happens to fail once reached. Scoped to {@code ShaftMcpInvocationService} requests specifically
+     * (the auto-populate warm-up's own {@code getInstance(project)} calls
+     * {@code project.getService(ShaftMcpInvocationService.class)}) rather than any {@code getService}
+     * call whatsoever: {@link ShaftFeaturePanel}'s constructor also legitimately looks up
+     * {@code PropertiesComponent} for divider-position persistence (issue #3636) regardless of these
+     * guards, and that unrelated lookup must not be mistaken for the warm-up being reached.
      */
     private static Project trapProject(AtomicBoolean serviceReached) {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
@@ -170,7 +175,10 @@ class ShaftFeaturePanelCatalogTest {
                         case "getName":
                             return "shaft-feature-panel-catalog-test-project";
                         case "getService":
-                            serviceReached.set(true);
+                            if (arguments != null && arguments.length > 0
+                                    && arguments[0] == com.shaft.intellij.mcp.ShaftMcpInvocationService.class) {
+                                serviceReached.set(true);
+                            }
                             return null;
                         default:
                             return defaultValue(method.getReturnType());

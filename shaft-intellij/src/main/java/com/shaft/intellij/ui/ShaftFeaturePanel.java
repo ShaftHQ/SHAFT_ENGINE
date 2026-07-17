@@ -49,6 +49,12 @@ import java.util.stream.Collectors;
 final class ShaftFeaturePanel extends JPanel {
     private static final String REFRESH_TOOLS_TOOLTIP = "Refresh tools";
     private static final String REFRESHING_TOOLTIP = "Refreshing...";
+    // Sentinel for "nothing persisted yet" -- never a real pixel divider location.
+    private static final int NO_STORED_DIVIDER = -1;
+    // A stale value from a wildly differently-sized window (or corrupt data) is rejected rather than
+    // handed to Swing's JSplitPane, which does not clamp an out-of-range setDividerLocation() call on
+    // its own. This ceiling is generous for any real IDE panel; it only catches obviously bad data.
+    private static final int MAX_PLAUSIBLE_DIVIDER_LOCATION = 10_000;
 
     // Package-private for ShaftFeaturePanelCatalogTest (read the merged catalog without reflection).
     List<ToolCategory> categories;
@@ -73,6 +79,8 @@ final class ShaftFeaturePanel extends JPanel {
     private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
+    // Package-private for divider-persistence tests (read the restored/live location without reflection).
+    JSplitPane splitPane;
     private final Map<String, String> argumentDrafts = new LinkedHashMap<>();
     private ToolTemplate activeTemplate;
     // Package-private for ShaftFeaturePanelCatalogTest (simulate an in-flight user run without reflection).
@@ -238,6 +246,20 @@ final class ShaftFeaturePanel extends JPanel {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, output);
         splitPane.setResizeWeight(0.66);
         splitPane.setBorder(JBUI.Borders.empty());
+        this.splitPane = splitPane;
+        // Restore the user's last divider position across IDE restarts (issue #3636). A stale or
+        // corrupt stored value (negative, or implausibly large -- e.g. persisted from a much bigger
+        // monitor) is rejected here rather than handed to Swing: JSplitPane does not clamp an
+        // out-of-range setDividerLocation() call on its own, it would just misplace the divider.
+        // Rejecting it silently leaves the 0.66 resizeWeight default in charge, exactly as if nothing
+        // had ever been stored.
+        ShaftUiState uiState = ShaftUiState.getInstance(project);
+        int storedDivider = uiState.featureSplitDivider(NO_STORED_DIVIDER);
+        if (isPlausibleDividerLocation(storedDivider)) {
+            splitPane.setDividerLocation(storedDivider);
+        }
+        splitPane.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY,
+                event -> uiState.setFeatureSplitDivider((Integer) event.getNewValue()));
         add(north, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
 
@@ -283,6 +305,15 @@ final class ShaftFeaturePanel extends JPanel {
 
     JComboBox<ToolCategory> categorySelector() {
         return categorySelector;
+    }
+
+    /**
+     * A stored divider location is only worth restoring if it looks like a real pixel position: not
+     * the "nothing stored" sentinel, not negative, and not implausibly large (issue #3636 -- guards
+     * against a stale value from a differently-sized window, or corrupt data, misplacing the divider).
+     */
+    private static boolean isPlausibleDividerLocation(int location) {
+        return location >= 0 && location <= MAX_PLAUSIBLE_DIVIDER_LOCATION;
     }
 
     private void run(Project project) {

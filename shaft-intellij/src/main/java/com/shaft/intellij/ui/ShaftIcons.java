@@ -14,10 +14,13 @@ public final class ShaftIcons {
     public static final Icon CLEAR = load("clear");
     public static final Icon CODE = load("code");
     public static final Icon COPY = load("copy");
+    public static final Icon DELETE = load("delete");
     public static final Icon DOWNLOAD = load("download");
     public static final Icon EDIT = load("edit");
     public static final Icon GITHUB = load("github");
     public static final Icon HELP = load("help");
+    public static final Icon MOVE_DOWN = load("move_down");
+    public static final Icon MOVE_UP = load("move_up");
     public static final Icon RERUN = load("rerun");
     public static final Icon RESET = load("reset");
     public static final Icon SEARCH = load("search");

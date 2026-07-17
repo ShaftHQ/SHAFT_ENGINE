@@ -33,6 +33,7 @@ import java.util.zip.ZipInputStream;
 public final class ShowTraceViewerAction extends AnAction implements DumbAware {
     private static final String VIEWER_HTML_NAME = "SHAFT Trace Report.html";
     private static final String TRACE_ZIP_NAME = "shaft-trace.zip";
+    private static final String NOTIFICATION_TITLE = "Trace viewer";
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
@@ -45,11 +46,11 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
         try {
             viewer = basePath == null ? null : resolveLatestTraceViewer(Path.of(basePath));
         } catch (IOException e) {
-            ShaftNotifier.warn(project, "SHAFT", "Could not resolve a SHAFT trace viewer: " + e.getMessage());
+            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Could not resolve a SHAFT trace viewer: " + e.getMessage());
             return;
         }
         if (viewer == null) {
-            ShaftNotifier.warn(project, "SHAFT", "No SHAFT trace was found under target/shaft-traces.");
+            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "No SHAFT trace was found under target/shaft-traces.");
             return;
         }
         BrowserUtil.browse(viewer.toUri());

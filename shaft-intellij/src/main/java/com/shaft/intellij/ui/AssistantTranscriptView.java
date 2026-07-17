@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.ide.BrowserUtil;
 import com.intellij.ide.ui.LafManagerListener;
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.Disposable;
@@ -20,8 +21,10 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
 
 import javax.swing.Action;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
@@ -42,6 +45,7 @@ import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -51,13 +55,17 @@ import java.awt.Dimension;
 import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -71,6 +79,10 @@ final class AssistantTranscriptView extends JPanel {
     // height, not raw markdown characters, so wrapped paragraphs and code blocks count fairly)
     // above which a bubble collapses by default -- issue #3629.
     private static final int COLLAPSE_LINE_THRESHOLD = 40;
+    // Inline evidence-preview thumbnail cap (issue #3642) -- deliberately smaller than
+    // VisualBaselinesPanel's 220px side-by-side comparison, since this renders inline in a
+    // message bubble alongside markdown text rather than in its own dedicated preview pane.
+    private static final int EVIDENCE_PREVIEW_MAX_DIMENSION = 160;
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -644,10 +656,131 @@ final class AssistantTranscriptView extends JPanel {
         outputPanel.updateCollapseState();
         bubble.add(outputPanel, BorderLayout.CENTER);
         if (rawEvidence != null && !rawEvidence.isBlank()) {
-            bubble.add(rawEvidenceDisclosure(rawEvidence), BorderLayout.SOUTH);
+            bubble.add(evidenceFooter(rawEvidence), BorderLayout.SOUTH);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
         return new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
+    }
+
+    /**
+     * Builds the raw-evidence footer for a message bubble: an initially empty slot for
+     * Doctor/Healer screenshot/page-snapshot previews (issue #3642), populated asynchronously by
+     * {@link #schedulePreviewLookup}, stacked above the existing {@link
+     * #rawEvidenceDisclosure(String)} "Show raw output" toggle. A message whose evidence resolves
+     * to no readable image leaves the preview slot empty forever -- the disclosure below is
+     * exactly today's unchanged text-only display, with no error UI and no exception ever
+     * reaching the user.
+     *
+     * @param rawEvidence non-blank raw evidence text
+     * @return footer component to add at {@link BorderLayout#SOUTH}
+     */
+    private JComponent evidenceFooter(String rawEvidence) {
+        JPanel footer = new JPanel();
+        footer.setLayout(new BoxLayout(footer, BoxLayout.Y_AXIS));
+        footer.setOpaque(false);
+        JPanel previewSlot = new JPanel();
+        previewSlot.setLayout(new BoxLayout(previewSlot, BoxLayout.Y_AXIS));
+        previewSlot.setOpaque(false);
+        footer.add(previewSlot);
+        footer.add(rawEvidenceDisclosure(rawEvidence));
+        schedulePreviewLookup(rawEvidence, previewSlot);
+        return footer;
+    }
+
+    /**
+     * Resolves {@code rawEvidence}'s Doctor/Healer screenshot/page-snapshot evidence (via {@link
+     * DoctorEvidenceImageLocator}) and decodes each candidate image off the EDT, on the bounded
+     * {@link ShaftPluginExecutor} pool (issue #3622) -- never blocking the EDT on file IO -- then
+     * adds one click-to-open preview row per readable image to {@code previewSlot} back on the
+     * EDT via {@link ApplicationManager#invokeLater}. Fire-and-forget: no resolvable evidence, an
+     * unreachable evidence file, or a decode failure all just mean no rows are ever added.
+     *
+     * @param rawEvidence non-blank raw evidence text to resolve image paths from
+     * @param previewSlot empty container, already showing in the tree, to populate on the EDT
+     */
+    private static void schedulePreviewLookup(String rawEvidence, JPanel previewSlot) {
+        CompletableFuture.supplyAsync(() -> loadEvidencePreviews(rawEvidence),
+                        ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((previews, error) -> {
+                    if (error != null || previews == null || previews.isEmpty()) {
+                        return;
+                    }
+                    runOnEdt(() -> {
+                        previews.forEach(preview -> previewSlot.add(previewRow(preview)));
+                        previewSlot.revalidate();
+                        previewSlot.repaint();
+                    });
+                });
+    }
+
+    /**
+     * Runs {@code action} on the EDT, matching {@code ShaftAssistantPanel}'s established fallback
+     * for headless test JVMs where no live IntelliJ {@code Application} exists (confirmed by
+     * {@code ShaftPluginExecutorTest}'s own doc comment): prefer {@link
+     * ApplicationManager#invokeLater}, but degrade to direct execution when already on the EDT, or
+     * {@link SwingUtilities#invokeLater} otherwise, rather than risk a {@code
+     * NullPointerException} from an unconditional {@code ApplicationManager.getApplication()} call.
+     *
+     * @param action action to run on the EDT
+     */
+    private static void runOnEdt(Runnable action) {
+        if (ApplicationManager.getApplication() != null) {
+            ApplicationManager.getApplication().invokeLater(action);
+        } else if (SwingUtilities.isEventDispatchThread()) {
+            action.run();
+        } else {
+            SwingUtilities.invokeLater(action);
+        }
+    }
+
+    private static List<EvidencePreview> loadEvidencePreviews(String rawEvidence) {
+        List<EvidencePreview> previews = new ArrayList<>();
+        for (Path imagePath : DoctorEvidenceImageLocator.resolveImagePaths(rawEvidence)) {
+            Icon icon = ImagePreviewSupport.readScaledIcon(imagePath, EVIDENCE_PREVIEW_MAX_DIMENSION);
+            if (icon != null) {
+                previews.add(new EvidencePreview(imagePath, icon));
+            }
+        }
+        return previews;
+    }
+
+    /**
+     * Builds one clickable preview row. Matches {@link
+     * com.shaft.intellij.actions.ShowTraceViewerAction}'s established convention for opening a
+     * local file in the platform's own viewer ({@link BrowserUtil#browse}) rather than introducing
+     * a new {@code OpenFileDescriptor}/{@code Desktop.getDesktop()} path -- neither of which this
+     * plugin uses anywhere else.
+     *
+     * @param preview resolved, already-decoded image preview
+     * @return preview row component
+     */
+    private static JComponent previewRow(EvidencePreview preview) {
+        JLabel imageLabel = new JLabel(preview.icon());
+        imageLabel.setToolTipText(preview.path().toString());
+        imageLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        imageLabel.getAccessibleContext().setAccessibleName("Evidence screenshot preview");
+        imageLabel.getAccessibleContext().setAccessibleDescription(
+                "Opens " + preview.path() + " in the platform viewer");
+        imageLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                BrowserUtil.browse(preview.path().toUri());
+            }
+        });
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        row.setOpaque(false);
+        row.setBorder(JBUI.Borders.emptyTop(6));
+        row.add(imageLabel);
+        return row;
+    }
+
+    /**
+     * One resolved, already-decoded evidence image ready to render as a preview row.
+     *
+     * @param path resolved on-disk image path, shown as the row's tooltip and opened on click
+     * @param icon pre-scaled icon, decoded off the EDT by {@link #loadEvidencePreviews}
+     */
+    private record EvidencePreview(Path path, Icon icon) {
     }
 
     private int bodyLineHeight() {

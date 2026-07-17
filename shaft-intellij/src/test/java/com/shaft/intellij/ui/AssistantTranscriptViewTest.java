@@ -2,11 +2,22 @@ package com.shaft.intellij.ui;
 
 import com.intellij.ui.components.JBTextArea;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JEditorPane;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -241,6 +252,108 @@ class AssistantTranscriptViewTest {
         assertNotNull(findVisibleButtonByText(view, "Show full output"),
                 "A streamed message that grows past the collapse threshold must gain a toggle, "
                         + "proving replaceLast() re-measures collapse state on the mutated bubble");
+    }
+
+    /**
+     * Issue #3642: a Doctor/Healer tool result whose {@code bundlePath}/{@code jsonReportPath}
+     * pointer cannot be read (missing file here) must degrade silently to exactly today's
+     * text-only "Show raw output" disclosure -- no error UI, no exception, and no preview row
+     * ever appears. Nothing here races: an unresolvable pointer never schedules a UI update in
+     * the first place, so the absence is immediately stable, not just momentarily true.
+     */
+    @Test
+    void unresolvableEvidencePathsDegradeSilentlyToTheExistingTextOnlyDisclosure(@TempDir Path directory) {
+        String rawEvidence = "{\"schemaVersion\": \"1.0\", \"bundlePath\": \""
+                + directory.resolve("missing-bundle.json").toString().replace("\\", "\\\\") + "\"}";
+
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Ran the analysis.", rawEvidence);
+        pumpEdt();
+
+        assertAll(
+                () -> assertNotNull(findButtonByText(view, "Show raw output"),
+                        "The existing text-only raw-evidence disclosure must still render"),
+                () -> assertNull(findByAccessibleName(view, "Evidence screenshot preview"),
+                        "An unresolvable evidence path must never render a preview row"));
+    }
+
+    /**
+     * Issue #3642: a message whose raw evidence resolves (via {@link DoctorEvidenceImageLocator})
+     * to a real, readable screenshot must render a click-to-open preview row (built with {@link
+     * ImagePreviewSupport}) alongside the existing raw-evidence disclosure. The lookup runs off
+     * the EDT on {@code ShaftPluginExecutor}'s pool and lands back via {@code runOnEdt}, so this
+     * polls (bounded, pumping the EDT each attempt) instead of asserting immediately after append.
+     */
+    @Test
+    void resolvableScreenshotEvidenceRendersAClickToOpenPreviewRow(@TempDir Path directory) throws IOException {
+        Files.createDirectories(directory.resolve("artifacts"));
+        BufferedImage image = new BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB);
+        if (!ImageIO.write(image, "png", directory.resolve("artifacts/e-1.png").toFile())) {
+            throw new IOException("No PNG writer available for the test fixture image");
+        }
+        Files.writeString(directory.resolve("doctor-evidence.json"), """
+                {
+                  "schemaVersion": "1.0",
+                  "bundleId": "bundle-abc",
+                  "evidence": [
+                    {
+                      "id": "e-1",
+                      "category": "SCREENSHOT",
+                      "mediaType": "image/png",
+                      "relativePath": "artifacts/e-1.png",
+                      "sha256": "deadbeef",
+                      "sizeBytes": 128,
+                      "redacted": false,
+                      "truncated": false,
+                      "attributes": {},
+                      "provenance": {"adapter": "allure-screenshot", "sourceReference": "attempt.png", "originalSha256": "deadbeef"}
+                    }
+                  ],
+                  "redaction": {"appliedRules": [], "removedFieldNames": [], "omittedItems": 0},
+                  "metadata": {}
+                }
+                """, StandardCharsets.UTF_8);
+        String rawEvidence = "{\"schemaVersion\": \"1.0\", \"status\": \"DETERMINISTIC\", \"bundlePath\": \""
+                + directory.resolve("doctor-evidence.json").toString().replace("\\", "\\\\") + "\"}";
+
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Ran the analysis.", rawEvidence);
+
+        JLabel preview = awaitByAccessibleName(view, "Evidence screenshot preview", Duration.ofSeconds(5));
+
+        assertAll(
+                () -> assertNotNull(preview, "A resolvable, readable screenshot must render a preview row"),
+                () -> assertNotNull(preview.getIcon(), "The preview row must carry a decoded, scaled icon"),
+                () -> assertNotNull(findButtonByText(view, "Show raw output"),
+                        "The preview row must render alongside, not instead of, the existing disclosure"));
+    }
+
+    private static JLabel awaitByAccessibleName(Component root, String accessibleName, Duration timeout) {
+        Instant deadline = Instant.now().plus(timeout);
+        while (Instant.now().isBefore(deadline)) {
+            pumpEdt();
+            Component found = findByAccessibleName(root, accessibleName);
+            if (found instanceof JLabel label) {
+                return label;
+            }
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** Forces the EDT to process every runnable queued so far (e.g. by {@code runOnEdt}'s
+     * {@link SwingUtilities#invokeLater} fallback) before returning. */
+    private static void pumpEdt() {
+        try {
+            SwingUtilities.invokeAndWait(() -> { });
+        } catch (Exception pumpFailure) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static String manyLineParagraphs(int count) {

@@ -28,6 +28,7 @@ import java.awt.datatransfer.StringSelection;
  */
 public final class RecordShaftFlowHereAction extends AnAction implements DumbAware {
     private static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
+    private static final String NOTIFICATION_TITLE = "Flow recording";
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
@@ -39,7 +40,7 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         PsiFile file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument());
         JavaTargetContext context = JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset());
         if (context == null) {
-            ShaftNotifier.warn(project, "SHAFT", "Open a Java file and place the caret inside a class or method.");
+            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "Open a Java file and place the caret inside a class or method.");
             return;
         }
 
@@ -58,7 +59,7 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
             // of copying raw MCP JSON to the clipboard and leaving the user to paste it somewhere
             // (issue #3552) -- prefillTool() only exists on the raw Tools panel that stays hidden here.
             openAssistantPrompt(project, recordFlowPrompt(context));
-            ShaftNotifier.info(project, "SHAFT",
+            ShaftNotifier.info(project, NOTIFICATION_TITLE,
                     "Record-at-target request ready in the Assistant for " + context.displayName() + ".");
             return;
         }
@@ -67,7 +68,7 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         request.add("arguments", arguments);
         CopyPasteManager.getInstance().setContents(new StringSelection(request.toString()));
         openToolWindow(project, arguments);
-        ShaftNotifier.info(project, "SHAFT", "Record-at-target tool prepared for " + context.displayName() + ".");
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, "Record-at-target tool prepared for " + context.displayName() + ".");
     }
 
     @Override

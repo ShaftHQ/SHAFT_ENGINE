@@ -6,6 +6,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.notifications.FailedRunDoctorNotifier;
 import com.shaft.intellij.notifications.ShaftToolWorkflowLauncher;
+import com.shaft.intellij.testindex.ShaftRunConfigurationResolver;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 
 import javax.swing.DefaultListCellRenderer;
@@ -15,10 +16,14 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.FlowLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +34,10 @@ import java.util.List;
  * (run-configuration granularity -- see that class's javadoc) with Refresh/Clear actions and, for
  * a selected failed run, one-click "Diagnose with SHAFT Doctor" / "Heal failed test" buttons that
  * reuse the same MCP prefill flow as {@code FailedRunDoctorNotifier}'s failed-run balloon.
+ * <p>
+ * A selected row (any status) can also be rerun or navigated to via
+ * {@link ShaftRunConfigurationResolver}: the "Run" button or a plain double-click reruns it, while
+ * Ctrl+double-click or the row's right-click context menu navigates to its resolved class.
  */
 final class ShaftTestsPanel extends JPanel {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss")
@@ -40,8 +49,11 @@ final class ShaftTestsPanel extends JPanel {
     private final JBList<ShaftTestIndex.TestRowState> rowList = new JBList<>(listModel);
     private final JButton refreshButton;
     private final JButton clearButton;
+    private final JButton runButton;
     private final JButton diagnoseButton;
     private final JButton healButton;
+    private final JMenuItem navigateMenuItem;
+    private final JPopupMenu rowContextMenu = new JPopupMenu();
     private final JLabel statusLabel = new JLabel(" ");
 
     ShaftTestsPanel(Project project) {
@@ -80,18 +92,47 @@ final class ShaftTestsPanel extends JPanel {
                 onSelectionChanged();
             }
         });
+        rowList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (event.getClickCount() != 2) {
+                    return;
+                }
+                if (event.isControlDown()) {
+                    navigateSelected();
+                } else {
+                    runSelected();
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent event) {
+                maybeShowContextMenu(event);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent event) {
+                maybeShowContextMenu(event);
+            }
+        });
+        navigateMenuItem = new JMenuItem("Navigate to test");
+        navigateMenuItem.addActionListener(event -> navigateSelected());
+        rowContextMenu.add(navigateMenuItem);
         JBScrollPane listScroll = new JBScrollPane(rowList);
         listScroll.setPreferredSize(JBUI.size(400, 260));
 
+        runButton = button("Run", "Rerun the selected SHAFT test.", ShaftIcons.RERUN, this::runSelected);
         diagnoseButton = button("Diagnose with SHAFT Doctor",
                 "Prefill a doctor_analyze_failed_allure request for the selected failed run.",
                 ShaftIcons.SEARCH, this::diagnoseSelected);
         healButton = button("Heal failed test",
                 "Prefill a healer_run_failed_test request for the selected failed run.",
                 ShaftIcons.CHECK, this::healSelected);
+        runButton.setEnabled(false);
         diagnoseButton.setEnabled(false);
         healButton.setEnabled(false);
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.add(runButton);
         actions.add(diagnoseButton);
         actions.add(healButton);
 
@@ -124,9 +165,42 @@ final class ShaftTestsPanel extends JPanel {
     }
 
     private void onSelectionChanged() {
-        boolean failed = isFailRow(rowList.getSelectedValue());
+        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
+        boolean hasSelection = selected != null;
+        boolean failed = isFailRow(selected);
+        runButton.setEnabled(hasSelection);
+        navigateMenuItem.setEnabled(hasSelection);
         diagnoseButton.setEnabled(failed);
         healButton.setEnabled(failed);
+    }
+
+    private void maybeShowContextMenu(MouseEvent event) {
+        if (!event.isPopupTrigger()) {
+            return;
+        }
+        int row = rowList.locationToIndex(event.getPoint());
+        if (row >= 0) {
+            rowList.setSelectedIndex(row);
+        }
+        if (rowList.getSelectedValue() != null) {
+            rowContextMenu.show(rowList, event.getX(), event.getY());
+        }
+    }
+
+    private void runSelected() {
+        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
+        if (selected == null) {
+            return;
+        }
+        ShaftRunConfigurationResolver.run(project, selected.testId());
+    }
+
+    private void navigateSelected() {
+        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
+        if (selected == null) {
+            return;
+        }
+        ShaftRunConfigurationResolver.navigate(project, selected.testId());
     }
 
     private void diagnoseSelected() {
@@ -216,6 +290,14 @@ final class ShaftTestsPanel extends JPanel {
 
     JComponent healButtonForTest() {
         return healButton;
+    }
+
+    JButton runButtonForTest() {
+        return runButton;
+    }
+
+    JMenuItem navigateMenuItemForTest() {
+        return navigateMenuItem;
     }
 
     JLabel statusLabelForTest() {
