@@ -289,3 +289,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.java-record-a-component-name-cant-collide-with-one-of-its-own-static-factory-methods","timestamp":"2026-07-17T03:55:35+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-construction-silently-starts-a-background-local-model-refresh-that-races-with-any-test-driving-applylocalmodels-refreshlocalmodelsifneeded-via-reflection","timestamp":"2026-07-17T05:36:37+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills","timestamp":"2026-07-17T08:17:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.superpowers-and-fable-plugins-removed-act-as-fable-is-the-sole-methodology-authority","timestamp":"2026-07-17T09:20:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py","timestamp":"2026-07-17T09:20:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.delegation-model-fable-main-thread-plans-delegates-reviews-verifies-and-does-not-implement-haiku-first-tiers","timestamp":"2026-07-17T09:20:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.repairing-memory-object-content-hash-mismatches-objectcontenthashmismatch","timestamp":"2026-07-17T09:20:42+03:00"}

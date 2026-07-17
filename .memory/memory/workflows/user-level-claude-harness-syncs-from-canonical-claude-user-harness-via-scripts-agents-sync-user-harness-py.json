@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/workflows/user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py.md",
+  "content_hash": "sha256:69043bad285d8beead339f43710972b3212f07c55849555e3c5e594bd6106d14",
+  "created_at": "2026-07-17T09:20:42+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "workflow"
+  },
+  "id": "workflow.user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Harness-wide optimization: consolidate agent instructions, prune duplicate plugins, source-control user-level config, codify Haiku-first delegation"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "sync",
+    "user-harness",
+    "secrets",
+    "workflow"
+  ],
+  "title": "User-level Claude harness syncs from canonical .claude/user-harness via scripts/agents/sync_user_harness.py",
+  "type": "workflow",
+  "updated_at": "2026-07-17T09:20:42+03:00"
+}
