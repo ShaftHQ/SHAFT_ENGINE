@@ -965,7 +965,15 @@ final class AssistantCommand {
             }
         }
         String[] fallback = DEFAULT_WINDOW_SIZE.split("x");
-        return new int[]{Integer.parseInt(fallback[0]), Integer.parseInt(fallback[1])};
+        if (fallback.length == 2) {
+            try {
+                return new int[]{Integer.parseInt(fallback[0]), Integer.parseInt(fallback[1])};
+            } catch (NumberFormatException notNumeric) {
+                // fall through to the hardcoded literal below
+            }
+        }
+        // Only reachable if DEFAULT_WINDOW_SIZE itself were ever edited to a malformed literal.
+        return new int[]{1280, 800};
     }
 
     private static JsonObject cookieName(String rest) {
