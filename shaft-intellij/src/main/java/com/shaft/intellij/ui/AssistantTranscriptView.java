@@ -35,6 +35,8 @@ import javax.swing.BoxLayout;
 import javax.swing.SwingUtilities;
 import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
@@ -49,8 +51,6 @@ import java.awt.Dimension;
 import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -760,7 +760,7 @@ final class AssistantTranscriptView extends JPanel {
         htmlPane.setBorder(JBUI.Borders.empty());
         htmlPane.setForeground(foreground);
         htmlPane.addHyperlinkListener(AssistantTranscriptView::copyCodeFromFallbackLink);
-        htmlPane.addMouseListener(new TranscriptContextMenuListener(htmlPane));
+        htmlPane.setComponentPopupMenu(buildMessageContextMenu(htmlPane));
         String rendered = toFallbackHtml(html, foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
         htmlPane.setText(rendered);
@@ -782,14 +782,18 @@ final class AssistantTranscriptView extends JPanel {
         return Math.max(JBUI.scale(140), bubbleWidth - bubblePadding);
     }
 
+    /**
+     * Built once per pane and wired via {@link JComponent#setComponentPopupMenu} so the platform's
+     * native popup triggers -- right-click AND the keyboard context-menu key / Shift+F10 on a
+     * focused pane -- open it for free, with identical items either way (issue #3630). Selection
+     * can change between build time and show time, so {@code Copy}'s enabled state is refreshed on
+     * every {@code popupMenuWillBecomeVisible} rather than fixed once at construction.
+     */
     private JPopupMenu buildMessageContextMenu(JEditorPane pane) {
         JPopupMenu menu = new JPopupMenu("Assistant transcript message actions");
-        String selectedText = pane.getSelectedText();
-        boolean hasSelection = selectedText != null && !selectedText.isEmpty();
 
         JMenuItem copyItem = new JMenuItem("Copy");
         copyItem.getAccessibleContext().setAccessibleName("Copy");
-        copyItem.setEnabled(hasSelection);
         copyItem.addActionListener(event -> copySelection(pane));
 
         JMenuItem selectAllItem = new JMenuItem("Select All");
@@ -803,6 +807,22 @@ final class AssistantTranscriptView extends JPanel {
         menu.add(copyItem);
         menu.add(selectAllItem);
         menu.add(copyFullTranscriptItem);
+        menu.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+                String selectedText = pane.getSelectedText();
+                copyItem.setEnabled(selectedText != null && !selectedText.isEmpty());
+                lastMessageContextMenu = menu;
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent event) {
+            }
+        });
         return menu;
     }
 
@@ -810,51 +830,6 @@ final class AssistantTranscriptView extends JPanel {
         Action copyAction = pane.getActionMap().get(DefaultEditorKit.copyAction);
         if (copyAction != null) {
             copyAction.actionPerformed(new ActionEvent(pane, ActionEvent.ACTION_PERFORMED, DefaultEditorKit.copyAction));
-        }
-    }
-
-    /**
-     * Right-click handler for a per-message HTML pane. Installed fresh on every
-     * pane created by {@link #fallbackHtmlPane}, so it survives transcript re-renders.
-     */
-    final class TranscriptContextMenuListener implements MouseListener {
-        private final JEditorPane pane;
-
-        private TranscriptContextMenuListener(JEditorPane pane) {
-            this.pane = pane;
-        }
-
-        @Override
-        public void mouseClicked(MouseEvent event) {
-        }
-
-        @Override
-        public void mousePressed(MouseEvent event) {
-            maybeShowPopup(event);
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent event) {
-            maybeShowPopup(event);
-        }
-
-        @Override
-        public void mouseEntered(MouseEvent event) {
-        }
-
-        @Override
-        public void mouseExited(MouseEvent event) {
-        }
-
-        private void maybeShowPopup(MouseEvent event) {
-            if (!event.isPopupTrigger()) {
-                return;
-            }
-            JPopupMenu menu = buildMessageContextMenu(pane);
-            lastMessageContextMenu = menu;
-            if (pane.isShowing()) {
-                menu.show(pane, event.getX(), event.getY());
-            }
         }
     }
 

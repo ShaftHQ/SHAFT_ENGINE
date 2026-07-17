@@ -36,6 +36,8 @@ import javax.swing.JViewport;
 import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
@@ -3615,12 +3617,8 @@ class ShaftPanelSetupTest {
         transcript.append("assistant", "First response");
 
         JEditorPane firstPane = transcriptHtmlPanes(transcript).get(0);
-        MouseListener listener = transcriptContextMenuListener(firstPane);
-        assertNotNull(listener, "Context menu listener should be installed in fallbackHtmlPane");
-
-        listener.mouseReleased(popupTriggerEvent(firstPane));
-        JPopupMenu menu = transcript.lastMessageContextMenuForTest();
-        assertNotNull(menu);
+        JPopupMenu menu = showMessageContextMenu(firstPane);
+        assertSame(menu, transcript.lastMessageContextMenuForTest());
         JMenuItem copyItem = findByAccessibleName(menu, "Copy", JMenuItem.class);
         JMenuItem selectAllItem = findByAccessibleName(menu, "Select All", JMenuItem.class);
         JMenuItem copyFullTranscriptItem = findByAccessibleName(menu, "Copy full transcript", JMenuItem.class);
@@ -3635,7 +3633,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(copyFullTranscriptItem.isEnabled()));
 
         firstPane.select(0, firstPane.getDocument().getLength());
-        listener.mouseReleased(popupTriggerEvent(firstPane));
+        showMessageContextMenu(firstPane);
         JMenuItem copyItemAfterSelection = findByAccessibleName(
                 transcript.lastMessageContextMenuForTest(), "Copy", JMenuItem.class);
         assertTrue(copyItemAfterSelection.isEnabled(), "Copy should be enabled once the pane has a selection");
@@ -3643,27 +3641,37 @@ class ShaftPanelSetupTest {
         transcript.append("assistant", "Second response");
         List<JEditorPane> panesAfterRerender = transcriptHtmlPanes(transcript);
         JEditorPane newestPane = panesAfterRerender.get(panesAfterRerender.size() - 1);
-        MouseListener listenerAfterRerender = transcriptContextMenuListener(newestPane);
-        assertNotNull(listenerAfterRerender, "Context menu should survive a transcript re-render");
-
-        listenerAfterRerender.mouseReleased(popupTriggerEvent(newestPane));
+        showMessageContextMenu(newestPane);
         assertEquals(3, transcript.lastMessageContextMenuForTest().getComponentCount());
     }
 
+    /**
+     * Issue #3630: the context menu is wired via {@link JComponent#setComponentPopupMenu}, so a
+     * single {@link JPopupMenu} instance backs both the mouse right-click trigger and the platform's
+     * keyboard trigger (Shift+F10 / the keyboard menu key) on a focused bubble -- there is no way for
+     * the two paths to diverge, and the pane must be focusable for the keyboard trigger to ever reach
+     * it. A real screen realization isn't available in this headless suite (no test here shows a
+     * live window), so the keyboard trigger is exercised the same faithful way the mouse trigger is
+     * in the test above: by invoking the exact {@code popupMenuWillBecomeVisible} lifecycle callback
+     * Swing's own {@code BasicPopupMenuUI} invokes right before painting the popup, regardless of
+     * which trigger asked for it.
+     */
     @Test
-    void assistantTranscriptContextMenuIgnoresNonPopupTriggerEvents() {
+    void assistantTranscriptMessagePaneContextMenuIsKeyboardReachableAndIdenticalEitherTrigger() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("assistant", "Response");
         JEditorPane pane = transcriptHtmlPanes(transcript).get(0);
-        MouseListener listener = transcriptContextMenuListener(pane);
-        assertNotNull(listener);
 
-        MouseEvent plainClick = new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
-                InputEvent.BUTTON1_DOWN_MASK, 4, 4, 1, false, MouseEvent.BUTTON1);
-        listener.mousePressed(plainClick);
-        listener.mouseReleased(plainClick);
+        assertTrue(pane.isFocusable(), "The message pane must be focusable for Shift+F10 to reach it");
 
-        assertNull(transcript.lastMessageContextMenuForTest());
+        JPopupMenu menu = showMessageContextMenu(pane);
+        assertAll(
+                () -> assertEquals(3, menu.getComponentCount()),
+                () -> assertNotNull(findByAccessibleName(menu, "Copy", JMenuItem.class)),
+                () -> assertNotNull(findByAccessibleName(menu, "Select All", JMenuItem.class)),
+                () -> assertNotNull(findByAccessibleName(menu, "Copy full transcript", JMenuItem.class)),
+                () -> assertSame(menu, pane.getComponentPopupMenu(),
+                        "The keyboard trigger and the mouse trigger must open the same menu instance"));
     }
 
     @Test
@@ -3681,9 +3689,7 @@ class ShaftPanelSetupTest {
 
         List<JEditorPane> panes = transcriptHtmlPanes(view);
         JEditorPane pane = panes.get(panes.size() - 1);
-        MouseListener listener = transcriptContextMenuListener(pane);
-        assertNotNull(listener);
-        listener.mouseReleased(popupTriggerEvent(pane));
+        showMessageContextMenu(pane);
 
         JMenuItem copyFullTranscriptItem = findByAccessibleName(
                 view.lastMessageContextMenuForTest(), "Copy full transcript", JMenuItem.class);
@@ -4941,18 +4947,20 @@ class ShaftPanelSetupTest {
         return panes;
     }
 
-    private static MouseListener transcriptContextMenuListener(JEditorPane pane) {
-        for (MouseListener listener : pane.getMouseListeners()) {
-            if (listener instanceof AssistantTranscriptView.TranscriptContextMenuListener) {
-                return listener;
-            }
+    /**
+     * Fires the same {@code popupMenuWillBecomeVisible} lifecycle callback Swing invokes right
+     * before painting a {@link JComponent#setComponentPopupMenu} popup, regardless of whether a real
+     * mouse popup-trigger or the keyboard context-menu key/Shift+F10 asked for it (issue #3630).
+     * Doing it this way -- rather than a real {@code JPopupMenu.show()} -- avoids requiring the pane
+     * to be realized on an actual screen, which this headless suite never does.
+     */
+    private static JPopupMenu showMessageContextMenu(JEditorPane pane) {
+        JPopupMenu menu = pane.getComponentPopupMenu();
+        assertNotNull(menu, "Context menu should be installed via setComponentPopupMenu in fallbackHtmlPane");
+        for (PopupMenuListener listener : menu.getPopupMenuListeners()) {
+            listener.popupMenuWillBecomeVisible(new PopupMenuEvent(menu));
         }
-        return null;
-    }
-
-    private static MouseEvent popupTriggerEvent(JEditorPane pane) {
-        return new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
-                InputEvent.BUTTON3_DOWN_MASK, 6, 6, 1, true, MouseEvent.BUTTON3);
+        return menu;
     }
 
     private static void collectTranscriptHtmlPanes(Component component, List<JEditorPane> panes) {
@@ -5924,10 +5932,7 @@ class ShaftPanelSetupTest {
         List<JEditorPane> panes = transcriptHtmlPanes(transcriptView);
         assertFalse(panes.isEmpty(), "Expected at least one rendered transcript pane after re-populating");
         JEditorPane lastPane = panes.get(panes.size() - 1);
-        MouseListener contextMenuListener = transcriptContextMenuListener(lastPane);
-        assertNotNull(contextMenuListener, "Round 4 fix: transcript panes must install a context-menu listener");
-        contextMenuListener.mouseReleased(popupTriggerEvent(lastPane));
-        JPopupMenu contextMenu = transcriptView.lastMessageContextMenuForTest();
+        JPopupMenu contextMenu = showMessageContextMenu(lastPane);
         assertAll(
                 () -> assertNotNull(findByAccessibleName(contextMenu, "Copy", JMenuItem.class),
                         "Round 4 fix: transcript context menu must offer Copy"),
