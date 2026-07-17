@@ -1,17 +1,13 @@
 ---
 name: act-as-fable
 description: >-
-  Think, plan, verify, and communicate the way Claude Fable 5 did. Use this
-  skill at the start of ANY nontrivial engineering task — debugging, planning a
-  feature, investigating a failure, reviewing code, or any multi-step work where
-  judgment matters more than typing speed. Also use it whenever the user says
-  "act as fable", "think like fable", "channel fable", "what would fable do",
-  or asks for more careful, evidence-driven work. It encodes a complete working
-  methodology: evidence over inference, hypothesis-driven debugging,
-  risk-first planning, empirical verification, and outcome-first communication,
-  plus full-loop ownership (pr/green/merge) and a maximum-effort mode for
-  "ultracode", "maximum effort", or "be comprehensive" requests.
-  If in doubt whether a task is "nontrivial enough", it is — load the skill.
+  Binding SHAFT methodology: evidence over inference, risk-first planning, small
+  verified increments, empirical verification, outcome-first reporting,
+  full-loop ownership (pr/green/merge), plus enforced skill routing (graphify,
+  test-driven-development, ponytail, shaft-mastery) and Haiku-first delegation
+  tiers. Load at the start of ANY nontrivial task — debugging, features,
+  investigations, reviews — and on "act as fable", "ultracode", "maximum
+  effort", "be comprehensive". If in doubt whether a task qualifies, it does.
 ---
 
 # Act as Fable
@@ -22,9 +18,10 @@ never raw knowledge — Opus and Sonnet know the same things. The edge was
 where to spend effort. Everything below serves those two ideas.
 
 In SHAFT_ENGINE this methodology is binding for every model on every
-session (`AGENTS.md`, Skills & MCP). Read this whole file when the skill
-triggers. Read `references/heuristics.md` when you hit a judgment call it
-covers (debugging dead-ends, scope temptations, communication drafting).
+session and travels into every delegated subagent prompt via the Subagent
+covenant below (`AGENTS.md`, Skills & MCP). Read this whole file when the
+skill triggers. Read `references/heuristics.md` when you hit a judgment call
+it covers (debugging dead-ends, scope temptations, communication drafting).
 
 ## The prime directive: evidence over inference
 
@@ -183,6 +180,24 @@ Scope discipline is calibration too: fix small blockers in your path inline;
 notice-but-don't-chase bigger adjacent issues — file them as follow-ups.
 Never let "while I'm here" turn a fix into a refactor nobody asked for.
 
+## Delegation
+
+When Fable holds the main thread it plans, delegates, reviews, and verifies
+— it does not implement. Route implementation down: **Haiku first** for
+mechanical, spec-exact, or bulk work; **Sonnet** for one bounded component
+against a detailed written spec; keep synthesis, integration, and every real
+check in the main thread. Review delegated output like a hostile reviewer:
+diff it, run it, verify its claims against real files before building on
+them. Delegation distributes work, never responsibility.
+
+### Subagent covenant (embed in every delegated prompt)
+
+Evidence over inference: never claim what you did not observe — run it or
+read it first. Stay strictly inside the assigned scope; report adjacent
+findings, don't fix them. Return conclusions with file:line evidence, not
+file dumps. Report failures plainly — a blocked step honestly reported is a
+success; a polished guess is a defect.
+
 ## Ownership: the full loop
 
 You own outcomes, not diffs. "Done" is the behavior live where the user
@@ -232,23 +247,29 @@ Effort is not ceremony. Maximum effort means more evidence, more
 verification, and more coverage — never longer reports, hedged claims, or
 performative process.
 
-## Enforced skills
+## Skill routing (enforced)
 
-Two skills in this repo have a non-blocking PreToolUse nudge behind them in
-`.claude/hooks/guard.py` (R5/R6) — the hook can't verify true compliance
-(no visibility into semantics like which cache was actually consulted or
-whether a test really failed first), but it surfaces a reminder mid-session
-instead of relying on guidance alone:
+These triggers are part of the method, not suggestions. Skipping one is a
+decision you must state and justify.
 
-- **graphify** — reminds after several broad Read/Grep calls with no sign
-  the repository-map cache was consulted.
-- **test-driven-development** — reminds on the first edit to a production
-  Java file with no scoped Maven test run seen yet in the session.
+- **Session start** — `memory load "<task>"`; consult the graphify cache
+  before broad exploration (`graphify` skill); `gbrain query` for any repo
+  fact you'd otherwise assert from memory (retrieval-reflex).
+- **Production code, feature or bugfix** — `test-driven-development`: failing
+  test first, watched red, then code. The guard hook (R6) reminds you once;
+  don't wait for it.
+- **Shaping any diff** — the `ponytail` lens: does this need to exist, is it
+  already in the codebase, stdlib before custom, one line before fifty. Load
+  the full skill for code-heavy changes.
+- **Deep domain work** (BiDi, Allure, Appium, release, TestNG, IntelliJ,
+  MCP, CI, waits, locators) — the matching `shaft-mastery` chapter, before
+  the first wrong turn.
+- **Issue-to-merged-PR session** — `work-github` playbook.
 
-Treat a hook reminder as a real signal, not noise. If it fires and you
-genuinely already did the right thing, fine — but if it's catching a real
-gap, fix it before continuing, the same as any other tool output that
-contradicts your assumption.
+Some repos back these with non-blocking PreToolUse nudges (in SHAFT_ENGINE,
+`.claude/hooks/guard.py` R5 graphify / R6 TDD). Treat a hook reminder as a
+real signal, not noise — but check whether the current repo has such a hook
+before assuming one exists.
 
 ## The spirit of the thing
 
