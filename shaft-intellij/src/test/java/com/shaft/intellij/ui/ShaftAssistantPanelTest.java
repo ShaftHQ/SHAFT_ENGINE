@@ -31,7 +31,7 @@ class ShaftAssistantPanelTest {
         // listener add/remove calls, the exact path this regression is about.
         ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
         Field connectionStateField = ShaftAssistantPanel.class.getDeclaredField("connectionState");
-        connectionStateField.setAccessible(true);
+        connectionStateField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         connectionStateField.set(panel, connectionState);
 
         // ShaftAssistantPanel.addNotify() calls super.addNotify(), which cascades into the child
@@ -44,11 +44,11 @@ class ShaftAssistantPanelTest {
         // circuits past the ApplicationManager touch, letting the panel's *real* addNotify()/
         // removeNotify() run end to end.
         Field transcriptField = ShaftAssistantPanel.class.getDeclaredField("transcript");
-        transcriptField.setAccessible(true);
+        transcriptField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         AssistantTranscriptView transcript = (AssistantTranscriptView) transcriptField.get(panel);
         Field lafConnectionDisposableField =
                 AssistantTranscriptView.class.getDeclaredField("lafConnectionDisposable");
-        lafConnectionDisposableField.setAccessible(true);
+        lafConnectionDisposableField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
 
         for (int cycle = 0; cycle < 5; cycle++) {
             lafConnectionDisposableField.set(transcript, Disposer.newDisposable());

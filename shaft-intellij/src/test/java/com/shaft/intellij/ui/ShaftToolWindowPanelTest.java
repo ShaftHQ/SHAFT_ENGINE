@@ -40,11 +40,11 @@ class ShaftToolWindowPanelTest {
         // startStatusPolling() would take to reproduce the mid-recording state (a live Alarm)
         // this regression is about, without touching GuidedWorkflowPanel's production code.
         Method scheduleNextStatusPoll = GuidedWorkflowPanel.class.getDeclaredMethod("scheduleNextStatusPoll");
-        scheduleNextStatusPoll.setAccessible(true);
+        scheduleNextStatusPoll.setAccessible(true); // NOPMD - reflective test invocation of a private completion handler, matching the established pattern in ShaftPanelSetupTest
         scheduleNextStatusPoll.invoke(guided);
 
         Field alarmField = GuidedWorkflowPanel.class.getDeclaredField("statusPollAlarm");
-        alarmField.setAccessible(true);
+        alarmField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         Alarm pollAlarm = (Alarm) alarmField.get(guided);
         assertNotNull(pollAlarm, "Test setup must produce a live poll Alarm before disposal");
         assertFalse(pollAlarm.isDisposed(), "Alarm must start out live, mirroring an in-progress recording");

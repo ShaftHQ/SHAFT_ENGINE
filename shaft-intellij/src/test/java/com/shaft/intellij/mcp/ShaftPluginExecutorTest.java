@@ -74,7 +74,8 @@ class ShaftPluginExecutorTest {
         ShaftPluginExecutor instance = new ShaftPluginExecutor(pool);
         try {
             BlockingQueue<Thread> captured = new ArrayBlockingQueue<>(1);
-            instance.executor().execute(() -> captured.offer(Thread.currentThread()));
+            instance.executor().execute(() -> assertTrue(captured.offer(Thread.currentThread()),
+                    "captured queue has capacity for exactly one worker thread"));
             Thread worker = captured.poll(5, TimeUnit.SECONDS);
 
             assertNotNull(worker, "expected a task to run on a pool worker thread");

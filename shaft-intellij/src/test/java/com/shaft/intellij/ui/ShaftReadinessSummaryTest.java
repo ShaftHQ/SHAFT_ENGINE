@@ -46,7 +46,7 @@ class ShaftReadinessSummaryTest {
         // ShaftToolWindowPanelTest reaches GuidedWorkflowPanel's private scheduleNextStatusPoll(),
         // rather than widening ShaftToolWindowPanel's package-private surface for a test-only hook.
         Method showMainView = ShaftToolWindowPanel.class.getDeclaredMethod("showMainView");
-        showMainView.setAccessible(true);
+        showMainView.setAccessible(true); // NOPMD - reflective test invocation of a private completion handler, matching the established pattern in ShaftPanelSetupTest
         for (int rebuild = 1; rebuild <= 5; rebuild++) {
             showMainView.invoke(panel);
             assertEquals(1, ShaftRecordingActivity.listenerCount(),
