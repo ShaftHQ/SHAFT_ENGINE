@@ -705,6 +705,11 @@ final class AssistantLocalAgentRunner {
         // A short, human-readable reason captured from a non-success terminal event (Claude's error
         // subtype, Codex's turn.failed detail), used to explain a failure whose answer text is empty.
         private String terminalDetail;
+        // The plan text from a Claude Code ExitPlanMode tool_use call (see the "tool_use" branch of
+        // describeClaudeEvent), if any. Carried through composeOutput's trailing metadata line so
+        // ShaftAssistantPanel can recover it via parsePlanProposal and render the terminal "Plan
+        // proposed" card (issue #3680), without changing the ShaftMcpToolResult contract.
+        private String planProposal;
 
         StructuredStreamParser(Format format) {
             this.format = format;
@@ -777,6 +782,9 @@ final class AssistantLocalAgentRunner {
             usage.addProperty("output_tokens", orZero(outputTokens));
             JsonObject usageHolder = new JsonObject();
             usageHolder.add("usage", usage);
+            if (planProposal != null && !planProposal.isBlank()) {
+                usageHolder.addProperty("plan", planProposal);
+            }
             return usageHolder;
         }
 
@@ -847,11 +855,24 @@ final class AssistantLocalAgentRunner {
                                 toolNamesByUseId.put(toolUseId, toolName);
                             }
                             recordFileMutation(toolName, objectField(block, "input"));
-                            String label = toolName == null ? "(unknown)" : toolName;
-                            String summary = toolInputSummary(objectField(block, "input"));
-                            lines.add(summary == null
-                                    ? "Calling tool " + label + "..."
-                                    : "Calling tool " + label + " (" + summary + ")...");
+                            String plan = "ExitPlanMode".equals(toolName)
+                                    ? stringField(objectField(block, "input"), "plan")
+                                    : null;
+                            if (plan != null && !plan.isBlank()) {
+                                // Claude Code's own built-in "propose this plan, ask to proceed" tool sends
+                                // its proposal in a "plan" input key that toolInputSummary does not
+                                // recognize (issue #3680): without this branch it would fall through to the
+                                // generic bare "Calling tool ExitPlanMode..." line below, hiding the one
+                                // piece of information -- the plan itself -- the user actually needs.
+                                planProposal = plan;
+                                lines.add("**Plan proposed:**\n\n" + plan);
+                            } else {
+                                String label = toolName == null ? "(unknown)" : toolName;
+                                String summary = toolInputSummary(objectField(block, "input"));
+                                lines.add(summary == null
+                                        ? "Calling tool " + label + "..."
+                                        : "Calling tool " + label + " (" + summary + ")...");
+                            }
                         } else if ("text".equals(blockType)) {
                             String text = stringField(block, "text");
                             if (text != null && !text.isBlank()) {
@@ -1576,6 +1597,43 @@ final class AssistantLocalAgentRunner {
             remainder.append(lines[index]).append('\n');
         }
         return remainder.toString().strip();
+    }
+
+    /**
+     * Extracts the {@code ExitPlanMode} plan text embedded in the trailing usage-metadata JSON line
+     * (see {@code StructuredStreamParser#usageHolder}), or {@code null} when the run never called
+     * {@code ExitPlanMode} (or the output has no trailing metadata line at all). Used by {@code
+     * ShaftAssistantPanel} to render the terminal "Plan proposed" structured card (issue #3680)
+     * independently of whether Claude's own final answer text happened to restate the plan. Mirrors
+     * {@link #stripTrailingUsageMetadata}'s trailing-line detection: both inspect the same last line,
+     * so a change to one's line-detection rules must be mirrored in the other.
+     */
+    static String parsePlanProposal(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        String[] lines = trimmed.split("\\r?\\n");
+        String lastLine = lines[lines.length - 1].strip();
+        if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
+            return null;
+        }
+        JsonObject parsed;
+        try {
+            JsonElement element = JsonParser.parseString(lastLine);
+            if (!element.isJsonObject()) {
+                return null;
+            }
+            parsed = element.getAsJsonObject();
+        } catch (JsonParseException exception) {
+            return null;
+        }
+        JsonElement planElement = parsed.get("plan");
+        if (planElement == null || !planElement.isJsonPrimitive() || !planElement.getAsJsonPrimitive().isString()) {
+            return null;
+        }
+        String plan = planElement.getAsString();
+        return plan.isBlank() ? null : plan;
     }
 
     private static JsonObject resolveUsageObject(JsonObject usageHolder) {

@@ -2356,6 +2356,115 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(exported.contains("autobot_local_agent_run")));
     }
 
+    /**
+     * Pins issue #3680's structured "proceed to Agent / keep refining" choice: a completed Plan-mode
+     * local-agent run whose raw output carries an {@code ExitPlanMode} plan proposal (see {@link
+     * AssistantLocalAgentRunner#parsePlanProposal}) must render an actionable choice card, and the
+     * plan text itself must land in the persisted response bubble (not only the ephemeral card) so
+     * it survives dismissal and shows up in transcript export/scrollback.
+     */
+    @Test
+    void completedPlanModeRunWithAnExitPlanModeProposalRendersAStructuredChoiceCard() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        ((JComboBox<?>) getField(panel, "mode")).setSelectedItem("PLAN");
+        String rawOutput = "I've reviewed the code and put together a plan.\n\n"
+                + "{\"usage\":{\"input_tokens\":10,\"output_tokens\":5},"
+                + "\"plan\":\"1. Add a failing test.\\n2. Implement the fix.\"}";
+
+        showAgentResult(panel, ShaftMcpToolResult.success(rawOutput));
+
+        JComponent widget = transcriptWidget(panel);
+        assertAll(
+                () -> assertNotNull(widget, "a Plan-mode ExitPlanMode proposal must render a structured card"),
+                () -> assertNotNull(findButton(widget, "Switch to Agent and run this plan"),
+                        "the card must offer a way to proceed to Agent mode and run the plan"),
+                () -> assertNotNull(findButton(widget, "Keep refining"),
+                        "the card must offer a way to stay in Plan mode and keep discussing"),
+                () -> assertTrue(transcriptMarkdown(panel).contains("Add a failing test"),
+                        "the plan content must land in the persisted response, not only the ephemeral card"));
+    }
+
+    /** A plain Plan-mode answer with no ExitPlanMode call must never synthesize a choice card. */
+    @Test
+    void completedPlanModeRunWithoutAnExitPlanModeProposalRendersNoChoiceCard() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        ((JComboBox<?>) getField(panel, "mode")).setSelectedItem("PLAN");
+
+        showAgentResult(panel, ShaftMcpToolResult.success("Here's my analysis of the code, no plan proposed yet."));
+
+        assertNull(transcriptWidget(panel),
+                "a run with no ExitPlanMode call must not render a Plan-proposed card");
+    }
+
+    /** Same ExitPlanMode proposal, but the mode combo is on AGENT: no Plan-mode card should render. */
+    @Test
+    void exitPlanModeProposalOutsidePlanModeRendersNoChoiceCard() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        ((JComboBox<?>) getField(panel, "mode")).setSelectedItem("AGENT");
+        String rawOutput = "Done.\n\n{\"usage\":{\"input_tokens\":1,\"output_tokens\":1},\"plan\":\"unused\"}";
+
+        showAgentResult(panel, ShaftMcpToolResult.success(rawOutput));
+
+        assertNull(transcriptWidget(panel), "the Plan-proposed card is scoped to Plan mode only");
+    }
+
+    /**
+     * "Keep refining" must be a safe, side-effect-free dismissal: it only clears the card, leaving
+     * the assistant mode and the persisted answer bubble untouched so the user can keep typing in
+     * Plan mode.
+     */
+    @Test
+    void keepRefiningDismissesTheCardWithoutChangingModeOrSourceEditApproval() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        JComboBox<?> mode = (JComboBox<?>) getField(panel, "mode");
+        mode.setSelectedItem("PLAN");
+        JCheckBox allowSourceMutation = (JCheckBox) getField(panel, "allowSourceMutation");
+        allowSourceMutation.setSelected(false);
+        String rawOutput = "Plan ready.\n\n"
+                + "{\"usage\":{\"input_tokens\":1,\"output_tokens\":1},\"plan\":\"Do the thing.\"}";
+        showAgentResult(panel, ShaftMcpToolResult.success(rawOutput));
+        JButton keepRefining = findButton(transcriptWidget(panel), "Keep refining");
+
+        SwingUtilities.invokeAndWait(keepRefining::doClick);
+
+        assertAll(
+                () -> assertNull(transcriptWidget(panel), "Keep refining must dismiss the card"),
+                () -> assertEquals("PLAN", mode.getSelectedItem(), "Keep refining must not change the mode"),
+                () -> assertFalse(allowSourceMutation.isSelected(),
+                        "Keep refining must not touch the source-edit approval checkbox"),
+                () -> assertTrue(transcriptMarkdown(panel).contains("Do the thing."),
+                        "the persisted plan answer bubble must survive dismissing the card"));
+    }
+
+    /**
+     * The "Switch to Agent and run this plan" button's state-preparation logic (mode -> AGENT, tick
+     * Allow source edits, dismiss the card) is exercised directly rather than by actually clicking the
+     * button: a real click also calls {@code rerun()} -> {@code send()}, which would dispatch a real
+     * local-agent CLI process -- unsafe and undesired from a headless unit test (no other test in this
+     * suite drives that path either; see the "Rerun" button tests, which only assert enabled state).
+     */
+    @Test
+    void prepareAgentModeForProposedPlanSwitchesModeAndGrantsSourceEditsAndClearsTheCard() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        JComboBox<?> mode = (JComboBox<?>) getField(panel, "mode");
+        mode.setSelectedItem("PLAN");
+        JCheckBox allowSourceMutation = (JCheckBox) getField(panel, "allowSourceMutation");
+        allowSourceMutation.setSelected(false);
+        String rawOutput = "Plan ready.\n\n"
+                + "{\"usage\":{\"input_tokens\":1,\"output_tokens\":1},\"plan\":\"Do the thing.\"}";
+        showAgentResult(panel, ShaftMcpToolResult.success(rawOutput));
+        assertNotNull(transcriptWidget(panel), "precondition: the card must be showing");
+
+        Method prepare = ShaftAssistantPanel.class.getDeclaredMethod("prepareAgentModeForProposedPlan");
+        prepare.setAccessible(true);
+        prepare.invoke(panel);
+
+        assertAll(
+                () -> assertEquals("AGENT", mode.getSelectedItem()),
+                () -> assertTrue(allowSourceMutation.isSelected()),
+                () -> assertNull(transcriptWidget(panel), "the card must clear once the user has chosen"));
+    }
+
     @Test
     void assistantRejectsNativeSeleniumMcpCodeBlocksBeforeApproval() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
