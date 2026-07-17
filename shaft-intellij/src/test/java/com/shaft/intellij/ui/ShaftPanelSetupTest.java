@@ -37,6 +37,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
@@ -2639,6 +2640,56 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(transcriptMarkdown(panel).contains("GeneratedTest")),
                 () -> assertTrue(containsText(panel, "visible realtime user prompt")),
                 () -> assertFalse(containsText(panel, "visible realtime agent response")));
+    }
+
+    @Test
+    void assistantTimelineSuppressesToolSearchButKeepsRealToolCalls() throws Exception {
+        // #3672: ToolSearch is an internal harness meta-tool call (the CLI's own tool-schema
+        // lookup) with no user-relevant signal, so it must not leak into the compact Run timeline
+        // -- but real actions (Bash) and real SHAFT MCP tool calls (mcp__shaft-mcp__...) must still
+        // surface, proving the fix didn't over-suppress.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        appendStreamingLocalAgentBubble(panel, 111);
+        appendLocalAgentOutput(panel, 111, "Calling tool ToolSearch...");
+        appendLocalAgentOutput(panel, 111, "Calling tool Bash (echo hi)...");
+        appendLocalAgentOutput(panel, 111, "Calling tool mcp__shaft-mcp__capture_start...");
+
+        assertAll(
+                () -> assertFalse(listContains(timeline, "Calling tool ToolSearch"),
+                        "Internal harness meta-tool calls must not leak into the visible Run timeline: "
+                                + timelineSteps(timeline)),
+                () -> assertTrue(listContains(timeline, "Calling tool Bash"), timelineSteps(timeline).toString()),
+                () -> assertTrue(listContains(timeline, "Calling tool mcp__shaft-mcp__capture_start"),
+                        timelineSteps(timeline).toString()));
+    }
+
+    @Test
+    void assistantTimelineSkipsEntryWhenSuppressedToolCallIsTheOnlyContent() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+        int sizeBefore = timeline.getModel().getSize();
+
+        appendStreamingLocalAgentBubble(panel, 112);
+        appendLocalAgentOutput(panel, 112, "Calling tool ToolSearch...");
+
+        assertEquals(sizeBefore, timeline.getModel().getSize(), timelineSteps(timeline).toString());
+    }
+
+    @Test
+    void assistantTimelineKeepsSiblingLineWhenOnlyOneSubLineIsSuppressed() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        appendStreamingLocalAgentBubble(panel, 113);
+        appendLocalAgentOutput(panel, 113, "Thinking: deciding what to search\nCalling tool ToolSearch...");
+
+        assertAll(
+                () -> assertTrue(listContains(timeline, "Thinking: deciding what to search"),
+                        timelineSteps(timeline).toString()),
+                () -> assertFalse(listContains(timeline, "Calling tool ToolSearch"),
+                        timelineSteps(timeline).toString()));
     }
 
     @Test
@@ -5426,6 +5477,146 @@ class ShaftPanelSetupTest {
             }
             throw e;
         }
+    }
+
+    private static String firstJavaClassBlock(JsonObject raw) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("firstJavaClassBlock", JsonObject.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, (Object) raw);
+    }
+
+    private static void rememberCaptureInvocation(
+            ShaftAssistantPanel panel, String promptText, AssistantCommand.Invocation invocation) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "rememberCaptureInvocation", String.class, AssistantCommand.Invocation.class);
+        method.setAccessible(true);
+        method.invoke(panel, promptText, invocation);
+    }
+
+    private static void populateContextPopup(
+            ShaftAssistantPanel panel, List<ShaftAssistantPanel.ContextSuggestion> suggestions) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("populateContextPopup", List.class);
+        method.setAccessible(true);
+        method.invoke(panel, suggestions);
+    }
+
+    private static void refreshContextPopupFilter(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("refreshContextPopupFilter");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void showContextSuggestions(ShaftAssistantPanel panel, char trigger) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("showContextSuggestions", char.class);
+        method.setAccessible(true);
+        method.invoke(panel, trigger);
+    }
+
+    private static void appendSequenceStep(
+            ShaftAssistantPanel panel, AssistantCommand.ToolCall toolCall, String statusText, String output)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "appendSequenceStep", AssistantCommand.ToolCall.class, String.class, String.class);
+        method.setAccessible(true);
+        method.invoke(panel, toolCall, statusText, output);
+    }
+
+    private static void showDeniedSequenceResult(ShaftAssistantPanel panel, AssistantCommand.ToolCall toolCall)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showDeniedSequenceResult", AssistantCommand.ToolCall.class);
+        method.setAccessible(true);
+        method.invoke(panel, toolCall);
+    }
+
+    private static void showTerminalSequenceResult(ShaftAssistantPanel panel, boolean cancelled, String statusText)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showTerminalSequenceResult", boolean.class, String.class);
+        method.setAccessible(true);
+        method.invoke(panel, cancelled, statusText);
+    }
+
+    private static boolean formatUnknownResponse(
+            ShaftAssistantPanel panel, String toolName, String output, String fallbackMarkdown) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "formatUnknownResponse", String.class, String.class, String.class);
+        method.setAccessible(true);
+        return (boolean) method.invoke(panel, toolName, output, fallbackMarkdown);
+    }
+
+    private static void showFormattedUnknownResponse(
+            ShaftAssistantPanel panel,
+            String originalToolName,
+            String rawOutput,
+            String fallbackMarkdown,
+            String formatterToolName,
+            ShaftMcpToolResult result,
+            Throwable error) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showFormattedUnknownResponse", String.class, String.class, String.class, String.class,
+                ShaftMcpToolResult.class, Throwable.class);
+        method.setAccessible(true);
+        method.invoke(panel, originalToolName, rawOutput, fallbackMarkdown, formatterToolName, result, error);
+    }
+
+    private static void createTestClassFromReview(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("createTestClassFromReview");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void openCaptureReviewFile(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("openCaptureReviewFile");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void collectCaptureEvidencePack(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("collectCaptureEvidencePack");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void compareCaptureBackends(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("compareCaptureBackends");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void insertReviewIntoOpenFile(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("insertReviewIntoOpenFile");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void scheduleCaptureStartDiagnostic(ShaftAssistantPanel panel, String startOutput) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("scheduleCaptureStartDiagnostic", String.class);
+        method.setAccessible(true);
+        method.invoke(panel, startOutput);
+    }
+
+    private static void saveCloudApiKey(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("saveCloudApiKey");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    /**
+     * Sets {@code pendingCaptureReview} with a caller-controlled raw MCP result (unlike {@link
+     * #setPendingCaptureReview(ShaftAssistantPanel, String)}, which always hardcodes an empty raw
+     * result) -- needed by review-action tests ({@code openCaptureReviewFile},
+     * {@code collectCaptureEvidencePack}, {@code compareCaptureBackends}) that read specific fields
+     * (e.g. {@code reviewPath}) back out of the stored raw JSON via {@code pendingReviewJson()}.
+     */
+    private static void setPendingCaptureReviewRaw(ShaftAssistantPanel panel, String markdown, String rawResult)
+            throws Exception {
+        Class<?> captureReviewClass = Class.forName("com.shaft.intellij.ui.ShaftAssistantPanel$CaptureReview");
+        java.lang.reflect.Constructor<?> constructor =
+                captureReviewClass.getDeclaredConstructor(String.class, String.class);
+        constructor.setAccessible(true);
+        Object review = constructor.newInstance(markdown, rawResult);
+        setField(panel, "pendingCaptureReview", review);
     }
 
     private static int countOccurrences(String value, String needle) {
