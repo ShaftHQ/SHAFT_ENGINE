@@ -1,0 +1,7 @@
+Codex CLI's experimental `codex exec --json` NDJSON stream (undocumented in-repo; live-probed via web research for issue #3679) has real per-item status signal that AssistantLocalAgentRunner's describeCodexEvent (shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java) did not use before PR #3683:
+- `item.completed`/`item.updated` events carry `item.type` in {reasoning, tool_call, command_execution, mcp_tool_call, agent_message, file_change}.
+- `file_change` items: `{id, type:"file_change", changes:[{path, kind: "add"|"update"|"delete"}], status: "completed"|"failed"}` -- status reflects whether the patch actually applied, so it is more reliable than Claude's request-time Write/Edit tool_use guess.
+- `command_execution` items: `{command, aggregated_output (capped ~64KiB), exit_code (null until done), status: "in_progress"|"completed"|"failed"}`.
+- `mcp_tool_call` items: `{server, tool, arguments, result:{content, structured_content}|null, error:{message}|null, status}`.
+- `turn.failed`: `{type:"turn.failed", error:{message}}`.
+- The schema has NO field distinguishing a sandbox/approval denial from an ordinary execution failure -- both surface identically as status "failed" / non-zero exit_code / a present error object. There is no interactive approval prompt for Codex at all (see AgentApprovalCapability#CODEX), unlike Claude.
