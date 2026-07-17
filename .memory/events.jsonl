@@ -281,3 +281,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.graphify-kept-alongside-gbrain-distinct-purpose-nightly-auto-refresh-wired","timestamp":"2026-07-16T22:28:54+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine","timestamp":"2026-07-17T04:16:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.safe-incremental-swing-rebuild-pattern-with-fallback-guards-assistanttranscriptview","timestamp":"2026-07-17T04:16:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.swing-decouple-a-toggles-collapsed-state-for-its-label-from-its-overthreshold-state-for-its-visibility","timestamp":"2026-07-17T04:30:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles","timestamp":"2026-07-17T04:30:07+03:00"}
