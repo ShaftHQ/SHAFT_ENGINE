@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/always-pass-dallure-automaticallyopen-false-on-any-maven-run-that-can-generate-an-allure-report.md",
+  "content_hash": "sha256:a090fceefdb8ab8a2c1d16948eb55334d070dfbc3000882ba5a58c112dc9d735",
+  "created_at": "2026-07-17T23:19:11+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.always-pass-dallure-automaticallyopen-false-on-any-maven-run-that-can-generate-an-allure-report",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Prevent Allure HTML report from auto-opening a browser during agentic Maven test runs"
+  },
+  "status": "active",
+  "tags": [
+    "allure",
+    "maven",
+    "gui-safety",
+    "windows-codex-safety",
+    "gotcha",
+    "agents-md"
+  ],
+  "title": "Always pass -Dallure.automaticallyOpen=false on any Maven run that can generate an Allure report",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T23:19:11+03:00"
+}
