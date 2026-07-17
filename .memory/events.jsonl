@@ -283,4 +283,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.java-method-references-are-not-identity-stable-across-separate-call-sites","timestamp":"2026-07-17T02:13:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool","timestamp":"2026-07-17T02:13:20+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.shaftmcpsetuppanel-recommendedagent-text-is-frozen-at-construction-recommendfamily-settings-runs-exactly-once-into-a-final-field","timestamp":"2026-07-17T02:45:48+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward","timestamp":"2026-07-17T03:21:37+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-green-icon-only-sweep-test-suite-does-not-prove-a-dynamically-labeled-button-renders-correctly-verify-by-reading-the-sweeps-construction-state","timestamp":"2026-07-17T03:21:37+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills","timestamp":"2026-07-17T08:17:35+03:00"}
