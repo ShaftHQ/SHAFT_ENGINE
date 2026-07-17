@@ -2171,10 +2171,12 @@ final class ShaftAssistantPanel extends JPanel {
         if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
             return;
         }
-        // A milestone bubble is a single-line-per-entry heartbeat, not a full transcript message, so
-        // long milestone text (a full answer paragraph, a tool call with long arguments) is kept
-        // skimmable.
-        appendAgentMilestone(trimmed.length() > 80 ? trimmed.substring(0, 77) + "..." : trimmed);
+        // Since the #3695 redesign, a milestone renders as its own full chat bubble in the main
+        // transcript (see appendAgentMilestone), not a compact single-line heartbeat entry in a
+        // separate timeline -- so it must show the complete text, unlike the old "Run timeline" list
+        // this fed before #3695. Cutting it short here would silently drop content the user asked to
+        // see in full (e.g. a long tool result or command), so the whole trimmed string is kept as-is.
+        appendAgentMilestone(trimmed);
     }
 
     /** True for a "Calling tool X..." (or "...X (args)...") sub-line naming a denylisted meta-tool. */

@@ -2822,6 +2822,24 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantAgentMilestoneBubbleShowsFullLongLineWithoutMidWordTruncation() throws Exception {
+        // Regression: a non-verbose milestone line over 80 chars used to be hard-cut to 77 chars +
+        // "...", producing a mid-word cutoff like "...sun.misc.Unsaf..." (user report with screenshot).
+        // Milestones are full transcript bubbles since #3695, so long content must render in full,
+        // matching Verbose mode's fidelity -- the user asked for full messages, no trimming.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String longLine = "Tool result (Bash): WARNING: A terminally deprecated method in "
+                + "sun.misc.Unsafe::allocateInstance has been called";
+
+        appendStreamingLocalAgentBubble(panel, 201);
+        appendLocalAgentOutput(panel, 201, longLine);
+
+        String transcript = transcriptMarkdown(panel);
+        assertTrue(transcript.contains(longLine),
+                "Expected the full milestone line with no truncation, got: " + transcript);
+    }
+
+    @Test
     void assistantVerboseModeShowsLiveAgentOutput() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
