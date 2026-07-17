@@ -41,7 +41,6 @@ import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
-import javax.swing.DefaultListModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -62,7 +61,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
@@ -199,13 +197,16 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton compareCaptureBackends;
     /** Session path behind the pending Capture review, for insert/compare/evidence actions. */
     private String lastReviewSessionPath = "";
-    private final DefaultListModel<String> timelineModel;
-    private final JList<String> timeline;
-    private final JPanel timelinePanel;
-    /** True once a terminal step (Completed/Failed/Cancelled/Killed) has been recorded for the current run. */
+    /** True once a terminal step (Completed/Failed/Cancelled/Killed) has been recorded for the current
+     * run, so a duplicate terminal signal for the same run does not append a second terminal
+     * milestone bubble. */
     private boolean terminalRecorded;
-    /** Wall-clock start of the current run, for the terminal-entry elapsed-time suffix. */
-    private long timelineStartNanos;
+    /** Wall-clock start of the current run, for the terminal milestone bubble's elapsed-time suffix. */
+    private long runStartNanos;
+    /** Last agent-milestone bubble text appended for the current run (issue #3695), so an
+     * immediately repeated milestone (e.g. two identical streamed progress notifications) is not
+     * appended twice -- mirrors the old "Run timeline" list's consecutive-duplicate guard. */
+    private String lastAgentMilestone = "";
     private final JPanel actionRow;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
@@ -232,6 +233,12 @@ final class ShaftAssistantPanel extends JPanel {
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
     private int killedLocalAgentStreamToken = -1;
+    /** Index (into the active chat session's message list) of the current local-agent run's
+     * streaming placeholder bubble, so {@link #replaceLocalAgentStreamPlaceholder} can update that
+     * exact bubble even after agent-milestone bubbles (issue #3695) have been appended after it --
+     * unlike a plain "replace the last message", which those milestone bubbles would otherwise
+     * shadow. -1 while no local-agent stream is active. */
+    private int localAgentStreamPlaceholderMessageIndex = -1;
     private StringBuilder localAgentOutput;
     private boolean localAgentBubbleRendersContent;
     private final Deque<Runnable> queuedLocalAgentApprovalPrompts = new ArrayDeque<>();
@@ -546,15 +553,6 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewPanel.add(captureReviewStatus, BorderLayout.CENTER);
         captureReviewPanel.add(captureReviewActions, BorderLayout.EAST);
         captureReviewPanel.setVisible(false);
-        timelineModel = new DefaultListModel<>();
-        timeline = new JList<>(timelineModel);
-        timeline.getAccessibleContext().setAccessibleName("Assistant execution timeline");
-        timeline.getAccessibleContext().setAccessibleDescription(
-                "Status timeline for the current Assistant or MCP request.");
-        timeline.setFocusable(false);
-        timeline.setVisibleRowCount(3);
-        timeline.setCellRenderer(new TimelineListCellRenderer());
-        addTimeline("Ready");
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         ShaftIconButtons.apply(clearTranscript, ShaftIcons.CLEAR);
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
@@ -576,21 +574,17 @@ final class ShaftAssistantPanel extends JPanel {
 
         JPanel transcriptPanel = new JPanel(new BorderLayout(4, 4));
         transcriptPanel.add(transcript, BorderLayout.CENTER);
+        // Single-line-only current-status strip (issue #3695): the separately-scrollable "Run
+        // timeline" list that used to live above this row is gone -- every milestone it used to show
+        // (tool selections, "Running", streamed progress, terminal Completed/Failed/...) now renders
+        // as its own chat bubble in the transcript above instead (see appendAgentMilestone), so this
+        // spinner + single-line, unlabeled status JLabel (see setStatus()) is the only run-status
+        // surface left below the chat window.
         JPanel transcriptStatus = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         transcriptStatus.add(progress);
         transcriptStatus.add(status);
         JPanel transcriptBottom = new JPanel(new BorderLayout(4, 4));
         transcriptBottom.add(captureReviewPanel, BorderLayout.NORTH);
-        timelinePanel = new JPanel(new BorderLayout(2, 2));
-        JLabel timelineLabel = new JLabel("Run timeline");
-        timelineLabel.setLabelFor(timeline);
-        timelinePanel.add(timelineLabel, BorderLayout.NORTH);
-        JBScrollPane timelineScroll = new JBScrollPane(timeline);
-        timelineScroll.setPreferredSize(JBUI.size(240, 58));
-        timelinePanel.add(timelineScroll, BorderLayout.CENTER);
-        JPanel transcriptCenterChrome = new JPanel(new BorderLayout(4, 4));
-        transcriptCenterChrome.add(timelinePanel, BorderLayout.CENTER);
-        transcriptBottom.add(transcriptCenterChrome, BorderLayout.CENTER);
         transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
         transcriptPanel.add(transcriptBottom, BorderLayout.SOUTH);
 
@@ -710,7 +704,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     /**
      * Runs {@code toolName} against the live MCP connection and renders its result into the
-     * transcript as an assistant message, without touching the composer, run/timeline, or capture-
+     * transcript as an assistant message, without touching the composer, run-milestone, or capture-
      * review state -- unlike {@link #dispatchApprovedTool}, this is not a user "send": it backs
      * failure-recovery entry points (issue #3547) that trigger a read-only Doctor/Healer diagnosis
      * from outside the composer, either automatically on a failed test run or from a notification's
@@ -886,14 +880,23 @@ final class ShaftAssistantPanel extends JPanel {
         updateControlVisibility();
     }
 
-    private void resetTimeline(String firstStep) {
-        timelineModel.clear();
+    private void resetAgentMilestones(String firstStep) {
         terminalRecorded = false;
-        timelineStartNanos = System.nanoTime();
-        addTimeline(firstStep);
+        runStartNanos = System.nanoTime();
+        lastAgentMilestone = "";
+        appendAgentMilestone(firstStep);
     }
 
-    private void addTimeline(String step) {
+    /**
+     * Renders one agent/tool-run milestone (a tool selection, "Running", a streamed {@code
+     * notifications/progress} update, a terminal Completed/Failed/Cancelled/Killed signal, ...) as
+     * its own chat bubble in the main transcript, styled like any other assistant message (issue
+     * #3695). Replaces the old separately-scrollable "Run timeline" list this content used to feed
+     * exclusively: every milestone that used to become a timeline entry now becomes a bubble instead,
+     * via the same {@link #append} path every other assistant message goes through, so nothing that
+     * used to surface here is silently dropped.
+     */
+    private void appendAgentMilestone(String step) {
         if (step == null || step.isBlank()) {
             return;
         }
@@ -903,30 +906,51 @@ final class ShaftAssistantPanel extends JPanel {
             }
             terminalRecorded = true;
         }
-        if (!timelineModel.isEmpty() && step.equals(timelineModel.lastElement())) {
+        if (step.equals(lastAgentMilestone)) {
             return;
         }
-        timelineModel.addElement(step);
-        while (timelineModel.size() > 12) {
-            timelineModel.remove(0);
-        }
-        timeline.ensureIndexIsVisible(timelineModel.size() - 1);
-        updateActionChrome();
+        lastAgentMilestone = step;
+        String icon = agentMilestoneIcon(step);
+        append("assistant", icon.isEmpty() ? step : icon + " " + step, "");
     }
 
-    /** A terminal entry ends the run's timeline; only one is ever recorded per run (see {@link #resetTimeline}). */
+    /**
+     * Same glyph-per-outcome mapping the old Run timeline's custom list-cell renderer used to paint
+     * (issue #3546): prefixing the bubble text keeps that at-a-glance success/failure/pending signal
+     * now that milestones are chat bubbles instead of a custom-rendered list (issue #3695).
+     */
+    private static String agentMilestoneIcon(String step) {
+        if (step.startsWith("Completed")) {
+            return ShaftStatusPresentation.SUCCESS_ICON;
+        }
+        if (step.startsWith("Failed")) {
+            return ShaftStatusPresentation.ERROR_ICON;
+        }
+        if (step.startsWith("Cancelled") || step.startsWith("Killed") || "Denied".equals(step)) {
+            return ShaftStatusPresentation.WARNING_ICON;
+        }
+        if ("Running".equals(step) || step.startsWith("Tool selected: ")
+                || "Cancelling...".equals(step) || "Killing...".equals(step)
+                || "Waiting for approval".equals(step)) {
+            return ShaftStatusPresentation.PENDING_ICON;
+        }
+        return "";
+    }
+
+    /** A terminal entry ends the current run's milestone stream; only one is ever recorded per run
+     * (see {@link #resetAgentMilestones}). */
     private static boolean isTerminalStep(String step) {
         return step.startsWith("Completed") || step.startsWith("Failed")
                 || step.startsWith("Cancelled") || step.startsWith("Killed");
     }
 
-    /** Appends a terminal step with an elapsed-time suffix, e.g. "Completed (12s)". */
-    private void addTerminalTimeline(String step) {
-        addTimeline(step + elapsedTimelineSuffix());
+    /** Appends a terminal milestone bubble with an elapsed-time suffix, e.g. "Completed (12s)". */
+    private void appendTerminalAgentMilestone(String step) {
+        appendAgentMilestone(step + elapsedMilestoneSuffix());
     }
 
-    private String elapsedTimelineSuffix() {
-        long elapsedSeconds = (System.nanoTime() - timelineStartNanos) / 1_000_000_000L;
+    private String elapsedMilestoneSuffix() {
+        long elapsedSeconds = (System.nanoTime() - runStartNanos) / 1_000_000_000L;
         if (elapsedSeconds < 1) {
             return " (<1s)";
         }
@@ -1241,7 +1265,7 @@ final class ShaftAssistantPanel extends JPanel {
         lastPrompt = text;
         rerunLastPrompt.setEnabled(true);
         approvedToolsThisRun.clear();
-        resetTimeline("Prompt received");
+        resetAgentMilestones("Prompt received");
         AssistantCommand.Selection route = selectedRoute();
         boolean agentMode = "AGENT".equals(String.valueOf(mode.getSelectedItem()));
         String selectedMode = String.valueOf(mode.getSelectedItem());
@@ -1272,7 +1296,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
         if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
-            addTerminalTimeline("Failed");
+            appendTerminalAgentMilestone("Failed");
             setRunning(false, "Switch to Agent mode");
             showGateConfirmation(
                     project,
@@ -1291,7 +1315,7 @@ final class ShaftAssistantPanel extends JPanel {
                         customCommand.getText(),
                         text,
                         conversationContext)) {
-            addTerminalTimeline("Failed");
+            appendTerminalAgentMilestone("Failed");
             setRunning(false, "Approve source edits");
             showGateConfirmation(
                     project,
@@ -1303,12 +1327,12 @@ final class ShaftAssistantPanel extends JPanel {
         }
         prompt.setText("");
         if (invocation.isLocal()) {
-            addTerminalTimeline("Completed");
+            appendTerminalAgentMilestone("Completed");
             showLocalResponse(invocation.localResponse());
             return;
         }
         if (requiresMcpSetup(invocation, mcpConfigured())) {
-            addTerminalTimeline("Failed");
+            appendTerminalAgentMilestone("Failed");
             showLocalResponse("Configure SHAFT MCP in Settings before running this Assistant feature command.");
             setStatus("Configure MCP");
             return;
@@ -1316,8 +1340,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (AssistantLocalAgentRunner.supports(invocation)) {
             captureIntegrationRunning = approvingCaptureReview;
             int streamToken = ++localAgentStreamToken;
-            addTimeline("Tool selected: local assistant");
-            addTimeline("Running");
+            appendAgentMilestone("Tool selected: local assistant");
+            appendAgentMilestone("Running");
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
             currentInvocation = AssistantLocalAgentRunner.startWithOptionalCompact(
@@ -1371,7 +1395,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void startMcpInvocation(AssistantCommand.Invocation invocation) {
         if (invocation.isSequence()) {
-            addTimeline("Tool selected: sequence");
+            appendAgentMilestone("Tool selected: sequence");
             startToolSequence(invocation.toolCalls());
             return;
         }
@@ -1381,8 +1405,8 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void dispatchApprovedTool(AssistantCommand.Invocation invocation) {
-        addTimeline("Tool selected: " + invocation.toolName());
-        addTimeline("Running");
+        appendAgentMilestone("Tool selected: " + invocation.toolName());
+        appendAgentMilestone("Running");
         // The sticky capture-review strip is keyed off captureReviewGenerationRunning, which the
         // record -> stop -> generate flow sets in startCaptureCodeReview(). A direct invocation of
         // the same review/replay tools (e.g. an explicit /codegen <recording.json> or "review
@@ -1411,18 +1435,19 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
-     * Renders a streamed {@code notifications/progress} milestone in the run timeline as it
-     * arrives, so a long tool call (for example {@code capture_generate_replay}) shows what it is
-     * doing instead of sitting on a bare "Running" line the whole time (issue #3546). The server
-     * streams progress best-effort for opted-in tools only; every other tool call never invokes
-     * this. Called from the MCP client's background thread, so UI updates are marshaled to the EDT.
+     * Renders a streamed {@code notifications/progress} milestone as its own chat bubble as it
+     * arrives (issue #3695; previously a "run timeline" list entry), so a long tool call (for
+     * example {@code capture_generate_replay}) shows what it is doing instead of sitting on a bare
+     * "Running" line the whole time (issue #3546). The server streams progress best-effort for
+     * opted-in tools only; every other tool call never invokes this. Called from the MCP client's
+     * background thread, so UI updates are marshaled to the EDT.
      */
     private void onToolProgress(ShaftMcpProgress progress) {
         String message = progress.message();
         if (message == null || message.isBlank()) {
             return;
         }
-        ApplicationManager.getApplication().invokeLater(() -> addTimeline(message));
+        ApplicationManager.getApplication().invokeLater(() -> appendAgentMilestone(message));
     }
 
     /**
@@ -1448,7 +1473,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showDeniedToolResult(String toolName) {
         setRunning(false, "Denied " + toolName);
-        addTimeline("Denied");
+        appendAgentMilestone("Denied");
         showResponse("**SHAFT Assistant (" + toolName + " denied)**\n\nThe request was denied.", "");
     }
 
@@ -1461,7 +1486,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void runNextSequenceCall(int index) {
         if (index >= currentToolSequence.size()) {
-            addTerminalTimeline("Completed");
+            appendTerminalAgentMilestone("Completed");
             setRunning(false, READY_STATUS);
             showResponse("**SHAFT Assistant sequence OK**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
             clearSequenceState();
@@ -1489,7 +1514,7 @@ final class ShaftAssistantPanel extends JPanel {
                 .append("The request was denied.")
                 .append("\n\n");
         setRunning(false, "Denied " + toolCall.toolName());
-        addTimeline("Denied");
+        appendAgentMilestone("Denied");
         showResponse("**SHAFT Assistant sequence denied**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
         clearSequenceState();
     }
@@ -1619,7 +1644,7 @@ final class ShaftAssistantPanel extends JPanel {
                 .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
                 .append("\n\n");
         setRunning(false, "Rejected generated code");
-        addTerminalTimeline("Failed");
+        appendTerminalAgentMilestone("Failed");
         showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
                 sequenceRawOutput.toString());
         clearSequenceState();
@@ -1649,7 +1674,7 @@ final class ShaftAssistantPanel extends JPanel {
         boolean killed = cancelled && killRequested;
         String terminalStep = cancelled ? (killed ? "Killed" : "Cancelled") : "Failed";
         setRunning(false, terminalStep);
-        addTerminalTimeline(terminalStep);
+        appendTerminalAgentMilestone(terminalStep);
         showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
                 sequenceRawOutput.toString());
         clearSequenceState();
@@ -1770,7 +1795,7 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (success && formatUnknownResponse(toolName, output, markdown)) {
-            addTerminalTimeline("Completed");
+            appendTerminalAgentMilestone("Completed");
             return;
         }
         showFinalToolResult(toolName, success, markdown, output);
@@ -1793,7 +1818,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showCancelledToolResult(String toolName, boolean killed) {
         String terminalStep = killed ? "Killed" : "Cancelled";
-        addTerminalTimeline(terminalStep);
+        appendTerminalAgentMilestone(terminalStep);
         if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
             captureReviewGenerationRunning = false;
             clearPendingCaptureReview();
@@ -1808,7 +1833,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
         setStatus("Rejected generated code");
-        addTerminalTimeline("Failed");
+        appendTerminalAgentMilestone("Failed");
     }
 
     private boolean showCaptureReviewApprovalIfPending(
@@ -1829,7 +1854,7 @@ final class ShaftAssistantPanel extends JPanel {
                 + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
                 output);
         setStatus("Awaiting approval");
-        addTimeline("Waiting for approval");
+        appendAgentMilestone("Waiting for approval");
         return true;
     }
 
@@ -1858,7 +1883,7 @@ final class ShaftAssistantPanel extends JPanel {
         showResponse(success
                 ? "**SHAFT Assistant (" + toolName + " OK)**\n\n" + body
                 : AssistantMarkdown.toolFailureMarkdown(toolName, body), output);
-        addTerminalTimeline(success ? "Completed" : "Failed");
+        appendTerminalAgentMilestone(success ? "Completed" : "Failed");
         if (success && ("capture_start".equals(toolName) || "playwright_record_start".equals(toolName)
                 || "mobile_record_start".equals(toolName))) {
             // Feeds the shared readiness strip's recording badge (issue #3500 A4).
@@ -1906,8 +1931,12 @@ final class ShaftAssistantPanel extends JPanel {
         finishCaptureIntegrationIfRunning(success, result);
         if (cancelled) {
             String terminalStep = killed ? "Killed" : "Cancelled";
-            addTerminalTimeline(terminalStep);
+            // Milestone appended AFTER the cancelled response, not before: for a live stream
+            // (currentStream), showAgentCancelled() replaces the transcript's last message (see
+            // finishLocalAgentResponse) -- appending the terminal milestone first would just have it
+            // silently overwritten by that replace (issue #3695).
             showAgentCancelled(streamToken, currentStream, killed, partialOutput);
+            appendTerminalAgentMilestone(terminalStep);
             setStatus(terminalStep);
             return;
         }
@@ -1987,12 +2016,13 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (rejectedGeneratedJava) {
             setStatus("Rejected generated code");
-            addTerminalTimeline("Failed");
         }
         showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
-        if (!rejectedGeneratedJava) {
-            addTerminalTimeline(success ? "Completed" : "Failed");
-        }
+        // Milestone appended AFTER the response in both branches, not before: for a live stream
+        // (currentStream), showAgentResponse() replaces the transcript's last message (see
+        // finishLocalAgentResponse) -- appending the terminal milestone first would just have it
+        // silently overwritten by that replace (issue #3695).
+        appendTerminalAgentMilestone(rejectedGeneratedJava || !success ? "Failed" : "Completed");
         if (hasPlanProposal) {
             showPlanProposalActions();
         }
@@ -2077,6 +2107,12 @@ final class ShaftAssistantPanel extends JPanel {
         localAgentOutput = new StringBuilder();
         localAgentBubbleRendersContent = false;
         append("assistant", LOCAL_AGENT_STREAMING_HEADER, "");
+        localAgentStreamPlaceholderMessageIndex = currentSessionMessageCount() - 1;
+    }
+
+    private int currentSessionMessageCount() {
+        ShaftAssistantChatState.Session active = chatState.activeSession();
+        return active == null || active.messages == null ? 0 : active.messages.size();
     }
 
     private void appendLocalAgentOutput(int streamToken, String line) {
@@ -2089,10 +2125,11 @@ final class ShaftAssistantPanel extends JPanel {
         localAgentOutput.append(line == null ? "" : line);
         if (verboseLocalAgentOutput()) {
             localAgentBubbleRendersContent = true;
-            replaceLastTranscriptAndChatState("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
+            replaceLocalAgentStreamPlaceholder("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
         } else {
             // Verbose gates the full streaming bubble, but a non-verbose run must not look frozen
-            // either (issue #3546): surface a compact milestone in the run timeline instead.
+            // either (issue #3546): surface a compact milestone bubble in the transcript instead
+            // (issue #3695: this used to feed the now-removed "Run timeline" list).
             addCompactLocalAgentMilestone(line);
         }
     }
@@ -2101,11 +2138,12 @@ final class ShaftAssistantPanel extends JPanel {
     // user-relevant signal (e.g. ToolSearch, the CLI's own tool-schema lookup) rather than a real
     // action -- unlike Bash/Read/Edit/... or any mcp__-prefixed SHAFT tool, which do represent real
     // progress and must keep surfacing. Kept small and named on purpose (#3672); extend only for a
-    // confirmed report of another internal meta-tool leaking into the visible Run timeline.
+    // confirmed report of another internal meta-tool leaking into the visible milestone bubbles.
     private static final Set<String> NON_ACTIONABLE_META_TOOL_NAMES = Set.of("ToolSearch");
 
     /**
-     * Reflects one local-agent output line as a compact run-timeline entry for non-verbose runs.
+     * Reflects one local-agent output line as a compact agent-milestone chat bubble for non-verbose
+     * runs (issue #3695; this fed a separately-scrollable "Run timeline" list before that removal).
      * Raw NDJSON lines (an unmapped Claude/Codex structured-stream event with no human-readable
      * translation, see {@code AssistantLocalAgentRunner}'s {@code StructuredStreamParser#accept})
      * always start with {@code {}; skipping those keeps this method's visibility contract identical
@@ -2113,7 +2151,7 @@ final class ShaftAssistantPanel extends JPanel {
      * user opts into Verbose) while still giving a signal of progress for everything else — translated
      * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines. Sub-lines that
      * name a {@link #NON_ACTIONABLE_META_TOOL_NAMES} tool call are dropped first (#3672: internal
-     * harness meta-tool calls like ToolSearch were leaking into the visible Run timeline).
+     * harness meta-tool calls like ToolSearch were leaking into the visible milestone bubbles).
      */
     private void addCompactLocalAgentMilestone(String line) {
         if (line == null) {
@@ -2133,9 +2171,10 @@ final class ShaftAssistantPanel extends JPanel {
         if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
             return;
         }
-        // The timeline is a single-line-per-entry heartbeat, not a transcript, so long milestone
-        // text (a full answer paragraph, a tool call with long arguments) is kept skimmable.
-        addTimeline(trimmed.length() > 80 ? trimmed.substring(0, 77) + "..." : trimmed);
+        // A milestone bubble is a single-line-per-entry heartbeat, not a full transcript message, so
+        // long milestone text (a full answer paragraph, a tool call with long arguments) is kept
+        // skimmable.
+        appendAgentMilestone(trimmed.length() > 80 ? trimmed.substring(0, 77) + "..." : trimmed);
     }
 
     /** True for a "Calling tool X..." (or "...X (args)...") sub-line naming a denylisted meta-tool. */
@@ -2164,7 +2203,8 @@ final class ShaftAssistantPanel extends JPanel {
         String displayResponse = withTokenUsage(response, rawResponse);
         AssistantQuestion question = AssistantQuestion.detect(displayResponse);
         String toPersist = question == null ? displayResponse : question.promptMarkdown();
-        replaceLastTranscriptAndChatState("assistant", toPersist);
+        replaceLocalAgentStreamPlaceholder("assistant", toPersist);
+        localAgentStreamPlaceholderMessageIndex = -1;
         lastResponse = toPersist;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
@@ -2218,7 +2258,8 @@ final class ShaftAssistantPanel extends JPanel {
                     ? formatLocalAgentStreamingResponse(localAgentOutput.toString())
                             + "\n\n_Killed._ (partial output above)"
                     : "_Killed._";
-            replaceLastTranscriptAndChatState("assistant", finalized);
+            replaceLocalAgentStreamPlaceholder("assistant", finalized);
+            localAgentStreamPlaceholderMessageIndex = -1;
         }
         activeLocalAgentStreamToken = -1;
         localAgentOutput = null;
@@ -2268,7 +2309,7 @@ final class ShaftAssistantPanel extends JPanel {
         // The command line already pre-approves them via --allowedTools, so this is defense in
         // depth for CLI versions or configurations where that flag does not take effect.
         if (isShaftMcpTool(toolName)) {
-            addTimeline("Auto-approved SHAFT tool: " + toolName);
+            appendAgentMilestone("Auto-approved SHAFT tool: " + toolName);
             future.complete(LocalAgentApprovalBridge.Decision.allow());
             return;
         }
@@ -2741,8 +2782,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void updateActionChrome() {
         if (copyLastResponse == null || copyRawResponse == null || copyTranscript == null
-                || clearTranscript == null || rerunLastPrompt == null || cancel == null
-                || timelinePanel == null) {
+                || clearTranscript == null || rerunLastPrompt == null || cancel == null) {
             return;
         }
         boolean hasResponse = !lastResponse.isBlank();
@@ -2764,8 +2804,6 @@ final class ShaftAssistantPanel extends JPanel {
         rerunLastPrompt.setEnabled(canRerun && !running);
         cancel.setVisible(running);
         cancel.setEnabled(running);
-        timelinePanel.setVisible(running || timelineModel.size() > 1);
-        timelinePanel.revalidate();
         refreshActionRowLayout();
     }
 
@@ -3407,13 +3445,13 @@ final class ShaftAssistantPanel extends JPanel {
                 // The terminal "Killed" entry is recorded by the completion callback once the kill
                 // actually lands (see showCancelledToolResult / showAgentResult / showTerminalSequenceResult);
                 // this request-time entry is only an in-flight status.
-                addTimeline("Killing...");
+                appendAgentMilestone("Killing...");
             } else {
                 currentInvocation.cancel();
                 cancelRequested = true;
                 setStatus("Cancelling...");
                 // Same as above: the terminal "Cancelled" entry comes from the completion callback.
-                addTimeline("Cancelling...");
+                appendAgentMilestone("Cancelling...");
             }
             updateSendButtonState();
             updateCancelButtonState();
@@ -3585,19 +3623,39 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private void replaceLastTranscriptAndChatState(String role, String message) {
+    /**
+     * Replaces the local-agent run's streaming placeholder bubble (recorded by {@link
+     * #appendStreamingLocalAgentBubble} in {@link #localAgentStreamPlaceholderMessageIndex}) with
+     * {@code message} -- deliberately NOT "replace the last message": agent-milestone bubbles (issue
+     * #3695, e.g. "Cancelling...") can now be appended after the placeholder and before this call,
+     * so a plain last-message replace would silently clobber the wrong (most recent milestone)
+     * bubble instead and leave the true placeholder stuck on screen forever.
+     */
+    private void replaceLocalAgentStreamPlaceholder(String role, String message) {
         if (message == null || message.isBlank()) {
             return;
         }
         ShaftAssistantChatState.Session active = chatState.activeSession();
-        if (active != null && active.messages != null && !active.messages.isEmpty()) {
-            ShaftAssistantChatState.Message last = active.messages.get(active.messages.size() - 1);
-            last.role = role == null || role.isBlank() ? "assistant" : role.trim().toLowerCase(Locale.ROOT);
-            last.markdown = message;
-            transcript.replaceLast(last.role, message);
+        if (active == null || active.messages == null
+                || localAgentStreamPlaceholderMessageIndex < 0
+                || localAgentStreamPlaceholderMessageIndex >= active.messages.size()) {
+            append(role, message, "");
             return;
         }
-        append(role, message, "");
+        String normalizedRole = role == null || role.isBlank() ? "assistant" : role.trim().toLowerCase(Locale.ROOT);
+        ShaftAssistantChatState.Message target = active.messages.get(localAgentStreamPlaceholderMessageIndex);
+        target.role = normalizedRole;
+        target.markdown = message;
+        if (localAgentStreamPlaceholderMessageIndex == active.messages.size() - 1) {
+            // Common case: no milestone bubble was appended after the placeholder yet -- the fast,
+            // incremental single-bubble update still applies.
+            transcript.replaceLast(normalizedRole, message);
+        } else {
+            // A milestone bubble now sits after the placeholder -- resync the whole transcript from
+            // the chat-state source of truth, so the placeholder's own bubble (not the trailing
+            // milestone bubble) is the one that visibly changes.
+            transcript.setMessages(active.messages);
+        }
     }
 
     private static String formatLocalAgentStreamingResponse(String output) {
@@ -3951,73 +4009,5 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private record CaptureReview(String markdown, String rawResult) {
-    }
-
-    private static final class TimelineListCellRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(
-                JList<?> list,
-                Object value,
-                int index,
-                boolean isSelected,
-                boolean cellHasFocus) {
-            JLabel label = (JLabel) super.getListCellRendererComponent(
-                    list, value, index, isSelected, cellHasFocus);
-            String step = value == null ? "" : value.toString();
-            String icon = timelineIcon(step);
-            String displayText = icon.isEmpty() ? step : icon + " " + step;
-            label.setText(displayText);
-            if (!isSelected) {
-                Color color = timelineColor(step);
-                if (color != null) {
-                    label.setForeground(color);
-                }
-            }
-            return label;
-        }
-
-        // Terminal steps carry an elapsed-time suffix (e.g. "Completed (12s)"), so matching uses
-        // startsWith rather than equality for the Completed/Failed/Cancelled/Killed families.
-        private static String timelineIcon(String step) {
-            if (step == null || step.isBlank()) {
-                return "";
-            }
-            if (step.startsWith("Completed")) {
-                return ShaftStatusPresentation.SUCCESS_ICON;
-            }
-            if (step.startsWith("Failed")) {
-                return ShaftStatusPresentation.ERROR_ICON;
-            }
-            if (step.startsWith("Cancelled") || step.startsWith("Killed") || "Denied".equals(step)) {
-                return ShaftStatusPresentation.WARNING_ICON;
-            }
-            if ("Running".equals(step) || step.startsWith("Tool selected: ")
-                    || "Cancelling...".equals(step) || "Killing...".equals(step)
-                    || "Waiting for approval".equals(step)) {
-                return ShaftStatusPresentation.PENDING_ICON;
-            }
-            return "";
-        }
-
-        private static Color timelineColor(String step) {
-            if (step == null || step.isBlank()) {
-                return null;
-            }
-            if (step.startsWith("Completed")) {
-                return ShaftStatusPresentation.success();
-            }
-            if (step.startsWith("Failed") || "Denied".equals(step)) {
-                return ShaftStatusPresentation.error();
-            }
-            if ("Running".equals(step) || step.startsWith("Tool selected: ")) {
-                return ShaftStatusPresentation.progress();
-            }
-            if ("Ready".equals(step) || "Waiting for approval".equals(step)
-                    || "Cancelling...".equals(step) || "Killing...".equals(step)
-                    || step.startsWith("Cancelled") || step.startsWith("Killed")) {
-                return ShaftStatusPresentation.pending();
-            }
-            return null;
-        }
     }
 }
