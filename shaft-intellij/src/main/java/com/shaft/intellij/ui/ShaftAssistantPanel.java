@@ -1339,6 +1339,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (AssistantLocalAgentRunner.supports(invocation)) {
             captureIntegrationRunning = approvingCaptureReview;
+            maybeAnnounceOrchestrationStages(text);
             int streamToken = ++localAgentStreamToken;
             appendAgentMilestone("Tool selected: local assistant");
             appendAgentMilestone("Running");
@@ -2464,6 +2465,31 @@ final class ShaftAssistantPanel extends JPanel {
             return withUsage;
         }
         return withUsage + "\n\n**Token usage:** not available for this run.";
+    }
+
+    // Issue #3704 (scoped slice): a scenario-description prompt routes to a multi-step orchestrated
+    // local-agent run (record -> act -> save -> codegen -> self-heal, per
+    // AssistantCommand.SHAFT_CODEGEN_TOOL_GUIDANCE). The agent decides its own actual steps, so this
+    // is phrased as an anticipated preview, not a guarantee -- and it is purely informational: it
+    // never blocks or delays the run that follows it.
+    private static final String ORCHESTRATION_STAGE_ANNOUNCEMENT =
+            """
+                    This will likely: 1) record your actions in a browser session, 2) save the recording, \
+                    3) generate SHAFT test code from it, and 4) verify and self-heal any broken locators. \
+                    The agent decides its own actual steps, so treat this as an anticipated plan, not a guarantee.
+                    """.stripIndent().trim();
+
+    /**
+     * Posts a plain informational preview of the anticipated stages before a local-agent run that
+     * is plausibly a multi-step orchestrated flow starts. Reuses {@link
+     * AssistantCommand#isScenarioDescriptionIntent} exactly rather than reinventing detection --
+     * that predicate already recognizes the record -&gt; act -&gt; save -&gt; codegen -&gt;
+     * self-heal orchestration intent (issue #3692). Not a gate: it never blocks or delays the run.
+     */
+    private void maybeAnnounceOrchestrationStages(String text) {
+        if (AssistantCommand.isScenarioDescriptionIntent(text)) {
+            append("assistant", ORCHESTRATION_STAGE_ANNOUNCEMENT, "");
+        }
     }
 
     private void append(String role, String text, String rawResponse) {

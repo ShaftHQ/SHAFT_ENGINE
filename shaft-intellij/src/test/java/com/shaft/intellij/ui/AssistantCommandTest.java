@@ -228,6 +228,11 @@ class AssistantCommandTest {
                 () -> assertTrue(generatedPrompt.contains("Call test_automation_scenarios"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("call shaft_coding_partner_plan"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Reuse existing tests, page objects"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("MUST follow the Page Object Model"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains(
+                        "do not put driver.element()/locator calls directly in a @Test method body"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("fluent design and action chaining"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("start a fresh session with capture_start_codegen"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),

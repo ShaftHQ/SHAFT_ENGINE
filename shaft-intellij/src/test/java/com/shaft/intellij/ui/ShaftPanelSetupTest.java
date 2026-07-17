@@ -2541,6 +2541,54 @@ class ShaftPanelSetupTest {
                 () -> assertNull(transcriptWidget(panel), "the card must clear once the user has chosen"));
     }
 
+    /**
+     * Issue #3704 (scoped slice): before a local-agent run that is plausibly a multi-step
+     * orchestrated flow (record -> act -> save -> codegen -> self-heal) starts, the user should see
+     * a plain informational preview of the anticipated stages. The trigger reuses {@code
+     * AssistantCommand#isScenarioDescriptionIntent} exactly (issue #3692) rather than reinventing
+     * detection.
+     *
+     * <p>The announcement helper is invoked directly via reflection rather than through a full
+     * {@code send()} click: {@code send()} for a prompt this detector matches ultimately reaches
+     * {@code AssistantLocalAgentRunner#startWithOptionalCompact}, which spawns a real OS process
+     * (see the javadoc on {@code prepareAgentModeForProposedPlanSwitchesModeAndGrantsSourceEditsAndClearsTheCard}
+     * above for the same constraint) -- unsafe and undesired in a headless unit test.
+     */
+    @Test
+    void scenarioDescriptionPromptTriggersStageAnnouncementBeforeLocalAgentRunStarts() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String scenarioPrompt =
+                "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test.";
+        assertTrue(AssistantCommand.isScenarioDescriptionIntent(scenarioPrompt), "test precondition");
+
+        Method announce = ShaftAssistantPanel.class.getDeclaredMethod(
+                "maybeAnnounceOrchestrationStages", String.class);
+        announce.setAccessible(true);
+        announce.invoke(panel, scenarioPrompt);
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("This will likely"), markdown),
+                () -> assertTrue(markdown.contains("record"), markdown),
+                () -> assertTrue(markdown.contains("save"), markdown),
+                () -> assertTrue(markdown.contains("generate"), markdown),
+                () -> assertTrue(markdown.contains("self-heal"), markdown));
+    }
+
+    @Test
+    void plainNonOrchestrationPromptDoesNotTriggerStageAnnouncement() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String plainPrompt = "what does this method do?";
+        assertFalse(AssistantCommand.isScenarioDescriptionIntent(plainPrompt), "test precondition");
+
+        Method announce = ShaftAssistantPanel.class.getDeclaredMethod(
+                "maybeAnnounceOrchestrationStages", String.class);
+        announce.setAccessible(true);
+        announce.invoke(panel, plainPrompt);
+
+        assertFalse(transcriptMarkdown(panel).contains("This will likely"));
+    }
+
     @Test
     void assistantRejectsNativeSeleniumMcpCodeBlocksBeforeApproval() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
