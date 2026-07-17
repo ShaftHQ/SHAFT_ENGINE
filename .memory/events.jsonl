@@ -328,3 +328,4 @@
 {"actor":"agent","event":"memory.created","id":"decision.gbrain-link-graph-confirmed-empty-for-shaft-engine-reconcile-links-root-cause-found-and-filed-2026-07-17","timestamp":"2026-07-17T16:02:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-plugin-ux-program-umbrella-3666-tracks-children-3659-3665","timestamp":"2026-07-17T16:50:31+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.autonomous-merge-authority-extends-to-shafthq-github-io-docs-repo","timestamp":"2026-07-17T17:29:30+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-mcp-full-module-test-run-fails-on-bouncycastle-noclassdeffounderror-unrelated-preexisting","timestamp":"2026-07-17T20:10:43+03:00"}

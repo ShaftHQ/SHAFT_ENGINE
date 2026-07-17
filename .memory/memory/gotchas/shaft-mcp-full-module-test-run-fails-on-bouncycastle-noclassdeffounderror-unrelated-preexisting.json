@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/shaft-mcp-full-module-test-run-fails-on-bouncycastle-noclassdeffounderror-unrelated-preexisting.md",
+  "content_hash": "sha256:ab1fe4b1da2eef6765b81c276607bcb0f5efa94eaeadae5ae8aa45b202c63b2e",
+  "created_at": "2026-07-17T20:10:43+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-mcp-full-module-test-run-fails-on-bouncycastle-noclassdeffounderror-unrelated-preexisting",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "verify shaft-mcp full test suite after locator-policy and capture_start schema changes"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-mcp",
+    "maven",
+    "bouncycastle",
+    "test-classpath",
+    "mobile-service",
+    "pre-existing"
+  ],
+  "title": "shaft-mcp-full-module-test-run-fails-on-bouncycastle-noclassdeffounderror-unrelated-preexisting",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T20:10:43+03:00"
+}
