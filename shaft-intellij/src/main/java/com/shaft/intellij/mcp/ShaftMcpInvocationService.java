@@ -364,6 +364,17 @@ public final class ShaftMcpInvocationService implements Disposable {
         }
     }
 
+    /**
+     * Closes and forgets the pooled shared MCP client so the next tool call or connection probe
+     * respawns a fresh process. Used by the recovery action UI when a user requests an MCP server
+     * restart after a {@code PROCESS_EXITED}/{@code CONNECTION_LOST} failure.
+     */
+    public void restartConnection() {
+        synchronized (clientLock) {
+            closeSharedClientLocked();
+        }
+    }
+
     private interface McpRequest {
         JsonElement send(ShaftMcpStdioClient client) throws IOException;
     }

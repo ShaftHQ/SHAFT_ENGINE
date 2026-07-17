@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/java-record-a-component-name-cant-collide-with-one-of-its-own-static-factory-methods.md",
+  "content_hash": "sha256:86559f827a0df730215dd97b0fe46ecffeaa773d88c8d49d495d1ccfb1d2bd5e",
+  "created_at": "2026-07-17T03:55:35+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.java-record-a-component-name-cant-collide-with-one-of-its-own-static-factory-methods",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "3627: provider key Test buttons - async EDT-hop testability pattern"
+  },
+  "status": "active",
+  "tags": [
+    "java",
+    "records",
+    "compile-error"
+  ],
+  "title": "Java record: a component name can't collide with one of its own static factory methods",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T03:55:35+03:00"
+}

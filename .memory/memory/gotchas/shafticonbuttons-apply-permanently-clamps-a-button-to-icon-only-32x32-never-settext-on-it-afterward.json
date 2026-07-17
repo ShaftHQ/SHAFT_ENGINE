@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward.md",
+  "content_hash": "sha256:677a4303a0b6554626c9e3c7dc85ee9e0be9fcba719b8953d48f656b22997e32",
+  "created_at": "2026-07-17T03:21:37+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "intellij #3626 recovery action buttons review"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "shafticonbuttons",
+    "ui-buttons",
+    "icon-only-convention",
+    "test-gap"
+  ],
+  "title": "ShaftIconButtons.apply() permanently clamps a button to icon-only 32x32; never setText() on it afterward",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T03:21:37+03:00"
+}

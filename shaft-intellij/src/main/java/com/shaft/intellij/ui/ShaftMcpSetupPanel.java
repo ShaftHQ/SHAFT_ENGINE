@@ -113,7 +113,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final AgentReadinessProbe readinessProbe;
     private final AgentReadinessProbe deepReadinessProbe;
     private final CloudKeyStore cloudKeyStore;
-    private final Recommendation recommendation;
+    private Recommendation recommendation;
     private final JBTextArea installerCommand;
     private final JBTextArea mcpCommand;
     private final JComboBox<String> family;
@@ -628,8 +628,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         postSetupControls.add(expertMode);
         postSetupControls.add(connectionAgentsRecheck);
         postSetupControls.add(resetEverything);
-        family.addActionListener(event -> assistantSelectionChanged());
-        runtime.addActionListener(event -> assistantSelectionChanged());
+        family.addActionListener(event -> {
+            recommendation = recommendFamily(currentSelectionSnapshot());
+            assistantSelectionChanged();
+        });
+        runtime.addActionListener(event -> {
+            recommendation = recommendFamily(currentSelectionSnapshot());
+            assistantSelectionChanged();
+        });
         installerTarget.addActionListener(event -> installerTargetChanged());
         showRuntimeSelected();
         showAssistNotConfigured();
@@ -1256,6 +1262,14 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private record Recommendation(String family, RecommendationBasis basis) {
+    }
+
+    private ShaftSettingsState.Settings currentSelectionSnapshot() {
+        ShaftSettingsState.Settings snapshot = new ShaftSettingsState.Settings();
+        snapshot.defaultAutobotClient = settings.defaultAutobotClient;
+        snapshot.assistantFamily = String.valueOf(family.getSelectedItem());
+        snapshot.assistantRuntime = String.valueOf(runtime.getSelectedItem());
+        return snapshot;
     }
 
     private Recommendation recommendFamily(ShaftSettingsState.Settings settings) {

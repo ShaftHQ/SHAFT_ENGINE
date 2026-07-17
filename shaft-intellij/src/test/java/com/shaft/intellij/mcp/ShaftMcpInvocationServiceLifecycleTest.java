@@ -116,6 +116,22 @@ class ShaftMcpInvocationServiceLifecycleTest {
     }
 
     @Test
+    void restartConnectionClosesAndForgetsTheSharedClient() throws IOException {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftMcpStdioClient client = service.acquireClient(fakeServerCommand("toolsList"), Path.of("."), Map.of());
+        assertTrue(client.isAlive());
+
+        service.restartConnection();
+
+        assertFalse(client.isAlive(), "restartConnection() must close the pooled shared client");
+        assertTrue(service.peekSharedClientAlive().isEmpty());
+        assertTrue(service.knownToolNames().isEmpty(),
+                "restartConnection() shares closeSharedClientLocked() with dispose(), which also forgets the "
+                        + "memoized tools/list cache");
+    }
+
+    @Test
     void shouldDropAfterFailureDropsUnlessAliveAndInitialized() {
         assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(true, false),
                 "alive but never initialized (wedged handshake) must be dropped");

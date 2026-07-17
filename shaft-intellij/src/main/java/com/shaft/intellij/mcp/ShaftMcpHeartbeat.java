@@ -92,7 +92,9 @@ public final class ShaftMcpHeartbeat implements Disposable {
         if (!alarm.isEmpty()) {
             return; // Already scheduled
         }
-        scheduleNextPing(PING_INTERVAL_MILLIS);
+        // Issue #3624: probe immediately instead of waiting a full PING_INTERVAL_MILLIS (30s) for
+        // the first result -- a broken MCP command must not look healthy while the UI waits.
+        scheduleNextPing(0);
     }
 
     /**

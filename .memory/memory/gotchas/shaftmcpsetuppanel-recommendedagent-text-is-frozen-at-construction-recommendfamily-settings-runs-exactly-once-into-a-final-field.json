@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaftmcpsetuppanel-recommendedagent-text-is-frozen-at-construction-recommendfamily-settings-runs-exactly-once-into-a-final-field.md",
-  "content_hash": "sha256:db232d8bea40388622b8eccbb6b1c4753913a1869a87376718e3a3a54f47fb53",
+  "content_hash": "sha256:f7607803034bca5ec35393b81448aa5505389dfbe69680148928655b1e7b4140",
   "created_at": "2026-07-16T12:36:05+03:00",
   "evidence": [],
   "facets": {
@@ -24,9 +24,11 @@
     "swing",
     "gotcha",
     "shaftmcpsetuppanel",
-    "issue-3605"
+    "issue-3605",
+    "issue-3625",
+    "resolved"
   ],
-  "title": "ShaftMcpSetupPanel#recommendedAgent text is frozen at construction -- recommendFamily(settings) runs exactly once into a final field",
+  "title": "RESOLVED: ShaftMcpSetupPanel#recommendedAgent text now tracks live combo selection (was frozen at construction)",
   "type": "gotcha",
-  "updated_at": "2026-07-16T12:36:05+03:00"
+  "updated_at": "2026-07-17T02:45:48+03:00"
 }
