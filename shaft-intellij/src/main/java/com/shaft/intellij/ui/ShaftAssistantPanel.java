@@ -1260,10 +1260,14 @@ final class ShaftAssistantPanel extends JPanel {
         }
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
         if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
-            showResponse("This request needs MCP tool access. Switch to **Agent** mode, then send it again.",
-                    "");
             addTerminalTimeline("Failed");
             setRunning(false, "Switch to Agent mode");
+            showGateConfirmation(
+                    project,
+                    "This request needs MCP tool access.",
+                    "MCP tool access gate",
+                    "Switch to Agent mode and resend",
+                    () -> mode.setSelectedItem("AGENT"));
             return;
         }
         if (agentMode
@@ -1275,10 +1279,14 @@ final class ShaftAssistantPanel extends JPanel {
                         customCommand.getText(),
                         text,
                         conversationContext)) {
-            showResponse("To let the agent make source edits, please enable **Allow source edits** before sending.",
-                    "");
             addTerminalTimeline("Failed");
             setRunning(false, "Approve source edits");
+            showGateConfirmation(
+                    project,
+                    "To let the agent make source edits, enable **Allow source edits**.",
+                    "Source edit approval gate",
+                    "Allow source edits and resend",
+                    () -> allowSourceMutation.setSelected(true));
             return;
         }
         prompt.setText("");
@@ -1312,6 +1320,41 @@ final class ShaftAssistantPanel extends JPanel {
         }
         rememberCaptureInvocation(text, invocation);
         startMcpInvocation(invocation);
+    }
+
+    /**
+     * Shows a one-click confirmation bubble for a SHAFT pre-flight gate (issue #3681): SHAFT's own
+     * command layer already knows exactly which control resolves the gate and that the choice is a
+     * deterministic yes/no, so this renders {@code markdown} plus a single button that flips that
+     * control and resends {@link #lastPrompt} -- instead of the plain-text prose the panel used to
+     * hand the user via {@link #showResponse}, which left finding and flipping the control as a
+     * manual, out-of-band step. Reuses the same ephemeral {@link AssistantTranscriptView#showWidget}
+     * slot as {@link ToolApprovalPromptPanel} and the first-run welcome, so the bubble is cleared
+     * automatically by the next {@link #append} call -- including the one at the very top of the
+     * {@link #send} triggered by clicking the button itself.
+     *
+     * @param project current project, forwarded to {@link #rerun(Project)} for the resend
+     * @param markdown gate explanation shown above the fix button
+     * @param accessibleBubbleName distinguishes this gate's bubble from other {@code showWidget} bubbles
+     * @param buttonLabel visible and accessible name of the one-click fix button
+     * @param applyFix flips the exact control this gate needs (e.g. the mode combo box or the
+     *                 source-mutation checkbox) before the prompt is resent
+     */
+    private void showGateConfirmation(
+            Project project,
+            String markdown,
+            String accessibleBubbleName,
+            String buttonLabel,
+            Runnable applyFix) {
+        JButton fix = new JButton(buttonLabel);
+        fix.getAccessibleContext().setAccessibleName(buttonLabel);
+        fix.addActionListener(event -> {
+            transcript.clearWidget();
+            applyFix.run();
+            rerun(project);
+        });
+        transcript.showWidget("assistant", transcript.assistantBubbleWithActions(markdown, fix, accessibleBubbleName));
+        runOnEdt(fix::requestFocusInWindow);
     }
 
     private void startMcpInvocation(AssistantCommand.Invocation invocation) {
@@ -2510,7 +2553,8 @@ final class ShaftAssistantPanel extends JPanel {
             settings.firstRunCoachDismissed = true;
             transcript.clearWidget();
         });
-        transcript.showWidget("assistant", transcript.assistantBubbleWithActions(FIRST_RUN_WELCOME_MARKDOWN, gotIt));
+        transcript.showWidget("assistant", transcript.assistantBubbleWithActions(
+                FIRST_RUN_WELCOME_MARKDOWN, gotIt, "Assistant welcome message bubble"));
     }
 
     /**
