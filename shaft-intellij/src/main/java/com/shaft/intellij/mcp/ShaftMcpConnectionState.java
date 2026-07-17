@@ -2,32 +2,68 @@ package com.shaft.intellij.mcp;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Tracks the MCP connection state and notifies listeners of state changes.
+ *
+ * <p>Starts {@link State#UNKNOWN} rather than assuming a connection is live (issue #3624):
+ * asserting CONNECTED before any real verification let a broken MCP command look healthy for up
+ * to one heartbeat interval after the panel opened.
  */
 public final class ShaftMcpConnectionState {
-    private final AtomicBoolean connected = new AtomicBoolean(true);
+    /**
+     * Three-state connection model (issue #3624). {@link #UNKNOWN} is the honest initial state
+     * before the first heartbeat probe completes; only {@link #CONNECTED} and {@link #DISCONNECTED}
+     * result from an actual verification.
+     */
+    public enum State {
+        UNKNOWN,
+        CONNECTED,
+        DISCONNECTED
+    }
+
+    private final AtomicReference<State> state = new AtomicReference<>(State.UNKNOWN);
     private final List<Runnable> stateChangeListeners = new ArrayList<>();
 
     /**
-     * Returns true if the MCP connection is active.
+     * Returns the current three-state connection state.
+     *
+     * @return current state
+     */
+    public State state() {
+        return state.get();
+    }
+
+    /**
+     * Returns true only once a probe has actually verified the connection is live. Returns false
+     * for both {@link State#UNKNOWN} and {@link State#DISCONNECTED} -- source-compatible with
+     * every caller written against the old boolean contract.
      *
      * @return true if connected
      */
     public boolean isConnected() {
-        return connected.get();
+        return state.get() == State.CONNECTED;
     }
 
     /**
-     * Sets the connection state.
+     * Returns true before any probe has run or completed.
+     *
+     * @return true if no verification has happened yet
+     */
+    public boolean isUnknown() {
+        return state.get() == State.UNKNOWN;
+    }
+
+    /**
+     * Records a verified connection result.
      *
      * @param isConnected true to mark as connected, false to mark as disconnected
      */
     public void setConnected(boolean isConnected) {
-        boolean changed = connected.getAndSet(isConnected) != isConnected;
-        if (changed) {
+        State newState = isConnected ? State.CONNECTED : State.DISCONNECTED;
+        State previous = state.getAndSet(newState);
+        if (previous != newState) {
             notifyListeners();
         }
     }

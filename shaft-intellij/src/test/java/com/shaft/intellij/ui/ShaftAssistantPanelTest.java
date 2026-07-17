@@ -5,9 +5,11 @@ import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JLabel;
 import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Regression coverage for issue #3621: {@link ShaftAssistantPanel#addNotify()} and {@link
@@ -64,5 +66,41 @@ class ShaftAssistantPanelTest {
                         + "removing anything, so the listener list grows by one on every tab switch or "
                         + "re-dock and every leaked listener keeps firing onConnectionStateChanged() on a "
                         + "panel instance that is no longer attached to any UI.");
+    }
+
+    // Issue #3624: addNotify() must seed the display from the connection state's real current
+    // value, not leave a stale/default status visible until the first async state-change event.
+    @Test
+    void addNotifySeedsACheckingChipInsteadOfAFalseConnectedFlash() throws ReflectiveOperationException {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, ShaftAssistantChatState.getInstance(null));
+
+        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+        Field connectionStateField = ShaftAssistantPanel.class.getDeclaredField("connectionState");
+        connectionStateField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
+        connectionStateField.set(panel, connectionState);
+
+        Field transcriptField = ShaftAssistantPanel.class.getDeclaredField("transcript");
+        transcriptField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
+        AssistantTranscriptView transcript = (AssistantTranscriptView) transcriptField.get(panel);
+        Field lafConnectionDisposableField =
+                AssistantTranscriptView.class.getDeclaredField("lafConnectionDisposable");
+        lafConnectionDisposableField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
+        lafConnectionDisposableField.set(transcript, Disposer.newDisposable());
+
+        Field statusField = ShaftAssistantPanel.class.getDeclaredField("status");
+        statusField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
+        JLabel status = (JLabel) statusField.get(panel);
+
+        panel.addNotify();
+
+        assertEquals(ShaftMcpConnectionState.State.UNKNOWN, connectionState.state(),
+                "sanity check: no probe has run yet in this test");
+        assertTrue(status.getText().contains("Checking MCP connection"),
+                "issue #3624: addNotify() must seed the checking chip from the real UNKNOWN state, "
+                        + "not leave a stale/default status visible until the first async state "
+                        + "change arrives");
+
+        panel.removeNotify();
     }
 }

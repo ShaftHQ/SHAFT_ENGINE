@@ -284,6 +284,11 @@
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool","timestamp":"2026-07-17T02:13:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine","timestamp":"2026-07-17T04:16:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.safe-incremental-swing-rebuild-pattern-with-fallback-guards-assistanttranscriptview","timestamp":"2026-07-17T04:16:33+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.shaftmcpsetuppanel-recommendedagent-text-is-frozen-at-construction-recommendfamily-settings-runs-exactly-once-into-a-final-field","timestamp":"2026-07-17T02:45:48+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward","timestamp":"2026-07-17T03:21:37+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-green-icon-only-sweep-test-suite-does-not-prove-a-dynamically-labeled-button-renders-correctly-verify-by-reading-the-sweeps-construction-state","timestamp":"2026-07-17T03:21:37+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly","timestamp":"2026-07-17T03:55:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.java-record-a-component-name-cant-collide-with-one-of-its-own-static-factory-methods","timestamp":"2026-07-17T03:55:35+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.swing-decouple-a-toggles-collapsed-state-for-its-label-from-its-overthreshold-state-for-its-visibility","timestamp":"2026-07-17T04:30:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles","timestamp":"2026-07-17T04:30:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.swing-context-menus-wired-via-a-raw-mouselistener-ispopuptrigger-are-mouse-only-use-jcomponent-setcomponentpopupmenu-instead","timestamp":"2026-07-17T04:38:38+03:00"}
@@ -296,4 +301,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state","timestamp":"2026-07-17T05:03:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.testable-deadline-extension-seam-inject-the-accumulated-extra-time-source-as-a-longsupplier-plus-an-explicit-cap-parameter-not-the-concrete-class","timestamp":"2026-07-17T05:25:56+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.a-single-long-process-waitfor-timeout-unit-cant-be-interrupted-mid-wait-to-recheck-a-growing-deadline-must-poll-in-short-slices-instead","timestamp":"2026-07-17T05:25:56+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-construction-silently-starts-a-background-local-model-refresh-that-races-with-any-test-driving-applylocalmodels-refreshlocalmodelsifneeded-via-reflection","timestamp":"2026-07-17T05:36:37+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings","timestamp":"2026-07-17T08:12:19+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills","timestamp":"2026-07-17T08:17:35+03:00"}

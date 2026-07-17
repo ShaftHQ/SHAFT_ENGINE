@@ -81,14 +81,6 @@ update, and troubleshooting runbook:
   sync + dream tasks installed (Windows:
   `tools/agent-infra/install-agent-tasks.ps1`; macOS/Linux:
   `gbrain autopilot --install`) so the brain and repo map stay current.
-- **headroom** — local context-compression proxy fronting Claude Code:
-  `pip install -U headroom-ai`, then `headroom install apply
-  --preset persistent-docker --scope provider --providers manual
-  --target claude --port 8787 --backend anthropic --mode token
-  --no-telemetry`. `--scope provider` is required or the
-  `~/.claude/settings.json` wiring is silently skipped. Health:
-  `http://127.0.0.1:8787/readyz`. The `persistent-task` preset requires an
-  elevated shell (schtasks `ONSTART`); the docker preset does not.
 - **graphify** — deterministic repository map for pre-search file selection:
   `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
   from the repo root (cache in gitignored `graphify-out/`; see

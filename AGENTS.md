@@ -57,7 +57,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - `context7`: past-cutoff library APIs only, else repo exemplars.
 - Skip `jdtls-lsp` for one-liners; value scales with cross-module impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
 - Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model); `shaft-mastery` 10 chapters -- load the matching one before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor, scoped headless runs; `graphify`.
-- Local infra: headroom proxy fronts Claude Code (`127.0.0.1:8787/readyz`); gbrain + `gbrain-ollama` Docker back retrieval (docs `maintainers/agent-tooling`).
+- Local infra: gbrain + `gbrain-ollama` Docker back retrieval (docs `maintainers/agent-tooling`).
 
 ## Agent Hierarchy & Model Routing
 

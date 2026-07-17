@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.ui.WrapLayout;
@@ -1641,16 +1642,13 @@ class ShaftPanelSetupTest {
     @Test
     void recommendedAgentAccessibleDescriptionTracksLiveRecommendationAcrossConstructionAndSummaryUpdate()
             throws Exception {
-        // Issue #3605: unlike the other setupStatusLabel-style labels above, recommendedAgent's
-        // text is fixed once at construction -- recommendFamily(settings) runs exactly once into a
-        // final field, so both of its setText() call sites (the constructor and
-        // updateLiveSummary()) always write the identical value for a given panel instance. A
-        // later family/runtime combo change re-runs updateLiveSummary() but can never change what
-        // recommendedAgentText() returns. Proving the description "tracks live text" therefore
-        // means: (a) both call sites correctly mirror text into description, verified across two
-        // panels built with genuinely different real recommendation outcomes, and (b) a real combo
-        // change that re-invokes the second call site does not desync the description from the
-        // (unchanged) text.
+        // Issue #3625 fixed a staleness bug: recommendedAgent's text used to be fixed once at
+        // construction, so a later family/runtime combo change never updated the label even though
+        // it silently misled the user about which CLI was actually recommended. The recommendation
+        // now recomputes at the moment the user changes either combo, so both setText() call sites
+        // (the constructor and updateLiveSummary()) read a live value. This test proves that
+        // directly -- changing the family combo must change the label's text and description --
+        // rather than asserting the old frozen-value workaround.
         ShaftMcpSetupPanel detected = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         }, readyProbe());
         ShaftMcpSetupPanel notDetected = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
@@ -1671,17 +1669,18 @@ class ShaftPanelSetupTest {
                                 + "different descriptions"));
 
         // Live-update proof for the second call site (updateLiveSummary()): a real family combo
-        // change re-runs it, and the description must stay in sync with the text rather than going
-        // stale or blank -- even though the mirrored value itself is unchanged here, since
-        // recommendedAgentText() is frozen at construction.
+        // change now re-recommends immediately, flipping the basis to SAVED_SELECTION for the
+        // newly selected family, so both the text and the description must change to reflect it.
         JComboBox<?> family = findByAccessibleName(detected, "Assistant family", JComboBox.class);
         family.setSelectedItem("CLAUDE");
         String afterUpdateDescription = detectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
         assertAll(
                 () -> assertEquals(detectedRecommendedAgent.getText(), afterUpdateDescription),
-                () -> assertEquals(detectedDescription, afterUpdateDescription,
-                        "the second call site must keep description == text even when the frozen "
-                                + "recommendation value does not itself change"));
+                () -> assertNotEquals(detectedDescription, afterUpdateDescription,
+                        "issue #3625: recommendedAgentText() must track the live combo selection instead "
+                                + "of staying frozen at the value computed once at construction"),
+                () -> assertTrue(afterUpdateDescription.contains("Claude Code CLI"), afterUpdateDescription),
+                () -> assertTrue(afterUpdateDescription.contains("your saved selection"), afterUpdateDescription));
     }
 
     @Test
@@ -3240,6 +3239,10 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Diagnose my last failure".equals(accessibleName(button)))
                 // The first-run coach's acknowledgment (issue #3500 O1) names its one-time action.
                 .filter(button -> !"Dismiss first run coach".equals(accessibleName(button)))
+                // Recovery actions keep visible labels: which of Retry / Restart MCP server / View
+                // logs applies depends on the failure category, which an icon alone cannot convey
+                // (issue #3626).
+                .filter(button -> !"SHAFT tool recovery action".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -5093,16 +5096,16 @@ class ShaftPanelSetupTest {
 
     private static void showToolResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
         Method showResult = ShaftFeaturePanel.class.getDeclaredMethod(
-                "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
+                "showResult", String.class, ShaftMcpToolResult.class, Throwable.class, Project.class);
         showResult.setAccessible(true);
-        showResult.invoke(panel, "", result, null);
+        showResult.invoke(panel, "", result, null, (Project) null);
     }
 
     private static void showCatalogResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
         Method showCatalogResult = ShaftFeaturePanel.class.getDeclaredMethod(
-                "showCatalogResult", ShaftMcpToolResult.class, Throwable.class);
+                "showCatalogResult", ShaftMcpToolResult.class, Throwable.class, Project.class);
         showCatalogResult.setAccessible(true);
-        showCatalogResult.invoke(panel, result, null);
+        showCatalogResult.invoke(panel, result, null, (Project) null);
     }
 
     private static void invokeRefreshCatalog(ShaftFeaturePanel panel, Project project) throws Exception {
