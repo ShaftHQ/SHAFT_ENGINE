@@ -21,10 +21,11 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -572,6 +573,146 @@ class ShaftSettingsConfigurableTest {
                         "recovery label should contain the failure detail, got: " + recoveryLabel.getText()));
     }
 
+    @Test
+    void showProviderKeyResultRendersSuccessGlyphAndColor() throws Exception {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JLabel openAiStatus = findByAccessibleName(panel, "OpenAI key storage status", JLabel.class);
+        assertNotNull(openAiStatus);
+
+        invokeShowProviderKeyResult(openAiStatus, "OpenAI", ProviderKeyProbe.Result.ok());
+
+        assertAll(
+                () -> assertTrue(openAiStatus.getText().contains("OK"), openAiStatus.getText()),
+                () -> assertEquals(ShaftStatusPresentation.success(), openAiStatus.getForeground()));
+    }
+
+    @Test
+    void showProviderKeyResultRendersFailureReasonAndColor() throws Exception {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JLabel openAiStatus = findByAccessibleName(panel, "OpenAI key storage status", JLabel.class);
+        assertNotNull(openAiStatus);
+
+        invokeShowProviderKeyResult(openAiStatus, "OpenAI", ProviderKeyProbe.Result.fail("Invalid or expired API key."));
+
+        assertAll(
+                () -> assertTrue(openAiStatus.getText().contains("Invalid or expired API key."), openAiStatus.getText()),
+                () -> assertEquals(ShaftStatusPresentation.error(), openAiStatus.getForeground()));
+    }
+
+    @Test
+    void testProviderKeyDoesNotProbeWhenFieldAndStoredKeyAreBlank() throws Exception {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JPasswordField openAiField = findByAccessibleName(panel, "OpenAI API key", JPasswordField.class);
+        JLabel openAiStatus = findByAccessibleName(panel, "OpenAI key storage status", JLabel.class);
+        JButton testOpenAi = findByAccessibleName(panel, "Test OpenAI API key", JButton.class);
+        assertAll(
+                () -> assertNotNull(openAiField),
+                () -> assertNotNull(openAiStatus),
+                () -> assertNotNull(testOpenAi));
+
+        Function<char[], ProviderKeyProbe.Result> neverRun = key -> {
+            throw new AssertionError("probe should not have run");
+        };
+
+        invokeTestProviderKey(configurable, "OPENAI_API_KEY", openAiField, openAiStatus, testOpenAi, "OpenAI", neverRun);
+
+        assertAll(
+                () -> assertTrue(openAiStatus.getText().contains("No key to test."), openAiStatus.getText()),
+                () -> assertTrue(testOpenAi.isEnabled(), "the button must be re-enabled once the check is skipped"));
+    }
+
+    @Test
+    void testProviderKeyDisablesButtonSynchronouslyWhileProbeInFlight() throws Exception {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JPasswordField openAiField = findByAccessibleName(panel, "OpenAI API key", JPasswordField.class);
+        JLabel openAiStatus = findByAccessibleName(panel, "OpenAI key storage status", JLabel.class);
+        JButton testOpenAi = findByAccessibleName(panel, "Test OpenAI API key", JButton.class);
+        assertAll(
+                () -> assertNotNull(openAiField),
+                () -> assertNotNull(openAiStatus),
+                () -> assertNotNull(testOpenAi));
+
+        openAiField.setText("candidate-key");
+
+        // The probe function's own behavior does not matter here -- button.setEnabled(false) runs
+        // synchronously before any async dispatch, so this assertion holds immediately without
+        // waiting for the background probe (mirrors testMcpButtonEntersBusyStateAndBlocksReentryWhileInFlight).
+        invokeTestProviderKey(configurable, "OPENAI_API_KEY", openAiField, openAiStatus, testOpenAi, "OpenAI",
+                key -> ProviderKeyProbe.Result.ok());
+
+        assertFalse(testOpenAi.isEnabled(), "button should be disabled synchronously once the probe starts");
+    }
+
+    @Test
+    void testProviderKeyFallsBackToStoredKeyWhenFieldIsBlank() throws Exception {
+        InMemoryCredentials credentials = new InMemoryCredentials();
+        credentials.setApiKey("OPENAI_API_KEY", "stored-secret".toCharArray());
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), credentials);
+        JComponent panel = (JComponent) configurable.createComponent();
+        JPasswordField openAiField = findByAccessibleName(panel, "OpenAI API key", JPasswordField.class);
+        JLabel openAiStatus = findByAccessibleName(panel, "OpenAI key storage status", JLabel.class);
+        JButton testOpenAi = findByAccessibleName(panel, "Test OpenAI API key", JButton.class);
+        assertAll(
+                () -> assertNotNull(openAiField),
+                () -> assertNotNull(openAiStatus),
+                () -> assertNotNull(testOpenAi));
+        assertEquals(0, openAiField.getPassword().length, "field must stay blank for the fallback path to trigger");
+
+        String[] capturedKey = new String[1];
+        CountDownLatch probeInvoked = new CountDownLatch(1);
+        Function<char[], ProviderKeyProbe.Result> capturingProbe = key -> {
+            capturedKey[0] = new String(key);
+            probeInvoked.countDown();
+            return ProviderKeyProbe.Result.ok();
+        };
+
+        invokeTestProviderKey(configurable, "OPENAI_API_KEY", openAiField, openAiStatus, testOpenAi, "OpenAI",
+                capturingProbe);
+
+        // The stored-key lookup resolves synchronously/inline here (InMemoryCredentials.apiKeyAsync
+        // returns an already-completed future, mirroring ShaftCredentialService.apiKeyAsync landing on
+        // the EDT), so the label already reads "Testing..." the instant the reflective call above
+        // returns. Only the actual probe dispatch runs on ShaftPluginExecutor's background pool, so a
+        // bounded latch await -- not a sleep loop -- is used to observe that hand-off deterministically.
+        assertEquals("Testing...", openAiStatus.getText());
+        assertTrue(probeInvoked.await(5, TimeUnit.SECONDS), "the probe should have run against the stored key");
+        assertEquals("stored-secret", capturedKey[0]);
+    }
+
+    private static void invokeShowProviderKeyResult(
+            JLabel statusLabel,
+            String providerLabel,
+            ProviderKeyProbe.Result result) throws Exception {
+        Method showProviderKeyResult = ShaftSettingsConfigurable.class.getDeclaredMethod(
+                "showProviderKeyResult", JLabel.class, String.class, ProviderKeyProbe.Result.class);
+        showProviderKeyResult.setAccessible(true); // NOPMD - reflective test invocation of a private rendering helper
+        showProviderKeyResult.invoke(null, statusLabel, providerLabel, result);
+    }
+
+    private static void invokeTestProviderKey(
+            ShaftSettingsConfigurable configurable,
+            String providerKey,
+            JPasswordField field,
+            JLabel statusLabel,
+            JButton button,
+            String providerLabel,
+            Function<char[], ProviderKeyProbe.Result> probeFn) throws Exception {
+        Method testProviderKey = ShaftSettingsConfigurable.class.getDeclaredMethod(
+                "testProviderKey", String.class, JPasswordField.class, JLabel.class, JButton.class, String.class,
+                Function.class);
+        testProviderKey.setAccessible(true); // NOPMD - reflective test invocation of a private orchestration method
+        testProviderKey.invoke(configurable, providerKey, field, statusLabel, button, providerLabel, probeFn);
+    }
+
     private static void invokeShowProbeResult(
             ShaftSettingsConfigurable configurable,
             JPanel host,
@@ -704,7 +845,7 @@ class ShaftSettingsConfigurableTest {
     }
 
     private static final class InMemoryCredentials implements ShaftSettingsConfigurable.CredentialAccess {
-        private final Set<String> storedKeys = new HashSet<>();
+        private final java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
 
         // Kept as plain (non-override) methods so existing test call sites that talk to this
         // concrete type directly (see keyStatusLabelsAccessibleDescriptionsTrackLiveStoredStateAcrossUpdates)
@@ -713,12 +854,12 @@ class ShaftSettingsConfigurableTest {
             if (secret == null || new String(secret).isBlank()) {
                 storedKeys.remove(provider);
             } else {
-                storedKeys.add(provider);
+                storedKeys.put(provider, new String(secret));
             }
         }
 
         public boolean hasApiKey(String provider) {
-            return storedKeys.contains(provider);
+            return storedKeys.containsKey(provider);
         }
 
         @Override
@@ -730,6 +871,11 @@ class ShaftSettingsConfigurableTest {
         @Override
         public CompletableFuture<Boolean> hasApiKeyAsync(String provider) {
             return CompletableFuture.completedFuture(hasApiKey(provider));
+        }
+
+        @Override
+        public CompletableFuture<String> apiKeyAsync(String provider) {
+            return CompletableFuture.completedFuture(storedKeys.getOrDefault(provider, ""));
         }
     }
 }

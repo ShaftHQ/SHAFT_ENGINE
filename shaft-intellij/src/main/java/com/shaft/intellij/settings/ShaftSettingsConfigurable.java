@@ -15,6 +15,7 @@ import com.shaft.intellij.mcp.RecoveryActions;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
 import com.shaft.intellij.ui.ShaftIconButtons;
 import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
@@ -105,6 +106,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JButton clearAnthropicKey;
     private JButton clearGeminiKey;
     private JButton clearGithubKey;
+    private JButton testOpenAiKey;
+    private JButton testAnthropicKey;
+    private JButton testGeminiKey;
+    private JButton testGithubKey;
     private JLabel openAiKeyStatus;
     private JLabel anthropicKeyStatus;
     private JLabel geminiKeyStatus;
@@ -270,12 +275,28 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         githubKeyStatus = keyStatusLabel("GitHub");
         clearOpenAiKey = new JButton("Clear");
         configureClearButton(clearOpenAiKey, "Clear stored OpenAI API key", openAiKey, openAiKeyStatus, () -> openAiClearRequested = true);
+        testOpenAiKey = new JButton("Test");
+        ShaftIconButtons.apply(testOpenAiKey, "Test OpenAI API key", "Test OpenAI API key", ShaftIcons.CHECK);
+        testOpenAiKey.addActionListener(event -> testProviderKey(
+                OPENAI_PROVIDER_KEY, openAiKey, openAiKeyStatus, testOpenAiKey, "OpenAI", ProviderKeyProbe::testOpenAi));
         clearAnthropicKey = new JButton("Clear");
         configureClearButton(clearAnthropicKey, "Clear stored Anthropic API key", anthropicKey, anthropicKeyStatus, () -> anthropicClearRequested = true);
+        testAnthropicKey = new JButton("Test");
+        ShaftIconButtons.apply(testAnthropicKey, "Test Anthropic API key", "Test Anthropic API key", ShaftIcons.CHECK);
+        testAnthropicKey.addActionListener(event -> testProviderKey(
+                ANTHROPIC_PROVIDER_KEY, anthropicKey, anthropicKeyStatus, testAnthropicKey, "Anthropic", ProviderKeyProbe::testAnthropic));
         clearGeminiKey = new JButton("Clear");
         configureClearButton(clearGeminiKey, "Clear stored Gemini API key", geminiKey, geminiKeyStatus, () -> geminiClearRequested = true);
+        testGeminiKey = new JButton("Test");
+        ShaftIconButtons.apply(testGeminiKey, "Test Gemini API key", "Test Gemini API key", ShaftIcons.CHECK);
+        testGeminiKey.addActionListener(event -> testProviderKey(
+                GEMINI_PROVIDER_KEY, geminiKey, geminiKeyStatus, testGeminiKey, "Gemini", ProviderKeyProbe::testGemini));
         clearGithubKey = new JButton("Clear");
         configureClearButton(clearGithubKey, "Clear stored GitHub API key", githubKey, githubKeyStatus, () -> githubClearRequested = true);
+        testGithubKey = new JButton("Test");
+        ShaftIconButtons.apply(testGithubKey, "Test GitHub API key", "Test GitHub API key", ShaftIcons.CHECK);
+        testGithubKey.addActionListener(event -> testProviderKey(
+                GITHUB_PROVIDER_KEY, githubKey, githubKeyStatus, testGithubKey, "GitHub", ProviderKeyProbe::testGithub));
         currentAgentConfigurationTitle = label("Current agent", 'C', currentAgentConfiguration);
         currentAgentConfigurationRow = agentConfigurationRow(currentAgentConfiguration, configureAgent);
         assistantProviderTypeLabel = label("Provider type", 'Y', assistantProviderType);
@@ -323,13 +344,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(providerKeysHelp)
                 .addComponent(providerKeysStorageHelp)
                 .addLabeledComponent(openAiKeyLabel, openAiKey)
-                .addComponent(keyRow(clearOpenAiKey, openAiKeyStatus))
+                .addComponent(keyRow(clearOpenAiKey, testOpenAiKey, openAiKeyStatus))
                 .addLabeledComponent(anthropicKeyLabel, anthropicKey)
-                .addComponent(keyRow(clearAnthropicKey, anthropicKeyStatus))
+                .addComponent(keyRow(clearAnthropicKey, testAnthropicKey, anthropicKeyStatus))
                 .addLabeledComponent(geminiKeyLabel, geminiKey)
-                .addComponent(keyRow(clearGeminiKey, geminiKeyStatus))
+                .addComponent(keyRow(clearGeminiKey, testGeminiKey, geminiKeyStatus))
                 .addLabeledComponent(githubKeyLabel, githubKey)
-                .addComponent(keyRow(clearGithubKey, githubKeyStatus))
+                .addComponent(keyRow(clearGithubKey, testGithubKey, githubKeyStatus))
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         panel.setBorder(JBUI.Borders.empty(8));
@@ -491,6 +512,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         clearAnthropicKey = null;
         clearGeminiKey = null;
         clearGithubKey = null;
+        testOpenAiKey = null;
+        testAnthropicKey = null;
+        testGeminiKey = null;
+        testGithubKey = null;
         openAiKeyStatus = null;
         anthropicKeyStatus = null;
         geminiKeyStatus = null;
@@ -617,9 +642,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return label;
     }
 
-    private static JPanel keyRow(JButton clearButton, JLabel statusLabel) {
+    private static JPanel keyRow(JButton clearButton, JButton testButton, JLabel statusLabel) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         row.add(clearButton);
+        row.add(testButton);
         row.add(statusLabel);
         return row;
     }
@@ -688,6 +714,54 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         String text = stored ? "Stored in Password Safe." : "No stored key.";
         statusLabel.setText(text);
         statusLabel.getAccessibleContext().setAccessibleDescription(text);
+    }
+
+    private void testProviderKey(String providerKey, JPasswordField field, JLabel statusLabel, JButton button,
+                                  String providerLabel,
+                                  java.util.function.Function<char[], ProviderKeyProbe.Result> probeFn) {
+        if (button == null || statusLabel == null || field == null || !button.isEnabled()) {
+            return;
+        }
+        button.setEnabled(false);
+        char[] liveValue = field.getPassword();
+        if (hasMeaningfulValue(liveValue)) {
+            runProviderKeyProbe(button, statusLabel, providerLabel, probeFn, liveValue);
+            return;
+        }
+        Arrays.fill(liveValue, '\0');
+        credentialsProvider.get().apiKeyAsync(providerKey).thenAccept(stored -> {
+            char[] storedValue = stored == null ? new char[0] : stored.toCharArray();
+            if (!hasMeaningfulValue(storedValue)) {
+                button.setEnabled(true);
+                showProviderKeyResult(statusLabel, providerLabel, ProviderKeyProbe.Result.fail("No key to test."));
+                return;
+            }
+            runProviderKeyProbe(button, statusLabel, providerLabel, probeFn, storedValue);
+        });
+    }
+
+    private static void runProviderKeyProbe(JButton button, JLabel statusLabel, String providerLabel,
+                                             java.util.function.Function<char[], ProviderKeyProbe.Result> probeFn,
+                                             char[] key) {
+        statusLabel.setText("Testing...");
+        statusLabel.getAccessibleContext().setAccessibleDescription(statusLabel.getText());
+        statusLabel.setForeground(ShaftStatusPresentation.progress());
+        CompletableFuture.supplyAsync(() -> probeFn.apply(key), ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
+                    Arrays.fill(key, '\0');
+                    button.setEnabled(true);
+                    showProviderKeyResult(statusLabel, providerLabel,
+                            error != null ? ProviderKeyProbe.Result.fail("Could not run the check.") : result);
+                }));
+    }
+
+    private static void showProviderKeyResult(JLabel statusLabel, String providerLabel, ProviderKeyProbe.Result result) {
+        String text = result.success()
+                ? ShaftStatusPresentation.SUCCESS_ICON + " " + providerLabel + " key OK."
+                : ShaftStatusPresentation.ERROR_ICON + " " + result.reason();
+        statusLabel.setText(text);
+        statusLabel.getAccessibleContext().setAccessibleDescription(text);
+        statusLabel.setForeground(result.success() ? ShaftStatusPresentation.success() : ShaftStatusPresentation.error());
     }
 
     private void testMcpConnection() {
@@ -940,6 +1014,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         clearAnthropicKey.setVisible(advanced);
         clearGeminiKey.setVisible(advanced);
         clearGithubKey.setVisible(advanced);
+        testOpenAiKey.setVisible(advanced);
+        testAnthropicKey.setVisible(advanced);
+        testGeminiKey.setVisible(advanced);
+        testGithubKey.setVisible(advanced);
     }
 
     private static void setVisible(boolean visible, JComponent... components) {
@@ -965,6 +1043,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         CompletableFuture<Void> setApiKeyAsync(String provider, char[] secret);
 
         CompletableFuture<Boolean> hasApiKeyAsync(String provider);
+
+        CompletableFuture<String> apiKeyAsync(String provider);
     }
 
     private static CredentialAccess credentialAccess() {
@@ -978,6 +1058,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             @Override
             public CompletableFuture<Boolean> hasApiKeyAsync(String provider) {
                 return service.hasApiKeyAsync(provider);
+            }
+
+            @Override
+            public CompletableFuture<String> apiKeyAsync(String provider) {
+                return service.apiKeyAsync(provider);
             }
         };
     }
