@@ -49,8 +49,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private ApiRecordingSessionPanel apiRecordingPanel;
     private GuidedWorkflowPanel guidedWorkflowPanel;
     private JLabel workflowSelectorLabel;
-    private ShaftReadinessSummary readinessSummary;
-    private javax.swing.JButton recheckHealth;
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -214,83 +212,12 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         workflowSelectorLabel = label;
         header.add(label);
         header.add(workflowSelector);
-        header.add(buildHealthChip());
         refreshWorkflowSelectorVisibility();
         add(header, BorderLayout.NORTH);
         add(workflowCards, BorderLayout.CENTER);
         revalidate();
         repaint();
     }
-
-    /**
-     * Persistent setup-health chip (issue #3425 A6): always visible in the main-view header, it
-     * reflects the last verified MCP state and offers a one-click live re-check. A failed re-check
-     * offers reconnecting through the setup view instead of leaving a dead tool window.
-     */
-    private JComponent buildHealthChip() {
-        // Shared readiness summary (issue #3500 O4/A4): MCP, workspace, agent lane, and live
-        // recording activity answered by one component with the same words as the setup ready row.
-        // showMainView() already disposes the previous one via disposeActiveChildren() before
-        // reaching here, but guard the reassignment itself too (issue #3620): buildHealthChip() is
-        // the actual construction site, and a future caller that reaches it without going through
-        // showMainView() first must not be able to silently leak the outgoing instance's static
-        // ShaftRecordingActivity listener.
-        disposeReadinessSummary();
-        readinessSummary = new ShaftReadinessSummary(settings, projectBasePath());
-        recheckHealth = new javax.swing.JButton("Recheck");
-        recheckHealth.getAccessibleContext().setAccessibleName("Recheck SHAFT MCP health");
-        recheckHealth.setToolTipText("Run a live SHAFT MCP connection check now");
-        recheckHealth.setMargin(JBUI.insets(1, 6));
-        recheckHealth.addActionListener(event -> recheckMcpHealth());
-        applyHealthState(settings.mcpReady() ? HealthState.VERIFIED : HealthState.UNKNOWN, "");
-        JPanel chip = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        chip.setOpaque(false);
-        chip.add(readinessSummary);
-        chip.add(recheckHealth);
-        return chip;
-    }
-
-    private java.nio.file.Path projectBasePath() {
-        return project == null || project.getBasePath() == null
-                ? null
-                : java.nio.file.Path.of(project.getBasePath());
-    }
-
-    private void recheckMcpHealth() {
-        String command = settings.mcpCommand == null ? "" : settings.mcpCommand.trim();
-        if (command.isBlank()) {
-            applyHealthState(HealthState.FAILED, "No MCP command configured");
-            showSetupView();
-            return;
-        }
-        recheckHealth.setEnabled(false);
-        readinessSummary.applyMcpState(ShaftReadinessSummary.McpState.CHECKING, "");
-        java.nio.file.Path root = project == null || project.getBasePath() == null
-                ? java.nio.file.Path.of(".")
-                : java.nio.file.Path.of(project.getBasePath());
-        com.shaft.intellij.mcp.ShaftMcpConnectionProbe.test(command, settings, root)
-                .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager
-                        .getApplication().invokeLater(() -> {
-                            recheckHealth.setEnabled(true);
-                            boolean healthy = error == null && result != null && result.success();
-                            applyHealthState(healthy ? HealthState.VERIFIED : HealthState.FAILED,
-                                    healthy ? "" : error != null
-                                            ? String.valueOf(error.getMessage())
-                                            : result == null ? "no result" : result.output());
-                        }));
-    }
-
-    private void applyHealthState(HealthState state, String detail) {
-        readinessSummary.applyMcpState(switch (state) {
-            case VERIFIED -> ShaftReadinessSummary.McpState.VERIFIED;
-            case FAILED -> ShaftReadinessSummary.McpState.FAILED;
-            default -> ShaftReadinessSummary.McpState.UNKNOWN;
-        }, detail);
-        readinessSummary.applyAgentLane(settings.agentLaneReady);
-        readinessSummary.applyWorkspace(projectBasePath());
-    }
-
-    private enum HealthState { UNKNOWN, VERIFIED, FAILED }
 
     private boolean projectArtifactExists(String relativePath) {
         if (project == null || project.getBasePath() == null || project.getBasePath().isBlank()) {
@@ -568,20 +495,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private void disposeActiveChildren() {
         disposeApiRecordingPanel();
         disposeGuidedWorkflowPanel();
-        disposeReadinessSummary();
-    }
-
-    /**
-     * Disposes the current readiness summary, if any, detaching its {@code ShaftRecordingActivity}
-     * listener. Guarded for {@code null} because {@link #disposeActiveChildren()} also runs from
-     * {@link #showSetupView()}, which can execute before any main view -- and therefore any
-     * readiness summary -- has ever been built.
-     */
-    private void disposeReadinessSummary() {
-        if (readinessSummary != null) {
-            readinessSummary.dispose();
-            readinessSummary = null;
-        }
     }
 
     /**
@@ -596,9 +509,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * A selector with one entry is noise: regular users see just the Assistant plus the health
-     * chip, and the workflow picker appears only when expert mode or a runtime flow adds real
-     * choices.
+     * A selector with one entry is noise: regular users see just the Assistant, and the workflow
+     * picker appears only when expert mode or a runtime flow adds real choices.
      */
     private void refreshWorkflowSelectorVisibility() {
         boolean multipleViews = workflowViews.size() > 1;

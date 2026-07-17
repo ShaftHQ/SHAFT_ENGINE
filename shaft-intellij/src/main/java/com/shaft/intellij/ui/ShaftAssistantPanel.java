@@ -21,6 +21,8 @@ import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
+import com.shaft.intellij.java.InsertionAnchor;
+import com.shaft.intellij.java.InsertionAnchorResolver;
 import com.shaft.intellij.project.ShaftProjectDetector;
 import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
@@ -63,7 +65,6 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
-import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.GridLayout;
 import java.awt.datatransfer.StringSelection;
@@ -590,9 +591,6 @@ final class ShaftAssistantPanel extends JPanel {
         chatRow.add(newChat, BorderLayout.EAST);
         JPanel header = new JPanel(new BorderLayout(4, 2));
         header.getAccessibleContext().setAccessibleName("Assistant chat header");
-        JLabel title = new JLabel("SHAFT Assistant");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
-        header.add(title, BorderLayout.NORTH);
         header.add(chatRow, BorderLayout.CENTER);
 
         actionRow = wrapRow();
@@ -2019,6 +2017,13 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    // Tool names whose "Calling tool X..." milestone is internal harness bookkeeping with zero
+    // user-relevant signal (e.g. ToolSearch, the CLI's own tool-schema lookup) rather than a real
+    // action -- unlike Bash/Read/Edit/... or any mcp__-prefixed SHAFT tool, which do represent real
+    // progress and must keep surfacing. Kept small and named on purpose (#3672); extend only for a
+    // confirmed report of another internal meta-tool leaking into the visible Run timeline.
+    private static final Set<String> NON_ACTIONABLE_META_TOOL_NAMES = Set.of("ToolSearch");
+
     /**
      * Reflects one local-agent output line as a compact run-timeline entry for non-verbose runs.
      * Raw NDJSON lines (an unmapped Claude/Codex structured-stream event with no human-readable
@@ -2026,19 +2031,43 @@ final class ShaftAssistantPanel extends JPanel {
      * always start with {@code {}; skipping those keeps this method's visibility contract identical
      * to Verbose mode's pre-#3546 raw-content boundary (#3545: raw stdout stays invisible unless the
      * user opts into Verbose) while still giving a signal of progress for everything else — translated
-     * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines.
+     * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines. Sub-lines that
+     * name a {@link #NON_ACTIONABLE_META_TOOL_NAMES} tool call are dropped first (#3672: internal
+     * harness meta-tool calls like ToolSearch were leaking into the visible Run timeline).
      */
     private void addCompactLocalAgentMilestone(String line) {
         if (line == null) {
             return;
         }
-        String trimmed = line.strip();
+        StringBuilder filtered = new StringBuilder();
+        for (String subLine : line.split("\n", -1)) {
+            if (isNonActionableMetaToolCall(subLine)) {
+                continue;
+            }
+            if (filtered.length() > 0) {
+                filtered.append("\n");
+            }
+            filtered.append(subLine);
+        }
+        String trimmed = filtered.toString().strip();
         if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
             return;
         }
         // The timeline is a single-line-per-entry heartbeat, not a transcript, so long milestone
         // text (a full answer paragraph, a tool call with long arguments) is kept skimmable.
         addTimeline(trimmed.length() > 80 ? trimmed.substring(0, 77) + "..." : trimmed);
+    }
+
+    /** True for a "Calling tool X..." (or "...X (args)...") sub-line naming a denylisted meta-tool. */
+    private static boolean isNonActionableMetaToolCall(String subLine) {
+        String candidate = subLine.strip();
+        for (String toolName : NON_ACTIONABLE_META_TOOL_NAMES) {
+            String prefix = "Calling tool " + toolName;
+            if (candidate.equals(prefix + "...") || candidate.startsWith(prefix + " (")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -3138,15 +3167,17 @@ final class ShaftAssistantPanel extends JPanel {
 
     /**
      * "Insert into open class" (issue #3425 B1): asks SHAFT MCP to regenerate the reviewed steps
-     * as insertion-ready blocks anchored to the file currently open in the editor
-     * ({@code capture_record_at_target_code_blocks}).
+     * as insertion-ready blocks anchored to the caret when it resolves to a Java method, otherwise
+     * to the file currently open in the editor ({@code capture_record_at_target_code_blocks}). Uses
+     * the same {@link InsertionAnchor} the "Record here" action and "Insert at caret" now share
+     * (issue #3662) so this button no longer ignores the caret the way it used to.
      */
     private void insertReviewIntoOpenFile() {
         if (running || pendingCaptureReview == null) {
             return;
         }
-        String targetSourcePath = openEditorFilePath();
-        if (targetSourcePath.isBlank()) {
+        InsertionAnchor anchor = InsertionAnchorResolver.resolve(project, selectedEditor());
+        if (anchor == null) {
             setStatus("Open the target Java class in the editor first");
             return;
         }
@@ -3156,8 +3187,8 @@ final class ShaftAssistantPanel extends JPanel {
         arguments.addProperty("packageName", "tests.generated");
         arguments.addProperty("className", "");
         arguments.addProperty("overwrite", true);
-        arguments.addProperty("targetSourcePath", targetSourcePath);
-        arguments.addProperty("insertAfter", "");
+        arguments.addProperty("targetSourcePath", anchor.targetSourcePath());
+        arguments.addProperty("insertAfter", anchor.insertAfter());
         arguments.addProperty("driverVariableName", "driver");
         startMcpInvocation(AssistantCommand.Invocation.tool("capture_record_at_target_code_blocks", arguments));
     }
@@ -3208,15 +3239,12 @@ final class ShaftAssistantPanel extends JPanel {
         startMcpInvocation(AssistantCommand.Invocation.tool("capture_backend_comparison", arguments));
     }
 
-    private String openEditorFilePath() {
+    /** Editor holding the caret, for {@link InsertionAnchorResolver}; null in headless test runs. */
+    private Editor selectedEditor() {
         try {
-            if (project == null) {
-                return "";
-            }
-            var selectedFiles = FileEditorManager.getInstance(project).getSelectedFiles();
-            return selectedFiles.length == 0 ? "" : selectedFiles[0].getPath();
+            return project == null ? null : FileEditorManager.getInstance(project).getSelectedTextEditor();
         } catch (RuntimeException | Error headlessTestEnvironment) {
-            return "";
+            return null;
         }
     }
 

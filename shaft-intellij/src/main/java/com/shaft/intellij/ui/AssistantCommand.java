@@ -21,7 +21,6 @@ final class AssistantCommand {
     private static final int DEFAULT_BROWSER_MAX_CHARACTERS = 12_000;
     private static final int DEFAULT_MOBILE_MAX_CHARACTERS = 8_000;
     private static final int DEFAULT_BROWSER_MAX_ELEMENTS = 10;
-    static final String DEFAULT_CAPTURE_TARGET_URL = "https://duckduckgo.com/";
     static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
     static final String DEFAULT_CAPTURE_RECORDING_PATH_PREFIX = "recordings/intellij-capture-";
     static final String DEFAULT_PLAYWRIGHT_RECORDING_PATH = "recordings/playwright-recording.json";
@@ -1276,6 +1275,9 @@ final class AssistantCommand {
         if (isStartRecording(text)) {
             return record(text.replaceFirst("(?i)^start\\s+(a\\s+)?(web(driver)?\\s+)?(capture|recording|recorder)\\b", "").trim());
         }
+        if (isRecordScenarioIntent(text)) {
+            return record("");
+        }
         if (isReviewRecording(text)) {
             return reviewRecording(text);
         }
@@ -1657,7 +1659,9 @@ final class AssistantCommand {
     private static JsonObject captureStart(String rest) {
         JsonObject arguments = new JsonObject();
         String targetUrl = parseLeadingUrl(rest);
-        arguments.addProperty("targetUrl", targetUrl.isBlank() ? DEFAULT_CAPTURE_TARGET_URL : targetUrl);
+        // A blank targetUrl is intentionally passed through: no target parsed means capture_start
+        // resolves it to an empty/blank-page browser downstream, not a hardcoded default site.
+        arguments.addProperty("targetUrl", targetUrl);
         arguments.addProperty("browser", "Chrome");
         arguments.addProperty("outputPath", defaultCaptureRecordingPath());
         arguments.addProperty("headless", recorderHeadlessPreference());
@@ -1775,6 +1779,17 @@ final class AssistantCommand {
                 || normalized.startsWith("start a recording ")
                 || normalized.startsWith("start recorder ")
                 || normalized.startsWith("start capture ");
+    }
+
+    private static boolean isRecordScenarioIntent(String text) {
+        // Issue #3673: deliberately an exact-match set, not a "record "-prefix or startsWith
+        // match -- a broader match would risk misrouting other "record "-adjacent phrases (e.g.
+        // "record a video of the sprint demo", which must keep going to the LLM agent).
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("record a scenario")
+                || normalized.equals("record a new scenario")
+                || normalized.equals("record scenario")
+                || normalized.equals("record new scenario");
     }
 
     private static boolean isReviewRecording(String text) {

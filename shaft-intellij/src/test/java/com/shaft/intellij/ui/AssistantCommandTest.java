@@ -1225,10 +1225,10 @@ class AssistantCommandTest {
         AssistantCommand.Invocation defaultReview = command("review recording");
 
         assertAll(
-                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_TARGET_URL,
-                        simpleStart.arguments().get("targetUrl").getAsString()),
-                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_TARGET_URL,
-                        articleStart.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("", simpleStart.arguments().get("targetUrl").getAsString(),
+                        "no target parsed from bare 'start recording' should stay blank so capture_start "
+                                + "resolves it to an empty browser downstream, not a hardcoded default site"),
+                () -> assertEquals("", articleStart.arguments().get("targetUrl").getAsString()),
                 () -> assertEquals("capture_start", start.toolName()),
                 () -> assertEquals("https://duckduckgo.com/",
                         start.arguments().get("targetUrl").getAsString()),
@@ -1244,6 +1244,32 @@ class AssistantCommandTest {
                         review.arguments().get("outputDirectory").getAsString()),
                 () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH,
                         defaultReview.arguments().get("sessionPath").getAsString()));
+    }
+
+    @Test
+    void recordScenarioPhrasesRouteDeterministicallyToBlankCaptureStart() {
+        // Issue #3673: common recording phrases ("record a scenario", "start recording", ...)
+        // must resolve deterministically to capture_start with no target rather than falling
+        // through to the LLM agent. No target parsed means an empty/blank-page browser opens.
+        AssistantCommand.Invocation recordAScenario = command("record a scenario");
+        AssistantCommand.Invocation recordANewScenario = command("record a new scenario");
+        AssistantCommand.Invocation recordScenario = command("record scenario");
+        AssistantCommand.Invocation recordNewScenario = command("record new scenario");
+        // Regression guard: the narrow new phrases must not disturb the existing mobile-recording
+        // routing for phrasing that mentions "record" alongside mobile keywords.
+        AssistantCommand.Invocation mobileRecording = command("record my actions on the Android emulator");
+
+        assertAll(
+                () -> assertEquals("capture_start", recordAScenario.toolName()),
+                () -> assertEquals("", recordAScenario.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("capture_start", recordANewScenario.toolName()),
+                () -> assertEquals("", recordANewScenario.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("capture_start", recordScenario.toolName()),
+                () -> assertEquals("", recordScenario.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("capture_start", recordNewScenario.toolName()),
+                () -> assertEquals("", recordNewScenario.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("mobile_record_start", mobileRecording.toolName(),
+                        "the narrow record-a-scenario predicate must not collide with mobile recording intent"));
     }
 
     @Test
