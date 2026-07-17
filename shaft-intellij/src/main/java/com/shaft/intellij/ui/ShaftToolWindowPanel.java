@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.JBUI;
@@ -30,7 +31,7 @@ import java.util.stream.Stream;
 /**
  * Top-level SHAFT IntelliJ tool window content.
  */
-public final class ShaftToolWindowPanel extends JPanel {
+public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private final Project project;
     private final ShaftSettingsState.Settings settings;
     private final ShaftAssistantChatState assistantChatState;
@@ -90,8 +91,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     private void showSetupView() {
-        disposeApiRecordingPanel();
-        disposeGuidedWorkflowPanel();
+        disposeActiveChildren();
         removeAll();
         ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete,
                 readinessProbe, deepReadinessProbe);
@@ -115,8 +115,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     private void showMainView() {
-        disposeApiRecordingPanel();
-        disposeGuidedWorkflowPanel();
+        disposeActiveChildren();
         removeAll();
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
                 assistantChatState, this::showSetupView);
@@ -225,6 +224,12 @@ public final class ShaftToolWindowPanel extends JPanel {
     private JComponent buildHealthChip() {
         // Shared readiness summary (issue #3500 O4/A4): MCP, workspace, agent lane, and live
         // recording activity answered by one component with the same words as the setup ready row.
+        // showMainView() already disposes the previous one via disposeActiveChildren() before
+        // reaching here, but guard the reassignment itself too (issue #3620): buildHealthChip() is
+        // the actual construction site, and a future caller that reaches it without going through
+        // showMainView() first must not be able to silently leak the outgoing instance's static
+        // ShaftRecordingActivity listener.
+        disposeReadinessSummary();
         readinessSummary = new ShaftReadinessSummary(settings, projectBasePath());
         recheckHealth = new javax.swing.JButton("Recheck");
         recheckHealth.getAccessibleContext().setAccessibleName("Recheck SHAFT MCP health");
@@ -317,6 +322,14 @@ public final class ShaftToolWindowPanel extends JPanel {
     /** Package-private test accessor: the retained Assistant panel, or {@code null} before setup. */
     ShaftAssistantPanel assistantPanel() {
         return assistantPanel;
+    }
+
+    /**
+     * Package-private test accessor: the retained Guided workflow panel, or {@code null} when
+     * advanced UI is disabled or before setup.
+     */
+    GuidedWorkflowPanel guidedWorkflowPanel() {
+        return guidedWorkflowPanel;
     }
 
     /**
@@ -527,6 +540,44 @@ public final class ShaftToolWindowPanel extends JPanel {
             Disposer.dispose(guidedWorkflowPanel);
             guidedWorkflowPanel = null;
         }
+    }
+
+    /**
+     * Disposes every currently active child panel that owns background polling (the API Recording
+     * session and the Guided workflow's recorder status poller). Called both on internal view
+     * switches ({@link #showSetupView()}/{@link #showMainView()}) and from {@link #dispose()} so
+     * that real platform teardown (project close, tool-window content rebuild) tears these down
+     * too, instead of only ever running via a manual view switch that real teardown never makes
+     * (issue #3619).
+     */
+    private void disposeActiveChildren() {
+        disposeApiRecordingPanel();
+        disposeGuidedWorkflowPanel();
+        disposeReadinessSummary();
+    }
+
+    /**
+     * Disposes the current readiness summary, if any, detaching its {@code ShaftRecordingActivity}
+     * listener. Guarded for {@code null} because {@link #disposeActiveChildren()} also runs from
+     * {@link #showSetupView()}, which can execute before any main view -- and therefore any
+     * readiness summary -- has ever been built.
+     */
+    private void disposeReadinessSummary() {
+        if (readinessSummary != null) {
+            readinessSummary.dispose();
+            readinessSummary = null;
+        }
+    }
+
+    /**
+     * Wires this panel into the platform's {@code Disposer} tree ({@code
+     * ShaftToolWindowFactory#createToolWindowContent} registers it via {@code
+     * Content#setDisposer}), so closing the project or rebuilding the tool window's content
+     * reliably cancels any in-progress child pollers instead of leaking them (issue #3619).
+     */
+    @Override
+    public void dispose() {
+        disposeActiveChildren();
     }
 
     /**

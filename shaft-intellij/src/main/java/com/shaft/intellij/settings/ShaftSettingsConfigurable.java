@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
@@ -379,11 +380,15 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.passProviderApiKeysToMcp = passProviderKeys.isSelected();
 
         CredentialAccess credentials = credentialsProvider.get();
-        applyCredentialChange(credentials, OPENAI_PROVIDER_KEY, openAiKey, openAiClearRequested);
-        applyCredentialChange(credentials, ANTHROPIC_PROVIDER_KEY, anthropicKey, anthropicClearRequested);
-        applyCredentialChange(credentials, GEMINI_PROVIDER_KEY, geminiKey, geminiClearRequested);
-        applyCredentialChange(credentials, GITHUB_PROVIDER_KEY, githubKey, githubClearRequested);
-        updateStoredKeyStatus(credentials);
+        CompletableFuture<Void> openAiFuture = applyCredentialChange(credentials, OPENAI_PROVIDER_KEY, openAiKey, openAiClearRequested);
+        CompletableFuture<Void> anthropicFuture = applyCredentialChange(credentials, ANTHROPIC_PROVIDER_KEY, anthropicKey, anthropicClearRequested);
+        CompletableFuture<Void> geminiFuture = applyCredentialChange(credentials, GEMINI_PROVIDER_KEY, geminiKey, geminiClearRequested);
+        CompletableFuture<Void> githubFuture = applyCredentialChange(credentials, GITHUB_PROVIDER_KEY, githubKey, githubClearRequested);
+        // Deliberately not thenRunAsync with an extra executor here (issue #3623): each input future
+        // already hops onto the EDT internally (ShaftCredentialService.*Async completes on the EDT;
+        // the test fake's pre-completed futures run inline). A second executor hop would be redundant.
+        CompletableFuture.allOf(openAiFuture, anthropicFuture, geminiFuture, githubFuture)
+                .thenRun(() -> updateStoredKeyStatus(credentials));
         openAiClearRequested = false;
         anthropicClearRequested = false;
         geminiClearRequested = false;
@@ -615,17 +620,17 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return field != null && field.getPassword().length > 0;
     }
 
-    private static void applyCredentialChange(CredentialAccess credentials, String key, JPasswordField field, boolean clearRequested) {
+    private static CompletableFuture<Void> applyCredentialChange(CredentialAccess credentials, String key, JPasswordField field, boolean clearRequested) {
         char[] password = field.getPassword();
         boolean hasRealValue = hasMeaningfulValue(password);
-        if (hasRealValue) {
-            credentials.setApiKey(key, password);
-        } else if (clearRequested) {
-            credentials.setApiKey(key, password);
+        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+        if (hasRealValue || clearRequested) {
+            future = credentials.setApiKeyAsync(key, password);
         }
         if (clearRequested || hasRealValue || password.length > 0) {
             clear(field);
         }
+        return future;
     }
 
     private static boolean hasMeaningfulValue(char[] password) {
@@ -644,10 +649,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     }
 
     private void updateStoredKeyStatus(CredentialAccess credentials) {
-        updateStoredState(openAiKeyStatus, credentials.hasApiKey(OPENAI_PROVIDER_KEY));
-        updateStoredState(anthropicKeyStatus, credentials.hasApiKey(ANTHROPIC_PROVIDER_KEY));
-        updateStoredState(geminiKeyStatus, credentials.hasApiKey(GEMINI_PROVIDER_KEY));
-        updateStoredState(githubKeyStatus, credentials.hasApiKey(GITHUB_PROVIDER_KEY));
+        updateStoredStateAsync(credentials, OPENAI_PROVIDER_KEY, openAiKeyStatus);
+        updateStoredStateAsync(credentials, ANTHROPIC_PROVIDER_KEY, anthropicKeyStatus);
+        updateStoredStateAsync(credentials, GEMINI_PROVIDER_KEY, geminiKeyStatus);
+        updateStoredStateAsync(credentials, GITHUB_PROVIDER_KEY, githubKeyStatus);
+    }
+
+    private static void updateStoredStateAsync(CredentialAccess credentials, String key, JLabel label) {
+        credentials.hasApiKeyAsync(key).thenAccept(stored -> updateStoredState(label, stored));
     }
 
     private static void updateStoredState(JLabel statusLabel, boolean stored) {
@@ -879,22 +888,22 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     }
 
     interface CredentialAccess {
-        void setApiKey(String provider, char[] secret);
+        CompletableFuture<Void> setApiKeyAsync(String provider, char[] secret);
 
-        boolean hasApiKey(String provider);
+        CompletableFuture<Boolean> hasApiKeyAsync(String provider);
     }
 
     private static CredentialAccess credentialAccess() {
         ShaftCredentialService service = ShaftCredentialService.getInstance();
         return new CredentialAccess() {
             @Override
-            public void setApiKey(String provider, char[] secret) {
-                service.setApiKey(provider, secret);
+            public CompletableFuture<Void> setApiKeyAsync(String provider, char[] secret) {
+                return service.setApiKeyAsync(provider, secret);
             }
 
             @Override
-            public boolean hasApiKey(String provider) {
-                return service.hasApiKey(provider);
+            public CompletableFuture<Boolean> hasApiKeyAsync(String provider) {
+                return service.hasApiKeyAsync(provider);
             }
         };
     }

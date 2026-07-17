@@ -91,7 +91,7 @@ public final class ShaftMcpConnectionProbe {
                 return ShaftMcpToolResult.failure(
                         McpInvocationError.detail(exception, category), category, category.recoveryAction());
             }
-        });
+        }, ShaftPluginExecutor.getInstance().executor());
     }
 
     private static String scopedMessage(String message, Path workspace) {

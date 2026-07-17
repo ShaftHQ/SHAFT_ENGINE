@@ -18,6 +18,11 @@ public final class ShaftToolWindowFactory implements ToolWindowFactory, DumbAwar
         ShaftToolWindowPanel panel = new ShaftToolWindowPanel(project);
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
         content.setPreferredFocusableComponent(panel.preferredFocusComponent());
+        // Ties the panel's lifecycle to this Content's teardown (project close, tool-window
+        // content rebuild) so its Disposer#dispose() cascade actually runs -- previously the
+        // panel was never registered anywhere, leaving child pollers like the Guided workflow's
+        // status-poll Alarm to run forever after real teardown (issue #3619).
+        content.setDisposer(panel);
         toolWindow.getContentManager().addContent(content);
     }
 }
