@@ -102,7 +102,8 @@ final class AssistantCommand {
                     - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
                     - Choose the recording surface that matches the description: capture_start_codegen for a WebDriver browser flow, or the mobile_record_start / mobile_tap / mobile_type / mobile_record_stop sequence for a native or hybrid mobile flow.
                     - If capture_generate_replay (or its mobile/Playwright equivalents) reports a broken or unhealed locator, call healer_run_failed_test (or playwright_healer_run_failed_test) to self-heal it before returning code, instead of returning a known-broken locator.
-                    - Keep the returned code minimal and project-structure-compliant: one Page Object Model class per described flow, matching this project's existing package/module layout and SHAFT syntax; do not repeat this guidance text back to the user or paste unrelated boilerplate.
+                    - MUST follow the Page Object Model: one Page Object Model class per described flow, holding all locators and action methods, matching this project's existing package/module layout and SHAFT syntax; do not put driver.element()/locator calls directly in a @Test method body -- extract them into a page class. Keep the returned code minimal and project-structure-compliant; do not repeat this guidance text back to the user or paste unrelated boilerplate.
+                    - Write in SHAFT's fluent design and action chaining style: chain calls on the same element/actions object (for example driver.element().click(locator).type(otherLocator, "value")) instead of a separate statement per action; only break the chain when the next step needs a different receiver.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
                     - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
@@ -2411,11 +2412,15 @@ final class AssistantCommand {
      * excluded so the narrow, deliberately exact-match deterministic triggers they own (issue
      * #3673) are unaffected.
      *
+     * <p>Package-private (not {@code private}) so {@code ShaftAssistantPanel} can reuse this exact
+     * detection as the trigger for its pre-run orchestration-stage announcement (issue #3704),
+     * without reimplementing it.
+     *
      * @param text the natural-language prompt
      * @return whether the text describes a scenario to record and turn into code, not just a bare
      *         recording trigger
      */
-    private static boolean isScenarioDescriptionIntent(String text) {
+    static boolean isScenarioDescriptionIntent(String text) {
         if (isStartRecording(text) || isRecordScenarioIntent(text) || isReRecord(text)) {
             return false;
         }
