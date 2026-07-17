@@ -14,6 +14,7 @@ public final class ShaftIcons {
     public static final Icon CLEAR = load("clear");
     public static final Icon CODE = load("code");
     public static final Icon COPY = load("copy");
+    public static final Icon DEBUG = load("debug");
     public static final Icon DELETE = load("delete");
     public static final Icon DOWNLOAD = load("download");
     public static final Icon EDIT = load("edit");

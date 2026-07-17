@@ -14,6 +14,7 @@ import java.awt.event.MouseListener;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -239,6 +240,96 @@ class ShaftTestsPanelTest {
         for (ActionListener listener : listeners) {
             listener.actionPerformed(null);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Debug wiring (mirrors Run wiring above)
+    // ------------------------------------------------------------------
+
+    @Test
+    void debugIsDisabledWithNoRowSelected() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+
+        assertAll(
+                () -> assertFalse(panel.debugButtonForTest().isEnabled()),
+                () -> assertFalse(panel.debugMenuItemForTest().isEnabled()));
+    }
+
+    @Test
+    void debugIsEnabledForAPassingRowJustLikeRun() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+
+        selectFirstClassNode(panel);
+
+        assertAll(
+                () -> assertTrue(panel.debugButtonForTest().isEnabled(), "Debug enables for any status"),
+                () -> assertTrue(panel.debugMenuItemForTest().isEnabled(), "Debug menu item enables for any status"));
+    }
+
+    @Test
+    void debugIsDisabledAgainAfterClearingSelection() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+        selectFirstClassNode(panel);
+
+        panel.treeForTest().clearSelection();
+
+        assertAll(
+                () -> assertFalse(panel.debugButtonForTest().isEnabled()),
+                () -> assertFalse(panel.debugMenuItemForTest().isEnabled()));
+    }
+
+    @Test
+    void debugButtonWithNoSelectionIsASafeNoOp() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+
+        assertDoesNotThrow(() -> ((JButton) panel.debugButtonForTest()).doClick(),
+                "Debug with no row selected must be a safe no-op, not throw");
+    }
+
+    @Test
+    void debugContextMenuItemWithNoSelectionIsASafeNoOp() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("SignInTest", 0, 1_000L);
+        ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
+        ActionListener[] listeners = panel.debugMenuItemForTest().getActionListeners();
+        assertTrue(listeners.length > 0, "the context-menu Debug item should have an action listener wired");
+
+        for (ActionListener listener : listeners) {
+            listener.actionPerformed(null);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Per-node Run/Debug icon hit-testing (pure math, see ShaftTestsPanel#iconZoneAt)
+    // ------------------------------------------------------------------
+
+    @Test
+    void iconZoneAtIsRunAcrossTheRunIconWidth() {
+        assertEquals(ShaftTestsPanel.IconZone.RUN, ShaftTestsPanel.iconZoneAt(0));
+        assertEquals(ShaftTestsPanel.IconZone.RUN, ShaftTestsPanel.iconZoneAt(15));
+    }
+
+    @Test
+    void iconZoneAtIsDebugAcrossTheDebugIconWidth() {
+        assertEquals(ShaftTestsPanel.IconZone.DEBUG, ShaftTestsPanel.iconZoneAt(18));
+        assertEquals(ShaftTestsPanel.IconZone.DEBUG, ShaftTestsPanel.iconZoneAt(33));
+    }
+
+    @Test
+    void iconZoneAtIsNoneBeforeZeroInTheGapAndAfterTheDebugIcon() {
+        assertAll(
+                () -> assertEquals(ShaftTestsPanel.IconZone.NONE, ShaftTestsPanel.iconZoneAt(-1)),
+                () -> assertEquals(ShaftTestsPanel.IconZone.NONE, ShaftTestsPanel.iconZoneAt(16), "gap"),
+                () -> assertEquals(ShaftTestsPanel.IconZone.NONE, ShaftTestsPanel.iconZoneAt(17), "gap"),
+                () -> assertEquals(ShaftTestsPanel.IconZone.NONE, ShaftTestsPanel.iconZoneAt(34), "text area"));
     }
 
     private static void dispatchDoubleClick(ShaftTestsPanel panel, MouseListener[] listeners, boolean ctrlDown) {
