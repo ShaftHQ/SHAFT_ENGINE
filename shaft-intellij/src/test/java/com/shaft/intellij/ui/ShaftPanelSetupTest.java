@@ -4179,16 +4179,32 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantAskOrPlanMcpPromptTellsUserToSwitchToAgentMode() {
+    void assistantAskOrPlanMcpPromptOffersOneClickSwitchToAgentMode() {
+        // Issue #3681: SHAFT already knows exactly which binary confirmation and control this gate
+        // needs, so it must offer a one-click fix instead of plain chat text the user has to act on
+        // by finding the mode combo box themselves.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
         assertNotNull(assistantMode);
         assistantMode.setSelectedItem("PLAN");
 
-        assistantPrompt(panel).setText("open duckduckgo and search for SHAFT Engine");
+        String promptText = "open duckduckgo and search for SHAFT Engine";
+        assistantPrompt(panel).setText(promptText);
         clickAccessible(panel, "Send assistant prompt");
 
-        assertTrue(transcriptMarkdown(panel).contains("Switch to **Agent** mode"));
+        JButton fix = findByAccessibleName(panel, "Switch to Agent mode and resend", JButton.class);
+        assertNotNull(fix, "The MCP-mode gate must offer a one-click fix button, not just prose.");
+        assertEquals("PLAN", assistantMode.getSelectedItem(), "Mode must not flip until the button is clicked.");
+
+        fix.doClick();
+
+        assertAll(
+                () -> assertEquals("AGENT", assistantMode.getSelectedItem(),
+                        "Clicking the fix must switch the mode selector to Agent."),
+                () -> assertEquals(2, countOccurrences(transcriptMarkdown(panel), promptText),
+                        "Clicking the fix must resend the original prompt."),
+                () -> assertNull(findByAccessibleName(panel, "Switch to Agent mode and resend", JButton.class),
+                        "The gate bubble must clear itself once the fix is applied."));
     }
 
     @Test
@@ -4210,6 +4226,42 @@ class ShaftPanelSetupTest {
         clickAccessible(panel, "Send assistant prompt");
 
         assertFalse(transcriptMarkdown(panel).contains("enable **Allow source edits**"));
+    }
+
+    @Test
+    void assistantSourceEditGateOffersOneClickAllowAndResend() {
+        // Issue #3681: same one-click-fix treatment as the MCP-mode gate above, for the source-edit
+        // approval gate -- ticks the checkbox and resends instead of leaving prose for the user to
+        // act on.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+        JTextComponent customCommand = textComponent(panel, "Optional local agent command");
+        assertAll(
+                () -> assertNotNull(assistantMode),
+                () -> assertNotNull(allowEdits),
+                () -> assertNotNull(customCommand));
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(false);
+        customCommand.setText("custom-agent --unsafe");
+
+        String promptText = "fix this Java test";
+        assistantPrompt(panel).setText(promptText);
+        clickAccessible(panel, "Send assistant prompt");
+
+        JButton fix = findByAccessibleName(panel, "Allow source edits and resend", JButton.class);
+        assertNotNull(fix, "The source-edit gate must offer a one-click fix button, not just prose.");
+        assertFalse(allowEdits.isSelected(), "The checkbox must not flip until the button is clicked.");
+
+        fix.doClick();
+
+        assertAll(
+                () -> assertTrue(allowEdits.isSelected(),
+                        "Clicking the fix must tick the Allow source edits checkbox."),
+                () -> assertEquals(2, countOccurrences(transcriptMarkdown(panel), promptText),
+                        "Clicking the fix must resend the original prompt."),
+                () -> assertNull(findByAccessibleName(panel, "Allow source edits and resend", JButton.class),
+                        "The gate bubble must clear itself once the fix is applied."));
     }
 
     @Test
