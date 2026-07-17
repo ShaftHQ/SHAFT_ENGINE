@@ -77,15 +77,15 @@ class ShaftAssistantPanelTest {
 
         ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
         Field connectionStateField = ShaftAssistantPanel.class.getDeclaredField("connectionState");
-        connectionStateField.setAccessible(true);
+        connectionStateField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         connectionStateField.set(panel, connectionState);
 
         Field transcriptField = ShaftAssistantPanel.class.getDeclaredField("transcript");
-        transcriptField.setAccessible(true);
+        transcriptField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         AssistantTranscriptView transcript = (AssistantTranscriptView) transcriptField.get(panel);
         Field lafConnectionDisposableField =
                 AssistantTranscriptView.class.getDeclaredField("lafConnectionDisposable");
-        lafConnectionDisposableField.setAccessible(true);
+        lafConnectionDisposableField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         lafConnectionDisposableField.set(transcript, Disposer.newDisposable());
 
         Field statusField = ShaftAssistantPanel.class.getDeclaredField("status");
