@@ -801,7 +801,22 @@ final class AssistantLocalAgentRunner {
                         .collect(Collectors.joining(", ")));
             }
             if (!permissionDenialsByTool.isEmpty()) {
-                lines.add("- Denied tool calls: "
+                // Codex's --json schema (status "failed" / a non-zero exit_code) cannot distinguish a
+                // sandbox/approval denial from an ordinary execution failure the way Claude's
+                // permission_denials array can, so Codex failures are merged into this same bucket
+                // under an honest "failed or denied" label instead of Claude's more precise "denied"
+                // wording -- an explicit, documented tradeoff (issue #3679) rather than a silent no-op.
+                // Codex also has no interactive approval prompt to "approve" at (see
+                // AgentApprovalCapability#CODEX), so its hint points at the Allow source edits toggle
+                // instead of Claude's "approve them when prompted".
+                lines.add(format == Format.CODEX
+                        ? "- Failed or denied tool calls: "
+                        + permissionDenialsByTool.entrySet().stream()
+                        .map(entry -> entry.getKey() + (entry.getValue() > 1 ? " ×" + entry.getValue() : ""))
+                        .collect(Collectors.joining(", "))
+                        + " — re-run with Allow source edits enabled, since Codex has no interactive"
+                        + " approval prompt."
+                        : "- Denied tool calls: "
                         + permissionDenialsByTool.entrySet().stream()
                         .map(entry -> entry.getKey() + (entry.getValue() > 1 ? " ×" + entry.getValue() : ""))
                         .collect(Collectors.joining(", "))
@@ -921,6 +936,58 @@ final class AssistantLocalAgentRunner {
         }
 
         /**
+         * Remembers the file(s) touched by a completed Codex {@code file_change} item (Codex's
+         * {@code --json} counterpart to Claude's Write/Edit tool calls) so the final bubble can list
+         * what was actually created or edited. Codex's {@code file_change} item reports a real
+         * {@code status} ("completed" when the patch was applied, "failed" when it was not), so unlike
+         * {@link #recordFileMutation}'s request-time guess, this only credits paths whose patch
+         * actually succeeded; a failed patch is instead counted as a failed/denied tool call via
+         * {@link #recordCodexToolFailure} so it never claims a file was edited when it was not.
+         */
+        private void recordCodexFileMutation(JsonObject item) {
+            JsonElement changes = item == null ? null : item.get("changes");
+            if (changes == null || !changes.isJsonArray()) {
+                return;
+            }
+            if ("failed".equals(stringField(item, "status"))) {
+                permissionDenialsByTool.merge("file_change", 1, Integer::sum);
+                return;
+            }
+            for (JsonElement element : changes.getAsJsonArray()) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                String path = stringField(element.getAsJsonObject(), "path");
+                if (path != null && !path.isBlank()) {
+                    filesTouched.add(path);
+                }
+            }
+        }
+
+        /**
+         * Aggregates a completed Codex tool item's failure into the same per-tool bucket Claude's
+         * {@code permission_denials} array populates, using the completed item's {@code status}
+         * field, a non-zero {@code exit_code} (shell commands), or a present {@code error} object
+         * (MCP tool calls) as the failure signal. Codex's {@code --json} schema has no field that
+         * distinguishes a sandbox/approval denial from an ordinary execution failure (see issue
+         * #3679), so both are merged here; {@link #activitySummary()} labels this bucket "Failed or
+         * denied tool calls" for Codex runs rather than reusing Claude's more precise "Denied tool
+         * calls" wording, so the footer never overclaims what the CLI's own output can actually prove.
+         */
+        private void recordCodexToolFailure(String toolName, JsonObject item) {
+            if (toolName == null || toolName.isBlank() || item == null) {
+                return;
+            }
+            Integer exitCode = intField(item, "exit_code");
+            boolean failed = "failed".equals(stringField(item, "status"))
+                    || (exitCode != null && exitCode != 0)
+                    || objectField(item, "error") != null;
+            if (failed) {
+                permissionDenialsByTool.merge(toolName, 1, Integer::sum);
+            }
+        }
+
+        /**
          * Describes a "user" event's {@code tool_result} blocks (Claude's stream-json protocol
          * delivers a completed tool call's outcome as a synthetic user-role message, not as part of
          * the assistant event that requested it) as one line per result, correlated back to the
@@ -970,6 +1037,7 @@ final class AssistantLocalAgentRunner {
                             ? "Calling tool " + label + "..."
                             : "Calling tool " + label + " (" + summary + ")...");
                     if ("item.completed".equals(type)) {
+                        recordCodexToolFailure(label, item);
                         String output = firstNonBlank(
                                 stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
                         if (output != null && !output.isBlank()) {
@@ -981,6 +1049,12 @@ final class AssistantLocalAgentRunner {
                         }
                     }
                     return String.join("\n", lines);
+                }
+                if ("file_change".equals(itemType)) {
+                    if ("item.completed".equals(type)) {
+                        recordCodexFileMutation(item);
+                    }
+                    return null;
                 }
                 if ("agent_message".equals(itemType)) {
                     String text = stringField(item, "text");
