@@ -71,11 +71,30 @@ final class ShaftCustomPropertiesFile {
             }
             return;
         }
+        writeExistingFile(file, sets, removes);
+    }
+
+    private static void writeExistingFile(Path file, Map<String, String> sets, Set<String> removes) {
         List<String> original = readLines(file);
+        List<String> lines = applyRemovals(original, removes);
+        applySets(lines, sets);
+        // Skip the write entirely when nothing actually changed (e.g. removeKeys named keys that
+        // were never present): avoids touching a real user's file -- and its mtime/line-ending
+        // normalization -- on every Settings "Apply" even when this section had no edits.
+        if (!lines.equals(original)) {
+            writeLines(file, lines);
+        }
+    }
+
+    private static List<String> applyRemovals(List<String> original, Set<String> removes) {
         List<String> lines = new ArrayList<>(original);
         if (!removes.isEmpty()) {
             lines.removeIf(line -> parseKeyValue(line).map(kv -> removes.contains(kv[0])).orElse(false));
         }
+        return lines;
+    }
+
+    private static void applySets(List<String> lines, Map<String, String> sets) {
         for (Map.Entry<String, String> entry : sets.entrySet()) {
             int index = indexOfKey(lines, entry.getKey());
             String newLine = entry.getKey() + "=" + entry.getValue();
@@ -84,12 +103,6 @@ final class ShaftCustomPropertiesFile {
             } else {
                 lines.add(newLine);
             }
-        }
-        // Skip the write entirely when nothing actually changed (e.g. removeKeys named keys that
-        // were never present): avoids touching a real user's file -- and its mtime/line-ending
-        // normalization -- on every Settings "Apply" even when this section had no edits.
-        if (!lines.equals(original)) {
-            writeLines(file, lines);
         }
     }
 

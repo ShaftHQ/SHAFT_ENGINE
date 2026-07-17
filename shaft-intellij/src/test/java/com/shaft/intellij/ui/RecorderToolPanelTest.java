@@ -215,7 +215,7 @@ class RecorderToolPanelTest {
 
     private static boolean containsComponent(Container parent, Component target) {
         for (Component child : parent.getComponents()) {
-            if (child == target) {
+            if (child.equals(target)) {
                 return true;
             }
             if (child instanceof Container container && containsComponent(container, target)) {
