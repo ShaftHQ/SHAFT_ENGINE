@@ -50,6 +50,7 @@ final class AssistantCommand {
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
+                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
                     """.stripIndent().trim();
     private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
             """
