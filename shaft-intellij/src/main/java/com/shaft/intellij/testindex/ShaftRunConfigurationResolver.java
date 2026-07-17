@@ -1,14 +1,18 @@
 package com.shaft.intellij.testindex;
 
+import com.intellij.execution.Executor;
+import com.intellij.execution.PsiLocation;
 import com.intellij.execution.RunManager;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.configurations.ConfigurationFactory;
+import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.junit.JUnitConfiguration;
 import com.intellij.execution.junit.JUnitConfigurationType;
 import com.intellij.execution.runners.ExecutionUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaPsiFacade;
@@ -29,13 +33,21 @@ import java.util.Optional;
 
 /**
  * Resolves a {@link ShaftTestIndex.TestRowState#testId()} (a run-configuration display name --
- * see that record's javadoc) back into something runnable or navigable, for the "SHAFT Tests"
- * tool-window tab ({@code ShaftTestsPanel}).
+ * see that record's javadoc) back into something runnable, debuggable, or navigable, for the
+ * "SHAFT Tests" tool-window tab ({@code ShaftTestsPanel}).
  * <p>
- * <b>Run:</b> if a run configuration with that exact name still exists, rerun it (same mechanism
- * as {@link ShaftTestWatchService}'s {@code rerunLastTest()}). Otherwise, a fresh one is created
- * from a resolved {@link PsiClass}, mirroring {@code ShaftTestNgRunConfigurationProducer} /
- * {@code ShaftJUnitRunConfigurationProducer}'s class-configuration setup.
+ * <b>Run/Debug:</b> when no method name is given and a run configuration with that exact name
+ * still exists, rerun it (same mechanism as {@link ShaftTestWatchService}'s
+ * {@code rerunLastTest()}). Otherwise, a fresh configuration is created from a resolved
+ * {@link PsiClass}, mirroring {@code ShaftTestNgRunConfigurationProducer} /
+ * {@code ShaftJUnitRunConfigurationProducer}'s class-configuration setup -- and, when a method
+ * name is given, scoped to that single {@link PsiMethod} via the same
+ * {@code beMethodConfiguration}/{@code setTestMethod} calls those producers use, so a method-tree
+ * node runs or debugs only itself rather than its whole containing class. A method name that
+ * cannot be resolved on the class falls back to the class-level configuration.
+ * <p>
+ * <b>Navigate</b> stays class-granularity only (a method node navigates to its containing class);
+ * only Run/Debug gained per-method resolution here.
  * <p>
  * <b>v1 short-name ambiguity:</b> when {@code testId} is not a fully-qualified name (no {@code .}),
  * class resolution falls back to {@link PsiShortNamesCache#getClassesByName}, which can return
@@ -76,21 +88,54 @@ public final class ShaftRunConfigurationResolver {
     }
 
     /**
-     * Runs {@code testId}: reruns its existing run configuration if one is still registered under
-     * that exact name, otherwise resolves a {@link PsiClass} for it and creates a fresh TestNG or
-     * JUnit class configuration (see class javadoc for the short-name ambiguity this can hit).
-     * A no-op if neither an existing configuration nor a resolvable, runnable class is found.
+     * Runs {@code testId} at class granularity: reruns its existing run configuration if one is
+     * still registered under that exact name, otherwise resolves a {@link PsiClass} for it and
+     * creates a fresh TestNG or JUnit class configuration (see class javadoc for the short-name
+     * ambiguity this can hit). A no-op if neither an existing configuration nor a resolvable,
+     * runnable class is found.
      *
      * @param project project the test belongs to
      * @param testId  run-configuration display name (or fully-qualified/short class name) to run
      */
     public static void run(Project project, String testId) {
-        Optional<RunnerAndConfigurationSettings> existing = findByName(project, testId);
-        if (existing.isPresent()) {
-            runSettings(project, existing.get());
-            return;
+        run(project, testId, null);
+    }
+
+    /**
+     * Runs {@code testId}, scoped to {@code methodName} when given (see class javadoc for the
+     * method-vs-class resolution rules and fallback).
+     *
+     * @param project    project the test belongs to
+     * @param testId     run-configuration display name (or fully-qualified/short class name) to run
+     * @param methodName method to scope the run to, or {@code null}/blank for class granularity
+     */
+    public static void run(Project project, String testId, @Nullable String methodName) {
+        runOrDebug(project, testId, methodName, DefaultRunExecutor.getRunExecutorInstance());
+    }
+
+    /**
+     * Debugs {@code testId}, scoped to {@code methodName} when given -- the same resolution as
+     * {@link #run(Project, String, String)}, launched under the Debug executor instead of Run.
+     *
+     * @param project    project the test belongs to
+     * @param testId     run-configuration display name (or fully-qualified/short class name) to debug
+     * @param methodName method to scope the debug run to, or {@code null}/blank for class granularity
+     */
+    public static void debug(Project project, String testId, @Nullable String methodName) {
+        runOrDebug(project, testId, methodName, DefaultDebugExecutor.getDebugExecutorInstance());
+    }
+
+    private static void runOrDebug(Project project, String testId, @Nullable String methodName, Executor executor) {
+        boolean classGranularity = methodName == null || methodName.isBlank();
+        if (classGranularity) {
+            Optional<RunnerAndConfigurationSettings> existing = findByName(project, testId);
+            if (existing.isPresent()) {
+                runSettings(project, existing.get(), executor);
+                return;
+            }
         }
-        resolvePsiClass(project, testId).ifPresent(psiClass -> createAndRun(project, testId, psiClass));
+        resolvePsiClass(project, testId)
+                .ifPresent(psiClass -> createAndRun(project, testId, classGranularity ? null : methodName, psiClass, executor));
     }
 
     /**
@@ -110,19 +155,40 @@ public final class ShaftRunConfigurationResolver {
         });
     }
 
-    private static void createAndRun(Project project, String testId, PsiClass psiClass) {
+    private static void createAndRun(
+            Project project, String testId, @Nullable String methodName, PsiClass psiClass, Executor executor) {
         Optional<FrameworkKind> kind = detectFrameworkKind(extractMethodAnnotationNames(psiClass));
         if (kind.isEmpty()) {
             // No recognized @Test method on the resolved class: nothing runnable to create, per
             // the same "decline silently" contract as the run-configuration producers.
             return;
         }
+        Optional<PsiMethod> method = methodName == null ? Optional.empty() : findMethod(psiClass, methodName);
         RunManager runManager = RunManager.getInstance(project);
         ConfigurationFactory factory = configurationFactory(kind.get());
-        RunnerAndConfigurationSettings settings = runManager.createConfiguration(testId, factory);
-        beClassConfiguration(kind.get(), settings, psiClass);
+        String configName = method.isPresent() ? testId + "." + methodName : testId;
+        RunnerAndConfigurationSettings settings = runManager.createConfiguration(configName, factory);
+        if (method.isPresent()) {
+            beMethodConfiguration(kind.get(), settings, method.get());
+        } else {
+            beClassConfiguration(kind.get(), settings, psiClass);
+        }
         runManager.addConfiguration(settings);
-        runSettings(project, settings);
+        runSettings(project, settings, executor);
+    }
+
+    /**
+     * Finds a method by simple name on {@code psiClass} -- the same short-name, first-match
+     * tradeoff as this class's short-name class resolution (see class javadoc); a class rarely
+     * overloads its {@code @Test} methods, and disambiguating a scoped run is out of scope for v1.
+     *
+     * @param psiClass   class to search
+     * @param methodName simple method name to find
+     * @return the first matching method, or empty if none match
+     */
+    private static Optional<PsiMethod> findMethod(PsiClass psiClass, String methodName) {
+        PsiMethod[] matches = psiClass.findMethodsByName(methodName, false);
+        return matches.length > 0 ? Optional.of(matches[0]) : Optional.empty();
     }
 
     private static ConfigurationFactory configurationFactory(FrameworkKind kind) {
@@ -140,10 +206,23 @@ public final class ShaftRunConfigurationResolver {
         }
     }
 
-    private static void runSettings(Project project, RunnerAndConfigurationSettings settings) {
+    private static void beMethodConfiguration(
+            FrameworkKind kind, RunnerAndConfigurationSettings settings, PsiMethod method) {
+        if (kind == FrameworkKind.TESTNG) {
+            ((TestNGConfiguration) settings.getConfiguration()).beMethodConfiguration(PsiLocation.fromPsiElement(method));
+            return;
+        }
+        JUnitConfiguration configuration = (JUnitConfiguration) settings.getConfiguration();
+        Module module = configuration.getPersistentData().setTestMethod(PsiLocation.fromPsiElement(method));
+        if (module != null) {
+            configuration.setModule(module);
+        }
+    }
+
+    private static void runSettings(Project project, RunnerAndConfigurationSettings settings, Executor executor) {
         ApplicationManager.getApplication().invokeLater(() -> {
             if (!project.isDisposed()) {
-                ExecutionUtil.runConfiguration(settings, DefaultRunExecutor.getRunExecutorInstance());
+                ExecutionUtil.runConfiguration(settings, executor);
             }
         });
     }

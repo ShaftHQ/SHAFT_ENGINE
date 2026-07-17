@@ -26,6 +26,8 @@ import javax.swing.tree.TreeSelectionModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.Instant;
@@ -51,20 +53,36 @@ import java.util.function.Supplier;
  * run, one-click "Diagnose with SHAFT Doctor" / "Heal failed test" buttons reuse the same MCP
  * prefill flow as {@code FailedRunDoctorNotifier}'s failed-run balloon.
  * <p>
- * A selected class or method node can also be rerun or navigated to via
- * {@link ShaftRunConfigurationResolver}: the "Run" button or a plain double-click reruns it, while
- * Ctrl+double-click or the row's right-click context menu navigates to its resolved class. Package
- * nodes are not selectable for Run/Navigate/Diagnose/Heal. A method node resolves to its
- * <em>containing class</em> for Run/Navigate -- {@link ShaftRunConfigurationResolver} only supports
- * class granularity today; per-method run/navigate is tracked separately.
+ * A selected class or method node can also be run, debugged, or navigated to via
+ * {@link ShaftRunConfigurationResolver}: the "Run"/"Debug" buttons (or a plain double-click for
+ * Run) act on it, while Ctrl+double-click or the row's right-click context menu navigates to its
+ * resolved class. Package nodes are not selectable for Run/Debug/Navigate/Diagnose/Heal. Run and
+ * Debug are method-granular -- a method node runs or debugs only itself, not its whole containing
+ * class (see {@link ShaftRunConfigurationResolver}'s javadoc); Navigate stays class-granular. Each
+ * CLASS/METHOD row also renders a pair of small Run/Debug icons ({@link #iconZoneAt}) that fire the
+ * same actions on a single click, without needing to select the row first.
+ * <p>
+ * <b>Deferred (tracked as a follow-up, not implemented here):</b> status still only appears after a
+ * run terminates ({@link ShaftTestIndex} is populated from exit code on process end). Live
+ * grey/running/pass/fail progression during a run would need wiring this tree to IntelliJ's SM Test
+ * Runner protocol ({@code SMTRunnerEventsListener}/{@code SMTestProxy}) -- {@link ShaftTestIndex}'s
+ * own javadoc already flags that as deliberately out of scope for this lightweight module today.
  */
 final class ShaftTestsPanel extends JPanel {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss")
             .withZone(ZoneId.systemDefault());
 
     /** Kind of node in the discovery tree; only {@link #CLASS} and {@link #METHOD} are selectable
-     * for Run/Navigate/Diagnose/Heal. */
+     * for Run/Debug/Navigate/Diagnose/Heal. */
     enum NodeKind { PACKAGE, CLASS, METHOD }
+
+    /** Which per-node icon (if any) a tree click landed on; see {@link #iconZoneAt}. */
+    enum IconZone { NONE, RUN, DEBUG }
+
+    /** Pixel width of one row icon; matches the platform's standard 16x16 action icons. */
+    private static final int ICON_SIZE = 16;
+    /** Pixel gap between the two row icons (and between the icon pair and the row text). */
+    private static final int ICON_GAP = 2;
 
     /**
      * Tree-node payload. {@code qualifiedName} is the owning class's fully-qualified name for both
@@ -83,9 +101,11 @@ final class ShaftTestsPanel extends JPanel {
     private final JButton refreshButton;
     private final JButton clearButton;
     private final JButton runButton;
+    private final JButton debugButton;
     private final JButton diagnoseButton;
     private final JButton healButton;
     private final JMenuItem navigateMenuItem;
+    private final JMenuItem debugMenuItem;
     private final JPopupMenu rowContextMenu = new JPopupMenu();
     private final JLabel statusLabel = new JLabel(" ");
 
@@ -131,6 +151,10 @@ final class ShaftTestsPanel extends JPanel {
                 if (component instanceof JLabel label && value instanceof DefaultMutableTreeNode node
                         && node.getUserObject() instanceof TestTreeNode treeNode) {
                     label.setText(formatNodeLabel(treeNode.displayName(), treeNode.runState()));
+                    if (treeNode.kind() != NodeKind.PACKAGE) {
+                        label.setIcon(new RunDebugIcon());
+                        label.setIconTextGap(ICON_GAP + 2);
+                    }
                 }
                 return component;
             }
@@ -139,6 +163,20 @@ final class ShaftTestsPanel extends JPanel {
         tree.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {
+                IconZone zone = iconZoneForEvent(event);
+                if (zone != IconZone.NONE) {
+                    if (event.getClickCount() == 1) {
+                        if (zone == IconZone.RUN) {
+                            runSelected();
+                        } else {
+                            debugSelected();
+                        }
+                    }
+                    // A double-click landing on either icon already ran/debugged on its first
+                    // click above -- swallow the second click rather than firing the double-click
+                    // Run/Navigate handling below a second time.
+                    return;
+                }
                 if (event.getClickCount() != 2) {
                     return;
                 }
@@ -161,11 +199,16 @@ final class ShaftTestsPanel extends JPanel {
         });
         navigateMenuItem = new JMenuItem("Navigate to test");
         navigateMenuItem.addActionListener(event -> navigateSelected());
+        debugMenuItem = new JMenuItem("Debug test");
+        debugMenuItem.addActionListener(event -> debugSelected());
         rowContextMenu.add(navigateMenuItem);
+        rowContextMenu.add(debugMenuItem);
         JBScrollPane treeScroll = new JBScrollPane(tree);
         treeScroll.setPreferredSize(JBUI.size(400, 260));
 
-        runButton = button("Run", "Rerun the selected SHAFT test.", ShaftIcons.RERUN, this::runSelected);
+        runButton = button("Run", "Run the selected SHAFT test.", ShaftIcons.RERUN, this::runSelected);
+        debugButton = button("Debug", "Debug the selected SHAFT test.",
+                ShaftIcons.DEBUG, this::debugSelected);
         diagnoseButton = button("Diagnose with SHAFT Doctor",
                 "Prefill a doctor_analyze_failed_allure request for the selected failed run.",
                 ShaftIcons.SEARCH, this::diagnoseSelected);
@@ -173,10 +216,12 @@ final class ShaftTestsPanel extends JPanel {
                 "Prefill a healer_run_failed_test request for the selected failed run.",
                 ShaftIcons.CHECK, this::healSelected);
         runButton.setEnabled(false);
+        debugButton.setEnabled(false);
         diagnoseButton.setEnabled(false);
         healButton.setEnabled(false);
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.add(runButton);
+        actions.add(debugButton);
         actions.add(diagnoseButton);
         actions.add(healButton);
 
@@ -244,7 +289,9 @@ final class ShaftTestsPanel extends JPanel {
         boolean selectable = selected != null && selected.kind() != NodeKind.PACKAGE;
         boolean failed = selectable && isFailRow(selected.runState());
         runButton.setEnabled(selectable);
+        debugButton.setEnabled(selectable);
         navigateMenuItem.setEnabled(selectable);
+        debugMenuItem.setEnabled(selectable);
         diagnoseButton.setEnabled(failed);
         healButton.setEnabled(failed);
     }
@@ -270,12 +317,91 @@ final class ShaftTestsPanel extends JPanel {
         }
     }
 
+    /**
+     * Determines which per-node icon (if any) a click landed on, by comparing the click's x
+     * position against the clicked row's rendered bounds -- see {@link #iconZoneAt} for the actual
+     * zone math, kept pure and separately unit tested since it needs no live tree/PSI/project.
+     *
+     * @param event the mouse click to test
+     * @return the icon zone the click landed in, or {@link IconZone#NONE}
+     */
+    private IconZone iconZoneForEvent(MouseEvent event) {
+        TreePath path = tree.getPathForLocation(event.getX(), event.getY());
+        if (path == null || !(path.getLastPathComponent() instanceof DefaultMutableTreeNode node)
+                || !(node.getUserObject() instanceof TestTreeNode treeNode) || treeNode.kind() == NodeKind.PACKAGE) {
+            return IconZone.NONE;
+        }
+        Rectangle bounds = tree.getPathBounds(path);
+        if (bounds == null) {
+            return IconZone.NONE;
+        }
+        return iconZoneAt(event.getX() - bounds.x);
+    }
+
+    /**
+     * Pure zone math for the two row icons a {@link RunDebugIcon} paints: Run occupies
+     * {@code [0, ICON_SIZE)}, a gap follows, then Debug occupies the next {@code ICON_SIZE} pixels,
+     * then a final gap before the row's text label. Kept as a standalone static method so the
+     * layout math is unit-testable without a rendered {@link JTree}.
+     *
+     * @param localX x offset from the start of the row's rendered cell (i.e. {@code event.getX()}
+     *               minus {@link JTree#getPathBounds}'s x)
+     * @return which icon {@code localX} falls within, or {@link IconZone#NONE} for the gaps/text
+     */
+    static IconZone iconZoneAt(int localX) {
+        if (localX < 0 || localX >= ICON_SIZE) {
+            int debugStart = ICON_SIZE + ICON_GAP;
+            return (localX >= debugStart && localX < debugStart + ICON_SIZE) ? IconZone.DEBUG : IconZone.NONE;
+        }
+        return IconZone.RUN;
+    }
+
+    /** Paints the Run and Debug row icons side by side; see {@link #iconZoneAt} for the matching
+     * hit-test zones. */
+    private static final class RunDebugIcon implements Icon {
+        @Override
+        public void paintIcon(Component component, Graphics graphics, int x, int y) {
+            ShaftIcons.RERUN.paintIcon(component, graphics, x, y);
+            ShaftIcons.DEBUG.paintIcon(component, graphics, x + ICON_SIZE + ICON_GAP, y);
+        }
+
+        @Override
+        public int getIconWidth() {
+            return ICON_SIZE + ICON_GAP + ICON_SIZE;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return ICON_SIZE;
+        }
+    }
+
     private void runSelected() {
         TestTreeNode selected = selectedNode();
         if (selected == null || selected.kind() == NodeKind.PACKAGE) {
             return;
         }
-        ShaftRunConfigurationResolver.run(project, selected.qualifiedName());
+        ShaftRunConfigurationResolver.run(project, selected.qualifiedName(), methodNameOf(selected));
+    }
+
+    private void debugSelected() {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || selected.kind() == NodeKind.PACKAGE) {
+            return;
+        }
+        ShaftRunConfigurationResolver.debug(project, selected.qualifiedName(), methodNameOf(selected));
+    }
+
+    /**
+     * A method node's {@code displayName} is the bare method name (see {@link #refresh}'s tree
+     * construction); Run/Debug pass that through so {@link ShaftRunConfigurationResolver} can scope
+     * to just that method instead of its whole containing class.
+     *
+     * @param node the selected node
+     * @return the method name for a {@link NodeKind#METHOD} node, or {@code null} for a class node
+     */
+    private static String methodNameOf(TestTreeNode node) {
+        return node.kind() == NodeKind.METHOD ? node.displayName() : null;
     }
 
     private void navigateSelected() {
@@ -420,8 +546,16 @@ final class ShaftTestsPanel extends JPanel {
         return runButton;
     }
 
+    JButton debugButtonForTest() {
+        return debugButton;
+    }
+
     JMenuItem navigateMenuItemForTest() {
         return navigateMenuItem;
+    }
+
+    JMenuItem debugMenuItemForTest() {
+        return debugMenuItem;
     }
 
     JLabel statusLabelForTest() {
