@@ -32,6 +32,35 @@ final class AssistantCommand {
     private static final String DEFAULT_DOCTOR_REPORT_PATH = "target/shaft-doctor/doctor-report.json";
     private static final String DEFAULT_STORAGE_STATE_PATH = "target/shaft-browser/storage-state.json";
     private static final String DEFAULT_WINDOW_SIZE = "1280x800";
+
+    private record NaturalSessionCommandRule(Predicate<String> matchesNormalized, Function<String, String> commandFor) {
+    }
+
+    private static final List<NaturalSessionCommandRule> BROWSER_SESSION_COMMAND_RULES = List.of(
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "resize", "window size"),
+                    text -> "size " + firstSizeLikeToken(text)),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "delete all cookies", "clear cookies", "clear all cookies"),
+                    text -> "clearcookies"),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("delete cookie"),
+                    text -> "deletecookie " + firstTokenAfterWord(text, "cookie")),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("aria snapshot"),
+                    text -> "aria"),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("accessibility audit"),
+                    text -> "audit"),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "network requests", "network transactions"),
+                    text -> "network"),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "save session", "save storage state"),
+                    text -> "save " + firstJsonLikePath(text)),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "load session", "load storage state"),
+                    text -> "load " + firstJsonLikePath(text)));
     private static final String AGENT_SOURCE_GUARD =
             """
                     Source edits are not enabled for this session.
@@ -903,35 +932,6 @@ final class AssistantCommand {
      * of the same keywords branched on below, so the final fallback return is unreachable in
      * practice.
      */
-    private record NaturalSessionCommandRule(Predicate<String> matchesNormalized, Function<String, String> commandFor) {
-    }
-
-    private static final List<NaturalSessionCommandRule> BROWSER_SESSION_COMMAND_RULES = List.of(
-            new NaturalSessionCommandRule(
-                    normalized -> containsAny(normalized, "resize", "window size"),
-                    text -> "size " + firstSizeLikeToken(text)),
-            new NaturalSessionCommandRule(
-                    normalized -> containsAny(normalized, "delete all cookies", "clear cookies", "clear all cookies"),
-                    text -> "clearcookies"),
-            new NaturalSessionCommandRule(
-                    normalized -> normalized.contains("delete cookie"),
-                    text -> "deletecookie " + firstTokenAfterWord(text, "cookie")),
-            new NaturalSessionCommandRule(
-                    normalized -> normalized.contains("aria snapshot"),
-                    text -> "aria"),
-            new NaturalSessionCommandRule(
-                    normalized -> normalized.contains("accessibility audit"),
-                    text -> "audit"),
-            new NaturalSessionCommandRule(
-                    normalized -> containsAny(normalized, "network requests", "network transactions"),
-                    text -> "network"),
-            new NaturalSessionCommandRule(
-                    normalized -> containsAny(normalized, "save session", "save storage state"),
-                    text -> "save " + firstJsonLikePath(text)),
-            new NaturalSessionCommandRule(
-                    normalized -> containsAny(normalized, "load session", "load storage state"),
-                    text -> "load " + firstJsonLikePath(text)));
-
     private static String naturalBrowserSessionCommand(String text) {
         String normalized = normalizeNaturalCommand(text);
         for (NaturalSessionCommandRule rule : BROWSER_SESSION_COMMAND_RULES) {
@@ -943,26 +943,29 @@ final class AssistantCommand {
     }
 
     private static JsonObject windowSize(String rest) {
-        String[] widthHeight = parseWidthHeight(rest);
+        int[] widthHeight = parseWidthHeight(rest);
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("width", Integer.parseInt(widthHeight[0]));
-        arguments.addProperty("height", Integer.parseInt(widthHeight[1]));
+        arguments.addProperty("width", widthHeight[0]);
+        arguments.addProperty("height", widthHeight[1]);
         return arguments;
     }
 
-    private static String[] parseWidthHeight(String rest) {
+    // Returns already-validated ints (never re-parsed by the caller) so windowSize cannot hit an
+    // uncaught NumberFormatException: both the parsed and the DEFAULT_WINDOW_SIZE fallback paths
+    // resolve to ints before returning.
+    private static int[] parseWidthHeight(String rest) {
         // Scans every token rather than just the first: natural phrasing like "resize the browser
         // window to 1920x1080" puts the WxH token well after the action word.
         String[] parts = firstSizeLikeToken(rest).toLowerCase(Locale.ROOT).split("x");
         if (parts.length == 2) {
             try {
-                return new String[]{String.valueOf(Integer.parseInt(parts[0].trim())), String.valueOf(Integer.parseInt(parts[1].trim()))};
+                return new int[]{Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
             } catch (NumberFormatException notNumeric) {
                 // fall through to the default size below
             }
         }
         String[] fallback = DEFAULT_WINDOW_SIZE.split("x");
-        return new String[]{fallback[0], fallback[1]};
+        return new int[]{Integer.parseInt(fallback[0]), Integer.parseInt(fallback[1])};
     }
 
     private static JsonObject cookieName(String rest) {

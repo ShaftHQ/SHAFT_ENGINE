@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link ShaftSmTestRunnerBridge#parseIndexKey}/{@link ShaftSmTestRunnerBridge#finishedStatus} are
@@ -94,7 +93,7 @@ class ShaftSmTestRunnerBridgeTest {
         // real class/method name and corrupt a lookup, without needing package-private access to
         // ShaftTestsPanel's own key-building helper.
         char separator = ShaftSmTestRunnerBridge.METHOD_KEY_SEPARATOR;
-        assertTrue(separator == '#');
+        assertEquals('#', separator);
         assertFalse(Character.isJavaIdentifierPart(separator));
     }
 }
