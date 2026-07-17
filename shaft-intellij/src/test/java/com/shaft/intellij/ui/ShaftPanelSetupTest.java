@@ -1929,16 +1929,32 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals(List.of("Assistant"), labels),
                 () -> assertFalse(selector.isVisible()),
-                // The persistent setup-health chip (issue #3425 A6) rides in the same header,
-                // extended into the shared readiness strip (issue #3500 O4/A4).
-                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP health", JLabel.class)),
-                () -> assertNotNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
-                () -> assertTrue(containsText(toolWindow, "MCP: verified")),
-                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT workspace state", JLabel.class)),
-                // No agent was verified in this settings fixture: the strip must say the lane is
-                // optional rather than inventing readiness (issue #3500 honesty pillar).
-                () -> assertTrue(containsText(toolWindow, "Agent: optional")),
-                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT recording activity", JLabel.class)));
+                // The MCP-status/Recheck chip used to ride in this shared header above every
+                // workflow tab. Issue #3676 removed it from ShaftToolWindowPanel entirely --
+                // not just hidden on the Assistant tab -- per explicit user feedback that it was
+                // unwanted noise once already connected.
+                () -> assertNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)));
+    }
+
+    @Test
+    void toolWindowHeaderIsJustTheChatHistoryDropdown() {
+        // Issue #3676: the user wants the chat-history dropdown directly below the tool window's
+        // own header -- no MCP-status/Recheck chip, no empty space it left behind, and no second
+        // "SHAFT Assistant" sub-header repeating what the tool window title already says.
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+
+        assertAll(
+                () -> assertNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
+                () -> assertFalse(containsText(toolWindow, "MCP: verified")),
+                () -> assertNull(findLabelWithText(toolWindow, "SHAFT Assistant")),
+                () -> {
+                    JPanel chatHeader = findByAccessibleName(toolWindow, "Assistant chat header", JPanel.class);
+                    assertNotNull(chatHeader);
+                    // Down from two children (title label + chat row) to just the chat row: the
+                    // chat-history dropdown is the first real component under this header now.
+                    assertEquals(1, chatHeader.getComponentCount());
+                    assertNotNull(findByAccessibleName(chatHeader, "Assistant chat", JComboBox.class));
+                });
     }
 
     @Test
@@ -2642,6 +2658,56 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantTimelineSuppressesToolSearchButKeepsRealToolCalls() throws Exception {
+        // #3672: ToolSearch is an internal harness meta-tool call (the CLI's own tool-schema
+        // lookup) with no user-relevant signal, so it must not leak into the compact Run timeline
+        // -- but real actions (Bash) and real SHAFT MCP tool calls (mcp__shaft-mcp__...) must still
+        // surface, proving the fix didn't over-suppress.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        appendStreamingLocalAgentBubble(panel, 111);
+        appendLocalAgentOutput(panel, 111, "Calling tool ToolSearch...");
+        appendLocalAgentOutput(panel, 111, "Calling tool Bash (echo hi)...");
+        appendLocalAgentOutput(panel, 111, "Calling tool mcp__shaft-mcp__capture_start...");
+
+        assertAll(
+                () -> assertFalse(listContains(timeline, "Calling tool ToolSearch"),
+                        "Internal harness meta-tool calls must not leak into the visible Run timeline: "
+                                + timelineSteps(timeline)),
+                () -> assertTrue(listContains(timeline, "Calling tool Bash"), timelineSteps(timeline).toString()),
+                () -> assertTrue(listContains(timeline, "Calling tool mcp__shaft-mcp__capture_start"),
+                        timelineSteps(timeline).toString()));
+    }
+
+    @Test
+    void assistantTimelineSkipsEntryWhenSuppressedToolCallIsTheOnlyContent() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+        int sizeBefore = timeline.getModel().getSize();
+
+        appendStreamingLocalAgentBubble(panel, 112);
+        appendLocalAgentOutput(panel, 112, "Calling tool ToolSearch...");
+
+        assertEquals(sizeBefore, timeline.getModel().getSize(), timelineSteps(timeline).toString());
+    }
+
+    @Test
+    void assistantTimelineKeepsSiblingLineWhenOnlyOneSubLineIsSuppressed() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        appendStreamingLocalAgentBubble(panel, 113);
+        appendLocalAgentOutput(panel, 113, "Thinking: deciding what to search\nCalling tool ToolSearch...");
+
+        assertAll(
+                () -> assertTrue(listContains(timeline, "Thinking: deciding what to search"),
+                        timelineSteps(timeline).toString()),
+                () -> assertFalse(listContains(timeline, "Calling tool ToolSearch"),
+                        timelineSteps(timeline).toString()));
+    }
+
+    @Test
     void assistantVerboseModeShowsLiveAgentOutput() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
@@ -3306,15 +3372,13 @@ class ShaftPanelSetupTest {
                 // above: it names the exact check being run on a first-run setup screen (issue #3538).
                 .filter(button -> !"Check SHAFT MCP version".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
-                // its lane (issue #3425 A2/B7/A6), and the health-chip recheck is a compact
-                // header action.
+                // its lane (issue #3425 A2/B7/A6).
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
                 // The primary "get to green" retry beside it needs the same visible-label treatment
                 // (real user report: no button anywhere retried just the agent lane besides redoing
                 // steps 2/4 from scratch).
                 .filter(button -> !"Connect SHAFT agent".equals(accessibleName(button)))
                 .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
-                .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
                 // The user-guide footer link is a text hyperlink by design, not an icon button.
                 .filter(button -> !"Open SHAFT user guide in browser".equals(accessibleName(button)))
                 // Setup-screen prerequisite/recovery command buttons keep visible labels like the
@@ -4070,16 +4134,32 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantAskOrPlanMcpPromptTellsUserToSwitchToAgentMode() {
+    void assistantAskOrPlanMcpPromptOffersOneClickSwitchToAgentMode() {
+        // Issue #3681: SHAFT already knows exactly which binary confirmation and control this gate
+        // needs, so it must offer a one-click fix instead of plain chat text the user has to act on
+        // by finding the mode combo box themselves.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
         assertNotNull(assistantMode);
         assistantMode.setSelectedItem("PLAN");
 
-        assistantPrompt(panel).setText("open duckduckgo and search for SHAFT Engine");
+        String promptText = "open duckduckgo and search for SHAFT Engine";
+        assistantPrompt(panel).setText(promptText);
         clickAccessible(panel, "Send assistant prompt");
 
-        assertTrue(transcriptMarkdown(panel).contains("Switch to **Agent** mode"));
+        JButton fix = findByAccessibleName(panel, "Switch to Agent mode and resend", JButton.class);
+        assertNotNull(fix, "The MCP-mode gate must offer a one-click fix button, not just prose.");
+        assertEquals("PLAN", assistantMode.getSelectedItem(), "Mode must not flip until the button is clicked.");
+
+        fix.doClick();
+
+        assertAll(
+                () -> assertEquals("AGENT", assistantMode.getSelectedItem(),
+                        "Clicking the fix must switch the mode selector to Agent."),
+                () -> assertEquals(2, countOccurrences(transcriptMarkdown(panel), promptText),
+                        "Clicking the fix must resend the original prompt."),
+                () -> assertNull(findByAccessibleName(panel, "Switch to Agent mode and resend", JButton.class),
+                        "The gate bubble must clear itself once the fix is applied."));
     }
 
     @Test
@@ -4101,6 +4181,42 @@ class ShaftPanelSetupTest {
         clickAccessible(panel, "Send assistant prompt");
 
         assertFalse(transcriptMarkdown(panel).contains("enable **Allow source edits**"));
+    }
+
+    @Test
+    void assistantSourceEditGateOffersOneClickAllowAndResend() {
+        // Issue #3681: same one-click-fix treatment as the MCP-mode gate above, for the source-edit
+        // approval gate -- ticks the checkbox and resends instead of leaving prose for the user to
+        // act on.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+        JTextComponent customCommand = textComponent(panel, "Optional local agent command");
+        assertAll(
+                () -> assertNotNull(assistantMode),
+                () -> assertNotNull(allowEdits),
+                () -> assertNotNull(customCommand));
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(false);
+        customCommand.setText("custom-agent --unsafe");
+
+        String promptText = "fix this Java test";
+        assistantPrompt(panel).setText(promptText);
+        clickAccessible(panel, "Send assistant prompt");
+
+        JButton fix = findByAccessibleName(panel, "Allow source edits and resend", JButton.class);
+        assertNotNull(fix, "The source-edit gate must offer a one-click fix button, not just prose.");
+        assertFalse(allowEdits.isSelected(), "The checkbox must not flip until the button is clicked.");
+
+        fix.doClick();
+
+        assertAll(
+                () -> assertTrue(allowEdits.isSelected(),
+                        "Clicking the fix must tick the Allow source edits checkbox."),
+                () -> assertEquals(2, countOccurrences(transcriptMarkdown(panel), promptText),
+                        "Clicking the fix must resend the original prompt."),
+                () -> assertNull(findByAccessibleName(panel, "Allow source edits and resend", JButton.class),
+                        "The gate bubble must clear itself once the fix is applied."));
     }
 
     @Test
@@ -5428,6 +5544,146 @@ class ShaftPanelSetupTest {
         }
     }
 
+    private static String firstJavaClassBlock(JsonObject raw) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("firstJavaClassBlock", JsonObject.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, (Object) raw);
+    }
+
+    private static void rememberCaptureInvocation(
+            ShaftAssistantPanel panel, String promptText, AssistantCommand.Invocation invocation) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "rememberCaptureInvocation", String.class, AssistantCommand.Invocation.class);
+        method.setAccessible(true);
+        method.invoke(panel, promptText, invocation);
+    }
+
+    private static void populateContextPopup(
+            ShaftAssistantPanel panel, List<ShaftAssistantPanel.ContextSuggestion> suggestions) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("populateContextPopup", List.class);
+        method.setAccessible(true);
+        method.invoke(panel, suggestions);
+    }
+
+    private static void refreshContextPopupFilter(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("refreshContextPopupFilter");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void showContextSuggestions(ShaftAssistantPanel panel, char trigger) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("showContextSuggestions", char.class);
+        method.setAccessible(true);
+        method.invoke(panel, trigger);
+    }
+
+    private static void appendSequenceStep(
+            ShaftAssistantPanel panel, AssistantCommand.ToolCall toolCall, String statusText, String output)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "appendSequenceStep", AssistantCommand.ToolCall.class, String.class, String.class);
+        method.setAccessible(true);
+        method.invoke(panel, toolCall, statusText, output);
+    }
+
+    private static void showDeniedSequenceResult(ShaftAssistantPanel panel, AssistantCommand.ToolCall toolCall)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showDeniedSequenceResult", AssistantCommand.ToolCall.class);
+        method.setAccessible(true);
+        method.invoke(panel, toolCall);
+    }
+
+    private static void showTerminalSequenceResult(ShaftAssistantPanel panel, boolean cancelled, String statusText)
+            throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showTerminalSequenceResult", boolean.class, String.class);
+        method.setAccessible(true);
+        method.invoke(panel, cancelled, statusText);
+    }
+
+    private static boolean formatUnknownResponse(
+            ShaftAssistantPanel panel, String toolName, String output, String fallbackMarkdown) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "formatUnknownResponse", String.class, String.class, String.class);
+        method.setAccessible(true);
+        return (boolean) method.invoke(panel, toolName, output, fallbackMarkdown);
+    }
+
+    private static void showFormattedUnknownResponse(
+            ShaftAssistantPanel panel,
+            String originalToolName,
+            String rawOutput,
+            String fallbackMarkdown,
+            String formatterToolName,
+            ShaftMcpToolResult result,
+            Throwable error) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showFormattedUnknownResponse", String.class, String.class, String.class, String.class,
+                ShaftMcpToolResult.class, Throwable.class);
+        method.setAccessible(true);
+        method.invoke(panel, originalToolName, rawOutput, fallbackMarkdown, formatterToolName, result, error);
+    }
+
+    private static void createTestClassFromReview(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("createTestClassFromReview");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void openCaptureReviewFile(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("openCaptureReviewFile");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void collectCaptureEvidencePack(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("collectCaptureEvidencePack");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void compareCaptureBackends(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("compareCaptureBackends");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void insertReviewIntoOpenFile(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("insertReviewIntoOpenFile");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    private static void scheduleCaptureStartDiagnostic(ShaftAssistantPanel panel, String startOutput) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("scheduleCaptureStartDiagnostic", String.class);
+        method.setAccessible(true);
+        method.invoke(panel, startOutput);
+    }
+
+    private static void saveCloudApiKey(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("saveCloudApiKey");
+        method.setAccessible(true);
+        method.invoke(panel);
+    }
+
+    /**
+     * Sets {@code pendingCaptureReview} with a caller-controlled raw MCP result (unlike {@link
+     * #setPendingCaptureReview(ShaftAssistantPanel, String)}, which always hardcodes an empty raw
+     * result) -- needed by review-action tests ({@code openCaptureReviewFile},
+     * {@code collectCaptureEvidencePack}, {@code compareCaptureBackends}) that read specific fields
+     * (e.g. {@code reviewPath}) back out of the stored raw JSON via {@code pendingReviewJson()}.
+     */
+    private static void setPendingCaptureReviewRaw(ShaftAssistantPanel panel, String markdown, String rawResult)
+            throws Exception {
+        Class<?> captureReviewClass = Class.forName("com.shaft.intellij.ui.ShaftAssistantPanel$CaptureReview");
+        java.lang.reflect.Constructor<?> constructor =
+                captureReviewClass.getDeclaredConstructor(String.class, String.class);
+        constructor.setAccessible(true);
+        Object review = constructor.newInstance(markdown, rawResult);
+        setField(panel, "pendingCaptureReview", review);
+    }
+
     private static int countOccurrences(String value, String needle) {
         int count = 0;
         int offset = 0;
@@ -5730,6 +5986,28 @@ class ShaftPanelSetupTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 JButton found = findButton(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Finds a {@link JLabel} whose visible text exactly equals {@code text} -- unlike
+     * {@link #containsText(Component, String)}, this does not match the phrase when it appears
+     * inside a button, transcript, or other non-label component (e.g. the Assistant's welcome
+     * message says "I'm the SHAFT Assistant" in the transcript, which must not count as the
+     * removed "SHAFT Assistant" sub-header label, issue #3676).
+     */
+    private static JLabel findLabelWithText(Component component, String text) {
+        if (component instanceof JLabel label && text.equals(label.getText())) {
+            return label;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JLabel found = findLabelWithText(child, text);
                 if (found != null) {
                     return found;
                 }

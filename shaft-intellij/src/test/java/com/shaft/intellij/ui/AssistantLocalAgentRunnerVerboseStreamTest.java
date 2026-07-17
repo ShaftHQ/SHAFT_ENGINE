@@ -271,6 +271,55 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     }
 
     /**
+     * Parity regression for issue #3679: Codex (the plugin's default agent client) must grow the
+     * same "Local agent activity" footer that Claude runs already get -- today it never does,
+     * because {@code describeCodexEvent} never records file mutations or failed/denied tool calls.
+     */
+    @Test
+    void finalOutputListsFilesWrittenByCodexEvenWhenTheAnswerIsTerse() throws Exception {
+        String fileChangeEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"file_change\","
+                + "\"status\":\"completed\",\"changes\":["
+                + "{\"path\":\"src/test/java/pages/LoginPage.java\",\"kind\":\"add\"}]}}";
+
+        String output = finalOutput(codexInvocation(), fileChangeEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(output.contains("Files created or edited: `src/test/java/pages/LoginPage.java`"), output);
+    }
+
+    @Test
+    void finalOutputSurfacesCodexCommandFailuresAsFailedOrDeniedToolCalls() throws Exception {
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\","
+                + "\"name\":\"shell\",\"command\":\"echo secret > file\",\"aggregated_output\":\"denied\","
+                + "\"exit_code\":1,\"status\":\"failed\"}}";
+
+        String output = finalOutput(codexInvocation(), toolEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(output.contains("No files were created or edited by this run."), output);
+        assertTrue(output.contains("Failed or denied tool calls: shell"), output);
+        assertTrue(!output.contains("approve them when prompted"),
+                "Codex has no interactive approval prompt, so the Claude-specific hint must not appear: " + output);
+    }
+
+    @Test
+    void finalOutputTreatsAFailedCodexPatchAsADenialNotAFileEdit() throws Exception {
+        String failedPatch = "{\"type\":\"item.completed\",\"item\":{\"type\":\"file_change\","
+                + "\"status\":\"failed\",\"changes\":[{\"path\":\"a.txt\",\"kind\":\"update\"}]}}";
+
+        String output = finalOutput(codexInvocation(), failedPatch + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(output.contains("No files were created or edited by this run."), output);
+        assertTrue(output.contains("Failed or denied tool calls: file_change"), output);
+    }
+
+    @Test
+    void finalOutputStaysCleanForCodexWhenNothingWasWrittenAndNothingFailed() throws Exception {
+        String output = finalOutput(codexInvocation(), codexTurnCompletedEvent() + "\n");
+
+        assertTrue(!output.contains("Local agent activity"),
+                "A plain Codex Q&A run must not grow an activity footer: " + output);
+    }
+
+    /**
      * Regression for the "rerun failure dumps raw JSON" report: a structured (stream-json) CLI that
      * exits non-zero after emitting only native NDJSON events (system/thinking lines, no terminal
      * result) must render a clean, plain-language failure message -- never the raw stream.

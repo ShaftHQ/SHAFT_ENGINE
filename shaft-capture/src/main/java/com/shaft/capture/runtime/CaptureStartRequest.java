@@ -6,7 +6,8 @@ import java.nio.file.Path;
 /**
  * Validated request for a managed browser capture session.
  *
- * @param targetUrl initial browser URL
+ * @param targetUrl initial browser URL; blank or {@code null} opens an empty browser at
+ *     {@code about:blank} instead of being rejected
  * @param browser supported browser family
  * @param outputPath capture JSON output
  * @param runtimeDirectory local control and temporary-profile directory
@@ -23,7 +24,8 @@ public record CaptureStartRequest(
     /**
      * Creates a request with default codegen options.
      *
-     * @param targetUrl initial browser URL
+     * @param targetUrl initial browser URL; blank or {@code null} opens an empty browser at
+     *     {@code about:blank} instead of being rejected
      * @param browser supported browser family
      * @param outputPath capture JSON output
      * @param runtimeDirectory local control and temporary-profile directory
@@ -57,7 +59,7 @@ public record CaptureStartRequest(
 
     private static String validateUrl(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("Capture target URL is required.");
+            return "about:blank";
         }
         URI uri;
         try {
