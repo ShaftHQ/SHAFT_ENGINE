@@ -1,12 +1,12 @@
 {
-  "body_path": "memory/gotchas/shaftassistantpanel-construction-silently-starts-a-background-local-model-refresh-that-races-with-any-test-driving-applylocalmodels-refreshlocalmodelsifneeded-via-reflection.md",
-  "content_hash": "sha256:c9aacecbd4e022abc5bc1a8c77455bb9e79538e07562351b8a617dda6709f3e8",
+  "body_path": "memory/gotchas/shaftassistantpanel-construction-starts-a-background-local-model-refresh-racing-tests.md",
+  "content_hash": "sha256:1ecfc443b1bca8d6439b3e13b0763cfc22401dd23bab13b17c0e42131937caf6",
   "created_at": "2026-07-17T05:36:37+03:00",
   "evidence": [],
   "facets": {
     "category": "gotcha"
   },
-  "id": "gotcha.shaftassistantpanel-construction-silently-starts-a-background-local-model-refresh-that-races-with-any-test-driving-applylocalmodels-refreshlocalmodelsifneeded-via-reflection",
+  "id": "gotcha.shaftassistantpanel-construction-starts-a-background-local-model-refresh-racing-tests",
   "scope": {
     "branch": null,
     "kind": "project",
