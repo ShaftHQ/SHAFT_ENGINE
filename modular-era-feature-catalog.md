@@ -314,6 +314,8 @@ professionalism gaps the first audit didn't reach — no new features, all reuse
 | Muted empty state | The tool catalog's "No tool template matches the current filter" message now renders muted/disabled, matching the plugin's established empty-state treatment. | `Advanced` tools tab |
 | Unified transient confirmation | The Assistant's transient status label now uses the same bordered, tinted "chip" look as the MCP setup toast, instead of two different visual languages for the same concept. | `Assistant` tab, `Settings \| SHAFT MCP` setup |
 | Explicit icon wiring | Guided Workflows' and Evidence Triage's buttons now receive their icon explicitly at construction instead of an icon lookup keyed on the button's display text, so a future label edit can't silently point at the wrong icon. | `Guided`, `Triage` tabs |
+| Collapsing notices strip | The Assistant's setup/fresh-project banner strip no longer reserves blank height for hidden banners, closing the gap between the panel header and the "New chat" chat-history dropdown so the transcript below it fills the remaining space. | `Assistant` tab, chat header |
+| Scope-colored approval buttons | The tool-approval prompt's three approval buttons now render with equal visual weight and are color-coded by scope breadth -- green for "Approve all tools", blue for "Approve tool always", yellow for "Approve once" -- nudging toward broader scopes instead of dimming them. | `Assistant` tab, tool approval prompt |
 
 ## Modular Adoption
 

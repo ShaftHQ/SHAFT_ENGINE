@@ -13,6 +13,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
@@ -119,21 +120,49 @@ final class ToolApprovalPromptPanel extends JPanel {
         button.getAccessibleContext().setAccessibleDescription(buttonDescription(toolName, decision));
         button.setToolTipText(buttonDescription(toolName, decision));
         button.addActionListener(event -> decide(decision));
-        if (isBroadScope(decision)) {
-            button.setFont(button.getFont().deriveFont(Math.max(10f, button.getFont().getSize2D() - 1f)));
-            button.setForeground(JBColor.namedColor("Label.disabledForeground", JBColor.GRAY));
-        }
+        applyScopeEmphasis(button, decision);
         decisionButtons.add(button);
         return button;
     }
 
     /**
-     * {@code APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} grant broader, longer-lived
-     * trust than {@code APPROVE_ONCE} or {@code DENY}; they're rendered with a lighter visual
-     * weight so the narrowest/safest choices remain the default-looking path.
+     * Color-codes each approval-scope button by how much trust it grants, nudging users toward
+     * the broader scopes instead of dimming them (issue #3696). Previously {@code
+     * APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} rendered with a smaller font, gray
+     * foreground, and no border -- a "de-emphasized, avoid me" look -- while {@code APPROVE_ONCE}
+     * kept the full default emphasis, the opposite of the intended nudge. All three scope buttons
+     * now share equal font size and an opaque, bordered fill; only the hue differs by scope.
+     * {@code DENY} is not a scope to weight and keeps the platform default look.
      */
-    private static boolean isBroadScope(ToolApprovalDecision decision) {
-        return decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS || decision == ToolApprovalDecision.APPROVE_ALL_TOOLS;
+    private static void applyScopeEmphasis(JButton button, ToolApprovalDecision decision) {
+        JBColor fill = scopeColor(decision);
+        if (fill == null) {
+            return;
+        }
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBackground(fill);
+        // The light-theme leg of every scopeColor() below is a light/medium pastel (black reads
+        // clearly on it); the dark-theme leg is a deep, saturated shade (white reads clearly on
+        // it) -- so one black/white pair covers both themes without per-color contrast math.
+        button.setForeground(new JBColor(Color.BLACK, Color.WHITE));
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(fill.darker(), 1),
+                JBUI.Borders.empty(2, 8)));
+    }
+
+    /**
+     * Scope-breadth color: green (broadest) for {@code APPROVE_ALL_TOOLS}, blue (medium) for
+     * {@code APPROVE_TOOL_ALWAYS}, yellow (narrowest) for {@code APPROVE_ONCE}. {@code null} for
+     * {@code DENY}, which keeps the platform default button look.
+     */
+    private static JBColor scopeColor(ToolApprovalDecision decision) {
+        return switch (decision) {
+            case APPROVE_ALL_TOOLS -> new JBColor(new Color(0x8FCB8F), new Color(0x2E7D32));
+            case APPROVE_TOOL_ALWAYS -> new JBColor(new Color(0x8FB6E8), new Color(0x1565C0));
+            case APPROVE_ONCE -> new JBColor(new Color(0xE8D26B), new Color(0x8D7A1E));
+            case DENY -> null;
+        };
     }
 
     private static String buttonDescription(String toolName, ToolApprovalDecision decision) {

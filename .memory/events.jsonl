@@ -337,6 +337,8 @@
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model","timestamp":"2026-07-17T21:52:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency","timestamp":"2026-07-17T22:59:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-prior-javadoc-claim-about-sm-test-framework-ui-dependency-cost-was-stale-inaccurate","timestamp":"2026-07-17T22:59:55+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.java-awt-gridlayout-reserves-full-row-height-for-invisible-children-unlike-borderlayout-boxlayout-which-collapse-them-to-zero","timestamp":"2026-07-17T23:13:57+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.toolapprovalpromptpanel-approval-scope-buttons-are-color-coded-green-blue-yellow-via-jbcolor-not-font-dimmed-to-nudge-toward-broader-approval-scopes","timestamp":"2026-07-17T23:13:57+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.always-pass-dallure-automaticallyopen-false-on-any-maven-run-that-can-generate-an-allure-report","timestamp":"2026-07-17T23:19:11+03:00"}
 {"actor":"agent","event":"memory.created","id":"constraint.when-editing-agents-md-claude-md-requires-trimming-bytes-trim-the-whole-document-not-just-the-touched-section","timestamp":"2026-07-17T23:20:31+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op","timestamp":"2026-07-17T23:31:36+03:00"}
