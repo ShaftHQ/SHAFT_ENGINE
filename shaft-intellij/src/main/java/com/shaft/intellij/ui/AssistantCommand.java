@@ -40,6 +40,13 @@ final class AssistantCommand {
                     Source edits are approved for this session.
                     You may apply patches, write files, and run filesystem commands needed to make the requested source changes.
                     """.stripIndent().trim();
+    // Split out so cloudPrompt's non-code-generation branch (which has no other reason to mention
+    // shaft-mcp -- cloud providers don't have it) can still ask cloud models to emit the fence that
+    // AssistantQuestion.detect looks for, without pulling in the rest of the shaft-mcp-specific hint.
+    private static final String SHAFT_OPTIONS_HINT =
+            """
+                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+                    """.stripIndent().trim();
     private static final String SHAFT_MCP_USAGE_HINT =
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
@@ -50,8 +57,7 @@ final class AssistantCommand {
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
-                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
-                    """.stripIndent().trim();
+                    """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
     private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
             """
                     This is a code-generation request. Before returning Java:
@@ -626,7 +632,7 @@ final class AssistantCommand {
     private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext,
                                       String conversationContext) {
         if (!isCodeGenerationRequest(text)) {
-            return withConversationContext(text, conversationContext);
+            return withConversationContext(SHAFT_OPTIONS_HINT + "\n\n" + text, conversationContext);
         }
         return withConversationContext(SHAFT_MCP_USAGE_HINT
                 + "\n" + codeGenerationGuidance(text)

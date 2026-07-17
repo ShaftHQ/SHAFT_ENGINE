@@ -155,7 +155,8 @@ class AssistantCommandTest {
                 () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("Conversation context:")),
                 () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains(context)),
                 () -> assertTrue(cloud.arguments().get("prompt").getAsString()
-                        .contains("Current request:\nsummarize next step")));
+                        .contains("Current request:\nIf you need to ask the user a genuine clarifying question")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("summarize next step")));
     }
 
     @Test
@@ -611,8 +612,41 @@ class AssistantCommandTest {
         assertEquals("github", invocation.arguments().get("provider").getAsString());
         assertEquals("openai/gpt-4.1", invocation.arguments().get("model").getAsString());
         assertEquals("PLAN", invocation.arguments().get("mode").getAsString());
-        assertEquals("Review the checkout test plan", invocation.arguments().get("prompt").getAsString());
+        assertEquals("""
+                If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+
+                Review the checkout test plan""",
+                invocation.arguments().get("prompt").getAsString());
         assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void cloudPromptsIncludeShaftOptionsHintSoClarifyingQuestionsRenderChips() {
+        // Issue #3690: the shaft-options fence instruction (added to SHAFT_MCP_USAGE_HINT by #3674)
+        // must also reach cloud-provider chat prompts (autobot_provider_chat), not just local-agent
+        // ones, so a clarifying question asked by a cloud model still renders selectable chips.
+        AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
+                "Which login flow should I test?",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation codegen = AssistantCommand.fromPrompt(
+                "generate test for the login page",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String nonCodegenPrompt = nonCodegen.arguments().get("prompt").getAsString();
+        String codegenPrompt = codegen.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(nonCodegenPrompt.contains("tagged shaft-options"), nonCodegenPrompt),
+                () -> assertTrue(nonCodegenPrompt.contains("Which login flow should I test?"), nonCodegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("tagged shaft-options"), codegenPrompt));
     }
 
     @Test
