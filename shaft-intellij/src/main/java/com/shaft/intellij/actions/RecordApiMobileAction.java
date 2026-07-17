@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class RecordApiMobileAction extends AnAction implements DumbAware {
     private static final String DEFAULT_PLATFORM = "Android";
+    private static final String NOTIFICATION_TITLE = "API recording (mobile)";
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
@@ -52,12 +53,12 @@ public final class RecordApiMobileAction extends AnAction implements DumbAware {
             // RecordApiWebAction's equivalent plain-language routing (issue #3552) -- the raw API
             // Recording tab stays hidden here.
             openAssistantPrompt(project, recordApiMobilePrompt(trimmedPlatform));
-            ShaftNotifier.info(project, "SHAFT",
+            ShaftNotifier.info(project, NOTIFICATION_TITLE,
                     "Pure-API recording request ready in the Assistant for " + trimmedPlatform + ".");
             return;
         }
         openApiRecordingTab(project, trimmedPlatform, arguments);
-        ShaftNotifier.info(project, "SHAFT", "Pure-API recording prepared for " + trimmedPlatform + ".");
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, "Pure-API recording prepared for " + trimmedPlatform + ".");
     }
 
     @Override

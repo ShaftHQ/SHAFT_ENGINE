@@ -26,6 +26,7 @@ import java.util.Set;
 public final class RecordApiWebAction extends AnAction implements DumbAware {
     private static final String DEFAULT_TARGET_URL = "https://example.com";
     private static final String START_TOOL_NAME = "capture_api_start";
+    private static final String NOTIFICATION_TITLE = "API recording (web)";
 
     /**
      * Exact field names of {@code com.shaft.capture.runtime.NetworkCaptureOptions}, the class the
@@ -71,7 +72,7 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
         if (!unknownKeys.isEmpty()) {
             // Warn instead of failing the request: an unrecognized key is dropped by the MCP binder,
             // not rejected, so the recording still starts -- just without the intended option applied.
-            ShaftNotifier.warn(project, "SHAFT", "networkOptions has unrecognized key(s) " + unknownKeys
+            ShaftNotifier.warn(project, NOTIFICATION_TITLE, "networkOptions has unrecognized key(s) " + unknownKeys
                     + " -- they will be silently ignored and any body capture they were meant to control "
                     + "may default off. Valid keys: " + NETWORK_CAPTURE_OPTIONS_FIELDS);
         }
@@ -88,12 +89,12 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
             // equivalent plain-language request, instead of discarding it behind a dead-end warning
             // (issue #3552) -- the raw API Recording tab stays hidden here.
             openAssistantPrompt(project, recordApiPrompt(targetUrl.trim()));
-            ShaftNotifier.info(project, "SHAFT",
+            ShaftNotifier.info(project, NOTIFICATION_TITLE,
                     "API recording request ready in the Assistant for " + targetUrl.trim() + ".");
             return;
         }
         openApiRecordingTab(project, targetUrl.trim(), arguments);
-        ShaftNotifier.info(project, "SHAFT", "API recording prepared for " + targetUrl.trim() + ".");
+        ShaftNotifier.info(project, NOTIFICATION_TITLE, "API recording prepared for " + targetUrl.trim() + ".");
     }
 
     @Override
