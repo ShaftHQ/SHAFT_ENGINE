@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -170,7 +171,7 @@ class ShaftPluginResetServiceTest {
 
         ShaftPluginResetService service = new ShaftPluginResetService(
                 () -> settingsResetRan[0] = true,
-                () -> credentialsResetRan[0] = true,
+                () -> { credentialsResetRan[0] = true; return CompletableFuture.completedFuture(null); },
                 () -> approvalsResetRan[0] = true,
                 () -> List.of(projectOne, projectTwo),
                 () -> toolWindowRerendered[0] = true);
@@ -203,7 +204,7 @@ class ShaftPluginResetServiceTest {
 
         ShaftPluginResetService service = new ShaftPluginResetService(
                 () -> settingsResetRan[0] = true,
-                () -> credentialsResetRan[0] = true,
+                () -> { credentialsResetRan[0] = true; return CompletableFuture.completedFuture(null); },
                 () -> approvalsResetRan[0] = true,
                 () -> List.of(projectOne, projectTwo),
                 () -> toolWindowRerendered[0] = true);

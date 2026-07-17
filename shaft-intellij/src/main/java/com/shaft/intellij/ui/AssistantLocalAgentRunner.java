@@ -8,6 +8,7 @@ import com.shaft.intellij.approval.AgentApprovalCapability;
 import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -129,7 +130,8 @@ final class AssistantLocalAgentRunner {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
                 arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable, approvalHandler, bridgeLauncher));
+                requireCommandAvailable, approvalHandler, bridgeLauncher),
+                ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(processReference, cancellationRequested, false),
@@ -1617,7 +1619,7 @@ final class AssistantLocalAgentRunner {
                 return "";
             }
             return output.toString();
-        });
+        }, ShaftPluginExecutor.getInstance().executor());
     }
 
     private static String stdoutNow(CompletableFuture<String> future) {

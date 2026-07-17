@@ -1,0 +1,5 @@
+`this::methodName` written as two separate expressions (e.g. once in addNotify(), once in removeNotify()) is not guaranteed to produce identity-equal objects. A listener list that removes by `List.remove(Object)` (reference/equals identity) silently no-ops when the reference passed to remove() wasn't the same object passed to add() -- issue #3621 in ShaftAssistantPanel/ShaftMcpConnectionState leaked one stale listener per addNotify()/removeNotify() cycle (every tool-window tab switch or re-dock) with no exception or warning.
+
+Why: JLS/JVM give no identity guarantee for repeated evaluation of the same method-reference expression; this is easy to miss because the code reads correct.
+
+How to apply: whenever pairing a register/unregister call with a method reference, capture the reference once as a field (`private final Runnable xListener = this::onX;`) and pass that field to both add and remove. Also documented in .claude/skills/shaft-mastery/references/intellij-plugin.md.

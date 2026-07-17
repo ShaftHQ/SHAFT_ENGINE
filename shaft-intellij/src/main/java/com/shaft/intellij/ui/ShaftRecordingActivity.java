@@ -1,5 +1,8 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.openapi.Disposable;
+import com.intellij.openapi.util.Disposer;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -72,10 +75,29 @@ public final class ShaftRecordingActivity {
     /**
      * Registers a state-change listener (fired on the publisher's thread).
      *
+     * <p><b>Caution:</b> {@code LISTENERS} is a static, process-wide list, so a registration made
+     * here outlives any single component unless something calls {@link #unlisten} for it. Forgetting
+     * to do so is exactly how issue #3620 leaked a fresh {@code ShaftReadinessSummary} listener on
+     * every tool-window view rebuild. Prefer {@link #listen(Consumer, Disposable)}, which detaches
+     * automatically, unless the caller has some other reliable, always-run teardown path already.
+     *
      * @param listener change consumer
      */
     public static void listen(Consumer<Boolean> listener) {
         LISTENERS.add(listener);
+    }
+
+    /**
+     * Registers a state-change listener that detaches itself automatically when {@code
+     * parentDisposable} is disposed, so callers cannot forget the matching {@link #unlisten} call
+     * (issue #3620).
+     *
+     * @param listener change consumer
+     * @param parentDisposable disposable whose disposal unregisters {@code listener}
+     */
+    public static void listen(Consumer<Boolean> listener, Disposable parentDisposable) {
+        LISTENERS.add(listener);
+        Disposer.register(parentDisposable, () -> unlisten(listener));
     }
 
     /**
@@ -85,6 +107,17 @@ public final class ShaftRecordingActivity {
      */
     public static void unlisten(Consumer<Boolean> listener) {
         LISTENERS.remove(listener);
+    }
+
+    /**
+     * Test-only count of currently registered listeners. Package visible so only tests in this
+     * package can reach it; used to assert that view rebuilds dispose their old listener instead of
+     * leaking a new one onto this static, process-wide list (issue #3620).
+     *
+     * @return number of listeners currently registered via {@link #listen}
+     */
+    static int listenerCount() {
+        return LISTENERS.size();
     }
 
     /**

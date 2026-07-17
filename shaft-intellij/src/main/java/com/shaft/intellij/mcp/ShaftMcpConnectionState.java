@@ -46,6 +46,14 @@ public final class ShaftMcpConnectionState {
     /**
      * Removes a previously registered state change listener.
      *
+     * <p><b>Caution:</b> this is a plain {@code List.remove(Object)}, matched by {@code equals()}/
+     * identity. The caller MUST pass the exact same {@code Runnable} reference that was registered
+     * via {@link #addStateChangeListener}. A freshly evaluated method-reference or lambda
+     * expression (e.g. writing {@code this::onStateChanged} again at the removal call site) is a
+     * distinct object and is not guaranteed to be identity-equal to the one passed at registration
+     * time, so it silently fails to remove anything -- no exception, no log. Capture the listener
+     * once in a field and reuse that same reference for both add and remove (issue #3621).
+     *
      * @param listener listener to remove
      */
     public synchronized void removeStateChangeListener(Runnable listener) {
@@ -56,5 +64,17 @@ public final class ShaftMcpConnectionState {
         for (Runnable listener : new ArrayList<>(stateChangeListeners)) {
             listener.run();
         }
+    }
+
+    /**
+     * Test-support accessor for the number of currently registered state-change listeners. Not
+     * used by production code; exists so tests (e.g. for issue #3621) can assert that
+     * addStateChangeListener/removeStateChangeListener registration stays balanced across a
+     * component's lifecycle instead of leaking.
+     *
+     * @return number of currently registered listeners
+     */
+    public synchronized int listenerCount() {
+        return stateChangeListeners.size();
     }
 }

@@ -182,7 +182,8 @@ public final class ShaftMcpInvocationService implements Disposable {
                             JsonElement result = client.listTools(DEFAULT_TIMEOUT);
                             updateToolsCache(client, result);
                             return result;
-                        }));
+                        }),
+                ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),
@@ -326,7 +327,8 @@ public final class ShaftMcpInvocationService implements Disposable {
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> call(command, settings, clientReference, cancellationRequested,
                         client -> client.callTool(toolName,
-                                arguments == null ? new JsonObject() : arguments, DEFAULT_TIMEOUT, onProgress)));
+                                arguments == null ? new JsonObject() : arguments, DEFAULT_TIMEOUT, onProgress)),
+                ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),
@@ -347,7 +349,8 @@ public final class ShaftMcpInvocationService implements Disposable {
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
-                () -> initialize(command, settings, clientReference, cancellationRequested));
+                () -> initialize(command, settings, clientReference, cancellationRequested),
+                ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),

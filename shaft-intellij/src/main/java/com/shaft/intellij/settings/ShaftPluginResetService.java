@@ -12,6 +12,7 @@ import com.shaft.intellij.ui.ShaftToolWindowPanel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
@@ -23,7 +24,7 @@ public final class ShaftPluginResetService {
     private static final String TOOL_WINDOW_ID = "SHAFT";
 
     private final Runnable settingsReset;
-    private final Runnable credentialsReset;
+    private final Supplier<CompletableFuture<Void>> credentialsReset;
     private final Runnable approvalsReset;
     private final Supplier<List<ShaftAssistantChatState>> chatStatesSupplier;
     private final Runnable toolWindowRerenderer;
@@ -40,14 +41,14 @@ public final class ShaftPluginResetService {
     public ShaftPluginResetService() {
         this(
                 () -> resetSettings(ShaftSettingsState.getInstance()),
-                () -> ShaftCredentialService.getInstance().clearAll(),
+                () -> ShaftCredentialService.getInstance().clearAllAsync(),
                 ShaftPluginResetService::resetOpenProjectApprovals,
                 ShaftPluginResetService::openProjectChatStates,
                 ShaftPluginResetService::rerenderOpenToolWindows);
     }
 
     ShaftPluginResetService(Runnable settingsReset,
-                             Runnable credentialsReset,
+                             Supplier<CompletableFuture<Void>> credentialsReset,
                              Runnable approvalsReset,
                              Supplier<List<ShaftAssistantChatState>> chatStatesSupplier,
                              Runnable toolWindowRerenderer) {
@@ -80,14 +81,13 @@ public final class ShaftPluginResetService {
 
     private void resetState(boolean clearChat) {
         settingsReset.run();
-        credentialsReset.run();
         approvalsReset.run();
         if (clearChat) {
             for (ShaftAssistantChatState chatState : chatStatesSupplier.get()) {
                 chatState.clearAll();
             }
         }
-        toolWindowRerenderer.run();
+        credentialsReset.get().whenComplete((ignoredResult, ignoredError) -> toolWindowRerenderer.run());
     }
 
     /**

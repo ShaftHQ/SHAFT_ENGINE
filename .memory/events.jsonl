@@ -279,3 +279,6 @@
 {"actor":"agent","event":"memory.created","id":"decision.headroom-deployment-preset-migrated-to-persistent-docker-0-31-0-cli","timestamp":"2026-07-16T22:09:41+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.gbrain-always-on-setup-on-windows-schtasks-pair-not-autopilot-install","timestamp":"2026-07-16T22:22:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.graphify-kept-alongside-gbrain-distinct-purpose-nightly-auto-refresh-wired","timestamp":"2026-07-16T22:28:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-gradle-unit-tests-have-no-live-intellij-application-guard-every-applicationmanager-touch","timestamp":"2026-07-17T02:13:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.java-method-references-are-not-identity-stable-across-separate-call-sites","timestamp":"2026-07-17T02:13:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool","timestamp":"2026-07-17T02:13:20+03:00"}
