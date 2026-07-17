@@ -156,6 +156,18 @@ public class DatabaseActionsMockedTests {
     }
 
     @Test
+    public void testConstructorFailureWithoutRootCauseReportsDescriptiveError() {
+        try {
+            new DatabaseActions("");
+            Assert.fail();
+        } catch (ArrayIndexOutOfBoundsException e) {
+            Assert.fail("failAction should report the failure, not crash on empty root cause");
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Custom Connection String"));
+        }
+    }
+
+    @Test
     public void testGetResultWithMockedResultSet() throws SQLException {
         String result = DatabaseActions.getResult(mockResultSet);
         Assert.assertEquals(result, "1\tMona\n2\tOctocat");
