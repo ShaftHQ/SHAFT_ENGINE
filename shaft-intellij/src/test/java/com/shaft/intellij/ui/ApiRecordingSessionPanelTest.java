@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JButton;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,6 +56,22 @@ class ApiRecordingSessionPanelTest {
     @Test
     void parseTransactionsReturnsEmptyForNonArrayOutput() {
         assertEquals(List.of(), ApiRecordingSessionPanel.parseTransactions(mcpArrayText("{\"state\": \"ACTIVE\"}")));
+    }
+
+    @Test
+    void actionRowMnemonicsAreNonConflictingAndAlReachable() {
+        // Issue #3637: Stop/Pin Fields/Generate render together in the "actions" row, so their
+        // mnemonics must be pairwise distinct. Exercised via the extracted static method rather
+        // than the full panel, which needs a live Project to construct (see class javadoc).
+        JButton stop = new JButton("Stop");
+        JButton pinFields = new JButton("Pin Fields...");
+        JButton generate = new JButton("Generate");
+
+        ApiRecordingSessionPanel.assignActionRowMnemonics(stop, pinFields, generate);
+
+        Set<Integer> mnemonics = Set.of(stop.getMnemonic(), pinFields.getMnemonic(), generate.getMnemonic());
+        assertEquals(3, mnemonics.size());
+        assertTrue(mnemonics.stream().noneMatch(mnemonic -> mnemonic == 0));
     }
 
     @Test
