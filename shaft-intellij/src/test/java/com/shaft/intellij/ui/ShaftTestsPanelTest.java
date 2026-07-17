@@ -51,6 +51,15 @@ class ShaftTestsPanelTest {
     }
 
     @Test
+    void isFailRowIsFalseForARunningInFlightRow() {
+        ShaftTestIndex.TestRowState runningRow = new ShaftTestIndex.TestRowState(
+                "SignInTest", ShaftTestIndex.Status.RUNNING, 1_000L, 0);
+
+        assertFalse(ShaftTestsPanel.isFailRow(runningRow),
+                "Diagnose/Heal must stay disabled while a test is still running, not just for a pass");
+    }
+
+    @Test
     void formatRowLabelIncludesStatusAndTestId() {
         ShaftTestIndex.TestRowState row = new ShaftTestIndex.TestRowState(
                 "com.example.CheckoutTest", ShaftTestIndex.Status.FAIL, 1_000L, 1);
@@ -67,6 +76,14 @@ class ShaftTestsPanelTest {
                 "com.example.SignInTest", ShaftTestIndex.Status.PASS, 1_000L, 0);
 
         assertTrue(ShaftTestsPanel.formatRowLabel(row).startsWith("PASS"));
+    }
+
+    @Test
+    void formatRowLabelUsesRunningForALiveInFlightRow() {
+        ShaftTestIndex.TestRowState row = new ShaftTestIndex.TestRowState(
+                "com.example.SignInTest", ShaftTestIndex.Status.RUNNING, 1_000L, 0);
+
+        assertTrue(ShaftTestsPanel.formatRowLabel(row).startsWith("RUNNING"));
     }
 
     @Test
@@ -95,6 +112,14 @@ class ShaftTestsPanelTest {
 
         assertTrue(label.startsWith("FAIL"));
         assertTrue(label.contains("CheckoutTest"));
+    }
+
+    @Test
+    void formatNodeLabelUsesRunningForALiveInFlightRow() {
+        ShaftTestIndex.TestRowState row = new ShaftTestIndex.TestRowState(
+                "com.example.SignInTest", ShaftTestIndex.Status.RUNNING, 1_000L, 0);
+
+        assertTrue(ShaftTestsPanel.formatNodeLabel("SignInTest", row).startsWith("RUNNING"));
     }
 
     // ------------------------------------------------------------------
@@ -157,6 +182,132 @@ class ShaftTestsPanelTest {
                 () -> assertEquals(1, root.getChildCount(), "the discovered structure survives Clear"),
                 () -> assertNull(((ShaftTestsPanel.TestTreeNode) classNode.getUserObject()).runState(),
                         "the run-history decoration is reset to not-yet-run"));
+    }
+
+    // ------------------------------------------------------------------
+    // Per-method live status (issue #3688): a method node prefers its own recorded row over the
+    // class-level fallback every other node under the class shares.
+    // ------------------------------------------------------------------
+
+    @Test
+    void methodNodePrefersItsOwnRecordedRowOverTheClassLevelFallback() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("com.example.SignInTest", 0, 1_000L);
+        testIndex.recordStatus("com.example.SignInTest#testSignIn", ShaftTestIndex.Status.RUNNING, 2_000L);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn"))));
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+        DefaultMutableTreeNode methodNode = (DefaultMutableTreeNode) classNode.getFirstChild();
+
+        assertAll(
+                () -> assertEquals(ShaftTestIndex.Status.PASS,
+                        ((ShaftTestsPanel.TestTreeNode) classNode.getUserObject()).runState().status(),
+                        "the class node keeps showing the class-level (process-terminated) row"),
+                () -> assertEquals(ShaftTestIndex.Status.RUNNING,
+                        ((ShaftTestsPanel.TestTreeNode) methodNode.getUserObject()).runState().status(),
+                        "the method node prefers its own live per-method row over the class-level fallback"));
+    }
+
+    @Test
+    void methodNodeFallsBackToTheClassLevelRowWhenItHasNoOwnRecordedRow() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        testIndex.recordRun("com.example.SignInTest", 1, 1_000L);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn"))));
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+        DefaultMutableTreeNode methodNode = (DefaultMutableTreeNode) classNode.getFirstChild();
+
+        assertEquals(ShaftTestIndex.Status.FAIL,
+                ((ShaftTestsPanel.TestTreeNode) methodNode.getUserObject()).runState().status(),
+                "no per-method row was recorded, so the method node inherits the class-level row "
+                        + "(same v1 behavior as before issue #3688)");
+    }
+
+    @Test
+    void methodNodeIsUndecoratedWhenNeitherItsOwnNorTheClassRowExists() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn"))));
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+        DefaultMutableTreeNode methodNode = (DefaultMutableTreeNode) classNode.getFirstChild();
+
+        assertNull(((ShaftTestsPanel.TestTreeNode) methodNode.getUserObject()).runState());
+    }
+
+    // ------------------------------------------------------------------
+    // Live refresh (issue #3688): the panel re-reads the index as soon as it changes while
+    // attached, instead of only on a manual Refresh click.
+    //
+    // NOTE: addNotify()/removeNotify() themselves cannot be called end-to-end here -- see
+    // ShaftTestsPanel#indexListenerForTest's javadoc: super.addNotify() cascades into the platform's
+    // own Tree widget, which unconditionally touches ApplicationManager.getApplication() the first
+    // time it creates a real Swing peer, an NPE in this headless, no-platform-fixture Gradle test
+    // JVM unrelated to this change. These tests instead drive the exact captured listener reference
+    // addNotify()/removeNotify() would register/deregister, via indexListenerForTest().
+    // ------------------------------------------------------------------
+
+    @Test
+    void indexListenerTriggersARefreshReflectingTheChange() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, () -> List.of(
+                new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("testSignIn"))));
+        testIndex.addListener(panel.indexListenerForTest());
+
+        testIndex.recordStatus("com.example.SignInTest", ShaftTestIndex.Status.RUNNING, 1_000L);
+
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) panel.treeForTest().getModel().getRoot();
+        DefaultMutableTreeNode packageNode = (DefaultMutableTreeNode) root.getFirstChild();
+        DefaultMutableTreeNode classNode = (DefaultMutableTreeNode) packageNode.getFirstChild();
+        assertEquals(ShaftTestIndex.Status.RUNNING,
+                ((ShaftTestsPanel.TestTreeNode) classNode.getUserObject()).runState().status(),
+                "the tree must reflect the index change without a manual Refresh click");
+
+        testIndex.removeListener(panel.indexListenerForTest());
+    }
+
+    @Test
+    void indexListenerForTestReturnsTheSameReferenceEveryCall() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, List::of);
+
+        // The #3621-class regression this guards against: addNotify()/removeNotify() must pass the
+        // exact same Runnable reference to add/removeListener, or removeListener's plain
+        // List.remove(Object) silently fails to find and remove the one addNotify() registered.
+        assertTrue(panel.indexListenerForTest() == panel.indexListenerForTest(),
+                "the listener field must be captured once, not re-evaluated per call");
+
+        testIndex.addListener(panel.indexListenerForTest());
+        assertEquals(1, testIndex.listenerCountForTest());
+
+        testIndex.removeListener(panel.indexListenerForTest());
+        assertEquals(0, testIndex.listenerCountForTest(),
+                "removeListener must find and remove the exact reference addListener registered");
+    }
+
+    @Test
+    void repeatedAddRemoveListenerCyclesWithTheCapturedReferenceDoNotLeak() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(null, testIndex, List::of);
+
+        for (int cycle = 0; cycle < 5; cycle++) {
+            testIndex.addListener(panel.indexListenerForTest());
+            testIndex.removeListener(panel.indexListenerForTest());
+        }
+
+        assertEquals(0, testIndex.listenerCountForTest());
     }
 
     // ------------------------------------------------------------------

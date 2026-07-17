@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.treeStructure.Tree;
@@ -62,11 +63,14 @@ import java.util.function.Supplier;
  * CLASS/METHOD row also renders a pair of small Run/Debug icons ({@link #iconZoneAt}) that fire the
  * same actions on a single click, without needing to select the row first.
  * <p>
- * <b>Deferred (tracked as a follow-up, not implemented here):</b> status still only appears after a
- * run terminates ({@link ShaftTestIndex} is populated from exit code on process end). Live
- * grey/running/pass/fail progression during a run would need wiring this tree to IntelliJ's SM Test
- * Runner protocol ({@code SMTRunnerEventsListener}/{@code SMTestProxy}) -- {@link ShaftTestIndex}'s
- * own javadoc already flags that as deliberately out of scope for this lightweight module today.
+ * <b>Live status (issue #3688):</b> while attached ({@link #addNotify()}/{@link #removeNotify()}),
+ * this panel also listens for {@link ShaftTestIndex} changes and refreshes automatically, so
+ * {@code ShaftSmTestRunnerBridge}'s grey/running -> pass/fail progression (driven by IntelliJ's SM
+ * Test Runner protocol) shows up live instead of only after a manual Refresh click or the whole
+ * process terminating. A method node prefers its own recorded row (keyed
+ * {@code qualifiedClassName#methodName}, see {@link #matchMethodRunState}) over the class-level
+ * fallback every other node under the class shares, when the SM bridge could identify that specific
+ * method; otherwise it inherits the class-level row exactly as before.
  */
 final class ShaftTestsPanel extends JPanel {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss")
@@ -108,6 +112,12 @@ final class ShaftTestsPanel extends JPanel {
     private final JMenuItem debugMenuItem;
     private final JPopupMenu rowContextMenu = new JPopupMenu();
     private final JLabel statusLabel = new JLabel(" ");
+    // Captured once so addNotify()/removeNotify() pass the same listener reference to
+    // ShaftTestIndex's add/remove pair -- re-evaluating `this::onIndexChanged` at each call site is
+    // not guaranteed to produce an identity-equal object, which would silently break
+    // removeListener's List.remove(Object) and leak one stale listener per addNotify()/removeNotify()
+    // cycle (same pitfall as issue #3621).
+    private final Runnable indexListener = this::onIndexChanged;
 
     ShaftTestsPanel(Project project) {
         this(project, ShaftTestIndex.getInstance(project));
@@ -238,6 +248,35 @@ final class ShaftTestsPanel extends JPanel {
         refresh();
     }
 
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        testIndex.addListener(indexListener);
+    }
+
+    @Override
+    public void removeNotify() {
+        testIndex.removeListener(indexListener);
+        super.removeNotify();
+    }
+
+    /**
+     * Called on any {@link ShaftTestIndex} change while this panel is attached (issue #3688) --
+     * refreshes the tree so live SM Test Runner progression shows up without a manual Refresh
+     * click. {@link ShaftTestIndex}'s listener callback can fire off the EDT (the SM bridge runs on
+     * whatever thread the platform delivers test-framework events on), so this hops to the EDT
+     * before touching Swing state -- except in this module's plain-JUnit tests, where no platform
+     * {@code Application} exists to hop through and the call must run synchronously so assertions
+     * immediately after a test-triggered index change see the refreshed tree.
+     */
+    private void onIndexChanged() {
+        if (ApplicationManager.getApplication() == null) {
+            refresh();
+        } else {
+            ApplicationManager.getApplication().invokeLater(this::refresh);
+        }
+    }
+
     private void refresh() {
         List<ShaftTestDiscovery.DiscoveredTestClass> discoveredClasses = discoverySource.get();
         Map<String, ShaftTestIndex.TestRowState> rowsByTestId = new HashMap<>();
@@ -261,8 +300,10 @@ final class ShaftTestsPanel extends JPanel {
             DefaultMutableTreeNode classNode = new DefaultMutableTreeNode(new TestTreeNode(
                     NodeKind.CLASS, discoveredClass.qualifiedName(), discoveredClass.simpleName(), runState));
             for (String methodName : discoveredClass.methodNames()) {
+                ShaftTestIndex.TestRowState methodRunState =
+                        matchMethodRunState(rowsByTestId, discoveredClass.qualifiedName(), methodName, runState);
                 classNode.add(new DefaultMutableTreeNode(new TestTreeNode(
-                        NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, runState)));
+                        NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, methodRunState)));
             }
             packageNode.add(classNode);
         }
@@ -454,8 +495,7 @@ final class ShaftTestsPanel extends JPanel {
      * @return display label, for example {@code "FAIL  CheckoutTest  14:32:10"}
      */
     static String formatRowLabel(ShaftTestIndex.TestRowState row) {
-        String statusText = row.status() == ShaftTestIndex.Status.PASS ? "PASS" : "FAIL";
-        return statusText + "  " + row.testId() + "  " + formatTimestamp(row.lastRunAtMillis());
+        return statusText(row.status()) + "  " + row.testId() + "  " + formatTimestamp(row.lastRunAtMillis());
     }
 
     /**
@@ -473,8 +513,22 @@ final class ShaftTestsPanel extends JPanel {
         if (runState == null) {
             return displayName;
         }
-        String statusText = runState.status() == ShaftTestIndex.Status.PASS ? "PASS" : "FAIL";
-        return statusText + "  " + displayName + "  " + formatTimestamp(runState.lastRunAtMillis());
+        return statusText(runState.status()) + "  " + displayName + "  " + formatTimestamp(runState.lastRunAtMillis());
+    }
+
+    /**
+     * Display text for a row's status, including the in-flight {@link ShaftTestIndex.Status#RUNNING}
+     * state a live SM Test Runner event can report before a run finishes (issue #3688).
+     *
+     * @param status status to format
+     * @return {@code "RUNNING"}, {@code "PASS"}, or {@code "FAIL"}
+     */
+    private static String statusText(ShaftTestIndex.Status status) {
+        return switch (status) {
+            case RUNNING -> "RUNNING";
+            case PASS -> "PASS";
+            case FAIL -> "FAIL";
+        };
     }
 
     /**
@@ -491,6 +545,39 @@ final class ShaftTestsPanel extends JPanel {
             ShaftTestDiscovery.DiscoveredTestClass discoveredClass) {
         ShaftTestIndex.TestRowState exact = rowsByTestId.get(discoveredClass.qualifiedName());
         return exact != null ? exact : rowsByTestId.get(discoveredClass.simpleName());
+    }
+
+    /**
+     * Matches a method node to its own live per-method row (issue #3688), keyed
+     * {@code qualifiedClassName#methodName} -- the same key {@code ShaftSmTestRunnerBridge} writes
+     * from the SM Test Runner protocol. Falls back to {@code classFallback} (the class-level row
+     * every other node under the class shares) when the SM bridge never reported this specific
+     * method, preserving the pre-#3688 behavior for classes run only as a whole.
+     *
+     * @param rowsByTestId    recorded run-history rows, keyed by {@code testId}
+     * @param qualifiedClassName the owning class's fully-qualified name
+     * @param methodName      the method's simple name
+     * @param classFallback   the class-level row to fall back to, or {@code null} for "never run"
+     * @return the method's own row, or {@code classFallback} when it has none
+     */
+    static ShaftTestIndex.TestRowState matchMethodRunState(
+            Map<String, ShaftTestIndex.TestRowState> rowsByTestId,
+            String qualifiedClassName, String methodName, ShaftTestIndex.TestRowState classFallback) {
+        ShaftTestIndex.TestRowState methodRow = rowsByTestId.get(methodKey(qualifiedClassName, methodName));
+        return methodRow != null ? methodRow : classFallback;
+    }
+
+    /**
+     * Builds the per-method {@link ShaftTestIndex} row key -- must match
+     * {@code ShaftSmTestRunnerBridge#parseIndexKey}'s method-key format exactly, or live per-method
+     * status silently stops matching its tree node.
+     *
+     * @param qualifiedClassName the owning class's fully-qualified name
+     * @param methodName         the method's simple name
+     * @return {@code qualifiedClassName#methodName}
+     */
+    static String methodKey(String qualifiedClassName, String methodName) {
+        return qualifiedClassName + "#" + methodName;
     }
 
     private static String statusText(int discoveredCount, int decoratedCount) {
@@ -560,5 +647,26 @@ final class ShaftTestsPanel extends JPanel {
 
     JLabel statusLabelForTest() {
         return statusLabel;
+    }
+
+    /**
+     * Test-only accessor for the captured {@link #indexListener} reference.
+     * <p>
+     * {@link #addNotify()}/{@link #removeNotify()} cannot be exercised end-to-end in this headless
+     * Gradle test JVM: {@code super.addNotify()} cascades into {@code com.intellij.ui.treeStructure.Tree}'s
+     * own {@code addNotify()} override, which unconditionally reaches
+     * {@code ApplicationManager.getApplication().getMessageBus()} the first time its internal UI
+     * settings listener connects -- a pre-existing platform behavior (confirmed by stack trace: it
+     * originates inside {@code Tree$MyUISettingsListener.connect}, not in any SHAFT code), not
+     * something this change introduced or can route around within its own scope. Tests instead take
+     * this exact listener reference and drive {@link ShaftTestIndex#addListener}/{@code removeListener}
+     * with it directly, verifying the identity-consistent-capture contract (the #3621-class
+     * regression this pattern guards against) and {@link #onIndexChanged()}'s refresh behavior,
+     * without going through Swing peer creation.
+     *
+     * @return the same {@link Runnable} {@link #addNotify()}/{@link #removeNotify()} register/deregister
+     */
+    Runnable indexListenerForTest() {
+        return indexListener;
     }
 }
