@@ -1,6 +1,5 @@
 package com.shaft.intellij.ui;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -100,25 +99,12 @@ final class DoctorEvidenceImageLocator {
     }
 
     private static List<Path> imagePathsFrom(Path pointerFile) {
-        if (!Files.isRegularFile(pointerFile) || !Files.isReadable(pointerFile)) {
+        JsonObject rootObject = readPointerJson(pointerFile);
+        if (rootObject == null) {
             return List.of();
         }
-        JsonElement root;
-        try {
-            root = JsonParser.parseString(Files.readString(pointerFile, StandardCharsets.UTF_8));
-        } catch (IOException | RuntimeException unreadable) {
-            return List.of();
-        }
-        if (!root.isJsonObject()) {
-            return List.of();
-        }
-        JsonObject rootObject = root.getAsJsonObject();
-        JsonElement bundleElement = rootObject.get("bundle");
-        JsonObject bundle = bundleElement != null && bundleElement.isJsonObject()
-                ? bundleElement.getAsJsonObject()
-                : rootObject;
-        JsonElement evidenceElement = bundle.get("evidence");
-        if (evidenceElement == null || !evidenceElement.isJsonArray()) {
+        JsonElement evidence = evidenceArrayFrom(rootObject);
+        if (evidence == null) {
             return List.of();
         }
         Path parent = pointerFile.toAbsolutePath().normalize().getParent();
@@ -126,19 +112,45 @@ final class DoctorEvidenceImageLocator {
             return List.of();
         }
         List<Path> paths = new ArrayList<>();
-        for (JsonElement itemElement : evidenceElement.getAsJsonArray()) {
-            if (!itemElement.isJsonObject()) {
-                continue;
-            }
-            JsonObject item = itemElement.getAsJsonObject();
-            String category = stringField(item, "category");
-            String relativePath = stringField(item, "relativePath");
-            if (category != null && IMAGE_EVIDENCE_CATEGORIES.contains(category)
-                    && relativePath != null && !relativePath.isBlank()) {
-                addResolvedPath(paths, parent, relativePath);
-            }
+        for (JsonElement itemElement : evidence.getAsJsonArray()) {
+            collectImagePath(itemElement, parent, paths);
         }
         return paths;
+    }
+
+    private static JsonObject readPointerJson(Path pointerFile) {
+        if (!Files.isRegularFile(pointerFile) || !Files.isReadable(pointerFile)) {
+            return null;
+        }
+        JsonElement root;
+        try {
+            root = JsonParser.parseString(Files.readString(pointerFile, StandardCharsets.UTF_8));
+        } catch (IOException | RuntimeException unreadable) {
+            return null;
+        }
+        return root.isJsonObject() ? root.getAsJsonObject() : null;
+    }
+
+    private static JsonElement evidenceArrayFrom(JsonObject rootObject) {
+        JsonElement bundleElement = rootObject.get("bundle");
+        JsonObject bundle = bundleElement != null && bundleElement.isJsonObject()
+                ? bundleElement.getAsJsonObject()
+                : rootObject;
+        JsonElement evidenceElement = bundle.get("evidence");
+        return evidenceElement != null && evidenceElement.isJsonArray() ? evidenceElement : null;
+    }
+
+    private static void collectImagePath(JsonElement itemElement, Path parent, List<Path> paths) {
+        if (!itemElement.isJsonObject()) {
+            return;
+        }
+        JsonObject item = itemElement.getAsJsonObject();
+        String category = stringField(item, "category");
+        String relativePath = stringField(item, "relativePath");
+        if (category != null && IMAGE_EVIDENCE_CATEGORIES.contains(category)
+                && relativePath != null && !relativePath.isBlank()) {
+            addResolvedPath(paths, parent, relativePath);
+        }
     }
 
     private static void addPath(Set<Path> pointerFiles, String value) {

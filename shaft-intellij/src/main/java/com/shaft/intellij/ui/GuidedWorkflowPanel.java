@@ -74,9 +74,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     // per-step summaries and there is no capture_step_delete/capture_step_reorder tool to target.
     private final DefaultListModel<StepRow> stepListModel = new DefaultListModel<>();
     private final JBList<StepRow> stepList = new JBList<>(stepListModel);
-    private final JButton deleteStepButton = new JButton("Delete");
-    private final JButton moveStepUpButton = new JButton("Move Up");
-    private final JButton moveStepDownButton = new JButton("Move Down");
+    private final JButton deleteStepButton = button("Delete",
+            "Delete the selected recorded step (Playwright and Mobile recordings only)", ShaftIcons.DELETE,
+            this::deleteSelectedStep);
+    private final JButton moveStepUpButton = button("Move Up",
+            "Move the selected recorded step earlier (Playwright and Mobile recordings only)", ShaftIcons.MOVE_UP,
+            () -> moveSelectedStep("up"));
+    private final JButton moveStepDownButton = button("Move Down",
+            "Move the selected recorded step later (Playwright and Mobile recordings only)", ShaftIcons.MOVE_DOWN,
+            () -> moveSelectedStep("down"));
     private final ToolPrefill prefill;
     private final ShaftSettingsState.Settings settings;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
@@ -144,18 +150,6 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 updateStepButtonsEnabled();
             }
         });
-        deleteStepButton.getAccessibleContext().setAccessibleName("Delete");
-        deleteStepButton.getAccessibleContext().setAccessibleDescription(
-                "Delete the selected recorded step (Playwright and Mobile recordings only)");
-        deleteStepButton.addActionListener(event -> deleteSelectedStep());
-        moveStepUpButton.getAccessibleContext().setAccessibleName("Move Up");
-        moveStepUpButton.getAccessibleContext().setAccessibleDescription(
-                "Move the selected recorded step earlier (Playwright and Mobile recordings only)");
-        moveStepUpButton.addActionListener(event -> moveSelectedStep("up"));
-        moveStepDownButton.getAccessibleContext().setAccessibleName("Move Down");
-        moveStepDownButton.getAccessibleContext().setAccessibleDescription(
-                "Move the selected recorded step later (Playwright and Mobile recordings only)");
-        moveStepDownButton.addActionListener(event -> moveSelectedStep("down"));
         updateStepButtonsEnabled();
         updateTemplateDescription();
         applyTeamRecorderPolicy();
