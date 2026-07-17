@@ -341,3 +341,5 @@
 {"actor":"agent","event":"memory.created","id":"constraint.when-editing-agents-md-claude-md-requires-trimming-bytes-trim-the-whole-document-not-just-the-touched-section","timestamp":"2026-07-17T23:20:31+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op","timestamp":"2026-07-17T23:31:36+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.always-pass-dallure-automaticallyopen-false-on-any-maven-run-that-can-generate-an-allure-report","timestamp":"2026-07-17T23:31:36+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.spring-ai-mcptool-annotated-methods-ignore-toolparam-use-mcptoolparam-instead","timestamp":"2026-07-17T23:32:03+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.github-pr-evidence-shaft-mcp-stdio-manifest-stdio-tools-list-json-is-a-frozen-historical-snapshot-not-a-live-artifact","timestamp":"2026-07-17T23:32:03+03:00"}

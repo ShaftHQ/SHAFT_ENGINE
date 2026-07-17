@@ -242,4 +242,73 @@ class ShaftMcpApplicationTests {
                 .collect(Collectors.toSet());
         assertTrue(generic.isEmpty(), tool.name() + " exposes generic parameter names: " + generic);
     }
+
+    /**
+     * Issue #3692 acceptance: every onboarding quick-action call must succeed with no fields at all.
+     * {@code capture_start} previously served a schema that marked {@code sessionGoal} (and, until
+     * this fix, {@code headless}) as required, so the IntelliJ onboarding "Record a sample flow"
+     * action failed with "required property 'sessionGoal' not found" the moment the caller omitted
+     * it. This asserts the live-served schema -- not just the source annotations -- has an empty
+     * {@code required} array, matching the "no sessionGoal and no other fields" acceptance bar.
+     */
+    @Test
+    void captureStartSchemaHasNoRequiredFieldsSoOnboardingQuickActionCallsSucceed() throws Exception {
+        JsonNode schema = toolInputSchema("capture_start");
+
+        List<String> requiredNames = new java.util.ArrayList<>();
+        for (JsonNode node : schema.path("required")) {
+            requiredNames.add(node.asText());
+        }
+
+        assertTrue(requiredNames.isEmpty(),
+                "capture_start schema still requires: " + requiredNames
+                        + " -- a bare capture_start call with no arguments must succeed schema validation");
+        assertTrue(schema.path("properties").has("sessionGoal"));
+        assertTrue(schema.path("properties").has("headless"));
+    }
+
+    /**
+     * Issue #3692 item 2: the codegen tools' {@code sessionPath} must not be a required schema
+     * field once the server-side "default to the latest recording" fallback exists ({@link
+     * com.shaft.mcp.CaptureService#resolveSessionPath}) -- otherwise a schema-validating client
+     * still refuses to send the call before the fallback ever runs.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void codegenToolsSessionPathIsNotRequiredSoOmittingItDefersToTheLatestRecording() throws Exception {
+        assertFalse(sessionPathRequired(toolInputSchema("capture_code_blocks")),
+                "capture_code_blocks still requires sessionPath");
+        assertFalse(sessionPathRequired(toolInputSchema("playwright_capture_generate_replay")),
+                "playwright_capture_generate_replay still requires sessionPath");
+
+        McpSchema.Tool captureGenerateReplay = annotationScannedToolSpecs().stream()
+                .filter(spec -> spec.tool().name().equals("capture_generate_replay"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("capture_generate_replay is not annotation-scanned"))
+                .tool();
+        List<String> required = (List<String>) captureGenerateReplay.inputSchema().get("required");
+        assertFalse(required.contains("sessionPath"),
+                "capture_generate_replay (the @McpTool-annotated overload) still requires sessionPath: " + required);
+    }
+
+    @SuppressWarnings("unchecked")
+    private JsonNode toolInputSchema(String toolName) throws Exception {
+        Object bean = context.getBean("shaftTools");
+        List<?> callbacks = (List<?>) bean;
+        ToolCallback callback = callbacks.stream()
+                .map(ToolCallback.class::cast)
+                .filter(candidate -> candidate.getToolDefinition().name().equals(toolName))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(toolName + " is not registered on the shaftTools bean"));
+        return new ObjectMapper().readTree(callback.getToolDefinition().inputSchema());
+    }
+
+    private static boolean sessionPathRequired(JsonNode schema) {
+        for (JsonNode required : schema.path("required")) {
+            if ("sessionPath".equals(required.asText())) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

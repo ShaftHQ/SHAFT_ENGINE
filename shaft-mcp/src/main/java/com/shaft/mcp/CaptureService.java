@@ -26,6 +26,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PreDestroy;
 import org.springframework.ai.mcp.annotation.McpProgressToken;
 import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
@@ -85,7 +86,8 @@ public class CaptureService {
      * @param targetUrl initial http, https, or file URL
      * @param browser Chrome or Edge; blank selects Chrome
      * @param outputPath capture JSON path; blank selects a timestamped recording
-     * @param headless whether to launch without a visible window
+     * @param headless whether to launch without a visible window; unspecified defaults to headless
+     *                  per repo policy, matching {@link #apiStart}
      * @param sessionGoal optional user intent for the journey; drives generated test class and method names
      * @return safe recorder status
      */
@@ -100,14 +102,15 @@ public class CaptureService {
             String browser,
             @ToolParam(required = false, description = "capture JSON path; blank selects a timestamped recording")
             String outputPath,
-            boolean headless,
+            @ToolParam(required = false, description = "whether to launch without a visible window; blank/omitted defaults to headless per repo policy")
+            Boolean headless,
             @ToolParam(required = false, description = "optional user intent for the journey; drives generated test class and method names")
             String sessionGoal) {
         CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
         request.targetUrl = targetUrl;
         request.browser = browser;
         request.outputPath = outputPath;
-        request.headless = headless;
+        request.headless = resolveHeadless(headless);
         request.sessionGoal = sessionGoal;
         return startWithOptions(request);
     }
@@ -300,6 +303,24 @@ public class CaptureService {
         } catch (IOException exception) {
             return FileTime.fromMillis(0);
         }
+    }
+
+    /**
+     * Resolves the effective codegen session path: a blank value falls back to the most recently
+     * modified recording under this workspace's {@code recordings/} directory, so the "record, then
+     * generate" onboarding flow needs no explicit path (issue #3692 item 2). {@link #recentRecordings()}
+     * already computes this same most-recent-first list for {@link #status()}'s idle guidance.
+     *
+     * @param sessionPath caller-supplied path, or blank/null to use the latest recording
+     * @return effective session path; unchanged (blank) when no recordings exist, so
+     *         {@link McpWorkspacePolicy#existing} still raises its normal "is required" error
+     */
+    private String resolveSessionPath(String sessionPath) {
+        if (sessionPath != null && !sessionPath.isBlank()) {
+            return sessionPath;
+        }
+        List<String> recent = recentRecordings();
+        return recent.isEmpty() ? sessionPath : recent.getFirst();
     }
 
     /**
@@ -701,7 +722,8 @@ public class CaptureService {
      * Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session,
      * streaming best-effort milestone progress over the MCP exchange when the caller requested it.
      *
-     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace; blank uses the most
+     *                     recently modified recording under this workspace's {@code recordings/}
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
@@ -721,6 +743,11 @@ public class CaptureService {
             description = "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a "
                     + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
     public McpCaptureReplayResult generateReplay(
+            // @McpTool-annotated methods register through Spring AI's separate annotation-scanning MCP
+            // path (McpJsonSchemaGenerator), which does not honor @ToolParam -- confirmed empirically:
+            // it silently kept sessionPath required. @McpToolParam is the equivalent for this path.
+            @McpToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
+                    + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
             String outputDirectory,
             String packageName,
@@ -773,7 +800,8 @@ public class CaptureService {
     /**
      * Generates, compiles, and optionally replays a SHAFT Playwright TestNG test from a Capture session.
      *
-     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace; blank uses the most
+     *                     recently modified recording under this workspace's {@code recordings/}
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
@@ -790,6 +818,8 @@ public class CaptureService {
                     + "from a persisted recording JSON (sessionPath); no active capture session required")
     @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpCaptureReplayResult generatePlaywrightReplay(
+            @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
+                    + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
             String outputDirectory,
             String packageName,
@@ -819,7 +849,8 @@ public class CaptureService {
     /**
      * Generates deterministic copy-paste code blocks from a persisted Capture session without replaying.
      *
-     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace; blank uses the most
+     *                     recently modified recording under this workspace's {@code recordings/}
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
@@ -831,6 +862,8 @@ public class CaptureService {
             description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion from a "
                     + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
     public McpCaptureReplayResult codeBlocks(
+            @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
+                    + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
             String outputDirectory,
             String packageName,
@@ -1136,7 +1169,7 @@ public class CaptureService {
                 ? CaptureGenerationRequest.EnrichmentMode.PREVIEW
                 : CaptureGenerationRequest.EnrichmentMode.NONE;
         return new CaptureGenerator().generate(new CaptureGenerationRequest(
-                workspacePolicy.existing(sessionPath, "Capture session path"),
+                workspacePolicy.existing(resolveSessionPath(sessionPath), "Capture session path"),
                 output,
                 packageName,
                 className,
