@@ -211,9 +211,7 @@ final class ToolApprovalPromptPanel extends JPanel {
         if (arguments == null || arguments.isEmpty()) {
             return "No arguments.";
         }
-        String json = arguments.toString();
-        int maxLength = 200;
-        return json.length() > maxLength ? json.substring(0, maxLength) + "..." : json;
+        return arguments.toString();
     }
 
     /**

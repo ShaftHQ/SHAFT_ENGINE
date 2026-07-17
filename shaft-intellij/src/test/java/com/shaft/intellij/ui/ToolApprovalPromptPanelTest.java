@@ -123,6 +123,23 @@ class ToolApprovalPromptPanelTest {
                         "should contain the argument value in readable form"));
     }
 
+    @Test
+    void argumentsSummaryRendersFullJsonWithoutTruncation() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("longValue", "x".repeat(300));
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments, ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+
+        String argumentsText = argumentsAreaText(panel);
+        String expectedFullJson = arguments.toString();
+
+        assertAll(
+                () -> assertEquals(expectedFullJson, argumentsText,
+                        "arguments JSON must render in full, not truncated"),
+                () -> assertFalse(argumentsText.endsWith("..."),
+                        "arguments JSON must not be truncated with a trailing ellipsis"));
+    }
+
     /**
      * Issue #3696: previously {@code APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} rendered
      * with a smaller, gray, unbordered "de-emphasized" look while {@code APPROVE_ONCE} kept full
@@ -186,6 +203,17 @@ class ToolApprovalPromptPanelTest {
                         area.getAccessibleContext().getAccessibleName()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("plain-language summary text area not found"))
+                .getText();
+    }
+
+    private static String argumentsAreaText(ToolApprovalPromptPanel panel) {
+        List<javax.swing.JTextArea> textAreas = new java.util.ArrayList<>();
+        collectTextAreas(panel, textAreas);
+        return textAreas.stream()
+                .filter(area -> "Tool approval arguments".equals(
+                        area.getAccessibleContext().getAccessibleName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("arguments text area not found"))
                 .getText();
     }
 

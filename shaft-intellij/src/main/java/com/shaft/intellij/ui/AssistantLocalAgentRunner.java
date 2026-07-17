@@ -1034,7 +1034,7 @@ final class AssistantLocalAgentRunner {
                 String toolName = toolNamesByUseId.get(stringField(block, "tool_use_id"));
                 String label = toolName == null ? "tool" : toolName;
                 String text = toolResultText(block.get("content"));
-                String summary = text == null || text.isBlank() ? "(no output)" : truncate(firstLine(text.strip()), 160);
+                String summary = text == null || text.isBlank() ? "(no output)" : text.strip();
                 lines.add((booleanField(block, "is_error") ? "Tool failed (" : "Tool result (") + label + "): " + summary);
             }
             return lines.isEmpty() ? null : String.join("\n", lines);
@@ -1063,7 +1063,7 @@ final class AssistantLocalAgentRunner {
                                 stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
                         if (output != null && !output.isBlank()) {
                             Integer exitCode = intField(item, "exit_code");
-                            String outputSummary = truncate(firstLine(output.strip()), 160);
+                            String outputSummary = output.strip();
                             lines.add(exitCode != null && exitCode != 0
                                     ? "Tool failed (" + label + ", exit " + exitCode + "): " + outputSummary
                                     : "Tool result (" + label + "): " + outputSummary);
@@ -1161,8 +1161,8 @@ final class AssistantLocalAgentRunner {
         /**
          * Picks the first present, non-blank value among the input keys most likely to tell the user
          * what a tool call is actually doing (the command run, the file touched, the pattern searched
-         * for, ...), collapsed to a single line and truncated so a large payload never floods the
-         * transcript. Returns {@code null} when none of the known keys are present rather than
+         * for, ...), collapsed to a single line (but not otherwise truncated -- the user asked to see
+         * full messages). Returns {@code null} when none of the known keys are present rather than
          * guessing at unfamiliar tool schemas.
          */
         private static String toolInputSummary(JsonObject input) {
@@ -1173,7 +1173,7 @@ final class AssistantLocalAgentRunner {
                     "command", "file_path", "path", "pattern", "url", "query", "description", "prompt")) {
                 String value = stringField(input, key);
                 if (value != null && !value.isBlank()) {
-                    return truncate(value.strip().replaceAll("\\s+", " "), 80);
+                    return value.strip().replaceAll("\\s+", " ");
                 }
             }
             return null;
@@ -1205,15 +1205,6 @@ final class AssistantLocalAgentRunner {
                 return parts.isEmpty() ? null : String.join("\n", parts);
             }
             return null;
-        }
-
-        private static String firstLine(String text) {
-            int newlineIndex = text.indexOf('\n');
-            return newlineIndex < 0 ? text : text.substring(0, newlineIndex);
-        }
-
-        private static String truncate(String value, int maxLength) {
-            return value.length() > maxLength ? value.substring(0, maxLength) + "..." : value;
         }
     }
 

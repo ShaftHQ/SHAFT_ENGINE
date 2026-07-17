@@ -130,7 +130,9 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     }
 
     @Test
-    void claudeToolResultsTruncateToTheFirstLine() throws Exception {
+    void claudeToolResultsIncludeAllLinesNotJustTheFirst() throws Exception {
+        // Regression: a multi-line tool result used to be silently cut to its first line only, e.g.
+        // hiding the rest of a Bash command's output. The user asked for full messages, no trimming.
         String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
                 + "\"id\":\"tool-1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}";
         String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
@@ -139,8 +141,35 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         List<String> lines = run(claudeInvocation(),
                 toolUseEvent + "\n" + toolResultEvent + "\n" + claudeResultEvent("done") + "\n");
 
-        assertTrue(lines.contains("Tool result (Bash): first line"), lines.toString());
-        assertTrue(lines.stream().noneMatch(line -> line.contains("second line")), lines.toString());
+        assertTrue(lines.contains("Tool result (Bash): first line\nsecond line"), lines.toString());
+    }
+
+    @Test
+    void codexToolResultsIncludeAllLinesNotJustTheFirst() throws Exception {
+        // Same fix, Codex side: describeCodexEvent must not cut a multi-line aggregated_output down
+        // to its first line either.
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\","
+                + "\"name\":\"shell\",\"command\":\"ls\",\"aggregated_output\":\"first line\\nsecond line\","
+                + "\"exit_code\":0}}";
+
+        List<String> lines = run(codexInvocation(), toolEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Calling tool shell (ls)...\nTool result (shell): first line\nsecond line"),
+                lines.toString());
+    }
+
+    @Test
+    void claudeToolUseArgumentSummaryIsNotTruncatedForLongCommands() throws Exception {
+        // Regression: toolInputSummary used to cap the "Calling tool X (...)" argument preview to 80
+        // chars, cutting a long Bash command mid-word. The user asked for full messages, no trimming.
+        String longCommand = "npm run build && npm run test && npm run lint && npm run typecheck "
+                + "&& echo build pipeline finished successfully";
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Bash\",\"input\":{\"command\":\"" + longCommand + "\"}}]}}";
+
+        List<String> lines = run(claudeInvocation(), toolUseEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Calling tool Bash (" + longCommand + ")..."), lines.toString());
     }
 
     @Test
