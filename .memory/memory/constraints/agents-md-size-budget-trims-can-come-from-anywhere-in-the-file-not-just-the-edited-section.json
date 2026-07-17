@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/constraints/agents-md-size-budget-trims-can-come-from-anywhere-in-the-file-not-just-the-edited-section.md",
+  "content_hash": "sha256:4dacfc3741782bd8db4fd10ffc4c64af7f55b1c7660a8b0be6e8c1350bae99c7",
+  "created_at": "2026-07-17T13:40:08+03:00",
+  "evidence": [],
+  "id": "constraint.agents-md-size-budget-trims-can-come-from-anywhere-in-the-file-not-just-the-edited-section",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "PR review-comment discipline and AGENTS.md trim-budget flexibility"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "agents-md",
+    "validate-agent-setup",
+    "process"
+  ],
+  "title": "AGENTS.md size-budget trims can come from anywhere in the file, not just the edited section",
+  "type": "constraint",
+  "updated_at": "2026-07-17T13:40:08+03:00"
+}

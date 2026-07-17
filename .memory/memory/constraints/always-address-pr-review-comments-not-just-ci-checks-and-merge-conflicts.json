@@ -1,0 +1,28 @@
+{
+  "body_path": "memory/constraints/always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts.md",
+  "content_hash": "sha256:5987a46af304d3633cfa191b4b842e3d2377c24f35a49cb7bb81d55ff299ecf1",
+  "created_at": "2026-07-17T13:40:08+03:00",
+  "evidence": [],
+  "id": "constraint.always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "PR review-comment discipline and AGENTS.md trim-budget flexibility"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "pr",
+    "code-review",
+    "process",
+    "codacy"
+  ],
+  "title": "Always address PR review comments, not just CI checks and merge conflicts",
+  "type": "constraint",
+  "updated_at": "2026-07-17T13:40:08+03:00"
+}
