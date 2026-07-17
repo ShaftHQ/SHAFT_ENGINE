@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Builds SHAFT Assistant MCP invocations from prompt text.
@@ -901,31 +903,41 @@ final class AssistantCommand {
      * of the same keywords branched on below, so the final fallback return is unreachable in
      * practice.
      */
+    private record NaturalSessionCommandRule(Predicate<String> matchesNormalized, Function<String, String> commandFor) {
+    }
+
+    private static final List<NaturalSessionCommandRule> BROWSER_SESSION_COMMAND_RULES = List.of(
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "resize", "window size"),
+                    text -> "size " + firstSizeLikeToken(text)),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "delete all cookies", "clear cookies", "clear all cookies"),
+                    text -> "clearcookies"),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("delete cookie"),
+                    text -> "deletecookie " + firstTokenAfterWord(text, "cookie")),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("aria snapshot"),
+                    text -> "aria"),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("accessibility audit"),
+                    text -> "audit"),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "network requests", "network transactions"),
+                    text -> "network"),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "save session", "save storage state"),
+                    text -> "save " + firstJsonLikePath(text)),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "load session", "load storage state"),
+                    text -> "load " + firstJsonLikePath(text)));
+
     private static String naturalBrowserSessionCommand(String text) {
         String normalized = normalizeNaturalCommand(text);
-        if (containsAny(normalized, "resize", "window size")) {
-            return "size " + firstSizeLikeToken(text);
-        }
-        if (containsAny(normalized, "delete all cookies", "clear cookies", "clear all cookies")) {
-            return "clearcookies";
-        }
-        if (normalized.contains("delete cookie")) {
-            return "deletecookie " + firstTokenAfterWord(text, "cookie");
-        }
-        if (normalized.contains("aria snapshot")) {
-            return "aria";
-        }
-        if (normalized.contains("accessibility audit")) {
-            return "audit";
-        }
-        if (containsAny(normalized, "network requests", "network transactions")) {
-            return "network";
-        }
-        if (containsAny(normalized, "save session", "save storage state")) {
-            return "save " + firstJsonLikePath(text);
-        }
-        if (containsAny(normalized, "load session", "load storage state")) {
-            return "load " + firstJsonLikePath(text);
+        for (NaturalSessionCommandRule rule : BROWSER_SESSION_COMMAND_RULES) {
+            if (rule.matchesNormalized().test(normalized)) {
+                return rule.commandFor().apply(text);
+            }
         }
         return text(text);
     }
