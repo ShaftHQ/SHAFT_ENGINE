@@ -2007,7 +2007,8 @@ final class ShaftAssistantPanel extends JPanel {
         actions.add(runInAgentMode);
         actions.add(keepRefining);
         transcript.showWidget("assistant",
-                transcript.assistantBubbleWithActions("**Ready to proceed with this plan?**", actions));
+                transcript.assistantBubbleWithActions(
+                        "**Ready to proceed with this plan?**", actions, "Plan proposal actions"));
     }
 
     /**
