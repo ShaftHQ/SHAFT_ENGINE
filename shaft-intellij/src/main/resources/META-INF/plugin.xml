@@ -39,6 +39,12 @@
                   topic="com.intellij.execution.ExecutionListener"/>
         <listener class="com.shaft.intellij.testindex.ShaftTestIndexListener"
                   topic="com.intellij.execution.ExecutionListener"/>
+        <!-- Live pass/fail progression for the "SHAFT Tests" panel (issue #3688): a project-wide
+             subscription to every SM Test Runner-driven test run, mirroring the two listeners
+             above rather than attaching per-process-handler; see ShaftSmTestRunnerBridge's
+             class javadoc for why. -->
+        <listener class="com.shaft.intellij.testindex.ShaftSmTestRunnerBridge"
+                  topic="com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener"/>
     </projectListeners>
 
     <actions>
