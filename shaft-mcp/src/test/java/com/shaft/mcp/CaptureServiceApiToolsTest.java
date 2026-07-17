@@ -153,8 +153,10 @@ class CaptureServiceApiToolsTest {
 
     @Test
     void apiStartThreadsApiCaptureAndNetworkOptionsWithoutThrowingBeforeBrowserLaunch() {
-        // A blank target URL fails CaptureStartRequest validation synchronously, before any
-        // browser is touched, so this proves apiStart wires apiCapture=true and
+        // Blank/null target URLs now normalize to about:blank instead of being rejected
+        // (CaptureStartRequest#validateUrl, #3673/#3682), so an invalid-scheme URL is used
+        // here instead: it still fails CaptureStartRequest validation synchronously, before
+        // any browser is touched, so this proves apiStart wires apiCapture=true and
         // networkOptions/headless resolution through startWithOptions without a NullPointerException,
         // for both the unspecified-options and explicit-options cases.
         CaptureService service = new CaptureService(
@@ -163,11 +165,11 @@ class CaptureServiceApiToolsTest {
                 new McpCaptureCodeBlockService());
         try {
             IllegalArgumentException unspecified = assertThrows(IllegalArgumentException.class,
-                    () -> service.apiStart("", "chrome", null, null));
+                    () -> service.apiStart("ftp://example.test", "chrome", null, null));
             assertTrue(unspecified.getMessage().contains("target URL"));
 
             IllegalArgumentException explicit = assertThrows(IllegalArgumentException.class,
-                    () -> service.apiStart("", "chrome", false, new NetworkCaptureOptions()));
+                    () -> service.apiStart("ftp://example.test", "chrome", false, new NetworkCaptureOptions()));
             assertTrue(explicit.getMessage().contains("target URL"));
         } finally {
             service.close();
