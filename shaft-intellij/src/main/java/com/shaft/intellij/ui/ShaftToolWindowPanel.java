@@ -199,7 +199,11 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         int selectorHeight = Math.max(30, selectorSize.height);
         workflowSelector.setPreferredSize(JBUI.size(Math.max(150, selectorSize.width), selectorHeight));
         workflowSelector.setMinimumSize(JBUI.size(140, selectorHeight));
-        workflowSelector.addActionListener(event -> showSelectedWorkflow());
+        restoreSelectedWorkflowView();
+        workflowSelector.addActionListener(event -> {
+            showSelectedWorkflow();
+            persistSelectedWorkflowView();
+        });
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         header.setBorder(JBUI.Borders.empty(6, 8, 4, 8));
         JLabel label = new JLabel("Workflow");
@@ -599,6 +603,38 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         WorkflowView view = workflowSelector == null ? null : (WorkflowView) workflowSelector.getSelectedItem();
         if (view != null && workflowLayout != null && workflowCards != null) {
             workflowLayout.show(workflowCards, view.label());
+        }
+    }
+
+    /**
+     * Restores the last-selected workflow view across IDE restarts (issue #3636), keyed by
+     * {@link WorkflowView#label()} -- the same stable string already used as the {@code CardLayout}
+     * key for each view. Falls back silently to the existing default (the first item, already
+     * selected by the combo's model) when nothing is stored yet, or when the stored key no longer
+     * matches any current view (e.g. after a plugin update changes the available workflows). Runs
+     * before {@code workflowSelector}'s action listener is attached, so this never double-persists
+     * the value it just read; the CardLayout is switched here explicitly since a plain
+     * {@code setSelectedItem} call would not do that on its own without the listener.
+     */
+    private void restoreSelectedWorkflowView() {
+        String savedKey = ShaftUiState.getInstance(project).workflowView();
+        if (savedKey == null) {
+            return;
+        }
+        for (WorkflowView view : workflowViews) {
+            if (view.label().equals(savedKey)) {
+                workflowSelector.setSelectedItem(view);
+                workflowLayout.show(workflowCards, view.label());
+                return;
+            }
+        }
+    }
+
+    /** Persists the currently selected workflow view's key so {@link #restoreSelectedWorkflowView()} can find it next time. */
+    private void persistSelectedWorkflowView() {
+        WorkflowView selected = (WorkflowView) workflowSelector.getSelectedItem();
+        if (selected != null) {
+            ShaftUiState.getInstance(project).setWorkflowView(selected.label());
         }
     }
 
