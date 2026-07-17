@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,6 +45,13 @@ import java.util.regex.Pattern;
 final class AssistantLocalAgentRunner {
     static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    /**
+     * Cap on how much a run's deadline can be extended by accumulated approval-deliberation time
+     * (see {@link #awaitProcessWithApprovalExtension}) -- deliberation up to this cap never kills a
+     * run, but abandonment past it still gets cleaned up, per issue #3633.
+     */
+    static final int MAX_APPROVAL_EXTENSION_SECONDS = 600;
+    private static final long DEADLINE_POLL_INTERVAL_MILLIS = 200;
     private static final int MODEL_LIST_TIMEOUT_SECONDS = 20;
     private static final int COMPACT_TIMEOUT_SECONDS = 30;
     private static final int MCP_ACCESS_TIMEOUT_SECONDS = 45;
@@ -389,6 +397,28 @@ final class AssistantLocalAgentRunner {
         return "AGENT".equals(normalize(string(arguments, "mode", "ASK")));
     }
 
+    /**
+     * Wraps {@code handler} so the transcript shows a status line while a tool-approval decision is
+     * pending and another when it resolves, satisfying issue #3633's "status line reflects the
+     * paused timer during a pending approval" acceptance criterion via the existing narration
+     * (output-consumer) hooks -- no new UI plumbing needed. Returns {@code handler} unchanged when
+     * either it or {@code outputConsumer} is {@code null} (nothing to narrate, or nowhere to narrate
+     * it to).
+     */
+    static LocalAgentApprovalBridge.ApprovalRequestHandler narrateApproval(
+            LocalAgentApprovalBridge.ApprovalRequestHandler handler, Consumer<String> outputConsumer) {
+        if (handler == null || outputConsumer == null) {
+            return handler;
+        }
+        return (toolName, toolInput) -> {
+            outputConsumer.accept("Waiting for your approval on " + toolName + " -- run timer paused.");
+            CompletableFuture<LocalAgentApprovalBridge.Decision> future = handler.requestApproval(toolName, toolInput);
+            future.whenComplete((decision, throwable) ->
+                    outputConsumer.accept("Approval resolved -- run timer resumed."));
+            return future;
+        };
+    }
+
     private static ShaftMcpToolResult run(
             JsonObject arguments,
             AtomicReference<Process> processReference,
@@ -419,6 +449,8 @@ final class AssistantLocalAgentRunner {
             LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
             ApprovalBridgeLauncher bridgeLauncher) {
         Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
+        LocalAgentApprovalBridge.ApprovalRequestHandler narratingApprovalHandler =
+                narrateApproval(approvalHandler, outputConsumer);
         LocalAgentApprovalBridge bridge = null;
         if (needsInteractiveApproval(arguments, approvalHandler)) {
             try {
@@ -426,7 +458,7 @@ final class AssistantLocalAgentRunner {
                 // timeout below: if the user never answers, the process timeout fires first and this
                 // run fails on its own; the bridge timeout is a defensive backstop for the case where
                 // close() somehow isn't reached promptly, not the primary mechanism.
-                bridge = bridgeLauncher.launch(approvalHandler, timeout.plusSeconds(5));
+                bridge = bridgeLauncher.launch(narratingApprovalHandler, timeout.plusSeconds(5));
             } catch (IOException exception) {
                 if (outputConsumer != null) {
                     outputConsumer.accept("Interactive approval is unavailable (" + exception.getMessage()
@@ -480,7 +512,7 @@ final class AssistantLocalAgentRunner {
                 if (cancellationRequested.get()) {
                     throw new CancellationException("Operation cancelled");
                 }
-                if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+                if (!awaitProcessWithApprovalExtension(process, timeout, bridge)) {
                     process.destroyForcibly();
                     return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
                             "Timed out after " + timeout.toSeconds() + " seconds."));
@@ -531,6 +563,54 @@ final class AssistantLocalAgentRunner {
         } finally {
             if (bridge != null) {
                 bridge.close();
+            }
+        }
+    }
+
+    /**
+     * Waits for the process to finish, extending the nominal {@code timeout} by however long the
+     * user has spent deliberating on interactive approval prompts (per {@code bridge}), up to
+     * {@link #MAX_APPROVAL_EXTENSION_SECONDS} -- so a user genuinely reading a diff at the approval
+     * gate doesn't lose the whole run to the same deadline that governs unattended abandonment. When
+     * no bridge is in play (no interactive approval for this run), behavior is unchanged: a single
+     * plain wait on the nominal timeout.
+     */
+    private static boolean awaitProcessWithApprovalExtension(
+            Process process, Duration timeout, LocalAgentApprovalBridge bridge) throws InterruptedException {
+        if (bridge == null) {
+            return process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        return awaitProcessWithDeadlineExtension(
+                process,
+                timeout,
+                TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS),
+                bridge::accumulatedPendingMillis);
+    }
+
+    /**
+     * Polls {@code process} in short slices (instead of one long blocking wait) so the effective
+     * deadline -- {@code timeout + min(accumulatedPendingMillis, maxExtensionMillis)} -- can be
+     * recomputed on the fly as {@code accumulatedPendingMillisSupplier} grows during a pending
+     * approval. Package-private (not {@code private}) so tests can drive it directly with a fake
+     * supplier and a tiny cap, without waiting on real approval-bridge wall-clock time or the real
+     * 10-minute cap.
+     */
+    static boolean awaitProcessWithDeadlineExtension(
+            Process process, Duration timeout, long maxExtensionMillis, LongSupplier accumulatedPendingMillisSupplier)
+            throws InterruptedException {
+        long startNanos = System.nanoTime();
+        long baseMillis = timeout.toMillis();
+        while (true) {
+            long extensionMillis = Math.min(accumulatedPendingMillisSupplier.getAsLong(), maxExtensionMillis);
+            long effectiveDeadlineMillis = baseMillis + extensionMillis;
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            long remainingMillis = effectiveDeadlineMillis - elapsedMillis;
+            if (remainingMillis <= 0) {
+                return false;
+            }
+            long sliceMillis = Math.min(remainingMillis, DEADLINE_POLL_INTERVAL_MILLIS);
+            if (process.waitFor(sliceMillis, TimeUnit.MILLISECONDS)) {
+                return true;
             }
         }
     }
