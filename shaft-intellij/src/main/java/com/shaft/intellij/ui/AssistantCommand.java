@@ -100,6 +100,9 @@ final class AssistantCommand {
                     - Reuse existing tests, page objects, locator fields, and action methods first.
                     - If the user provided a recording JSON path, generate from it with capture_generate_replay (replay true, useAi false); it re-executes the recording headless, compiles the generated test, and proves every locator live. No active capture session is required and none should be demanded.
                     - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
+                    - Choose the recording surface that matches the description: capture_start_codegen for a WebDriver browser flow, or the mobile_record_start / mobile_tap / mobile_type / mobile_record_stop sequence for a native or hybrid mobile flow.
+                    - If capture_generate_replay (or its mobile/Playwright equivalents) reports a broken or unhealed locator, call healer_run_failed_test (or playwright_healer_run_failed_test) to self-heal it before returning code, instead of returning a known-broken locator.
+                    - Keep the returned code minimal and project-structure-compliant: one Page Object Model class per described flow, matching this project's existing package/module layout and SHAFT syntax; do not repeat this guidance text back to the user or paste unrelated boilerplate.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
                     - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
@@ -2390,8 +2393,56 @@ final class AssistantCommand {
                 """.formatted(modeGuidance).stripIndent().trim();
     }
 
+    /**
+     * Recognizes a scenario described in prose -- e.g. the onboarding quick action's "Record a
+     * sample web flow on a practice page, add one assertion, and generate a reviewed test." -- as
+     * distinct from a bare "start recording"/"record a scenario" trigger (issue #3692 item 3).
+     *
+     * <p>Without this carve-out, such prose is misrouted: {@link #isBrowserRecordingIntent}'s
+     * keyword list (which includes "web flow", "browser", "http://", ...) matches these
+     * descriptions too, since a scenario naturally mentions a URL or "web flow", so it was being
+     * deterministically short-circuited into a bare {@code capture_start} that opens a browser and
+     * silently drops the rest of the description (the assertion, the generated test). Routing this
+     * intent through {@link #isCodeGenerationRequest} instead sends it to the underlying agent with
+     * {@link #SHAFT_CODEGEN_TOOL_GUIDANCE}'s full record -&gt; act -&gt; stop -&gt; codegen -&gt;
+     * self-heal pipeline, matching what the description actually asked for.
+     *
+     * <p>{@link #isStartRecording}/{@link #isRecordScenarioIntent}/{@link #isReRecord} are
+     * excluded so the narrow, deliberately exact-match deterministic triggers they own (issue
+     * #3673) are unaffected.
+     *
+     * @param text the natural-language prompt
+     * @return whether the text describes a scenario to record and turn into code, not just a bare
+     *         recording trigger
+     */
+    private static boolean isScenarioDescriptionIntent(String text) {
+        if (isStartRecording(text) || isRecordScenarioIntent(text) || isReRecord(text)) {
+            return false;
+        }
+        if (!firstJsonLikePath(text).isBlank()) {
+            // A recording (or other JSON) path is already named: the existing deterministic routes
+            // (isMobileCodegenIntent, the "recording file is the source of truth" branch in
+            // fromPrompt, ...) already handle that correctly. This predicate is only for scenarios
+            // described without one yet -- and must not match on "recordings/x.json" substrings.
+            return false;
+        }
+        String normalized = normalizeNaturalCommand(text);
+        boolean mentionsRecordingVerb = normalized.startsWith("record ") || normalized.contains(" record ")
+                || normalized.startsWith("recording ") || normalized.contains(" recording ")
+                || normalized.startsWith("capture ") || normalized.contains(" capture ");
+        if (!mentionsRecordingVerb) {
+            return false;
+        }
+        return containsAny(normalized,
+                "assert", "assertion", "generate", "generated", "codegen", "code gen",
+                "reviewed test", "page object");
+    }
+
     private static boolean isCodeGenerationRequest(String text) {
         String normalized = normalizeNaturalCommand(text);
+        if (isScenarioDescriptionIntent(text)) {
+            return true;
+        }
         return containsAny(normalized,
                 "generate code",
                 "generate java",

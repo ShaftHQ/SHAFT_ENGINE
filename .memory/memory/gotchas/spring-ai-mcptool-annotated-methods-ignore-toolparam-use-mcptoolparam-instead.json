@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/spring-ai-mcptool-annotated-methods-ignore-toolparam-use-mcptoolparam-instead.md",
+  "content_hash": "sha256:1516abe6b70280e705c1097ca82cfe4d5d46df357ca770b18969efb3e58960d4",
+  "created_at": "2026-07-17T23:32:03+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.spring-ai-mcptool-annotated-methods-ignore-toolparam-use-mcptoolparam-instead",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix shaft-mcp capture_start/codegen tools failing MCP JSON-schema validation on the IntelliJ onboarding Record-a-sample-flow quick action (issue #3692)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-mcp",
+    "spring-ai",
+    "mcp-protocol",
+    "mcptool",
+    "toolparam",
+    "schema",
+    "gotcha"
+  ],
+  "title": "Spring AI @McpTool-annotated methods ignore @ToolParam; use @McpToolParam instead",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T23:32:03+03:00"
+}

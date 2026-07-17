@@ -497,13 +497,15 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     /**
-     * Renders the Assistant run timeline mid-{@code capture_generate_replay}, with several
-     * streamed {@code notifications/progress} milestones already appended (issue #3546), so the
-     * screenshot documents live-execution transparency instead of a static "Running" placeholder
-     * that never changes. The milestone text mirrors what {@code CaptureGenerator#generate}
-     * actually reports server-side (shaft-capture), for a realistic shot.
+     * Renders the Assistant transcript with several streamed {@code notifications/progress}
+     * agent-milestone chat bubbles already appended (issue #3546), so the screenshot documents
+     * live-execution transparency instead of a static "Running" placeholder that never changes.
+     * These milestones used to render into a separately-scrollable "Run timeline" list; issue #3695
+     * folded them into the transcript as their own chat bubbles instead, which is what this shot now
+     * documents. The milestone text mirrors what {@code CaptureGenerator#generate} actually reports
+     * server-side (shaft-capture), for a realistic shot.
      *
-     * <p>Driven through {@code addTimeline} directly — the same rendering path {@code
+     * <p>Driven through {@code appendAgentMilestone} directly — the same rendering path {@code
      * onToolProgress} feeds in production — rather than a real {@code dispatchApprovedTool} call,
      * because this harness's fake {@link #screenshotProject()} has no live
      * {@code ShaftMcpInvocationService} to dispatch through.
@@ -520,13 +522,13 @@ class ShaftPluginScreenshotRendererTest {
             ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
                     () -> {
                     });
-            invokeAddTimeline(component, "Tool selected: capture_generate_replay");
-            invokeAddTimeline(component, "Running");
+            invokeAppendAgentMilestone(component, "Tool selected: capture_generate_replay");
+            invokeAppendAgentMilestone(component, "Running");
             invokeSetRunning(component, true, "Running: capture_generate_replay …");
-            invokeAddTimeline(component, "Read capture session demo-recording.json");
-            invokeAddTimeline(component, "Analyzed 12 captured event(s)");
-            invokeAddTimeline(component, "Generated deterministic test source for DemoRecordingTest");
-            invokeAddTimeline(component, "Compiled generated test: PASSED");
+            invokeAppendAgentMilestone(component, "Read capture session demo-recording.json");
+            invokeAppendAgentMilestone(component, "Analyzed 12 captured event(s)");
+            invokeAppendAgentMilestone(component, "Generated deterministic test source for DemoRecordingTest");
+            invokeAppendAgentMilestone(component, "Compiled generated test: PASSED");
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -538,13 +540,13 @@ class ShaftPluginScreenshotRendererTest {
         return image.get();
     }
 
-    private static void invokeAddTimeline(ShaftAssistantPanel component, String step) {
+    private static void invokeAppendAgentMilestone(ShaftAssistantPanel component, String step) {
         try {
-            Method method = ShaftAssistantPanel.class.getDeclaredMethod("addTimeline", String.class);
+            Method method = ShaftAssistantPanel.class.getDeclaredMethod("appendAgentMilestone", String.class);
             method.setAccessible(true);
             method.invoke(component, step);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Unable to render the progress-milestones timeline", exception);
+            throw new IllegalStateException("Unable to render the agent-milestone chat bubbles", exception);
         }
     }
 
@@ -552,12 +554,13 @@ class ShaftPluginScreenshotRendererTest {
      * Renders the Assistant transcript's failure-recovery card (issue #3547): the plain-language
      * root-cause card that {@code FailedRunDoctorNotifier} now renders automatically after a failed
      * test run (and that the notification's "Diagnose"/"Heal" buttons also produce directly, even
-     * in default mode), instead of a bare "Failed" timeline entry or raw JSON. Seeded through the
+     * in default mode), instead of a bare "Failed" milestone bubble or raw JSON. Seeded through the
      * same pure {@link ShaftAssistantPanel#toolCardMarkdown} formatting step {@code
      * runToolAndRenderCard} uses in production, then appended via {@link
      * ShaftAssistantPanel#simulateAppendForTest} -- this harness's fake {@link #screenshotProject()}
      * has no live {@code ShaftMcpInvocationService} to dispatch a real MCP round trip through, the
-     * same reason {@link #renderAssistantProgressMilestones} drives {@code addTimeline} directly.
+     * same reason {@link #renderAssistantProgressMilestones} drives {@code appendAgentMilestone}
+     * directly.
      */
     private static BufferedImage renderAssistantFailureRecoveryCard(String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
