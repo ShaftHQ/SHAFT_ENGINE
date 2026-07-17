@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -152,6 +153,49 @@ class ApiRecordingSessionPanelTest {
         model.setValueAt(false, 1, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN);
 
         assertEquals(Set.of("$.orderId"), model.pinnedJsonPaths());
+    }
+
+    @Test
+    void pinFieldsDialogCancelLeavesPinnedJsonPathsUnchanged() throws Exception {
+        // issue #3635: DialogWrapper's default Cancel action (Esc) must stay a no-op, matching the
+        // old hand-rolled JDialog's cancel button, which only called dialog.dispose(). DialogWrapper
+        // asserts its constructor and actions run on the EDT, so this must too (unlike the panel's
+        // other tests, which cover pure logic off the EDT).
+        Set<String> pinnedJsonPaths = new LinkedHashSet<>(Set.of("$.existing"));
+        ApiRecordingSessionPanel.PinnableLeafTableModel pickerModel = new ApiRecordingSessionPanel.PinnableLeafTableModel(
+                List.of(new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.orderId", "uuid-1")),
+                Set.of());
+        pickerModel.setValueAt(true, 0, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN);
+
+        javax.swing.SwingUtilities.invokeAndWait(() -> {
+            ApiRecordingSessionPanel.PinFieldsDialog dialog =
+                    new ApiRecordingSessionPanel.PinFieldsDialog(null, pickerModel, pinnedJsonPaths);
+            dialog.doCancelAction();
+        });
+
+        assertEquals(Set.of("$.existing"), pinnedJsonPaths);
+    }
+
+    @Test
+    void pinFieldsDialogOkReplacesPinnedJsonPathsWithThePickersSelections() throws Exception {
+        // OK (DialogWrapper's default action, bound to Enter for free) must replace the panel's
+        // pinned set with exactly what's checked in the picker model, same as the old dialog's OK
+        // button did before pinnedJsonPaths.clear()/addAll().
+        Set<String> pinnedJsonPaths = new LinkedHashSet<>(Set.of("$.stale"));
+        ApiRecordingSessionPanel.PinnableLeafTableModel pickerModel = new ApiRecordingSessionPanel.PinnableLeafTableModel(
+                List.of(
+                        new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.orderId", "uuid-1"),
+                        new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.note", "n/a")),
+                Set.of());
+        pickerModel.setValueAt(true, 0, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN);
+
+        javax.swing.SwingUtilities.invokeAndWait(() -> {
+            ApiRecordingSessionPanel.PinFieldsDialog dialog =
+                    new ApiRecordingSessionPanel.PinFieldsDialog(null, pickerModel, pinnedJsonPaths);
+            dialog.doOKAction();
+        });
+
+        assertEquals(Set.of("$.orderId"), pinnedJsonPaths);
     }
 
     private static String mcpArrayText(String text) {

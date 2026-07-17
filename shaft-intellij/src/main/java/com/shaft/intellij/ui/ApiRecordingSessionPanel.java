@@ -7,6 +7,7 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
@@ -21,11 +22,9 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.RowFilter;
-import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.BorderLayout;
@@ -477,28 +476,48 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
             return;
         }
         PinnableLeafTableModel pickerModel = new PinnableLeafTableModel(rows, pinnedJsonPaths);
-        JBTable picker = new JBTable(pickerModel);
-        picker.getColumnModel().getColumn(PinnableLeafTableModel.PIN_COLUMN).setMaxWidth(50);
-        picker.getAccessibleContext().setAccessibleName("Volatile response fields to pin as business assertions");
+        new PinFieldsDialog(project, pickerModel, pinnedJsonPaths).show();
+    }
 
-        JDialog dialog = new JDialog(
-                SwingUtilities.getWindowAncestor(this), "Pin Response Fields", JDialog.ModalityType.APPLICATION_MODAL);
-        dialog.getContentPane().add(new JBScrollPane(picker), BorderLayout.CENTER);
-        JButton ok = new JButton("OK");
-        ok.addActionListener(event -> {
+    /**
+     * Modal picker for volatile response fields to pin as business assertions (issue #3635).
+     * A {@link DialogWrapper} instead of a hand-rolled {@code JDialog} so sizing goes through
+     * {@link JBUI} and Esc/Enter bindings come for free from the platform's default Cancel/OK
+     * actions, instead of raw pixel sizing with no keyboard shortcuts.
+     */
+    static final class PinFieldsDialog extends DialogWrapper {
+        private final PinnableLeafTableModel pickerModel;
+        private final Set<String> pinnedJsonPaths;
+        private final JBTable picker;
+
+        PinFieldsDialog(@Nullable Project project, PinnableLeafTableModel pickerModel, Set<String> pinnedJsonPaths) {
+            super(project, false);
+            this.pickerModel = pickerModel;
+            this.pinnedJsonPaths = pinnedJsonPaths;
+            this.picker = new JBTable(pickerModel);
+            picker.getColumnModel().getColumn(PinnableLeafTableModel.PIN_COLUMN).setMaxWidth(50);
+            picker.getAccessibleContext().setAccessibleName(
+                    "Volatile response fields to pin as business assertions");
+            setTitle("Pin Response Fields");
+            init();
+        }
+
+        @Override
+        protected JComponent createCenterPanel() {
+            JBScrollPane scrollPane = new JBScrollPane(picker);
+            scrollPane.setPreferredSize(JBUI.size(640, 360));
+            return scrollPane;
+        }
+
+        // On OK, replace the panel's pinned set with the picker's checked JSON paths. On Cancel
+        // (the default DialogWrapper action, bound to Esc for free) nothing here runs, so
+        // pinnedJsonPaths is left untouched -- matching the original dialog.dispose() cancel path.
+        @Override
+        protected void doOKAction() {
             pinnedJsonPaths.clear();
             pinnedJsonPaths.addAll(pickerModel.pinnedJsonPaths());
-            dialog.dispose();
-        });
-        JButton cancel = new JButton("Cancel");
-        cancel.addActionListener(event -> dialog.dispose());
-        JPanel dialogActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 6));
-        dialogActions.add(cancel);
-        dialogActions.add(ok);
-        dialog.getContentPane().add(dialogActions, BorderLayout.SOUTH);
-        dialog.setSize(640, 360);
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+            super.doOKAction();
+        }
     }
 
     /**
