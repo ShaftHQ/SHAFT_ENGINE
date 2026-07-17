@@ -46,6 +46,11 @@ import java.util.Set;
  * ({@link CaptureMode#PURE_API}, polling {@code mobile_api_record_transactions}/
  * {@code mobile_api_record_stop}) -- issue #3530 A2. {@code capture_api_generate} is shared by
  * both: it is already session-path-agnostic, taking only the persisted session JSON path.
+ *
+ * <p>Stop/Generate/Pin Fields/Copy CA Certificate keep visible text (unlike every other day-to-day
+ * panel, which is icon-only via {@code ShaftIconButtons.apply}) and carry Alt-reachable mnemonics
+ * (S/G/P/C respectively, non-conflicting within each button's visible row) per the setup panel's
+ * convention (issue #3637).
  */
 public final class ApiRecordingSessionPanel extends JPanel implements Disposable {
     private static final int POLL_INTERVAL_MILLIS = 2_000;
@@ -172,6 +177,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
         pinFieldsButton.getAccessibleContext().setAccessibleDescription(
                 "Pick volatile response fields to force-assert as business assertions");
         pinFieldsButton.addActionListener(event -> openPinFieldsDialog());
+        assignActionRowMnemonics(stopButton, pinFieldsButton, generateButton);
 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         JLabel titleLabel = new JLabel(headerText);
@@ -220,6 +226,9 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
                 CopyPasteManager.getInstance().setContents(new StringSelection(caCertificatePem));
             }
         });
+        // Own visible row (issue #3637): never shares a row with the actions above, so no
+        // cross-row conflict is possible -- still gets a real mnemonic for Alt-reachability.
+        copyCertificateButton.setMnemonic('C');
 
         JPanel pairingActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         pairingActions.add(copyCertificateButton);
@@ -269,6 +278,23 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
      */
     TransactionTableModel tableModel() {
         return tableModel;
+    }
+
+    /**
+     * Assigns non-conflicting mnemonics to the {@code actions} row's three buttons (issue #3637):
+     * extracted as a static, pure method (rather than inlined in the constructor) so
+     * {@code ApiRecordingSessionPanelTest} can verify the assignment has no duplicate mnemonic
+     * without needing a live {@link Project} to construct the full panel (this panel starts an
+     * {@link Alarm} and MCP polling in its constructor, so it is not itself headlessly testable).
+     *
+     * @param stop the Stop button
+     * @param pinFields the Pin Fields... button
+     * @param generate the Generate button
+     */
+    static void assignActionRowMnemonics(JButton stop, JButton pinFields, JButton generate) {
+        stop.setMnemonic('S');
+        pinFields.setMnemonic('P');
+        generate.setMnemonic('G');
     }
 
     JBTextField filterField() {
