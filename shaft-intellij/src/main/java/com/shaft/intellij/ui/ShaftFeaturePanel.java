@@ -460,6 +460,7 @@ final class ShaftFeaturePanel extends JPanel {
                     status.setText("MCP connection reset");
                 }
                 case VIEW_LOGS -> RecoveryActions.activateEventLog(project);
+                default -> throw new IllegalStateException("Unexpected recovery kind: " + kind);
             }
         });
         recoveryButton.setVisible(true);

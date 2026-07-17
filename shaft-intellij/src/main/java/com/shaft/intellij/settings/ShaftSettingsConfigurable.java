@@ -891,27 +891,32 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         for (var listener : testRecoveryAction.getActionListeners()) {
             testRecoveryAction.removeActionListener(listener);
         }
-        testRecoveryAction.addActionListener(event -> {
-            switch (kind) {
-                case RETRY -> retryAction.run();
-                case RESTART -> {
-                    Project project = resolveProject();
-                    if (project != null) {
-                        ShaftMcpInvocationService.getInstance(project).restartConnection();
-                    }
-                    if (testStatus != null) {
-                        testStatus.setText("Not tested");
-                        testStatus.getAccessibleContext().setAccessibleDescription(testStatus.getText());
-                    }
-                    testRecoveryAction.setVisible(false);
-                    if (testRecovery != null) {
-                        testRecovery.setVisible(false);
-                    }
-                }
-                case VIEW_LOGS -> RecoveryActions.activateEventLog(resolveProject());
-            }
-        });
+        testRecoveryAction.addActionListener(event -> runTestRecoveryAction(kind, retryAction));
         testRecoveryAction.setVisible(true);
+    }
+
+    private void runTestRecoveryAction(RecoveryActions.Kind kind, Runnable retryAction) {
+        switch (kind) {
+            case RETRY -> retryAction.run();
+            case RESTART -> restartMcpConnectionFromTestRecovery();
+            case VIEW_LOGS -> RecoveryActions.activateEventLog(resolveProject());
+            default -> throw new IllegalStateException("Unexpected recovery kind: " + kind);
+        }
+    }
+
+    private void restartMcpConnectionFromTestRecovery() {
+        Project project = resolveProject();
+        if (project != null) {
+            ShaftMcpInvocationService.getInstance(project).restartConnection();
+        }
+        if (testStatus != null) {
+            testStatus.setText("Not tested");
+            testStatus.getAccessibleContext().setAccessibleDescription(testStatus.getText());
+        }
+        testRecoveryAction.setVisible(false);
+        if (testRecovery != null) {
+            testRecovery.setVisible(false);
+        }
     }
 
     private String formatErrorMessage(ShaftMcpToolResult result) {

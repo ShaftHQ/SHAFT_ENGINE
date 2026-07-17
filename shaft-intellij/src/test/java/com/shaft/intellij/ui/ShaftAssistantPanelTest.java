@@ -89,7 +89,7 @@ class ShaftAssistantPanelTest {
         lafConnectionDisposableField.set(transcript, Disposer.newDisposable());
 
         Field statusField = ShaftAssistantPanel.class.getDeclaredField("status");
-        statusField.setAccessible(true);
+        statusField.setAccessible(true); // NOPMD - test-only field injection, matching the established pattern in ShaftPanelSetupTest
         JLabel status = (JLabel) statusField.get(panel);
 
         panel.addNotify();
