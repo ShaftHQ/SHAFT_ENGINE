@@ -21,23 +21,23 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
-- Blockers/small issues in path: fix inline. Enhancements/non-blocking issues: never silently drop -- route via the Learning Loop. Don't hunt for extras.
+- Blockers/small issues in path: fix inline. Anything else out-of-scope (enhancement, missing feature, degraded health metric) -- never silently drop: `gh issue create` same session (search first, consolidate). A PR/chat mention alone doesn't count. Don't hunt for extras.
 
 ## Windows/Codex Safety
 
-No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`/`ii`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers/dialogs. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT.Properties.allure; defaults `true`, opens the HTML report in a browser post-run -- distinct from `allure.open`, the Allure-3-CLI-native flag, already default `false`) + GUI-off Lighthouse `-D...=false`.
+No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT.Properties.allure; defaults `true`, opens the HTML report in a browser post-run -- distinct from `allure.open`, the Allure-3-CLI-native flag, already default `false`) + GUI-off Lighthouse `-D...=false`.
 
 ## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`; `gbrain query`/`code-def` for semantic retrieval -- supplements, never replaces (`skills/retrieval-reflex/`; auto-synced). Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`; `gbrain query`/`code-def` for retrieval -- supplements, never replaces (`skills/retrieval-reflex/`; auto-synced). Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
 
-Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> followup GitHub issue (search first; consolidate). Nothing durable is a valid outcome -- say so.
+Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> file it now (Working Rules). Nothing durable is a valid outcome -- say so.
 
 User harness (`~/.claude`) deploys from canonical `.claude/user-harness/` via `py -3 scripts/agents/sync_user_harness.py` (`--check`/`--apply`). Secrets live only in `~/.claude`, never in the repo.
 
 ## Validation
 
-Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or disposable copy. Use the smallest non-redundant check; rerun passing checks only after edits/rebases/dependency changes.
+Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or disposable copy. Use the smallest non-redundant check; rerun only after edits/rebases/dependency changes.
 
 - Guidance/memory: `py -3`/`python3 scripts/ci/validate_agent_setup.py`
 - Local code: affected tests, then one compile/package.
@@ -57,13 +57,13 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - Docs/report web UI: `frontend-design` -> implement -> shaft-mcp browser evidence (screenshots + `browser_accessibility_audit`). Perf/network regressions: shaft-mcp `browser_network_requests`.
 - Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree facts: just `rg` the pom) -> `ci-failure-investigator` on breakage.
 - `context7`: past-cutoff library APIs only, else repo exemplars.
-- Skip `jdtls-lsp` for one-liners; value scales with cross-module impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
+- Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
 - Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`test-driven-development`/`graphify`/`work-github`.
-- Local infra: gbrain + `gbrain-ollama` Docker back retrieval.
+- Local infra: gbrain + `gbrain-ollama` Docker.
 
 ## Agent Hierarchy & Model Routing
 
-When Fable holds the main thread it plans, delegates, reviews, and verifies with real checks -- it does not implement. Route implementation down: Haiku first (mechanical/spec-exact/bulk work), Sonnet (one bounded component per written spec), Explore/Plan for research. Synthesis, integration, and final verification stay in the main thread, sequentially. Every delegated prompt embeds the act-as-fable covenant; subagents return conclusions, not file dumps; verify their claims against real files before building on them; check the graphify cache before broad exploration. No Workflow tool, saved workflows (`.claude/workflows/` stays deleted), or orchestrators. PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
+When Fable holds the main thread it plans, delegates, reviews, and verifies with real checks -- it does not implement. Route implementation down: Haiku first (mechanical/spec-exact/bulk work), Sonnet (one bounded component per written spec), Explore/Plan for research. Synthesis and final verification stay in the main thread. Every delegated prompt embeds the act-as-fable covenant; subagents return conclusions, not file dumps; verify their claims against real files before building on them; check the graphify cache before broad exploration. No Workflow tool or saved workflows (`.claude/workflows/` stays deleted). PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
 
 ## Completion
 
