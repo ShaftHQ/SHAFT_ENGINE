@@ -1,24 +1,28 @@
 package com.shaft.intellij.ui;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.treeStructure.Tree;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.notifications.FailedRunDoctorNotifier;
 import com.shaft.intellij.notifications.ShaftToolWorkflowLauncher;
 import com.shaft.intellij.testindex.ShaftRunConfigurationResolver;
+import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.DefaultListModel;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JTree;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -27,26 +31,55 @@ import java.awt.event.MouseEvent;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Supplier;
 
 /**
- * "SHAFT Tests" tool-window tab: lists recent SHAFT test-run results from {@link ShaftTestIndex}
- * (run-configuration granularity -- see that class's javadoc) with Refresh/Clear actions and, for
- * a selected failed run, one-click "Diagnose with SHAFT Doctor" / "Heal failed test" buttons that
- * reuse the same MCP prefill flow as {@code FailedRunDoctorNotifier}'s failed-run balloon.
+ * "SHAFT Tests" tool-window tab: a package/class/method tree of every SHAFT-runnable {@code @Test}
+ * discovered by {@link ShaftTestDiscovery} (project-wide, PSI-based -- so tests that have never run
+ * are still visible), decorated with recorded pass/fail/last-run-time from {@link ShaftTestIndex}
+ * (run-configuration granularity -- see that class's javadoc) where a matching run exists. Nodes
+ * with no matching run render as "not yet run" rather than being hidden.
  * <p>
- * A selected row (any status) can also be rerun or navigated to via
+ * Toolbar Refresh re-runs discovery and re-reads the index (rebuilds the tree); Clear empties only
+ * the run-history index (the discovered structure stays, decorations reset). For a selected failed
+ * run, one-click "Diagnose with SHAFT Doctor" / "Heal failed test" buttons reuse the same MCP
+ * prefill flow as {@code FailedRunDoctorNotifier}'s failed-run balloon.
+ * <p>
+ * A selected class or method node can also be rerun or navigated to via
  * {@link ShaftRunConfigurationResolver}: the "Run" button or a plain double-click reruns it, while
- * Ctrl+double-click or the row's right-click context menu navigates to its resolved class.
+ * Ctrl+double-click or the row's right-click context menu navigates to its resolved class. Package
+ * nodes are not selectable for Run/Navigate/Diagnose/Heal. A method node resolves to its
+ * <em>containing class</em> for Run/Navigate -- {@link ShaftRunConfigurationResolver} only supports
+ * class granularity today; per-method run/navigate is tracked separately.
  */
 final class ShaftTestsPanel extends JPanel {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss")
             .withZone(ZoneId.systemDefault());
 
+    /** Kind of node in the discovery tree; only {@link #CLASS} and {@link #METHOD} are selectable
+     * for Run/Navigate/Diagnose/Heal. */
+    enum NodeKind { PACKAGE, CLASS, METHOD }
+
+    /**
+     * Tree-node payload. {@code qualifiedName} is the owning class's fully-qualified name for both
+     * {@link NodeKind#CLASS} and {@link NodeKind#METHOD} nodes (a method node's Run/Navigate targets
+     * its containing class -- see class javadoc), and {@code null} for {@link NodeKind#PACKAGE}
+     * nodes. {@code runState} is the matched run-history row, or {@code null} for "not yet run".
+     */
+    record TestTreeNode(NodeKind kind, String qualifiedName, String displayName, ShaftTestIndex.TestRowState runState) {
+    }
+
     private final Project project;
     private final ShaftTestIndex testIndex;
-    private final DefaultListModel<ShaftTestIndex.TestRowState> listModel = new DefaultListModel<>();
-    private final JBList<ShaftTestIndex.TestRowState> rowList = new JBList<>(listModel);
+    private final Supplier<List<ShaftTestDiscovery.DiscoveredTestClass>> discoverySource;
+    private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
+    private final Tree tree = new Tree(treeModel);
     private final JButton refreshButton;
     private final JButton clearButton;
     private final JButton runButton;
@@ -61,38 +94,49 @@ final class ShaftTestsPanel extends JPanel {
     }
 
     ShaftTestsPanel(Project project, ShaftTestIndex testIndex) {
+        this(project, testIndex, () -> ShaftTestDiscovery.discover(project));
+    }
+
+    /**
+     * Test-only seam: injects a fixed discovery result instead of running real PSI discovery, which
+     * needs a live IntelliJ platform {@link Project} this plain JUnit environment does not have.
+     * Mirrors the existing {@code testIndex} injection seam above.
+     */
+    ShaftTestsPanel(Project project, ShaftTestIndex testIndex,
+                     Supplier<List<ShaftTestDiscovery.DiscoveredTestClass>> discoverySource) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.testIndex = testIndex;
+        this.discoverySource = discoverySource;
         setBorder(JBUI.Borders.empty(8));
 
-        refreshButton = button("Refresh", "Reload rows from the SHAFT test run index",
+        refreshButton = button("Refresh", "Re-discover SHAFT tests and reload run history",
                 ShaftIcons.RERUN, this::refresh);
-        clearButton = button("Clear", "Clear all recorded SHAFT test-run rows",
+        clearButton = button("Clear", "Clear all recorded SHAFT test-run history",
                 ShaftIcons.CLEAR, this::clearRows);
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         toolbar.add(refreshButton);
         toolbar.add(clearButton);
 
-        rowList.getAccessibleContext().setAccessibleName("SHAFT test runs");
-        rowList.setCellRenderer(new DefaultListCellRenderer() {
+        tree.getAccessibleContext().setAccessibleName("SHAFT tests");
+        tree.setRootVisible(false);
+        tree.setShowsRootHandles(true);
+        tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        tree.setCellRenderer(new DefaultTreeCellRenderer() {
             @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                           boolean isSelected, boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(
-                        list, value, index, isSelected, cellHasFocus);
-                if (value instanceof ShaftTestIndex.TestRowState row) {
-                    label.setText(formatRowLabel(row));
+            public Component getTreeCellRendererComponent(JTree treeComponent, Object value, boolean selected,
+                                                            boolean expanded, boolean leaf, int row, boolean hasFocus) {
+                Component component = super.getTreeCellRendererComponent(
+                        treeComponent, value, selected, expanded, leaf, row, hasFocus);
+                if (component instanceof JLabel label && value instanceof DefaultMutableTreeNode node
+                        && node.getUserObject() instanceof TestTreeNode treeNode) {
+                    label.setText(formatNodeLabel(treeNode.displayName(), treeNode.runState()));
                 }
-                return label;
+                return component;
             }
         });
-        rowList.addListSelectionListener(event -> {
-            if (!event.getValueIsAdjusting()) {
-                onSelectionChanged();
-            }
-        });
-        rowList.addMouseListener(new MouseAdapter() {
+        tree.addTreeSelectionListener(event -> onSelectionChanged());
+        tree.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {
                 if (event.getClickCount() != 2) {
@@ -118,8 +162,8 @@ final class ShaftTestsPanel extends JPanel {
         navigateMenuItem = new JMenuItem("Navigate to test");
         navigateMenuItem.addActionListener(event -> navigateSelected());
         rowContextMenu.add(navigateMenuItem);
-        JBScrollPane listScroll = new JBScrollPane(rowList);
-        listScroll.setPreferredSize(JBUI.size(400, 260));
+        JBScrollPane treeScroll = new JBScrollPane(tree);
+        treeScroll.setPreferredSize(JBUI.size(400, 260));
 
         runButton = button("Run", "Rerun the selected SHAFT test.", ShaftIcons.RERUN, this::runSelected);
         diagnoseButton = button("Diagnose with SHAFT Doctor",
@@ -143,20 +187,51 @@ final class ShaftTestsPanel extends JPanel {
         south.add(statusLabel, BorderLayout.SOUTH);
 
         add(toolbar, BorderLayout.NORTH);
-        add(listScroll, BorderLayout.CENTER);
+        add(treeScroll, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
 
         refresh();
     }
 
     private void refresh() {
-        listModel.clear();
-        List<ShaftTestIndex.TestRowState> rows = testIndex.snapshot();
-        rows.forEach(listModel::addElement);
-        statusLabel.setText(rows.isEmpty()
-                ? "No test runs recorded yet. Run a SHAFT test to populate this tab."
-                : rows.size() + " test run(s) recorded.");
+        List<ShaftTestDiscovery.DiscoveredTestClass> discoveredClasses = discoverySource.get();
+        Map<String, ShaftTestIndex.TestRowState> rowsByTestId = new HashMap<>();
+        testIndex.snapshot().forEach(row -> rowsByTestId.put(row.testId(), row));
+
+        List<ShaftTestDiscovery.DiscoveredTestClass> sorted = new ArrayList<>(discoveredClasses);
+        sorted.sort(Comparator.comparing(ShaftTestDiscovery.DiscoveredTestClass::packageName)
+                .thenComparing(ShaftTestDiscovery.DiscoveredTestClass::simpleName));
+
+        DefaultMutableTreeNode newRoot = new DefaultMutableTreeNode();
+        Map<String, DefaultMutableTreeNode> packageNodes = new TreeMap<>();
+        int decoratedCount = 0;
+        for (ShaftTestDiscovery.DiscoveredTestClass discoveredClass : sorted) {
+            ShaftTestIndex.TestRowState runState = matchRunState(rowsByTestId, discoveredClass);
+            if (runState != null) {
+                decoratedCount++;
+            }
+            DefaultMutableTreeNode packageNode = packageNodes.computeIfAbsent(discoveredClass.packageName(),
+                    pkg -> new DefaultMutableTreeNode(new TestTreeNode(
+                            NodeKind.PACKAGE, null, pkg.isEmpty() ? "(default package)" : pkg, null)));
+            DefaultMutableTreeNode classNode = new DefaultMutableTreeNode(new TestTreeNode(
+                    NodeKind.CLASS, discoveredClass.qualifiedName(), discoveredClass.simpleName(), runState));
+            for (String methodName : discoveredClass.methodNames()) {
+                classNode.add(new DefaultMutableTreeNode(new TestTreeNode(
+                        NodeKind.METHOD, discoveredClass.qualifiedName(), methodName, runState)));
+            }
+            packageNode.add(classNode);
+        }
+        packageNodes.values().forEach(newRoot::add);
+        treeModel.setRoot(newRoot);
+        expandAll();
+        statusLabel.setText(statusText(discoveredClasses.size(), decoratedCount));
         onSelectionChanged();
+    }
+
+    private void expandAll() {
+        for (int row = 0; row < tree.getRowCount(); row++) {
+            tree.expandRow(row);
+        }
     }
 
     private void clearRows() {
@@ -165,50 +240,58 @@ final class ShaftTestsPanel extends JPanel {
     }
 
     private void onSelectionChanged() {
-        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
-        boolean hasSelection = selected != null;
-        boolean failed = isFailRow(selected);
-        runButton.setEnabled(hasSelection);
-        navigateMenuItem.setEnabled(hasSelection);
+        TestTreeNode selected = selectedNode();
+        boolean selectable = selected != null && selected.kind() != NodeKind.PACKAGE;
+        boolean failed = selectable && isFailRow(selected.runState());
+        runButton.setEnabled(selectable);
+        navigateMenuItem.setEnabled(selectable);
         diagnoseButton.setEnabled(failed);
         healButton.setEnabled(failed);
+    }
+
+    private TestTreeNode selectedNode() {
+        Object component = tree.getLastSelectedPathComponent();
+        if (!(component instanceof DefaultMutableTreeNode node)) {
+            return null;
+        }
+        return node.getUserObject() instanceof TestTreeNode treeNode ? treeNode : null;
     }
 
     private void maybeShowContextMenu(MouseEvent event) {
         if (!event.isPopupTrigger()) {
             return;
         }
-        int row = rowList.locationToIndex(event.getPoint());
-        if (row >= 0) {
-            rowList.setSelectedIndex(row);
+        TreePath path = tree.getPathForLocation(event.getX(), event.getY());
+        if (path != null) {
+            tree.setSelectionPath(path);
         }
-        if (rowList.getSelectedValue() != null) {
-            rowContextMenu.show(rowList, event.getX(), event.getY());
+        if (selectedNode() != null) {
+            rowContextMenu.show(tree, event.getX(), event.getY());
         }
     }
 
     private void runSelected() {
-        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
-        if (selected == null) {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || selected.kind() == NodeKind.PACKAGE) {
             return;
         }
-        ShaftRunConfigurationResolver.run(project, selected.testId());
+        ShaftRunConfigurationResolver.run(project, selected.qualifiedName());
     }
 
     private void navigateSelected() {
-        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
-        if (selected == null) {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || selected.kind() == NodeKind.PACKAGE) {
             return;
         }
-        ShaftRunConfigurationResolver.navigate(project, selected.testId());
+        ShaftRunConfigurationResolver.navigate(project, selected.qualifiedName());
     }
 
     private void diagnoseSelected() {
-        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
-        if (!isFailRow(selected)) {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || !isFailRow(selected.runState())) {
             return;
         }
-        // No resolved Allure directory is known from this tab's row-level data (unlike
+        // No resolved Allure directory is known from this tab's node-level data (unlike
         // FailedRunDoctorNotifier, which resolves it from the just-failed run's project root): pass
         // null so the server auto-discovers the newest evidence instead of guessing a path.
         ShaftToolWorkflowLauncher.open(project, "doctor_analyze_failed_allure",
@@ -216,22 +299,22 @@ final class ShaftTestsPanel extends JPanel {
     }
 
     private void healSelected() {
-        ShaftTestIndex.TestRowState selected = rowList.getSelectedValue();
-        if (!isFailRow(selected)) {
+        TestTreeNode selected = selectedNode();
+        if (selected == null || !isFailRow(selected.runState())) {
             return;
         }
         ShaftToolWorkflowLauncher.open(project, "healer_run_failed_test",
-                FailedRunDoctorNotifier.healerArguments(selected.testId()));
+                FailedRunDoctorNotifier.healerArguments(selected.qualifiedName()));
     }
 
     // ------------------------------------------------------------------
-    // Pure row logic (unit tested)
+    // Pure node/row logic (unit tested)
     // ------------------------------------------------------------------
 
     /**
-     * Returns whether a row is a failed run whose Doctor/Heal actions should be enabled.
+     * Returns whether a run-history row is a failed run whose Doctor/Heal actions should be enabled.
      *
-     * @param row selected row, or {@code null} when nothing is selected
+     * @param row matched run-history row for a node, or {@code null} when the node has never run
      * @return {@code true} only for a non-null {@link ShaftTestIndex.Status#FAIL} row
      */
     static boolean isFailRow(ShaftTestIndex.TestRowState row) {
@@ -239,7 +322,7 @@ final class ShaftTestsPanel extends JPanel {
     }
 
     /**
-     * Formats a row for display: status, test id, and last-run time.
+     * Formats a run-history row for display: status, test id, and last-run time.
      *
      * @param row row to format
      * @return display label, for example {@code "FAIL  CheckoutTest  14:32:10"}
@@ -247,6 +330,47 @@ final class ShaftTestsPanel extends JPanel {
     static String formatRowLabel(ShaftTestIndex.TestRowState row) {
         String statusText = row.status() == ShaftTestIndex.Status.PASS ? "PASS" : "FAIL";
         return statusText + "  " + row.testId() + "  " + formatTimestamp(row.lastRunAtMillis());
+    }
+
+    /**
+     * Formats a tree node's label: its display name (simple class or method name), decorated with
+     * status and last-run time when a matching run-history row exists, or plain when it has never
+     * run -- the whole point of this tree is that undiscovered/never-run tests stay visible rather
+     * than being hidden.
+     *
+     * @param displayName the node's simple class or method name (or package name)
+     * @param runState    matched run-history row, or {@code null} for "not yet run"
+     * @return display label, for example {@code "FAIL  CheckoutTest  14:32:10"} or plain
+     *         {@code "SearchTest"} when never run
+     */
+    static String formatNodeLabel(String displayName, ShaftTestIndex.TestRowState runState) {
+        if (runState == null) {
+            return displayName;
+        }
+        String statusText = runState.status() == ShaftTestIndex.Status.PASS ? "PASS" : "FAIL";
+        return statusText + "  " + displayName + "  " + formatTimestamp(runState.lastRunAtMillis());
+    }
+
+    /**
+     * Matches a discovered class to its run-history row, best-effort by qualified name then simple
+     * name -- the same "no exhaustive disambiguation" tradeoff as
+     * {@link ShaftRunConfigurationResolver}'s short-name class resolution (see that class's javadoc).
+     *
+     * @param rowsByTestId    recorded run-history rows, keyed by {@code testId}
+     * @param discoveredClass the discovered class to match
+     * @return the matched row, or {@code null} when the class has never been run
+     */
+    private static ShaftTestIndex.TestRowState matchRunState(
+            Map<String, ShaftTestIndex.TestRowState> rowsByTestId,
+            ShaftTestDiscovery.DiscoveredTestClass discoveredClass) {
+        ShaftTestIndex.TestRowState exact = rowsByTestId.get(discoveredClass.qualifiedName());
+        return exact != null ? exact : rowsByTestId.get(discoveredClass.simpleName());
+    }
+
+    private static String statusText(int discoveredCount, int decoratedCount) {
+        return discoveredCount == 0
+                ? "No SHAFT tests found in this project."
+                : discoveredCount + " test(s) discovered, " + decoratedCount + " with recorded runs.";
     }
 
     private static String formatTimestamp(long millis) {
@@ -280,8 +404,8 @@ final class ShaftTestsPanel extends JPanel {
         return clearButton;
     }
 
-    JBList<ShaftTestIndex.TestRowState> rowListForTest() {
-        return rowList;
+    Tree treeForTest() {
+        return tree;
     }
 
     JComponent diagnoseButtonForTest() {
