@@ -5,6 +5,7 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -336,6 +337,35 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      */
     GuidedWorkflowPanel guidedWorkflowPanel() {
         return guidedWorkflowPanel;
+    }
+
+    /**
+     * Package-private test accessor: the retained Recorder tab panel, or {@code null} when advanced
+     * UI is disabled or before setup.
+     */
+    RecorderToolPanel recorderPanel() {
+        return recorderPanel;
+    }
+
+    /**
+     * Selects the Recorder tab and starts a live {@code capture_start} recording anchored at a
+     * resolved Java caret target (issue #3661): {@code RecordShaftFlowHereAction}'s advanced mode
+     * calls this instead of copying a {@code capture_record_at_target_code_blocks} request to the
+     * clipboard and leaving the user to run it manually after recording elsewhere. A no-op when the
+     * Recorder tab does not exist -- advanced UI disabled, or the main view has not been built yet
+     * (setup view still showing) -- same rationale as {@link #prefillAssistantPrompt}: the tool
+     * window itself already surfaces the setup panel or the Assistant explaining what to do next.
+     *
+     * @param context resolved Java caret target the generated code will be anchored at
+     */
+    public void startRecordingAtTarget(@NotNull JavaTargetContext context) {
+        if (recorderPanel == null) {
+            return;
+        }
+        recorderPanel.startRecordingAtTarget(context);
+        if (workflowSelector != null) {
+            selectWorkflow(recorderPanel);
+        }
     }
 
     /**

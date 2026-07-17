@@ -2,10 +2,19 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.java.JavaTargetContext;
+import com.shaft.intellij.java.JavaTargetContextResolver;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -40,6 +49,12 @@ import java.util.Set;
  * project != null}, both surfaced in the status label rather than crashing or silently no-op'ing
  * -- unlike {@link GuidedWorkflowPanel}, which falls back to a review-only prefill when there is no
  * live MCP connection, this panel always calls the MCP tool directly once both guards pass.</p>
+ *
+ * <p>{@link #startRecordingAtTarget} is the record-at-cursor entry point (issue #3661): {@code
+ * RecordShaftFlowHereAction}'s advanced mode calls it directly instead of prefilling {@code
+ * capture_record_at_target_code_blocks} for manual copy-paste, and stopping the resulting
+ * recording routes straight into that tool plus an insert-at-caret, collapsing caret -> live
+ * recording -> review/insert into the one caret action.</p>
  */
 final class RecorderToolPanel extends JPanel {
     /** Matches {@code ToolTemplates.recorder()}'s {@code capture_start} template default. */
@@ -57,6 +72,17 @@ final class RecorderToolPanel extends JPanel {
     private final JLabel status;
     private final JPanel advancedPanel;
     private final JCheckBox advancedToggle;
+    // Stable per-instance identity for the shared readiness strip's live-recording indicator
+    // (issue #3661), mirroring GuidedWorkflowPanel#recordingKey so overlapping recordings across
+    // tool-window surfaces don't collapse onto one process-wide flag (issue #3591 item 3).
+    private final String recordingKey = "recorder#" + Integer.toHexString(System.identityHashCode(this));
+    // Set by startRecordingAtTarget() (issue #3661): when non-null, the next successful
+    // capture_stop routes straight into capture_record_at_target_code_blocks and inserts the
+    // result at the caret instead of leaving "Review code" as a separate manual step -- the
+    // "route straight into the existing review/insert flow when the user stops recording" the
+    // issue asks for. Cleared once consumed so a later plain Stop click (no live target) falls
+    // back to the generic message.
+    private JavaTargetContext targetContext;
 
     RecorderToolPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout(6, 6));
@@ -164,11 +190,29 @@ final class RecorderToolPanel extends JPanel {
         return matched;
     }
 
+    /**
+     * Starts a WebDriver recording anchored at a resolved Java caret target (issue #3661):
+     * {@code RecordShaftFlowHereAction}'s advanced mode calls this directly instead of copying a
+     * prefilled {@code capture_record_at_target_code_blocks} request to the clipboard for the user
+     * to run manually after recording elsewhere. Stopping the resulting recording routes straight
+     * into {@link #reviewAndInsertAtTarget}, collapsing caret -> live recording -> review/insert
+     * into the one caret action.
+     *
+     * @param context resolved Java caret target the generated code will be anchored at
+     */
+    void startRecordingAtTarget(JavaTargetContext context) {
+        this.targetContext = context;
+        startRecording();
+    }
+
     private void startRecording() {
         if (!guardReady()) {
             return;
         }
-        setStatus("Starting the recording...");
+        JavaTargetContext target = targetContext;
+        setStatus(target == null
+                ? "Starting the recording..."
+                : "Starting the recording anchored at " + target.methodName() + " in " + target.className() + "...");
         ShaftMcpInvocationService.getInstance(project).startTool("capture_start", captureStartArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> {
@@ -176,7 +220,11 @@ final class RecorderToolPanel extends JPanel {
                         setStatus("Recording failed to start: " + failureText(result, error));
                         return;
                     }
-                    setStatus("Recording started. Interact with the browser, then press Stop recording.");
+                    ShaftRecordingActivity.started(recordingKey);
+                    setStatus(target == null
+                            ? "Recording started. Interact with the browser, then press Stop recording."
+                            : "Recording live - anchored at " + target.methodName() + " in " + target.className()
+                                    + ". Interact with the browser, then press Stop recording to review and insert.");
                 }));
     }
 
@@ -188,12 +236,117 @@ final class RecorderToolPanel extends JPanel {
         ShaftMcpInvocationService.getInstance(project).startTool("capture_stop", captureStopArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> {
+                    ShaftRecordingActivity.stopped(recordingKey);
                     if (failed(result, error)) {
                         setStatus("Recording failed to stop: " + failureText(result, error));
                         return;
                     }
+                    JavaTargetContext target = targetContext;
+                    targetContext = null;
+                    if (target != null) {
+                        reviewAndInsertAtTarget(target);
+                        return;
+                    }
                     setStatus("Recording stopped. Use Review code to generate the reviewed test.");
                 }));
+    }
+
+    /**
+     * The "route straight into the existing review/insert flow when the user stops recording" half
+     * of issue #3661: generates focused record-at-target code blocks anchored at {@code context},
+     * then inserts the resulting method snippet at the caret -- the same {@code
+     * FileDocumentManager.requestWriting} + {@code WriteCommandAction} seam {@code
+     * GuidedWorkflowPanel#insertCodeAtCaret} already proved, not a new insertion mechanism.
+     */
+    private void reviewAndInsertAtTarget(JavaTargetContext context) {
+        setStatus("Recording stopped. Generating code anchored at " + context.methodName()
+                + " in " + context.className() + "...");
+        ShaftMcpInvocationService.getInstance(project)
+                .startTool("capture_record_at_target_code_blocks", captureRecordAtTargetArguments(context))
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> applyRecordAtTargetResult(result, error, context)));
+    }
+
+    private void applyRecordAtTargetResult(ShaftMcpToolResult result, Throwable error, JavaTargetContext context) {
+        if (failed(result, error)) {
+            setStatus("Could not generate code anchored at " + context.methodName() + ": "
+                    + failureText(result, error));
+            return;
+        }
+        JsonObject raw = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        String snippet = firstBlockByKind(raw, "TEST_METHOD");
+        if (snippet.isBlank()) {
+            setStatus("Recording stopped. The generated result has no insertable code block; "
+                    + "open Advanced options to review it.");
+            return;
+        }
+        Editor editor = selectedJavaEditor();
+        if (editor == null) {
+            setStatus("Recording stopped and code generated, but no Java file is open to insert into. "
+                    + "Open " + context.className() + " and use Review code to insert manually.");
+            return;
+        }
+        Document document = editor.getDocument();
+        if (!FileDocumentManager.getInstance().requestWriting(document, project)) {
+            setStatus("The current file could not be made writable.");
+            return;
+        }
+        int offset = Math.max(0, Math.min(editor.getCaretModel().getOffset(), document.getTextLength()));
+        WriteCommandAction.writeCommandAction(project)
+                .withName("Insert SHAFT Recorded Code")
+                .run(() -> document.insertString(offset, snippet));
+        setStatus("Inserted generated code anchored at " + context.methodName() + " in " + context.className() + ".");
+    }
+
+    /**
+     * Returns the editor selected in the editor tab strip, gated on it holding a resolvable Java
+     * target (mirrors {@code GuidedWorkflowPanel#selectedJavaEditor}), or null when there is none --
+     * callers treat null as "open a Java file first".
+     */
+    private Editor selectedJavaEditor() {
+        if (project == null) {
+            return null;
+        }
+        Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
+        if (editor == null) {
+            return null;
+        }
+        PsiFile file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument());
+        return JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset()) != null ? editor : null;
+    }
+
+    /**
+     * Returns the {@code code} of the first {@code codeBlocks[]} entry whose {@code kind} matches,
+     * or {@code ""} when none match (mirrors {@code GuidedWorkflowPanel#firstBlockByKind}).
+     */
+    private static String firstBlockByKind(JsonObject raw, String kind) {
+        if (raw == null || !raw.has("codeBlocks") || !raw.get("codeBlocks").isJsonArray()) {
+            return "";
+        }
+        for (var element : raw.getAsJsonArray("codeBlocks")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = element.getAsJsonObject();
+            if (kind.equals(jsonString(block, "kind"))) {
+                String code = blockCode(block);
+                if (!code.isBlank()) {
+                    return code;
+                }
+            }
+        }
+        return "";
+    }
+
+    // McpCodeBlock's source is in "code"; a few callers key on "content" instead, so both are
+    // checked (mirrors GuidedWorkflowPanel#blockCode).
+    private static String blockCode(JsonObject block) {
+        String code = jsonString(block, "code");
+        return code.isBlank() ? jsonString(block, "content") : code;
+    }
+
+    private static String jsonString(JsonObject object, String key) {
+        return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsString() : "";
     }
 
     private void checkStatus() {
@@ -257,6 +410,13 @@ final class RecorderToolPanel extends JPanel {
         arguments.addProperty("targetUrl", targetUrl.getText().trim());
         arguments.addProperty("browser", (String) browser.getSelectedItem());
         arguments.addProperty("headless", headless.isSelected());
+        // sessionGoal is only added for a record-at-target recording (issue #3661): the curated
+        // default Quick Start template has no "intent" concept, matching the class javadoc's note
+        // that GuidedWorkflowPanel owns that curated behavior, not this standalone tab.
+        if (targetContext != null) {
+            arguments.addProperty("sessionGoal",
+                    "Record a SHAFT flow at " + targetContext.methodName() + " in " + targetContext.className());
+        }
         return arguments;
     }
 
@@ -268,6 +428,25 @@ final class RecorderToolPanel extends JPanel {
 
     static JsonObject captureStatusArguments() {
         return new JsonObject();
+    }
+
+    /**
+     * Builds {@code capture_record_at_target_code_blocks}'s arguments from {@code context}, matching
+     * the shape {@code RecordShaftFlowHereAction} used to build for its clipboard prefill (issue
+     * #3661). Package-private for direct unit testing, mirroring {@link #captureCodeBlocksArguments()}.
+     */
+    JsonObject captureRecordAtTargetArguments(JavaTargetContext context) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", outputPath.getText().trim());
+        arguments.addProperty("outputDirectory", project == null || project.getBasePath() == null
+                ? "." : project.getBasePath());
+        arguments.addProperty("packageName", context.packageName());
+        arguments.addProperty("className", context.className());
+        arguments.addProperty("overwrite", false);
+        arguments.addProperty("targetSourcePath", context.sourcePath());
+        arguments.addProperty("insertAfter", context.methodName());
+        arguments.addProperty("driverVariableName", "driver");
+        return arguments;
     }
 
     /** Mirrors {@code ToolTemplates.recorder()}'s "Generate Code Blocks" template defaults. */

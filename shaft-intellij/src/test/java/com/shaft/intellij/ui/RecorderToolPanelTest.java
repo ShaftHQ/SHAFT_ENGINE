@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
 
@@ -200,6 +201,65 @@ class RecorderToolPanelTest {
         RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
 
         assertFalse(panel.prefillTool("shaft_project_create", new JsonObject()));
+    }
+
+    /**
+     * Covers issue #3661: {@code RecordShaftFlowHereAction}'s advanced mode calls {@link
+     * RecorderToolPanel#startRecordingAtTarget} directly instead of prefilling {@code
+     * capture_record_at_target_code_blocks} for manual copy-paste. Starting a recording this way
+     * must set {@code capture_start}'s {@code sessionGoal} from the resolved caret target so the
+     * generated test class/method are named after it, matching {@code
+     * RecordShaftFlowHereAction#recordFlowPrompt}'s wording for the default-mode Assistant prompt.
+     */
+    @Test
+    void startRecordingAtTargetSetsSessionGoalFromTheResolvedTarget() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn");
+
+        panel.startRecordingAtTarget(context);
+
+        assertEquals("Record a SHAFT flow at logsIn in LoginTest",
+                panel.captureStartArguments().get("sessionGoal").getAsString());
+    }
+
+    @Test
+    void startRecordingAtTargetGuardsOnUnconfiguredMcpWithoutCrashing() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn");
+
+        panel.startRecordingAtTarget(context);
+
+        assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+    }
+
+    /**
+     * Pins the exact {@code capture_record_at_target_code_blocks} argument shape {@link
+     * RecorderToolPanel#stopRecording()} sends once a recording started via {@link
+     * RecorderToolPanel#startRecordingAtTarget} is stopped -- the "route straight into the existing
+     * review/insert flow" half of issue #3661. Mirrors the old {@code RecordShaftFlowHereAction}
+     * argument shape (packageName/className/targetSourcePath/insertAfter/driverVariableName) so the
+     * generated snippet still targets the resolved Java caret anchor.
+     */
+    @Test
+    void captureRecordAtTargetArgumentsMatchTheResolvedTargetAndOutputPathField() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        setText(panel, "Output path", "recordings/custom.json");
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn");
+
+        JsonObject arguments = panel.captureRecordAtTargetArguments(context);
+
+        assertAll(
+                () -> assertEquals("recordings/custom.json", arguments.get("sessionPath").getAsString()),
+                () -> assertEquals("tests", arguments.get("packageName").getAsString()),
+                () -> assertEquals("LoginTest", arguments.get("className").getAsString()),
+                () -> assertEquals("src/test/java/LoginTest.java", arguments.get("targetSourcePath").getAsString()),
+                () -> assertEquals("logsIn", arguments.get("insertAfter").getAsString()),
+                () -> assertEquals("driver", arguments.get("driverVariableName").getAsString()),
+                () -> assertFalse(arguments.get("overwrite").getAsBoolean()));
     }
 
     private static ShaftSettingsState.Settings unreadyMcpSettings() {
