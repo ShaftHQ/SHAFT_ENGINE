@@ -732,7 +732,8 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            ShaftFeaturePanel component = new ShaftFeaturePanel(screenshotProject(), defaultSettings());
+            Project project = screenshotProject();
+            ShaftFeaturePanel component = new ShaftFeaturePanel(project, defaultSettings());
             invokeShowResult(component, "doctor_analyze_failed_allure", ShaftMcpToolResult.success("""
                     {
                       "schemaVersion": "1.0",
@@ -756,7 +757,7 @@ class ShaftPluginScreenshotRendererTest {
                       "markdownReportPath": "target/shaft-doctor/doctor-report.md",
                       "warnings": []
                     }
-                    """), null);
+                    """), null, project);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -768,12 +769,13 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static void invokeShowResult(
-            ShaftFeaturePanel component, String toolName, ShaftMcpToolResult result, Throwable error) {
+            ShaftFeaturePanel component, String toolName, ShaftMcpToolResult result, Throwable error,
+            Project project) {
         try {
             Method method = ShaftFeaturePanel.class.getDeclaredMethod(
-                    "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
+                    "showResult", String.class, ShaftMcpToolResult.class, Throwable.class, Project.class);
             method.setAccessible(true);
-            method.invoke(component, toolName, result, error);
+            method.invoke(component, toolName, result, error, project);
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to render the Tools panel result", exception);
         }
