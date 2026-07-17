@@ -1930,16 +1930,32 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals(List.of("Assistant"), labels),
                 () -> assertFalse(selector.isVisible()),
-                // The persistent setup-health chip (issue #3425 A6) rides in the same header,
-                // extended into the shared readiness strip (issue #3500 O4/A4).
-                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP health", JLabel.class)),
-                () -> assertNotNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
-                () -> assertTrue(containsText(toolWindow, "MCP: verified")),
-                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT workspace state", JLabel.class)),
-                // No agent was verified in this settings fixture: the strip must say the lane is
-                // optional rather than inventing readiness (issue #3500 honesty pillar).
-                () -> assertTrue(containsText(toolWindow, "Agent: optional")),
-                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT recording activity", JLabel.class)));
+                // The MCP-status/Recheck chip used to ride in this shared header above every
+                // workflow tab. Issue #3676 removed it from ShaftToolWindowPanel entirely --
+                // not just hidden on the Assistant tab -- per explicit user feedback that it was
+                // unwanted noise once already connected.
+                () -> assertNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)));
+    }
+
+    @Test
+    void toolWindowHeaderIsJustTheChatHistoryDropdown() {
+        // Issue #3676: the user wants the chat-history dropdown directly below the tool window's
+        // own header -- no MCP-status/Recheck chip, no empty space it left behind, and no second
+        // "SHAFT Assistant" sub-header repeating what the tool window title already says.
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+
+        assertAll(
+                () -> assertNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
+                () -> assertFalse(containsText(toolWindow, "MCP: verified")),
+                () -> assertNull(findLabelWithText(toolWindow, "SHAFT Assistant")),
+                () -> {
+                    JPanel chatHeader = findByAccessibleName(toolWindow, "Assistant chat header", JPanel.class);
+                    assertNotNull(chatHeader);
+                    // Down from two children (title label + chat row) to just the chat row: the
+                    // chat-history dropdown is the first real component under this header now.
+                    assertEquals(1, chatHeader.getComponentCount());
+                    assertNotNull(findByAccessibleName(chatHeader, "Assistant chat", JComboBox.class));
+                });
     }
 
     @Test
@@ -3357,15 +3373,13 @@ class ShaftPanelSetupTest {
                 // above: it names the exact check being run on a first-run setup screen (issue #3538).
                 .filter(button -> !"Check SHAFT MCP version".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
-                // its lane (issue #3425 A2/B7/A6), and the health-chip recheck is a compact
-                // header action.
+                // its lane (issue #3425 A2/B7/A6).
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
                 // The primary "get to green" retry beside it needs the same visible-label treatment
                 // (real user report: no button anywhere retried just the agent lane besides redoing
                 // steps 2/4 from scratch).
                 .filter(button -> !"Connect SHAFT agent".equals(accessibleName(button)))
                 .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
-                .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
                 // The user-guide footer link is a text hyperlink by design, not an icon button.
                 .filter(button -> !"Open SHAFT user guide in browser".equals(accessibleName(button)))
                 // Setup-screen prerequisite/recovery command buttons keep visible labels like the
@@ -5921,6 +5935,28 @@ class ShaftPanelSetupTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 JButton found = findButton(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Finds a {@link JLabel} whose visible text exactly equals {@code text} -- unlike
+     * {@link #containsText(Component, String)}, this does not match the phrase when it appears
+     * inside a button, transcript, or other non-label component (e.g. the Assistant's welcome
+     * message says "I'm the SHAFT Assistant" in the transcript, which must not count as the
+     * removed "SHAFT Assistant" sub-header label, issue #3676).
+     */
+    private static JLabel findLabelWithText(Component component, String text) {
+        if (component instanceof JLabel label && text.equals(label.getText())) {
+            return label;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JLabel found = findLabelWithText(child, text);
                 if (found != null) {
                     return found;
                 }

@@ -63,7 +63,6 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
-import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.GridLayout;
 import java.awt.datatransfer.StringSelection;
@@ -590,9 +589,6 @@ final class ShaftAssistantPanel extends JPanel {
         chatRow.add(newChat, BorderLayout.EAST);
         JPanel header = new JPanel(new BorderLayout(4, 2));
         header.getAccessibleContext().setAccessibleName("Assistant chat header");
-        JLabel title = new JLabel("SHAFT Assistant");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
-        header.add(title, BorderLayout.NORTH);
         header.add(chatRow, BorderLayout.CENTER);
 
         actionRow = wrapRow();
