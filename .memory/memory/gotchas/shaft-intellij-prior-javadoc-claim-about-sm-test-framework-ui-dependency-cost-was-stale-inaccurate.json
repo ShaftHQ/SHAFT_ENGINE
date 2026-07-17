@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-prior-javadoc-claim-about-sm-test-framework-ui-dependency-cost-was-stale-inaccurate.md",
+  "content_hash": "sha256:bd590d9f7024cbc596f473f37d8b92330ffa519a4ea228cc8af5f54650705232",
+  "created_at": "2026-07-17T22:59:55+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-intellij-prior-javadoc-claim-about-sm-test-framework-ui-dependency-cost-was-stale-inaccurate",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Implement live SM Test Runner status wiring for shaft-intellij SHAFT Tests panel (issue #3688)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "intellij-platform-sdk",
+    "documentation-drift",
+    "gotcha"
+  ],
+  "title": "shaft-intellij: prior javadoc claim about SM test-framework UI dependency cost was stale/inaccurate",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T22:59:55+03:00"
+}

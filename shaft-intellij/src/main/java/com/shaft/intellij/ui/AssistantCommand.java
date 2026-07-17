@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Builds SHAFT Assistant MCP invocations from prompt text.
@@ -28,6 +30,37 @@ final class AssistantCommand {
     private static final String DEFAULT_MOBILE_RECORDING_PATH = "recordings/mobile-recording.json";
     private static final String DEFAULT_MOBILE_INSPECTOR_RECORDING_PATH = "recordings/mobile-inspector.json";
     private static final String DEFAULT_DOCTOR_REPORT_PATH = "target/shaft-doctor/doctor-report.json";
+    private static final String DEFAULT_STORAGE_STATE_PATH = "target/shaft-browser/storage-state.json";
+    private static final String DEFAULT_WINDOW_SIZE = "1280x800";
+
+    private record NaturalSessionCommandRule(Predicate<String> matchesNormalized, Function<String, String> commandFor) {
+    }
+
+    private static final List<NaturalSessionCommandRule> BROWSER_SESSION_COMMAND_RULES = List.of(
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "resize", "window size"),
+                    text -> "size " + firstSizeLikeToken(text)),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "delete all cookies", "clear cookies", "clear all cookies"),
+                    text -> "clearcookies"),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("delete cookie"),
+                    text -> "deletecookie " + firstTokenAfterWord(text, "cookie")),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("aria snapshot"),
+                    text -> "aria"),
+            new NaturalSessionCommandRule(
+                    normalized -> normalized.contains("accessibility audit"),
+                    text -> "audit"),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "network requests", "network transactions"),
+                    text -> "network"),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "save session", "save storage state"),
+                    text -> "save " + firstJsonLikePath(text)),
+            new NaturalSessionCommandRule(
+                    normalized -> containsAny(normalized, "load session", "load storage state"),
+                    text -> "load " + firstJsonLikePath(text)));
     private static final String AGENT_SOURCE_GUARD =
             """
                     Source edits are not enabled for this session.
@@ -40,6 +73,13 @@ final class AssistantCommand {
                     Source edits are approved for this session.
                     You may apply patches, write files, and run filesystem commands needed to make the requested source changes.
                     """.stripIndent().trim();
+    // Split out so cloudPrompt's non-code-generation branch (which has no other reason to mention
+    // shaft-mcp -- cloud providers don't have it) can still ask cloud models to emit the fence that
+    // AssistantQuestion.detect looks for, without pulling in the rest of the shaft-mcp-specific hint.
+    private static final String SHAFT_OPTIONS_HINT =
+            """
+                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+                    """.stripIndent().trim();
     private static final String SHAFT_MCP_USAGE_HINT =
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
@@ -50,8 +90,7 @@ final class AssistantCommand {
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
-                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
-                    """.stripIndent().trim();
+                    """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
     private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
             """
                     This is a code-generation request. Before returning Java:
@@ -313,6 +352,9 @@ final class AssistantCommand {
                     "generate mobile code",
                     "generate appium code",
                     "create mobile code")),
+            // Despite the map key, this list is really "any recognized mobile-topic action word":
+            // isMobileControlIntent gates on it for every mobile() sub-action, not just toolchain
+            // status, and naturalMobileCommand resolves the specific action afterward.
             Map.entry("mobile_toolchain_status", List.of(
                     "toolchain",
                     "appium",
@@ -328,7 +370,18 @@ final class AssistantCommand {
                     "switch context",
                     "screenshot",
                     "quit mobile",
-                    "close mobile")),
+                    "close mobile",
+                    "rotate",
+                    "landscape",
+                    "portrait",
+                    "hide keyboard",
+                    "dismiss keyboard",
+                    "background the app",
+                    "send app to background",
+                    "background app",
+                    "activate app",
+                    "foreground app",
+                    "bring app to foreground")),
             Map.entry("doctor_analyze_failed_allure", List.of(
                     "run doctor",
                     "analyze allure",
@@ -340,7 +393,25 @@ final class AssistantCommand {
                     "analyze the latest report",
                     "analyze latest report",
                     "why did my test fail",
-                    "why did my tests fail")));
+                    "why did my tests fail")),
+            // Session-scoped browser actions that need no URL to be unambiguous (issue #3678): each
+            // phrase maps 1:1 to exactly one browser_* tool via naturalBrowserSessionCommand, so
+            // isBrowserSessionActionIntent can skip isBrowserControlIntent's mentionsWebTarget gate.
+            Map.entry("browser_session_action", List.of(
+                    "resize",
+                    "window size",
+                    "clear cookies",
+                    "clear all cookies",
+                    "delete all cookies",
+                    "delete cookie",
+                    "aria snapshot",
+                    "accessibility audit",
+                    "network requests",
+                    "network transactions",
+                    "save session",
+                    "save storage state",
+                    "load session",
+                    "load storage state")));
     // "start <mode> recording" phrasings match as a whole prefix (equal to the phrase, or the
     // phrase followed by more words) via matchesWholeWordPrefix, rather than the anywhere-in-text
     // keywords above -- kept out of the map above because they need different match semantics.
@@ -626,7 +697,7 @@ final class AssistantCommand {
     private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext,
                                       String conversationContext) {
         if (!isCodeGenerationRequest(text)) {
-            return withConversationContext(text, conversationContext);
+            return withConversationContext(SHAFT_OPTIONS_HINT + "\n\n" + text, conversationContext);
         }
         return withConversationContext(SHAFT_MCP_USAGE_HINT
                 + "\n" + codeGenerationGuidance(text)
@@ -779,7 +850,199 @@ final class AssistantCommand {
         if (commandIs(action, "quit", "close", "stop")) {
             return Invocation.tool("driver_quit", new JsonObject());
         }
+        if (commandIs(action, "size", "resize", "windowsize")) {
+            return Invocation.tool("browser_set_window_size", windowSize(remainder));
+        }
+        if (commandIs(action, "clearcookies")) {
+            return Invocation.tool("browser_delete_all_cookies", new JsonObject());
+        }
+        if (commandIs(action, "deletecookie")) {
+            return remainder.isBlank()
+                    ? Invocation.local("Provide a cookie name, for example `/browser delete cookie sessionId`.")
+                    : Invocation.tool("browser_delete_cookie", cookieName(remainder));
+        }
+        if (commandIs(action, "aria", "ariasnapshot")) {
+            return Invocation.tool("browser_aria_snapshot", ariaSnapshotWholePage());
+        }
+        if (commandIs(action, "audit")) {
+            return Invocation.tool("browser_accessibility_audit", wcagTags(remainder));
+        }
+        if (commandIs(action, "network")) {
+            // "requests"/"transactions" is a label after the bare `/browser network` action word, not
+            // part of the URL filter -- `/browser network requests example.com` must still filter by
+            // "example.com", not treat the literal word "requests" as the filter.
+            String filter = stripLeadingWord(stripLeadingWord(remainder, "requests"), "transactions");
+            return Invocation.tool("browser_network_requests", networkRequestsFilter(filter));
+        }
+        if (commandIs(action, "save")) {
+            // Accepts both `/browser save <path>` and the more conversational `/browser save
+            // session <path>`; a leading "session" token is a label, not part of the path.
+            return Invocation.tool("browser_storage_state_save",
+                    storageStatePath(stripLeadingWord(remainder, "session"), DEFAULT_STORAGE_STATE_PATH));
+        }
+        if (commandIs(action, "load")) {
+            String path = stripLeadingWord(remainder, "session");
+            return path.isBlank()
+                    ? Invocation.local("Provide a storage-state JSON path, for example `/browser load session " + DEFAULT_STORAGE_STATE_PATH + "`.")
+                    : Invocation.tool("browser_storage_state_load", storageStatePath(path, DEFAULT_STORAGE_STATE_PATH));
+        }
+        // Phrase-form session actions ("clear cookies", "delete cookie x", "window size 1280x800",
+        // "save session", ...) don't front-load one of the single-word action tokens above, so they
+        // fall through here: rewrite to the canonical verb-first form and recurse once. Placed last
+        // so it never pre-empts the open/navigate/screenshot branches above it, which is what keeps
+        // a URL containing a coincidental substring like "resize" (matched by
+        // isBrowserSessionActionPhrase) from being misrouted -- open/navigate/etc already returned
+        // by the time this runs.
+        if (isBrowserSessionActionPhrase(trimmed)) {
+            String canonical = naturalBrowserSessionCommand(trimmed);
+            if (!canonical.equalsIgnoreCase(trimmed)) {
+                return browser(canonical);
+            }
+        }
         return webdriverOpen(trimmed);
+    }
+
+    /**
+     * True for browser session actions (window size, cookies, aria snapshot, accessibility audit,
+     * network transactions, storage state) that -- unlike open/navigate/screenshot -- need no URL to
+     * be unambiguous. Lets {@link #isBrowserControlIntent} route these without its usual
+     * mentionsWebTarget requirement (issue #3678). Requires the word "browser" so a bare "clear
+     * cookies" with no browser context stays with the agent.
+     */
+    private static boolean isBrowserSessionActionIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.contains("browser") && isBrowserSessionActionPhrase(normalized);
+    }
+
+    /**
+     * The keyword half of {@link #isBrowserSessionActionIntent}, without the "browser" requirement --
+     * used inside {@link #browser} itself, where the /browser or "browser" context is already
+     * established by the caller, to recognize phrase-form input like "clear cookies" or "delete
+     * cookie sessionId" that {@link #commandIs}'s single-word action vocabulary cannot match directly.
+     */
+    private static boolean isBrowserSessionActionPhrase(String text) {
+        return containsAny(normalizeNaturalCommand(text), INTENT_KEYWORDS.get("browser_session_action"));
+    }
+
+    /**
+     * Rewrites a free-language browser-session sentence into the verb-first form {@link #browser}
+     * expects (mirrors {@link #naturalMobileCommand} for the mobile topic). Both call sites
+     * ({@link #browser}'s phrase fallback and the top-level {@link #isBrowserSessionActionIntent}
+     * dispatch) only invoke this after {@link #isBrowserSessionActionPhrase} has already matched one
+     * of the same keywords branched on below, so the final fallback return is unreachable in
+     * practice.
+     */
+    private static String naturalBrowserSessionCommand(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        for (NaturalSessionCommandRule rule : BROWSER_SESSION_COMMAND_RULES) {
+            if (rule.matchesNormalized().test(normalized)) {
+                return rule.commandFor().apply(text);
+            }
+        }
+        return text(text);
+    }
+
+    private static JsonObject windowSize(String rest) {
+        int[] widthHeight = parseWidthHeight(rest);
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("width", widthHeight[0]);
+        arguments.addProperty("height", widthHeight[1]);
+        return arguments;
+    }
+
+    // Returns already-validated ints (never re-parsed by the caller) so windowSize cannot hit an
+    // uncaught NumberFormatException: both the parsed and the DEFAULT_WINDOW_SIZE fallback paths
+    // resolve to ints before returning.
+    private static int[] parseWidthHeight(String rest) {
+        // Scans every token rather than just the first: natural phrasing like "resize the browser
+        // window to 1920x1080" puts the WxH token well after the action word.
+        String[] parts = firstSizeLikeToken(rest).toLowerCase(Locale.ROOT).split("x");
+        if (parts.length == 2) {
+            try {
+                return new int[]{Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
+            } catch (NumberFormatException notNumeric) {
+                // fall through to the default size below
+            }
+        }
+        String[] fallback = DEFAULT_WINDOW_SIZE.split("x");
+        if (fallback.length == 2) {
+            try {
+                return new int[]{Integer.parseInt(fallback[0]), Integer.parseInt(fallback[1])};
+            } catch (NumberFormatException notNumeric) {
+                // fall through to the hardcoded literal below
+            }
+        }
+        // Only reachable if DEFAULT_WINDOW_SIZE itself were ever edited to a malformed literal.
+        return new int[]{1280, 800};
+    }
+
+    private static JsonObject cookieName(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("cookieName", firstTokenOrDefault(rest, ""));
+        return arguments;
+    }
+
+    /**
+     * browser_aria_snapshot's locatorStrategy is intentionally left unset: the tool's own contract
+     * treats a missing locatorStrategy plus a blank locatorValue as "snapshot the whole page", which
+     * is the only case reachable from phrasing alone (a specific element still needs a resolved
+     * locator, like the element_* tools -- see issue #3678 classification).
+     */
+    private static JsonObject ariaSnapshotWholePage() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("locatorValue", "");
+        return arguments;
+    }
+
+    private static JsonObject wcagTags(String rest) {
+        JsonObject arguments = new JsonObject();
+        JsonArray tags = new JsonArray();
+        String trimmed = text(rest);
+        if (!trimmed.isBlank()) {
+            for (String token : trimmed.split("\\s+")) {
+                tags.add(token);
+            }
+        }
+        arguments.add("wcagTags", tags);
+        return arguments;
+    }
+
+    private static JsonObject networkRequestsFilter(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("urlFilter", text(rest));
+        arguments.addProperty("limit", 50);
+        return arguments;
+    }
+
+    private static JsonObject storageStatePath(String rest, String fallback) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("filePath", firstTokenOrDefault(rest, fallback));
+        return arguments;
+    }
+
+    private static String firstSizeLikeToken(String rest) {
+        if (rest == null || rest.isBlank()) {
+            return DEFAULT_WINDOW_SIZE;
+        }
+        for (String token : rest.split("\\s+")) {
+            if (token.toLowerCase(Locale.ROOT).matches("\\d+x\\d+")) {
+                return token;
+            }
+        }
+        return DEFAULT_WINDOW_SIZE;
+    }
+
+    private static String firstTokenAfterWord(String rest, String word) {
+        if (rest == null || rest.isBlank()) {
+            return "";
+        }
+        String[] tokens = rest.trim().split("\\s+");
+        for (int i = 0; i < tokens.length - 1; i++) {
+            if (tokens[i].equalsIgnoreCase(word)) {
+                return tokens[i + 1];
+            }
+        }
+        return "";
     }
 
     private static Invocation playwrightBrowser(String rest) {
@@ -816,7 +1079,32 @@ final class AssistantCommand {
         if (commandIs(action, "quit", "close", "stop")) {
             return Invocation.tool("playwright_quit", new JsonObject());
         }
+        if (commandIs(action, "refresh", "reload")) {
+            return Invocation.tool("playwright_browser_refresh", new JsonObject());
+        }
+        if (commandIs(action, "back")) {
+            return Invocation.tool("playwright_browser_navigate_back", new JsonObject());
+        }
+        if (commandIs(action, "forward")) {
+            return Invocation.tool("playwright_browser_navigate_forward", new JsonObject());
+        }
+        if (commandIs(action, "size", "resize", "windowsize")) {
+            return Invocation.tool("playwright_browser_set_window_size", windowSize(remainder));
+        }
+        if (commandIs(action, "newtab")) {
+            return Invocation.tool("playwright_browser_new_window", newWindow(remainder, "TAB"));
+        }
+        if (commandIs(action, "newwindow")) {
+            return Invocation.tool("playwright_browser_new_window", newWindow(remainder, "WINDOW"));
+        }
         return Invocation.local("Unknown Playwright browser command. Use `/browser playwright open <url>`.");
+    }
+
+    private static JsonObject newWindow(String rest, String windowType) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", text(rest));
+        arguments.addProperty("windowType", windowType);
+        return arguments;
     }
 
     private static Invocation webdriverOpen(String rest) {
@@ -889,10 +1177,50 @@ final class AssistantCommand {
         if (commandIs(action, "replay")) {
             return mobileReplay(remainder);
         }
+        if (commandIs(action, "rotate")) {
+            return Invocation.tool("mobile_rotate", orientation(remainder));
+        }
+        if (commandIs(action, "hide") && commandIs(firstWord(remainder).toLowerCase(Locale.ROOT), "keyboard")) {
+            return Invocation.tool("mobile_hide_keyboard", new JsonObject());
+        }
+        if (commandIs(action, "background")) {
+            return Invocation.tool("mobile_background_app", backgroundSeconds(remainder));
+        }
+        if (commandIs(action, "activate")) {
+            return remainder.isBlank()
+                    ? Invocation.local("Provide an app id, for example `/mobile activate com.example.app`.")
+                    : Invocation.tool("mobile_activate_app", appId(remainder));
+        }
         if (commandIs(action, "quit", "close", "stop")) {
             return Invocation.tool("driver_quit", new JsonObject());
         }
         return Invocation.local("Unknown mobile command. Use `/mobile status`, `/mobile native Android <device>`, `/mobile web <url>`, `/mobile tree`, `/mobile contexts`, `/mobile switch <context>`, `/mobile screenshot <path>`, or `/mobile quit`.");
+    }
+
+    private static JsonObject orientation(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("orientation", "LANDSCAPE".equalsIgnoreCase(firstWord(rest)) ? "LANDSCAPE" : "PORTRAIT");
+        return arguments;
+    }
+
+    private static JsonObject backgroundSeconds(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("seconds", parseIntOrDefault(firstWord(rest), 5));
+        return arguments;
+    }
+
+    private static int parseIntOrDefault(String value, int fallback) {
+        try {
+            return Integer.parseInt(text(value));
+        } catch (NumberFormatException notNumeric) {
+            return fallback;
+        }
+    }
+
+    private static JsonObject appId(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("appId", firstTokenOrDefault(rest, ""));
+        return arguments;
     }
 
     private static JsonObject mobileScreenshot(String outputPath) {
@@ -1289,7 +1617,20 @@ final class AssistantCommand {
         if (isDiscardRecording(text)) {
             return Invocation.tool("capture_stop", stopRecording(true));
         }
+        if (isCaptureStatusIntent(text)) {
+            return Invocation.tool("capture_status", new JsonObject());
+        }
         return null;
+    }
+
+    private static boolean isCaptureStatusIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("recording status")
+                || normalized.equals("capture status")
+                || normalized.equals("check recording status")
+                || normalized.equals("what is the recording status")
+                || normalized.equals("is a recording active")
+                || normalized.equals("is recording active");
     }
 
     private static Invocation reviewRecording(String text) {
@@ -1456,6 +1797,12 @@ final class AssistantCommand {
         if (isBrowserRecordingIntent(lower) || isCommandHelpIntent(lower) || isCodeOnlyRequest(lower)) {
             return false;
         }
+        // Session actions (resize, cookies, aria snapshot, accessibility audit, network requests,
+        // storage state) target the current session, not a URL, so they skip mentionsWebTarget
+        // below entirely -- see isBrowserSessionActionIntent (issue #3678).
+        if (isBrowserSessionActionIntent(lower)) {
+            return true;
+        }
         boolean mentionsBrowserAction = containsAny(lower,
                 "open ", "navigate", "visit", "refresh", "reload", "back", "forward",
                 "maximize", "fullscreen", "quit", "close browser", "screenshot", "dom", "page source",
@@ -1504,7 +1851,39 @@ final class AssistantCommand {
         if (containsAny(normalized, "quit mobile", "close mobile", "stop mobile session")) {
             return "quit";
         }
+        if (containsAny(normalized, "rotate", "landscape", "portrait")) {
+            return "rotate " + (normalized.contains("landscape") ? "LANDSCAPE" : "PORTRAIT");
+        }
+        if (containsAny(normalized, "hide keyboard", "dismiss keyboard")) {
+            return "hide keyboard";
+        }
+        if (containsAny(normalized, "background the app", "send app to background", "background app")) {
+            return "background";
+        }
+        if (containsAny(normalized, "activate app", "foreground app", "bring app to foreground")) {
+            String appId = firstAppIdLikeToken(text);
+            // No package/bundle id found in the sentence: fall through to status rather than guess
+            // one, since mobile_activate_app has a real side effect (issue #3678).
+            return appId.isBlank() ? "status " + (normalized.contains("ios") ? "iOS" : "Android") : "activate " + appId;
+        }
         return "status " + (normalized.contains("ios") ? "iOS" : "Android");
+    }
+
+    /**
+     * Scans for an Android package or iOS bundle id shape (dot-separated identifier segments), for
+     * example {@code com.example.app}. Used only to resolve mobile_activate_app from natural
+     * language; returns blank when no such token is present.
+     */
+    private static String firstAppIdLikeToken(String rest) {
+        if (rest == null || rest.isBlank()) {
+            return "";
+        }
+        for (String token : rest.split("\\s+")) {
+            if (token.matches("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")) {
+                return token;
+            }
+        }
+        return "";
     }
 
     private static boolean isMobileRecordingStartIntent(String text) {
@@ -2204,6 +2583,11 @@ final class AssistantCommand {
             return "iOS";
         }
         return value.isBlank() || "android".equalsIgnoreCase(value) ? "Android" : value;
+    }
+
+    private static String stripLeadingWord(String rest, String word) {
+        String trimmedRest = text(rest);
+        return word.equalsIgnoreCase(firstWord(trimmedRest)) ? afterFirstWord(trimmedRest) : trimmedRest;
     }
 
     private static String firstTokenOrDefault(String value, String fallback) {

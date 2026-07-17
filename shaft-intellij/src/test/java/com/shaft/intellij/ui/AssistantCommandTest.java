@@ -155,7 +155,8 @@ class AssistantCommandTest {
                 () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("Conversation context:")),
                 () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains(context)),
                 () -> assertTrue(cloud.arguments().get("prompt").getAsString()
-                        .contains("Current request:\nsummarize next step")));
+                        .contains("Current request:\nIf you need to ask the user a genuine clarifying question")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("summarize next step")));
     }
 
     @Test
@@ -611,8 +612,41 @@ class AssistantCommandTest {
         assertEquals("github", invocation.arguments().get("provider").getAsString());
         assertEquals("openai/gpt-4.1", invocation.arguments().get("model").getAsString());
         assertEquals("PLAN", invocation.arguments().get("mode").getAsString());
-        assertEquals("Review the checkout test plan", invocation.arguments().get("prompt").getAsString());
+        assertEquals("""
+                If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+
+                Review the checkout test plan""",
+                invocation.arguments().get("prompt").getAsString());
         assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void cloudPromptsIncludeShaftOptionsHintSoClarifyingQuestionsRenderChips() {
+        // Issue #3690: the shaft-options fence instruction (added to SHAFT_MCP_USAGE_HINT by #3674)
+        // must also reach cloud-provider chat prompts (autobot_provider_chat), not just local-agent
+        // ones, so a clarifying question asked by a cloud model still renders selectable chips.
+        AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
+                "Which login flow should I test?",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation codegen = AssistantCommand.fromPrompt(
+                "generate test for the login page",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String nonCodegenPrompt = nonCodegen.arguments().get("prompt").getAsString();
+        String codegenPrompt = codegen.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(nonCodegenPrompt.contains("tagged shaft-options"), nonCodegenPrompt),
+                () -> assertTrue(nonCodegenPrompt.contains("Which login flow should I test?"), nonCodegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("tagged shaft-options"), codegenPrompt));
     }
 
     @Test
@@ -1015,6 +1049,119 @@ class AssistantCommandTest {
                 () -> assertEquals("driver_quit", command("/mobile quit").toolName()),
                 () -> assertTrue(unknown.isLocal()),
                 () -> assertTrue(unknown.localResponse().contains("Unknown mobile command")));
+    }
+
+    @Test
+    void browserCommandsExposeSessionActionTools() {
+        AssistantCommand.Invocation size = command("/browser size 1920x1080");
+        AssistantCommand.Invocation resizeDefault = command("/browser resize");
+        AssistantCommand.Invocation deleteCookie = command("/browser delete cookie sessionId");
+        AssistantCommand.Invocation network = command("/browser network requests example.com");
+        AssistantCommand.Invocation saveSession = command("/browser save session recordings/state.json");
+        AssistantCommand.Invocation loadSessionDefault = command("/browser load session");
+
+        assertAll(
+                () -> assertEquals("browser_set_window_size", size.toolName()),
+                () -> assertEquals(1920, size.arguments().get("width").getAsInt()),
+                () -> assertEquals(1080, size.arguments().get("height").getAsInt()),
+                () -> assertEquals(1280, resizeDefault.arguments().get("width").getAsInt()),
+                () -> assertEquals(800, resizeDefault.arguments().get("height").getAsInt()),
+                () -> assertEquals("browser_delete_all_cookies", command("/browser clear cookies").toolName()),
+                () -> assertEquals("browser_delete_all_cookies", command("/browser delete all cookies").toolName()),
+                () -> assertEquals("browser_delete_cookie", deleteCookie.toolName()),
+                () -> assertEquals("sessionId", deleteCookie.arguments().get("cookieName").getAsString()),
+                () -> assertTrue(command("/browser delete cookie").isLocal()),
+                () -> assertEquals("browser_aria_snapshot", command("/browser aria").toolName()),
+                () -> assertEquals("", command("/browser aria").arguments().get("locatorValue").getAsString()),
+                () -> assertFalse(command("/browser aria").arguments().has("locatorStrategy")),
+                () -> assertEquals("browser_accessibility_audit", command("/browser audit").toolName()),
+                () -> assertEquals(0, command("/browser audit").arguments().getAsJsonArray("wcagTags").size()),
+                () -> assertEquals(2, command("/browser audit wcag2a wcag21aa").arguments()
+                        .getAsJsonArray("wcagTags").size()),
+                () -> assertEquals("browser_network_requests", network.toolName()),
+                () -> assertEquals("example.com", network.arguments().get("urlFilter").getAsString()),
+                () -> assertEquals(50, network.arguments().get("limit").getAsInt()),
+                () -> assertEquals("browser_storage_state_save", saveSession.toolName()),
+                () -> assertEquals("recordings/state.json", saveSession.arguments().get("filePath").getAsString()),
+                () -> assertEquals("browser_storage_state_load",
+                        command("/browser load session recordings/state.json").toolName()),
+                () -> assertEquals("recordings/state.json", command("/browser load session recordings/state.json")
+                        .arguments().get("filePath").getAsString()),
+                () -> assertTrue(loadSessionDefault.isLocal()));
+    }
+
+    @Test
+    void browserSessionActionsAreReachableFromNaturalLanguageWhenTheyNameTheBrowser() {
+        assertAll(
+                () -> assertEquals("browser_set_window_size",
+                        command("resize the browser window to 1920x1080").toolName()),
+                () -> assertEquals(1920, command("resize the browser window to 1920x1080")
+                        .arguments().get("width").getAsInt()),
+                () -> assertEquals("browser_delete_all_cookies",
+                        command("clear cookies on the browser").toolName()),
+                () -> assertEquals("browser_delete_cookie",
+                        command("delete cookie sessionId from the browser").toolName()),
+                () -> assertEquals("sessionId", command("delete cookie sessionId from the browser")
+                        .arguments().get("cookieName").getAsString()),
+                () -> assertEquals("browser_aria_snapshot",
+                        command("aria snapshot of the current browser page").toolName()),
+                () -> assertEquals("browser_accessibility_audit",
+                        command("run an accessibility audit on the browser").toolName()),
+                () -> assertEquals("browser_network_requests",
+                        command("list network requests from the browser").toolName()),
+                // "clear cookies" with no mention of "browser" is deliberately left ambiguous (could
+                // be about a different app or a generic question) and falls through to the agent.
+                () -> assertEquals("autobot_local_agent_run", command("clear cookies").toolName()));
+    }
+
+    @Test
+    void playwrightBrowserCommandsExposeNavigationAndWindowTools() {
+        assertAll(
+                () -> assertEquals("playwright_browser_refresh", command("/browser playwright refresh").toolName()),
+                () -> assertEquals("playwright_browser_navigate_back", command("/browser playwright back").toolName()),
+                () -> assertEquals("playwright_browser_navigate_forward", command("/browser playwright forward").toolName()),
+                () -> assertEquals("playwright_browser_set_window_size", command("/browser playwright size 1024x768").toolName()),
+                () -> assertEquals(1024, command("/browser playwright size 1024x768").arguments().get("width").getAsInt()),
+                () -> assertEquals(768, command("/browser playwright size 1024x768").arguments().get("height").getAsInt()),
+                () -> assertEquals("playwright_browser_new_window", command("/browser playwright newtab https://example.com").toolName()),
+                () -> assertEquals("TAB", command("/browser playwright newtab https://example.com").arguments().get("windowType").getAsString()),
+                () -> assertEquals("https://example.com", command("/browser playwright newtab https://example.com").arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("playwright_browser_new_window", command("/browser playwright newwindow").toolName()),
+                () -> assertEquals("WINDOW", command("/browser playwright newwindow").arguments().get("windowType").getAsString()));
+    }
+
+    @Test
+    void mobileCommandsExposeTouchAndAppLifecycleTools() {
+        assertAll(
+                () -> assertEquals("mobile_rotate", command("/mobile rotate landscape").toolName()),
+                () -> assertEquals("LANDSCAPE", command("/mobile rotate landscape").arguments().get("orientation").getAsString()),
+                () -> assertEquals("PORTRAIT", command("/mobile rotate").arguments().get("orientation").getAsString()),
+                () -> assertEquals("mobile_hide_keyboard", command("/mobile hide keyboard").toolName()),
+                () -> assertEquals("mobile_background_app", command("/mobile background 10").toolName()),
+                () -> assertEquals(10, command("/mobile background 10").arguments().get("seconds").getAsInt()),
+                () -> assertEquals(5, command("/mobile background").arguments().get("seconds").getAsInt()),
+                () -> assertEquals("mobile_activate_app", command("/mobile activate com.example.app").toolName()),
+                () -> assertEquals("com.example.app",
+                        command("/mobile activate com.example.app").arguments().get("appId").getAsString()),
+                () -> assertTrue(command("/mobile activate").isLocal()),
+                () -> assertEquals("mobile_rotate", command("rotate the mobile device to landscape").toolName()),
+                () -> assertEquals("LANDSCAPE",
+                        command("rotate the mobile device to landscape").arguments().get("orientation").getAsString()),
+                () -> assertEquals("mobile_hide_keyboard", command("on my mobile, hide keyboard").toolName()),
+                () -> assertEquals("mobile_background_app",
+                        command("on my mobile, background the app").toolName()),
+                () -> assertEquals("mobile_activate_app",
+                        command("activate app com.example.app on mobile").toolName()),
+                () -> assertEquals("com.example.app", command("activate app com.example.app on mobile")
+                        .arguments().get("appId").getAsString()));
+    }
+
+    @Test
+    void captureStatusIsReachableFromNaturalLanguage() {
+        assertAll(
+                () -> assertEquals("capture_status", command("recording status").toolName()),
+                () -> assertEquals("capture_status", command("capture status").toolName()),
+                () -> assertEquals("capture_status", command("is a recording active").toolName()));
     }
 
     @Test
