@@ -39,6 +39,7 @@ import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -93,6 +94,12 @@ final class AssistantTranscriptView extends JPanel {
     // every other messages-mutating path (clear/setMarkdown/setMessages/replaceLast) keeps this list
     // sized to match messages, backfilling "" since old evidence was never persisted to restore.
     private final List<String> messageRawEvidence = new ArrayList<>();
+    // 1:1 with `messages` -- one rendered bubble handle per persisted message, kept in sync so
+    // append()/replaceLast() can mutate the transcript incrementally (issue #3628) instead of
+    // rebuilding every bubble on every streamed line. Reset (cleared and repopulated) by every full
+    // renderFallbackTranscript() pass; never touched outside rendering code.
+    private final List<RenderedBubble> renderedBubbles = new ArrayList<>();
+    private int bubbleCreationCount;
     private String markdown = "";
     private final LafManagerListener lafListener;
     private Disposable lafConnectionDisposable;
@@ -177,9 +184,18 @@ final class AssistantTranscriptView extends JPanel {
      * @param rawEvidence raw evidence to show behind the disclosure toggle, or blank/{@code null} for none
      */
     void append(String role, String message, String rawEvidence) {
+        int sizeBeforeAdd = messages.size();
         addMessage(role, message, rawEvidence);
+        if (messages.size() == sizeBeforeAdd) {
+            // addMessage() silently dropped a blank message -- nothing changed, nothing to render.
+            return;
+        }
         markdown = joinMessages(messages);
-        refresh();
+        if (canAppendIncrementally()) {
+            appendBubbleIncrementally(messages.size() - 1);
+        } else {
+            refresh();
+        }
     }
 
     void replaceLast(String role, String message) {
@@ -197,7 +213,76 @@ final class AssistantTranscriptView extends JPanel {
         // the message being overwritten, and replaceLast() has no evidence of its own to carry over.
         setLastRawEvidence("");
         markdown = joinMessages(messages);
-        refresh();
+        if (updateLastBubbleIncrementally(last.role, message)) {
+            scrollLatestIntoView();
+        } else {
+            refresh();
+        }
+    }
+
+    /**
+     * Whether the just-appended last message can be added as a single new bubble instead of
+     * rebuilding the whole transcript (issue #3628). Declines -- falling back to a full
+     * {@link #refresh()} -- whenever a structural artifact would need to move as a result of this
+     * append, rather than trying to reposition it incrementally:
+     * <ul>
+     *   <li>a transient {@link #pendingWidget} is showing (always trailing; a real persisted append
+     *       from {@code ShaftAssistantPanel} always calls {@link #clearWidget()} first, so this is
+     *       purely a defensive guard against a caller that doesn't);</li>
+     *   <li>{@link #renderedBubbles} has drifted out of sync with {@link #messages} (should never
+     *       happen; defensive guard);</li>
+     *   <li>the truncation divider needs to render immediately before the new last message.</li>
+     * </ul>
+     */
+    private boolean canAppendIncrementally() {
+        return pendingWidget == null
+                && renderedBubbles.size() == messages.size() - 1
+                && truncationBoundaryIndex != messages.size() - 1;
+    }
+
+    private void appendBubbleIncrementally(int index) {
+        ShaftAssistantChatState.Message message = messages.get(index);
+        String rawEvidence = index < messageRawEvidence.size() ? messageRawEvidence.get(index) : "";
+        RenderedBubble handle = fallbackMessage(message.role, message.markdown, rawEvidence);
+        fallbackPanel.add(handle.row);
+        renderedBubbles.add(handle);
+        fallbackPanel.revalidate();
+        fallbackPanel.repaint();
+        scrollLatestIntoView();
+    }
+
+    /**
+     * Mutates the already-rendered last bubble's HTML content in place -- no new Swing components --
+     * instead of rebuilding the whole transcript on every streamed line (issue #3628). Returns
+     * {@code false} (leaving the caller to fall back to a full {@link #refresh()}) when the role
+     * changed, since that also changes the bubble's side/colors/accessible names, which this
+     * in-place path does not attempt to reproduce.
+     */
+    private boolean updateLastBubbleIncrementally(String role, String updatedMarkdown) {
+        if (renderedBubbles.size() != messages.size()) {
+            return false;
+        }
+        RenderedBubble handle = renderedBubbles.get(renderedBubbles.size() - 1);
+        if (!role.equals(handle.role)) {
+            return false;
+        }
+        Color foreground = handle.htmlPane.getForeground();
+        Color background = handle.bubble.getBackground();
+        String rendered = toFallbackHtml(convertMarkdown(updatedMarkdown), foreground, background);
+        handle.htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
+        handle.htmlPane.setText(rendered);
+        handle.htmlPane.setCaretPosition(0);
+        removeRawEvidenceDisclosure(handle.bubble);
+        handle.bubble.revalidate();
+        handle.bubble.repaint();
+        return true;
+    }
+
+    private void removeRawEvidenceDisclosure(JPanel bubble) {
+        Component south = ((BorderLayout) bubble.getLayout()).getLayoutComponent(BorderLayout.SOUTH);
+        if (south != null) {
+            bubble.remove(south);
+        }
     }
 
     void setMarkdown(String value) {
@@ -271,6 +356,16 @@ final class AssistantTranscriptView extends JPanel {
         return pendingWidget;
     }
 
+    /**
+     * Total bubble Swing components constructed since this view was created, across both full
+     * rebuilds and incremental appends -- lets tests assert streamed {@link #replaceLast(String,
+     * String)} calls mutate the existing last bubble instead of constructing a new one each time
+     * (issue #3628).
+     */
+    int bubbleCreationCountForTest() {
+        return bubbleCreationCount;
+    }
+
     private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
         JBScrollPane scrollPane = new JBScrollPane(fallbackPanel);
         scrollPane.setBorder(JBUI.Borders.empty());
@@ -319,19 +414,41 @@ final class AssistantTranscriptView extends JPanel {
         Color transcriptBackground = resolvedColor("TextArea.background", Color.WHITE);
         fallbackPanel.removeAll();
         fallbackPanel.setBackground(transcriptBackground);
+        renderedBubbles.clear();
         for (int i = 0; i < messages.size(); i++) {
             if (i == truncationBoundaryIndex) {
                 fallbackPanel.add(createTruncationDivider());
             }
             ShaftAssistantChatState.Message message = messages.get(i);
             String rawEvidence = i < messageRawEvidence.size() ? messageRawEvidence.get(i) : "";
-            fallbackPanel.add(fallbackMessage(message.role, message.markdown, rawEvidence));
+            RenderedBubble handle = fallbackMessage(message.role, message.markdown, rawEvidence);
+            fallbackPanel.add(handle.row);
+            renderedBubbles.add(handle);
         }
         if (pendingWidget != null) {
             fallbackPanel.add(widgetRow(pendingWidgetRole, pendingWidget));
         }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
+    }
+
+    /**
+     * Handle to one persisted message's rendered bubble, tracked so {@link #append(String, String,
+     * String)} and {@link #replaceLast(String, String)} can mutate the transcript incrementally
+     * (issue #3628) instead of rebuilding every bubble on every streamed line.
+     */
+    private static final class RenderedBubble {
+        private final JComponent row;
+        private final JPanel bubble;
+        private final JEditorPane htmlPane;
+        private final String role;
+
+        private RenderedBubble(JComponent row, JPanel bubble, JEditorPane htmlPane, String role) {
+            this.row = row;
+            this.bubble = bubble;
+            this.htmlPane = htmlPane;
+            this.role = role;
+        }
     }
 
     private JComponent widgetRow(String role, JComponent component) {
@@ -407,7 +524,8 @@ final class AssistantTranscriptView extends JPanel {
         return row;
     }
 
-    private JComponent fallbackMessage(String role, String markdown, String rawEvidence) {
+    private RenderedBubble fallbackMessage(String role, String markdown, String rawEvidence) {
+        bubbleCreationCount++;
         String normalizedRole = normalizedRole(role);
         boolean user = USER_ROLE.equals(normalizedRole);
         Color background = user
@@ -436,7 +554,7 @@ final class AssistantTranscriptView extends JPanel {
             bubble.add(rawEvidenceDisclosure(rawEvidence), BorderLayout.SOUTH);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        return row;
+        return new RenderedBubble(row, bubble, htmlPane, normalizedRole);
     }
 
     /**
