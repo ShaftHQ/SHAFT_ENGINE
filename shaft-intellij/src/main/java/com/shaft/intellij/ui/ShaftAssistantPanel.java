@@ -2010,12 +2010,43 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String displayResponse = withTokenUsage(response, rawResponse);
-        replaceLastTranscriptAndChatState("assistant", displayResponse);
-        lastResponse = displayResponse;
+        AssistantQuestion question = AssistantQuestion.detect(displayResponse);
+        String toPersist = question == null ? displayResponse : question.promptMarkdown();
+        replaceLastTranscriptAndChatState("assistant", toPersist);
+        lastResponse = toPersist;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
         updateActionChrome();
+        if (question != null) {
+            showAssistantQuestionOptions(question);
+        }
+    }
+
+    /**
+     * Shows a detected {@link AssistantQuestion}'s answer chips as a trailing transcript widget
+     * (issue #3674), reusing the same ephemeral single-slot mechanism {@link ToolApprovalPromptPanel}
+     * uses. Unlike an approval decision, a chip click is non-destructive -- see {@link
+     * AssistantQuestionOptionsPanel} -- so this widget is never explicitly cleared; it is simply
+     * replaced or cleared the next time {@link #append} runs, which happens as soon as the user's
+     * next message (chip-filled or free-typed) is sent.
+     */
+    private void showAssistantQuestionOptions(AssistantQuestion question) {
+        AssistantQuestionOptionsPanel optionsPanel = new AssistantQuestionOptionsPanel(
+                question.options(), this::fillPromptWithSuggestedAnswer);
+        transcript.showWidget("assistant", optionsPanel);
+    }
+
+    /**
+     * Fills the composer with a chosen suggested answer instead of auto-sending it, matching {@link
+     * #emptyStateChip}'s existing "review and send it yourself" convention -- the always-available
+     * free-text fallback the issue calls for stays exactly as-is; a chip is just a faster way to
+     * populate it.
+     */
+    private void fillPromptWithSuggestedAnswer(String answer) {
+        prompt.setText(answer);
+        prompt.setCaretPosition(answer.length());
+        prompt.requestFocusInWindow();
     }
 
     private boolean verboseLocalAgentOutput() {
@@ -2176,11 +2207,18 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showResponse(String response, String rawResponse) {
         String displayResponse = withTokenUsage(response, rawResponse);
-        lastResponse = displayResponse;
+        AssistantQuestion question = AssistantQuestion.detect(displayResponse);
+        String toPersist = question == null ? displayResponse : question.promptMarkdown();
+        lastResponse = toPersist;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
-        append("assistant", displayResponse, rawResponse);
+        // append() clears any showing widget first, so a detected question's answer chips are only
+        // shown AFTER the persisted append -- otherwise this call would immediately wipe them again.
+        append("assistant", toPersist, rawResponse);
+        if (question != null) {
+            showAssistantQuestionOptions(question);
+        }
     }
 
     private String withTokenUsage(String response, String rawResponse) {
