@@ -66,6 +66,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JBTextField artifactPaths;
     private final JBTextField sessionPath;
     private final JCheckBox headlessBrowser;
+    private final JComboBox<String> recorderBrowser;
+    private final JLabel headlessPolicyHint;
     private final JBTextArea codeSnippet;
     private final JLabel recorderStatus;
     // Per-step review list (issue #3639): a pure projection of the latest polled recording status's
@@ -129,6 +131,24 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         + "Remembered across sessions and honored by the assistant web and mobile recording flows.");
         headlessBrowser.addItemListener(event ->
                 this.settings.recorderHeadless = headlessBrowser.isSelected());
+        // Only Chrome and Edge are accepted server-side by both capture_start's browser (parsed via
+        // CaptureBrowser#parse) and mobile_initialize_web_emulation's browser (parsed via
+        // MobileService#browserType) -- Firefox/Safari would be silently rejected, so they are not
+        // offered here. Both tools' parsing is case-insensitive, so the same selected string is sent
+        // to both without per-tool re-casing.
+        recorderBrowser = new JComboBox<>(new String[]{"Chrome", "Edge"});
+        recorderBrowser.getAccessibleContext().setAccessibleName("Recorder browser");
+        recorderBrowser.setToolTipText(
+                "Browser used for the WebDriver capture recorder and the Mobile web-emulation session.");
+        // Issue #3660: a tooltip alone is easy to miss, so the policy lock also gets an always-
+        // rendered hint label next to the headless checkbox (same pattern as advancedHint below),
+        // visible only when applyTeamRecorderPolicy() actually locks headlessBrowser.
+        headlessPolicyHint = new JLabel("Locked by team policy");
+        headlessPolicyHint.getAccessibleContext().setAccessibleName("Headless policy lock hint");
+        headlessPolicyHint.getAccessibleContext().setAccessibleDescription(headlessPolicyHint.getText());
+        headlessPolicyHint.setForeground(JBColor.namedColor("Label.disabledForeground", JBColor.GRAY));
+        headlessPolicyHint.setBorder(JBUI.Borders.empty(2, 0));
+        headlessPolicyHint.setVisible(false);
         codeSnippet = new JBTextArea(6, 32);
         codeSnippet.getAccessibleContext().setAccessibleName("Generated code or guardrail input");
         codeSnippet.getAccessibleContext().setAccessibleDescription(
@@ -159,8 +179,17 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         // Progressive disclosure (issue #3500 G1, #3496 B6): the primary surface is just the
         // target, the recorder controls, the sample-page tour, and the live status. Everything
         // else a returning power user needs stays one click away behind Advanced options.
+        // Browser + headless are immediately visible/configurable on the primary surface (issue
+        // #3660), mirroring Playwright's VS Code extension -- not buried behind Advanced options
+        // like the rest of this panel's controls.
+        JPanel headlessRow = new JPanel(new BorderLayout(6, 0));
+        headlessRow.add(headlessBrowser, BorderLayout.WEST);
+        headlessRow.add(headlessPolicyHint, BorderLayout.CENTER);
+
         JPanel primaryFields = new JPanel(new GridLayout(0, 1, 4, 4));
         primaryFields.add(row("Target URL", 'U', targetUrl));
+        primaryFields.add(row("Browser", 'W', recorderBrowser));
+        primaryFields.add(row("Headless", 'H', headlessRow, headlessBrowser));
         primaryFields.add(row("Status", 'A', recorderStatus));
 
         JPanel advancedFields = new JPanel(new GridLayout(0, 1, 4, 4));
@@ -170,7 +199,6 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         advancedFields.add(row("Current source", 'R', currentSourcePath));
         advancedFields.add(row("Evidence paths", 'E', artifactPaths));
         advancedFields.add(row("Session path", 'S', sessionPath));
-        advancedFields.add(row("Browser", 'H', headlessBrowser));
 
         JPanel partner = section("Coding Partner",
                 button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation", ShaftIcons.CODE,
@@ -246,7 +274,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         JCheckBox advancedToggle = new JCheckBox("Advanced options", this.settings.advancedUiEnabled);
         advancedToggle.getAccessibleContext().setAccessibleName("Show advanced Guided options");
         advancedToggle.getAccessibleContext().setAccessibleDescription(
-                "Show backend, template, intent, current source, evidence paths, session path, browser, "
+                "Show backend, template, intent, current source, evidence paths, session path, "
                         + "generated code, coding partner, and locator controls.");
         advancedToggle.addItemListener(event -> {
             advancedPanel.setVisible(advancedToggle.isSelected());
@@ -368,6 +396,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 headlessLockedByPolicy = true;
                 headlessBrowser.setToolTipText(
                         "Locked by this repository's team policy (.shaft/recorder-policy.json)");
+                headlessPolicyHint.setVisible(true);
             }
             String outputDirectory = policy.has("outputDirectory")
                     && policy.get("outputDirectory").isJsonPrimitive()
@@ -397,6 +426,12 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 ? "The Playwright recorder start request does not take a headless option."
                 : "Record without a visible browser window; useful for agent-driven or CI recordings. "
                 + "Remembered across sessions and honored by the assistant web and mobile recording flows.");
+        // The Playwright start requests take no browser parameter at all (same reasoning as
+        // headlessBrowser above), so the picker is disabled alongside it for that backend.
+        recorderBrowser.setEnabled(!playwrightBackend);
+        recorderBrowser.setToolTipText(playwrightBackend
+                ? "The Playwright recorder start request does not take a browser parameter."
+                : "Browser used for the WebDriver capture recorder and the Mobile web-emulation session.");
         sessionPath.setToolTipText(mobile()
                 ? "Mobile recording JSON output path (mobile_record_start outputPath)."
                 : playwrightBackend
@@ -510,7 +545,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private JsonObject mobileWebEmulation() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("targetUrl", targetUrl.getText().trim());
-        arguments.addProperty("browser", "CHROME");
+        arguments.addProperty("browser", (String) recorderBrowser.getSelectedItem());
         arguments.addProperty("deviceName", "Pixel 5");
         arguments.addProperty("width", 0);
         arguments.addProperty("height", 0);
@@ -632,7 +667,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputPath", sessionPath.getText().trim());
         arguments.addProperty("targetUrl", targetUrl.getText().trim());
-        arguments.addProperty("browser", "Chrome");
+        arguments.addProperty("browser", (String) recorderBrowser.getSelectedItem());
         arguments.addProperty("headless", headlessBrowser.isSelected());
         arguments.addProperty("sessionGoal", intent.getText().trim());
         return arguments;

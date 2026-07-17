@@ -4419,7 +4419,11 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(codegen.arguments().has("packageName")),
                 () -> assertTrue(codegen.arguments().has("driverVariableName")));
 
-        JComboBox<?> backend = findComboBox(panel);
+        // Issue #3660 added a second combo box (the recorder browser picker) to this panel's
+        // always-visible primary fields, ahead of the backend combo in tab order -- so the ambiguous
+        // "first combo box in the tree" lookup below no longer reaches the backend combo. Look it up
+        // by its accessible name instead, same as GuidedWorkflowPanelTest already does.
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
         assertNotNull(backend);
         backend.setSelectedItem("Playwright");
         click(panel, "Start recording");
@@ -5435,21 +5439,6 @@ class ShaftPanelSetupTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 JComboBox<?> found = findCategorySelector(child);
-                if (found != null) {
-                    return found;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static JComboBox<?> findComboBox(Component component) {
-        if (component instanceof JComboBox<?> comboBox) {
-            return comboBox;
-        }
-        if (component instanceof Container container) {
-            for (Component child : container.getComponents()) {
-                JComboBox<?> found = findComboBox(child);
                 if (found != null) {
                     return found;
                 }
