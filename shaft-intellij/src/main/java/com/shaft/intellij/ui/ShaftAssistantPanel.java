@@ -63,7 +63,6 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
-import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.GridLayout;
 import java.awt.datatransfer.StringSelection;
@@ -590,9 +589,6 @@ final class ShaftAssistantPanel extends JPanel {
         chatRow.add(newChat, BorderLayout.EAST);
         JPanel header = new JPanel(new BorderLayout(4, 2));
         header.getAccessibleContext().setAccessibleName("Assistant chat header");
-        JLabel title = new JLabel("SHAFT Assistant");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
-        header.add(title, BorderLayout.NORTH);
         header.add(chatRow, BorderLayout.CENTER);
 
         actionRow = wrapRow();
@@ -2019,6 +2015,13 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    // Tool names whose "Calling tool X..." milestone is internal harness bookkeeping with zero
+    // user-relevant signal (e.g. ToolSearch, the CLI's own tool-schema lookup) rather than a real
+    // action -- unlike Bash/Read/Edit/... or any mcp__-prefixed SHAFT tool, which do represent real
+    // progress and must keep surfacing. Kept small and named on purpose (#3672); extend only for a
+    // confirmed report of another internal meta-tool leaking into the visible Run timeline.
+    private static final Set<String> NON_ACTIONABLE_META_TOOL_NAMES = Set.of("ToolSearch");
+
     /**
      * Reflects one local-agent output line as a compact run-timeline entry for non-verbose runs.
      * Raw NDJSON lines (an unmapped Claude/Codex structured-stream event with no human-readable
@@ -2026,19 +2029,43 @@ final class ShaftAssistantPanel extends JPanel {
      * always start with {@code {}; skipping those keeps this method's visibility contract identical
      * to Verbose mode's pre-#3546 raw-content boundary (#3545: raw stdout stays invisible unless the
      * user opts into Verbose) while still giving a signal of progress for everything else — translated
-     * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines.
+     * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines. Sub-lines that
+     * name a {@link #NON_ACTIONABLE_META_TOOL_NAMES} tool call are dropped first (#3672: internal
+     * harness meta-tool calls like ToolSearch were leaking into the visible Run timeline).
      */
     private void addCompactLocalAgentMilestone(String line) {
         if (line == null) {
             return;
         }
-        String trimmed = line.strip();
+        StringBuilder filtered = new StringBuilder();
+        for (String subLine : line.split("\n", -1)) {
+            if (isNonActionableMetaToolCall(subLine)) {
+                continue;
+            }
+            if (filtered.length() > 0) {
+                filtered.append("\n");
+            }
+            filtered.append(subLine);
+        }
+        String trimmed = filtered.toString().strip();
         if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
             return;
         }
         // The timeline is a single-line-per-entry heartbeat, not a transcript, so long milestone
         // text (a full answer paragraph, a tool call with long arguments) is kept skimmable.
         addTimeline(trimmed.length() > 80 ? trimmed.substring(0, 77) + "..." : trimmed);
+    }
+
+    /** True for a "Calling tool X..." (or "...X (args)...") sub-line naming a denylisted meta-tool. */
+    private static boolean isNonActionableMetaToolCall(String subLine) {
+        String candidate = subLine.strip();
+        for (String toolName : NON_ACTIONABLE_META_TOOL_NAMES) {
+            String prefix = "Calling tool " + toolName;
+            if (candidate.equals(prefix + "...") || candidate.startsWith(prefix + " (")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

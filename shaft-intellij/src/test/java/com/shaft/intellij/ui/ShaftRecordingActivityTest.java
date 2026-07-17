@@ -19,10 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ShaftRecordingActivityTest {
     // Reset before AND after each test: ShaftRecordingActivity's listener list is process-wide
-    // static, and in the full module suite another test constructs a ShaftReadinessSummary that
-    // registers a real (UI-touching) listener into it. Clearing only afterwards left that leaked
-    // listener in place for this class's first test, where a published transition fired it and
-    // threw in the headless harness. Clearing beforehand makes each test hermetic.
+    // static. It previously leaked a real (UI-touching) listener from another test that
+    // constructed the since-removed ShaftReadinessSummary (issue #3676); clearing only afterwards
+    // left that leaked listener in place for this class's first test, where a published transition
+    // fired it and threw in the headless harness. Clearing beforehand makes each test hermetic
+    // against any future listener registrant, not just that one.
     @BeforeEach
     @AfterEach
     void resetState() {
