@@ -1219,6 +1219,96 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelOffersConnectAgentAlongsideStartWithoutAgentOnlyWhileNotReady() throws Exception {
+        // Real user report: once SHAFT MCP was verified but the agent CLI's deep readiness check
+        // hadn't succeeded, the Ready step showed only the "Start without an agent" skip/dead-end
+        // -- no button anywhere retried just the agent half. "Connect agent" is the primary,
+        // get-to-green action shown alongside that skip option; it has nothing left to do once the
+        // agent lane is actually ready.
+        ShaftSettingsState.Settings notReadySettings = connectedMcpSettings();
+        ShaftMcpSetupPanel notReadyPanel = new ShaftMcpSetupPanel(fakeProject(), notReadySettings, () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH."));
+        showTestResult(notReadyPanel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertAll(
+                () -> assertTrue(findByAccessibleName(notReadyPanel, "Connect SHAFT agent", JButton.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(notReadyPanel, "Start SHAFT without an agent", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(findByAccessibleName(notReadyPanel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()));
+
+        ShaftMcpSetupPanel readyPanel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
+        }, readyProbe());
+        showTestResult(readyPanel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertFalse(findByAccessibleName(readyPanel, "Connect SHAFT agent", JButton.class).isVisible(),
+                "nothing left to connect once the agent lane is already ready");
+    }
+
+    @Test
+    void connectAgentButtonRetriesReadinessAndReachesGreenStateWhenTheRetrySucceeds() throws Exception {
+        AtomicBoolean connected = new AtomicBoolean();
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        // The constructor captures the deepReadinessProbe once, so this mutable holder is what lets
+        // the same panel see a failing probe on first check and a succeeding one on the later
+        // "Connect agent" retry.
+        AtomicReference<ShaftMcpToolResult> deepResult = new AtomicReference<>(
+                ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH."));
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> connected.set(true),
+                (client, runtime) -> ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH."),
+                (client, runtime) -> deepResult.get());
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        JButton connectAgent = findByAccessibleName(panel, "Connect SHAFT agent", JButton.class);
+        assertTrue(connectAgent.isVisible());
+
+        deepResult.set(ShaftMcpToolResult.success("Codex CLI executable is available on PATH."));
+        // The click drives connectAgentClicked()'s synchronous "Connecting agent..." status and its
+        // real off-EDT dispatch via ShaftPluginExecutor; the ApplicationManager.getApplication()
+        // hand-off back to the EDT that dispatch ends with cannot complete in this headless harness
+        // (mirrors testMcpConnection()'s established testing precedent in
+        // ShaftSettingsConfigurableTest), so applyConnectAgentResult -- the real completion path
+        // that hand-off applies -- is invoked directly below the same way showTestResult() already is.
+        connectAgent.doClick();
+        assertTrue(containsText(panel, "Connecting agent"), "click must synchronously enter the busy state");
+
+        invokeApplyConnectAgentResult(panel, deepResult.get());
+
+        assertAll(
+                () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(connectAgent.isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Start SHAFT without an agent", JButton.class).isVisible()),
+                () -> assertTrue(settings.agentLaneReady));
+    }
+
+    @Test
+    void connectAgentButtonKeepsTheNotReadyStateWithoutCrashingWhenTheRetryStillFails() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpToolResult stillFailing = ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH.");
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, (client, runtime) -> stillFailing, (client, runtime) -> stillFailing);
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        JButton connectAgent = findByAccessibleName(panel, "Connect SHAFT agent", JButton.class);
+        assertTrue(connectAgent.isVisible());
+
+        connectAgent.doClick();
+        invokeApplyConnectAgentResult(panel, stillFailing);
+
+        assertAll(
+                () -> assertTrue(connectAgent.isVisible(), "still not ready -- connectAgent stays the primary action"),
+                () -> assertTrue(findByAccessibleName(panel, "Start SHAFT without an agent", JButton.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()),
+                // The final status text is applyAgentReadinessOutcome's own failure-branch message --
+                // the same one showTestResult's not-ready branch already shows (issue #3425 A2) --
+                // proving the retry path never drifts from it.
+                () -> assertTrue(containsText(panel, "MCP verified — agent optional")),
+                () -> assertFalse(settings.agentLaneReady));
+    }
+
+    @Test
     void setupPanelConfiguresGeminiCloudProviderWithStoredApiKey() throws Exception {
         java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
         ShaftMcpSetupPanel.CloudKeyStore keyStore = fakeKeyStore(storedKeys);
@@ -3219,6 +3309,10 @@ class ShaftPanelSetupTest {
                 // its lane (issue #3425 A2/B7/A6), and the health-chip recheck is a compact
                 // header action.
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
+                // The primary "get to green" retry beside it needs the same visible-label treatment
+                // (real user report: no button anywhere retried just the agent lane besides redoing
+                // steps 2/4 from scratch).
+                .filter(button -> !"Connect SHAFT agent".equals(accessibleName(button)))
                 .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
                 .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
                 // The user-guide footer link is a text hyperlink by design, not an icon button.
@@ -5149,6 +5243,21 @@ class ShaftPanelSetupTest {
                 "showTestResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
+    }
+
+    /**
+     * Invokes connectAgentClicked()'s real completion path directly, mirroring showTestResult()
+     * above: the background probe/EDT hand-off connectAgentClicked() dispatches via
+     * ShaftPluginExecutor + ApplicationManager.getApplication().invokeLater(...) cannot complete in
+     * this headless harness (no live IntelliJ Application), so tests simulate "the retry's result
+     * arrived" by calling the same private method that hand-off would otherwise invoke.
+     */
+    private static void invokeApplyConnectAgentResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult readiness)
+            throws Exception {
+        Method applyResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "applyConnectAgentResult", ShaftMcpToolResult.class);
+        applyResult.setAccessible(true);
+        applyResult.invoke(panel, readiness);
     }
 
     /**
