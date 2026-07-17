@@ -2396,6 +2396,14 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void refreshLocalModelsIfNeeded() {
+        if (ApplicationManager.getApplication() == null) {
+            // Headless Gradle unit-test JVM: no real CLI is ever reachable here (isCommandAvailable
+            // always fails fast), so this async probe -- dispatched off the calling thread and landing
+            // back via SwingUtilities.invokeLater on the real, JVM-wide AWT EDT -- adds nothing but a
+            // race against tests that drive applyLocalModels/modelListFamily directly and
+            // synchronously (issue #3649). Real IDE runs always have a non-null Application.
+            return;
+        }
         String family = String.valueOf(assistantFamily.getSelectedItem());
         if (modelListRefreshing || family.equals(modelListFamily)) {
             return;
