@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state.md",
+  "content_hash": "sha256:9a428158edab883dad652e75a7da2d9853f7312b01efe9f30f74588860b2a7bf",
+  "created_at": "2026-07-17T05:03:33+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij issue #3631 save transcript to file and #3632 approval prompt keyboard focus"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "swing",
+    "testing",
+    "junit",
+    "headless",
+    "accessibility"
+  ],
+  "title": "Headless Swing test suite: requestFocusInWindow() doesn't throw but can't be reliably observed -- assert wiring, not focus-owner state",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T05:03:33+03:00"
+}
