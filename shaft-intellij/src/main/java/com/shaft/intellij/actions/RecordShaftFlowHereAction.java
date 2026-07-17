@@ -13,6 +13,7 @@ import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.content.Content;
+import com.shaft.intellij.java.InsertionAnchor;
 import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.java.JavaTargetContextResolver;
 import com.shaft.intellij.notifications.ShaftNotifier;
@@ -44,14 +45,18 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
             return;
         }
 
+        // insertAfter/targetSourcePath share the InsertionAnchor shape "Insert into open class" and
+        // "Insert at caret" now also consult (issue #3662) -- this action is always caret-anchored
+        // since update() gates its visibility on a resolvable JavaTargetContext.
+        InsertionAnchor anchor = InsertionAnchor.choose(context, null);
         JsonObject arguments = new JsonObject();
         arguments.addProperty("sessionPath", DEFAULT_CAPTURE_RECORDING_PATH);
         arguments.addProperty("outputDirectory", project.getBasePath() == null ? "." : project.getBasePath());
         arguments.addProperty("packageName", context.packageName());
         arguments.addProperty("className", context.className());
         arguments.addProperty("overwrite", false);
-        arguments.addProperty("targetSourcePath", context.sourcePath());
-        arguments.addProperty("insertAfter", context.methodName());
+        arguments.addProperty("targetSourcePath", anchor.targetSourcePath());
+        arguments.addProperty("insertAfter", anchor.insertAfter());
         arguments.addProperty("driverVariableName", "driver");
 
         if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
