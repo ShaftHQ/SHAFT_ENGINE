@@ -312,3 +312,11 @@
 {"actor":"agent","event":"memory.created","id":"workflow.memory-events-jsonl-conflicts-during-stacked-branch-rebase-merge-union-both-sides-order-by-timestamp","timestamp":"2026-07-17T09:30:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin","timestamp":"2026-07-17T10:34:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.background-pr-monitor-tasks-survive-clear-and-must-be-terminated-when-work-finishes","timestamp":"2026-07-17T10:57:05+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.agent-tool-isolation-worktree-branches-from-session-start-head-not-the-evolving-session-branch","timestamp":"2026-07-17T13:09:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.for-dependent-sub-tasks-sharing-files-work-sequentially-one-branch-pr-merge-per-task-not-one-session-long-branch-with-parallel-worktrees","timestamp":"2026-07-17T13:09:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.every-pr-body-must-use-github-closing-keywords-closes-nnnn-for-each-issue-it-resolves","timestamp":"2026-07-17T13:10:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.file-dependent-sub-issues-one-branch-pr-merge-per-issue-sequential-not-a-shared-batched-branch","timestamp":"2026-07-17T13:12:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.one-branch-one-worktree-one-pr-per-session","timestamp":"2026-07-17T13:14:04+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.file-dependent-sub-issues-one-branch-pr-merge-per-issue-sequential-not-a-shared-batched-branch","timestamp":"2026-07-17T13:14:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.assistant-identity-is-chaosengine-developed-by-mohab-mohie","timestamp":"2026-07-17T13:17:03+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.chaosengine-branch-and-pr-signing-convention","timestamp":"2026-07-17T13:17:03+03:00"}

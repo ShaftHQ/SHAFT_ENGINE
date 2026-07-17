@@ -1,7 +1,7 @@
 {
   "body_path": "memory/constraints/one-branch-one-worktree-one-pr-per-session.md",
-  "content_hash": "sha256:bb9c6918692637efd16e6befb515980eff9192be66fdd30785e556a05cd65f15",
-  "created_at": "2026-07-08T17:00:20+03:00",
+  "content_hash": "sha256:d73b60c55779f0854e9b130c451140f12c2594e45f5152bfbafa53173a4f40ac",
+  "created_at": "2026-07-17T13:14:04+03:00",
   "evidence": [],
   "id": "constraint.one-branch-one-worktree-one-pr-per-session",
   "scope": {
@@ -12,15 +12,17 @@
   },
   "source": {
     "kind": "agent",
-    "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
+    "task": "IntelliJ Phase 4/5 hardening (#3643 umbrella): reconcile one-PR-per-session default with file-dependent sequencing"
   },
   "status": "active",
   "tags": [
     "workflow",
     "git",
-    "pull-requests"
+    "pull-requests",
+    "sequencing",
+    "branch-strategy"
   ],
   "title": "One branch, one worktree, one PR per session",
   "type": "constraint",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-07-17T13:14:04+03:00"
 }
