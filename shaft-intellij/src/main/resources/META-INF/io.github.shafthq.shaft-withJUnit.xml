@@ -4,5 +4,6 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
         <runConfigurationProducer implementation="com.shaft.intellij.testrunner.ShaftJUnitRunConfigurationProducer"/>
+        <runConfigurationExtension implementation="com.shaft.intellij.testrunner.ShaftJUnitRunConfigurationExtension"/>
     </extensions>
 </idea-plugin>
