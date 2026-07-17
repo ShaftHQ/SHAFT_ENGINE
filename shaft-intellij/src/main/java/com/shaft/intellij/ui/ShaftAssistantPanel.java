@@ -6,15 +6,11 @@ import com.google.gson.JsonObject;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.fileChooser.FileChooserFactory;
-import com.intellij.openapi.fileChooser.FileSaverDescriptor;
-import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.AnimatedIcon;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBScrollPane;
@@ -46,6 +42,7 @@ import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
@@ -58,6 +55,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -73,6 +71,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -2669,20 +2668,27 @@ final class ShaftAssistantPanel extends JPanel {
     private static final String LAST_SAVE_DIRECTORY_KEY = "shaft.intellij.assistant.transcript.lastSaveDirectory";
 
     private void saveTranscript() {
-        FileSaverDescriptor descriptor = new FileSaverDescriptor(
-                "Save Transcript", "Save the assistant transcript as Markdown", "md");
-        FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
         Path defaultDirectory = lastSaveDirectory();
-        VirtualFileWrapper wrapper = dialog.save(defaultDirectory, defaultTranscriptFileName());
-        if (wrapper == null) {
+        JFileChooser chooser = new JFileChooser(defaultDirectory.toFile());
+        chooser.setDialogTitle("Save Transcript");
+        chooser.setFileFilter(new FileNameExtensionFilter("Markdown", "md"));
+        chooser.setSelectedFile(new File(defaultDirectory.toFile(), defaultTranscriptFileName()));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
-        Path target = wrapper.getFile().toPath();
+        Path target = withMarkdownExtension(chooser.getSelectedFile()).toPath();
         Path parent = target.getParent();
         if (parent != null && project != null) {
             PropertiesComponent.getInstance(project).setValue(LAST_SAVE_DIRECTORY_KEY, parent.toString());
         }
         writeTranscriptToFile(target);
+    }
+
+    private static File withMarkdownExtension(File selected) {
+        if (selected.getName().toLowerCase(Locale.ROOT).endsWith(".md")) {
+            return selected;
+        }
+        return new File(selected.getParentFile(), selected.getName() + ".md");
     }
 
     private Path lastSaveDirectory() {

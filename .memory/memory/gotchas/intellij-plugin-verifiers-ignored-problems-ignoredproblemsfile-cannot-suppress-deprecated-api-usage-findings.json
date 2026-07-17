@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/gotchas/intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings.md",
+  "content_hash": "sha256:d27c4775352b5dbfaec1ab6635b7c32db234a07f5dac8178afed6032ef04ff8d",
+  "created_at": "2026-07-17T08:12:19+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/build.gradle.kts",
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix PR #3648 verifyPlugin DEPRECATED_API_USAGES failure (FileSaverDescriptor)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "plugin-verifier",
+    "gradle",
+    "ci",
+    "deprecated-api"
+  ],
+  "title": "IntelliJ Plugin Verifier's -ignored-problems/ignoredProblemsFile cannot suppress deprecated-API-usage findings",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T08:12:19+03:00"
+}

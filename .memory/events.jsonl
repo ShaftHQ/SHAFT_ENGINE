@@ -293,3 +293,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state","timestamp":"2026-07-17T05:03:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.testable-deadline-extension-seam-inject-the-accumulated-extra-time-source-as-a-longsupplier-plus-an-explicit-cap-parameter-not-the-concrete-class","timestamp":"2026-07-17T05:25:56+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.a-single-long-process-waitfor-timeout-unit-cant-be-interrupted-mid-wait-to-recheck-a-growing-deadline-must-poll-in-short-slices-instead","timestamp":"2026-07-17T05:25:56+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings","timestamp":"2026-07-17T08:12:19+03:00"}
