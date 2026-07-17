@@ -323,3 +323,6 @@
 {"actor":"agent","event":"memory.created","id":"constraint.always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts","timestamp":"2026-07-17T13:40:08+03:00"}
 {"actor":"agent","event":"memory.created","id":"constraint.agents-md-size-budget-trims-can-come-from-anywhere-in-the-file-not-just-the-edited-section","timestamp":"2026-07-17T13:40:08+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-verifyplugin-fails-on-readaction-compute-throwablecomputable-use-runreadaction-instead","timestamp":"2026-07-17T14:03:08+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.gbrain-slug-mismatch-3618-fixed-via-per-source-trust-frontmatter-slug-opt-in-2026-07-17","timestamp":"2026-07-17T15:52:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gbrain-serve-mcp-session-lock-another-live-claude-code-session-can-hold-it-not-just-autopilot-self","timestamp":"2026-07-17T15:52:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.gbrain-link-graph-confirmed-empty-for-shaft-engine-reconcile-links-root-cause-found-and-filed-2026-07-17","timestamp":"2026-07-17T16:02:38+03:00"}

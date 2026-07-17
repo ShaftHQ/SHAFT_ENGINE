@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/decisions/gbrain-link-graph-confirmed-empty-for-shaft-engine-reconcile-links-root-cause-found-and-filed-2026-07-17.md",
+  "content_hash": "sha256:3be8049f0f0185f6053e6178625f2952abcf02f5e5e4d029e2d88e3ad4307e18",
+  "created_at": "2026-07-17T16:02:38+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.gbrain-link-graph-confirmed-empty-for-shaft-engine-reconcile-links-root-cause-found-and-filed-2026-07-17",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Confirm shaft-engine fully parsed+linked by gbrain; optimize gbrain-vs-graphify routing instructions"
+  },
+  "status": "active",
+  "tags": [
+    "gbrain",
+    "graphify",
+    "links",
+    "reconcile-links",
+    "sources"
+  ],
+  "title": "gbrain link graph confirmed empty for shaft-engine; reconcile-links root cause found and filed (2026-07-17)",
+  "type": "decision",
+  "updated_at": "2026-07-17T16:02:38+03:00"
+}
