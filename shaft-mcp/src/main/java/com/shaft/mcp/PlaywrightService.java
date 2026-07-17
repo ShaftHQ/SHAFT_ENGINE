@@ -413,19 +413,6 @@ public class PlaywrightService {
     }
 
     /**
-     * Clicks a Playwright element resolved from a human-readable semantic name.
-     *
-     * @param elementName visible text, label, or accessible name of the target element
-     * @return recorded action metadata
-     */
-    @Tool(name = "playwright_element_click_semantic",
-            description = "clicks an element by human-readable name using SHAFT Playwright")
-    public McpMobileActionResult clickSemantic(String elementName) {
-        getDriver().element().click(semanticClickableLocator(elementName));
-        return recordSemantic("click_semantic", elementName, semanticClickCode(elementName), false);
-    }
-
-    /**
      * Clicks a Playwright element using JavaScript.
      */
     @Tool(name = "playwright_element_click_js", description = "clicks an element using JavaScript in SHAFT Playwright")
@@ -467,26 +454,6 @@ public class PlaywrightService {
                 + ", \"<redacted>\");";
         return recordLocator("type", locatorStrategy, locatorValue, code, redacted, true,
                 Map.of("value", text(textValue)));
-    }
-
-    /**
-     * Types into a Playwright element resolved from a human-readable semantic name.
-     *
-     * @param elementName visible label, placeholder, or accessible name of the target input
-     * @param textValue typed value
-     * @return recorded action metadata
-     */
-    @Tool(name = "playwright_element_type_semantic",
-            description = "types value into an element by human-readable name using SHAFT Playwright")
-    public McpMobileActionResult typeSemantic(String elementName, String textValue) {
-        getDriver().element().type(semanticInputLocator(elementName), textValue);
-        return recordSemantic(
-                "type_semantic",
-                elementName,
-                semanticTypeCode(elementName, textValue),
-                semanticTypeCode(elementName, "<redacted>"),
-                true,
-                Map.of("elementName", text(elementName), "value", text(textValue)));
     }
 
     /**
@@ -662,24 +629,6 @@ public class PlaywrightService {
         return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive);
     }
 
-    private McpMobileActionResult recordSemantic(
-            String action,
-            String elementName,
-            String javaCode,
-            boolean sensitive) {
-        return record(action, null, text(elementName), Map.of("elementName", text(elementName)), javaCode, sensitive);
-    }
-
-    private McpMobileActionResult recordSemantic(
-            String action,
-            String elementName,
-            String javaCode,
-            String redactedJavaCode,
-            boolean sensitive,
-            Map<String, String> parameters) {
-        return record(action, null, text(elementName), parameters, javaCode, redactedJavaCode, sensitive);
-    }
-
     private McpMobileActionResult record(
             String action,
             locatorStrategy locatorStrategy,
@@ -753,6 +702,11 @@ public class PlaywrightService {
         return ShaftLocator.from(getLocator(locatorStrategy, locatorValue)).toPlaywrightLocator(getDriver().getDriver());
     }
 
+    // The playwright_element_click_semantic/playwright_element_type_semantic @Tool methods that
+    // used to call semanticClickableLocator/semanticInputLocator were removed (generation policy:
+    // never generate or recommend intent-based smart locators). These two helpers are kept only
+    // because executeRecorded() still replays legacy "click_semantic"/"type_semantic" recordings
+    // captured by those tools before their removal; they are not reachable from any current tool.
     private static By semanticClickableLocator(String elementName) {
         return SHAFT.GUI.Locator.clickableField(requireSemanticElementName(elementName));
     }
@@ -761,17 +715,11 @@ public class PlaywrightService {
         return SHAFT.GUI.Locator.inputField(requireSemanticElementName(elementName));
     }
 
-    private static String semanticClickCode(String elementName) {
-        return "driver.element().click(" + semanticClickableLocatorCode(elementName) + ");";
-    }
-
+    // Kept for the same legacy-replay reason as above, and because tests still use it to build
+    // synthetic "type_semantic" recording fixtures.
     static String semanticTypeCode(String elementName, String textValue) {
         return "driver.element().type(" + semanticInputLocatorCode(elementName)
                 + ", \"" + javaString(textValue) + "\");";
-    }
-
-    private static String semanticClickableLocatorCode(String elementName) {
-        return "SHAFT.GUI.Locator.clickableField(\"" + javaString(requireSemanticElementName(elementName)) + "\")";
     }
 
     private static String semanticInputLocatorCode(String elementName) {

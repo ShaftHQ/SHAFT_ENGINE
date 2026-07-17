@@ -89,9 +89,7 @@ class McpNoDriverServiceTest {
         PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
 
         assertNoDriver(() -> service.click(locatorStrategy.ID, "submit"));
-        assertNoDriver(() -> service.clickSemantic("Submit"));
         assertNoDriver(() -> service.type(locatorStrategy.ID, "name", "value"));
-        assertNoDriver(() -> service.typeSemantic("Name", "value"));
         assertNoDriver(() -> service.saveStorageState("state.json"));
         assertNoDriver(() -> service.loadStorageState("state.json"));
     }

@@ -18,6 +18,7 @@ import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.ExternalTestDataReference;
 import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
+import com.shaft.gui.internal.locator.Role;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -1324,10 +1325,15 @@ public final class CaptureGenerator {
         if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
                 || candidate.strategy() == LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME
                 || candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL) {
+            if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
+                    && ariaRole(plan.target().role()) != null) {
+                // Resolves to SHAFT.GUI.Locator.hasRole(...), not By.xpath -- see semanticLocator().
+                return false;
+            }
             String name = !plan.target().accessibleName().isBlank()
                     ? plan.target().accessibleName()
                     : plan.target().label();
-            return semanticName(name, candidate).isBlank() && !isInput(plan.target()) && !isClickable(plan.target());
+            return semanticName(name, candidate).isBlank();
         }
         return false;
     }
@@ -1360,22 +1366,58 @@ public final class CaptureGenerator {
         return "captureReplayLocator(" + primary + ", " + alternatives + ")";
     }
 
+    // Priority order (per generation policy): role-based locators first, then the SHAFT XPath
+    // LocatorBuilder, then a plain Selenium By only as a last resort. Intent-based smart locators
+    // (SHAFT.GUI.Locator.clickableField/inputField, backed by SmartLocators' heuristic XPath
+    // fallback chain) are never generated here.
     private static String semanticLocator(
             ElementSnapshot target,
             String name,
             LocatorCandidate candidate) {
-        String semanticName = name;
-        semanticName = semanticName(semanticName, candidate);
-        if (isInput(target)) {
-            return "SHAFT.GUI.Locator.inputField(\"" + javaString(semanticName) + "\")";
+        String semanticName = semanticName(name, candidate);
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE) {
+            Role ariaRole = ariaRole(target.role());
+            if (ariaRole != null) {
+                return "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ").build()";
+            }
         }
-        if (isClickable(target)) {
-            return "SHAFT.GUI.Locator.clickableField(\"" + javaString(semanticName) + "\")";
+        if (semanticName.isBlank()) {
+            return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
         }
-        if (!semanticName.isBlank()) {
-            return "SHAFT.GUI.Locator.hasAnyTagName().containsText(\"" + javaString(semanticName) + "\").build()";
-        }
-        return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+        String tagName = target.tagName().isBlank() ? "*" : target.tagName();
+        String predicate = candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL
+                ? ".containsText(\"" + javaString(semanticName) + "\")"
+                : ".hasAttribute(\"aria-label\", \"" + javaString(semanticName) + "\")";
+        return "SHAFT.GUI.Locator.hasTagName(\"" + javaString(tagName) + "\")" + predicate + ".build()";
+    }
+
+    /**
+     * Maps a raw ARIA role string (as captured on {@link ElementSnapshot#role()}) to one of the
+     * 14 {@link Role} enum constants, case-insensitively, including the known ARIA-role-name vs.
+     * enum-constant-name mismatches ("img" -&gt; IMAGE, "row" -&gt; TABLE_ROW, "cell"/"gridcell"
+     * -&gt; TABLE_CELL, "columnheader" -&gt; TABLE_COLUMNHEADER, "grid" -&gt; TABLE). Returns
+     * {@code null} when the role has no equivalent so callers can fall back to the SHAFT XPath
+     * locator builder instead of failing. Mirrors {@code BrowserService#ariaRole} in shaft-mcp.
+     */
+    private static Role ariaRole(String rawRole) {
+        String normalized = rawRole == null ? "" : rawRole.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "button" -> Role.BUTTON;
+            case "link" -> Role.LINK;
+            case "textbox" -> Role.TEXTBOX;
+            case "checkbox" -> Role.CHECKBOX;
+            case "radio" -> Role.RADIO;
+            case "combobox" -> Role.COMBOBOX;
+            case "heading" -> Role.HEADING;
+            case "img", "image" -> Role.IMAGE;
+            case "list" -> Role.LIST;
+            case "listitem" -> Role.LISTITEM;
+            case "table", "grid" -> Role.TABLE;
+            case "row" -> Role.TABLE_ROW;
+            case "cell", "gridcell" -> Role.TABLE_CELL;
+            case "columnheader" -> Role.TABLE_COLUMNHEADER;
+            default -> null;
+        };
     }
 
     private static String semanticName(String name, LocatorCandidate candidate) {
@@ -2362,19 +2404,6 @@ public final class CaptureGenerator {
     private static String extensionText(EventContext context, String name) {
         JsonNode value = context.extensions().get(name);
         return value == null ? "" : value.asText("");
-    }
-
-    private static boolean isInput(ElementSnapshot target) {
-        return "textbox".equals(target.role())
-                || "combobox".equals(target.role())
-                || "input".equals(target.tagName())
-                || "textarea".equals(target.tagName())
-                || "select".equals(target.tagName());
-    }
-
-    private static boolean isClickable(ElementSnapshot target) {
-        return Set.of("button", "link", "checkbox", "radio").contains(target.role())
-                || Set.of("button", "a").contains(target.tagName());
     }
 
     private static String eventId(CaptureEvent event) {

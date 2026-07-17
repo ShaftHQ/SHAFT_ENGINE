@@ -19,6 +19,8 @@ public class TestAutomationService {
     private static final Pattern THREAD_SLEEP = Pattern.compile("\\bThread\\s*\\.\\s*sleep\\s*\\(");
     private static final Pattern SHAFT_LOCATOR_XPATH = Pattern.compile(
             "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*xpath\\s*\\(");
+    private static final Pattern SMART_LOCATOR = Pattern.compile(
+            "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*(?:clickableField|inputField)\\s*\\(");
     private static final Pattern BY_XPATH = Pattern.compile("\\bBy\\s*\\.\\s*xpath\\s*\\(\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
     private static final Pattern PAGE_FACTORY = Pattern.compile("(?:@FindBy\\b|\\bPageFactory\\b)");
     private static final Pattern IMPLICIT_WAIT = Pattern.compile(
@@ -42,9 +44,9 @@ public class TestAutomationService {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern STRING_LITERAL = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"");
     private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
-    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer smart locators,"
-            + " SHAFT.GUI.Locator builders.";
-    private static final String NO_SHAFT_LOCATOR_XPATH = "Do not generate SHAFT.GUI.Locator.xpath; use smart"
+    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer role-based locators,"
+            + " then the SHAFT.GUI.Locator XPath builder.";
+    private static final String NO_SHAFT_LOCATOR_XPATH = "Do not generate SHAFT.GUI.Locator.xpath; use role-based"
             + " locators, the SHAFT locator builder, or By.xpath only as a last fallback.";
     private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";
     private static final String NO_RAW_FIND_ELEMENT = "Avoid direct driver.findElement/findElements calls in generated"
@@ -54,6 +56,8 @@ public class TestAutomationService {
     private static final String NO_DIRECT_SYSTEM_PROPERTY = "Avoid direct System.getProperty() in SHAFT-like snippets;"
             + " use SHAFT properties or injected configuration.";
     private static final String NO_HARDCODED_SECRET = "Do not hard-code obvious header, token, or password secrets.";
+    private static final String NO_SMART_LOCATOR = "Avoid generating SHAFT.GUI.Locator.clickableField/inputField"
+            + " (intent-based smart locators); prefer role-based locators or the SHAFT locator builder instead.";
     private static final List<String> GUIDANCE_RULES = List.of(
             "Call shaft_guide_search before writing SHAFT API, GUI, mobile, CLI, DB, or troubleshooting code.",
             "Keep MCP as guidance and inspection; the calling agent writes repository files and runs validation.",
@@ -76,7 +80,8 @@ public class TestAutomationService {
             "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits."
                     + " When the user names no report path, call doctor_analyze_failed_allure with empty"
                     + " allureResultPaths to analyze the most recent results automatically.",
-            "Prefer SHAFT smart/semantic locators, ARIA locators, and SHAFT.GUI.Locator builders before raw By objects.",
+            "Prefer role-based (ARIA) locators first, then the SHAFT.GUI.Locator XPath builder, and use plain By"
+                    + " objects only as a last resort.",
             NO_SHAFT_LOCATOR_XPATH,
             NO_SLEEP,
             NO_ABSOLUTE_XPATH,
@@ -139,6 +144,7 @@ public class TestAutomationService {
         List<McpCodeGuardrailViolation> violations = new ArrayList<>();
         addThreadSleepViolations(source, violations);
         addShaftLocatorXpathViolations(source, violations);
+        addSmartLocatorWarnings(source, violations);
         addAbsoluteXpathViolations(source, violations);
         addPageFactoryWarnings(source, violations);
         addImplicitWaitWarnings(source, violations);
@@ -165,6 +171,10 @@ public class TestAutomationService {
     private static void addShaftLocatorXpathViolations(String source, List<McpCodeGuardrailViolation> violations) {
         addPatternViolations(source, violations, SHAFT_LOCATOR_XPATH, "SHAFT_LOCATOR_XPATH", "ERROR",
                 NO_SHAFT_LOCATOR_XPATH);
+    }
+
+    private static void addSmartLocatorWarnings(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, SMART_LOCATOR, "SMART_LOCATOR", "WARNING", NO_SMART_LOCATOR);
     }
 
     private static void addAbsoluteXpathViolations(String source, List<McpCodeGuardrailViolation> violations) {
@@ -448,12 +458,12 @@ public class TestAutomationService {
                         t(NO_SLEEP, NO_ABSOLUTE_XPATH, "Do not mix WebDriver-only waits into Playwright tests"),
                         t("Headless focused Playwright GUI test passes and page object methods stay reusable")),
                 s("web-locator-refactor", "Refactor brittle web locators", a("web", "gui", "locator"),
-                        "Replace these brittle locators with SHAFT smart locators or locator builders.",
+                        "Replace these brittle locators with role-based locators or the SHAFT locator builder.",
                         t("shaft_guide_search", "browser_open_intent", "browser_get_page_dom",
                                 "browser_take_screenshot", "test_code_guardrails_check"),
                         t("Use browser_open_intent when the user describes the action that should find the element",
                                 "Find stable labels, roles, data attributes, ids, or text",
-                                "Prefer smart and semantic locator builders", "Run the affected UI test"),
+                                "Prefer role-based locators, then the SHAFT locator builder", "Run the affected UI test"),
                         t("Only locator fields/methods change unless behavior is wrong"),
                         t(NO_ABSOLUTE_XPATH, "No PageFactory migration"),
                         t("Affected tests pass with clearer locator definitions")),

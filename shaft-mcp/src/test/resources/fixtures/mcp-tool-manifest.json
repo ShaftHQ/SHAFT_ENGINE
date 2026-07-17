@@ -824,12 +824,6 @@
       "deprecated": false
     },
     {
-      "name": "playwright_element_click_semantic",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
       "name": "playwright_element_double_click",
       "mutation": true,
       "sensitive": false,
@@ -867,12 +861,6 @@
     },
     {
       "name": "playwright_element_type",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_type_semantic",
       "mutation": true,
       "sensitive": true,
       "deprecated": false

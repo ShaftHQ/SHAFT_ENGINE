@@ -182,7 +182,7 @@ class McpServiceHelperTest {
         assertEquals("Sign in", candidate.get("accessibleName"));
         assertEquals("ROLE", bestLocator.get("strategy"));
         assertTrue(String.valueOf(candidate.get("shaftLocatorCode"))
-                .contains("SHAFT.GUI.Locator.clickableField(\"Sign in\")"));
+                .contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"));
         @SuppressWarnings("unchecked")
         List<String> nextTools = (List<String>) result.get("nextTools");
         assertTrue(nextTools.contains("element_click"));
