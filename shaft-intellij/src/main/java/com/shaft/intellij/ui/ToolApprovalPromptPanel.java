@@ -167,6 +167,17 @@ final class ToolApprovalPromptPanel extends JPanel {
         return List.copyOf(decisionButtons);
     }
 
+    /**
+     * Moves keyboard focus to the first rendered decision button (issue #3632) -- called by
+     * {@code ShaftAssistantPanel} right after this panel is shown in the transcript widget slot,
+     * since keyboard-only and screen-reader users otherwise get no signal a decision is needed.
+     */
+    void focusFirstDecisionButton() {
+        if (!decisionButtons.isEmpty()) {
+            decisionButtons.get(0).requestFocusInWindow();
+        }
+    }
+
     private static String argumentsSummary(JsonObject arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return "No arguments.";

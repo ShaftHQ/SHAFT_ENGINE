@@ -14,6 +14,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.accessibility.AccessibleContext;
 import javax.swing.Action;
@@ -4206,6 +4207,36 @@ class ShaftPanelSetupTest {
         assertActionRowButtonsSaneAfterLayout(panel, true);
     }
 
+    @Test
+    void saveTranscriptButtonIsWiredWithIconWithoutInvokingFileChooser() {
+        // Deliberately does NOT click the button: doing so would invoke the real
+        // FileChooserFactory save dialog, which hangs/crashes in this headless suite.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        JButton saveTranscript = findByAccessibleName(panel, "Save assistant transcript to file", JButton.class);
+
+        assertAll(
+                () -> assertNotNull(saveTranscript, "Save transcript button should be wired into the action row"),
+                () -> assertNotNull(saveTranscript.getIcon(), "save transcript button should have an icon"));
+    }
+
+    @Test
+    void writeTranscriptSyncWritesExportedTranscriptContent(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+
+        Path target = tempDir.resolve("test-transcript.md");
+        String expectedExport = assistantExport(panel);
+
+        writeTranscriptSync(panel, target, expectedExport);
+
+        assertAll(
+                () -> assertTrue(Files.exists(target), "transcript file should have been written"),
+                () -> assertEquals(expectedExport, Files.readString(target),
+                        "saved transcript content should equal exportTranscriptWithEvidence() output"));
+    }
+
     /**
      * Resolves the same container that {@code ShaftAssistantPanel.refreshActionRowLayout()}
      * revalidates/repaints: the action row's parent, falling back to the action row itself.
@@ -4643,6 +4674,63 @@ class ShaftPanelSetupTest {
                 () -> assertNull(transcriptWidget(panel), "the prompt should clear once approved"),
                 () -> assertTrue(decision.isDone()),
                 () -> assertTrue(decision.get().allowed()));
+    }
+
+    /**
+     * Issue #3632: a keyboard-only or screen-reader user gets no signal an approval decision is
+     * needed unless focus moves to the prompt. Headless Swing components are never "showing" in
+     * this suite (see #3630), so {@code requestFocusInWindow()} cannot actually move real keyboard
+     * focus here; what this test can reliably verify is that the new {@code
+     * runOnEdt(approvalPanel::focusFirstDecisionButton)} wiring in {@code
+     * showLocalAgentApprovalPrompt} runs end-to-end without throwing, and that the button it
+     * targets is genuinely focusable/enabled -- the precondition for the fix to work in a real,
+     * realized IDE window.
+     */
+    @Test
+    void localAgentApprovalPromptFocusesFirstDecisionButtonWhenShown() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 13);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 13);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        ToolApprovalPromptPanel widget = (ToolApprovalPromptPanel) transcriptWidget(panel);
+        assertNotNull(widget, "an unapproved local-agent tool call must render an approval prompt");
+        JButton firstButton = widget.decisionButtonsForTest().get(0);
+        assertAll(
+                () -> assertTrue(firstButton.isFocusable(), "the first decision button must be focusable"),
+                () -> assertTrue(firstButton.isEnabled(),
+                        "the first decision button must be enabled to receive focus"));
+    }
+
+    /**
+     * Issue #3632: focus should return to the composer after a decision resolves the widget slot,
+     * so the keyboard-only user can keep typing. Coverage of the "but NOT when a second prompt is
+     * queued" nuance in {@code resolveLocalAgentApproval} is intentionally not duplicated here as a
+     * brittle focus-introspection assertion: {@link #secondQueuedLocalAgentApprovalShowsAfterTheFirstResolves}
+     * already asserts that resolving the first of two queued prompts immediately shows the second
+     * widget, which is only true if the {@code next.run()} branch ran instead of the {@code
+     * prompt.requestFocusInWindow()} branch -- that existing, unmodified test remaining green after
+     * this change is the regression proof for the queued case.
+     */
+    @Test
+    void localAgentApprovalRestoresComposerFocusAfterADecisionWithNothingQueued() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 14);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 14);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        JButton approveOnce = approvalDecisionButton((ToolApprovalPromptPanel) transcriptWidget(panel), "Approve once");
+        SwingUtilities.invokeAndWait(approveOnce::doClick);
+
+        JBTextArea prompt = (JBTextArea) getField(panel, "prompt");
+        assertAll(
+                () -> assertNull(transcriptWidget(panel), "the prompt should clear once approved"),
+                () -> assertTrue(prompt.isFocusable(), "composer must be focusable to receive the restored focus"));
     }
 
     @Test
@@ -5203,6 +5291,25 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("exportTranscriptWithEvidence");
         method.setAccessible(true);
         return (String) method.invoke(panel);
+    }
+
+    /**
+     * Invokes the synchronous file-write body that {@code writeTranscriptToFile(Path)} runs inside
+     * its {@code executeOnPooledThread} lambda. Bypasses the threading itself (a thin, low-risk
+     * wrapper) so the content-correctness the "Save transcript" acceptance criterion cares about
+     * can be asserted deterministically, without polling a background thread in a headless suite.
+     */
+    private static void writeTranscriptSync(ShaftAssistantPanel panel, Path target, String content) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("writeTranscriptSync", Path.class, String.class);
+        method.setAccessible(true);
+        try {
+            method.invoke(panel, target, content);
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof IOException ioException) {
+                throw ioException;
+            }
+            throw e;
+        }
     }
 
     private static int countOccurrences(String value, String needle) {
