@@ -11,7 +11,7 @@ Plan SHAFT ads without fake claims.
 
 - Strategy/scenes: plan in the brief/storyboard; no dedicated tool.
 - Visuals: keep exact copy, code, logos, and UI screenshots deterministic; no image-generation tool, so write a visual brief.
-- Capture: `webapp-testing`/Playwright for web; `chrome-devtools-mcp` for perf/network; desktop/OBS/`ffmpeg` if installed.
+- Capture: shaft-mcp browser/capture tools for web (screenshots, `capture_start`); `browser_network_requests` for perf/network; desktop/OBS/`ffmpeg` if installed.
 - SHAFT proof: use MCP recorder, report, Doctor, Allure, and code-block tools.
 - Editing/audio: use existing video tools and approved or licensed audio; otherwise write a music brief.
 

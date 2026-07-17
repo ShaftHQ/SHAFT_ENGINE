@@ -33,6 +33,8 @@ Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts
 
 Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> followup GitHub issue (search first; consolidate). Nothing durable is a valid outcome -- say so.
 
+User harness (`~/.claude`) deploys from canonical `.claude/user-harness/` via `py -3 scripts/agents/sync_user_harness.py` (`--check`/`--apply`). Secrets live only in `~/.claude`, never in the repo.
+
 ## Validation
 
 Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or disposable copy. Use the smallest non-redundant check; rerun passing checks only after edits/rebases/dependency changes.
@@ -51,17 +53,17 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 
 `.claude/settings.json` + `.mcp.json`. Route by task shape; skip-rules bind:
 
-- Plugin Swing UI: `frontend-design` (net-new surfaces only) -> `design` critique/UX copy -> `jdtls-lsp` -> JetBrains IDE MCP inspections (optional, per-dev) -> plugin screenshot renderer -> `accessibility-review` on renders. `webapp-testing` (Playwright) cannot see Swing.
-- Docs/report web UI: `frontend-design` -> `design` critique -> implement -> `webapp-testing` evidence -> `accessibility-review`. `chrome-devtools-mcp` only for perf/network regressions.
+- Plugin Swing UI: `frontend-design` (net-new surfaces only) -> `jdtls-lsp` -> JetBrains MCP inspections (optional) -> plugin screenshot renderer review. Browser MCP tools cannot see Swing.
+- Docs/report web UI: `frontend-design` -> implement -> shaft-mcp browser evidence (screenshots + `browser_accessibility_audit`). Perf/network regressions: shaft-mcp `browser_network_requests`.
 - Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree facts: just `rg` the pom) -> `ci-failure-investigator` on breakage.
 - `context7`: past-cutoff library APIs only, else repo exemplars.
 - Skip `jdtls-lsp` for one-liners; value scales with cross-module impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
-- Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model); `shaft-mastery` 10 chapters -- load the matching one before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor, scoped headless runs; `graphify`.
-- Local infra: gbrain + `gbrain-ollama` Docker back retrieval (docs `maintainers/agent-tooling`).
+- Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`test-driven-development`/`graphify`/`work-github`.
+- Local infra: gbrain + `gbrain-ollama` Docker back retrieval.
 
 ## Agent Hierarchy & Model Routing
 
-Main thread owns substantive implementation, integration, and final verification with real checks. No Workflow tool, saved workflows (`.claude/workflows/` stays deleted), or orchestrators. Bounded delegation by tier (main-thread review): Opus -- read-only research (Explore/Plan; verify claims against real files/logs). Sonnet -- one well-bounded component against a detailed written spec, main-thread review/tests/integration. Haiku -- low-risk mechanical edits under review; log/report summaries; bulk triage. Subagents return conclusions, not file dumps; check the graphify cache before broad exploration. PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
+When Fable holds the main thread it plans, delegates, reviews, and verifies with real checks -- it does not implement. Route implementation down: Haiku first (mechanical/spec-exact/bulk work), Sonnet (one bounded component per written spec), Explore/Plan for research. Synthesis, integration, and final verification stay in the main thread, sequentially. Every delegated prompt embeds the act-as-fable covenant; subagents return conclusions, not file dumps; verify their claims against real files before building on them; check the graphify cache before broad exploration. No Workflow tool, saved workflows (`.claude/workflows/` stays deleted), or orchestrators. PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
 
 ## Completion
 
