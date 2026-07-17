@@ -27,6 +27,7 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.ai.mcp.annotation.McpProgressToken;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -93,10 +94,14 @@ public class CaptureService {
                     + "element_* and natural_act tools drive the recorded browser directly (no "
                     + "driver_initialize needed); sessionGoal names the generated test")
     public CaptureStatus start(
+            @ToolParam(required = false, description = "initial http, https, or file URL; blank opens an empty browser")
             String targetUrl,
+            @ToolParam(required = false, description = "Chrome or Edge; blank selects Chrome")
             String browser,
+            @ToolParam(required = false, description = "capture JSON path; blank selects a timestamped recording")
             String outputPath,
             boolean headless,
+            @ToolParam(required = false, description = "optional user intent for the journey; drives generated test class and method names")
             String sessionGoal) {
         CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
         request.targetUrl = targetUrl;

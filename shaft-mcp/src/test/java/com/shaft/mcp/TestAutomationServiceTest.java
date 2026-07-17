@@ -126,14 +126,15 @@ class TestAutomationServiceTest {
     void guardrailAllowsPreferredLocatorsAndWarnsOnPageFactory() {
         McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
                 import com.shaft.driver.SHAFT;
+                import com.shaft.gui.internal.locator.Role;
                 import org.openqa.selenium.By;
                 import org.openqa.selenium.support.FindBy;
 
                 class LoginPage {
                     @FindBy(id = "legacy")
                     private Object legacy;
-                    private final By email = SHAFT.GUI.Locator.inputField("Email");
-                    private final By login = SHAFT.GUI.Locator.clickableField("Log In");
+                    private final By email = SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build();
+                    private final By login = SHAFT.GUI.Locator.hasRole(Role.BUTTON).build();
                     private final By scopedFallback = By.xpath("//button[@type='submit']");
                 }
                 """);
@@ -197,14 +198,15 @@ class TestAutomationServiceTest {
     }
 
     @Test
-    void guardrailAllowsShaftFacadeAndSmartLocatorUsage() {
+    void guardrailAllowsShaftFacadeAndRoleBasedLocatorUsage() {
         McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
                 import com.shaft.driver.SHAFT;
+                import com.shaft.gui.internal.locator.Role;
                 import org.openqa.selenium.By;
 
                 class LoginPage {
-                    private final By email = SHAFT.GUI.Locator.inputField("Email");
-                    private final By submit = SHAFT.GUI.Locator.clickableField("Sign In");
+                    private final By email = SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build();
+                    private final By submit = SHAFT.GUI.Locator.hasRole(Role.BUTTON).build();
 
                     void login(SHAFT.GUI.WebDriver browser) {
                         browser.element().type(email, "user@example.com");
@@ -215,5 +217,24 @@ class TestAutomationServiceTest {
 
         assertTrue(result.passed());
         assertTrue(result.violations().isEmpty());
+    }
+
+    @Test
+    void guardrailWarnsOnIntentBasedSmartLocatorUsage() {
+        McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
+                import com.shaft.driver.SHAFT;
+                import org.openqa.selenium.By;
+
+                class LoginPage {
+                    private final By email = SHAFT.GUI.Locator.inputField("Email");
+                    private final By submit = SHAFT.GUI.Locator.clickableField("Sign In");
+                }
+                """);
+
+        assertTrue(result.passed());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SMART_LOCATOR")
+                && violation.severity().equals("WARNING") && violation.line() == 5));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SMART_LOCATOR")
+                && violation.severity().equals("WARNING") && violation.line() == 6));
     }
 }

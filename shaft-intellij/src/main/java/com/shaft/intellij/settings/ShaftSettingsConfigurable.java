@@ -35,8 +35,11 @@ import javax.swing.JPasswordField;
 import java.awt.FlowLayout;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -50,9 +53,20 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private static final String GITHUB_PROVIDER_KEY = "GITHUB_TOKEN";
     private static final String TEST_MCP_TOOLTIP = "Test MCP";
     private static final String TESTING_MCP_TOOLTIP = "Testing...";
+    private static final String CUSTOM_PROPERTIES_RELATIVE_PATH = "src/main/resources/properties/custom.properties";
+    private static final String TARGET_BROWSER_NAME_KEY = "targetBrowserName";
+    private static final String HEADLESS_EXECUTION_KEY = "headlessExecution";
+    private static final String TEST_EXECUTION_BROWSER_DEFAULT = "(use SHAFT default: chrome)";
+    private static final String[] TEST_EXECUTION_BROWSERS =
+            {TEST_EXECUTION_BROWSER_DEFAULT, "chrome", "firefox", "edge", "safari"};
 
     private final Supplier<ShaftSettingsState.Settings> settingsProvider;
     private final Supplier<CredentialAccess> credentialsProvider;
+    /** Test-only seam (issue #3665 part A): overrides {@link #resolveProjectRoot()} so unit tests can
+     * point the Test Execution section's custom.properties read/write at a temp directory instead of
+     * touching the real project tree. {@code null} in production, where {@link #resolveProject()}'s
+     * real {@code Project} lookup is used, unchanged. */
+    private final Supplier<Path> projectRootProvider;
     private JPanel panel;
     private JBTextField mcpCommand;
     private JBCheckBox mcpCommandManualEdit;
@@ -98,6 +112,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JBCheckBox passProviderKeys;
     private JBCheckBox advancedUiEnabled;
     private JBCheckBox watchModeEnabled;
+    private JLabel testExecutionSection;
+    private JBCheckBox overrideExecutionProperties;
+    private JLabel targetBrowserNameLabel;
+    private JComboBox<String> targetBrowserName;
+    private JBCheckBox headlessExecution;
+    private JLabel testExecutionHelp;
     private JPasswordField openAiKey;
     private JPasswordField anthropicKey;
     private JPasswordField geminiKey;
@@ -125,17 +145,25 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
      * Creates a settings page backed by IntelliJ persistent services.
      */
     public ShaftSettingsConfigurable() {
-        this(() -> ShaftSettingsState.getInstance().getState(), ShaftSettingsConfigurable::credentialAccess);
+        this(() -> ShaftSettingsState.getInstance().getState(), ShaftSettingsConfigurable::credentialAccess, null);
     }
 
     ShaftSettingsConfigurable(ShaftSettingsState.Settings settings, CredentialAccess credentials) {
-        this(() -> settings, () -> credentials);
+        this(() -> settings, () -> credentials, null);
+    }
+
+    /** Test-only overload (issue #3665 part A) that injects {@link #projectRootProvider}. */
+    ShaftSettingsConfigurable(ShaftSettingsState.Settings settings, CredentialAccess credentials,
+                               Supplier<Path> projectRootProvider) {
+        this(() -> settings, () -> credentials, projectRootProvider);
     }
 
     private ShaftSettingsConfigurable(Supplier<ShaftSettingsState.Settings> settingsProvider,
-                                      Supplier<CredentialAccess> credentialsProvider) {
+                                      Supplier<CredentialAccess> credentialsProvider,
+                                      Supplier<Path> projectRootProvider) {
         this.settingsProvider = settingsProvider;
         this.credentialsProvider = credentialsProvider;
+        this.projectRootProvider = projectRootProvider;
     }
 
     @Override
@@ -194,6 +222,25 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 resetTestStatus();
             }
         });
+        overrideExecutionProperties = new JBCheckBox("Override SHAFT execution properties");
+        overrideExecutionProperties.getAccessibleContext().setAccessibleName("Override SHAFT execution properties");
+        overrideExecutionProperties.getAccessibleContext().setAccessibleDescription(
+                "When checked, the browser and headless selections below are written to this project's "
+                        + "custom.properties; when unchecked, SHAFT's own defaults apply.");
+        overrideExecutionProperties.addActionListener(event -> updateTestExecutionControlsEnabled());
+        targetBrowserName = new JComboBox<>(model(TEST_EXECUTION_BROWSERS));
+        targetBrowserName.getAccessibleContext().setAccessibleName("Test execution browser");
+        targetBrowserName.getAccessibleContext().setAccessibleDescription(
+                "Sets targetBrowserName in this project's custom.properties.");
+        targetBrowserNameLabel = label("Browser", 'B', targetBrowserName);
+        headlessExecution = new JBCheckBox("Headless");
+        headlessExecution.getAccessibleContext().setAccessibleName("Test execution headless");
+        headlessExecution.getAccessibleContext().setAccessibleDescription(
+                "Sets headlessExecution in this project's custom.properties.");
+        testExecutionSection = section("Test Execution");
+        testExecutionHelp = help("Overrides are written to this project's " + CUSTOM_PROPERTIES_RELATIVE_PATH
+                + ". Uncheck to remove the overrides and inherit SHAFT's own defaults.");
+
         currentAgentConfiguration = new JLabel();
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
@@ -324,6 +371,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addLabeledComponent(testMcp, testStatus)
                 .addComponent(testRecoveryRow(testRecovery, testRecoveryAction))
                 .addComponent(help("Visit the SHAFT MCP user guide, install the MCP integration, paste the stdio command, then test the connection."))
+                .addComponent(testExecutionSection)
+                .addComponent(overrideExecutionProperties)
+                .addLabeledComponent(targetBrowserNameLabel, targetBrowserName)
+                .addComponent(headlessExecution)
+                .addComponent(testExecutionHelp)
                 .addComponent(section("Execution"))
                 .addLabeledComponent(currentAgentConfigurationTitle, currentAgentConfigurationRow)
                 .addLabeledComponent(assistantProviderTypeLabel, assistantProviderType)
@@ -384,7 +436,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 || hasPassword(openAiKey)
                 || hasPassword(anthropicKey)
                 || hasPassword(geminiKey)
-                || hasPassword(githubKey);
+                || hasPassword(githubKey)
+                || testExecutionModified();
     }
 
     @Override
@@ -427,6 +480,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         githubClearRequested = false;
         editingAgentConfiguration = false;
         updateAgentConfigurationControls();
+        applyTestExecutionOverrides();
     }
 
     @Override
@@ -460,6 +514,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         updateStoredKeyStatus(credentialsProvider.get());
         editingAgentConfiguration = false;
         updateAgentConfigurationControls();
+        resetTestExecutionOverrides();
     }
 
     @Override
@@ -492,6 +547,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         passProviderKeys = null;
         advancedUiEnabled = null;
         watchModeEnabled = null;
+        testExecutionSection = null;
+        overrideExecutionProperties = null;
+        targetBrowserNameLabel = null;
+        targetBrowserName = null;
+        headlessExecution = null;
+        testExecutionHelp = null;
         defaultModeLabel = null;
         shaftAiSection = null;
         shaftAiProviderLabel = null;
@@ -839,8 +900,96 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     }
 
     private Path resolveProjectRoot() {
+        if (projectRootProvider != null) {
+            return projectRootProvider.get();
+        }
         Project project = resolveProject();
         return project != null && project.getBasePath() != null ? Path.of(project.getBasePath()) : Path.of(".");
+    }
+
+    private Path resolveCustomPropertiesFile() {
+        return resolveProjectRoot().resolve(CUSTOM_PROPERTIES_RELATIVE_PATH);
+    }
+
+    /**
+     * Reflects this project's on-disk {@code custom.properties} into the gate/combo/checkbox
+     * (issue #3665 part A): the gate is checked, and the combo/checkbox reflect the file's values,
+     * only when a {@code targetBrowserName} or {@code headlessExecution} line is actually present;
+     * otherwise the gate stays unchecked and the controls show their "use SHAFT default" state.
+     */
+    private void resetTestExecutionOverrides() {
+        if (overrideExecutionProperties == null) {
+            return;
+        }
+        Map<String, String> properties = ShaftCustomPropertiesFile.read(resolveCustomPropertiesFile());
+        String browser = properties.get(TARGET_BROWSER_NAME_KEY);
+        String headless = properties.get(HEADLESS_EXECUTION_KEY);
+        overrideExecutionProperties.setSelected(browser != null || headless != null);
+        targetBrowserName.setSelectedItem(browser == null || browser.isBlank() ? TEST_EXECUTION_BROWSER_DEFAULT : browser);
+        headlessExecution.setSelected(headless != null && Boolean.parseBoolean(headless));
+        updateTestExecutionControlsEnabled();
+    }
+
+    /**
+     * Writes the gate/combo/checkbox back to this project's {@code custom.properties}: unchecking
+     * the gate removes both keys (restoring SHAFT's own defaults); checking it writes
+     * {@code headlessExecution} always, and {@code targetBrowserName} unless the combo is on the
+     * "use SHAFT default" sentinel item.
+     */
+    private void applyTestExecutionOverrides() {
+        if (overrideExecutionProperties == null) {
+            return;
+        }
+        Path file = resolveCustomPropertiesFile();
+        if (!overrideExecutionProperties.isSelected()) {
+            ShaftCustomPropertiesFile.write(file, Map.of(), Set.of(TARGET_BROWSER_NAME_KEY, HEADLESS_EXECUTION_KEY));
+            return;
+        }
+        Map<String, String> setKeys = new LinkedHashMap<>();
+        Object selectedBrowser = targetBrowserName.getSelectedItem();
+        if (selectedBrowser != null && !TEST_EXECUTION_BROWSER_DEFAULT.equals(selectedBrowser)) {
+            setKeys.put(TARGET_BROWSER_NAME_KEY, String.valueOf(selectedBrowser));
+        }
+        setKeys.put(HEADLESS_EXECUTION_KEY, String.valueOf(headlessExecution.isSelected()));
+        ShaftCustomPropertiesFile.write(file, setKeys, Set.of());
+    }
+
+    /**
+     * Re-reads this project's {@code custom.properties} fresh (never cached: the dialog can stay
+     * open while a user hand-edits the file externally) and compares it against the current
+     * gate/combo/checkbox UI state.
+     */
+    private boolean testExecutionModified() {
+        if (overrideExecutionProperties == null) {
+            return false;
+        }
+        Map<String, String> properties = ShaftCustomPropertiesFile.read(resolveCustomPropertiesFile());
+        String browser = properties.get(TARGET_BROWSER_NAME_KEY);
+        String headless = properties.get(HEADLESS_EXECUTION_KEY);
+        boolean overridden = browser != null || headless != null;
+        if (overrideExecutionProperties.isSelected() != overridden) {
+            return true;
+        }
+        if (!overridden) {
+            return false;
+        }
+        String expectedBrowser = browser == null || browser.isBlank() ? TEST_EXECUTION_BROWSER_DEFAULT : browser;
+        boolean expectedHeadless = headless != null && Boolean.parseBoolean(headless);
+        return !Objects.equals(expectedBrowser, targetBrowserName.getSelectedItem())
+                || expectedHeadless != headlessExecution.isSelected();
+    }
+
+    private void updateTestExecutionControlsEnabled() {
+        boolean enabled = overrideExecutionProperties != null && overrideExecutionProperties.isSelected();
+        if (targetBrowserNameLabel != null) {
+            targetBrowserNameLabel.setEnabled(enabled);
+        }
+        if (targetBrowserName != null) {
+            targetBrowserName.setEnabled(enabled);
+        }
+        if (headlessExecution != null) {
+            headlessExecution.setEnabled(enabled);
+        }
     }
 
     private void showProbeResult(JPanel host, JLabel statusLabel, ShaftMcpToolResult result) {

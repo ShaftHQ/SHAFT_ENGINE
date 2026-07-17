@@ -74,8 +74,8 @@ class CaptureGeneratorTest {
         assertEquals(normalizeLineEndings(golden), normalizeLineEndings(source));
         assertTrue(source.contains("@AfterMethod(alwaysRun = true)"));
         assertTrue(source.contains("driver.quit();"));
-        assertTrue(source.contains("SHAFT.GUI.Locator.inputField(\"Username\")"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).text()"));
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).text()"));
         assertFalse(source.contains("alice"));
         assertTrue(data.contains("\"username\" : \"alice\""));
         assertFalse(data.toLowerCase().contains("password"));
@@ -481,7 +481,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("        loginAsAdmin();"));
         assertTrue(source.contains("    private void loginAsAdmin() throws Exception {"));
-        assertEquals(1, count(source, "driver.element().type(SHAFT.GUI.Locator.inputField(\"Username\")"));
+        assertEquals(1, count(source, "driver.element().type(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
         assertTrue(source.indexOf("        loginAsAdmin();")
                 < source.indexOf("    private void loginAsAdmin() throws Exception {"));
         assertFalse(source.contains("FLOW_START"));
@@ -516,7 +516,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("private SHAFT.GUI.Playwright driver;"));
         assertTrue(source.contains("driver = new SHAFT.GUI.Playwright();"));
-        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
+        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build());"));
         assertFalse(source.contains("DriverFactory"));
         assertFalse(source.contains("ExpectedConditions"));
     }
@@ -558,8 +558,8 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\"));"));
         assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\"));"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesReferenceImage();"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).doesNotMatchReferenceImage();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).matchesReferenceImage();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).doesNotMatchReferenceImage();"));
     }
 
     @Test
@@ -594,10 +594,10 @@ class CaptureGeneratorTest {
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\"))"
+                "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build())"
                         + ".matchesAriaSnapshot(requiredData(\"username\"));"));
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesScreenshot();"));
+                "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).matchesScreenshot();"));
     }
 
     @Test
@@ -682,7 +682,7 @@ class CaptureGeneratorTest {
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).attribute(\"autocomplete\")"
+                "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).attribute(\"autocomplete\")"
                         + ".isEqualTo(requiredData(\"username\"));"));
     }
 
@@ -701,7 +701,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("import org.openqa.selenium.By;"));
         assertTrue(source.contains("private By captureReplayLocator(By primary, By... alternatives)"));
-        assertTrue(source.contains("captureReplayLocator(SHAFT.GUI.Locator.inputField(\"Username\")"));
+        assertTrue(source.contains("captureReplayLocator(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
         assertTrue(result.report().fallbackLocators().stream()
                 .anyMatch(fallback -> fallback.contains("username-input")));
     }
@@ -1150,7 +1150,7 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("public class EnrichedJourneyTest"));
         assertTrue(source.contains("public void completeCheckout()"));
         assertFalse(source.contains("private static final By USERNAME_FIELD"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).isVisible();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).isVisible();"));
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 applied.report().compilation().status());
     }

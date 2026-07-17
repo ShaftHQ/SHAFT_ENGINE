@@ -16,12 +16,14 @@ import javax.swing.JPasswordField;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -686,6 +688,178 @@ class ShaftSettingsConfigurableTest {
         assertEquals("Testing...", openAiStatus.getText());
         assertTrue(probeInvoked.await(5, TimeUnit.SECONDS), "the probe should have run against the stored key");
         assertEquals("stored-secret", capturedKey[0]);
+    }
+
+    @Test
+    void testExecutionControlsAppearWithAccessibleNamesAndStartDisabledUntilGateIsChecked() throws Exception {
+        Path projectRoot = Files.createTempDirectory("shaft-settings-test-execution");
+        try {
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                    new ShaftSettingsState.Settings(), new InMemoryCredentials(), () -> projectRoot);
+            JComponent panel = (JComponent) configurable.createComponent();
+
+            JCheckBox gate = findByAccessibleName(panel, "Override SHAFT execution properties", JCheckBox.class);
+            JComboBox<?> browser = findByAccessibleName(panel, "Test execution browser", JComboBox.class);
+            JCheckBox headless = findByAccessibleName(panel, "Test execution headless", JCheckBox.class);
+
+            assertAll(
+                    () -> assertNotNull(gate),
+                    () -> assertNotNull(browser),
+                    () -> assertNotNull(headless),
+                    () -> assertFalse(gate.isSelected(), "no custom.properties exists yet, so the gate starts unchecked"),
+                    () -> assertFalse(browser.isEnabled(), "browser combo is disabled until the gate is checked"),
+                    () -> assertFalse(headless.isEnabled(), "headless checkbox is disabled until the gate is checked"),
+                    () -> assertEquals("(use SHAFT default: chrome)", browser.getSelectedItem()));
+
+            gate.doClick();
+
+            assertAll(
+                    () -> assertTrue(browser.isEnabled(), "checking the gate enables the browser combo"),
+                    () -> assertTrue(headless.isEnabled(), "checking the gate enables the headless checkbox"));
+        } finally {
+            deleteRecursively(projectRoot);
+        }
+    }
+
+    @Test
+    void resetReflectsRealOnDiskCustomPropertiesFile() throws Exception {
+        Path projectRoot = Files.createTempDirectory("shaft-settings-test-execution");
+        try {
+            Path propertiesFile = projectRoot.resolve("src/main/resources/properties/custom.properties");
+            Files.createDirectories(propertiesFile.getParent());
+            Files.writeString(propertiesFile, "targetBrowserName=firefox\nheadlessExecution=true\n");
+
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                    new ShaftSettingsState.Settings(), new InMemoryCredentials(), () -> projectRoot);
+            JComponent panel = (JComponent) configurable.createComponent();
+
+            JCheckBox gate = findByAccessibleName(panel, "Override SHAFT execution properties", JCheckBox.class);
+            JComboBox<?> browser = findByAccessibleName(panel, "Test execution browser", JComboBox.class);
+            JCheckBox headless = findByAccessibleName(panel, "Test execution headless", JCheckBox.class);
+
+            assertAll(
+                    () -> assertTrue(gate.isSelected(), "a present override key must check the gate"),
+                    () -> assertEquals("firefox", browser.getSelectedItem()),
+                    () -> assertTrue(headless.isSelected()));
+        } finally {
+            deleteRecursively(projectRoot);
+        }
+    }
+
+    @Test
+    void applyWritesBothKeysWhenGateIsCheckedWithAConcreteBrowser() throws Exception {
+        Path projectRoot = Files.createTempDirectory("shaft-settings-test-execution");
+        try {
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                    new ShaftSettingsState.Settings(), new InMemoryCredentials(), () -> projectRoot);
+            JComponent panel = (JComponent) configurable.createComponent();
+
+            JCheckBox gate = findByAccessibleName(panel, "Override SHAFT execution properties", JCheckBox.class);
+            @SuppressWarnings("unchecked")
+            JComboBox<String> browser = (JComboBox<String>) findByAccessibleName(panel, "Test execution browser", JComboBox.class);
+            JCheckBox headless = findByAccessibleName(panel, "Test execution headless", JCheckBox.class);
+
+            gate.doClick();
+            browser.setSelectedItem("edge");
+            headless.setSelected(true);
+
+            assertTrue(configurable.isModified());
+            configurable.apply();
+
+            Path propertiesFile = projectRoot.resolve("src/main/resources/properties/custom.properties");
+            Map<String, String> written = ShaftCustomPropertiesFile.read(propertiesFile);
+            assertAll(
+                    () -> assertEquals("edge", written.get("targetBrowserName")),
+                    () -> assertEquals("true", written.get("headlessExecution")),
+                    () -> assertFalse(configurable.isModified(), "apply() should leave the panel unmodified relative to disk"));
+        } finally {
+            deleteRecursively(projectRoot);
+        }
+    }
+
+    @Test
+    void applySkipsWritingTargetBrowserNameWhenComboIsOnTheDefaultSentinel() throws Exception {
+        Path projectRoot = Files.createTempDirectory("shaft-settings-test-execution");
+        try {
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                    new ShaftSettingsState.Settings(), new InMemoryCredentials(), () -> projectRoot);
+            JComponent panel = (JComponent) configurable.createComponent();
+
+            JCheckBox gate = findByAccessibleName(panel, "Override SHAFT execution properties", JCheckBox.class);
+            gate.doClick();
+            configurable.apply();
+
+            Path propertiesFile = projectRoot.resolve("src/main/resources/properties/custom.properties");
+            Map<String, String> written = ShaftCustomPropertiesFile.read(propertiesFile);
+            assertAll(
+                    () -> assertFalse(written.containsKey("targetBrowserName"),
+                            "the default sentinel must not be written as a literal browser value"),
+                    () -> assertEquals("false", written.get("headlessExecution")));
+        } finally {
+            deleteRecursively(projectRoot);
+        }
+    }
+
+    @Test
+    void applyRemovesBothKeysWhenGateIsUncheckedAfterPreviouslyBeingWritten() throws Exception {
+        Path projectRoot = Files.createTempDirectory("shaft-settings-test-execution");
+        try {
+            Path propertiesFile = projectRoot.resolve("src/main/resources/properties/custom.properties");
+            Files.createDirectories(propertiesFile.getParent());
+            Files.writeString(propertiesFile, "executionAddress=local\ntargetBrowserName=chrome\nheadlessExecution=true\n");
+
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                    new ShaftSettingsState.Settings(), new InMemoryCredentials(), () -> projectRoot);
+            JComponent panel = (JComponent) configurable.createComponent();
+            JCheckBox gate = findByAccessibleName(panel, "Override SHAFT execution properties", JCheckBox.class);
+            assertTrue(gate.isSelected(), "reset() should have picked up the on-disk overrides");
+
+            gate.doClick();
+            assertFalse(gate.isSelected());
+            assertTrue(configurable.isModified());
+            configurable.apply();
+
+            Map<String, String> written = ShaftCustomPropertiesFile.read(propertiesFile);
+            assertAll(
+                    () -> assertFalse(written.containsKey("targetBrowserName")),
+                    () -> assertFalse(written.containsKey("headlessExecution")),
+                    () -> assertEquals("local", written.get("executionAddress"), "unrelated keys must survive"));
+        } finally {
+            deleteRecursively(projectRoot);
+        }
+    }
+
+    @Test
+    void isModifiedDetectsALiveChangeAgainstFreshlyReReadDisk() throws Exception {
+        Path projectRoot = Files.createTempDirectory("shaft-settings-test-execution");
+        try {
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                    new ShaftSettingsState.Settings(), new InMemoryCredentials(), () -> projectRoot);
+            JComponent panel = (JComponent) configurable.createComponent();
+            assertFalse(configurable.isModified(), "an untouched panel over a nonexistent file must not report modified");
+
+            JCheckBox gate = findByAccessibleName(panel, "Override SHAFT execution properties", JCheckBox.class);
+            gate.doClick();
+
+            assertTrue(configurable.isModified(), "checking the gate alone must be detected as a change");
+        } finally {
+            deleteRecursively(projectRoot);
+        }
+    }
+
+    private static void deleteRecursively(Path root) throws IOException {
+        if (root == null || !Files.exists(root)) {
+            return;
+        }
+        try (var walk = Files.walk(root)) {
+            walk.sorted((a, b) -> b.compareTo(a)).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // best-effort cleanup
+                }
+            });
+        }
     }
 
     private static void invokeShowProviderKeyResult(

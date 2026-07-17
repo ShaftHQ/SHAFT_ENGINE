@@ -203,12 +203,10 @@ class PlaywrightServiceDriverBackedTest {
         service.recordStart(recordingPath.toString(), "playwright", false);
 
         McpMobileActionResult click = service.click(locatorStrategy.ID, "submit");
-        McpMobileActionResult clickSemantic = service.clickSemantic("Submit");
         McpMobileActionResult clickJs = service.clickUsingJavaScript(locatorStrategy.ID, "submit");
         McpMobileActionResult doubleClick = service.doubleClick(locatorStrategy.ID, "submit");
         McpMobileActionResult hover = service.hover(locatorStrategy.ID, "submit");
         McpMobileActionResult type = service.type(locatorStrategy.ID, "email", "alice@example.test");
-        McpMobileActionResult typeSemantic = service.typeSemantic("Password", "super-secret");
         McpMobileActionResult append = service.appendText(locatorStrategy.ID, "notes", "more text");
         McpMobileActionResult setValueJs = service.setValueUsingJavaScript(locatorStrategy.ID, "hidden", "value");
         McpMobileActionResult clear = service.clear(locatorStrategy.ID, "email");
@@ -217,12 +215,10 @@ class PlaywrightServiceDriverBackedTest {
                 locatorStrategy.ID, "source", locatorStrategy.ID, "target");
 
         assertTrue(click.recorded());
-        assertTrue(clickSemantic.recorded());
         assertTrue(clickJs.recorded());
         assertTrue(doubleClick.recorded());
         assertTrue(hover.recorded());
         assertTrue(type.recorded());
-        assertTrue(typeSemantic.recorded());
         assertTrue(append.recorded());
         assertTrue(setValueJs.recorded());
         assertTrue(clear.recorded());
@@ -232,14 +228,11 @@ class PlaywrightServiceDriverBackedTest {
         // new information to that caller); only the persisted recording redacts it.
         assertTrue(type.codeBlock().code().contains("alice@example.test"));
         assertTrue(type.warnings().stream().anyMatch(warning -> warning.contains("placeholder")));
-        assertTrue(typeSemantic.warnings().stream().anyMatch(warning -> warning.contains("placeholder")));
-        assertTrue(clickSemantic.codeBlock().code().contains("clickableField(\"Submit\")"));
 
         McpMobileReplayResult replayCode = service.recordingCodeBlocks(recordingPath.toString(), "driver");
         String generatedReplay = replayCode.codeBlocks().getFirst().code();
         assertTrue(generatedReplay.contains("<redacted>"));
         assertFalse(generatedReplay.contains("alice@example.test"));
-        assertFalse(generatedReplay.contains("super-secret"));
     }
 
     @Test

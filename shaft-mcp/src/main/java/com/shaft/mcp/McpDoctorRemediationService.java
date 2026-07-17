@@ -502,7 +502,7 @@ final class McpDoctorRemediationService {
                     "java",
                 List.of("com.shaft.driver.SHAFT"),
                 """
-                            var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
+                            var target = SHAFT.GUI.Locator.hasAnyTagName().containsText(TARGET_ELEMENT_TEXT).build();
                             %s.element().assertThat(target).isVisible();
                             %s.element().click(target);
                             """.formatted(driver, driver),
@@ -518,7 +518,7 @@ final class McpDoctorRemediationService {
                 "java",
                 List.of("com.shaft.driver.SHAFT"),
                 """
-                        var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
+                        var target = SHAFT.GUI.Locator.hasAnyTagName().containsText(TARGET_ELEMENT_TEXT).build();
                         %s.element().assertThat(target).isVisible();
                         %s.element().assertThat(target).isEnabled();
                         """.formatted(driver, driver),
@@ -536,7 +536,7 @@ final class McpDoctorRemediationService {
                 "java",
                 List.of("com.shaft.driver.SHAFT"),
                 """
-                        var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
+                        var target = SHAFT.GUI.Locator.hasAnyTagName().containsText(TARGET_ELEMENT_TEXT).build();
                         %s.element().assertThat(target).isVisible();
                         """.formatted(driver),
                 "Paste inside the test method near the failing step.",

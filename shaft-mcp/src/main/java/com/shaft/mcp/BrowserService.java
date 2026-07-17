@@ -9,6 +9,7 @@ import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.model.PageContext;
 import com.shaft.capture.network.CaptureNetworkRecorder;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.Role;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.validation.accessibility.AccessibilityHelper;
 import org.jsoup.Jsoup;
@@ -964,14 +965,21 @@ public class BrowserService {
 
     // Package-private so PlannerService (test_plan_explore) can render the same SHAFT.GUI.Locator
     // code snippets for candidate locators discovered while crawling.
+    //
+    // Priority order (per generation policy): role-based locators first, then the SHAFT XPath
+    // LocatorBuilder, then a plain Selenium By only as a last resort. Intent-based smart locators
+    // (SHAFT.GUI.Locator.clickableField/inputField, backed by SmartLocators' heuristic XPath
+    // fallback chain) are never generated here.
     static String locatorCode(LocatorCandidate candidate, ElementSnapshot target) {
         String expression = candidate.expression();
         return switch (candidate.strategy()) {
-            case ROLE, ACCESSIBLE_NAME, LABEL -> {
-                String method = inputLike(target) ? "inputField" : "clickableField";
-                String name = target.accessibleName().isBlank() ? expression : target.accessibleName();
-                yield "SHAFT.GUI.Locator." + method + "(\"" + javaString(name) + "\")";
+            case ROLE -> {
+                Role ariaRole = ariaRole(target.role());
+                yield ariaRole != null
+                        ? "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ").build()"
+                        : xpathLocatorCode(candidate.strategy(), target, expression);
             }
+            case ACCESSIBLE_NAME, LABEL -> xpathLocatorCode(candidate.strategy(), target, expression);
             case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(expression) + "\")";
             case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(expression) + "\")";
             case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(expression) + "\")";
@@ -979,12 +987,54 @@ public class BrowserService {
         };
     }
 
-    private static boolean inputLike(ElementSnapshot target) {
-        return switch (target.tagName()) {
-            case "input", "textarea", "select" -> true;
-            default -> target.role().equals("textbox") || target.role().equals("combobox")
-                    || target.role().equals("searchbox");
+    /**
+     * Maps a raw ARIA role string (as captured on {@link ElementSnapshot#role()}) to one of the
+     * 14 {@link Role} enum constants, case-insensitively, including the known ARIA-role-name vs.
+     * enum-constant-name mismatches ("img" -&gt; IMAGE, "row" -&gt; TABLE_ROW, "cell"/"gridcell"
+     * -&gt; TABLE_CELL, "columnheader" -&gt; TABLE_COLUMNHEADER, "grid" -&gt; TABLE). Returns
+     * {@code null} when the role has no equivalent (e.g. "searchbox", "" or an unmapped custom
+     * role) so callers can fall back to the SHAFT XPath locator builder instead of failing.
+     */
+    private static Role ariaRole(String rawRole) {
+        String normalized = rawRole == null ? "" : rawRole.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "button" -> Role.BUTTON;
+            case "link" -> Role.LINK;
+            case "textbox" -> Role.TEXTBOX;
+            case "checkbox" -> Role.CHECKBOX;
+            case "radio" -> Role.RADIO;
+            case "combobox" -> Role.COMBOBOX;
+            case "heading" -> Role.HEADING;
+            case "img", "image" -> Role.IMAGE;
+            case "list" -> Role.LIST;
+            case "listitem" -> Role.LISTITEM;
+            case "table", "grid" -> Role.TABLE;
+            case "row" -> Role.TABLE_ROW;
+            case "cell", "gridcell" -> Role.TABLE_CELL;
+            case "columnheader" -> Role.TABLE_COLUMNHEADER;
+            default -> null;
         };
+    }
+
+    /**
+     * Builds a SHAFT XPath {@code LocatorBuilder} chain (second priority after role-based
+     * locators) for the {@code ACCESSIBLE_NAME}/{@code LABEL} strategies, and for {@code ROLE}
+     * candidates whose raw ARIA role has no {@link Role} enum equivalent. Accessible names are
+     * matched via the {@code aria-label} attribute (the same DOM attribute this generator already
+     * treats as an accessible-name signal in the {@code XPATH}-strategy fallback candidate built
+     * by {@link #locators}); associated {@code <label>} text is matched via {@code containsText}
+     * since it is not an attribute of the target element itself.
+     */
+    private static String xpathLocatorCode(
+            LocatorCandidate.LocatorStrategy strategy, ElementSnapshot target, String expression) {
+        String tagName = target.tagName().isBlank() ? "*" : target.tagName();
+        String name = !target.accessibleName().isBlank() ? target.accessibleName()
+                : !target.label().isBlank() ? target.label()
+                : expression;
+        String predicate = strategy == LocatorCandidate.LocatorStrategy.LABEL
+                ? ".containsText(\"" + javaString(name) + "\")"
+                : ".hasAttribute(\"aria-label\", \"" + javaString(name) + "\")";
+        return "SHAFT.GUI.Locator.hasTagName(\"" + javaString(tagName) + "\")" + predicate + ".build()";
     }
 
     private static int intentScore(Set<String> tokens, ElementSnapshot snapshot, Element element) {

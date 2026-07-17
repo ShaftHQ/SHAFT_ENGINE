@@ -14,6 +14,7 @@ import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
 import com.shaft.intellij.settings.ShaftPluginResetService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
@@ -51,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -136,6 +138,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton test;
     private final JButton startChatting;
     private final JButton startWithoutAgent;
+    private final JButton connectAgent;
     private final JButton resetAndReinstall;
     private final JCheckBox expertMode;
     private final JButton connectionAgentsRecheck;
@@ -362,6 +365,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(startWithoutAgent, ShaftIcons.SEND);
         startWithoutAgent.setVisible(false);
         startWithoutAgent.addActionListener(event -> connected.run());
+        // "Connect agent" (issue: Ready step had no way back to a fully green agent lane besides
+        // scrolling up and redoing steps 2/4 from scratch): the primary, "get to green" action
+        // alongside the startWithoutAgent skip option whenever the agent lane isn't ready yet.
+        connectAgent = new JButton("Connect agent");
+        connectAgent.getAccessibleContext().setAccessibleName("Connect SHAFT agent");
+        connectAgent.setToolTipText("Retry just the agent readiness check for the selected client, without "
+                + "redoing the whole SHAFT MCP setup");
+        applyLabeledAction(connectAgent, ShaftIcons.CHECK);
+        connectAgent.setVisible(false);
+        connectAgent.addActionListener(event -> connectAgentClicked());
         resetAndReinstall = new JButton("Reinstall");
         resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
         resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
@@ -571,6 +584,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         readyActions.setOpaque(false);
         readyActions.add(startChatting);
+        readyActions.add(connectAgent);
         readyActions.add(startWithoutAgent);
         // Explicit success checklist (issue #3500 S6): one line answering "am I ready?" with the
         // same dimensions as the tool-window readiness strip.
@@ -1007,25 +1021,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             if (result.success()) {
                 clearDiagnostics();
                 ShaftMcpToolResult readiness = verifySelectedAgentReadiness(precomputedReadiness);
-                agentReady = readiness.success();
-                if (agentReady) {
-                    showAssistConfigured();
-                    showRuntimeVerified();
-                    setStatusText(successSummary(result.output()));
-                } else {
-                    // Two-lane readiness (issue #3425 A2): the recorder, codegen, doctor, and
-                    // healer only need a verified SHAFT MCP — a working agent adds chat and is
-                    // the optional second lane. A missing agent therefore no longer fails setup.
-                    showAssistStatus("MCP verified — agent optional", ShaftStatusPresentation.progress());
-                    assistStatus.setVisible(true);
-                    showRuntimeVerified();
-                    setStatusText("SHAFT MCP verified. Recorder, codegen, and doctor are ready now — "
-                            + "connecting an agent adds chat and is optional.");
-                    setDiagnosticText(troubleshootingDetails("Agent lane not ready (optional)",
-                            "MCP probe output:\n" + result.output() + "\n\nAgent readiness failed: " + readiness.output(),
-                            readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
-                    showRestartCommandRecovery();
-                }
+                agentReady = applyAgentReadinessOutcome(readiness, result.output());
             } else {
                 showAssistError();
                 setDiagnosticText(troubleshootingDetails("Probe failed", result.output(), mcpCommand(), true),
@@ -1036,24 +1032,123 @@ final class ShaftMcpSetupPanel extends JPanel {
         refreshRealChecks();
         if (success) {
             settings.mcpSetupComplete = true;
-            settings.agentLaneReady = agentReady;
             settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
-            startChatting.setVisible(agentReady);
-            startWithoutAgent.setVisible(!agentReady);
-            String readyChecklistText = readyChecklistText(agentReady);
-            readyChecklist.setText(readyChecklistText);
-            readyChecklist.getAccessibleContext().setAccessibleDescription(readyChecklistText);
-            (agentReady ? startChatting : startWithoutAgent).requestFocusInWindow();
+            applyAgentLaneState(agentReady);
         } else {
             settings.mcpSetupComplete = false;
             settings.agentLaneReady = false;
             settings.agentGuidanceOptimizationPromptPending = false;
             startChatting.setVisible(false);
             startWithoutAgent.setVisible(false);
+            connectAgent.setVisible(false);
             readyChecklist.setText("");
             readyChecklist.getAccessibleContext().setAccessibleDescription("");
             showRuntimeSelected();
         }
+        updateActionState(false);
+    }
+
+    /**
+     * Applies an agent-readiness outcome to the shared Assist/runtime status widgets, diagnostics,
+     * and restart-recovery affordance -- factored out of {@link #showTestResult}'s success branch
+     * so the automatic post-MCP-probe check and the standalone {@link #connectAgentClicked()} retry
+     * (issue: Ready step had no button to get the agent lane to green besides redoing steps 2/4)
+     * apply the exact same UI and can never drift apart.
+     *
+     * @param readiness      the (possibly freshly re-probed) agent readiness result
+     * @param mcpProbeOutput the most recent verified SHAFT MCP probe output, used for the success
+     *                       summary's workspace detail and echoed into failure diagnostics; blank
+     *                       when no fresh MCP probe ran (the standalone agent-only retry)
+     * @return whether the agent lane is ready
+     */
+    private boolean applyAgentReadinessOutcome(ShaftMcpToolResult readiness, String mcpProbeOutput) {
+        boolean agentReady = readiness.success();
+        if (agentReady) {
+            showAssistConfigured();
+            showRuntimeVerified();
+            setStatusText(successSummary(mcpProbeOutput));
+        } else {
+            // Two-lane readiness (issue #3425 A2): the recorder, codegen, doctor, and healer only
+            // need a verified SHAFT MCP — a working agent adds chat and is the optional second lane.
+            // A missing agent therefore no longer fails setup.
+            showAssistStatus("MCP verified — agent optional", ShaftStatusPresentation.progress());
+            assistStatus.setVisible(true);
+            showRuntimeVerified();
+            setStatusText("SHAFT MCP verified. Recorder, codegen, and doctor are ready now — "
+                    + "connecting an agent adds chat and is optional.");
+            String probeOutputText = mcpProbeOutput == null || mcpProbeOutput.isBlank()
+                    ? "MCP already verified; no new SHAFT MCP probe was run for this retry."
+                    : mcpProbeOutput;
+            setDiagnosticText(troubleshootingDetails("Agent lane not ready (optional)",
+                    "MCP probe output:\n" + probeOutputText + "\n\nAgent readiness failed: " + readiness.output(),
+                    readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
+            showRestartCommandRecovery();
+        }
+        return agentReady;
+    }
+
+    /**
+     * Reflects a (possibly newly established) agent-readiness state into settings and the Ready
+     * step's action buttons/checklist -- shared by {@link #showTestResult} and
+     * {@link #connectAgentClicked()} so startChatting/startWithoutAgent/connectAgent visibility,
+     * the readyChecklist text, and settings.agentLaneReady always stay in lockstep. Only called on
+     * the success path (MCP itself already verified); the failure path in showTestResult resets
+     * these directly since there is nothing agent-related to reflect.
+     */
+    private void applyAgentLaneState(boolean agentReady) {
+        settings.agentLaneReady = agentReady;
+        startChatting.setVisible(agentReady);
+        startWithoutAgent.setVisible(!agentReady);
+        connectAgent.setVisible(!agentReady);
+        String readyChecklistText = readyChecklistText(agentReady);
+        readyChecklist.setText(readyChecklistText);
+        readyChecklist.getAccessibleContext().setAccessibleDescription(readyChecklistText);
+        (agentReady ? startChatting : connectAgent).requestFocusInWindow();
+    }
+
+    /**
+     * "Connect agent" (real user report: the Ready step showed only "Start without an agent" once
+     * SHAFT MCP was verified but the agent CLI's deep readiness check hadn't succeeded — no button
+     * anywhere retried just the agent half; the only way back to green was scrolling up to redo
+     * steps 2/4 from scratch). Guards on MCP already being verified (this button only ever shows
+     * once it is) and against re-entry while another action is already running.
+     *
+     * <p>Mirrors {@link #testConnection()}'s off-EDT pattern for the non-cloud families: the deep
+     * readiness probe spawns the selected client CLI and blocks on it for up to ~10s, so it must
+     * never run on the EDT. Unlike testConnection(), MCP is already verified here, so there is no
+     * existing background probe future to piggyback the readiness check onto the way
+     * ShaftMcpConnectionProbe.test(...).whenComplete(...) does -- this hop uses
+     * {@link ShaftPluginExecutor}, the same pattern
+     * {@code ShaftSettingsConfigurable#runProviderKeyProbe} already established for exactly this
+     * "MCP verified, need our own background hop" shape. The Gemini cloud family's readiness check
+     * only does a fast local Password Safe lookup and touches Swing state
+     * ({@link #verifySelectedAgentReadiness}'s cloud branch), so it runs inline on the EDT instead
+     * of being pushed to the background pool.</p>
+     */
+    private void connectAgentClicked() {
+        if (!settings.mcpSetupComplete || progress.isVisible()) {
+            return;
+        }
+        setRunning(true, "Connecting agent (~10s)...");
+        if (cloudFamilySelected()) {
+            applyConnectAgentResult(verifySelectedAgentReadiness(null));
+            return;
+        }
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
+                        ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                        applyConnectAgentResult(error != null
+                                ? ShaftMcpToolResult.failure("Could not run the agent readiness check: "
+                                        + error.getMessage())
+                                : readiness)));
+    }
+
+    private void applyConnectAgentResult(ShaftMcpToolResult readiness) {
+        setRunning(false, readiness.success() ? "Agent connected." : "Agent still not ready. See details below.");
+        boolean agentReady = applyAgentReadinessOutcome(readiness, null);
+        applyAgentLaneState(agentReady);
         updateActionState(false);
     }
 
@@ -1085,7 +1180,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
         startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
-        chatRow.setVisible(startChatting.isVisible() || startWithoutAgent.isVisible());
+        connectAgent.setEnabled(!running && connectAgent.isVisible());
+        chatRow.setVisible(startChatting.isVisible() || startWithoutAgent.isVisible() || connectAgent.isVisible());
         copyCommand.setEnabled(!running && !diagnosticCommand.isBlank());
         boolean canReset = complete || detailsPanel.isVisible();
         resetAndReinstall.setVisible(canReset);
@@ -1101,6 +1197,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         showAssistNotConfigured();
         startChatting.setVisible(false);
         startWithoutAgent.setVisible(false);
+        connectAgent.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         lastCheckFailed = false;
@@ -1132,6 +1229,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         showAssistNotConfigured();
         startChatting.setVisible(false);
         startWithoutAgent.setVisible(false);
+        connectAgent.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         setStatusText(currentCommand().isBlank()
@@ -1425,6 +1523,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         installerCommand.setText(installerCommand());
         startChatting.setVisible(false);
         startWithoutAgent.setVisible(false);
+        connectAgent.setVisible(false);
         showRuntimeSelected();
         showAssistNotConfigured();
         refreshRealChecks();
