@@ -85,6 +85,37 @@ final class AssistantMarkdown {
         return joinSections(sections);
     }
 
+    /**
+     * Renders a failed local-agent CLI run (Claude Code/Codex/etc., not an MCP tool call) with the
+     * same short-headline + details + one-next-action shape {@link #toolFailureMarkdown} uses for
+     * MCP tool failures (issue #3703) -- but with wording that actually fits a local CLI run instead
+     * of the generic "check the SHAFT MCP connection" hint, which makes no sense for a subprocess
+     * timeout or an unauthenticated CLI. A body that already leads with its own bold headline (e.g.
+     * the native-Selenium-rejection narrative) is returned unchanged, matching {@link
+     * #toolFailureMarkdown}'s same guard.
+     *
+     * @param reason the already-humanized failure reason/output (may be blank)
+     * @return the failure markdown
+     */
+    static String localAgentFailureMarkdown(String reason) {
+        String trimmed = reason == null ? "" : reason.strip();
+        if (trimmed.startsWith("**")) {
+            return trimmed;
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add("**" + ShaftStatusPresentation.ERROR_ICON + " The local agent run couldn't finish**");
+        if (!trimmed.isBlank()) {
+            sections.add(trimmed);
+        }
+        boolean timedOut = trimmed.toLowerCase(Locale.ROOT).contains("timed out");
+        sections.add(timedOut
+                ? "_Next: try increasing the timeout, simplifying the request, or confirming your local "
+                + "CLI is authenticated, then resend._"
+                : "_Next: review the details above, or confirm your local CLI is installed and "
+                + "authenticated, then try again._");
+        return joinSections(sections);
+    }
+
     private static Throwable rootCause(Throwable error) {
         Throwable current = error;
         while ((current instanceof CompletionException || current instanceof ExecutionException)

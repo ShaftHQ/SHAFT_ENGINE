@@ -2017,6 +2017,13 @@ final class ShaftAssistantPanel extends JPanel {
         if (rejectedGeneratedJava) {
             setStatus("Rejected generated code");
         }
+        // #3703: a local-agent CLI failure (a CLI timeout, a nonzero exit, ...) renders with the same
+        // short-headline + details + one-next-action shape showFinalToolResult already gives MCP tool
+        // failures, instead of leaving the user with only a bare "Failed" milestone bubble. The
+        // rejected-generated-code narrative already carries its own headline, so it is left alone.
+        if (!success && !rejectedGeneratedJava) {
+            response = AssistantMarkdown.localAgentFailureMarkdown(response);
+        }
         showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
         // Milestone appended AFTER the response in both branches, not before: for a live stream
         // (currentStream), showAgentResponse() replaces the transcript's last message (see
@@ -2090,7 +2097,11 @@ final class ShaftAssistantPanel extends JPanel {
         if (currentStream) {
             finishLocalAgentResponse(streamToken, response, output);
         } else {
-            showResponse(response, output);
+            // Not showResponse(): that applies the generic withTokenUsage, which stays silent when no
+            // usage metadata is found. Every local-agent terminal response -- this is the "stale/not
+            // the active stream" branch, still a local-agent run -- must say so explicitly instead
+            // (issue #3703), which withLocalAgentTokenUsage does.
+            persistAndAppendResponse(withLocalAgentTokenUsage(response, output), output);
         }
     }
 
@@ -2202,7 +2213,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1) {
             return;
         }
-        String displayResponse = withTokenUsage(response, rawResponse);
+        String displayResponse = withLocalAgentTokenUsage(response, rawResponse);
         AssistantQuestion question = AssistantQuestion.detect(displayResponse);
         String toPersist = question == null ? displayResponse : question.promptMarkdown();
         replaceLocalAgentStreamPlaceholder("assistant", toPersist);
@@ -2401,7 +2412,10 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showResponse(String response, String rawResponse) {
-        String displayResponse = withTokenUsage(response, rawResponse);
+        persistAndAppendResponse(withTokenUsage(response, rawResponse), rawResponse);
+    }
+
+    private void persistAndAppendResponse(String displayResponse, String rawResponse) {
         AssistantQuestion question = AssistantQuestion.detect(displayResponse);
         String toPersist = question == null ? displayResponse : question.promptMarkdown();
         lastResponse = toPersist;
@@ -2430,6 +2444,26 @@ final class ShaftAssistantPanel extends JPanel {
         }
         return markdown + "\n\n**Tokens consumed:** `" + reported.totalTokens() + "` (input: "
                 + reported.inputTokens() + ", output: " + reported.outputTokens() + ")";
+    }
+
+    /**
+     * Every terminal local-agent run (Completed, Failed, Cancelled, or Killed) must say whether
+     * token usage is known, not just show it when it happens to be parseable (issue #3703): a user
+     * who never sees a token count has no way to tell "this run reported no usage metadata" apart
+     * from "this feature doesn't exist here". {@link #withTokenUsage} already appends the real
+     * numbers when {@code parseTokenUsage} finds them; this adds the explicit "not available"
+     * fallback line on top for local-agent responses only -- unlike {@link #withTokenUsage} itself,
+     * which stays silent by design for every other {@link #showResponse} caller (MCP tool calls,
+     * canned local replies, ...) that never carries token metadata in the first place.
+     */
+    private String withLocalAgentTokenUsage(String response, String rawResponse) {
+        String withUsage = withTokenUsage(response, rawResponse);
+        if (withUsage.isBlank()
+                || LOCAL_AGENT_STREAMING_HEADER.equals(withUsage)
+                || withUsage.toLowerCase(Locale.ROOT).contains("tokens consumed:")) {
+            return withUsage;
+        }
+        return withUsage + "\n\n**Token usage:** not available for this run.";
     }
 
     private void append(String role, String text, String rawResponse) {

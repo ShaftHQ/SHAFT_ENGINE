@@ -2307,6 +2307,67 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantLocalAgentTimeoutShowsFailureReasonBeforeMilestoneAndTokenNote() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 9);
+        showAgentResult(panel, 9, ShaftMcpToolResult.failure("Timed out after 300 seconds."));
+
+        String markdown = transcriptMarkdown(panel);
+        int reasonIndex = markdown.indexOf("Timed out after 300 seconds.");
+        int milestoneIndex = markdown.indexOf("Failed (");
+        assertAll(
+                () -> assertTrue(reasonIndex >= 0, "Failure reason must appear in the transcript: " + markdown),
+                () -> assertTrue(milestoneIndex >= 0, "Terminal milestone must appear in the transcript: " + markdown),
+                () -> assertTrue(reasonIndex < milestoneIndex,
+                        "Failure reason should render before the terminal milestone bubble: " + markdown),
+                () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token"),
+                        "A terminal failure must say whether token usage is available: " + markdown));
+    }
+
+    @Test
+    void assistantLocalAgentFailureUsesConsistentHeadlineAndNextStepCta() throws Exception {
+        // Issue #3703: a local-agent CLI failure must render with the same short-headline +
+        // details + one-next-action shape as an MCP tool failure, not a bare error string.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 10);
+        showAgentResult(panel, 10, ShaftMcpToolResult.failure("Timed out after 300 seconds."));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("couldn't finish"), markdown),
+                () -> assertTrue(markdown.contains("_Next:"), markdown));
+    }
+
+    @Test
+    void assistantLocalAgentCompletedWithoutUsageMetadataStatesTokenUsageNotAvailable() throws Exception {
+        // Issue #3703: silence must never stand in for "no data" -- the user must be able to tell
+        // "no data" apart from "the feature doesn't exist here".
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 11);
+        showAgentResult(panel, 11, ShaftMcpToolResult.success("Final answer with no usage metadata."));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token usage"), markdown),
+                () -> assertFalse(markdown.contains("Tokens consumed:"), markdown));
+    }
+
+    @Test
+    void assistantLocalAgentCancelledWithoutUsageMetadataStatesTokenUsageNotAvailable() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 12);
+        appendLocalAgentOutput(panel, 12, "partial answer before cancel");
+        showAgentResult(panel, 12, null, new CancellationException("cancelled"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token usage"), markdown);
+    }
+
+    @Test
     void assistantLocalAgentStaleCompletionClearsThinkingState() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
         panel.setRunning(true, "Thinking...");
