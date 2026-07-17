@@ -39,6 +39,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
 import javax.swing.DefaultListCellRenderer;
@@ -66,7 +67,6 @@ import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.FontMetrics;
-import java.awt.GridLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyAdapter;
@@ -266,6 +266,14 @@ final class ShaftAssistantPanel extends JPanel {
     private int contextTruncationBoundaryIndex = -1;
     private String modelListFamily = "";
     private boolean modelListRefreshing;
+    /**
+     * Banner strip (setup notice + fresh-project hint) above the chat header. A field, not a
+     * constructor-local, purely so {@code ShaftAssistantPanelLayoutTest} can assert its collapsed
+     * preferred height via reflection (issue #3694): it must use a layout manager that skips
+     * invisible children -- see the constructor for why {@link javax.swing.BoxLayout} replaced
+     * {@link java.awt.GridLayout} here.
+     */
+    private final JPanel notices;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -652,7 +660,13 @@ final class ShaftAssistantPanel extends JPanel {
         south.add(actionRow, BorderLayout.NORTH);
         south.add(composer, BorderLayout.CENTER);
 
-        JPanel notices = new JPanel(new GridLayout(0, 1));
+        // BoxLayout, not GridLayout(0, 1) (issue #3694): GridLayout reserves a full row's height for
+        // every child regardless of visibility, so with both banners hidden (the common case -- MCP
+        // already configured, project not "fresh") it still reserved two blank rows above the chat
+        // header, reading as a large empty gap between the panel header and the "New chat" dropdown.
+        // BoxLayout, like BorderLayout, collapses an invisible child's contribution to zero.
+        notices = new JPanel();
+        notices.setLayout(new BoxLayout(notices, BoxLayout.Y_AXIS));
         notices.add(setupNotice(project, settings));
         // Separate signal from showFirstRunWelcomeIfNeeded() (#3601 O3): keyed off the project's
         // actual pom.xml state via ShaftProjectVersionCheck, not firstRunCoachDismissed, so it

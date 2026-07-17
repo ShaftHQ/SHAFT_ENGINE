@@ -5,6 +5,7 @@ import com.shaft.intellij.approval.ToolApprovalDecision;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
+import java.awt.Color;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -122,32 +123,55 @@ class ToolApprovalPromptPanelTest {
                         "should contain the argument value in readable form"));
     }
 
+    /**
+     * Issue #3696: previously {@code APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} rendered
+     * with a smaller, gray, unbordered "de-emphasized" look while {@code APPROVE_ONCE} kept full
+     * default emphasis -- the opposite of the intended nudge toward broader approval scopes. Now
+     * all three scope buttons share equal font weight and are color-coded by scope breadth: green
+     * (broadest) for "Approve all tools", blue (medium) for "Approve tool always", yellow
+     * (narrowest) for "Approve once". {@code Deny} is not a scope to weight and keeps the platform
+     * default look.
+     */
     @Test
-    void broadScopeButtonsAreVisuallyDeemphasizedComparedToOnceAndDeny() {
+    void approvalScopeButtonsShareEqualVisualWeightAndAreColorCodedByScopeBreadth() {
         ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
                 "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
         List<JButton> buttons = panel.decisionButtonsForTest();
 
         JButton approveOnce = findByLabel(buttons, "Approve once");
-        JButton deny = findByLabel(buttons, "Deny");
         JButton approveToolAlways = findByLabel(buttons, "Approve tool always");
         JButton approveAllTools = findByLabel(buttons, "Approve all tools");
+        JButton deny = findByLabel(buttons, "Deny");
 
         assertAll(
-                () -> assertTrue(isVisuallyDeemphasized(approveOnce, approveToolAlways),
-                        "Approve tool always should be visually de-emphasized relative to Approve once"),
-                () -> assertTrue(isVisuallyDeemphasized(approveOnce, approveAllTools),
-                        "Approve all tools should be visually de-emphasized relative to Approve once"),
-                () -> assertTrue(isVisuallyDeemphasized(deny, approveToolAlways),
-                        "Approve tool always should be visually de-emphasized relative to Deny"),
-                () -> assertTrue(isVisuallyDeemphasized(deny, approveAllTools),
-                        "Approve all tools should be visually de-emphasized relative to Deny"));
+                () -> assertEquals(approveOnce.getFont().getSize2D(), approveToolAlways.getFont().getSize2D(),
+                        "Approve tool always must not be font-shrunk relative to Approve once"),
+                () -> assertEquals(approveOnce.getFont().getSize2D(), approveAllTools.getFont().getSize2D(),
+                        "Approve all tools must not be font-shrunk relative to Approve once"),
+                () -> assertTrue(isGreenish(approveAllTools.getBackground()),
+                        "Approve all tools (broadest scope) should be highlighted green: "
+                                + approveAllTools.getBackground()),
+                () -> assertTrue(isBlueish(approveToolAlways.getBackground()),
+                        "Approve tool always (medium scope) should be highlighted blue: "
+                                + approveToolAlways.getBackground()),
+                () -> assertTrue(isYellowish(approveOnce.getBackground()),
+                        "Approve once (narrowest scope) should be highlighted yellow: "
+                                + approveOnce.getBackground()),
+                () -> assertFalse(isGreenish(deny.getBackground()) || isBlueish(deny.getBackground())
+                                || isYellowish(deny.getBackground()),
+                        "Deny should keep the platform default button color, not a scope color"));
     }
 
-    private static boolean isVisuallyDeemphasized(JButton narrowScope, JButton broadScope) {
-        boolean smallerFont = broadScope.getFont().getSize2D() < narrowScope.getFont().getSize2D();
-        boolean differentForeground = !broadScope.getForeground().equals(narrowScope.getForeground());
-        return smallerFont || differentForeground;
+    private static boolean isGreenish(Color color) {
+        return color.getGreen() > color.getRed() && color.getGreen() > color.getBlue();
+    }
+
+    private static boolean isBlueish(Color color) {
+        return color.getBlue() > color.getRed() && color.getBlue() > color.getGreen();
+    }
+
+    private static boolean isYellowish(Color color) {
+        return color.getBlue() < color.getRed() && color.getBlue() < color.getGreen();
     }
 
     private static JButton findByLabel(List<JButton> buttons, String label) {
