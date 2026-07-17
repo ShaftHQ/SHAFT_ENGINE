@@ -12,6 +12,7 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.McpInvocationError;
+import com.shaft.intellij.mcp.RecoveryActions;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpProgress;
@@ -68,6 +69,7 @@ final class ShaftFeaturePanel extends JPanel {
     private final JButton restoreDefaultsButton;
     private final JButton copyOutputButton;
     private final JButton refreshCatalogButton;
+    private final JButton recoveryButton;
     private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
@@ -160,6 +162,13 @@ final class ShaftFeaturePanel extends JPanel {
         ShaftIconButtons.apply(refreshCatalogButton, ShaftIcons.RERUN);
         refreshCatalogButton.setVisible(catalogRefreshEnabled);
         refreshCatalogButton.addActionListener(event -> refreshCatalog(project));
+        recoveryButton = new JButton();
+        recoveryButton.getAccessibleContext().setAccessibleName("SHAFT tool recovery action");
+        // Not run through ShaftIconButtons.apply(): that fixes a button to an icon-only 32x32 slot,
+        // but this button's whole point is to show which recovery action applies ("Retry" / "Restart
+        // MCP server" / "View logs" from showRecovery()) -- an icon alone can't convey that (#3626).
+        recoveryButton.setIcon(ShaftIcons.RERUN);
+        recoveryButton.setVisible(false);
         search.getDocument().addDocumentListener(new SimpleDocumentListener(this::refreshTools));
         argumentsArea.getDocument().addDocumentListener(new SimpleDocumentListener(this::validateArguments));
         categorySelector.addActionListener(event -> {
@@ -200,6 +209,7 @@ final class ShaftFeaturePanel extends JPanel {
         actions.add(restoreDefaultsButton);
         actions.add(copyOutputButton);
         actions.add(refreshCatalogButton);
+        actions.add(recoveryButton);
         actions.add(progress);
         actions.add(status);
 
@@ -318,7 +328,7 @@ final class ShaftFeaturePanel extends JPanel {
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(
                 template.toolName(), arguments, this::onToolProgress);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                () -> showResult(template.toolName(), result, error)));
+                () -> showResult(template.toolName(), result, error, project)));
     }
 
     /**
@@ -358,18 +368,20 @@ final class ShaftFeaturePanel extends JPanel {
         // unlike the silent auto-populate warm-up (which serves the cache when present).
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startListTools(true);
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                () -> showCatalogResult(result, error)));
+                () -> showCatalogResult(result, error, project)));
     }
 
-    private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
+    private void showResult(String toolName, ShaftMcpToolResult result, Throwable error, Project project) {
         if (error instanceof CancellationException) {
             setRunning(false, "Cancelled");
             setOutput(toolName, "Cancelled.");
+            recoveryButton.setVisible(false);
             return;
         }
         setRunning(false, error == null && result != null && result.success() ? "Finished" : "Failed");
+        McpInvocationError category = null;
         if (error != null) {
-            McpInvocationError category = McpInvocationError.categorize(error);
+            category = McpInvocationError.categorize(error);
             StringBuilder sb = new StringBuilder();
             sb.append(McpInvocationError.detail(error, category));
             if (category.recoveryAction() != null) {
@@ -381,18 +393,22 @@ final class ShaftFeaturePanel extends JPanel {
         } else if (result.success()) {
             setOutput(toolName, JsonText.prettyOrOriginal(result.output()));
         } else {
+            category = result.errorCategory();
             setOutput(toolName, formatErrorOutput(result));
         }
+        showRecovery(category, project, () -> run(project));
     }
 
-    private void showCatalogResult(ShaftMcpToolResult result, Throwable error) {
+    private void showCatalogResult(ShaftMcpToolResult result, Throwable error, Project project) {
         refreshCatalogButton.setToolTipText(REFRESH_TOOLS_TOOLTIP);
         if (error instanceof CancellationException) {
             setRunning(false, "Cancelled");
             setOutput("", "Cancelled.");
+            recoveryButton.setVisible(false);
             return;
         }
         boolean success = error == null && result != null && result.success();
+        McpInvocationError category = null;
         // setRunning(false, ...) clears currentInvocation, which reloadCategories() -> refreshTools()
         // -> loadSelectedTemplate() -> validateArguments() reads to decide whether to reset the status
         // label back to "Ready". Run that reload first so the SUCCESS_ICON/ERROR_ICON completion
@@ -403,7 +419,7 @@ final class ShaftFeaturePanel extends JPanel {
             reloadCategories();
             setOutput("", JsonText.prettyOrOriginal(result.output()));
         } else if (error != null) {
-            McpInvocationError category = McpInvocationError.categorize(error);
+            category = McpInvocationError.categorize(error);
             StringBuilder sb = new StringBuilder();
             sb.append(McpInvocationError.detail(error, category));
             if (category.recoveryAction() != null) {
@@ -413,11 +429,40 @@ final class ShaftFeaturePanel extends JPanel {
         } else if (result == null) {
             setOutput("", "No result returned.");
         } else {
+            category = result.errorCategory();
             setOutput("", formatErrorOutput(result));
         }
         status.setText(success
                 ? ShaftStatusPresentation.SUCCESS_ICON + " Tools refreshed"
                 : ShaftStatusPresentation.ERROR_ICON + " Failed");
+        showRecovery(category, project, () -> refreshCatalog(project));
+    }
+
+    private void showRecovery(McpInvocationError category, Project project, Runnable retryAction) {
+        if (category == null) {
+            recoveryButton.setVisible(false);
+            return;
+        }
+        RecoveryActions.Kind kind = RecoveryActions.forCategory(category);
+        recoveryButton.setText(switch (kind) {
+            case RETRY -> "Retry";
+            case RESTART -> "Restart MCP server";
+            case VIEW_LOGS -> "View logs";
+        });
+        for (var listener : recoveryButton.getActionListeners()) {
+            recoveryButton.removeActionListener(listener);
+        }
+        recoveryButton.addActionListener(event -> {
+            switch (kind) {
+                case RETRY -> retryAction.run();
+                case RESTART -> {
+                    ShaftMcpInvocationService.getInstance(project).restartConnection();
+                    status.setText("MCP connection reset");
+                }
+                case VIEW_LOGS -> RecoveryActions.activateEventLog(project);
+            }
+        });
+        recoveryButton.setVisible(true);
     }
 
     private void reloadCategories() {
@@ -507,6 +552,9 @@ final class ShaftFeaturePanel extends JPanel {
     }
 
     private void setRunning(boolean running, String message) {
+        if (running) {
+            recoveryButton.setVisible(false);
+        }
         runButton.setEnabled(!running);
         cancelButton.setEnabled(running);
         restoreDefaultsButton.setEnabled(!running);

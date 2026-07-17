@@ -3236,6 +3236,10 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Diagnose my last failure".equals(accessibleName(button)))
                 // The first-run coach's acknowledgment (issue #3500 O1) names its one-time action.
                 .filter(button -> !"Dismiss first run coach".equals(accessibleName(button)))
+                // Recovery actions keep visible labels: which of Retry / Restart MCP server / View
+                // logs applies depends on the failure category, which an icon alone cannot convey
+                // (issue #3626).
+                .filter(button -> !"SHAFT tool recovery action".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -4996,16 +5000,16 @@ class ShaftPanelSetupTest {
 
     private static void showToolResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
         Method showResult = ShaftFeaturePanel.class.getDeclaredMethod(
-                "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
+                "showResult", String.class, ShaftMcpToolResult.class, Throwable.class, Project.class);
         showResult.setAccessible(true);
-        showResult.invoke(panel, "", result, null);
+        showResult.invoke(panel, "", result, null, (Project) null);
     }
 
     private static void showCatalogResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
         Method showCatalogResult = ShaftFeaturePanel.class.getDeclaredMethod(
-                "showCatalogResult", ShaftMcpToolResult.class, Throwable.class);
+                "showCatalogResult", ShaftMcpToolResult.class, Throwable.class, Project.class);
         showCatalogResult.setAccessible(true);
-        showCatalogResult.invoke(panel, result, null);
+        showCatalogResult.invoke(panel, result, null, (Project) null);
     }
 
     private static void invokeRefreshCatalog(ShaftFeaturePanel panel, Project project) throws Exception {

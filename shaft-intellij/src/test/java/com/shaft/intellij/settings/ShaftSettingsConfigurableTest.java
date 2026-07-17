@@ -1,6 +1,7 @@
 package com.shaft.intellij.settings;
 
 import com.intellij.ui.components.JBTextField;
+import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
 import org.junit.jupiter.api.Test;
@@ -122,7 +123,14 @@ class ShaftSettingsConfigurableTest {
         assertEquals("Cloud model, for example gemini-3.5-flash", assistantCloudModel.getEmptyText().getText());
         assertEquals("Provider model, for example gemini-3.5-flash", shaftAiModel.getEmptyText().getText());
 
-        collectAllButtons(panel).forEach(ShaftSettingsConfigurableTest::assertIconOnlySymmetric);
+        for (JButton button : collectAllButtons(panel)) {
+            // Recovery actions keep visible labels: which of Retry / Restart MCP server / View logs
+            // applies depends on the failure category, which an icon alone cannot convey (#3626).
+            if ("SHAFT MCP test recovery action".equals(button.getAccessibleContext().getAccessibleName())) {
+                continue;
+            }
+            assertIconOnlySymmetric(button);
+        }
     }
 
     @Test
@@ -398,6 +406,37 @@ class ShaftSettingsConfigurableTest {
                 () -> assertEquals(testStatus.getText(), resetDescription),
                 () -> assertNotEquals(failedDescription, resetDescription,
                         "the description must track the live reset back to \"Not tested\""));
+    }
+
+    @Test
+    void testRecoveryActionBecomesVisibleAndConfiguredOnFailureThenHidesOnReset() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"" + Path.of("does", "not", "exist", "shaft-mcp-missing.exe") + "\"";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel testStatus = findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class);
+        JBTextField command = findByAccessibleName(panel, "MCP stdio command", JBTextField.class);
+        JButton testRecoveryAction = findByAccessibleName(panel, "SHAFT MCP test recovery action", JButton.class);
+        assertNotNull(testRecoveryAction);
+        assertFalse(testRecoveryAction.isVisible(), "the recovery action starts hidden until a probe fails");
+
+        // ShaftMcpToolResult.failure(String) (the overload used elsewhere in this file) never sets
+        // errorCategory, so the recovery mapping would be non-deterministic; use the explicit
+        // categorized overload so this pins PROCESS_EXITED -> "Restart MCP server" deterministically.
+        invokeShowProbeResult(configurable, (JPanel) panel, testStatus,
+                ShaftMcpToolResult.failure("MCP server process exited.",
+                        McpInvocationError.PROCESS_EXITED, "Restart MCP server"));
+
+        assertAll(
+                () -> assertTrue(testRecoveryAction.isVisible(), "the recovery action must show on a failed probe"),
+                () -> assertEquals("Restart MCP server", testRecoveryAction.getText()));
+
+        // Editing the MCP command mirrors resetTestStatus()'s established trigger (see
+        // testStatusReflectsProbeOutcomeAndResetsWhenCommandChanges) and must hide the action again.
+        command.setText(command.getText() + "-edited");
+
+        assertFalse(testRecoveryAction.isVisible(), "the recovery action must hide once the command is edited");
     }
 
     @Test
