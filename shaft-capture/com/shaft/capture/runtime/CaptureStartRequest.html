@@ -81,7 +81,8 @@
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>Record Components:</dt>
-<dd><code><span id="param-targetUrl">targetUrl</span></code> - initial browser URL</dd>
+<dd><code><span id="param-targetUrl">targetUrl</span></code> - initial browser URL; blank or <code>null</code> opens an empty browser at
+    <code>about:blank</code> instead of being rejected</dd>
 <dd><code><span id="param-browser">browser</span></code> - supported browser family</dd>
 <dd><code><span id="param-outputPath">outputPath</span></code> - capture JSON output</dd>
 <dd><code><span id="param-runtimeDirectory">runtimeDirectory</span></code> - local control and temporary-profile directory</dd>
@@ -210,7 +211,8 @@
 <div class="block">Creates a request with default codegen options.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>targetUrl</code> - initial browser URL</dd>
+<dd><code>targetUrl</code> - initial browser URL; blank or <code>null</code> opens an empty browser at
+    <code>about:blank</code> instead of being rejected</dd>
 <dd><code>browser</code> - supported browser family</dd>
 <dd><code>outputPath</code> - capture JSON output</dd>
 <dd><code>runtimeDirectory</code> - local control and temporary-profile directory</dd>
