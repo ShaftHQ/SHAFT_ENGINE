@@ -469,6 +469,78 @@ class CaptureServiceTest {
                         && warning.contains("perform the described actions")));
     }
 
+    @Test
+    void startAcceptsNullHeadlessAndResolvesItBeforeAnyWorkspaceOrBrowserWork() throws Exception {
+        // Issue #3692: capture_start's headless parameter was the last field still marked required
+        // in the tool's JSON schema after sessionGoal/targetUrl/browser/outputPath were fixed (a
+        // client omitting it hits the same "required property ... not found" failure class the user
+        // reported). Boxing it to Boolean and resolving through the existing resolveHeadless helper
+        // (already used by apiStart) must not NPE when the caller omits it; the workspace-boundary
+        // check below still fires afterward, proving start(...) got past the null-to-boolean
+        // resolution safely before ever touching a real browser.
+        Path outside = Files.createTempFile("outside-capture-output-null-headless", ".json");
+
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.start("https://example.test", "chrome", outside.toString(), null, ""));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void codeBlocksToolDefaultsToLatestRecordingWhenSessionPathIsBlank() throws Exception {
+        // Issue #3692 item 2: capture_code_blocks previously required an explicit sessionPath; a
+        // blank value must now resolve to the most recently modified recording under recordings/,
+        // reusing the same lookup status() already uses for its idle guidance.
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Files.copy(repositoryRoot().resolve(
+                        "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"),
+                recordings.resolve("capture-latest.json"));
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.codeBlocks(
+                    "",
+                    temp.resolve("generated-default-session").toString(),
+                    "generated.capture",
+                    "DefaultSessionTest",
+                    false,
+                    "browser");
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(),
+                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class DefaultSessionTest")));
+    }
+
+    @Test
+    void codeBlocksToolStillRaisesAClearErrorWhenSessionPathIsBlankAndNoRecordingsExist() {
+        // The fallback must not silently swallow the "nothing to generate from" case: with no
+        // recordings/ directory at all, McpWorkspacePolicy's existing "is required" error still
+        // surfaces, unchanged.
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.codeBlocks("", temp.resolve("generated-none").toString(),
+                            "generated.capture", "NoRecordingTest", false, "browser"));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("required"));
+    }
+
     private CaptureService service() {
         return new CaptureService(
                 new CaptureManager(),
