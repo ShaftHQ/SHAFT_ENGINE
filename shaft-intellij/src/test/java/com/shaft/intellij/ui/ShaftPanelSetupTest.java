@@ -28,7 +28,6 @@ import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.KeyStroke;
-import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -2748,7 +2747,13 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantTranscriptHidesLiveAgentOutputUntilFinalResultByDefault() throws Exception {
+    void assistantNonVerboseModeShowsCompactMilestoneBubbleInsteadOfGrowingPlaceholderWithRawOutput()
+            throws Exception {
+        // Issue #3695: a non-verbose run's live output line no longer disappears into a separate
+        // "Run timeline" list -- it now surfaces as its own compact agent-milestone chat bubble in
+        // the transcript. What non-verbose mode still gates is the *raw, verbatim, growing* bubble
+        // (that stays Verbose-only, see assistantVerboseModeShowsLiveAgentOutput): the placeholder
+        // bubble itself is untouched by the raw line and is later replaced by the real final answer.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assistantPrompt(panel).setText("visible realtime user prompt");
@@ -2757,63 +2762,63 @@ class ShaftPanelSetupTest {
         appendLocalAgentOutput(panel, 77, "visible realtime agent response");
         showAgentResult(panel, 77, ShaftMcpToolResult.success("public class GeneratedTest { void test() {} }"));
 
+        String markdown = transcriptMarkdown(panel);
         assertAll(
-                () -> assertTrue(transcriptMarkdown(panel).contains("visible realtime user prompt")),
-                () -> assertFalse(transcriptMarkdown(panel).contains("visible realtime agent response")),
-                () -> assertTrue(transcriptMarkdown(panel).contains("```java")),
-                () -> assertTrue(transcriptMarkdown(panel).contains("GeneratedTest")),
+                () -> assertTrue(markdown.contains("visible realtime user prompt"), markdown),
+                () -> assertTrue(markdown.contains("visible realtime agent response"), markdown),
+                () -> assertTrue(markdown.contains("```java"), markdown),
+                () -> assertTrue(markdown.contains("GeneratedTest"), markdown),
                 () -> assertTrue(containsText(panel, "visible realtime user prompt")),
-                () -> assertFalse(containsText(panel, "visible realtime agent response")));
+                () -> assertTrue(containsText(panel, "visible realtime agent response")));
     }
 
     @Test
-    void assistantTimelineSuppressesToolSearchButKeepsRealToolCalls() throws Exception {
+    void assistantAgentMilestoneBubblesSuppressToolSearchButKeepRealToolCalls() throws Exception {
         // #3672: ToolSearch is an internal harness meta-tool call (the CLI's own tool-schema
-        // lookup) with no user-relevant signal, so it must not leak into the compact Run timeline
-        // -- but real actions (Bash) and real SHAFT MCP tool calls (mcp__shaft-mcp__...) must still
-        // surface, proving the fix didn't over-suppress.
+        // lookup) with no user-relevant signal, so it must not leak into the visible agent-milestone
+        // chat bubbles (issue #3695: this content used to feed a separately-scrollable "Run timeline"
+        // list; it is now its own chat bubble per message) -- but real actions (Bash) and real SHAFT
+        // MCP tool calls (mcp__shaft-mcp__...) must still surface, proving the fix didn't over-suppress.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
 
         appendStreamingLocalAgentBubble(panel, 111);
         appendLocalAgentOutput(panel, 111, "Calling tool ToolSearch...");
         appendLocalAgentOutput(panel, 111, "Calling tool Bash (echo hi)...");
         appendLocalAgentOutput(panel, 111, "Calling tool mcp__shaft-mcp__capture_start...");
 
+        String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertFalse(listContains(timeline, "Calling tool ToolSearch"),
-                        "Internal harness meta-tool calls must not leak into the visible Run timeline: "
-                                + timelineSteps(timeline)),
-                () -> assertTrue(listContains(timeline, "Calling tool Bash"), timelineSteps(timeline).toString()),
-                () -> assertTrue(listContains(timeline, "Calling tool mcp__shaft-mcp__capture_start"),
-                        timelineSteps(timeline).toString()));
+                () -> assertFalse(transcript.contains("Calling tool ToolSearch"),
+                        "Internal harness meta-tool calls must not leak into the visible agent-milestone "
+                                + "chat bubbles: " + transcript),
+                () -> assertTrue(transcript.contains("Calling tool Bash"), transcript),
+                () -> assertTrue(transcript.contains("Calling tool mcp__shaft-mcp__capture_start"), transcript));
     }
 
     @Test
-    void assistantTimelineSkipsEntryWhenSuppressedToolCallIsTheOnlyContent() throws Exception {
+    void assistantAgentMilestoneBubbleIsSkippedWhenSuppressedToolCallIsTheOnlyContent() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
-        int sizeBefore = timeline.getModel().getSize();
-
         appendStreamingLocalAgentBubble(panel, 112);
+        String transcriptBefore = transcriptMarkdown(panel);
+
         appendLocalAgentOutput(panel, 112, "Calling tool ToolSearch...");
 
-        assertEquals(sizeBefore, timeline.getModel().getSize(), timelineSteps(timeline).toString());
+        assertEquals(transcriptBefore, transcriptMarkdown(panel),
+                "A local-agent output line whose only content is a suppressed meta-tool call must not "
+                        + "append a new agent-milestone chat bubble");
     }
 
     @Test
-    void assistantTimelineKeepsSiblingLineWhenOnlyOneSubLineIsSuppressed() throws Exception {
+    void assistantAgentMilestoneBubbleKeepsSiblingLineWhenOnlyOneSubLineIsSuppressed() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
 
         appendStreamingLocalAgentBubble(panel, 113);
         appendLocalAgentOutput(panel, 113, "Thinking: deciding what to search\nCalling tool ToolSearch...");
 
+        String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertTrue(listContains(timeline, "Thinking: deciding what to search"),
-                        timelineSteps(timeline).toString()),
-                () -> assertFalse(listContains(timeline, "Calling tool ToolSearch"),
-                        timelineSteps(timeline).toString()));
+                () -> assertTrue(transcript.contains("Thinking: deciding what to search"), transcript),
+                () -> assertFalse(transcript.contains("Calling tool ToolSearch"), transcript));
     }
 
     @Test
@@ -3141,57 +3146,57 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantTimelineRecordsLocalPromptCompletion() {
+    void assistantAgentMilestoneBubblesRecordLocalPromptCompletion() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
 
         assistantPrompt(panel).setText("/help");
         clickAccessible(panel, "Send assistant prompt");
 
+        String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertNotNull(timeline),
-                () -> assertTrue(listContains(timeline, "Prompt received")),
-                () -> assertTrue(listContains(timeline, "Completed")));
+                () -> assertTrue(transcript.contains("Prompt received"), transcript),
+                () -> assertTrue(transcript.contains("Completed"), transcript));
     }
 
     @Test
-    void assistantTimelineCompletedEntryShowsElapsedTimeSuffix() {
+    void assistantAgentMilestoneTerminalBubbleShowsElapsedTimeSuffix() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
 
         assistantPrompt(panel).setText("/help");
         clickAccessible(panel, "Send assistant prompt");
 
-        String completedStep = timelineSteps(timeline).stream()
-                .filter(step -> step.startsWith("Completed"))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(completedStep, timelineSteps(timeline).toString());
-        assertTrue(completedStep.matches("Completed \\((<1s|\\d+s|\\d+m \\d+s)\\)"), completedStep);
+        String transcript = transcriptMarkdown(panel);
+        int start = transcript.indexOf("Completed (");
+        assertTrue(start >= 0, transcript);
+        int end = transcript.indexOf(')', start);
+        assertTrue(end > start, transcript);
+        String suffix = transcript.substring(start + "Completed (".length(), end);
+        assertTrue(suffix.equals("<1s") || suffix.matches("\\d+s") || suffix.matches("\\d+m \\d+s"), suffix);
     }
 
     @Test
-    void assistantTimelineIgnoresSecondTerminalEntryForSameRun() throws Exception {
+    void assistantAgentMilestoneBubbleIgnoresSecondTerminalEntryForSameRun() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
 
         assistantPrompt(panel).setText("/help");
         clickAccessible(panel, "Send assistant prompt");
-        assertTrue(listContains(timeline, "Completed"), timelineSteps(timeline).toString());
-        int sizeAfterFirstTerminal = timeline.getModel().getSize();
+        String transcriptAfterFirstTerminal = transcriptMarkdown(panel);
+        assertTrue(transcriptAfterFirstTerminal.contains("Completed ("), transcriptAfterFirstTerminal);
+        int completedBubblesAfterFirstTerminal = countOccurrences(transcriptAfterFirstTerminal, "Completed (");
 
-        // No resetTimeline (i.e. no new send()) happens between these two terminal results, so the
-        // second one must be dropped rather than appended alongside the first.
+        // No resetAgentMilestones (i.e. no new send()) happens between these two terminal results, so
+        // the second terminal milestone must be dropped rather than appended as a new bubble
+        // alongside the first (the tool's own response bubble is still appended as usual).
         showAssistantResult(panel, "shaft_guide_search", ShaftMcpToolResult.success(mcpText("Use Page Object locators.")));
 
-        assertEquals(sizeAfterFirstTerminal, timeline.getModel().getSize(),
-                "A second terminal entry for the same run must be ignored: " + timelineSteps(timeline));
+        String transcript = transcriptMarkdown(panel);
+        assertEquals(completedBubblesAfterFirstTerminal, countOccurrences(transcript, "Completed ("),
+                "A second terminal milestone bubble for the same run must be ignored: " + transcript);
     }
 
     @Test
     void assistantCancelRequestShowsCancellingThenSingleCancelledTerminalEntry() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
         ShaftMcpInvocation invocation = new ShaftMcpInvocation(
                 new CompletableFuture<>(), () -> {
         }, () -> {
@@ -3200,15 +3205,15 @@ class ShaftPanelSetupTest {
         panel.setRunning(true, "Thinking...");
 
         cancelOrKillCurrent(panel);
-        assertTrue(listContains(timeline, "Cancelling..."), timelineSteps(timeline).toString());
+        String transcriptAfterCancelRequest = transcriptMarkdown(panel);
+        assertTrue(transcriptAfterCancelRequest.contains("Cancelling..."), transcriptAfterCancelRequest);
 
         showAssistantResult(panel, "shaft_guide_search", null, new CancellationException("cancelled"));
 
-        List<String> steps = timelineSteps(timeline);
+        String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertEquals(1, steps.stream().filter(step -> step.startsWith("Cancelled")).count(),
-                        steps.toString()),
-                () -> assertFalse(steps.stream().anyMatch(step -> step.startsWith("Killed")), steps.toString()));
+                () -> assertEquals(1, countOccurrences(transcript, "Cancelled ("), transcript),
+                () -> assertFalse(transcript.contains("Killed ("), transcript));
     }
 
     @Test
@@ -3241,7 +3246,6 @@ class ShaftPanelSetupTest {
     @Test
     void assistantKillRequestTerminalEntryIsKilledNotCancelled() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
         ShaftMcpInvocation invocation = new ShaftMcpInvocation(
                 new CompletableFuture<>(), () -> {
         }, () -> {
@@ -3251,14 +3255,15 @@ class ShaftPanelSetupTest {
 
         cancelOrKillCurrent(panel);
         cancelOrKillCurrent(panel);
-        assertTrue(listContains(timeline, "Killing..."), timelineSteps(timeline).toString());
+        String transcriptAfterKillRequest = transcriptMarkdown(panel);
+        assertTrue(transcriptAfterKillRequest.contains("Killing..."), transcriptAfterKillRequest);
 
         showAssistantResult(panel, "shaft_guide_search", null, new CancellationException("killed"));
 
-        List<String> steps = timelineSteps(timeline);
+        String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertTrue(steps.stream().anyMatch(step -> step.startsWith("Killed")), steps.toString()),
-                () -> assertFalse(steps.stream().anyMatch(step -> step.startsWith("Cancelled")), steps.toString()));
+                () -> assertTrue(transcript.contains("Killed ("), transcript),
+                () -> assertFalse(transcript.contains("Cancelled ("), transcript));
     }
 
     @Test
@@ -3426,7 +3431,6 @@ class ShaftPanelSetupTest {
         JButton clear = findByAccessibleName(panel, "Clear assistant transcript", JButton.class);
         JButton rerun = findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class);
         JButton cancel = findByAccessibleName(panel, "Cancel assistant request", JButton.class);
-        JComponent timelinePanel = (JComponent) getField(panel, "timelinePanel");
 
         assertAll(
                 () -> assertFalse(copyResponse.isVisible()),
@@ -3434,8 +3438,7 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(copyAll.isVisible()),
                 () -> assertFalse(clear.isVisible()),
                 () -> assertFalse(rerun.isVisible()),
-                () -> assertFalse(cancel.isVisible()),
-                () -> assertFalse(timelinePanel.isVisible()));
+                () -> assertFalse(cancel.isVisible()));
 
         showAssistantResult(panel, ShaftMcpToolResult.success("Rendered assistant output"));
 
@@ -3450,9 +3453,38 @@ class ShaftPanelSetupTest {
 
         panel.setRunning(true, "Thinking...");
 
+        assertTrue(cancel.isVisible());
+    }
+
+    @Test
+    void assistantHasNoSeparateRunTimelineComponent() {
+        // Issue #3695: the separately-scrollable "Run timeline" list (and its "Run timeline" label)
+        // below the chat is gone -- every milestone it used to show now renders as its own chat
+        // bubble in the transcript instead (see assistantAgentMilestoneBubblesRecordLocalPromptCompletion
+        // and friends).
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
         assertAll(
-                () -> assertTrue(cancel.isVisible()),
-                () -> assertTrue(timelinePanel.isVisible()));
+                () -> assertNull(findByAccessibleName(panel, "Assistant execution timeline", JComponent.class),
+                        "The separately-scrollable Run timeline list must not exist any more"),
+                () -> assertFalse(containsText(panel, "Run timeline"),
+                        "No component may show a \"Run timeline\" label any more"));
+    }
+
+    @Test
+    void assistantStatusIsTheOnlySingleLineStatusElementBelowTheChat() {
+        // Issue #3695: with the Run timeline list removed, the spinner + status JLabel is the only
+        // run-status surface left below the chat window, and it must stay single-line and unlabeled.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        JLabel status = findByAccessibleName(panel, "Assistant status", JLabel.class);
+        panel.setRunning(true, "Awaiting approval for capture_start...");
+
+        assertAll(
+                () -> assertNotNull(status),
+                () -> assertFalse(status.getText().contains("\n"), status.getText()),
+                () -> assertFalse(status.getText().contains("<br"), status.getText()),
+                () -> assertEquals("Awaiting approval for capture_start...", status.getToolTipText()));
     }
 
     @Test
@@ -6177,31 +6209,6 @@ class ShaftPanelSetupTest {
         Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("upgradeCommand");
         method.setAccessible(true);
         return (String) method.invoke(null);
-    }
-
-    private static boolean listContains(JList<?> list, String expectedText) {
-        if (list == null) {
-            return false;
-        }
-        for (int index = 0; index < list.getModel().getSize(); index++) {
-            Object item = list.getModel().getElementAt(index);
-            if (item != null && item.toString().contains(expectedText)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static List<String> timelineSteps(JList<?> list) {
-        List<String> steps = new ArrayList<>();
-        if (list == null) {
-            return steps;
-        }
-        for (int index = 0; index < list.getModel().getSize(); index++) {
-            Object item = list.getModel().getElementAt(index);
-            steps.add(item == null ? null : item.toString());
-        }
-        return steps;
     }
 
     private static JTextComponent assistantPrompt(Component component) {

@@ -335,3 +335,6 @@
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689","timestamp":"2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.assistantcommandtest-pins-assistantcommand-shaft-mcp-usage-hint-with-exact-match-assertequals-any-edit-to-that-constant-must-update-localagentpromptsincludegenericshaftmcpusagehint-too","timestamp":"2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model","timestamp":"2026-07-17T21:52:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it","timestamp":"2026-07-17T23:38:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-3695-run-timeline-list-removed-folded-into-per-message-chat-bubbles","timestamp":"2026-07-17T23:38:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.memory-remember-stdin-tags-must-be-all-lowercase-or-schema-validation-fails-with-no-detail","timestamp":"2026-07-17T23:39:15+03:00"}
