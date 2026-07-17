@@ -2,7 +2,7 @@
 
 ## Repository
 
-SHAFT_ENGINE is a Maven Java automation framework; config wins. Core `shaft-engine/`; optional `shaft-*`; tools `scripts/ci/`. Start at goal/files; prefer `rg`.
+ChaosEngine, by Mohab Mohie. SHAFT_ENGINE is a Maven Java automation framework; config wins. Core `shaft-engine/`; optional `shaft-*`; tools `scripts/ci/`. Start at goal/files; prefer `rg`.
 
 ## Routing
 
@@ -10,7 +10,7 @@ Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure
 
 ## New Task Flow
 
-At session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse all session -- sub-tasks are commits. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR per session. Draft only if blocked/incomplete/requested.
+At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin/main`; reuse session -- sub-tasks are commits, unless file-dependent (merge first, branch+PR/issue). Before PR sync default, resolve conflicts, rerun checks; commit, push, 1 PR/session, `Closes #N`.
 
 ## Working Rules
 
