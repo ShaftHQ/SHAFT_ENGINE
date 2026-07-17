@@ -844,15 +844,19 @@ final class AssistantTranscriptView extends JPanel {
 
     /**
      * Renders an assistant-styled bubble containing {@code markdown} plus a trailing
-     * {@code actions} row (for example a "Got it" dismiss button), sharing the exact bubble chrome
-     * and word-wrap-safe {@link WidthAwareHtmlPane} rendering that persisted transcript messages
-     * use via {@link #fallbackMessage}. Intended for {@link #showWidget(String, JComponent)}
-     * callers (namely the first-run welcome) that need an assistant bubble look without adding
-     * anything to the persisted {@link #messages}/{@link #markdown} model. The returned component
-     * is plain content, not a pre-aligned row: {@link #showWidget(String, JComponent)} applies the
-     * same West/East alignment {@link #fallbackMessage} applies directly.
+     * {@code actions} row (for example a "Got it" dismiss button, or a gate's one-click fix
+     * button), sharing the exact bubble chrome and word-wrap-safe {@link WidthAwareHtmlPane}
+     * rendering that persisted transcript messages use via {@link #fallbackMessage}. Intended for
+     * {@link #showWidget(String, JComponent)} callers (the first-run welcome, and SHAFT's own
+     * deterministic pre-flight gates -- issue #3681) that need an assistant bubble look without
+     * adding anything to the persisted {@link #messages}/{@link #markdown} model. The returned
+     * component is plain content, not a pre-aligned row: {@link #showWidget(String, JComponent)}
+     * applies the same West/East alignment {@link #fallbackMessage} applies directly.
+     *
+     * @param accessibleName distinguishes each caller's bubble for accessibility tools and tests
+     *                       (e.g. "Assistant welcome message bubble" vs. a gate-specific name)
      */
-    JComponent assistantBubbleWithActions(String markdown, JComponent actions) {
+    JComponent assistantBubbleWithActions(String markdown, JComponent actions, String accessibleName) {
         Color background = resolvedColor("Panel.background", new Color(0xF6F8FA));
         Color foreground = resolvedColor("TextArea.foreground", new Color(0x202020));
         Color stroke = resolvedColor("Component.borderColor", new Color(0xD0D7DE));
@@ -862,7 +866,7 @@ final class AssistantTranscriptView extends JPanel {
         bubble.setBackground(background);
         bubble.setForeground(foreground);
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, UNKNOWN_ROLE);
-        bubble.getAccessibleContext().setAccessibleName("Assistant welcome message bubble");
+        bubble.getAccessibleContext().setAccessibleName(accessibleName);
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
         // JEditorPane under-reports the preferred height of a trailing HTML list by roughly its last
         // item's bottom margin, which cropped the final "Review code into a test" step against the

@@ -14,6 +14,7 @@ import java.awt.event.MouseListener;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -289,7 +290,8 @@ class ShaftTestsPanelTest {
         testIndex.recordRun("SignInTest", 0, 1_000L);
         ShaftTestsPanel panel = panelWithOneDiscoveredClass(testIndex);
 
-        ((JButton) panel.debugButtonForTest()).doClick();
+        assertDoesNotThrow(() -> ((JButton) panel.debugButtonForTest()).doClick(),
+                "Debug with no row selected must be a safe no-op, not throw");
     }
 
     @Test
