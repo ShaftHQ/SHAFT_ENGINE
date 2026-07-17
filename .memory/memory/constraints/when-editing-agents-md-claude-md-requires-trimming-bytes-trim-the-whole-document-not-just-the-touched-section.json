@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/constraints/when-editing-agents-md-claude-md-requires-trimming-bytes-trim-the-whole-document-not-just-the-touched-section.md",
+  "content_hash": "sha256:dcc9cca518bb9b704b62995605bbbd03267929ad16b40ad64f4893432010fe43",
+  "created_at": "2026-07-17T23:20:31+03:00",
+  "evidence": [],
+  "id": "constraint.when-editing-agents-md-claude-md-requires-trimming-bytes-trim-the-whole-document-not-just-the-touched-section",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "User process feedback: how to edit canonical instruction docs (AGENTS.md/CLAUDE.md) when byte-trimming is needed"
+  },
+  "status": "active",
+  "tags": [
+    "agents-md",
+    "instructions-editing",
+    "process"
+  ],
+  "title": "When editing AGENTS.md/CLAUDE.md requires trimming bytes, trim the whole document, not just the touched section",
+  "type": "constraint",
+  "updated_at": "2026-07-17T23:20:31+03:00"
+}

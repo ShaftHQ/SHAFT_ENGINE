@@ -335,3 +335,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689","timestamp":"2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.assistantcommandtest-pins-assistantcommand-shaft-mcp-usage-hint-with-exact-match-assertequals-any-edit-to-that-constant-must-update-localagentpromptsincludegenericshaftmcpusagehint-too","timestamp":"2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model","timestamp":"2026-07-17T21:52:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.always-pass-dallure-automaticallyopen-false-on-any-maven-run-that-can-generate-an-allure-report","timestamp":"2026-07-17T23:19:11+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.when-editing-agents-md-claude-md-requires-trimming-bytes-trim-the-whole-document-not-just-the-touched-section","timestamp":"2026-07-17T23:20:31+03:00"}
