@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
@@ -14,6 +15,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.JBColor;
+import com.intellij.ui.components.JBList;
+import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.Alarm;
@@ -23,6 +26,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -37,6 +41,8 @@ import java.awt.GridLayout;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,6 +68,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final JCheckBox headlessBrowser;
     private final JBTextArea codeSnippet;
     private final JLabel recorderStatus;
+    // Per-step review list (issue #3639): a pure projection of the latest polled recording status's
+    // "steps" array (McpMobileRecordingStatus#steps) -- no separate client-side state store. Only
+    // populated for the Playwright and Mobile backends, since capture_status (WebDriver) carries no
+    // per-step summaries and there is no capture_step_delete/capture_step_reorder tool to target.
+    private final DefaultListModel<StepRow> stepListModel = new DefaultListModel<>();
+    private final JBList<StepRow> stepList = new JBList<>(stepListModel);
+    private final JButton deleteStepButton = new JButton("Delete");
+    private final JButton moveStepUpButton = new JButton("Move Up");
+    private final JButton moveStepDownButton = new JButton("Move Down");
     private final ToolPrefill prefill;
     private final ShaftSettingsState.Settings settings;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
@@ -123,6 +138,25 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         recorderStatus.setBorder(JBUI.Borders.empty(2, 0));
         // Status is the primary surface signal (issue #3500 G2): louder than the collapsed form.
         recorderStatus.setFont(recorderStatus.getFont().deriveFont(Font.BOLD, recorderStatus.getFont().getSize2D() + 2f));
+        stepList.getAccessibleContext().setAccessibleName("Recorded steps");
+        stepList.getSelectionModel().addListSelectionListener(event -> {
+            if (!event.getValueIsAdjusting()) {
+                updateStepButtonsEnabled();
+            }
+        });
+        deleteStepButton.getAccessibleContext().setAccessibleName("Delete");
+        deleteStepButton.getAccessibleContext().setAccessibleDescription(
+                "Delete the selected recorded step (Playwright and Mobile recordings only)");
+        deleteStepButton.addActionListener(event -> deleteSelectedStep());
+        moveStepUpButton.getAccessibleContext().setAccessibleName("Move Up");
+        moveStepUpButton.getAccessibleContext().setAccessibleDescription(
+                "Move the selected recorded step earlier (Playwright and Mobile recordings only)");
+        moveStepUpButton.addActionListener(event -> moveSelectedStep("up"));
+        moveStepDownButton.getAccessibleContext().setAccessibleName("Move Down");
+        moveStepDownButton.getAccessibleContext().setAccessibleDescription(
+                "Move the selected recorded step later (Playwright and Mobile recordings only)");
+        moveStepDownButton.addActionListener(event -> moveSelectedStep("down"));
+        updateStepButtonsEnabled();
         updateTemplateDescription();
         applyTeamRecorderPolicy();
         backend.addActionListener(event -> updateFieldRelevance());
@@ -172,9 +206,24 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         advancedActions.add(partner);
         advancedActions.add(locator);
 
+        JPanel stepButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        stepButtons.add(deleteStepButton);
+        stepButtons.add(moveStepUpButton);
+        stepButtons.add(moveStepDownButton);
+
+        JPanel stepsPanel = new JPanel(new BorderLayout(4, 4));
+        stepsPanel.setBorder(JBUI.Borders.emptyTop(8));
+        stepsPanel.add(new JLabel("Recorded steps"), BorderLayout.NORTH);
+        stepsPanel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
+        stepsPanel.add(stepButtons, BorderLayout.SOUTH);
+
+        JPanel reviewArea = new JPanel(new BorderLayout(6, 6));
+        reviewArea.add(row("Code", 'C', codeSnippet), BorderLayout.NORTH);
+        reviewArea.add(stepsPanel, BorderLayout.CENTER);
+
         JPanel advancedCenter = new JPanel(new BorderLayout(6, 6));
         advancedCenter.add(advancedFields, BorderLayout.NORTH);
-        advancedCenter.add(row("Code", 'C', codeSnippet), BorderLayout.CENTER);
+        advancedCenter.add(reviewArea, BorderLayout.CENTER);
 
         JPanel advancedPanel = new JPanel(new BorderLayout(6, 6));
         advancedPanel.setBorder(JBUI.Borders.emptyTop(8));
@@ -359,6 +408,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 : playwrightBackend
                 ? "Playwright recording JSON output path (playwright_record_start outputPath)."
                 : "Capture session JSON output path (capture_start outputPath).");
+        // Critical scope boundary (issue #3639): there is no capture_step_delete/capture_step_reorder
+        // tool for the WebDriver backend, and capture_status carries no per-step summaries to select
+        // from, so the whole steps review UI is disabled rather than ever targeting a nonexistent tool.
+        boolean stepEditingSupported = playwrightBackend || mobile();
+        stepList.setEnabled(stepEditingSupported);
+        stepList.setToolTipText(stepEditingSupported
+                ? "Recorded steps for the active session; select one to delete or reorder it."
+                : "Per-step delete/reorder is only available for the Playwright and Mobile recorders.");
+        updateStepButtonsEnabled();
     }
 
     private void applyTemplate() {
@@ -997,6 +1055,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             return;
         }
         JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        // Issue #3639: the steps list is a pure projection of this same polled status, refreshed on
+        // every poll (active or the final post-stop poll) -- there is no separate client-side state
+        // store. A capture_status payload (WebDriver) has no "steps" key, so this naturally renders
+        // an empty list for that backend, matching updateFieldRelevance() disabling the controls.
+        renderStepsFromStatus(status);
         boolean active = isRecorderActive(status);
         // Feeds the shared readiness strip's recording badge (issue #3500 A4).
         if (active) {
@@ -1031,6 +1094,150 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             return;
         }
         scheduleNextStatusPoll();
+    }
+
+    // ------------------------------------------------------------------
+    // Per-step review list (issue #3639)
+    // ------------------------------------------------------------------
+
+    /**
+     * Rebuilds the steps list from the latest polled status. Always a pure projection of the wire
+     * payload (no client-side step store): a capture_status response has no {@code steps} key, so
+     * {@link #parseSteps(JsonObject)} naturally returns an empty list for the WebDriver backend.
+     * Package-private (not private) for {@code GuidedWorkflowPanelTest}, matching this class's own
+     * {@link #recorderStatusLabel()} test seam: exercises the real render path against a status
+     * fixture without needing a live polling MCP connection.
+     */
+    void renderStepsFromStatus(JsonObject status) {
+        stepListModel.clear();
+        for (StepRow step : parseSteps(status)) {
+            stepListModel.addElement(step);
+        }
+        updateStepButtonsEnabled();
+    }
+
+    /**
+     * Parses a {@code playwright_record_status}/{@code mobile_record_status} response's
+     * {@code steps} array (each entry shaped like {@code McpMobileStepSummary}: stepId, sequence,
+     * action, locatorStrategy, locatorValue, risky) into display rows. Package-private for
+     * {@code GuidedWorkflowPanelTest} (mirrors {@code ApiRecordingSessionPanel#parseTransactions}:
+     * pure parsing worth covering directly without standing up the full panel).
+     *
+     * @param status the polled status, or null
+     * @return one row per recorded step, in wire order; empty when {@code status} has no per-step
+     *         summaries (absent entirely for the WebDriver/capture backend)
+     */
+    static List<StepRow> parseSteps(JsonObject status) {
+        List<StepRow> rows = new ArrayList<>();
+        if (status == null || !status.has("steps") || !status.get("steps").isJsonArray()) {
+            return rows;
+        }
+        for (JsonElement element : status.getAsJsonArray("steps")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject step = element.getAsJsonObject();
+            long sequence = step.has("sequence") && step.get("sequence").isJsonPrimitive()
+                    ? step.get("sequence").getAsLong()
+                    : 0L;
+            boolean risky = step.has("risky") && step.get("risky").isJsonPrimitive()
+                    && step.get("risky").getAsBoolean();
+            rows.add(new StepRow(jsonString(step, "stepId"), sequence, jsonString(step, "action"),
+                    jsonString(step, "locatorStrategy"), jsonString(step, "locatorValue"), risky));
+        }
+        return rows;
+    }
+
+    /**
+     * Returns {@code "playwright"}/{@code "mobile"} for the {@code <prefix>_step_delete}/
+     * {@code <prefix>_step_reorder} tool names, or {@code null} when the active backend (WebDriver)
+     * has no step-editing tools at all -- the exact 3-way backend branch this file already uses for
+     * record_start/stop/status.
+     */
+    private String stepToolPrefix() {
+        if (mobile()) {
+            return "mobile";
+        }
+        if (playwright()) {
+            return "playwright";
+        }
+        return null;
+    }
+
+    /** Enables Delete/Move Up/Move Down only when a step is selected and the backend supports it. */
+    private void updateStepButtonsEnabled() {
+        boolean hasSelection = stepToolPrefix() != null && stepList.getSelectedIndex() >= 0;
+        deleteStepButton.setEnabled(hasSelection);
+        moveStepUpButton.setEnabled(hasSelection);
+        moveStepDownButton.setEnabled(hasSelection);
+    }
+
+    private void deleteSelectedStep() {
+        StepRow selected = stepList.getSelectedValue();
+        String prefix = stepToolPrefix();
+        if (selected == null || prefix == null) {
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("stepId", selected.stepId());
+        invokeStepTool(prefix + "_step_delete", arguments);
+    }
+
+    private void moveSelectedStep(String direction) {
+        StepRow selected = stepList.getSelectedValue();
+        String prefix = stepToolPrefix();
+        if (selected == null || prefix == null) {
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("stepId", selected.stepId());
+        arguments.addProperty("direction", direction);
+        invokeStepTool(prefix + "_step_reorder", arguments);
+    }
+
+    /**
+     * Fires a step_delete/step_reorder request through this panel's existing MCP-invocation
+     * plumbing (same fallback-to-prefill pattern as record_start/stop). On the live path, the
+     * buttons optimistically disable immediately and stay that way until the next status poll
+     * re-renders the list from the refreshed {@code steps} array and recomputes selection state --
+     * there is no separate success handler that re-enables them, matching the "no new client-side
+     * state store, always trust polled server state" rule.
+     */
+    private void invokeStepTool(String toolName, JsonObject arguments) {
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(toolName, arguments);
+            return;
+        }
+        deleteStepButton.setEnabled(false);
+        moveStepUpButton.setEnabled(false);
+        moveStepDownButton.setEnabled(false);
+        invocationService.startTool(toolName, arguments)
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("Step action failed: " + failureText(result, error));
+                    }
+                }));
+    }
+
+    /**
+     * One recorded step row, mirroring {@code McpMobileStepSummary}'s fields shown in
+     * {@link #stepList}.
+     */
+    record StepRow(String stepId, long sequence, String action, String locatorStrategy, String locatorValue,
+                    boolean risky) {
+        @Override
+        public String toString() {
+            StringBuilder text = new StringBuilder().append(sequence).append(". ").append(action);
+            if (!locatorValue.isBlank()) {
+                text.append(" (").append(locatorStrategy).append(": ").append(locatorValue).append(')');
+            }
+            if (risky) {
+                text.append(" - risky");
+            }
+            return text.toString();
+        }
     }
 
     private static boolean isRecorderActive(JsonObject status) {

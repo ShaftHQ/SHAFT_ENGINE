@@ -1,6 +1,8 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.intellij.ui.components.JBList;
 import org.junit.jupiter.api.Test;
 
 import javax.accessibility.AccessibleContext;
@@ -150,6 +152,151 @@ class GuidedWorkflowPanelTest {
         assertEquals("playwright_record_stop", last(invocations).toolName());
         review.doClick();
         assertEquals("playwright_recording_code_blocks", last(invocations).toolName());
+    }
+
+    @Test
+    void stepEditingButtonsWireCorrectToolNameAndArgumentsPerBackend() {
+        // Issue #3639: Delete/Move Up/Move Down must resolve to the exact same 3-way backend branch
+        // (playwright_/mobile_/none) that record_start/stop/status already uses, and re-render the
+        // list from whatever status fixture is fed in -- no separate client-side step store.
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        JBList<?> stepList = findByAccessibleName(panel, "Recorded steps", JBList.class);
+        JButton delete = findButton(panel, "Delete");
+        JButton moveUp = findButton(panel, "Move Up");
+        JButton moveDown = findButton(panel, "Move Down");
+        assertNotNull(backend);
+        assertNotNull(stepList);
+        assertNotNull(delete);
+        assertNotNull(moveUp);
+        assertNotNull(moveDown);
+
+        select(backend, "Playwright");
+        panel.renderStepsFromStatus(recordedStepsStatus("pw-step-1"));
+        assertAll(
+                () -> assertEquals(1, stepList.getModel().getSize()),
+                () -> assertFalse(delete.isEnabled(), "no row selected yet"),
+                () -> assertFalse(moveUp.isEnabled(), "no row selected yet"),
+                () -> assertFalse(moveDown.isEnabled(), "no row selected yet"));
+
+        stepList.setSelectedIndex(0);
+        assertAll(
+                () -> assertTrue(delete.isEnabled()),
+                () -> assertTrue(moveUp.isEnabled()),
+                () -> assertTrue(moveDown.isEnabled()));
+
+        delete.doClick();
+        CapturedInvocation playwrightDelete = last(invocations);
+        assertAll(
+                () -> assertEquals("playwright_step_delete", playwrightDelete.toolName()),
+                () -> assertEquals("pw-step-1", playwrightDelete.arguments().get("stepId").getAsString()));
+
+        moveUp.doClick();
+        CapturedInvocation playwrightMoveUp = last(invocations);
+        assertAll(
+                () -> assertEquals("playwright_step_reorder", playwrightMoveUp.toolName()),
+                () -> assertEquals("pw-step-1", playwrightMoveUp.arguments().get("stepId").getAsString()),
+                () -> assertEquals("up", playwrightMoveUp.arguments().get("direction").getAsString()));
+
+        moveDown.doClick();
+        CapturedInvocation playwrightMoveDown = last(invocations);
+        assertEquals("down", playwrightMoveDown.arguments().get("direction").getAsString());
+
+        // Switching to Mobile and feeding a fresh status fixture proves the list re-renders as a pure
+        // projection of the latest poll, and the mobile_ prefix is used instead of playwright_.
+        select(backend, "Mobile (web emulation)");
+        panel.renderStepsFromStatus(recordedStepsStatus("mobile-step-1"));
+        assertEquals(1, stepList.getModel().getSize());
+        stepList.setSelectedIndex(0);
+
+        delete.doClick();
+        CapturedInvocation mobileDelete = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_step_delete", mobileDelete.toolName()),
+                () -> assertEquals("mobile-step-1", mobileDelete.arguments().get("stepId").getAsString()));
+
+        moveUp.doClick();
+        CapturedInvocation mobileMoveUp = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_step_reorder", mobileMoveUp.toolName()),
+                () -> assertEquals("mobile-step-1", mobileMoveUp.arguments().get("stepId").getAsString()),
+                () -> assertEquals("up", mobileMoveUp.arguments().get("direction").getAsString()));
+    }
+
+    @Test
+    void stepEditingIsDisabledForWebDriverBackendWithNoStepDeleteTool() {
+        // Critical scope boundary (issue #3639): there is no capture_step_delete/capture_step_reorder
+        // tool, so the WebDriver backend must never let these buttons fire, even if a row is present
+        // and selected in the list.
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        JBList<?> stepList = findByAccessibleName(panel, "Recorded steps", JBList.class);
+        JButton delete = findButton(panel, "Delete");
+        JButton moveUp = findButton(panel, "Move Up");
+        JButton moveDown = findButton(panel, "Move Down");
+
+        select(backend, "WebDriver");
+        assertFalse(stepList.isEnabled(), "WebDriver has no per-step summaries or step_delete/reorder tools");
+
+        panel.renderStepsFromStatus(recordedStepsStatus("orphan-step"));
+        stepList.setSelectedIndex(0);
+        assertAll(
+                () -> assertFalse(delete.isEnabled()),
+                () -> assertFalse(moveUp.isEnabled()),
+                () -> assertFalse(moveDown.isEnabled()));
+
+        delete.doClick();
+        moveUp.doClick();
+        moveDown.doClick();
+        assertTrue(invocations.isEmpty(),
+                "disabled step buttons must never fire a step_delete/step_reorder request");
+    }
+
+    @Test
+    void parseStepsReadsPerStepFieldsAndTreatsMissingStepsAsEmpty() {
+        // Pure parsing coverage (mirrors ApiRecordingSessionPanel#parseTransactions): confirms the
+        // wire field names read off playwright_record_status/mobile_record_status's "steps" array,
+        // and that a capture_status-shaped payload (no "steps" key at all) parses to empty rather
+        // than throwing -- the empirical basis for disabling the UI on the WebDriver backend.
+        List<GuidedWorkflowPanel.StepRow> rows =
+                GuidedWorkflowPanel.parseSteps(recordedStepsStatus("s-42"));
+        assertEquals(1, rows.size());
+        GuidedWorkflowPanel.StepRow row = rows.get(0);
+        assertAll(
+                () -> assertEquals("s-42", row.stepId()),
+                () -> assertEquals(1L, row.sequence()),
+                () -> assertEquals("click", row.action()),
+                () -> assertEquals("xpath", row.locatorStrategy()),
+                () -> assertEquals("//button[@id='s-42']", row.locatorValue()),
+                () -> assertFalse(row.risky()));
+
+        JsonObject captureStatusShape = new JsonObject();
+        captureStatusShape.addProperty("eventCount", 3);
+        assertTrue(GuidedWorkflowPanel.parseSteps(captureStatusShape).isEmpty());
+        assertTrue(GuidedWorkflowPanel.parseSteps(null).isEmpty());
+    }
+
+    private static JsonObject recordedStepsStatus(String stepId) {
+        JsonObject status = new JsonObject();
+        status.addProperty("active", true);
+        status.addProperty("actionCount", 1);
+        JsonArray steps = new JsonArray();
+        JsonObject step = new JsonObject();
+        step.addProperty("stepId", stepId);
+        step.addProperty("sequence", 1);
+        step.addProperty("action", "click");
+        step.addProperty("locatorStrategy", "xpath");
+        step.addProperty("locatorValue", "//button[@id='" + stepId + "']");
+        step.addProperty("risky", false);
+        steps.add(step);
+        status.add("steps", steps);
+        return status;
     }
 
     @Test
