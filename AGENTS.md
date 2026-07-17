@@ -25,7 +25,7 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 
 ## Windows/Codex Safety
 
-No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT.Properties.allure; defaults `true`, opens the HTML report in a browser post-run -- distinct from `allure.open`, the Allure-3-CLI-native flag, already default `false`) + GUI-off Lighthouse `-D...=false`.
+No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT.Properties.allure; defaults `true` -- opens the report in a browser post-run; not `allure.open`, the Allure-3-CLI flag, already `false`) + GUI-off Lighthouse `-D...=false`.
 
 ## Memory & Learning Loop
 
@@ -58,12 +58,12 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree facts: just `rg` the pom) -> `ci-failure-investigator` on breakage.
 - `context7`: past-cutoff library APIs only, else repo exemplars.
 - Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
-- Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`test-driven-development`/`graphify`/`work-github`.
+- Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`caveman`/`test-driven-development`/`graphify`/`work-github`.
 - Local infra: gbrain + `gbrain-ollama` Docker.
 
 ## Agent Hierarchy & Model Routing
 
-When Fable holds the main thread it plans, delegates, reviews, and verifies with real checks -- it does not implement. Route implementation down: Haiku first (mechanical/spec-exact/bulk work), Sonnet (one bounded component per written spec), Explore/Plan for research. Synthesis and final verification stay in the main thread. Every delegated prompt embeds the act-as-fable covenant; subagents return conclusions, not file dumps; verify their claims against real files before building on them; check the graphify cache before broad exploration. No Workflow tool or saved workflows (`.claude/workflows/` stays deleted). PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
+Fable plans/delegates/reviews/verifies on the main thread; it does not implement. Route down: Haiku (mechanical/spec-exact/bulk), Sonnet (one bounded component per written spec), Explore/Plan for research; synthesis + final verification stay on the main thread. Delegation tiers, the subagent covenant, and the architectural-decision second pass are owned by act-as-fable. No Workflow tool or saved workflows (`.claude/workflows/` stays deleted). PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
 
 ## Completion
 

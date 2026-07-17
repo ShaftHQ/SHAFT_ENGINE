@@ -70,7 +70,7 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 150000,
-  "minimum_reduction_percent": 55,
+  "minimum_reduction_percent": 53,
   "expected_skill_names": {
     ".agents/skills": [
       "agent-guidance-boundary-guard",
@@ -90,6 +90,7 @@
     ],
     ".claude/skills": [
       "act-as-fable",
+      "caveman",
       "graphify",
       "ponytail",
       "shaft-mastery",
@@ -180,5 +181,5 @@
     ".github/skills/qwen/"
   ],
   "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml",
-  "notes": "Two-tier budget: estimated_host_tokens caps the ALWAYS-LOADED per-session cost (instruction files + skill name/description metadata); the byte-reduction floor only bounds on-disk guidance sprawl - skill BODIES are lazy-loaded on trigger and dominate guidance_bytes. Judge session cost by host tokens first. 2026-07-12: floor 68->55 to admit repo-local skills (ponytail, shaft-mastery, test-driven-development); AGENTS.md cap 5632->6144 for model routing + skill roster. Host token cap 2700->2900 (copilot carries AGENTS.md + 3 instruction files; the skill-roster discovery line is worth the 85 tokens). AGENTS.md cap 6144->6528 for the Learning Loop (route session learnings to memory/graphify/skills/followup issues; Completion must report them) -- the compounding-knowledge behavior is always-on by design, so it lives in the always-loaded file; offset partly by retiring the one-off a11ymcp note into a tracked issue. 2026-07-16: added work-github (thin SKILL.md + references/playbook.md, matching the shaft-mastery/graphify pattern) inside the existing floor -- no cap changes needed."
+  "notes": "Two-tier budget: estimated_host_tokens caps the ALWAYS-LOADED per-session cost (instruction files + skill name/description metadata); the byte-reduction floor only bounds on-disk guidance sprawl - skill BODIES are lazy-loaded on trigger and dominate guidance_bytes. Judge session cost by host tokens first. 2026-07-12: floor 68->55 to admit repo-local skills (ponytail, shaft-mastery, test-driven-development); AGENTS.md cap 5632->6144 for model routing + skill roster. Host token cap 2700->2900 (copilot carries AGENTS.md + 3 instruction files; the skill-roster discovery line is worth the 85 tokens). AGENTS.md cap 6144->6528 for the Learning Loop (route session learnings to memory/graphify/skills/followup issues; Completion must report them) -- the compounding-knowledge behavior is always-on by design, so it lives in the always-loaded file; offset partly by retiring the one-off a11ymcp note into a tracked issue. 2026-07-16: added work-github (thin SKILL.md + references/playbook.md, matching the shaft-mastery/graphify pattern) inside the existing floor -- no cap changes needed. 2026-07-18: floor 55->53 to admit the user-requested vendored `caveman` terse-prose skill (MIT, JuliusBrussee/caveman; wenyan modes + examples dropped) + the act-as-fable architectural-decision second-pass rule; act-as-fable and AGENTS.md were genuinely tightened first (~1KB reclaimed) so the floor move is the minimum single admitting the additions, mirroring the 2026-07-12 precedent. Same PR fixed #3709's real defects independently: the copilot host-token overage (real, LF-independent) via AGENTS.md trims, and the total-reduction/collect_metrics byte count switched from raw stat().st_size (CRLF-inflated on Windows working trees) to LF-normalized len(read_text().encode()) so it matches the per-file byte check and the LF blobs CI checks out -- the earlier 'over budget' reading was a Windows-CRLF measurement artifact (CI on ubuntu was already under)."
 }

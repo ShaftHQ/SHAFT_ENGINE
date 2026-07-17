@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/decisions/karpathy-top-10-skills-zero-net-new-all-covered-by-act-as-fable-and-ponytail.md",
+  "content_hash": "sha256:6fbb7cbb2adab17ed488b8cb8d54bee83d612eae0b0b6174ce9cb299845e1205",
+  "created_at": "2026-07-18T02:55:15+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.karpathy-top-10-skills-zero-net-new-all-covered-by-act-as-fable-and-ponytail",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "research gbrain reliability vs obsidian; vendor caveman; karpathy skills; act-as-fable arch-decision rule; issue #3709 budget"
+  },
+  "status": "active",
+  "tags": [
+    "karpathy",
+    "skills",
+    "act-as-fable",
+    "decision",
+    "no-op"
+  ],
+  "title": "Karpathy top-10 skills: zero net-new, all covered by act-as-fable and ponytail",
+  "type": "decision",
+  "updated_at": "2026-07-18T02:55:15+03:00"
+}

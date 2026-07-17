@@ -333,7 +333,7 @@
 {"actor":"agent","event":"memory.created","id":"decision.codex-activity-recap-footer-merges-denial-failure-into-one-bucket-labelled-differently-from-claudes","timestamp":"2026-07-17T21:49:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-platform-allicons-constants-render-blank-in-the-headless-screenshot-renderer-harness-use-shafticons-bundled-svgs-instead","timestamp":"2026-07-17T22:00:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689","timestamp":"2026-07-17T21:59:46+03:00"}
-{"actor":"agent","event":"memory.created","id":"gotcha.assistantcommandtest-pins-assistantcommand-shaft-mcp-usage-hint-with-exact-match-assertequals-any-edit-to-that-constant-must-update-localagentpromptsincludegenericshaftmcpusagehint-too","timestamp":"2026-07-17T21:59:46+03:00"}
+{"actor": "agent", "event": "memory.created", "id": "gotcha.assistantcommandtest-exact-match-mcp-usage-hint", "timestamp": "2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model","timestamp":"2026-07-17T21:52:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency","timestamp":"2026-07-17T22:59:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-prior-javadoc-claim-about-sm-test-framework-ui-dependency-cost-was-stale-inaccurate","timestamp":"2026-07-17T22:59:55+03:00"}
@@ -348,3 +348,8 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it","timestamp":"2026-07-17T23:38:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-3695-run-timeline-list-removed-folded-into-per-message-chat-bubbles","timestamp":"2026-07-17T23:38:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-remember-stdin-tags-must-be-all-lowercase-or-schema-validation-fails-with-no-detail","timestamp":"2026-07-17T23:39:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.gbrain-2026-07-18-re-spike-retrieval-reliable-with-source-id-keep-as-local-accelerator-memory-stays-canonical","timestamp":"2026-07-18T02:55:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gbrain-remote-mcp-query-needs-explicit-source-id-shaft-engine-default-and-all-return-empty","timestamp":"2026-07-18T02:55:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.vendored-caveman-terse-prose-skill-mit-proxy-free-core-into-claude-skills","timestamp":"2026-07-18T02:55:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.obsidian-migration-rejected-memory-already-meets-local-source-controllable-gbrain-accelerator-recovered","timestamp":"2026-07-18T02:55:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.karpathy-top-10-skills-zero-net-new-all-covered-by-act-as-fable-and-ponytail","timestamp":"2026-07-18T02:55:15+03:00"}
