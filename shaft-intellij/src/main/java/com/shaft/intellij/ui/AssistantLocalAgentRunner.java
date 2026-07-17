@@ -1575,21 +1575,8 @@ final class AssistantLocalAgentRunner {
         }
         String[] lines = trimmed.split("\\r?\\n");
         int lastLineIndex = lines.length - 1;
-        String lastLine = lines[lastLineIndex].strip();
-        if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
-            return trimmed;
-        }
-        JsonObject parsed;
-        try {
-            JsonElement element = JsonParser.parseString(lastLine);
-            if (!element.isJsonObject()) {
-                return trimmed;
-            }
-            parsed = element.getAsJsonObject();
-        } catch (JsonParseException exception) {
-            return trimmed;
-        }
-        if (usageFromHolder(parsed) == null) {
+        JsonObject parsed = parseTrailingJsonLine(lines[lastLineIndex].strip());
+        if (parsed == null || usageFromHolder(parsed) == null) {
             return trimmed;
         }
         StringBuilder remainder = new StringBuilder();
@@ -1597,6 +1584,24 @@ final class AssistantLocalAgentRunner {
             remainder.append(lines[index]).append('\n');
         }
         return remainder.toString().strip();
+    }
+
+    /**
+     * Parses {@code lastLine} as a trailing metadata JSON object (the shape both {@link
+     * #stripTrailingUsageMetadata} and {@link #parsePlanProposal} look for), or {@code null} when
+     * it isn't brace-delimited or isn't valid/object JSON. Shared so neither caller re-implements
+     * the same guard-clause parse and to keep each caller's own NPath complexity low.
+     */
+    private static JsonObject parseTrailingJsonLine(String lastLine) {
+        if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
+            return null;
+        }
+        try {
+            JsonElement element = JsonParser.parseString(lastLine);
+            return element.isJsonObject() ? element.getAsJsonObject() : null;
+        } catch (JsonParseException exception) {
+            return null;
+        }
     }
 
     /**
@@ -1614,18 +1619,8 @@ final class AssistantLocalAgentRunner {
             return null;
         }
         String[] lines = trimmed.split("\\r?\\n");
-        String lastLine = lines[lines.length - 1].strip();
-        if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
-            return null;
-        }
-        JsonObject parsed;
-        try {
-            JsonElement element = JsonParser.parseString(lastLine);
-            if (!element.isJsonObject()) {
-                return null;
-            }
-            parsed = element.getAsJsonObject();
-        } catch (JsonParseException exception) {
+        JsonObject parsed = parseTrailingJsonLine(lines[lines.length - 1].strip());
+        if (parsed == null) {
             return null;
         }
         JsonElement planElement = parsed.get("plan");
