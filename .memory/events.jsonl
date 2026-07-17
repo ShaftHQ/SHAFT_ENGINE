@@ -335,3 +335,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689","timestamp":"2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.assistantcommandtest-pins-assistantcommand-shaft-mcp-usage-hint-with-exact-match-assertequals-any-edit-to-that-constant-must-update-localagentpromptsincludegenericshaftmcpusagehint-too","timestamp":"2026-07-17T21:59:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model","timestamp":"2026-07-17T21:52:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.java-awt-gridlayout-reserves-full-row-height-for-invisible-children-unlike-borderlayout-boxlayout-which-collapse-them-to-zero","timestamp":"2026-07-17T23:13:57+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.toolapprovalpromptpanel-approval-scope-buttons-are-color-coded-green-blue-yellow-via-jbcolor-not-font-dimmed-to-nudge-toward-broader-approval-scopes","timestamp":"2026-07-17T23:13:57+03:00"}
