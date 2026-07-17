@@ -1,0 +1,1 @@
+2026-07-17: user confirmed the existing SHAFT_ENGINE standing merge authorization also applies to the ShaftHQ slash shafthq dot github dot io docs repo, not just SHAFT_ENGINE. Confirmed during a session that closed out the 9 open tickets across both repos. Do not re-ask before merging a green docs-repo PR opened under this contract.
