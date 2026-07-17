@@ -43,6 +43,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private final ShaftMcpSetupPanel.AgentReadinessProbe deepReadinessProbe;
     private ShaftFeaturePanel advancedTools;
     private ShaftAssistantPanel assistantPanel;
+    private RecorderToolPanel recorderPanel;
     private List<ShaftFeaturePanel> featurePanels = List.of();
     private List<WorkflowView> workflowViews = List.of();
     private ApiRecordingSessionPanel apiRecordingPanel;
@@ -102,6 +103,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         workflowLayout = null;
         advancedTools = null;
         assistantPanel = null;
+        recorderPanel = null;
         featurePanels = List.of();
         workflowViews = List.of();
         add(setup, BorderLayout.CENTER);
@@ -134,8 +136,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
             ShaftTestsPanel shaftTests = new ShaftTestsPanel(project);
             VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
-            ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
-                    List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
+            RecorderToolPanel recorder = new RecorderToolPanel(project, settings);
+            recorderPanel = recorder;
             ShaftFeaturePanel inspectorTools = new ShaftFeaturePanel(project, settings,
                     List.of(new ToolCategory("Inspector", ToolTemplates.inspector())));
             ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
@@ -144,12 +146,12 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             ShaftFeaturePanel projectsTools = new ShaftFeaturePanel(project, settings,
                     List.of(new ToolCategory("Projects", ToolTemplates.projects())));
             advancedTools = new ShaftFeaturePanel(project, settings);
-            featurePanels.add(recorderTools);
+            featurePanels.add(recorder.featurePanel());
             featurePanels.add(inspectorTools);
             featurePanels.add(evidenceTools);
             featurePanels.add(projectsTools);
             featurePanels.add(advancedTools);
-            views.add(new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW));
+            views.add(new WorkflowView("Recorder", recorder, ShaftIcons.VIEW));
             views.add(new WorkflowView("Inspector", inspectorTools, ShaftIcons.SEARCH));
             views.add(new WorkflowView("Triage", triage, ShaftIcons.CHECK));
             views.add(new WorkflowView("SHAFT Tests", shaftTests, ShaftIcons.RERUN));
@@ -347,8 +349,17 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             return;
         }
         for (ShaftFeaturePanel panel : featurePanels) {
-            if (panel.prefillTool(toolName, arguments)) {
-                selectWorkflow(panel);
+            // The Recorder tab's visible WorkflowView component is the composite RecorderToolPanel,
+            // not its embedded ShaftFeaturePanel held here for tool-name lookup (issue #3665 part B)
+            // -- routing through RecorderToolPanel#prefillTool both keeps that identity match working
+            // for selectWorkflow() below and expands its Advanced section for a tool the curated
+            // Quick Start section does not surface.
+            boolean isRecorderFeaturePanel = recorderPanel != null && panel == recorderPanel.featurePanel();
+            boolean matched = isRecorderFeaturePanel
+                    ? recorderPanel.prefillTool(toolName, arguments)
+                    : panel.prefillTool(toolName, arguments);
+            if (matched) {
+                selectWorkflow(isRecorderFeaturePanel ? recorderPanel : panel);
                 return;
             }
         }
