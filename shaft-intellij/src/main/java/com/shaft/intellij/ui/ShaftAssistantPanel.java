@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -28,6 +29,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpProgress;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.mcp.ShaftPluginExecutor;
+import com.shaft.intellij.notifications.ShaftNotifier;
 import com.shaft.intellij.settings.ShaftCredentialService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
@@ -41,6 +43,7 @@ import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
@@ -53,6 +56,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -68,9 +72,13 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -177,6 +185,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton copyLastResponse;
     private final JButton copyRawResponse;
     private final JButton copyTranscript;
+    private final JButton saveTranscript;
     private final JPanel captureReviewPanel;
     private final JLabel captureReviewStatus;
     private final JButton approveCaptureReview;
@@ -479,6 +488,10 @@ final class ShaftAssistantPanel extends JPanel {
         copyTranscript = button("Copy all", "Copy assistant transcript",
                 event -> copyFullTranscript());
         ShaftIconButtons.apply(copyTranscript, ShaftIcons.COPY);
+        saveTranscript = button("Save transcript", "Save assistant transcript to file",
+                event -> saveTranscript());
+        saveTranscript.setMnemonic(java.awt.event.KeyEvent.VK_S);
+        ShaftIconButtons.apply(saveTranscript, ShaftIcons.DOWNLOAD);
         captureReviewStatus = new JLabel("Capture review ready");
         captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
         // Accessible description mirrors the live status text (issue #3603): see
@@ -586,6 +599,7 @@ final class ShaftAssistantPanel extends JPanel {
         actionRow.add(copyLastResponse);
         actionRow.add(copyRawResponse);
         actionRow.add(copyTranscript);
+        actionRow.add(saveTranscript);
         actionRow.add(clearTranscript);
         actionRow.add(rerunLastPrompt);
         actionRow.add(reconnect);
@@ -1478,8 +1492,10 @@ final class ShaftAssistantPanel extends JPanel {
         CompletableFuture<ToolApprovalDecision> future = new CompletableFuture<>();
         ToolApprovalPromptPanel approvalPanel = new ToolApprovalPromptPanel(toolName, arguments, capability, future::complete);
         transcript.showWidget("assistant", approvalPanel);
+        runOnEdt(approvalPanel::focusFirstDecisionButton);
         future.whenComplete((decision, error) -> runOnEdt(() -> {
             transcript.clearWidget();
+            prompt.requestFocusInWindow();
             if (decision == null) {
                 return;
             }
@@ -2098,6 +2114,7 @@ final class ShaftAssistantPanel extends JPanel {
         ToolApprovalPromptPanel approvalPanel = new ToolApprovalPromptPanel(
                 toolName, input, ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decisionFuture::complete);
         transcript.showWidget("assistant", approvalPanel);
+        runOnEdt(approvalPanel::focusFirstDecisionButton);
         decisionFuture.whenComplete((decision, error) -> runOnEdt(
                 () -> resolveLocalAgentApproval(streamToken, toolName, decision, future)));
     }
@@ -2139,6 +2156,8 @@ final class ShaftAssistantPanel extends JPanel {
         Runnable next = queuedLocalAgentApprovalPrompts.poll();
         if (next != null) {
             next.run();
+        } else {
+            prompt.requestFocusInWindow();
         }
     }
 
@@ -2664,6 +2683,82 @@ final class ShaftAssistantPanel extends JPanel {
             return transcriptText;
         }
         return transcriptText + "\n\n" + evidenceText;
+    }
+
+    private static final String LAST_SAVE_DIRECTORY_KEY = "shaft.intellij.assistant.transcript.lastSaveDirectory";
+
+    private void saveTranscript() {
+        Path defaultDirectory = lastSaveDirectory();
+        JFileChooser chooser = new JFileChooser(defaultDirectory.toFile());
+        chooser.setDialogTitle("Save Transcript");
+        chooser.setFileFilter(new FileNameExtensionFilter("Markdown", "md"));
+        chooser.setSelectedFile(new File(defaultDirectory.toFile(), defaultTranscriptFileName()));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path target = withMarkdownExtension(chooser.getSelectedFile()).toPath();
+        Path parent = target.getParent();
+        if (parent != null && project != null) {
+            PropertiesComponent.getInstance(project).setValue(LAST_SAVE_DIRECTORY_KEY, parent.toString());
+        }
+        writeTranscriptToFile(target);
+    }
+
+    private static File withMarkdownExtension(File selected) {
+        if (selected.getName().toLowerCase(Locale.ROOT).endsWith(".md")) {
+            return selected;
+        }
+        return new File(selected.getParentFile(), selected.getName() + ".md");
+    }
+
+    private Path lastSaveDirectory() {
+        if (project != null) {
+            String saved = PropertiesComponent.getInstance(project).getValue(LAST_SAVE_DIRECTORY_KEY);
+            if (saved != null && !saved.isBlank()) {
+                return Path.of(saved);
+            }
+            String basePath = project.getBasePath();
+            if (basePath != null && !basePath.isBlank()) {
+                return Path.of(basePath);
+            }
+        }
+        return Path.of(System.getProperty("user.home", "."));
+    }
+
+    private static String defaultTranscriptFileName() {
+        String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(LocalDateTime.now());
+        return "shaft-assistant-" + timestamp + ".md";
+    }
+
+    private void writeTranscriptToFile(Path target) {
+        String content = exportTranscriptWithEvidence();
+        ApplicationManager.getApplication().executeOnPooledThread(() -> {
+            try {
+                writeTranscriptSync(target, content);
+                ApplicationManager.getApplication().invokeLater(() -> notifyTranscriptSaved(target));
+            } catch (IOException e) {
+                ApplicationManager.getApplication().invokeLater(() -> notifyTranscriptSaveFailed(e));
+            }
+        });
+    }
+
+    /**
+     * Synchronous write body run off the EDT by {@link #writeTranscriptToFile(Path)}. Kept as a
+     * separate seam (no threading, no notifications) so tests can exercise the actual write logic
+     * headlessly and deterministically, without polling a pooled-thread background task.
+     */
+    private void writeTranscriptSync(Path target, String content) throws IOException {
+        Files.writeString(target, content);
+    }
+
+    private void notifyTranscriptSaved(Path target) {
+        ShaftNotifier.infoWithAction(project, "Transcript saved", target.toString(),
+                "Open", () -> openFileInEditor(target));
+    }
+
+    private void notifyTranscriptSaveFailed(IOException error) {
+        ShaftNotifier.warn(project, "Failed to save transcript",
+                error.getMessage() == null ? error.toString() : error.getMessage());
     }
 
     private void appendToolEvidence(String toolName, String evidence) {

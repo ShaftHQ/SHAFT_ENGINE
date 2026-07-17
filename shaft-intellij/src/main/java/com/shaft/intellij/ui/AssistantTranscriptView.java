@@ -35,10 +35,13 @@ import javax.swing.BoxLayout;
 import javax.swing.SwingUtilities;
 import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -48,8 +51,6 @@ import java.awt.Dimension;
 import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -66,6 +67,10 @@ import java.util.regex.Pattern;
  */
 final class AssistantTranscriptView extends JPanel {
     private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
+    // Rendered-line-count threshold (measured via FontMetrics against the actual rendered HTML
+    // height, not raw markdown characters, so wrapped paragraphs and code blocks count fairly)
+    // above which a bubble collapses by default -- issue #3629.
+    private static final int COLLAPSE_LINE_THRESHOLD = 40;
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -93,6 +98,12 @@ final class AssistantTranscriptView extends JPanel {
     // every other messages-mutating path (clear/setMarkdown/setMessages/replaceLast) keeps this list
     // sized to match messages, backfilling "" since old evidence was never persisted to restore.
     private final List<String> messageRawEvidence = new ArrayList<>();
+    // 1:1 with `messages` -- one rendered bubble handle per persisted message, kept in sync so
+    // append()/replaceLast() can mutate the transcript incrementally (issue #3628) instead of
+    // rebuilding every bubble on every streamed line. Reset (cleared and repopulated) by every full
+    // renderFallbackTranscript() pass; never touched outside rendering code.
+    private final List<RenderedBubble> renderedBubbles = new ArrayList<>();
+    private int bubbleCreationCount;
     private String markdown = "";
     private final LafManagerListener lafListener;
     private Disposable lafConnectionDisposable;
@@ -177,9 +188,18 @@ final class AssistantTranscriptView extends JPanel {
      * @param rawEvidence raw evidence to show behind the disclosure toggle, or blank/{@code null} for none
      */
     void append(String role, String message, String rawEvidence) {
+        int sizeBeforeAdd = messages.size();
         addMessage(role, message, rawEvidence);
+        if (messages.size() == sizeBeforeAdd) {
+            // addMessage() silently dropped a blank message -- nothing changed, nothing to render.
+            return;
+        }
         markdown = joinMessages(messages);
-        refresh();
+        if (canAppendIncrementally()) {
+            appendBubbleIncrementally(messages.size() - 1);
+        } else {
+            refresh();
+        }
     }
 
     void replaceLast(String role, String message) {
@@ -197,7 +217,77 @@ final class AssistantTranscriptView extends JPanel {
         // the message being overwritten, and replaceLast() has no evidence of its own to carry over.
         setLastRawEvidence("");
         markdown = joinMessages(messages);
-        refresh();
+        if (updateLastBubbleIncrementally(last.role, message)) {
+            scrollLatestIntoView();
+        } else {
+            refresh();
+        }
+    }
+
+    /**
+     * Whether the just-appended last message can be added as a single new bubble instead of
+     * rebuilding the whole transcript (issue #3628). Declines -- falling back to a full
+     * {@link #refresh()} -- whenever a structural artifact would need to move as a result of this
+     * append, rather than trying to reposition it incrementally:
+     * <ul>
+     *   <li>a transient {@link #pendingWidget} is showing (always trailing; a real persisted append
+     *       from {@code ShaftAssistantPanel} always calls {@link #clearWidget()} first, so this is
+     *       purely a defensive guard against a caller that doesn't);</li>
+     *   <li>{@link #renderedBubbles} has drifted out of sync with {@link #messages} (should never
+     *       happen; defensive guard);</li>
+     *   <li>the truncation divider needs to render immediately before the new last message.</li>
+     * </ul>
+     */
+    private boolean canAppendIncrementally() {
+        return pendingWidget == null
+                && renderedBubbles.size() == messages.size() - 1
+                && truncationBoundaryIndex != messages.size() - 1;
+    }
+
+    private void appendBubbleIncrementally(int index) {
+        ShaftAssistantChatState.Message message = messages.get(index);
+        String rawEvidence = index < messageRawEvidence.size() ? messageRawEvidence.get(index) : "";
+        RenderedBubble handle = fallbackMessage(message.role, message.markdown, rawEvidence);
+        fallbackPanel.add(handle.row);
+        renderedBubbles.add(handle);
+        fallbackPanel.revalidate();
+        fallbackPanel.repaint();
+        scrollLatestIntoView();
+    }
+
+    /**
+     * Mutates the already-rendered last bubble's HTML content in place -- no new Swing components --
+     * instead of rebuilding the whole transcript on every streamed line (issue #3628). Returns
+     * {@code false} (leaving the caller to fall back to a full {@link #refresh()}) when the role
+     * changed, since that also changes the bubble's side/colors/accessible names, which this
+     * in-place path does not attempt to reproduce.
+     */
+    private boolean updateLastBubbleIncrementally(String role, String updatedMarkdown) {
+        if (renderedBubbles.size() != messages.size()) {
+            return false;
+        }
+        RenderedBubble handle = renderedBubbles.get(renderedBubbles.size() - 1);
+        if (!role.equals(handle.role)) {
+            return false;
+        }
+        Color foreground = handle.htmlPane.getForeground();
+        Color background = handle.bubble.getBackground();
+        String rendered = toFallbackHtml(convertMarkdown(updatedMarkdown), foreground, background);
+        handle.htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
+        handle.htmlPane.setText(rendered);
+        handle.htmlPane.setCaretPosition(0);
+        handle.outputPanel.updateCollapseState();
+        removeRawEvidenceDisclosure(handle.bubble);
+        handle.bubble.revalidate();
+        handle.bubble.repaint();
+        return true;
+    }
+
+    private void removeRawEvidenceDisclosure(JPanel bubble) {
+        Component south = ((BorderLayout) bubble.getLayout()).getLayoutComponent(BorderLayout.SOUTH);
+        if (south != null) {
+            bubble.remove(south);
+        }
     }
 
     void setMarkdown(String value) {
@@ -271,6 +361,16 @@ final class AssistantTranscriptView extends JPanel {
         return pendingWidget;
     }
 
+    /**
+     * Total bubble Swing components constructed since this view was created, across both full
+     * rebuilds and incremental appends -- lets tests assert streamed {@link #replaceLast(String,
+     * String)} calls mutate the existing last bubble instead of constructing a new one each time
+     * (issue #3628).
+     */
+    int bubbleCreationCountForTest() {
+        return bubbleCreationCount;
+    }
+
     private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
         JBScrollPane scrollPane = new JBScrollPane(fallbackPanel);
         scrollPane.setBorder(JBUI.Borders.empty());
@@ -319,19 +419,127 @@ final class AssistantTranscriptView extends JPanel {
         Color transcriptBackground = resolvedColor("TextArea.background", Color.WHITE);
         fallbackPanel.removeAll();
         fallbackPanel.setBackground(transcriptBackground);
+        renderedBubbles.clear();
         for (int i = 0; i < messages.size(); i++) {
             if (i == truncationBoundaryIndex) {
                 fallbackPanel.add(createTruncationDivider());
             }
             ShaftAssistantChatState.Message message = messages.get(i);
             String rawEvidence = i < messageRawEvidence.size() ? messageRawEvidence.get(i) : "";
-            fallbackPanel.add(fallbackMessage(message.role, message.markdown, rawEvidence));
+            RenderedBubble handle = fallbackMessage(message.role, message.markdown, rawEvidence);
+            fallbackPanel.add(handle.row);
+            renderedBubbles.add(handle);
         }
         if (pendingWidget != null) {
             fallbackPanel.add(widgetRow(pendingWidgetRole, pendingWidget));
         }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
+    }
+
+    /**
+     * Handle to one persisted message's rendered bubble, tracked so {@link #append(String, String,
+     * String)} and {@link #replaceLast(String, String)} can mutate the transcript incrementally
+     * (issue #3628) instead of rebuilding every bubble on every streamed line.
+     */
+    private static final class RenderedBubble {
+        private final JComponent row;
+        private final JPanel bubble;
+        private final JEditorPane htmlPane;
+        private final String role;
+        private final CollapsibleOutputPanel outputPanel;
+
+        private RenderedBubble(JComponent row, JPanel bubble, JEditorPane htmlPane, String role,
+                CollapsibleOutputPanel outputPanel) {
+            this.row = row;
+            this.bubble = bubble;
+            this.htmlPane = htmlPane;
+            this.role = role;
+            this.outputPanel = outputPanel;
+        }
+    }
+
+    /**
+     * Wraps a message's {@link JEditorPane} so it renders collapsed (clipped to {@link
+     * #COLLAPSE_LINE_THRESHOLD} rendered lines, tall content clipped rather than scrolled) with a
+     * keyboard-focusable "Show full output" toggle once its rendered height exceeds the threshold --
+     * issue #3629. Content under the threshold never shows a toggle. {@link #updateCollapseState()}
+     * re-measures after every text mutation (streamed {@code replaceLast} calls) without disturbing
+     * an already-expanded bubble the user explicitly opened.
+     */
+    private static final class CollapsibleOutputPanel extends JPanel {
+        private final JEditorPane htmlPane;
+        private final Supplier<Integer> lineHeightSupplier;
+        private final JPanel clipPanel;
+        private final JButton toggle;
+        private boolean collapsed = true;
+        private boolean userExpanded;
+        private int collapsedHeightPx;
+
+        private CollapsibleOutputPanel(JEditorPane htmlPane, Supplier<Integer> lineHeightSupplier) {
+            super();
+            this.htmlPane = htmlPane;
+            this.lineHeightSupplier = lineHeightSupplier;
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setOpaque(false);
+
+            clipPanel = new JPanel(new BorderLayout()) {
+                @Override
+                public Dimension getPreferredSize() {
+                    Dimension preferred = super.getPreferredSize();
+                    if (collapsed) {
+                        return new Dimension(preferred.width, Math.min(preferred.height, collapsedHeightPx));
+                    }
+                    return preferred;
+                }
+
+                @Override
+                public Dimension getMaximumSize() {
+                    return getPreferredSize();
+                }
+            };
+            clipPanel.setOpaque(false);
+            clipPanel.add(htmlPane, BorderLayout.CENTER);
+
+            toggle = new JButton();
+            toggle.setVisible(false);
+            toggle.addActionListener(event -> {
+                collapsed = !collapsed;
+                userExpanded = !collapsed;
+                updateToggleLabel();
+                revalidate();
+                repaint();
+            });
+            JPanel toggleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            toggleRow.setOpaque(false);
+            toggleRow.setBorder(JBUI.Borders.emptyTop(4));
+            toggleRow.add(toggle);
+
+            add(clipPanel);
+            add(toggleRow);
+        }
+
+        private void updateCollapseState() {
+            int lineHeight = Math.max(1, lineHeightSupplier.get());
+            int renderedLineCount = htmlPane.getPreferredSize().height / lineHeight;
+            boolean overThreshold = renderedLineCount > COLLAPSE_LINE_THRESHOLD;
+            collapsedHeightPx = lineHeight * COLLAPSE_LINE_THRESHOLD;
+            // Independent of overThreshold: content under the threshold never clips (the cap exceeds
+            // its natural height) and its hidden toggle keeps a correct label if it later grows past
+            // the threshold via a streamed replaceLast().
+            collapsed = !userExpanded;
+            toggle.setVisible(overThreshold);
+            updateToggleLabel();
+        }
+
+        private void updateToggleLabel() {
+            String label = collapsed ? "Show full output" : "Hide full output";
+            toggle.setText(label);
+            toggle.getAccessibleContext().setAccessibleName(label);
+            toggle.getAccessibleContext().setAccessibleDescription(collapsed
+                    ? "Message content is collapsed; activate to show the full output"
+                    : "Message content is fully shown; activate to collapse it again");
+        }
     }
 
     private JComponent widgetRow(String role, JComponent component) {
@@ -407,7 +615,8 @@ final class AssistantTranscriptView extends JPanel {
         return row;
     }
 
-    private JComponent fallbackMessage(String role, String markdown, String rawEvidence) {
+    private RenderedBubble fallbackMessage(String role, String markdown, String rawEvidence) {
+        bubbleCreationCount++;
         String normalizedRole = normalizedRole(role);
         boolean user = USER_ROLE.equals(normalizedRole);
         Color background = user
@@ -431,12 +640,18 @@ final class AssistantTranscriptView extends JPanel {
         bubble.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message bubble");
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
-        bubble.add(htmlPane, BorderLayout.CENTER);
+        CollapsibleOutputPanel outputPanel = new CollapsibleOutputPanel(htmlPane, this::bodyLineHeight);
+        outputPanel.updateCollapseState();
+        bubble.add(outputPanel, BorderLayout.CENTER);
         if (rawEvidence != null && !rawEvidence.isBlank()) {
             bubble.add(rawEvidenceDisclosure(rawEvidence), BorderLayout.SOUTH);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        return row;
+        return new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
+    }
+
+    private int bodyLineHeight() {
+        return getFontMetrics(new Font(fontFamily(), Font.PLAIN, baseFontSize())).getHeight();
     }
 
     /**
@@ -545,7 +760,7 @@ final class AssistantTranscriptView extends JPanel {
         htmlPane.setBorder(JBUI.Borders.empty());
         htmlPane.setForeground(foreground);
         htmlPane.addHyperlinkListener(AssistantTranscriptView::copyCodeFromFallbackLink);
-        htmlPane.addMouseListener(new TranscriptContextMenuListener(htmlPane));
+        htmlPane.setComponentPopupMenu(buildMessageContextMenu(htmlPane));
         String rendered = toFallbackHtml(html, foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
         htmlPane.setText(rendered);
@@ -567,14 +782,18 @@ final class AssistantTranscriptView extends JPanel {
         return Math.max(JBUI.scale(140), bubbleWidth - bubblePadding);
     }
 
+    /**
+     * Built once per pane and wired via {@link JComponent#setComponentPopupMenu} so the platform's
+     * native popup triggers -- right-click AND the keyboard context-menu key / Shift+F10 on a
+     * focused pane -- open it for free, with identical items either way (issue #3630). Selection
+     * can change between build time and show time, so {@code Copy}'s enabled state is refreshed on
+     * every {@code popupMenuWillBecomeVisible} rather than fixed once at construction.
+     */
     private JPopupMenu buildMessageContextMenu(JEditorPane pane) {
         JPopupMenu menu = new JPopupMenu("Assistant transcript message actions");
-        String selectedText = pane.getSelectedText();
-        boolean hasSelection = selectedText != null && !selectedText.isEmpty();
 
         JMenuItem copyItem = new JMenuItem("Copy");
         copyItem.getAccessibleContext().setAccessibleName("Copy");
-        copyItem.setEnabled(hasSelection);
         copyItem.addActionListener(event -> copySelection(pane));
 
         JMenuItem selectAllItem = new JMenuItem("Select All");
@@ -588,6 +807,22 @@ final class AssistantTranscriptView extends JPanel {
         menu.add(copyItem);
         menu.add(selectAllItem);
         menu.add(copyFullTranscriptItem);
+        menu.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+                String selectedText = pane.getSelectedText();
+                copyItem.setEnabled(selectedText != null && !selectedText.isEmpty());
+                lastMessageContextMenu = menu;
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent event) {
+            }
+        });
         return menu;
     }
 
@@ -595,51 +830,6 @@ final class AssistantTranscriptView extends JPanel {
         Action copyAction = pane.getActionMap().get(DefaultEditorKit.copyAction);
         if (copyAction != null) {
             copyAction.actionPerformed(new ActionEvent(pane, ActionEvent.ACTION_PERFORMED, DefaultEditorKit.copyAction));
-        }
-    }
-
-    /**
-     * Right-click handler for a per-message HTML pane. Installed fresh on every
-     * pane created by {@link #fallbackHtmlPane}, so it survives transcript re-renders.
-     */
-    final class TranscriptContextMenuListener implements MouseListener {
-        private final JEditorPane pane;
-
-        private TranscriptContextMenuListener(JEditorPane pane) {
-            this.pane = pane;
-        }
-
-        @Override
-        public void mouseClicked(MouseEvent event) {
-        }
-
-        @Override
-        public void mousePressed(MouseEvent event) {
-            maybeShowPopup(event);
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent event) {
-            maybeShowPopup(event);
-        }
-
-        @Override
-        public void mouseEntered(MouseEvent event) {
-        }
-
-        @Override
-        public void mouseExited(MouseEvent event) {
-        }
-
-        private void maybeShowPopup(MouseEvent event) {
-            if (!event.isPopupTrigger()) {
-                return;
-            }
-            JPopupMenu menu = buildMessageContextMenu(pane);
-            lastMessageContextMenu = menu;
-            if (pane.isShowing()) {
-                menu.show(pane, event.getX(), event.getY());
-            }
         }
     }
 

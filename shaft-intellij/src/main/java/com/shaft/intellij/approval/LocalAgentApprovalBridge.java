@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +28,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Hosts a minimal MCP-over-HTTP server, loopback-only, that a local Claude Code CLI subprocess can
@@ -85,6 +88,9 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
     private final Gson gson = new Gson();
     private final Set<CompletableFuture<Decision>> pending = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicInteger pendingCount = new AtomicInteger();
+    private final AtomicLong accumulatedPendingMillis = new AtomicLong();
+    private volatile Instant pendingSince;
 
     private LocalAgentApprovalBridge(
             HttpServer server,
@@ -267,6 +273,7 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
     private Decision awaitDecision(String toolName, JsonObject input) {
         CompletableFuture<Decision> future = handler.requestApproval(toolName, input);
         pending.add(future);
+        beginPendingWindow();
         try {
             return future.get(decisionTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException exception) {
@@ -278,7 +285,51 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
             return Decision.deny("Approval failed: " + exception.getMessage());
         } finally {
             pending.remove(future);
+            endPendingWindow();
         }
+    }
+
+    /**
+     * Starts (or extends, if another request is already pending) a pending-approval window: only the
+     * transition from zero to one concurrently pending requests records a new {@link #pendingSince},
+     * so overlapping/parallel tool-approval requests don't double-count the same wall-clock interval.
+     */
+    private synchronized void beginPendingWindow() {
+        if (pendingCount.getAndIncrement() == 0) {
+            pendingSince = Instant.now();
+        }
+    }
+
+    private synchronized void endPendingWindow() {
+        if (pendingCount.decrementAndGet() == 0) {
+            Instant since = pendingSince;
+            pendingSince = null;
+            if (since != null) {
+                accumulatedPendingMillis.addAndGet(Duration.between(since, Instant.now()).toMillis());
+            }
+        }
+    }
+
+    /**
+     * When a decision is currently pending (a tool-approval prompt is on screen awaiting the user),
+     * the instant the current pending window began; {@code null} when nothing is pending right now.
+     */
+    public Instant pendingSince() {
+        return pendingSince;
+    }
+
+    /**
+     * Total wall-clock time spent awaiting user approval decisions so far during this bridge's
+     * lifetime, including any decision that is still pending right now. Used by the runner to extend
+     * its own run-timeout deadline so deliberation time isn't charged against the run budget.
+     */
+    public long accumulatedPendingMillis() {
+        long total = accumulatedPendingMillis.get();
+        Instant since = pendingSince;
+        if (since != null) {
+            total += Duration.between(since, Instant.now()).toMillis();
+        }
+        return total;
     }
 
     private JsonObject readRequest(HttpExchange exchange) {

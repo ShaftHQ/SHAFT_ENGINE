@@ -15,6 +15,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.accessibility.AccessibleContext;
 import javax.swing.Action;
@@ -37,6 +38,8 @@ import javax.swing.JViewport;
 import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
@@ -3618,12 +3621,8 @@ class ShaftPanelSetupTest {
         transcript.append("assistant", "First response");
 
         JEditorPane firstPane = transcriptHtmlPanes(transcript).get(0);
-        MouseListener listener = transcriptContextMenuListener(firstPane);
-        assertNotNull(listener, "Context menu listener should be installed in fallbackHtmlPane");
-
-        listener.mouseReleased(popupTriggerEvent(firstPane));
-        JPopupMenu menu = transcript.lastMessageContextMenuForTest();
-        assertNotNull(menu);
+        JPopupMenu menu = showMessageContextMenu(firstPane);
+        assertSame(menu, transcript.lastMessageContextMenuForTest());
         JMenuItem copyItem = findByAccessibleName(menu, "Copy", JMenuItem.class);
         JMenuItem selectAllItem = findByAccessibleName(menu, "Select All", JMenuItem.class);
         JMenuItem copyFullTranscriptItem = findByAccessibleName(menu, "Copy full transcript", JMenuItem.class);
@@ -3638,7 +3637,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(copyFullTranscriptItem.isEnabled()));
 
         firstPane.select(0, firstPane.getDocument().getLength());
-        listener.mouseReleased(popupTriggerEvent(firstPane));
+        showMessageContextMenu(firstPane);
         JMenuItem copyItemAfterSelection = findByAccessibleName(
                 transcript.lastMessageContextMenuForTest(), "Copy", JMenuItem.class);
         assertTrue(copyItemAfterSelection.isEnabled(), "Copy should be enabled once the pane has a selection");
@@ -3646,27 +3645,37 @@ class ShaftPanelSetupTest {
         transcript.append("assistant", "Second response");
         List<JEditorPane> panesAfterRerender = transcriptHtmlPanes(transcript);
         JEditorPane newestPane = panesAfterRerender.get(panesAfterRerender.size() - 1);
-        MouseListener listenerAfterRerender = transcriptContextMenuListener(newestPane);
-        assertNotNull(listenerAfterRerender, "Context menu should survive a transcript re-render");
-
-        listenerAfterRerender.mouseReleased(popupTriggerEvent(newestPane));
+        showMessageContextMenu(newestPane);
         assertEquals(3, transcript.lastMessageContextMenuForTest().getComponentCount());
     }
 
+    /**
+     * Issue #3630: the context menu is wired via {@link JComponent#setComponentPopupMenu}, so a
+     * single {@link JPopupMenu} instance backs both the mouse right-click trigger and the platform's
+     * keyboard trigger (Shift+F10 / the keyboard menu key) on a focused bubble -- there is no way for
+     * the two paths to diverge, and the pane must be focusable for the keyboard trigger to ever reach
+     * it. A real screen realization isn't available in this headless suite (no test here shows a
+     * live window), so the keyboard trigger is exercised the same faithful way the mouse trigger is
+     * in the test above: by invoking the exact {@code popupMenuWillBecomeVisible} lifecycle callback
+     * Swing's own {@code BasicPopupMenuUI} invokes right before painting the popup, regardless of
+     * which trigger asked for it.
+     */
     @Test
-    void assistantTranscriptContextMenuIgnoresNonPopupTriggerEvents() {
+    void assistantTranscriptMessagePaneContextMenuIsKeyboardReachableAndIdenticalEitherTrigger() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("assistant", "Response");
         JEditorPane pane = transcriptHtmlPanes(transcript).get(0);
-        MouseListener listener = transcriptContextMenuListener(pane);
-        assertNotNull(listener);
 
-        MouseEvent plainClick = new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
-                InputEvent.BUTTON1_DOWN_MASK, 4, 4, 1, false, MouseEvent.BUTTON1);
-        listener.mousePressed(plainClick);
-        listener.mouseReleased(plainClick);
+        assertTrue(pane.isFocusable(), "The message pane must be focusable for Shift+F10 to reach it");
 
-        assertNull(transcript.lastMessageContextMenuForTest());
+        JPopupMenu menu = showMessageContextMenu(pane);
+        assertAll(
+                () -> assertEquals(3, menu.getComponentCount()),
+                () -> assertNotNull(findByAccessibleName(menu, "Copy", JMenuItem.class)),
+                () -> assertNotNull(findByAccessibleName(menu, "Select All", JMenuItem.class)),
+                () -> assertNotNull(findByAccessibleName(menu, "Copy full transcript", JMenuItem.class)),
+                () -> assertSame(menu, pane.getComponentPopupMenu(),
+                        "The keyboard trigger and the mouse trigger must open the same menu instance"));
     }
 
     @Test
@@ -3684,9 +3693,7 @@ class ShaftPanelSetupTest {
 
         List<JEditorPane> panes = transcriptHtmlPanes(view);
         JEditorPane pane = panes.get(panes.size() - 1);
-        MouseListener listener = transcriptContextMenuListener(pane);
-        assertNotNull(listener);
-        listener.mouseReleased(popupTriggerEvent(pane));
+        showMessageContextMenu(pane);
 
         JMenuItem copyFullTranscriptItem = findByAccessibleName(
                 view.lastMessageContextMenuForTest(), "Copy full transcript", JMenuItem.class);
@@ -4203,6 +4210,36 @@ class ShaftPanelSetupTest {
         assertActionRowButtonsSaneAfterLayout(panel, true);
     }
 
+    @Test
+    void saveTranscriptButtonIsWiredWithIconWithoutInvokingFileChooser() {
+        // Deliberately does NOT click the button: doing so would invoke the real
+        // FileChooserFactory save dialog, which hangs/crashes in this headless suite.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        JButton saveTranscript = findByAccessibleName(panel, "Save assistant transcript to file", JButton.class);
+
+        assertAll(
+                () -> assertNotNull(saveTranscript, "Save transcript button should be wired into the action row"),
+                () -> assertNotNull(saveTranscript.getIcon(), "save transcript button should have an icon"));
+    }
+
+    @Test
+    void writeTranscriptSyncWritesExportedTranscriptContent(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+
+        Path target = tempDir.resolve("test-transcript.md");
+        String expectedExport = assistantExport(panel);
+
+        writeTranscriptSync(panel, target, expectedExport);
+
+        assertAll(
+                () -> assertTrue(Files.exists(target), "transcript file should have been written"),
+                () -> assertEquals(expectedExport, Files.readString(target),
+                        "saved transcript content should equal exportTranscriptWithEvidence() output"));
+    }
+
     /**
      * Resolves the same container that {@code ShaftAssistantPanel.refreshActionRowLayout()}
      * revalidates/repaints: the action row's parent, falling back to the action row itself.
@@ -4642,6 +4679,63 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(decision.get().allowed()));
     }
 
+    /**
+     * Issue #3632: a keyboard-only or screen-reader user gets no signal an approval decision is
+     * needed unless focus moves to the prompt. Headless Swing components are never "showing" in
+     * this suite (see #3630), so {@code requestFocusInWindow()} cannot actually move real keyboard
+     * focus here; what this test can reliably verify is that the new {@code
+     * runOnEdt(approvalPanel::focusFirstDecisionButton)} wiring in {@code
+     * showLocalAgentApprovalPrompt} runs end-to-end without throwing, and that the button it
+     * targets is genuinely focusable/enabled -- the precondition for the fix to work in a real,
+     * realized IDE window.
+     */
+    @Test
+    void localAgentApprovalPromptFocusesFirstDecisionButtonWhenShown() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 13);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 13);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        ToolApprovalPromptPanel widget = (ToolApprovalPromptPanel) transcriptWidget(panel);
+        assertNotNull(widget, "an unapproved local-agent tool call must render an approval prompt");
+        JButton firstButton = widget.decisionButtonsForTest().get(0);
+        assertAll(
+                () -> assertTrue(firstButton.isFocusable(), "the first decision button must be focusable"),
+                () -> assertTrue(firstButton.isEnabled(),
+                        "the first decision button must be enabled to receive focus"));
+    }
+
+    /**
+     * Issue #3632: focus should return to the composer after a decision resolves the widget slot,
+     * so the keyboard-only user can keep typing. Coverage of the "but NOT when a second prompt is
+     * queued" nuance in {@code resolveLocalAgentApproval} is intentionally not duplicated here as a
+     * brittle focus-introspection assertion: {@link #secondQueuedLocalAgentApprovalShowsAfterTheFirstResolves}
+     * already asserts that resolving the first of two queued prompts immediately shows the second
+     * widget, which is only true if the {@code next.run()} branch ran instead of the {@code
+     * prompt.requestFocusInWindow()} branch -- that existing, unmodified test remaining green after
+     * this change is the regression proof for the queued case.
+     */
+    @Test
+    void localAgentApprovalRestoresComposerFocusAfterADecisionWithNothingQueued() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 14);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 14);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        JButton approveOnce = approvalDecisionButton((ToolApprovalPromptPanel) transcriptWidget(panel), "Approve once");
+        SwingUtilities.invokeAndWait(approveOnce::doClick);
+
+        JBTextArea prompt = (JBTextArea) getField(panel, "prompt");
+        assertAll(
+                () -> assertNull(transcriptWidget(panel), "the prompt should clear once approved"),
+                () -> assertTrue(prompt.isFocusable(), "composer must be focusable to receive the restored focus"));
+    }
+
     @Test
     void localAgentDenyCompletesDenyAndFoldsOutcomeIntoStreamBubble() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
@@ -4944,18 +5038,20 @@ class ShaftPanelSetupTest {
         return panes;
     }
 
-    private static MouseListener transcriptContextMenuListener(JEditorPane pane) {
-        for (MouseListener listener : pane.getMouseListeners()) {
-            if (listener instanceof AssistantTranscriptView.TranscriptContextMenuListener) {
-                return listener;
-            }
+    /**
+     * Fires the same {@code popupMenuWillBecomeVisible} lifecycle callback Swing invokes right
+     * before painting a {@link JComponent#setComponentPopupMenu} popup, regardless of whether a real
+     * mouse popup-trigger or the keyboard context-menu key/Shift+F10 asked for it (issue #3630).
+     * Doing it this way -- rather than a real {@code JPopupMenu.show()} -- avoids requiring the pane
+     * to be realized on an actual screen, which this headless suite never does.
+     */
+    private static JPopupMenu showMessageContextMenu(JEditorPane pane) {
+        JPopupMenu menu = pane.getComponentPopupMenu();
+        assertNotNull(menu, "Context menu should be installed via setComponentPopupMenu in fallbackHtmlPane");
+        for (PopupMenuListener listener : menu.getPopupMenuListeners()) {
+            listener.popupMenuWillBecomeVisible(new PopupMenuEvent(menu));
         }
-        return null;
-    }
-
-    private static MouseEvent popupTriggerEvent(JEditorPane pane) {
-        return new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
-                InputEvent.BUTTON3_DOWN_MASK, 6, 6, 1, true, MouseEvent.BUTTON3);
+        return menu;
     }
 
     private static void collectTranscriptHtmlPanes(Component component, List<JEditorPane> panes) {
@@ -5198,6 +5294,25 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("exportTranscriptWithEvidence");
         method.setAccessible(true);
         return (String) method.invoke(panel);
+    }
+
+    /**
+     * Invokes the synchronous file-write body that {@code writeTranscriptToFile(Path)} runs inside
+     * its {@code executeOnPooledThread} lambda. Bypasses the threading itself (a thin, low-risk
+     * wrapper) so the content-correctness the "Save transcript" acceptance criterion cares about
+     * can be asserted deterministically, without polling a background thread in a headless suite.
+     */
+    private static void writeTranscriptSync(ShaftAssistantPanel panel, Path target, String content) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("writeTranscriptSync", Path.class, String.class);
+        method.setAccessible(true);
+        try {
+            method.invoke(panel, target, content);
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof IOException ioException) {
+                throw ioException;
+            }
+            throw e;
+        }
     }
 
     private static int countOccurrences(String value, String needle) {
@@ -5927,10 +6042,7 @@ class ShaftPanelSetupTest {
         List<JEditorPane> panes = transcriptHtmlPanes(transcriptView);
         assertFalse(panes.isEmpty(), "Expected at least one rendered transcript pane after re-populating");
         JEditorPane lastPane = panes.get(panes.size() - 1);
-        MouseListener contextMenuListener = transcriptContextMenuListener(lastPane);
-        assertNotNull(contextMenuListener, "Round 4 fix: transcript panes must install a context-menu listener");
-        contextMenuListener.mouseReleased(popupTriggerEvent(lastPane));
-        JPopupMenu contextMenu = transcriptView.lastMessageContextMenuForTest();
+        JPopupMenu contextMenu = showMessageContextMenu(lastPane);
         assertAll(
                 () -> assertNotNull(findByAccessibleName(contextMenu, "Copy", JMenuItem.class),
                         "Round 4 fix: transcript context menu must offer Copy"),
