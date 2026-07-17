@@ -128,8 +128,16 @@ public class DatabaseActions {
     }
 
     private static void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
+        Exception cause = getRootCauseException(testData, rootCauseException);
+        String message = reportActionResult(actionName, testData, null, false, cause);
+        FailureReporter.fail(DatabaseActions.class, message, cause);
+    }
+
+    private static Exception getRootCauseException(String testData, Exception... rootCauseException) {
+        if (rootCauseException != null && rootCauseException.length > 0 && rootCauseException[0] != null) {
+            return rootCauseException[0];
+        }
+        return new IllegalStateException(testData == null || testData.isBlank() ? "Database action failed." : testData);
     }
 
     /**
