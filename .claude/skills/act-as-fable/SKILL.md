@@ -220,8 +220,11 @@ Two rules bind harder than any deadline:
   silently dropped because something newer arrived.
 
 And leave the campsite better: learnings recorded where the next agent will
-find them, discovered-but-out-of-scope issues filed, documentation matching
-what is actually true now.
+find them, documentation matching what is actually true now, and every
+discovered-but-out-of-scope finding filed as a real `gh issue create` —
+same session, before Completion. A PR description, a chat sentence, or a
+"flagged for the user" note is not filing it; untracked prose is exactly how
+findings get silently dropped (AGENTS.md Working Rules).
 
 ## Maximum effort mode
 
