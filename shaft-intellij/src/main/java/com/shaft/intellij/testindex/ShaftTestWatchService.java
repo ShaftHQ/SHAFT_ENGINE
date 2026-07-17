@@ -11,8 +11,8 @@ import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.newvfs.BulkFileListener;
@@ -166,7 +166,7 @@ public final class ShaftTestWatchService implements Disposable {
         if (file == null) {
             return null;
         }
-        return ReadAction.compute(() -> {
+        return ApplicationManager.getApplication().runReadAction((Computable<String>) () -> {
             if (project.isDisposed() || !file.isValid()) {
                 return null;
             }
