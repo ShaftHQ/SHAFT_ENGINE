@@ -279,3 +279,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.headroom-deployment-preset-migrated-to-persistent-docker-0-31-0-cli","timestamp":"2026-07-16T22:09:41+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.gbrain-always-on-setup-on-windows-schtasks-pair-not-autopilot-install","timestamp":"2026-07-16T22:22:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.graphify-kept-alongside-gbrain-distinct-purpose-nightly-auto-refresh-wired","timestamp":"2026-07-16T22:28:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine","timestamp":"2026-07-17T04:16:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.safe-incremental-swing-rebuild-pattern-with-fallback-guards-assistanttranscriptview","timestamp":"2026-07-17T04:16:33+03:00"}
