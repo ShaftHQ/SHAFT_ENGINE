@@ -67,6 +67,10 @@ import java.util.regex.Pattern;
  */
 final class AssistantTranscriptView extends JPanel {
     private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
+    // Rendered-line-count threshold (measured via FontMetrics against the actual rendered HTML
+    // height, not raw markdown characters, so wrapped paragraphs and code blocks count fairly)
+    // above which a bubble collapses by default -- issue #3629.
+    private static final int COLLAPSE_LINE_THRESHOLD = 40;
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -272,6 +276,7 @@ final class AssistantTranscriptView extends JPanel {
         handle.htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
         handle.htmlPane.setText(rendered);
         handle.htmlPane.setCaretPosition(0);
+        handle.outputPanel.updateCollapseState();
         removeRawEvidenceDisclosure(handle.bubble);
         handle.bubble.revalidate();
         handle.bubble.repaint();
@@ -442,12 +447,98 @@ final class AssistantTranscriptView extends JPanel {
         private final JPanel bubble;
         private final JEditorPane htmlPane;
         private final String role;
+        private final CollapsibleOutputPanel outputPanel;
 
-        private RenderedBubble(JComponent row, JPanel bubble, JEditorPane htmlPane, String role) {
+        private RenderedBubble(JComponent row, JPanel bubble, JEditorPane htmlPane, String role,
+                CollapsibleOutputPanel outputPanel) {
             this.row = row;
             this.bubble = bubble;
             this.htmlPane = htmlPane;
             this.role = role;
+            this.outputPanel = outputPanel;
+        }
+    }
+
+    /**
+     * Wraps a message's {@link JEditorPane} so it renders collapsed (clipped to {@link
+     * #COLLAPSE_LINE_THRESHOLD} rendered lines, tall content clipped rather than scrolled) with a
+     * keyboard-focusable "Show full output" toggle once its rendered height exceeds the threshold --
+     * issue #3629. Content under the threshold never shows a toggle. {@link #updateCollapseState()}
+     * re-measures after every text mutation (streamed {@code replaceLast} calls) without disturbing
+     * an already-expanded bubble the user explicitly opened.
+     */
+    private static final class CollapsibleOutputPanel extends JPanel {
+        private final JEditorPane htmlPane;
+        private final Supplier<Integer> lineHeightSupplier;
+        private final JPanel clipPanel;
+        private final JButton toggle;
+        private boolean collapsed = true;
+        private boolean userExpanded;
+        private int collapsedHeightPx;
+
+        private CollapsibleOutputPanel(JEditorPane htmlPane, Supplier<Integer> lineHeightSupplier) {
+            super();
+            this.htmlPane = htmlPane;
+            this.lineHeightSupplier = lineHeightSupplier;
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setOpaque(false);
+
+            clipPanel = new JPanel(new BorderLayout()) {
+                @Override
+                public Dimension getPreferredSize() {
+                    Dimension preferred = super.getPreferredSize();
+                    if (collapsed) {
+                        return new Dimension(preferred.width, Math.min(preferred.height, collapsedHeightPx));
+                    }
+                    return preferred;
+                }
+
+                @Override
+                public Dimension getMaximumSize() {
+                    return getPreferredSize();
+                }
+            };
+            clipPanel.setOpaque(false);
+            clipPanel.add(htmlPane, BorderLayout.CENTER);
+
+            toggle = new JButton();
+            toggle.setVisible(false);
+            toggle.addActionListener(event -> {
+                collapsed = !collapsed;
+                userExpanded = !collapsed;
+                updateToggleLabel();
+                revalidate();
+                repaint();
+            });
+            JPanel toggleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            toggleRow.setOpaque(false);
+            toggleRow.setBorder(JBUI.Borders.emptyTop(4));
+            toggleRow.add(toggle);
+
+            add(clipPanel);
+            add(toggleRow);
+        }
+
+        private void updateCollapseState() {
+            int lineHeight = Math.max(1, lineHeightSupplier.get());
+            int renderedLineCount = htmlPane.getPreferredSize().height / lineHeight;
+            boolean overThreshold = renderedLineCount > COLLAPSE_LINE_THRESHOLD;
+            collapsedHeightPx = lineHeight * COLLAPSE_LINE_THRESHOLD;
+            // Independent of overThreshold: content under the threshold never clips (the cap exceeds
+            // its natural height) and its hidden toggle keeps a correct label if it later grows past
+            // the threshold via a streamed replaceLast().
+            collapsed = !userExpanded;
+            toggle.setVisible(overThreshold);
+            updateToggleLabel();
+        }
+
+        private void updateToggleLabel() {
+            String label = collapsed ? "Show full output" : "Hide full output";
+            toggle.setText(label);
+            toggle.getAccessibleContext().setAccessibleName(label);
+            toggle.getAccessibleContext().setAccessibleDescription(collapsed
+                    ? "Message content is collapsed; activate to show the full output"
+                    : "Message content is fully shown; activate to collapse it again");
         }
     }
 
@@ -549,12 +640,18 @@ final class AssistantTranscriptView extends JPanel {
         bubble.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message bubble");
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
-        bubble.add(htmlPane, BorderLayout.CENTER);
+        CollapsibleOutputPanel outputPanel = new CollapsibleOutputPanel(htmlPane, this::bodyLineHeight);
+        outputPanel.updateCollapseState();
+        bubble.add(outputPanel, BorderLayout.CENTER);
         if (rawEvidence != null && !rawEvidence.isBlank()) {
             bubble.add(rawEvidenceDisclosure(rawEvidence), BorderLayout.SOUTH);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        return new RenderedBubble(row, bubble, htmlPane, normalizedRole);
+        return new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
+    }
+
+    private int bodyLineHeight() {
+        return getFontMetrics(new Font(fontFamily(), Font.PLAIN, baseFontSize())).getHeight();
     }
 
     /**

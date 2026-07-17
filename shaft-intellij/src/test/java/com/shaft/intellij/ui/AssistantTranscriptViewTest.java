@@ -172,6 +172,85 @@ class AssistantTranscriptViewTest {
                         + "boundary index, even though append() otherwise skips a full rebuild");
     }
 
+    /**
+     * Issue #3629: a Doctor/Healer report or large JSON tool result can push the whole conversation
+     * off-screen with no way to fold it back. Long messages must render collapsed by default with a
+     * keyboard-focusable toggle; short messages must never show one.
+     */
+    @Test
+    void longMessagesRenderCollapsedWithAShowFullOutputToggle() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", manyLineParagraphs(100));
+
+        assertNotNull(findVisibleButtonByText(view, "Show full output"),
+                "A message whose rendered height exceeds the collapse threshold must show a toggle");
+    }
+
+    @Test
+    void shortMessagesNeverRenderACollapseToggle() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "A short reply that clearly stays under the collapse threshold.");
+
+        assertAll(
+                () -> assertNull(findVisibleButtonByText(view, "Show full output"),
+                        "A short message must never render a collapse toggle"),
+                () -> assertNull(findVisibleButtonByText(view, "Hide full output"),
+                        "A short message must never render a collapse toggle"));
+    }
+
+    @Test
+    void clickingTheCollapseToggleExpandsTheBubbleAndClickingAgainCollapsesIt() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", manyLineParagraphs(100));
+
+        JButton toggle = findVisibleButtonByText(view, "Show full output");
+        assertNotNull(toggle);
+
+        toggle.doClick();
+        assertAll(
+                () -> assertEquals("Hide full output", toggle.getText()),
+                () -> assertEquals("Hide full output", toggle.getAccessibleContext().getAccessibleName()));
+
+        toggle.doClick();
+        assertAll(
+                () -> assertEquals("Show full output", toggle.getText()),
+                () -> assertEquals("Show full output", toggle.getAccessibleContext().getAccessibleName()));
+    }
+
+    @Test
+    void aCollapsedMessageStillExposesItsFullTextSoCopyIsUnaffected() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", manyLineParagraphs(100));
+
+        JEditorPane pane = findByType(view, JEditorPane.class);
+        assertNotNull(pane);
+        assertTrue(pane.getText().contains("Line 99"),
+                "Collapsing only clips the visible height -- the underlying document text (what "
+                        + "Select All / Copy operate on) must still contain the full content");
+    }
+
+    @Test
+    void replaceLastReevaluatesTheCollapseStateAsStreamedContentGrowsPastTheThreshold() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "short start");
+        assertNull(findVisibleButtonByText(view, "Show full output"),
+                "Sanity check: the initial short placeholder must not show a collapse toggle");
+
+        view.replaceLast("assistant", manyLineParagraphs(100));
+
+        assertNotNull(findVisibleButtonByText(view, "Show full output"),
+                "A streamed message that grows past the collapse threshold must gain a toggle, "
+                        + "proving replaceLast() re-measures collapse state on the mutated bubble");
+    }
+
+    private static String manyLineParagraphs(int count) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            builder.append("Line ").append(i).append("\n\n");
+        }
+        return builder.toString();
+    }
+
     private static JButton findButtonByText(Component component, String text) {
         if (component instanceof JButton button && text.equals(button.getText())) {
             return button;
@@ -179,6 +258,27 @@ class AssistantTranscriptViewTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 JButton found = findButtonByText(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The collapse toggle (unlike the raw-evidence toggle) always exists in the tree so {@code
+     * updateCollapseState()} can flip its visibility as streamed content grows past the threshold --
+     * a plain {@link #findButtonByText} match on it is not user-observable. Requires the button
+     * itself be visible, matching what a real user (and a screen reader) would actually see.
+     */
+    private static JButton findVisibleButtonByText(Component component, String text) {
+        if (component instanceof JButton button && button.isVisible() && text.equals(button.getText())) {
+            return button;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JButton found = findVisibleButtonByText(child, text);
                 if (found != null) {
                     return found;
                 }
