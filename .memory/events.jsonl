@@ -285,3 +285,5 @@
 {"actor":"agent","event":"memory.created","id":"workflow.swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles","timestamp":"2026-07-17T04:30:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.swing-context-menus-wired-via-a-raw-mouselistener-ispopuptrigger-are-mouse-only-use-jcomponent-setcomponentpopupmenu-instead","timestamp":"2026-07-17T04:38:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.testing-a-setcomponentpopupmenu-based-popup-in-a-headless-swing-suite-fire-popupmenuwillbecomevisible-directly-dont-call-jpopupmenu-show","timestamp":"2026-07-17T04:38:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.own-each-pr-through-to-merge-babysit-ci-failures-and-review-comments-human-or-bot-until-green-then-merge-autonomously","timestamp":"2026-07-17T04:57:14+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.use-fable-gbrain-advisor-act-as-fable-methodology-as-an-active-consultant-and-architect-not-just-a-background-methodology","timestamp":"2026-07-17T04:57:14+03:00"}
