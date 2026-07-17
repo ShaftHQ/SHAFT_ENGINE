@@ -2307,6 +2307,67 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantLocalAgentTimeoutShowsFailureReasonBeforeMilestoneAndTokenNote() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 9);
+        showAgentResult(panel, 9, ShaftMcpToolResult.failure("Timed out after 300 seconds."));
+
+        String markdown = transcriptMarkdown(panel);
+        int reasonIndex = markdown.indexOf("Timed out after 300 seconds.");
+        int milestoneIndex = markdown.indexOf("Failed (");
+        assertAll(
+                () -> assertTrue(reasonIndex >= 0, "Failure reason must appear in the transcript: " + markdown),
+                () -> assertTrue(milestoneIndex >= 0, "Terminal milestone must appear in the transcript: " + markdown),
+                () -> assertTrue(reasonIndex < milestoneIndex,
+                        "Failure reason should render before the terminal milestone bubble: " + markdown),
+                () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token"),
+                        "A terminal failure must say whether token usage is available: " + markdown));
+    }
+
+    @Test
+    void assistantLocalAgentFailureUsesConsistentHeadlineAndNextStepCta() throws Exception {
+        // Issue #3703: a local-agent CLI failure must render with the same short-headline +
+        // details + one-next-action shape as an MCP tool failure, not a bare error string.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 10);
+        showAgentResult(panel, 10, ShaftMcpToolResult.failure("Timed out after 300 seconds."));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("couldn't finish"), markdown),
+                () -> assertTrue(markdown.contains("_Next:"), markdown));
+    }
+
+    @Test
+    void assistantLocalAgentCompletedWithoutUsageMetadataStatesTokenUsageNotAvailable() throws Exception {
+        // Issue #3703: silence must never stand in for "no data" -- the user must be able to tell
+        // "no data" apart from "the feature doesn't exist here".
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 11);
+        showAgentResult(panel, 11, ShaftMcpToolResult.success("Final answer with no usage metadata."));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token usage"), markdown),
+                () -> assertFalse(markdown.contains("Tokens consumed:"), markdown));
+    }
+
+    @Test
+    void assistantLocalAgentCancelledWithoutUsageMetadataStatesTokenUsageNotAvailable() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 12);
+        appendLocalAgentOutput(panel, 12, "partial answer before cancel");
+        showAgentResult(panel, 12, null, new CancellationException("cancelled"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token usage"), markdown);
+    }
+
+    @Test
     void assistantLocalAgentStaleCompletionClearsThinkingState() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
         panel.setRunning(true, "Thinking...");
@@ -2478,6 +2539,54 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("AGENT", mode.getSelectedItem()),
                 () -> assertTrue(allowSourceMutation.isSelected()),
                 () -> assertNull(transcriptWidget(panel), "the card must clear once the user has chosen"));
+    }
+
+    /**
+     * Issue #3704 (scoped slice): before a local-agent run that is plausibly a multi-step
+     * orchestrated flow (record -> act -> save -> codegen -> self-heal) starts, the user should see
+     * a plain informational preview of the anticipated stages. The trigger reuses {@code
+     * AssistantCommand#isScenarioDescriptionIntent} exactly (issue #3692) rather than reinventing
+     * detection.
+     *
+     * <p>The announcement helper is invoked directly via reflection rather than through a full
+     * {@code send()} click: {@code send()} for a prompt this detector matches ultimately reaches
+     * {@code AssistantLocalAgentRunner#startWithOptionalCompact}, which spawns a real OS process
+     * (see the javadoc on {@code prepareAgentModeForProposedPlanSwitchesModeAndGrantsSourceEditsAndClearsTheCard}
+     * above for the same constraint) -- unsafe and undesired in a headless unit test.
+     */
+    @Test
+    void scenarioDescriptionPromptTriggersStageAnnouncementBeforeLocalAgentRunStarts() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String scenarioPrompt =
+                "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test.";
+        assertTrue(AssistantCommand.isScenarioDescriptionIntent(scenarioPrompt), "test precondition");
+
+        Method announce = ShaftAssistantPanel.class.getDeclaredMethod(
+                "maybeAnnounceOrchestrationStages", String.class);
+        announce.setAccessible(true);
+        announce.invoke(panel, scenarioPrompt);
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("This will likely"), markdown),
+                () -> assertTrue(markdown.contains("record"), markdown),
+                () -> assertTrue(markdown.contains("save"), markdown),
+                () -> assertTrue(markdown.contains("generate"), markdown),
+                () -> assertTrue(markdown.contains("self-heal"), markdown));
+    }
+
+    @Test
+    void plainNonOrchestrationPromptDoesNotTriggerStageAnnouncement() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String plainPrompt = "what does this method do?";
+        assertFalse(AssistantCommand.isScenarioDescriptionIntent(plainPrompt), "test precondition");
+
+        Method announce = ShaftAssistantPanel.class.getDeclaredMethod(
+                "maybeAnnounceOrchestrationStages", String.class);
+        announce.setAccessible(true);
+        announce.invoke(panel, plainPrompt);
+
+        assertFalse(transcriptMarkdown(panel).contains("This will likely"));
     }
 
     @Test

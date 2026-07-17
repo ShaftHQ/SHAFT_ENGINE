@@ -3,12 +3,6 @@ package com.shaft.intellij.java;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.intellij.lang.annotation.AnnotationHolder;
-import com.intellij.lang.annotation.Annotator;
-import com.intellij.lang.annotation.HighlightSeverity;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiFile;
-import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,50 +12,33 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Surfaces the SHAFT Capture generation report's readiness findings as file-level IDE
- * annotations on the generated test class (issue #3425 B3): blockers, warnings, flaky steps,
- * unsupported events, and required inputs show up where the developer actually reads the code,
- * instead of only inside a JSON report nobody opens.
+ * Loads and flattens the SHAFT Capture generation report's readiness findings for a generated test
+ * class (issue #3425 B3): blockers, warnings, flaky steps, unsupported events, and required inputs,
+ * so they can be surfaced to the developer instead of sitting only inside a JSON report nobody
+ * opens. The actual surfacing is {@link CaptureReadinessNotifier}'s job (issue #3705) -- this class
+ * is purely the report-loading/parsing/flattening logic it reuses, with no delivery mechanism of
+ * its own.
  *
  * <p>The generated source lives under the generation output root, whose report is written to
- * {@code <outputRoot>/target/shaft-capture/generation-report.json}; this annotator walks up from
- * the file to find that report and only annotates when the report's {@code sourcePath} names the
- * annotated file.</p>
+ * {@code <outputRoot>/target/shaft-capture/generation-report.json}; {@link #reportFor} walks up
+ * from the file to find that report and only returns it when the report's {@code sourcePath} names
+ * the given file.</p>
  */
-public final class CaptureReportAnnotator implements Annotator {
+public final class CaptureReportAnnotator {
     private static final String REPORT_RELATIVE_PATH = "target/shaft-capture/generation-report.json";
     private static final int MAX_PARENT_HOPS = 12;
     private static final int MAX_FINDINGS = 12;
     /** Per-report parse cache keyed by path, invalidated by last-modified time. */
     private static final Map<String, CachedReport> REPORT_CACHE = new ConcurrentHashMap<>();
 
+    private CaptureReportAnnotator() {
+        throw new IllegalStateException("Utility class");
+    }
+
     private record CachedReport(long lastModified, JsonObject report) {
     }
 
-    @Override
-    public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
-        if (!(element instanceof PsiFile file) || file.getVirtualFile() == null
-                || !file.getName().endsWith(".java")) {
-            return;
-        }
-        Path sourcePath;
-        try {
-            sourcePath = Path.of(file.getVirtualFile().getPath());
-        } catch (RuntimeException invalidPath) {
-            return;
-        }
-        JsonObject report = reportFor(sourcePath);
-        if (report == null) {
-            return;
-        }
-        for (String finding : findings(report)) {
-            holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "SHAFT Capture readiness: " + finding)
-                    .fileLevel()
-                    .create();
-        }
-    }
-
-    private static JsonObject reportFor(Path sourcePath) {
+    static JsonObject reportFor(Path sourcePath) {
         Path current = sourcePath.getParent();
         for (int hop = 0; hop < MAX_PARENT_HOPS && current != null; hop++, current = current.getParent()) {
             Path reportFile = current.resolve(REPORT_RELATIVE_PATH);

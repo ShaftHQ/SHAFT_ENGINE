@@ -196,7 +196,9 @@ Evidence over inference: never claim what you did not observe — run it or
 read it first. Stay strictly inside the assigned scope; report adjacent
 findings, don't fix them. Return conclusions with file:line evidence, not
 file dumps. Report failures plainly — a blocked step honestly reported is a
-success; a polished guess is a defect.
+success; a polished guess is a defect. Production code in scope follows
+`test-driven-development` implicitly — failing test first, watched red, then
+minimal code, watched green — not a skill to separately decide invoking.
 
 ## Ownership: the full loop
 
@@ -218,8 +220,11 @@ Two rules bind harder than any deadline:
   silently dropped because something newer arrived.
 
 And leave the campsite better: learnings recorded where the next agent will
-find them, discovered-but-out-of-scope issues filed, documentation matching
-what is actually true now.
+find them, documentation matching what is actually true now, and every
+discovered-but-out-of-scope finding filed as a real `gh issue create` —
+same session, before Completion. A PR description, a chat sentence, or a
+"flagged for the user" note is not filing it; untracked prose is exactly how
+findings get silently dropped (AGENTS.md Working Rules).
 
 ## Maximum effort mode
 
@@ -255,9 +260,12 @@ decision you must state and justify.
 - **Session start** — `memory load "<task>"`; consult the graphify cache
   before broad exploration (`graphify` skill); `gbrain query` for any repo
   fact you'd otherwise assert from memory (retrieval-reflex).
-- **Production code, feature or bugfix** — `test-driven-development`: failing
-  test first, watched red, then code. The guard hook (R6) reminds you once;
-  don't wait for it.
+- **Finding files or relations** — try `graphify`/`gbrain` before a
+  traditional Grep/Glob sweep; fall back to grep when they don't have it.
+- **Production code, feature or bugfix** — `test-driven-development` is
+  implicit in act-as-fable itself, not a separate opt-in trigger: it applies
+  whether or not invoked by name. Failing test first, watched red, then code.
+  The guard hook (R6) reminds you once; don't wait for it.
 - **Shaping any diff** — the `ponytail` lens: does this need to exist, is it
   already in the codebase, stdlib before custom, one line before fifty. Load
   the full skill for code-heavy changes.

@@ -543,6 +543,41 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void localAgentFailureMarkdownGivesATimeoutHeadlineAndTimeoutSpecificNextAction() {
+        // Issue #3703: a local-agent CLI timeout must render with the same short-headline +
+        // details + one-next-action shape as an MCP tool failure (toolFailureMarkdown), but with
+        // wording that actually fits a local CLI run instead of the generic MCP-connection hint.
+        String rendered = AssistantMarkdown.localAgentFailureMarkdown("Timed out after 300 seconds.");
+
+        assertAll(
+                () -> assertTrue(rendered.contains("couldn't finish"), rendered),
+                () -> assertTrue(rendered.contains("Timed out after 300 seconds."), rendered),
+                () -> assertTrue(rendered.contains("_Next:"), rendered),
+                () -> assertTrue(rendered.contains("timeout"), rendered));
+    }
+
+    @Test
+    void localAgentFailureMarkdownGivesAGenericFailureAGenericNextAction() {
+        String rendered = AssistantMarkdown.localAgentFailureMarkdown("Claude Code CLI exited with code 1.");
+
+        assertAll(
+                () -> assertTrue(rendered.contains("couldn't finish"), rendered),
+                () -> assertTrue(rendered.contains("Claude Code CLI exited with code 1."), rendered),
+                () -> assertTrue(rendered.contains("_Next:"), rendered),
+                () -> assertFalse(rendered.contains("timeout"), rendered));
+    }
+
+    @Test
+    void localAgentFailureMarkdownLeavesAnAlreadyHeadlinedNarrativeUntouched() {
+        String structured = "**⚠ Rejected generated code — details below**\n\nbody";
+        String rendered = AssistantMarkdown.localAgentFailureMarkdown(structured);
+
+        assertAll(
+                () -> assertEquals(structured, rendered),
+                () -> assertFalse(rendered.contains("couldn't finish"), rendered));
+    }
+
+    @Test
     void formatsDoctorAnalysisReportWithActionsSnippetsAndReportPaths() {
         String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
                 {

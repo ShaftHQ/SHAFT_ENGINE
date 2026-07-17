@@ -39,6 +39,13 @@
                   topic="com.intellij.execution.ExecutionListener"/>
         <listener class="com.shaft.intellij.testindex.ShaftTestIndexListener"
                   topic="com.intellij.execution.ExecutionListener"/>
+        <!-- Replaces CaptureReportAnnotator's old per-finding file-level annotator banners (issue
+             #3705): a single dismissable notification, fired once when the generated test class is
+             actually opened rather than on every continuous highlighting pass. Needs only VirtualFile
+             (no PSI), so it is registered here rather than behind the optional com.intellij.java
+             dependency that the old Annotator-based registration required. -->
+        <listener class="com.shaft.intellij.java.CaptureReadinessNotifier"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
         <!-- Live pass/fail progression for the "SHAFT Tests" panel (issue #3688): a project-wide
              subscription to every SM Test Runner-driven test run, mirroring the two listeners
              above rather than attaching per-process-handler; see ShaftSmTestRunnerBridge's
