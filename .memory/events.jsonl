@@ -282,3 +282,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-gradle-unit-tests-have-no-live-intellij-application-guard-every-applicationmanager-touch","timestamp":"2026-07-17T02:13:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.java-method-references-are-not-identity-stable-across-separate-call-sites","timestamp":"2026-07-17T02:13:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool","timestamp":"2026-07-17T02:13:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills","timestamp":"2026-07-17T08:17:35+03:00"}
