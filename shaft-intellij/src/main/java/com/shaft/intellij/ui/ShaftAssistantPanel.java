@@ -21,6 +21,8 @@ import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
+import com.shaft.intellij.java.InsertionAnchor;
+import com.shaft.intellij.java.InsertionAnchorResolver;
 import com.shaft.intellij.project.ShaftProjectDetector;
 import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
@@ -3127,15 +3129,17 @@ final class ShaftAssistantPanel extends JPanel {
 
     /**
      * "Insert into open class" (issue #3425 B1): asks SHAFT MCP to regenerate the reviewed steps
-     * as insertion-ready blocks anchored to the file currently open in the editor
-     * ({@code capture_record_at_target_code_blocks}).
+     * as insertion-ready blocks anchored to the caret when it resolves to a Java method, otherwise
+     * to the file currently open in the editor ({@code capture_record_at_target_code_blocks}). Uses
+     * the same {@link InsertionAnchor} the "Record here" action and "Insert at caret" now share
+     * (issue #3662) so this button no longer ignores the caret the way it used to.
      */
     private void insertReviewIntoOpenFile() {
         if (running || pendingCaptureReview == null) {
             return;
         }
-        String targetSourcePath = openEditorFilePath();
-        if (targetSourcePath.isBlank()) {
+        InsertionAnchor anchor = InsertionAnchorResolver.resolve(project, selectedEditor());
+        if (anchor == null) {
             setStatus("Open the target Java class in the editor first");
             return;
         }
@@ -3145,8 +3149,8 @@ final class ShaftAssistantPanel extends JPanel {
         arguments.addProperty("packageName", "tests.generated");
         arguments.addProperty("className", "");
         arguments.addProperty("overwrite", true);
-        arguments.addProperty("targetSourcePath", targetSourcePath);
-        arguments.addProperty("insertAfter", "");
+        arguments.addProperty("targetSourcePath", anchor.targetSourcePath());
+        arguments.addProperty("insertAfter", anchor.insertAfter());
         arguments.addProperty("driverVariableName", "driver");
         startMcpInvocation(AssistantCommand.Invocation.tool("capture_record_at_target_code_blocks", arguments));
     }
@@ -3197,15 +3201,12 @@ final class ShaftAssistantPanel extends JPanel {
         startMcpInvocation(AssistantCommand.Invocation.tool("capture_backend_comparison", arguments));
     }
 
-    private String openEditorFilePath() {
+    /** Editor holding the caret, for {@link InsertionAnchorResolver}; null in headless test runs. */
+    private Editor selectedEditor() {
         try {
-            if (project == null) {
-                return "";
-            }
-            var selectedFiles = FileEditorManager.getInstance(project).getSelectedFiles();
-            return selectedFiles.length == 0 ? "" : selectedFiles[0].getPath();
+            return project == null ? null : FileEditorManager.getInstance(project).getSelectedTextEditor();
         } catch (RuntimeException | Error headlessTestEnvironment) {
-            return "";
+            return null;
         }
     }
 

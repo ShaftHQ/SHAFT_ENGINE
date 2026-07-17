@@ -802,6 +802,13 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
      * the full class) into the editor at the caret -- the same {@code FileDocumentManager
      * .requestWriting} + {@code WriteCommandAction} seam {@code PickLocatorAtCaretAction} already
      * proved, not a new insertion mechanism.
+     *
+     * <p>Unlike "Record here" and "Insert into open class" (issue #3662), this action holds
+     * already-generated code and writes it locally rather than asking MCP to generate-and-insert at
+     * a {@code targetSourcePath}/{@code insertAfter} pair, so it has no meaningful "no caret, fall
+     * back to the open file" case -- it is always caret-anchored, by construction, which is the
+     * same "anchor = caret when available" leg of the shared {@code InsertionAnchor} mental model
+     * those two actions fall back from. {@link #selectedJavaEditor()} enforces that.
      */
     private void insertCodeAtCaret() {
         ShaftMcpInvocationService invocationService = invocationService();
@@ -910,8 +917,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
 
     /**
      * Returns the editor selected in the editor tab strip, gated on it holding a resolvable Java
-     * target (same gate {@code PickLocatorAtCaretAction#isAvailable} uses), or null when there is
-     * none -- callers treat null as "open a Java file first".
+     * target (same gate {@code PickLocatorAtCaretAction#isAvailable} and {@code
+     * RecordShaftFlowHereAction#update} use), or null when there is none -- callers treat null as
+     * "open a Java file first".
      */
     private Editor selectedJavaEditor() {
         if (project == null) {
