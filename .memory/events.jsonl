@@ -291,3 +291,5 @@
 {"actor":"agent","event":"memory.created","id":"workflow.testability-seam-for-off-edt-file-writes-split-the-pooled-thread-wrapper-from-a-synchronous-reflectable-write-method","timestamp":"2026-07-17T05:03:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.ticket-text-can-omit-real-architectural-nuances-verify-against-the-actual-code-before-implementing-a-restore-focus-after-decision-style-feature","timestamp":"2026-07-17T05:03:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state","timestamp":"2026-07-17T05:03:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.testable-deadline-extension-seam-inject-the-accumulated-extra-time-source-as-a-longsupplier-plus-an-explicit-cap-parameter-not-the-concrete-class","timestamp":"2026-07-17T05:25:56+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-single-long-process-waitfor-timeout-unit-cant-be-interrupted-mid-wait-to-recheck-a-growing-deadline-must-poll-in-short-slices-instead","timestamp":"2026-07-17T05:25:56+03:00"}
