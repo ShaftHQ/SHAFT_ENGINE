@@ -161,7 +161,7 @@ public class DatabaseActionsMockedTests {
             new DatabaseActions("");
             Assert.fail();
         } catch (ArrayIndexOutOfBoundsException e) {
-            Assert.fail("constructor failure should be reported instead of throwing ArrayIndexOutOfBoundsException");
+            Assert.fail("failAction should report the failure, not crash on empty root cause");
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Custom Connection String"));
         }
