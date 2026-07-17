@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBList;
 import org.junit.jupiter.api.Test;
 
@@ -11,6 +12,10 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import java.awt.Component;
 import java.awt.Container;
+import java.io.IOException;
+import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,7 +65,9 @@ class GuidedWorkflowPanelTest {
         CapturedInvocation mobileEmulation = last(invocations);
         assertAll(
                 () -> assertEquals("mobile_initialize_web_emulation", mobileEmulation.toolName()),
-                () -> assertEquals("CHROME", mobileEmulation.arguments().get("browser").getAsString()),
+                // Default combo selection is "Chrome" (matches CaptureBrowser#parse and
+                // MobileService#browserType, both case-insensitive) -- not the old hardcoded "CHROME".
+                () -> assertEquals("Chrome", mobileEmulation.arguments().get("browser").getAsString()),
                 () -> assertEquals("Pixel 5", mobileEmulation.arguments().get("deviceName").getAsString()),
                 () -> assertFalse(mobileEmulation.arguments().get("headless").getAsBoolean()));
 
@@ -152,6 +159,81 @@ class GuidedWorkflowPanelTest {
         assertEquals("playwright_record_stop", last(invocations).toolName());
         review.doClick();
         assertEquals("playwright_recording_code_blocks", last(invocations).toolName());
+    }
+
+    @Test
+    void recorderBrowserPickerIsVisibleByDefaultAndDrivesBothStartToolArguments() {
+        // Issue #3660: a real browser picker (not a hardcoded literal) replaces the old
+        // "Chrome"/"CHROME" constants in both webdriverCaptureStartArguments() and
+        // mobileWebEmulation(), and it must be reachable without expanding Advanced options.
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        JComboBox<?> recorderBrowser = findByAccessibleName(panel, "Recorder browser", JComboBox.class);
+        assertNotNull(recorderBrowser);
+        assertAll(
+                () -> assertEquals(2, recorderBrowser.getItemCount(), "Only Chrome and Edge are accepted server-side"),
+                () -> assertEquals("Chrome", recorderBrowser.getSelectedItem(), "Matches the previous hardcoded default"),
+                () -> assertTrue(isVisibleInHierarchy(recorderBrowser),
+                        "Browser picker must be visible without expanding Advanced options"));
+
+        expandAdvanced(panel);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        JComboBox<?> templates = findByAccessibleName(panel, "Workflow template", JComboBox.class);
+        JButton start = findButton(panel, "Start recording");
+        JButton useTemplate = findButton(panel, "Use template");
+
+        select(backend, "WebDriver");
+        start.doClick();
+        assertEquals("Chrome", last(invocations).arguments().get("browser").getAsString(),
+                "webdriverCaptureStartArguments() must read the selected combo item");
+
+        select(recorderBrowser, "Edge");
+        start.doClick();
+        assertEquals("Edge", last(invocations).arguments().get("browser").getAsString(),
+                "Changing the combo must change capture_start's browser argument");
+
+        select(templates, "Start mobile emulation session for recording");
+        useTemplate.doClick();
+        CapturedInvocation mobileEmulation = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_initialize_web_emulation", mobileEmulation.toolName()),
+                () -> assertEquals("Edge", mobileEmulation.arguments().get("browser").getAsString(),
+                        "mobileWebEmulation() must read the same selected combo item"));
+    }
+
+    @Test
+    void headlessPolicyLockHintBecomesVisibleWhenTeamPolicyLocksHeadless() throws IOException {
+        // Issue #3660: applyTeamRecorderPolicy() already locks the headless checkbox via a tooltip;
+        // the hint label must also become visible so the lock is not tooltip-only.
+        Path lockedProjectRoot = Files.createTempDirectory("shaft-guided-workflow-policy-locked");
+        Path shaftDir = lockedProjectRoot.resolve(".shaft");
+        Files.createDirectories(shaftDir);
+        Files.writeString(shaftDir.resolve("recorder-policy.json"), "{\"headless\": true}");
+
+        GuidedWorkflowPanel lockedPanel = new GuidedWorkflowPanel(fakeProject(lockedProjectRoot.toString()),
+                (tool, arguments) -> {
+                });
+        javax.swing.JLabel lockedHint =
+                findByAccessibleName(lockedPanel, "Headless policy lock hint", javax.swing.JLabel.class);
+        javax.swing.JCheckBox lockedHeadless =
+                findByAccessibleName(lockedPanel, "Headless browser", javax.swing.JCheckBox.class);
+        assertAll(
+                () -> assertNotNull(lockedHint),
+                () -> assertTrue(isVisibleInHierarchy(lockedHint), "Hint must show once policy locks headless"),
+                () -> assertTrue(lockedHeadless.isSelected(), "Headless value must come from the policy file"),
+                () -> assertFalse(lockedHeadless.isEnabled(), "Checkbox stays locked by policy"));
+
+        Path unlockedProjectRoot = Files.createTempDirectory("shaft-guided-workflow-policy-unlocked");
+        GuidedWorkflowPanel unlockedPanel = new GuidedWorkflowPanel(fakeProject(unlockedProjectRoot.toString()),
+                (tool, arguments) -> {
+                });
+        javax.swing.JLabel unlockedHint =
+                findByAccessibleName(unlockedPanel, "Headless policy lock hint", javax.swing.JLabel.class);
+        assertAll(
+                () -> assertNotNull(unlockedHint),
+                () -> assertFalse(isVisibleInHierarchy(unlockedHint),
+                        "Hint must stay hidden without a recorder-policy.json"));
     }
 
     @Test
@@ -374,21 +456,26 @@ class GuidedWorkflowPanelTest {
         javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
         javax.swing.text.JTextComponent targetUrl =
                 findByAccessibleName(panel, "Target URL", javax.swing.text.JTextComponent.class);
+        JComboBox<?> recorderBrowser = findByAccessibleName(panel, "Recorder browser", JComboBox.class);
         assertNotNull(backend);
         assertNotNull(headless);
         assertNotNull(targetUrl);
+        assertNotNull(recorderBrowser);
 
         select(backend, "WebDriver");
         assertTrue(targetUrl.isEnabled());
         assertTrue(headless.isEnabled());
+        assertTrue(recorderBrowser.isEnabled());
 
         select(backend, "Playwright");
         assertFalse(targetUrl.isEnabled(), "Playwright recorder start does not take a target URL");
         assertFalse(headless.isEnabled(), "Playwright recorder start does not take a headless option");
+        assertFalse(recorderBrowser.isEnabled(), "Playwright recorder start does not take a browser parameter");
 
         select(backend, "Mobile (web emulation)");
         assertTrue(targetUrl.isEnabled());
         assertTrue(headless.isEnabled());
+        assertTrue(recorderBrowser.isEnabled());
     }
 
     @Test
@@ -580,6 +667,40 @@ class GuidedWorkflowPanelTest {
                 () -> assertNotNull(findButton(panel, "Find reuse")),
                 () -> assertNotNull(findButton(panel, "Inspect locator")),
                 () -> assertNotNull(findButton(panel, "Guardrail check")));
+    }
+
+    /**
+     * A {@link Project} stub whose {@code getBasePath()} returns {@code basePath} (mirrors this
+     * suite's established {@code fakeProject} pattern, see {@code
+     * ShaftToolWindowPanelWorkflowPersistenceTest}) -- the only project method
+     * {@code applyTeamRecorderPolicy()} reads.
+     */
+    private static Project fakeProject(String basePath) {
+        return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
+                (proxy, method, arguments) -> {
+                    switch (method.getName()) {
+                        case "equals":
+                            return proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
+                        case "hashCode":
+                            return System.identityHashCode(proxy);
+                        case "getBasePath":
+                            return basePath;
+                        case "getName":
+                            return "guided-workflow-panel-test-project";
+                        default:
+                            return defaultValue(method.getReturnType());
+                    }
+                });
+    }
+
+    private static Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive()) {
+            return null;
+        }
+        if (returnType == boolean.class) {
+            return false;
+        }
+        return 0;
     }
 
     private static boolean isVisibleInHierarchy(Component component) {
