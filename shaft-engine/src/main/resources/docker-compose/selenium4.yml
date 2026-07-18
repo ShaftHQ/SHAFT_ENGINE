@@ -3,12 +3,28 @@
 # Add the `-d` flag at the end for detached execution
 # http://localhost:4444/grid/console
 # To stop the execution, hit Ctrl+C, and then `docker compose -f selenium4.yml down --remove-orphans`
+#
+# WebDriver BiDi (recorder / network capture / preload scripts): this is the BiDi-capable grid
+# (selenium3.yml has NO BiDi support at all, see its header). SE_NODE_GRID_URL below is what each
+# node embeds as the externally-reachable base URL for the `webSocketUrl` the Grid Router returns
+# on session creation (Selenium NodeOptions#getPublicGridUri, consumed by LocalNodeFactory) -- it
+# MUST be the exact host:port your SHAFT test client actually reaches this grid on. It is set to
+# `http://localhost:4444` for the documented same-host case (dev machine or CI runner driving
+# Maven directly against `docker compose up` on that same host) -- pair it with
+# `-DexecutionAddress=localhost:4444` (or `http://localhost:4444`) and leave
+# `-DenableBiDi=true`/`SHAFT.Properties.platform.set().enableBiDi(true)` (the default). If your
+# test client instead runs as its own container on this compose network, or the grid is reachable
+# only via a different host/IP, SE_NODE_GRID_URL must be changed to match that reachable address on
+# every node -- a mismatch here breaks only BiDi (webSocketUrl points somewhere the client can't
+# open a websocket to); classic WebDriver HTTP commands keep working because they only ever talk to
+# the Hub's published port. See https://github.com/SeleniumHQ/docker-selenium#grid-url-and-session-timeout
 services:
   chrome:
     image: selenium/node-chrome:4.45.0-20260606
     shm_size: 2gb
     depends_on:
-      - selenium-hub
+      selenium-hub:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -22,7 +38,8 @@ services:
     image: selenium/node-edge:4.45.0-20260606
     shm_size: 2gb
     depends_on:
-      - selenium-hub
+      selenium-hub:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -36,7 +53,8 @@ services:
     image: selenium/node-firefox:4.45.0-20260606
     shm_size: 2gb
     depends_on:
-      - selenium-hub
+      selenium-hub:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -53,3 +71,14 @@ services:
       - "4442:4442"
       - "4443:4443"
       - "4444:4444"
+    # Nodes register over the event bus as soon as their container starts; a plain `depends_on`
+    # (service_started) only waits for the Hub container to exist, not for its Router/EventBus to
+    # actually be listening, which is a documented cold-start race in docker-selenium. Gate node
+    # startup on the Hub's HTTP port actually answering (not on `.value.ready`, which requires
+    # nodes to already be registered and would deadlock the two `service_healthy` waits against
+    # each other). See https://github.com/SeleniumHQ/docker-selenium#adding-a-healthcheck-to-the-grid
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:4444/wd/hub/status >/dev/null || exit 1" ]
+      interval: 5s
+      timeout: 10s
+      retries: 20
