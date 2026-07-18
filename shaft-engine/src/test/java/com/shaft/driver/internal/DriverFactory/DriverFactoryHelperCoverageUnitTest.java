@@ -200,6 +200,27 @@ public class DriverFactoryHelperCoverageUnitTest {
         SHAFT.Validations.assertThat().object(helper.getDriver()).isNull().perform();
     }
 
+    /**
+     * Regression test for the console-polluting "org.openqa.selenium.remote.http.WebSocket$Listener
+     * onError / WARNING: Connection reset" noise (java.net.SocketException) that Selenium's WebSocket
+     * teardown logs to java.util.logging whenever driver.quit() races the JDK HttpClient's async socket
+     * close. Selenium's WebSocket interface registers its shared LOG field under its own (outer) class
+     * name -- "org.openqa.selenium.remote.http.WebSocket" -- not under the nested "WebSocket$Listener"
+     * interface that merely happens to be the call site printed by the JUL formatter. A prior fix
+     * attempt targeted the wrong ("...WebSocket$Listener") logger name, so it silently suppressed
+     * nothing. This asserts the corrected logger is suppressed to SEVERE, permanently, as soon as
+     * DriverFactoryHelper is loaded -- narrowly, without touching any other Selenium/JUL logger.
+     */
+    @Test
+    public void seleniumWebSocketLoggerShouldBePermanentlySuppressedToSevere() {
+        java.util.logging.Logger webSocketLogger =
+                java.util.logging.Logger.getLogger("org.openqa.selenium.remote.http.WebSocket");
+        SHAFT.Validations.assertThat().object(webSocketLogger.getLevel())
+                .isEqualTo(java.util.logging.Level.SEVERE).perform();
+        SHAFT.Validations.assertThat().object(webSocketLogger.isLoggable(java.util.logging.Level.WARNING))
+                .isEqualTo(false).perform();
+    }
+
     @Test
     public void initializeDriverWithExistingDriverShouldAttachReference() {
         DriverFactoryHelper helper = new DriverFactoryHelper();
