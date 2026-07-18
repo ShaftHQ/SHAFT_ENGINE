@@ -620,3 +620,8 @@ class AssistantCommandTest {
         assertEquals("github", invocation.arguments().get("provider").getAsString());
         assertEquals("openai/gpt-4.1", invocation.arguments().get("model").getAsString());
         assertEquals("PLAN", invocation.arguments().get("mode").getAsString());
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Review the checkout test plan"));
+        assertEquals("C:/work/project", invocation.arguments().get("workingDirectory").getAsString());
+        assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+}

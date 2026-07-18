@@ -103,6 +103,35 @@ record AssistantQuestion(String promptMarkdown, List<String> options) {
         String stripped = text.stripTrailing();
         int lastNewline = stripped.lastIndexOf('\n');
         String lastLine = (lastNewline < 0 ? stripped : stripped.substring(lastNewline + 1)).strip();
+
+        JsonObject parsed = parseMarkerLine(lastLine);
+        if (parsed == null) {
+            return null;
+        }
+
+        String questionText = extractQuestionText(parsed);
+        if (questionText == null) {
+            return null;
+        }
+
+        List<String> options = extractOptionsArray(parsed);
+        if (options == null) {
+            return null;
+        }
+
+        String remainder = (lastNewline < 0 ? "" : stripped.substring(0, lastNewline)).strip();
+        // A blank remainder (the model wrote no leading prose, just the marker line) would persist
+        // as an empty chat bubble -- worse, ShaftAssistantPanel#replaceLocalAgentStreamPlaceholder
+        // treats a blank message as "leave the streaming placeholder untouched", stranding it -- so
+        // fall back to the marker's own question text, which is always a real, readable question.
+        return new AssistantQuestion(remainder.isEmpty() ? questionText : remainder, options);
+    }
+
+    /**
+     * Validates and parses a line as a JSON object marker. Returns {@code null} if the line is
+     * malformed, not JSON, or not a JSON object.
+     */
+    private static JsonObject parseMarkerLine(String lastLine) {
         if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
             return null;
         }
@@ -115,28 +144,40 @@ record AssistantQuestion(String promptMarkdown, List<String> options) {
         if (parsed == null || !parsed.isJsonObject()) {
             return null;
         }
-        JsonObject object = parsed.getAsJsonObject();
+        return parsed.getAsJsonObject();
+    }
+
+    /**
+     * Extracts the question text from the marker object. Returns {@code null} if the question
+     * field is missing, not a string, or empty after trimming.
+     */
+    private static String extractQuestionText(JsonObject object) {
         JsonElement questionElement = object.get(QUESTION_KEY);
-        JsonElement optionsElement = object.get(OPTIONS_KEY);
         if (questionElement == null || !questionElement.isJsonPrimitive()
-                || !questionElement.getAsJsonPrimitive().isString()
-                || optionsElement == null || !optionsElement.isJsonArray()) {
+                || !questionElement.getAsJsonPrimitive().isString()) {
             return null;
         }
         String questionText = questionElement.getAsString().strip();
         if (questionText.isEmpty()) {
             return null;
         }
-        List<String> options = parseOptionsArray(optionsElement.getAsJsonArray());
-        if (options.size() < MIN_OPTIONS || options.size() > MAX_OPTIONS) {
+        return questionText;
+    }
+
+    /**
+     * Extracts and validates the options array from the marker object. Returns {@code null} if
+     * the options field is missing, not an array, or the final count falls outside MIN/MAX bounds.
+     */
+    private static List<String> extractOptionsArray(JsonObject object) {
+        JsonElement optionsElement = object.get(OPTIONS_KEY);
+        if (optionsElement == null || !optionsElement.isJsonArray()) {
             return null;
         }
-        String remainder = (lastNewline < 0 ? "" : stripped.substring(0, lastNewline)).strip();
-        // A blank remainder (the model wrote no leading prose, just the marker line) would persist
-        // as an empty chat bubble -- worse, ShaftAssistantPanel#replaceLocalAgentStreamPlaceholder
-        // treats a blank message as "leave the streaming placeholder untouched", stranding it -- so
-        // fall back to the marker's own question text, which is always a real, readable question.
-        return new AssistantQuestion(remainder.isEmpty() ? questionText : remainder, options);
+        List<String> options = parseOptionsArray(optionsElement.getAsJsonArray());
+        if (options.isEmpty()) {
+            return null;
+        }
+        return options;
     }
 
     private static List<String> parseOptionsArray(String fenceBody) {
