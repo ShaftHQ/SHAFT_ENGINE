@@ -252,10 +252,9 @@ These triggers are part of the method, not suggestions. Skipping one is a
 decision you must state and justify.
 
 - **Session start** — `memory load "<task>"`; consult the graphify cache
-  before broad exploration (`graphify`); `gbrain query` for any repo fact
-  you'd otherwise assert from memory (retrieval-reflex).
-- **Finding files or relations** — try `graphify`/`gbrain` before a Grep/Glob
-  sweep; fall back to grep when they don't have it.
+  before broad exploration (`graphify`).
+- **Finding files or relations** — try `graphify` before a Grep/Glob
+  sweep; fall back to grep when it doesn't have it.
 - **Production code, feature or bugfix** — `test-driven-development` is implicit
   in act-as-fable, not a separate opt-in: it applies whether or not invoked by
   name. Failing test first, watched red, then code. The guard hook (R6) reminds
