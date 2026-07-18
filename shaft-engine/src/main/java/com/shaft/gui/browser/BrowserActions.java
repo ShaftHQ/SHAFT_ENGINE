@@ -490,10 +490,15 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
             String domainName = browserActionsHelper.getDomainNameFromUrl(targetUrl);
-            if (SHAFT.Properties.platform.executionAddress().equals("local")) {
+            var strategy = browserActionsHelper.determineBasicAuthenticationStrategy(
+                    SHAFT.Properties.platform.executionAddress(), SHAFT.Properties.platform.enableBiDi());
+            if (strategy == BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) driverFactoryHelper.getDriver()).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
+                ReportManagerHelper.logDiscrete("Basic authentication downgraded to URL-embedded credentials: execution is remote and "
+                        + "SHAFT.Properties.platform.enableBiDi() is disabled, so no native HasAuthentication handler can be provisioned "
+                        + "on the remote driver. Enable BiDi to use the native handler for remote executions.", Level.WARN);
                 targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
             }
         } catch (Exception e) {

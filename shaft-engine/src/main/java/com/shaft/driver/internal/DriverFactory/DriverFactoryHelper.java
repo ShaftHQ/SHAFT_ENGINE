@@ -633,18 +633,29 @@ public class DriverFactoryHelper {
             else {
                 var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
                 driver.setFileDetector(new LocalFileDetector());
+                // Note: org.openqa.selenium.remote.Augmenter#addDriverAugmentation returns a NEW
+                // Augmenter (immutable builder) rather than mutating `this`; every call below must
+                // reassign `augmenter`, otherwise the added augmentation is silently discarded.
                 var augmenter = new Augmenter();
                 var targetBrowser = SHAFT.Properties.web.targetBrowserName().toLowerCase();
-                if (Arrays.asList("chrome", "edge").contains(targetBrowser)) {
-                    augmenter.addDriverAugmentation(new AddHasCdp() {
+                var isChromiumBrowser = Arrays.asList("chrome", "edge").contains(targetBrowser);
+                if (isChromiumBrowser) {
+                    augmenter = augmenter.addDriverAugmentation(new AddHasCdp() {
                         @Override
                         public Map<String, CommandInfo> getAdditionalCommands() {
                             return Map.of();
                         }
                     });
                 }
-                if (SHAFT.Properties.platform.enableBiDi())
-                    augmenter.addDriverAugmentation(new BiDiProvider());
+                if (SHAFT.Properties.platform.enableBiDi()) {
+                    augmenter = augmenter.addDriverAugmentation(new BiDiProvider());
+                    if (isChromiumBrowser) {
+                        // Selenium's HasAuthentication is CDP-backed (org.openqa.selenium.remote.AddHasAuthentication),
+                        // not auto-discovered via ServiceLoader for RemoteWebDriver, so navigateToURLWithBasicAuthentication
+                        // would otherwise always fall back to URL-embedded credentials on remote executions (issue #3732).
+                        augmenter = augmenter.addDriverAugmentation(new AddHasAuthentication());
+                    }
+                }
                 return augmenter.augment(driver);
             }
         } catch (Throwable throwable) {
