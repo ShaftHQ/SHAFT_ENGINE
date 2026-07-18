@@ -1,0 +1,1 @@
+Two CI watcher loops silently never terminated because their conditions piped through jq, which is not installed on this Windows machine (Git Bash). Symptom: monitor keeps polling forever, no error visible. Use gh's built-in --jq flag for GitHub JSON, or py -3 with the json module, for any scripted JSON parsing here.
