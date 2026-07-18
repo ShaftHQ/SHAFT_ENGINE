@@ -1864,12 +1864,14 @@ final class ShaftAssistantPanel extends JPanel {
                 : AssistantMarkdown.toolFailureMarkdown(toolName, body), output);
         appendTerminalAgentMilestone(success ? "Completed" : "Failed");
         if (success && ("capture_start".equals(toolName) || "playwright_record_start".equals(toolName)
-                || "mobile_record_start".equals(toolName))) {
-            // Feeds the shared readiness strip's recording badge (issue #3500 A4).
+                || "mobile_record_start".equals(toolName) || "capture_api_start".equals(toolName))) {
+            // Feeds the shared readiness strip's recording badge (issue #3500 A4). capture_api_start
+            // (issue #3726) shares CaptureManager's single-session lock with capture_start, so it is
+            // the same kind of active recording from the badge's point of view.
             ShaftRecordingActivity.started(recordingKey);
         }
         if (success && ("capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName)
-                || "mobile_record_stop".equals(toolName))) {
+                || "mobile_record_stop".equals(toolName) || "capture_api_stop".equals(toolName))) {
             ShaftRecordingActivity.stopped(recordingKey);
         }
         if (success && "capture_start".equals(toolName)) {

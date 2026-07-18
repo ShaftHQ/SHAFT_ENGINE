@@ -101,6 +101,7 @@ final class AssistantCommand {
                     - If the user provided a recording JSON path, generate from it with capture_generate_replay (replay true, useAi false); it re-executes the recording headless, compiles the generated test, and proves every locator live. No active capture session is required and none should be demanded.
                     - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
                     - Choose the recording surface that matches the description: capture_start_codegen for a WebDriver browser flow, or the mobile_record_start / mobile_tap / mobile_type / mobile_record_stop sequence for a native or hybrid mobile flow.
+                    - If the user asks for an API/HTTP test (SHAFT.API / RestActions) rather than a UI flow, record with capture_api_start (networkOptions capturing request/response bodies), browse the flow live, call capture_api_stop, then capture_api_generate (style SCENARIO by default) to return SHAFT.API code; do not force capture_start_codegen's UI-locator tools onto an API-only request.
                     - If capture_generate_replay (or its mobile/Playwright equivalents) reports a broken or unhealed locator, call healer_run_failed_test (or playwright_healer_run_failed_test) to self-heal it before returning code, instead of returning a known-broken locator.
                     - MUST follow the Page Object Model: one Page Object Model class per described flow, holding all locators and action methods, matching this project's existing package/module layout and SHAFT syntax; do not put driver.element()/locator calls directly in a @Test method body -- extract them into a page class. Keep the returned code minimal and project-structure-compliant; do not repeat this guidance text back to the user or paste unrelated boilerplate.
                     - Write in SHAFT's fluent design and action chaining style: chain calls on the same element/actions object (for example driver.element().click(locator).type(otherLocator, "value")) instead of a separate statement per action; only break the chain when the next step needs a different receiver.
@@ -146,6 +147,11 @@ final class AssistantCommand {
             List.of(),
             "/record-mobile inspector Android recordings/inspector.json",
             (command, rest, workingDirectory) -> mobileRecord(rest));
+    private static final CommandDefinition RECORD_API_COMMAND = new CommandDefinition("/record-api",
+            "Record API traffic",
+            List.of("/api-record", "/capture-api"),
+            "/record-api https://example.com/api",
+            (command, rest, workingDirectory) -> recordApi(rest));
     private static final CommandDefinition DOCTOR_COMMAND = new CommandDefinition("/doctor",
             "Analyze failures and recommend fixes",
             List.of(),
@@ -187,6 +193,7 @@ final class AssistantCommand {
     private static final List<CommandDefinition> CORE_COMMANDS = List.of(
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
+            RECORD_API_COMMAND,
             CODEGEN_COMMAND,
             DOCTOR_COMMAND,
             UPGRADE_COMMAND);
@@ -206,6 +213,7 @@ final class AssistantCommand {
             PARTNER_COMMAND,
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
+            RECORD_API_COMMAND,
             DOCTOR_COMMAND,
             GUIDE_COMMAND,
             new CommandDefinition("/scenarios", "Find automation scenarios",
@@ -253,9 +261,15 @@ final class AssistantCommand {
     //    broad "topic + action-word" recognizers, so a phrase satisfying both (e.g. "open mobile
     //    inspector http://...") resolves by declaration order below, exactly like the old
     //    first-match linear scan did (browser-control is declared first).
+    //  - WEIGHT_API_RECORDING > WEIGHT_MOBILE_RECORDING > WEIGHT_BROWSER_RECORDING so a "record
+    //    api ..." phrase that happens to also satisfy the browser/mobile recognizers' broad keyword
+    //    lists still starts the API-capture recorder (issue #3726). isApiRecordingIntent excludes
+    //    "without a browser" phrasing up front so RecordApiMobileAction's no-browser proxy prefill
+    //    (mobile_api_record_start) is left to isMobileRecordingStartIntent, uncontested.
     private static final int WEIGHT_COMMAND_HELP = 100;
     private static final int WEIGHT_NAMED_TOOL_REQUEST = 90;
     private static final int WEIGHT_PROJECT_UPGRADE = 80;
+    private static final int WEIGHT_API_RECORDING = 70;
     private static final int WEIGHT_MOBILE_RECORDING = 65;
     private static final int WEIGHT_BROWSER_RECORDING = 60;
     private static final int WEIGHT_TOPIC_CONTROL = 55;
@@ -280,6 +294,8 @@ final class AssistantCommand {
                     (text, workingDirectory) -> Invocation.tool("shaft_project_upgrade", projectUpgrade(naturalProjectRoot(text, workingDirectory)))),
             new NaturalIntent(WEIGHT_TOPIC_CONTROL, AssistantCommand::isBrowserControlIntent,
                     (text, workingDirectory) -> browser(text)),
+            new NaturalIntent(WEIGHT_API_RECORDING, AssistantCommand::isApiRecordingIntent,
+                    (text, workingDirectory) -> recordApi(text)),
             new NaturalIntent(WEIGHT_BROWSER_RECORDING, AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
             new NaturalIntent(WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStartIntent,
@@ -427,6 +443,11 @@ final class AssistantCommand {
     private static final List<String> MOBILE_RECORD_START_PHRASES = List.of(
             "start mobile recording",
             "start app recording");
+    private static final List<String> API_CAPTURE_START_PHRASES = List.of(
+            "start api recording",
+            "start an api recording",
+            "start api capture",
+            "start an api capture");
 
 
     private AssistantCommand() {
@@ -1600,6 +1621,43 @@ final class AssistantCommand {
                 playwright ? playwrightRecordStart() : captureStart(rest));
     }
 
+    /**
+     * Starts a browser-driven API/network-traffic recording via {@code capture_api_start}
+     * (issue #3726), the same MCP tool {@code RecordApiWebAction}'s dedicated API Recording tab
+     * drives, so the chat-panel command and the toolbar action produce the same recorded session
+     * shape and can both feed {@code capture_api_generate} for SHAFT.API/RestActions code.
+     */
+    private static Invocation recordApi(String rest) {
+        return Invocation.tool("capture_api_start", apiCaptureStart(rest));
+    }
+
+    private static JsonObject apiCaptureStart(String rest) {
+        JsonObject arguments = new JsonObject();
+        String targetUrl = parseLeadingUrl(rest);
+        // A blank targetUrl is intentionally passed through, matching captureStart: no target
+        // parsed means capture_api_start resolves it to an empty/blank-page browser downstream.
+        arguments.addProperty("targetUrl", targetUrl);
+        arguments.addProperty("browser", "Chrome");
+        arguments.addProperty("headless", recorderHeadlessPreference());
+        arguments.add("networkOptions", apiNetworkCaptureOptions());
+        return arguments;
+    }
+
+    /**
+     * Field names must match {@code com.shaft.capture.runtime.NetworkCaptureOptions} exactly --
+     * mirrors {@code RecordApiWebAction.NETWORK_CAPTURE_OPTIONS_FIELDS}' warning that the MCP
+     * binder silently drops an unrecognized key instead of rejecting it. Request/response body
+     * capture (the entire point of an API recording) defaults to false unless enabled here.
+     */
+    private static JsonObject apiNetworkCaptureOptions() {
+        JsonObject networkOptions = new JsonObject();
+        networkOptions.addProperty("enabled", true);
+        networkOptions.addProperty("excludeAssets", true);
+        networkOptions.addProperty("captureRequestBodies", true);
+        networkOptions.addProperty("captureResponseBodies", true);
+        return networkOptions;
+    }
+
     private static Invocation recording(String text) {
         if (isReRecord(text)) {
             return reRecord(text);
@@ -1828,6 +1886,25 @@ final class AssistantCommand {
             return false;
         }
         return containsAny(normalized, INTENT_KEYWORDS.get("capture_start"));
+    }
+
+    /**
+     * True for requests to start a browser-driven API/network-traffic recording (issue #3726),
+     * for example RecordApiWebAction's exact Assistant prefill ("Record API traffic on
+     * https://..."). Deliberately excludes "without a browser" phrasing up front: that marks
+     * RecordApiMobileAction's no-browser proxy prefill, which drives a different MCP tool
+     * ({@code mobile_api_record_start}, via {@link #isMobileRecordingStartIntent}) that this
+     * command does not.
+     */
+    private static boolean isApiRecordingIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        if (normalized.contains("without a browser")) {
+            return false;
+        }
+        if (matchesWholeWordPrefix(normalized, API_CAPTURE_START_PHRASES)) {
+            return true;
+        }
+        return normalized.startsWith("record ") && normalized.contains("api");
     }
 
     private static boolean isMobileControlIntent(String text) {
