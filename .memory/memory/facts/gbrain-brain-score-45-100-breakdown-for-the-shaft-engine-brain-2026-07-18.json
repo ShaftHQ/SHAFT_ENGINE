@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/facts/gbrain-brain-score-45-100-breakdown-for-the-shaft-engine-brain-2026-07-18.md",
+  "content_hash": "sha256:d9ce478a178efde8ac984649c530df7355f88be373a8a7ea8244fdb0d49c3387",
+  "created_at": "2026-07-18T07:46:21+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "debugging-fact"
+  },
+  "id": "fact.gbrain-brain-score-45-100-breakdown-for-the-shaft-engine-brain-2026-07-18",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Issue #3708 brain_score remediation follow-up"
+  },
+  "status": "active",
+  "tags": [
+    "gbrain",
+    "brain-score",
+    "issue-3708"
+  ],
+  "title": "gbrain brain_score 45/100 breakdown for the shaft-engine brain (2026-07-18)",
+  "type": "fact",
+  "updated_at": "2026-07-18T07:46:21+03:00"
+}
