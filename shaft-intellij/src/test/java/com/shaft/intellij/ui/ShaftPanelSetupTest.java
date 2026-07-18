@@ -27,7 +27,9 @@ import javax.swing.JCheckBox;
 import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -2803,6 +2805,38 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(trimmed.endsWith("...")),
                 () -> assertTrue(trimmed.length() < title.length()),
                 () -> assertTrue(label.getFontMetrics(label.getFont()).stringWidth(trimmed) <= 120));
+    }
+
+    @Test
+    void assistantChatTitleFillsWideDropdownInsteadOfHardCappingAtFixedCharacterCount() {
+        // Issue: the history dropdown showed titles like "generate code that opens Wikipedia, s..."
+        // even when the dropdown itself was far wider -- because the stored session title was
+        // hard-capped at a fixed 37-character prefix at creation time, well before the width-aware
+        // renderer (trimChatTitleForWidth) ever saw it. The stored title must keep the full text;
+        // only rendering should ellipsize, and only when the title genuinely does not fit.
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        String longPrompt = "generate code that opens Wikipedia, searches for artificial intelligence topics";
+        chatState.append("user", longPrompt, "{}");
+
+        assertEquals(longPrompt, chatState.activeSession().title,
+                "stored session title must not be hard-capped at a fixed low character count");
+
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings(), chatState);
+        JComboBox<?> chats = findByAccessibleName(panel, "Assistant chat", JComboBox.class);
+        assertNotNull(chats);
+
+        JList<Object> wideList = new JList<>();
+        wideList.setSize(4000, 24);
+        @SuppressWarnings("unchecked")
+        ListCellRenderer<Object> renderer = (ListCellRenderer<Object>) chats.getRenderer();
+        Component rendered = renderer.getListCellRendererComponent(
+                wideList, chatState.activeSession(), 0, false, false);
+        JLabel label = (JLabel) rendered;
+
+        assertAll(
+                () -> assertEquals(longPrompt, label.getText(),
+                        "a title that fits a very wide dropdown must render in full, not truncated"),
+                () -> assertFalse(label.getText().endsWith("...")));
     }
 
     @Test
