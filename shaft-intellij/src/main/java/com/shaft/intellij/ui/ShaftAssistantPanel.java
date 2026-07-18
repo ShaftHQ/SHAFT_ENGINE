@@ -86,6 +86,8 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * SHAFT Assistant chat-style panel.
@@ -878,7 +880,12 @@ final class ShaftAssistantPanel extends JPanel {
         }
         lastAgentMilestone = step;
         String icon = agentMilestoneIcon(step);
-        append("assistant", icon.isEmpty() ? step : icon + " " + step, "");
+        // Every milestone is its own chat bubble (issue #3695), so unlike the single polished
+        // final-answer bubble per run, these are the majority of what a user sees -- they must go
+        // through the same markdown pass everything else does, or JSON/code-shaped content (e.g. a
+        // tool-result summary) renders as an unformatted blob instead of a proper fenced block.
+        String markdown = AssistantMarkdown.normalizeMarkdown(step);
+        append("assistant", icon.isEmpty() ? markdown : icon + " " + markdown, "");
     }
 
     /**
@@ -2130,7 +2137,12 @@ final class ShaftAssistantPanel extends JPanel {
      * user opts into Verbose) while still giving a signal of progress for everything else — translated
      * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines. Sub-lines that
      * name a {@link #NON_ACTIONABLE_META_TOOL_NAMES} tool call are dropped first (#3672: internal
-     * harness meta-tool calls like ToolSearch were leaking into the visible milestone bubbles).
+     * harness meta-tool calls like ToolSearch were leaking into the visible milestone bubbles). A
+     * "Tool result (X): .../Tool failed (X): ..." sub-line whose content is long enough to look like
+     * a raw dump rather than a short status is compacted by {@link #compactIfRawToolResult}, closing
+     * a gap where non-JSON raw tool output (a Bash stdout dump, a file's full contents) still leaked
+     * through as-is even with Verbose off, contradicting the "only human readable messages" contract
+     * this method exists to enforce.
      */
     private void addCompactLocalAgentMilestone(String line) {
         if (line == null) {
@@ -2144,18 +2156,48 @@ final class ShaftAssistantPanel extends JPanel {
             if (filtered.length() > 0) {
                 filtered.append("\n");
             }
-            filtered.append(subLine);
+            filtered.append(compactIfRawToolResult(subLine));
         }
         String trimmed = filtered.toString().strip();
         if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
             return;
         }
-        // Since the #3695 redesign, a milestone renders as its own full chat bubble in the main
-        // transcript (see appendAgentMilestone), not a compact single-line heartbeat entry in a
-        // separate timeline -- so it must show the complete text, unlike the old "Run timeline" list
-        // this fed before #3695. Cutting it short here would silently drop content the user asked to
-        // see in full (e.g. a long tool result or command), so the whole trimmed string is kept as-is.
         appendAgentMilestone(trimmed);
+    }
+
+    private static final Pattern TOOL_RESULT_PREFIX =
+            Pattern.compile("^(Tool (?:result|failed) \\([^)]*\\)): (.*)$");
+    // A short status/warning line (the common case) is left untouched; only content long enough to
+    // read as a raw dump gets compacted, so this deliberately doesn't reintroduce the earlier
+    // mid-word hard-cut-at-77-chars bug that assistantAgentMilestoneBubbleShowsFullLongLineWithout-
+    // MidWordTruncation guards against.
+    private static final int TOOL_RESULT_INLINE_CHAR_LIMIT = 400;
+
+    /**
+     * Compacts a "Tool result (X): <content>"/"Tool failed (X): <content>" sub-line down to a short,
+     * word-boundary-safe preview once {@code content} is long enough to look like raw tool output
+     * (full stdout, a whole file's contents, ...) rather than a short human-readable status, pointing
+     * the user at Verbose for the rest. Anything else -- including a short "Tool result" entry --
+     * passes through unchanged.
+     */
+    private static String compactIfRawToolResult(String subLine) {
+        Matcher matcher = TOOL_RESULT_PREFIX.matcher(subLine);
+        if (!matcher.matches()) {
+            return subLine;
+        }
+        String prefix = matcher.group(1);
+        String content = matcher.group(2);
+        if (content.length() <= TOOL_RESULT_INLINE_CHAR_LIMIT) {
+            return subLine;
+        }
+        int cut = TOOL_RESULT_INLINE_CHAR_LIMIT;
+        int wordBoundary = content.lastIndexOf(' ', cut);
+        if (wordBoundary > 0) {
+            cut = wordBoundary;
+        }
+        int hiddenChars = content.length() - cut;
+        return prefix + ": " + content.substring(0, cut).stripTrailing()
+                + " … (" + hiddenChars + " more characters — enable Verbose to see the full output)";
     }
 
     /** True for a "Calling tool X..." (or "...X (args)...") sub-line naming a denylisted meta-tool. */
@@ -2206,7 +2248,7 @@ final class ShaftAssistantPanel extends JPanel {
      */
     private void showAssistantQuestionOptions(AssistantQuestion question) {
         AssistantQuestionOptionsPanel optionsPanel = new AssistantQuestionOptionsPanel(
-                question.options(), this::fillPromptWithSuggestedAnswer);
+                question.options(), this::fillPromptWithSuggestedAnswer, this::focusPromptForCustomAnswer);
         transcript.showWidget("assistant", optionsPanel);
     }
 
@@ -2219,6 +2261,16 @@ final class ShaftAssistantPanel extends JPanel {
     private void fillPromptWithSuggestedAnswer(String answer) {
         prompt.setText(answer);
         prompt.setCaretPosition(answer.length());
+        prompt.requestFocusInWindow();
+    }
+
+    /**
+     * Handles the question panel's "Answer myself" button: moves focus to the composer without
+     * prefilling any suggested text, so a user who wants to answer in their own words has a visible,
+     * clickable affordance for that instead of needing to already know the always-available prompt
+     * field doubles as the free-text fallback.
+     */
+    private void focusPromptForCustomAnswer() {
         prompt.requestFocusInWindow();
     }
 

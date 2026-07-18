@@ -17,7 +17,7 @@ class AssistantQuestionOptionsPanelTest {
     @Test
     void rendersOneButtonPerOption() {
         AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(
-                List.of("Use the sample page", "I'll give you a URL"), option -> { });
+                List.of("Use the sample page", "I'll give you a URL"), option -> { }, () -> { });
 
         List<JButton> buttons = panel.optionButtonsForTest();
         List<String> labels = buttons.stream().map(JButton::getText).toList();
@@ -36,7 +36,7 @@ class AssistantQuestionOptionsPanelTest {
                 List.of("Yes", "No"), option -> {
                     chosen.set(option);
                     callCount.incrementAndGet();
-                });
+                }, () -> { });
         JButton yes = panel.optionButtonsForTest().stream()
                 .filter(button -> "Yes".equals(button.getText())).findFirst().orElseThrow();
 
@@ -62,7 +62,7 @@ class AssistantQuestionOptionsPanelTest {
     @Test
     void everyButtonHasAnAccessibleName() {
         AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(
-                List.of("Yes", "No"), option -> { });
+                List.of("Yes", "No"), option -> { }, () -> { });
 
         assertAll(panel.optionButtonsForTest().stream()
                 .map(button -> (org.junit.jupiter.api.function.Executable) () -> assertFalse(
@@ -73,15 +73,38 @@ class AssistantQuestionOptionsPanelTest {
 
     @Test
     void rendersNoButtonsForAnEmptyOptionList() {
-        AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(List.of(), option -> { });
+        AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(List.of(), option -> { }, () -> { });
 
         assertTrue(panel.optionButtonsForTest().isEmpty());
     }
 
     @Test
     void toleratesANullOptionList() {
-        AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(null, option -> { });
+        AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(null, option -> { }, () -> { });
 
         assertTrue(panel.optionButtonsForTest().isEmpty());
+    }
+
+    @Test
+    void answerMyselfButtonIsAlwaysPresentAndReportsClicksIndependentlyOfTheOptionChips() {
+        // A real user report: there was no visible affordance for "I want to answer myself" beside
+        // the suggested-answer chips -- only the composer, which a user has no reason to know doubles
+        // as the free-text fallback. This button must always render (even with zero/null options) and
+        // must never invoke the option-chosen callback.
+        AtomicInteger customAnswerClicks = new AtomicInteger();
+        AtomicReference<String> chosenOption = new AtomicReference<>();
+        AssistantQuestionOptionsPanel panel = new AssistantQuestionOptionsPanel(
+                List.of("Yes", "No"), chosenOption::set, customAnswerClicks::incrementAndGet);
+
+        JButton customAnswer = panel.customAnswerButtonForTest();
+        customAnswer.doClick();
+
+        assertAll(
+                () -> assertEquals("Answer myself", customAnswer.getText()),
+                () -> assertFalse(customAnswer.getAccessibleContext().getAccessibleName() == null
+                        || customAnswer.getAccessibleContext().getAccessibleName().isBlank()),
+                () -> assertEquals(1, customAnswerClicks.get()),
+                () -> assertEquals(null, chosenOption.get(),
+                        "clicking Answer myself must not report a suggested-option choice"));
     }
 }

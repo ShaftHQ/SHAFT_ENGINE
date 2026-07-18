@@ -2302,11 +2302,15 @@ final class AssistantCommand {
                 + (codeGenerationRequest
                 ? "\n" + codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
                 : "");
+        // The user already mentioning "shaft-mcp" themselves makes the "use shaft-mcp for browser
+        // tasks" boilerplate redundant, but the shaft-options hint is unrelated to that -- it must
+        // always be sent, or every clarifying question on a turn that happens to mention shaft-mcp
+        // silently loses its clickable-options chip UI (a real user report).
         String withHint = lower.contains("shaft-mcp")
                 ? (codeGenerationRequest
                 ? codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
-                + "\n\n" + text
-                : text)
+                + "\n" + SHAFT_OPTIONS_HINT + "\n\n" + text
+                : SHAFT_OPTIONS_HINT + "\n\n" + text)
                 : hint + "\n\n" + text;
         withHint = withConversationContext(withHint, conversationContext);
         if (!agentMode) {

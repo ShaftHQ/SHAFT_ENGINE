@@ -105,7 +105,13 @@ class AssistantCommandTest {
                 Source edits are approved for this session.
                 You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
                 duckDuckGo.arguments().get("prompt").getAsString());
+        // The user already mentioning shaft-mcp themselves skips the redundant "use shaft-mcp for
+        // browser tasks" boilerplate, but must NOT also drop the unrelated shaft-options hint --
+        // that silently lost every clarifying-question chip UI for any turn that happened to mention
+        // shaft-mcp (a real user report: agent questions never rendered as clickable options).
         assertEquals("""
+                If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+
                 use shaft-mcp to open mobile app
 
                 Source edits are approved for this session.

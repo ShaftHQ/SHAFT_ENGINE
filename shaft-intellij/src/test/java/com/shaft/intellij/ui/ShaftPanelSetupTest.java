@@ -2949,6 +2949,31 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantNonVerboseModeCompactsRawToolResultDumpsInsteadOfShowingThemInFull() throws Exception {
+        // A real user report: with Verbose off, raw tool output (a Bash stdout dump, a file's full
+        // contents, ...) was still appearing in full as its own chat bubble -- addCompactLocalAgent-
+        // Milestone only ever filtered raw NDJSON ("{"/"[" lines), never plain-text tool-result dumps.
+        // A genuinely long "Tool result (X): ..."/"Tool failed (X): ..." entry must now compact down
+        // to a short preview pointing at Verbose instead of dumping the whole thing into the
+        // transcript (the sibling test above pins that a SHORT entry still renders in full, no
+        // regression to the earlier mid-word-truncation bug for the common case).
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String rawOutput = "line ".repeat(120).strip();
+        String longLine = "Tool result (Bash): " + rawOutput;
+
+        appendStreamingLocalAgentBubble(panel, 202);
+        appendLocalAgentOutput(panel, 202, longLine);
+
+        String transcript = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertFalse(transcript.contains(rawOutput),
+                        "The full raw tool-result dump must not appear while Verbose is off: " + transcript),
+                () -> assertTrue(transcript.contains("Tool result (Bash):"), transcript),
+                () -> assertTrue(transcript.toLowerCase(java.util.Locale.ROOT).contains("verbose"),
+                        "The compacted preview must point the user at Verbose for the full output: " + transcript));
+    }
+
+    @Test
     void assistantVerboseModeShowsLiveAgentOutput() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
