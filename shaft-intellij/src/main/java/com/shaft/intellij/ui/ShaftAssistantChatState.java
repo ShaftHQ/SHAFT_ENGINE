@@ -279,6 +279,9 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     }
 
     private static String titleFrom(String markdown) {
+        // Keep the full text here -- no fixed character cap. The dropdown renderer
+        // (ShaftAssistantPanel.trimChatTitleForWidth) ellipsizes at render time based on the
+        // component's actual available width, so the stored title must stay untruncated.
         String text = stripSpeakerLabel(markdown).replace("*", "")
                 .replace("`", "")
                 .replace("\n", " ")
@@ -287,10 +290,7 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
                 .replaceAll("(?iu)\\b" + Pattern.quote(SECOND_PERSON_LABEL) + "\\b", "")
                 .replaceAll("\\s{2,}", " ")
                 .trim();
-        if (text.length() <= 40) {
-            return text.isBlank() ? "New chat" : text;
-        }
-        return text.substring(0, 37).stripTrailing() + "...";
+        return text.isBlank() ? "New chat" : text;
     }
 
     private static String stripSpeakerLabel(String markdown) {

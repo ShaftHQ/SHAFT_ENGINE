@@ -284,7 +284,10 @@ final class AssistantTranscriptView extends JPanel {
         }
         Color foreground = handle.htmlPane.getForeground();
         Color background = handle.bubble.getBackground();
-        String rendered = toFallbackHtml(convertMarkdown(updatedMarkdown), foreground, background);
+        String bodyHtml = USER_ROLE.equals(role)
+                ? convertPlainUserText(updatedMarkdown)
+                : convertMarkdown(updatedMarkdown);
+        String rendered = toFallbackHtml(bodyHtml, foreground, background);
         handle.htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
         handle.htmlPane.setText(rendered);
         handle.htmlPane.setCaretPosition(0);
@@ -420,6 +423,24 @@ final class AssistantTranscriptView extends JPanel {
     private String convertMarkdown(String value) {
         String safeValue = value == null ? "" : value;
         return addCodeCopyButtons(renderMarkdownBlocks(safeValue));
+    }
+
+    /**
+     * Renders {@code value} as a single HTML paragraph with no Markdown interpretation at all:
+     * every character the user typed -- a stray backtick, {@code **}, a leading
+     * {@code #} -- stays exactly as typed instead of becoming {@code <code>}/{@code <strong>}/a
+     * heading. Only HTML's own {@code &}/{@code <}/{@code >} are escaped (via the same {@link
+     * #escapeInlineHtml} helper the Markdown path already uses for plain-text runs), and {@code '\n'}
+     * becomes {@code <br>} exactly like {@link #appendParagraph}'s Markdown path, so user bubbles wrap
+     * multi-line messages the same visible way assistant bubbles do. Used only for the {@code user}
+     * role; assistant/agent bubbles keep the full {@link #convertMarkdown} pipeline.
+     *
+     * @param value raw user text, or {@code null}
+     * @return a single {@code <p>...</p>} HTML body
+     */
+    private static String convertPlainUserText(String value) {
+        String safeValue = value == null ? "" : value;
+        return "<p>" + escapeInlineHtml(safeValue).replace("\n", "<br>") + "</p>";
     }
 
     private void refresh() {
@@ -650,7 +671,8 @@ final class AssistantTranscriptView extends JPanel {
         bubble.setForeground(foreground);
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, normalizedRole);
         bubble.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message bubble");
-        JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
+        String bodyHtml = user ? convertPlainUserText(markdown) : convertMarkdown(markdown);
+        JEditorPane htmlPane = fallbackHtmlPane(bodyHtml, foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
         CollapsibleOutputPanel outputPanel = new CollapsibleOutputPanel(htmlPane, this::bodyLineHeight);
         outputPanel.updateCollapseState();
@@ -1129,7 +1151,11 @@ final class AssistantTranscriptView extends JPanel {
             }
             closeOpenListsOnly(html, inUnorderedList, inOrderedList);
             if (!paragraph.isEmpty()) {
-                paragraph.append(' ');
+                // A single newline the user/agent actually typed is a deliberate line break, not
+                // insignificant Markdown whitespace -- joining with '\n' (turned into <br> below in
+                // appendParagraph) preserves it instead of collapsing consecutive lines into one
+                // run-on sentence.
+                paragraph.append('\n');
             }
             paragraph.append(trimmed);
             inUnorderedList = false;
@@ -1161,7 +1187,9 @@ final class AssistantTranscriptView extends JPanel {
         if (paragraph.isEmpty()) {
             return;
         }
-        html.append("<p>").append(renderInline(paragraph.toString())).append("</p>");
+        // renderInline() (via escapeInlineHtml()) never touches '\n', so the joiner characters
+        // appended above survive inline rendering untouched and are safe to turn into <br> here.
+        html.append("<p>").append(renderInline(paragraph.toString()).replace("\n", "<br>")).append("</p>");
         paragraph.setLength(0);
     }
 
@@ -1713,7 +1741,11 @@ final class AssistantTranscriptView extends JPanel {
             if (preferredWidth > 0) {
                 setSize(new Dimension(preferredWidth, Short.MAX_VALUE));
                 Dimension preferred = super.getPreferredSize();
-                preferred.width = Math.min(preferred.width, preferredWidth);
+                // Swing's int-truncated HTML measurement leaves zero right-edge slack, so a bubble
+                // laid out at exactly this width can clip the last letter or two. A few px of
+                // headroom -- still capped by preferredWidth -- fixes the crop without loosening the
+                // wrap budget fallbackBubbleContentWidth() computes.
+                preferred.width = Math.min(preferred.width + JBUI.scale(4), preferredWidth);
                 return preferred;
             }
             return super.getPreferredSize();

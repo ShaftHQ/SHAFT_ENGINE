@@ -541,6 +541,70 @@ class CaptureServiceTest {
         assertTrue(failure.getMessage().contains("required"));
     }
 
+    @Test
+    void codeBlocksToolDefaultsOptionalParametersWhenCalledWithNullOrBlank() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            // Call with null/blank for optional parameters: outputDirectory, packageName, className, driverVariableName
+            result = service.codeBlocks(
+                    session.toString(),
+                    null,           // outputDirectory - should default to generated-tests
+                    null,           // packageName - should default to tests.generated
+                    null,           // className - should default to RecordedFlowTest
+                    null,
+                    null);          // driverVariableName - should default to driver
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class RecordedFlowTest")
+                        && block.code().contains("package tests.generated")),
+                "Generated code should contain default class RecordedFlowTest and package tests.generated");
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.TEST_METHOD
+                        && block.placement().contains("driver")),
+                "TEST_METHOD placement should contain default driver variable name");
+    }
+
+    @Test
+    void codeBlocksToolDefaultsOptionalParametersWhenCalledWithBlankStrings() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            // Call with blank strings for optional parameters
+            result = service.codeBlocks(
+                    session.toString(),
+                    "   ",          // outputDirectory - blank should default to generated-tests
+                    "",             // packageName - blank should default to tests.generated
+                    "  ",           // className - blank should default to RecordedFlowTest
+                    null,
+                    "");            // driverVariableName - blank should default to driver
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class RecordedFlowTest")
+                        && block.code().contains("package tests.generated")),
+                "Generated code should contain default class RecordedFlowTest and package tests.generated when blank strings provided");
+    }
+
     private CaptureService service() {
         return new CaptureService(
                 new CaptureManager(),

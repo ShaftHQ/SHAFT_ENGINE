@@ -865,17 +865,32 @@ public class CaptureService {
             @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
                     + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
+            @ToolParam(required = false, description = "generated project root inside the MCP workspace; "
+                    + "defaults to generated-tests under the workspace")
             String outputDirectory,
+            @ToolParam(required = false, description = "Java package for the generated class; "
+                    + "defaults to tests.generated")
             String packageName,
+            @ToolParam(required = false, description = "Java class name for the generated class; "
+                    + "defaults to RecordedFlowTest")
             String className,
-            boolean overwrite,
+            @ToolParam(required = false, description = "overwrite an existing generated file; "
+                    + "defaults to false")
+            Boolean overwrite,
+            @ToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
+                    + "defaults to driver")
             String driverVariableName) {
+        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
+        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
+        boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
+
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
-                packageName,
-                className,
-                overwrite,
+                resolvedPackageName,
+                resolvedClassName,
+                resolvedOverwrite,
                 false,
                 false,
                 false,
@@ -883,7 +898,7 @@ public class CaptureService {
                 false,
                 false,
                 CodegenBackend.WEBDRIVER);
-        return replayResult(result, driverVariableName);
+        return replayResult(result, resolvedDriverVariableName);
     }
 
     /**
@@ -902,20 +917,37 @@ public class CaptureService {
     @Tool(name = "capture_record_at_target_code_blocks",
             description = "generates focused Capture snippets for insertion at an existing Java source anchor")
     public McpCaptureReplayResult recordAtTargetCodeBlocks(
+            @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
+                    + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
+            @ToolParam(required = false, description = "generated project root inside the MCP workspace; "
+                    + "defaults to generated-tests under the workspace")
             String outputDirectory,
+            @ToolParam(required = false, description = "Java package for the generated class; "
+                    + "defaults to tests.generated")
             String packageName,
+            @ToolParam(required = false, description = "Java class name for the generated class; "
+                    + "defaults to RecordedFlowTest")
             String className,
-            boolean overwrite,
+            @ToolParam(required = false, description = "overwrite an existing generated file; "
+                    + "defaults to false")
+            Boolean overwrite,
             String targetSourcePath,
             String insertAfter,
+            @ToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
+                    + "defaults to driver")
             String driverVariableName) {
+        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
+        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
+        boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
+
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
-                packageName,
-                className,
-                overwrite,
+                resolvedPackageName,
+                resolvedClassName,
+                resolvedOverwrite,
                 false,
                 false,
                 false,
@@ -925,7 +957,7 @@ public class CaptureService {
                 CodegenBackend.WEBDRIVER);
         return replayResult(
                 result,
-                driverVariableName,
+                resolvedDriverVariableName,
                 workspacePolicy.existing(targetSourcePath, "Capture target source path"),
                 insertAfter);
     }
@@ -945,18 +977,35 @@ public class CaptureService {
             description = "generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion from "
                     + "a persisted recording JSON (sessionPath); no active capture session required")
     public McpCaptureReplayResult playwrightCodeBlocks(
+            @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
+                    + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
+            @ToolParam(required = false, description = "generated project root inside the MCP workspace; "
+                    + "defaults to generated-tests under the workspace")
             String outputDirectory,
+            @ToolParam(required = false, description = "Java package for the generated class; "
+                    + "defaults to tests.generated")
             String packageName,
+            @ToolParam(required = false, description = "Java class name for the generated class; "
+                    + "defaults to RecordedFlowTest")
             String className,
-            boolean overwrite,
+            @ToolParam(required = false, description = "overwrite an existing generated file; "
+                    + "defaults to false")
+            Boolean overwrite,
+            @ToolParam(required = false, description = "JavaScript page variable name used in extracted snippets; "
+                    + "defaults to page")
             String driverVariableName) {
+        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
+        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "page");
+        boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
+
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
-                packageName,
-                className,
-                overwrite,
+                resolvedPackageName,
+                resolvedClassName,
+                resolvedOverwrite,
                 false,
                 false,
                 false,
@@ -964,7 +1013,7 @@ public class CaptureService {
                 false,
                 false,
                 CodegenBackend.PLAYWRIGHT);
-        return replayResult(result, driverVariableName);
+        return replayResult(result, resolvedDriverVariableName);
     }
 
     /**
@@ -1106,6 +1155,17 @@ public class CaptureService {
                 allowLocalAi,
                 allowRemoteAi,
                 CodegenBackend.WEBDRIVER);
+    }
+
+    /**
+     * Defaults a string if it is null or blank.
+     *
+     * @param value the value to check
+     * @param fallback the fallback value if value is null or blank
+     * @return value if it is not blank, otherwise fallback
+     */
+    private static String defaultIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     /**

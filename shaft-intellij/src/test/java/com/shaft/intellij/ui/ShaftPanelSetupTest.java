@@ -27,7 +27,9 @@ import javax.swing.JCheckBox;
 import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -2806,6 +2808,38 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantChatTitleFillsWideDropdownInsteadOfHardCappingAtFixedCharacterCount() {
+        // Issue: the history dropdown showed titles like "generate code that opens Wikipedia, s..."
+        // even when the dropdown itself was far wider -- because the stored session title was
+        // hard-capped at a fixed 37-character prefix at creation time, well before the width-aware
+        // renderer (trimChatTitleForWidth) ever saw it. The stored title must keep the full text;
+        // only rendering should ellipsize, and only when the title genuinely does not fit.
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        String longPrompt = "generate code that opens Wikipedia, searches for artificial intelligence topics";
+        chatState.append("user", longPrompt, "{}");
+
+        assertEquals(longPrompt, chatState.activeSession().title,
+                "stored session title must not be hard-capped at a fixed low character count");
+
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings(), chatState);
+        JComboBox<?> chats = findByAccessibleName(panel, "Assistant chat", JComboBox.class);
+        assertNotNull(chats);
+
+        JList<Object> wideList = new JList<>();
+        wideList.setSize(4000, 24);
+        @SuppressWarnings("unchecked")
+        ListCellRenderer<Object> renderer = (ListCellRenderer<Object>) chats.getRenderer();
+        Component rendered = renderer.getListCellRendererComponent(
+                wideList, chatState.activeSession(), 0, false, false);
+        JLabel label = (JLabel) rendered;
+
+        assertAll(
+                () -> assertEquals(longPrompt, label.getText(),
+                        "a title that fits a very wide dropdown must render in full, not truncated"),
+                () -> assertFalse(label.getText().endsWith("...")));
+    }
+
+    @Test
     void connectedSetupRestoresProjectServiceChats() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftAssistantChatState storedState = new ShaftAssistantChatState();
@@ -2946,6 +2980,31 @@ class ShaftPanelSetupTest {
         String transcript = transcriptMarkdown(panel);
         assertTrue(transcript.contains(longLine),
                 "Expected the full milestone line with no truncation, got: " + transcript);
+    }
+
+    @Test
+    void assistantNonVerboseModeCompactsRawToolResultDumpsInsteadOfShowingThemInFull() throws Exception {
+        // A real user report: with Verbose off, raw tool output (a Bash stdout dump, a file's full
+        // contents, ...) was still appearing in full as its own chat bubble -- addCompactLocalAgent-
+        // Milestone only ever filtered raw NDJSON ("{"/"[" lines), never plain-text tool-result dumps.
+        // A genuinely long "Tool result (X): ..."/"Tool failed (X): ..." entry must now compact down
+        // to a short preview pointing at Verbose instead of dumping the whole thing into the
+        // transcript (the sibling test above pins that a SHORT entry still renders in full, no
+        // regression to the earlier mid-word-truncation bug for the common case).
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String rawOutput = "line ".repeat(120).strip();
+        String longLine = "Tool result (Bash): " + rawOutput;
+
+        appendStreamingLocalAgentBubble(panel, 202);
+        appendLocalAgentOutput(panel, 202, longLine);
+
+        String transcript = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertFalse(transcript.contains(rawOutput),
+                        "The full raw tool-result dump must not appear while Verbose is off: " + transcript),
+                () -> assertTrue(transcript.contains("Tool result (Bash):"), transcript),
+                () -> assertTrue(transcript.toLowerCase(java.util.Locale.ROOT).contains("verbose"),
+                        "The compacted preview must point the user at Verbose for the full output: " + transcript));
     }
 
     @Test
@@ -3920,9 +3979,13 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantTranscriptRendersRoleBasedMessageBubbles() {
+        // The fenced code block lives on the assistant message, not the user message, on purpose:
+        // user bubbles now bypass Markdown entirely (exact-as-typed text only), so exercising the
+        // shared code-copy-button/syntax-highlighting machinery this test also covers requires an
+        // assistant bubble.
         AssistantTranscriptView transcript = new AssistantTranscriptView();
-        transcript.append("user", "Hello assistant\n\n```java\nclass UserPrompt {}\n```");
-        transcript.append("assistant", "Hi user");
+        transcript.append("user", "Hello assistant");
+        transcript.append("assistant", "Hi user\n\n```java\nclass UserPrompt {}\n```");
 
         List<JComponent> bubbles = transcriptBubbles(transcript);
         List<JEditorPane> panes = transcriptHtmlPanes(transcript);
@@ -4317,9 +4380,12 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantTranscriptUsesStandardMarkdownForHeadersRulesAndCodeBlocks() {
+        // Both payloads are assistant messages: user bubbles now bypass Markdown entirely, so
+        // headers/rules/code-blocks -- what this test actually targets -- can only be exercised
+        // through the assistant role.
         AssistantTranscriptView transcript = new AssistantTranscriptView();
-        transcript.append("user", """
-                ## User payload
+        transcript.append("assistant", """
+                ## First payload
 
                 ---
 
@@ -6535,6 +6601,40 @@ class ShaftPanelSetupTest {
             }
         });
         return count.get();
+    }
+
+    @Test
+    void focusPromptForCustomAnswerSelectsAllTextAfterSuggestedAnswerChipFill() throws Exception {
+        // DEFECT 2: the "Answer myself" button (focusPromptForCustomAnswer) only focused the
+        // composer without selecting existing text. If a suggested-answer chip was clicked first,
+        // its text remained and the user had to manually clear it. Fix: selectAll() after
+        // requestFocusInWindow() so typing replaces all text while keeping it recoverable.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(fakeProject(), connectedMcpSettings());
+        JTextComponent prompt = assistantPrompt(panel);
+
+        // Simulate filling the prompt with suggested-answer text (like a chip click would do).
+        String suggestedText = "Generate a login test";
+        prompt.setText(suggestedText);
+        prompt.setCaretPosition(0);
+
+        // Clear the selection to simulate the state after a chip is clicked but before
+        // custom-answer is invoked.
+        prompt.setSelectionStart(0);
+        prompt.setSelectionEnd(0);
+
+        // Invoke focusPromptForCustomAnswer via reflection since it's private.
+        Method focusMethod = ShaftAssistantPanel.class.getDeclaredMethod("focusPromptForCustomAnswer");
+        focusMethod.setAccessible(true);
+        focusMethod.invoke(panel);
+
+        // After the fix, the entire text should be selected so typing replaces it.
+        assertAll(
+                () -> assertEquals(suggestedText, prompt.getText(),
+                        "Prompt text should still contain the suggested answer"),
+                () -> assertEquals(0, prompt.getSelectionStart(),
+                        "Selection should start at position 0"),
+                () -> assertEquals(suggestedText.length(), prompt.getSelectionEnd(),
+                        "Selection should end at the text length, selecting all"));
     }
 
     // ------------------------------------------------------------------

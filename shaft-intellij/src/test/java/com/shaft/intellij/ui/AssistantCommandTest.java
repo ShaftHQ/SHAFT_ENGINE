@@ -67,8 +67,8 @@ class AssistantCommandTest {
 
     @Test
     void localAgentPromptsIncludeGenericShaftMcpUsageHint() {
-        AssistantCommand.Invocation duckDuckGo = AssistantCommand.fromPrompt(
-                "open duckduckgo and search for SHAFT Engine",
+        AssistantCommand.Invocation wikipedia = AssistantCommand.fromPrompt(
+                "open wikipedia and search for SHAFT Engine",
                 "CODEX",
                 "AGENT",
                 ".",
@@ -89,40 +89,36 @@ class AssistantCommandTest {
                 "",
                 false);
 
-        assertEquals("""
-                If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
-                For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
-                Never start an interactive user-driven recording (capture_start, playwright_record_start, mobile_record_start): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
-                A scripted capture_start_codegen session that you drive and capture_stop within this same turn is allowed.
-                Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
-                Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
-                Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
-                For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
-                If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+        String wikipediaPrompt = wikipedia.arguments().get("prompt").getAsString();
+        String alreadyExplicitPrompt = alreadyExplicit.arguments().get("prompt").getAsString();
+        String plainPrompt = plain.arguments().get("prompt").getAsString();
 
-                open duckduckgo and search for SHAFT Engine
-
-                Source edits are approved for this session.
-                You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
-                duckDuckGo.arguments().get("prompt").getAsString());
-        assertEquals("""
-                use shaft-mcp to open mobile app
-
-                Source edits are approved for this session.
-                You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
-                alreadyExplicit.arguments().get("prompt").getAsString());
-        assertEquals("""
-                If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
-                For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
-                Never start an interactive user-driven recording (capture_start, playwright_record_start, mobile_record_start): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
-                A scripted capture_start_codegen session that you drive and capture_stop within this same turn is allowed.
-                Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
-                Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
-                Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
-                For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
-                If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
-
-                Explain the current test failure""", plain.arguments().get("prompt").getAsString());
+        assertAll(
+                // Verify Wikipedia-based example is present
+                () -> assertTrue(wikipediaPrompt.contains("Wikipedia"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("searchInput"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("mw-search-result-heading"), wikipediaPrompt),
+                // Verify stale DuckDuckGo/data-testid references are gone
+                () -> assertFalse(wikipediaPrompt.toLowerCase().contains("duckduckgo"), wikipediaPrompt),
+                () -> assertFalse(wikipediaPrompt.contains("data-testid='result'"), wikipediaPrompt),
+                // Verify the core hint is present
+                () -> assertTrue(wikipediaPrompt.contains("If this request requires interacting with a browser"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("open wikipedia and search for SHAFT Engine"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("Source edits are approved for this session"), wikipediaPrompt),
+                // The user already mentioning shaft-mcp themselves skips the redundant "use shaft-mcp
+                // for browser tasks" boilerplate, but must NOT also drop the unrelated shaft-options
+                // hint -- that silently lost every clarifying-question chip UI for any turn that
+                // happened to mention shaft-mcp (a real user report: agent questions never rendered
+                // as clickable options).
+                () -> assertFalse(alreadyExplicitPrompt.contains("If this request requires interacting with a browser"),
+                        alreadyExplicitPrompt),
+                () -> assertTrue(alreadyExplicitPrompt.contains("tagged shaft-options"), alreadyExplicitPrompt),
+                () -> assertFalse(alreadyExplicitPrompt.toLowerCase().contains("duckduckgo"), alreadyExplicitPrompt),
+                () -> assertFalse(alreadyExplicitPrompt.contains("data-testid='result'"), alreadyExplicitPrompt),
+                // plain must not have duckduckgo reference
+                () -> assertFalse(plainPrompt.toLowerCase().contains("duckduckgo"), plainPrompt),
+                () -> assertFalse(plainPrompt.contains("data-testid='result'"), plainPrompt),
+                () -> assertTrue(plainPrompt.contains("Wikipedia"), plainPrompt));
     }
 
     @Test

@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/shaft-engine-example-templates-are-asserted-by-shaft-mcp-tests-path-filtered-ci-masks-the-coupling.md",
+  "content_hash": "sha256:060f9380d864fdd10cbfe52d643793c61c4185399160bbbb5ab562ac302ed859",
+  "created_at": "2026-07-18T19:12:24+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-engine-example-templates-are-asserted-by-shaft-mcp-tests-path-filtered-ci-masks-the-coupling",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "PR #3718 follow-up wave: MCP tool schema fixes, chat rendering fixes, act-as-mohab distribution"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "templates",
+    "shaft-mcp",
+    "cross-module"
+  ],
+  "title": "shaft-engine example templates are asserted by shaft-mcp tests; path-filtered CI masks the coupling",
+  "type": "gotcha",
+  "updated_at": "2026-07-18T19:12:24+03:00"
+}

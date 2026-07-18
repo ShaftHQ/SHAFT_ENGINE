@@ -951,6 +951,42 @@ class AssistantMarkdownTest {
                 () -> assertFalse(AssistantMarkdown.humanizeError(new NullPointerException()).isBlank()));
     }
 
+    @Test
+    void normalizeMarkdownReturnsBareTokensUnchangedWithoutJsonFencing() {
+        // DEFECT 1: bare-token milestones were incorrectly JSON-fenced because Gson's lenient
+        // parser accepts bare tokens as string literals. Milestones like "Running", "Denied",
+        // "Cancelling...", "Killing..." must pass through untouched, not wrapped in ```json.
+        assertAll(
+                () -> assertEquals("Running", AssistantMarkdown.normalizeMarkdown("Running")),
+                () -> assertEquals("Denied", AssistantMarkdown.normalizeMarkdown("Denied")),
+                () -> assertEquals("Cancelling...", AssistantMarkdown.normalizeMarkdown("Cancelling...")),
+                () -> assertEquals("Killing...", AssistantMarkdown.normalizeMarkdown("Killing...")));
+    }
+
+    @Test
+    void normalizeMarkdownPreservesJsonObjectFencing() {
+        // Regression: ensure real JSON objects are still pretty-printed and fenced as before.
+        String jsonObject = "{\"status\":\"SUCCESS\",\"result\":\"done\"}";
+        String markdown = AssistantMarkdown.normalizeMarkdown(jsonObject);
+
+        assertAll(
+                () -> assertTrue(markdown.startsWith("```json")),
+                () -> assertTrue(markdown.contains("\"status\": \"SUCCESS\"")),
+                () -> assertTrue(markdown.contains("\"result\": \"done\"")));
+    }
+
+    @Test
+    void normalizeMarkdownPreservesJsonArrayFencing() {
+        // Regression: ensure real JSON arrays are still pretty-printed and fenced as before.
+        String jsonArray = "[{\"id\":\"a\",\"value\":1},{\"id\":\"b\",\"value\":2}]";
+        String markdown = AssistantMarkdown.normalizeMarkdown(jsonArray);
+
+        assertAll(
+                () -> assertTrue(markdown.startsWith("```json")),
+                () -> assertTrue(markdown.contains("\"id\": \"a\"")),
+                () -> assertTrue(markdown.contains("\"value\": 1")));
+    }
+
     private static String mcpText(String text) {
         JsonObject item = new JsonObject();
         item.addProperty("type", "text");

@@ -89,7 +89,7 @@ final class AssistantCommand {
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
-                    For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
+                    For repeated search-result anchors, scope the locator to the first result container; for Wikipedia use By.id("searchInput") for the search box and `(//div[contains(@class,'mw-search-result-heading')])[1]//a` for the first result.
                     """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
     private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
             """
@@ -2302,11 +2302,15 @@ final class AssistantCommand {
                 + (codeGenerationRequest
                 ? "\n" + codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
                 : "");
+        // The user already mentioning "shaft-mcp" themselves makes the "use shaft-mcp for browser
+        // tasks" boilerplate redundant, but the shaft-options hint is unrelated to that -- it must
+        // always be sent, or every clarifying question on a turn that happens to mention shaft-mcp
+        // silently loses its clickable-options chip UI (a real user report).
         String withHint = lower.contains("shaft-mcp")
                 ? (codeGenerationRequest
                 ? codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
-                + "\n\n" + text
-                : text)
+                + "\n" + SHAFT_OPTIONS_HINT + "\n\n" + text
+                : SHAFT_OPTIONS_HINT + "\n\n" + text)
                 : hint + "\n\n" + text;
         withHint = withConversationContext(withHint, conversationContext);
         if (!agentMode) {

@@ -42,6 +42,9 @@ public class ShaftProjectService {
     private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex", "opencode", "vscode");
     private static final java.util.regex.Pattern SAFE_SKILL_NAME =
             java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
+    private static final java.util.regex.Pattern FRONT_MATTER_PATTERN =
+            java.util.regex.Pattern.compile("^---\\R(.*?)\\R---", java.util.regex.Pattern.DOTALL);
+    private static final String FULL_DISTRIBUTION = "full";
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
             "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
@@ -294,6 +297,11 @@ public class ShaftProjectService {
      * reported as a warning instead of failing the call, because {@code targetDirectory} is expected to be
      * an existing user repository that may already carry its own agent configuration.
      *
+     * <p>A bundled skill whose {@code SKILL.md} frontmatter declares {@code distribution: full} is a
+     * methodology skill whose value lives in its text, so it is scaffolded as its full body instead of a
+     * thin bridge: verbatim for claude/codex/opencode, and with an injected {@code applyTo: "**"} frontmatter
+     * key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.
+     *
      * @param loop claude, codex, opencode, or vscode
      * @param targetDirectory workspace-relative existing test repo directory
      * @param overwrite whether existing generated files may be replaced
@@ -315,23 +323,28 @@ public class ShaftProjectService {
             if ("vscode".equals(selectedLoop)) {
                 Path instructionsDirectory = target.resolve(".github").resolve("instructions");
                 for (String skillName : skillNames) {
-                    Map<String, String> frontMatter = frontMatter(readResourceText(skillResource(skillName)));
-                    String instructions = vscodeInstructionsMarkdown(
-                            skillName,
-                            frontMatter.getOrDefault("name", skillName),
-                            frontMatter.getOrDefault("description", ""));
+                    String skillMarkdown = readResourceText(skillResource(skillName));
+                    Map<String, String> frontMatter = frontMatter(skillMarkdown);
+                    String name = frontMatter.getOrDefault("name", skillName);
+                    String description = frontMatter.getOrDefault("description", "");
+                    String instructions = isFullDistribution(frontMatter)
+                            ? vscodeFullInstructionsMarkdown(skillMarkdown, name, description)
+                            : vscodeInstructionsMarkdown(skillName, name, description);
                     writeGeneratedFile(instructionsDirectory.resolve(skillName + ".instructions.md"), target,
                             instructions, overwrite, generatedFiles, warnings);
                 }
             } else {
                 Path skillsDirectory = target.resolve(agentLoopSkillsDirectory(selectedLoop));
                 for (String skillName : skillNames) {
-                    Map<String, String> frontMatter = frontMatter(readResourceText(skillResource(skillName)));
-                    String bridge = skillBridgeMarkdown(
-                            skillName,
-                            frontMatter.getOrDefault("name", skillName),
-                            frontMatter.getOrDefault("description", ""));
-                    writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, bridge,
+                    String skillMarkdown = readResourceText(skillResource(skillName));
+                    Map<String, String> frontMatter = frontMatter(skillMarkdown);
+                    String content = isFullDistribution(frontMatter)
+                            ? skillMarkdown
+                            : skillBridgeMarkdown(
+                                    skillName,
+                                    frontMatter.getOrDefault("name", skillName),
+                                    frontMatter.getOrDefault("description", ""));
+                    writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, content,
                             overwrite, generatedFiles, warnings);
                 }
             }
@@ -436,8 +449,7 @@ public class ShaftProjectService {
     }
 
     private static Map<String, String> frontMatter(String skillMarkdown) {
-        Matcher matcher = java.util.regex.Pattern.compile("^---\\R(.*?)\\R---", java.util.regex.Pattern.DOTALL)
-                .matcher(skillMarkdown);
+        Matcher matcher = FRONT_MATTER_PATTERN.matcher(skillMarkdown);
         Map<String, String> values = new LinkedHashMap<>();
         if (matcher.find()) {
             for (String line : matcher.group(1).split("\\R")) {
@@ -448,6 +460,22 @@ public class ShaftProjectService {
             }
         }
         return values;
+    }
+
+    private static boolean isFullDistribution(Map<String, String> frontMatter) {
+        return FULL_DISTRIBUTION.equalsIgnoreCase(frontMatter.getOrDefault("distribution", ""));
+    }
+
+    /**
+     * Returns the skill body after its frontmatter block, verbatim apart from stripping the purely
+     * blank line(s) that separate the frontmatter's closing {@code ---} from the first line of body text.
+     */
+    private static String bodyAfterFrontMatter(String skillMarkdown) {
+        Matcher matcher = FRONT_MATTER_PATTERN.matcher(skillMarkdown);
+        if (!matcher.find()) {
+            return skillMarkdown;
+        }
+        return skillMarkdown.substring(matcher.end()).replaceFirst("^\\R+", "");
     }
 
     private static String skillBridgeMarkdown(String skillName, String name, String description) {
@@ -482,6 +510,15 @@ public class ShaftProjectService {
                 + "Treat generated or recorded code as a draft: preview it with "
                 + "`shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, and verify with "
                 + "`shaft-mcp:verify_run_focused` before treating it as done.\n";
+    }
+
+    private static String vscodeFullInstructionsMarkdown(String skillMarkdown, String name, String description) {
+        return "---\n"
+                + "name: " + name + "\n"
+                + "description: " + description + "\n"
+                + "applyTo: \"**\"\n"
+                + "---\n\n"
+                + bodyAfterFrontMatter(skillMarkdown);
     }
 
     private static String titleCase(String skillName) {

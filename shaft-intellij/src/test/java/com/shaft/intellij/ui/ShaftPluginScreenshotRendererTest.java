@@ -88,20 +88,20 @@ class ShaftPluginScreenshotRendererTest {
             }
             ```
             """.stripIndent().trim();
-    private static final String DUCK_DUCK_GO_SHAFT_CODE_SAMPLE = """
+    private static final String WIKIPEDIA_SHAFT_CODE_SAMPLE = """
             ```java
             import org.openqa.selenium.By;
 
-            public class DuckDuckGoSearchTest {
+            public class WikipediaSearchTest {
                 private final SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
 
                 @Test
-                void opensShaftEngineResult() {
-                    driver.browser().navigateToURL("https://duckduckgo.com/");
-                    driver.element().type(SHAFT.GUI.Locator.name("q"), "SHAFT Engine");
-                    driver.element().keyPress(SHAFT.GUI.Locator.name("q"), "ENTER");
+                void opensSoftwareTestingResult() {
+                    driver.browser().navigateToURL("https://en.wikipedia.org/wiki/Main_Page");
+                    driver.element().type(By.id("searchInput"), "Software testing framework");
+                    driver.element().keyPress(By.id("searchInput"), "ENTER");
                     driver.element().click(By.xpath(
-                            "(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']"));
+                            "(//div[contains(@class,'mw-search-result-heading')])[1]//a"));
                 }
             }
             ```
@@ -287,9 +287,9 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.element().click")),
                 () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.get(")),
                 () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.findElement(")),
-                () -> assertTrue(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE.contains("https://duckduckgo.com/")),
-                () -> assertTrue(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE.contains("result-title-a")),
-                () -> assertFalse(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE.contains("https://example.com")));
+                () -> assertTrue(WIKIPEDIA_SHAFT_CODE_SAMPLE.contains("https://en.wikipedia.org/")),
+                () -> assertTrue(WIKIPEDIA_SHAFT_CODE_SAMPLE.contains("mw-search-result-heading")),
+                () -> assertFalse(WIKIPEDIA_SHAFT_CODE_SAMPLE.contains("https://example.com")));
     }
 
     private static BufferedImage renderToolWindow(int selectedTab, String toolsCategory, String lookAndFeelClassName, boolean dark)
@@ -1149,12 +1149,12 @@ class ShaftPluginScreenshotRendererTest {
     private static ShaftAssistantChatState populatedAssistantChatState() {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         chatState.append("user",
-                "generate code that opens DuckDuckGo, searches SHAFT Engine, and opens the first result", "");
+                "generate code that opens Wikipedia, searches for software testing, and opens the first result", "");
         chatState.append("assistant", """
-                Confirmed target: https://duckduckgo.com/
+                Confirmed target: https://en.wikipedia.org/wiki/Main_Page
 
                 %s
-                """.formatted(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
+                """.formatted(WIKIPEDIA_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
         return chatState;
     }
 
