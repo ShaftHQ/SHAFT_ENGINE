@@ -56,14 +56,22 @@ IGNORED_DIRECTORIES = {
     "node_modules",
     "target",
 }
+# Root-relative directories (concurrent agent worktrees hold full repo copies).
+IGNORED_RELATIVE_DIRECTORIES = {
+    ".claude/worktrees",
+}
 
 
 def tracked_markdown(root: Path = ROOT) -> list[str]:
     paths: list[str] = []
     for directory, child_directories, files in os.walk(root):
+        relative_directory = Path(directory).relative_to(root).as_posix()
         child_directories[:] = [
             child for child in child_directories
             if child not in IGNORED_DIRECTORIES
+            and (
+                child if relative_directory == "." else f"{relative_directory}/{child}"
+            ) not in IGNORED_RELATIVE_DIRECTORIES
         ]
         for filename in files:
             if Path(filename).suffix.lower() not in {".md", ".mdx"}:

@@ -64,6 +64,14 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_ignores_markdown_inside_claude_worktrees(self):
+        self.write(
+            ".claude/worktrees/agent-a/docs/anything.md",
+            "# Concurrent agent worktree content\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")
 

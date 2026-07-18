@@ -18,6 +18,7 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 - Use structured APIs for structured data.
 - Reproduce defects; add focused regressions.
 - Preserve public API; deprecate before removal.
+- User-facing surface: draft/render the UI against intent before implementing; done means the user-visible flow passes, not just unit tests.
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
