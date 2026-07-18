@@ -2276,18 +2276,54 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String displayResponse = withLocalAgentTokenUsage(response, rawResponse);
-        AssistantQuestion question = AssistantQuestion.detect(displayResponse);
-        String toPersist = question == null ? displayResponse : question.promptMarkdown();
-        replaceLocalAgentStreamPlaceholder("assistant", toPersist);
+        ResolvedQuestion resolved = resolveQuestion(displayResponse, rawResponse);
+        replaceLocalAgentStreamPlaceholder("assistant", resolved.toPersist());
         localAgentStreamPlaceholderMessageIndex = -1;
-        lastResponse = toPersist;
+        lastResponse = resolved.toPersist();
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
         updateActionChrome();
-        if (question != null) {
-            showAssistantQuestionOptions(question);
+        if (resolved.question() != null) {
+            showAssistantQuestionOptions(resolved.question());
         }
+    }
+
+    /**
+     * The clarifying question detected for a terminal response, if any, and the display text to
+     * persist alongside it -- bundled together because the two are not independent: a runner-
+     * recognized structured question (issue #3719) was already stripped out of {@code
+     * displayResponse} upstream by {@code AssistantLocalAgentRunner}'s {@code
+     * StructuredStreamParser}, so {@code displayResponse} itself is already the text to persist,
+     * while a bare structured line or fence match is still embedded verbatim in {@code
+     * displayResponse} and must be stripped via {@code question.promptMarkdown()} here instead.
+     */
+    private record ResolvedQuestion(AssistantQuestion question, String toPersist) {
+    }
+
+    /**
+     * Resolves the clarifying question for a terminal response, trying -- in order -- (1) {@link
+     * AssistantLocalAgentRunner#parseQuestion} on {@code rawResponse}: the runner-recognized
+     * structured protocol (issue #3719), populated only for local Claude Code/Codex runs whose
+     * {@code StructuredStreamParser} found a valid trailing structured line; (2) {@link
+     * AssistantQuestion#detectStructuredLine} directly on {@code displayResponse}: the same
+     * structured protocol, for paths with no runner envelope at all (cloud chat, whose raw answer
+     * text is never wrapped by {@code AssistantLocalAgentRunner}); (3) {@link AssistantQuestion#detect}:
+     * today's {@code shaft-options} fence, the universal, documented fallback for every other case
+     * (Copilot CLI, custom commands, or a model that never attempted the structured form). A
+     * compliant CLI is recognized however far along this chain it lands; a non-compliant one still
+     * renders the plain answer exactly as before this issue.
+     */
+    private static ResolvedQuestion resolveQuestion(String displayResponse, String rawResponse) {
+        AssistantQuestion runnerRecognized = AssistantLocalAgentRunner.parseQuestion(rawResponse);
+        if (runnerRecognized != null) {
+            return new ResolvedQuestion(runnerRecognized, displayResponse);
+        }
+        AssistantQuestion question = AssistantQuestion.detectStructuredLine(displayResponse);
+        if (question == null) {
+            question = AssistantQuestion.detect(displayResponse);
+        }
+        return new ResolvedQuestion(question, question == null ? displayResponse : question.promptMarkdown());
     }
 
     /**
@@ -2492,17 +2528,16 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void persistAndAppendResponse(String displayResponse, String rawResponse) {
-        AssistantQuestion question = AssistantQuestion.detect(displayResponse);
-        String toPersist = question == null ? displayResponse : question.promptMarkdown();
-        lastResponse = toPersist;
+        ResolvedQuestion resolved = resolveQuestion(displayResponse, rawResponse);
+        lastResponse = resolved.toPersist();
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
         // append() clears any showing widget first, so a detected question's answer chips are only
         // shown AFTER the persisted append -- otherwise this call would immediately wipe them again.
-        append("assistant", toPersist, rawResponse);
-        if (question != null) {
-            showAssistantQuestionOptions(question);
+        append("assistant", resolved.toPersist(), rawResponse);
+        if (resolved.question() != null) {
+            showAssistantQuestionOptions(resolved.question());
         }
     }
 

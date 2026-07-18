@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -710,6 +711,12 @@ final class AssistantLocalAgentRunner {
         // ShaftAssistantPanel can recover it via parsePlanProposal and render the terminal "Plan
         // proposed" card (issue #3680), without changing the ShaftMcpToolResult contract.
         private String planProposal;
+        // The structured question/options (issue #3719) detected in the terminal answer text via
+        // AssistantQuestion.detectStructuredLine, if any -- detected and stripped out of `answer`
+        // the moment it is captured below (before activitySummary/usageHolder append anything
+        // after it), then carried through composeOutput's trailing metadata line so
+        // AssistantLocalAgentRunner.parseQuestion can recover it, mirroring planProposal above.
+        private AssistantQuestion structuredQuestion;
 
         StructuredStreamParser(Format format) {
             this.format = format;
@@ -776,6 +783,28 @@ final class AssistantLocalAgentRunner {
             return output + "\n\n" + usageHolder();
         }
 
+        /**
+         * Detects the structured question protocol (issue #3719) in a just-captured terminal
+         * answer, via {@link AssistantQuestion#detectStructuredLine}, stashing it in {@link
+         * #structuredQuestion} for {@link #usageHolder()} and returning the answer text with the
+         * marker line removed. Detecting here -- at the moment the terminal event's raw text is
+         * captured, before {@link #activitySummary()} or the usage/plan metadata line are appended
+         * after it -- is what keeps this reliable: those later append their own trailing lines,
+         * which would otherwise bury a model-authored trailing marker mid-text by the time any
+         * later, UI-layer pass over the fully composed output could look for it. When no valid
+         * structured line is found, {@code answer} is returned unchanged and {@link
+         * #structuredQuestion} stays {@code null}, so the fence remains the fallback exactly as
+         * before this issue.
+         */
+        private String captureStructuredQuestion(String answer) {
+            AssistantQuestion detected = AssistantQuestion.detectStructuredLine(answer);
+            if (detected == null) {
+                return answer;
+            }
+            structuredQuestion = detected;
+            return detected.promptMarkdown();
+        }
+
         private JsonObject usageHolder() {
             JsonObject usage = new JsonObject();
             usage.addProperty("input_tokens", orZero(inputTokens));
@@ -784,6 +813,16 @@ final class AssistantLocalAgentRunner {
             usageHolder.add("usage", usage);
             if (planProposal != null && !planProposal.isBlank()) {
                 usageHolder.addProperty("plan", planProposal);
+            }
+            if (structuredQuestion != null) {
+                JsonObject question = new JsonObject();
+                question.addProperty("text", structuredQuestion.promptMarkdown());
+                JsonArray options = new JsonArray();
+                for (String option : structuredQuestion.options()) {
+                    options.add(option);
+                }
+                question.add("options", options);
+                usageHolder.add("question", question);
             }
             return usageHolder;
         }
@@ -905,6 +944,7 @@ final class AssistantLocalAgentRunner {
             if ("result".equals(type)) {
                 String resultText = stringField(event, "result");
                 answer = resultText == null ? "" : resultText;
+                answer = captureStructuredQuestion(answer);
                 JsonObject usage = objectField(event, "usage");
                 inputTokens = intField(usage, "input_tokens");
                 outputTokens = intField(usage, "output_tokens");
@@ -1092,6 +1132,7 @@ final class AssistantLocalAgentRunner {
                 if ("turn.completed".equals(type)) {
                     String lastAgentMessage = stringField(event, "last_agent_message");
                     answer = lastAgentMessage != null ? lastAgentMessage : (answer == null ? "" : answer);
+                    answer = captureStructuredQuestion(answer);
                 } else {
                     JsonObject error = objectField(event, "error");
                     terminalDetail = firstNonBlank(stringField(event, "error"),
@@ -1652,10 +1693,11 @@ final class AssistantLocalAgentRunner {
     }
 
     /**
-     * Parses {@code lastLine} as a trailing metadata JSON object (the shape both {@link
-     * #stripTrailingUsageMetadata} and {@link #parsePlanProposal} look for), or {@code null} when
-     * it isn't brace-delimited or isn't valid/object JSON. Shared so neither caller re-implements
-     * the same guard-clause parse and to keep each caller's own NPath complexity low.
+     * Parses {@code lastLine} as a trailing metadata JSON object (the shape {@link
+     * #stripTrailingUsageMetadata}, {@link #parsePlanProposal}, and {@link #parseQuestion} all look
+     * for), or {@code null} when it isn't brace-delimited or isn't valid/object JSON. Shared so no
+     * caller re-implements the same guard-clause parse and to keep each caller's own NPath
+     * complexity low.
      */
     private static JsonObject parseTrailingJsonLine(String lastLine) {
         if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
@@ -1694,6 +1736,48 @@ final class AssistantLocalAgentRunner {
         }
         String plan = planElement.getAsString();
         return plan.isBlank() ? null : plan;
+    }
+
+    /**
+     * Extracts the runner-recognized structured question (issue #3719) from the trailing
+     * usage-metadata JSON line's {@code question} field -- the preferred, protocol-level
+     * counterpart to {@link AssistantQuestion#detect}'s fence-in-markdown fallback. Returns {@code
+     * null} when {@code output} has no trailing metadata line, or the field is absent (the
+     * overwhelming majority of runs, which never attempted the protocol), so callers fall back to
+     * fence detection exactly as before this issue. Mirrors {@link #parsePlanProposal}'s
+     * trailing-line extraction.
+     */
+    static AssistantQuestion parseQuestion(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        String[] lines = trimmed.split("\\r?\\n");
+        JsonObject parsed = parseTrailingJsonLine(lines[lines.length - 1].strip());
+        if (parsed == null) {
+            return null;
+        }
+        JsonElement questionElement = parsed.get("question");
+        if (questionElement == null || !questionElement.isJsonObject()) {
+            return null;
+        }
+        JsonObject question = questionElement.getAsJsonObject();
+        JsonElement textElement = question.get("text");
+        JsonElement optionsElement = question.get("options");
+        if (textElement == null || !textElement.isJsonPrimitive() || !textElement.getAsJsonPrimitive().isString()
+                || optionsElement == null || !optionsElement.isJsonArray()) {
+            return null;
+        }
+        List<String> options = new ArrayList<>();
+        for (JsonElement optionElement : optionsElement.getAsJsonArray()) {
+            if (optionElement != null && optionElement.isJsonPrimitive()) {
+                options.add(optionElement.getAsString());
+            }
+        }
+        if (options.isEmpty()) {
+            return null;
+        }
+        return new AssistantQuestion(textElement.getAsString(), options);
     }
 
     private static JsonObject resolveUsageObject(JsonObject usageHolder) {

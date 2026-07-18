@@ -74,11 +74,18 @@ final class AssistantCommand {
                     You may apply patches, write files, and run filesystem commands needed to make the requested source changes.
                     """.stripIndent().trim();
     // Split out so cloudPrompt's non-code-generation branch (which has no other reason to mention
-    // shaft-mcp -- cloud providers don't have it) can still ask cloud models to emit the fence that
-    // AssistantQuestion.detect looks for, without pulling in the rest of the shaft-mcp-specific hint.
+    // shaft-mcp -- cloud providers don't have it) can still ask cloud models to emit the structured
+    // line (or, failing that, the fence) that AssistantQuestion looks for, without pulling in the
+    // rest of the shaft-mcp-specific hint. Issue #3719: the single-line JSON form is preferred --
+    // AssistantLocalAgentRunner's StructuredStreamParser recognizes it at the terminal-event
+    // boundary for local Claude Code/Codex runs (immune to activity-footer/token-usage lines getting
+    // appended after it), and AssistantQuestion.detectStructuredLine recognizes it directly in the
+    // displayed markdown for paths with no runner envelope (cloud chat). The fence remains the
+    // documented fallback for every CLI (Copilot, custom commands, or a model that just can't
+    // produce a clean single JSON line), unchanged from before this issue.
     private static final String SHAFT_OPTIONS_HINT =
             """
-                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), end your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit this block for ordinary narrative answers.
+                    If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), prefer ending your final answer with a single line containing only a JSON object shaped {"shaft-question": "<question text>", "shaft-options": ["<option 1>", "<option 2>"]} (for example: {"shaft-question": "Want me to actually run through a recording now?", "shaft-options": ["Use the sample page", "I'll give you a URL"]}); if you cannot produce that exact single-line JSON object, fall back to ending your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels instead (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit both forms for ordinary narrative answers.
                     """.stripIndent().trim();
     private static final String SHAFT_MCP_USAGE_HINT =
             """

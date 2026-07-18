@@ -110,4 +110,108 @@ class AssistantQuestionTest {
                 () -> assertNull(AssistantQuestion.detect("")),
                 () -> assertNull(AssistantQuestion.detect("   ")));
     }
+
+    // -- detectStructuredLine: issue #3719's preferred structured protocol -----------------------
+    //
+    // A single trailing JSON object {"shaft-question": "...", "shaft-options": [...]} carries both
+    // the question text and the options atomically, unlike the fence's two-part "prose before, JSON
+    // array inside a separately-tagged fence after" convention -- one fewer place for a model's
+    // output to drift out of shape. AssistantLocalAgentRunner's StructuredStreamParser is the
+    // primary caller (recognizing it at the terminal-event boundary, before any SHAFT-appended
+    // suffix lines); detect() (the fence) remains the documented fallback, unchanged, below.
+
+    @Test
+    void detectsAStructuredQuestionLineAndStripsItFromTheRemainingText() {
+        String text = "Want me to actually run through a recording now?\n"
+                + "{\"shaft-question\": \"Want me to actually run through a recording now?\", "
+                + "\"shaft-options\": [\"Use the sample page\", \"I'll give you a URL\"]}";
+
+        AssistantQuestion question = AssistantQuestion.detectStructuredLine(text);
+
+        assertAll(
+                () -> assertTrue(question != null, "a valid trailing structured line should be detected"),
+                () -> assertEquals(List.of("Use the sample page", "I'll give you a URL"), question.options()),
+                () -> assertEquals("Want me to actually run through a recording now?", question.promptMarkdown()),
+                () -> assertFalse(question.promptMarkdown().contains("shaft-question"),
+                        "the raw structured line must not leak into the remaining text"));
+    }
+
+    @Test
+    void structuredLineWorksWithNoLeadingProseAtAll() {
+        String text = "{\"shaft-question\": \"Pick one:\", \"shaft-options\": [\"Yes\", \"No\"]}";
+
+        AssistantQuestion question = AssistantQuestion.detectStructuredLine(text);
+
+        assertAll(
+                () -> assertTrue(question != null),
+                () -> assertEquals(List.of("Yes", "No"), question.options()),
+                () -> assertEquals("", question.promptMarkdown()));
+    }
+
+    @Test
+    void structuredLineReturnsNullForOrdinaryProseWithNoTrailingJsonObject() {
+        String text = "Here is a plain narrative answer with no clarifying question at all.";
+
+        assertNull(AssistantQuestion.detectStructuredLine(text));
+    }
+
+    @Test
+    void structuredLineReturnsNullWhenTheTrailingLineIsNotValidJson() {
+        String text = "Pick one:\nnot valid json";
+
+        assertNull(AssistantQuestion.detectStructuredLine(text));
+    }
+
+    @Test
+    void structuredLineReturnsNullWhenTheQuestionKeyIsMissingOrBlank() {
+        assertAll(
+                () -> assertNull(AssistantQuestion.detectStructuredLine(
+                        "{\"shaft-options\": [\"Yes\", \"No\"]}")),
+                () -> assertNull(AssistantQuestion.detectStructuredLine(
+                        "{\"shaft-question\": \"  \", \"shaft-options\": [\"Yes\", \"No\"]}")));
+    }
+
+    @Test
+    void structuredLineReturnsNullWhenTheOptionsKeyIsMissingOrNotAnArray() {
+        assertAll(
+                () -> assertNull(AssistantQuestion.detectStructuredLine(
+                        "{\"shaft-question\": \"Pick one:\"}")),
+                () -> assertNull(AssistantQuestion.detectStructuredLine(
+                        "{\"shaft-question\": \"Pick one:\", \"shaft-options\": \"Yes\"}")));
+    }
+
+    @Test
+    void structuredLineReturnsNullWhenFewerThanTwoOptionsAreOffered() {
+        String text = "{\"shaft-question\": \"Only one choice:\", \"shaft-options\": [\"Just this one\"]}";
+
+        assertNull(AssistantQuestion.detectStructuredLine(text));
+    }
+
+    @Test
+    void structuredLineReturnsNullWhenMoreThanSixOptionsAreOffered() {
+        String text = "{\"shaft-question\": \"Too many:\", "
+                + "\"shaft-options\": [\"A\", \"B\", \"C\", \"D\", \"E\", \"F\", \"G\"]}";
+
+        assertNull(AssistantQuestion.detectStructuredLine(text));
+    }
+
+    @Test
+    void structuredLineBlankOptionsAreFilteredAndDoNotCountTowardTheMinimum() {
+        String text = "{\"shaft-question\": \"Pick one:\", "
+                + "\"shaft-options\": [\"Use the sample page\", \"  \", \"\", \"I'll give you a URL\"]}";
+
+        AssistantQuestion question = AssistantQuestion.detectStructuredLine(text);
+
+        assertAll(
+                () -> assertTrue(question != null),
+                () -> assertEquals(List.of("Use the sample page", "I'll give you a URL"), question.options()));
+    }
+
+    @Test
+    void structuredLineReturnsNullForBlankInput() {
+        assertAll(
+                () -> assertNull(AssistantQuestion.detectStructuredLine(null)),
+                () -> assertNull(AssistantQuestion.detectStructuredLine("")),
+                () -> assertNull(AssistantQuestion.detectStructuredLine("   ")));
+    }
 }
