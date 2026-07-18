@@ -45,6 +45,7 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#field-summary" tabindex="0">Field Summary</a></li>
 <li><a href="#constructor-summary" tabindex="0">Constructor Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
@@ -76,6 +77,7 @@
 <li><a href="#capturePageSnapshot(org.openqa.selenium.WebDriver)" tabindex="0">capturePageSnapshot(WebDriver)</a></li>
 <li><a href="#formatUrlForBasicAuthentication(java.lang.String,java.lang.String,java.lang.String)" tabindex="0">formatUrlForBasicAuthentication(String, String, String)</a></li>
 <li><a href="#getDomainNameFromUrl(java.lang.String)" tabindex="0">getDomainNameFromUrl(String)</a></li>
+<li><a href="#determineBasicAuthenticationStrategy(java.lang.String,boolean)" tabindex="0">determineBasicAuthenticationStrategy(String, boolean)</a></li>
 </ol>
 </li>
 </ol>
@@ -109,6 +111,23 @@ helper.navigateToNewUrl(driver, currentUrl, "https://example.com", "");
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="BrowserActionsHelper.BasicAuthenticationStrategy.html" class="type-name-link" title="enum class in com.shaft.gui.browser.internal">BrowserActionsHelper.BasicAuthenticationStrategy</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">The basic-authentication mechanism selected by <a href="#determineBasicAuthenticationStrategy(java.lang.String,boolean)"><code>determineBasicAuthenticationStrategy(String, boolean)</code></a>.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- =========== FIELD SUMMARY =========== -->
 <li>
 <section class="field-summary" id="field-summary">
@@ -197,69 +216,76 @@ and optionally waits until it contains the expected target URL.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Verifies that the page currently loaded in the browser is not a network-error page.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failAction(java.lang.Exception...)" class="member-name-link">failAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a>...&nbsp;rootCauseException)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActionsHelper.BasicAuthenticationStrategy.html" title="enum class in com.shaft.gui.browser.internal">BrowserActionsHelper.BasicAuthenticationStrategy</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#determineBasicAuthenticationStrategy(java.lang.String,boolean)" class="member-name-link">determineBasicAuthenticationStrategy</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;executionAddress,
+ boolean&nbsp;biDiEnabled)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Reports a failed browser action without a WebDriver instance or test data.</div>
+<div class="block">Decides which basic-authentication mechanism <a href="../BrowserActions.html#navigateToURLWithBasicAuthentication(java.lang.String,java.lang.String,java.lang.String,java.lang.String)"><code>BrowserActions.navigateToURLWithBasicAuthentication(String, String, String, String)</code></a>
+should use, given the current execution address and whether BiDi is enabled.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.Exception...)" class="member-name-link">failAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a>...&nbsp;rootCauseException)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failAction(java.lang.Exception...)" class="member-name-link">failAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a>...&nbsp;rootCauseException)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Reports a failed browser action, capturing a screenshot when a driver is provided.</div>
+<div class="block">Reports a failed browser action without a WebDriver instance or test data.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.Exception...)" class="member-name-link">failAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.Exception...)" class="member-name-link">failAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a>...&nbsp;rootCauseException)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports a failed browser action, capturing a screenshot when a driver is provided.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.Exception...)" class="member-name-link">failAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;actionName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a>...&nbsp;rootCauseException)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reports a failed browser action with an explicit action name, then throws a test failure.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#formatUrlForBasicAuthentication(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">formatUrlForBasicAuthentication</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;username,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#formatUrlForBasicAuthentication(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">formatUrlForBasicAuthentication</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;username,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;password,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Embeds Basic-Authentication credentials into a URL so that the browser submits them
 automatically on navigation without requiring an interactive prompt.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDomainNameFromUrl(java.lang.String)" class="member-name-link">getDomainNameFromUrl</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDomainNameFromUrl(java.lang.String)" class="member-name-link">getDomainNameFromUrl</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Extracts the registrable (top-private) domain name from a full URL.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateToNewUrl(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">navigateToNewUrl</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateToNewUrl(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">navigateToNewUrl</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;initialURL,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrlAfterRedirection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Navigates the browser to a new URL.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#passAction(java.lang.String)" class="member-name-link">passAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#passAction(java.lang.String)" class="member-name-link">passAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reports a successful browser action without a WebDriver instance.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#passAction(org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">passAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Reports a successful browser action, attaching a screenshot when a driver is provided.</div>
-</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#passAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String)" class="member-name-link">passAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;actionName,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#passAction(org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">passAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Reports a successful browser action with an explicit action name.</div>
+<div class="block">Reports a successful browser action, attaching a screenshot when a driver is provided.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilUrlIsNot(org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">waitUntilUrlIsNot</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;initialURL)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#passAction(org.openqa.selenium.WebDriver,java.lang.String,java.lang.String)" class="member-name-link">passAction</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;actionName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testData)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports a successful browser action with an explicit action name.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilUrlIsNot(org.openqa.selenium.WebDriver,java.lang.String)" class="member-name-link">waitUntilUrlIsNot</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;initialURL)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Waits until the browser URL is no longer equal to the given initial URL.</div>
 </div>
 </div>
@@ -678,6 +704,33 @@ Guava <code>InternetDomainName</code></a> class to determine the public suffix a
 <dd><code>url</code> - the full URL string to extract the domain from</dd>
 <dt>Returns:</dt>
 <dd>the registrable domain name (e.g. <code>"example.co.uk"</code>)</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="determineBasicAuthenticationStrategy(java.lang.String,boolean)">
+<h3>determineBasicAuthenticationStrategy</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActionsHelper.BasicAuthenticationStrategy.html" title="enum class in com.shaft.gui.browser.internal">BrowserActionsHelper.BasicAuthenticationStrategy</a></span>&nbsp;<span class="element-name">determineBasicAuthenticationStrategy</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;executionAddress,
+ boolean&nbsp;biDiEnabled)</span></div>
+<div class="block">Decides which basic-authentication mechanism <a href="../BrowserActions.html#navigateToURLWithBasicAuthentication(java.lang.String,java.lang.String,java.lang.String,java.lang.String)"><code>BrowserActions.navigateToURLWithBasicAuthentication(String, String, String, String)</code></a>
+should use, given the current execution address and whether BiDi is enabled.
+
+<p>Local executions always get a real, directly-implemented <code>HasAuthentication</code> driver
+(ChromeDriver/EdgeDriver implement it natively via CDP), so they always use the native path.
+Remote executions only get a real <code>HasAuthentication</code> handler when BiDi is enabled,
+because that is the flag SHAFT.Properties.platform.enableBiDi() gates the remote driver's
+<code>Augmenter</code> wiring on (see <code>DriverFactoryHelper.connectToRemoteServer</code>); when BiDi
+is disabled remotely there is no augmented handler to register against, so credentials must be
+embedded in the URL instead (issue #3732).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>executionAddress</code> - the current <code>SHAFT.Properties.platform.executionAddress()</code> value</dd>
+<dd><code>biDiEnabled</code> - the current <code>SHAFT.Properties.platform.enableBiDi()</code> value</dd>
+<dt>Returns:</dt>
+<dd><a href="BrowserActionsHelper.BasicAuthenticationStrategy.html#NATIVE_HAS_AUTHENTICATION"><code>BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION</code></a> when a real authentication
+handler can be provisioned, otherwise <a href="BrowserActionsHelper.BasicAuthenticationStrategy.html#URL_EMBEDDED_CREDENTIALS"><code>BrowserActionsHelper.BasicAuthenticationStrategy.URL_EMBEDDED_CREDENTIALS</code></a></dd>
 </dl>
 </div>
 </section>
