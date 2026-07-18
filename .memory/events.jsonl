@@ -348,6 +348,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it","timestamp":"2026-07-17T23:38:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-3695-run-timeline-list-removed-folded-into-per-message-chat-bubbles","timestamp":"2026-07-17T23:38:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-remember-stdin-tags-must-be-all-lowercase-or-schema-validation-fails-with-no-detail","timestamp":"2026-07-17T23:39:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body","timestamp":"2026-07-18T02:06:26+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.gbrain-2026-07-18-re-spike-retrieval-reliable-with-source-id-keep-as-local-accelerator-memory-stays-canonical","timestamp":"2026-07-18T02:55:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.gbrain-remote-mcp-query-needs-explicit-source-id-shaft-engine-default-and-all-return-empty","timestamp":"2026-07-18T02:55:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.vendored-caveman-terse-prose-skill-mit-proxy-free-core-into-claude-skills","timestamp":"2026-07-18T02:55:15+03:00"}
