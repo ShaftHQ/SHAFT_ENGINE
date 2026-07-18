@@ -880,16 +880,16 @@ public class CaptureService {
             @ToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
                     + "defaults to driver")
             String driverVariableName) {
-        packageName = defaultIfBlank(packageName, "tests.generated");
-        className = defaultIfBlank(className, "RecordedFlowTest");
-        driverVariableName = defaultIfBlank(driverVariableName, "driver");
+        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
+        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
         boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
 
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
-                packageName,
-                className,
+                resolvedPackageName,
+                resolvedClassName,
                 resolvedOverwrite,
                 false,
                 false,
@@ -898,7 +898,7 @@ public class CaptureService {
                 false,
                 false,
                 CodegenBackend.WEBDRIVER);
-        return replayResult(result, driverVariableName);
+        return replayResult(result, resolvedDriverVariableName);
     }
 
     /**
@@ -937,16 +937,16 @@ public class CaptureService {
             @ToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
                     + "defaults to driver")
             String driverVariableName) {
-        packageName = defaultIfBlank(packageName, "tests.generated");
-        className = defaultIfBlank(className, "RecordedFlowTest");
-        driverVariableName = defaultIfBlank(driverVariableName, "driver");
+        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
+        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
         boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
 
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
-                packageName,
-                className,
+                resolvedPackageName,
+                resolvedClassName,
                 resolvedOverwrite,
                 false,
                 false,
@@ -957,7 +957,7 @@ public class CaptureService {
                 CodegenBackend.WEBDRIVER);
         return replayResult(
                 result,
-                driverVariableName,
+                resolvedDriverVariableName,
                 workspacePolicy.existing(targetSourcePath, "Capture target source path"),
                 insertAfter);
     }
@@ -995,16 +995,16 @@ public class CaptureService {
             @ToolParam(required = false, description = "JavaScript page variable name used in extracted snippets; "
                     + "defaults to page")
             String driverVariableName) {
-        packageName = defaultIfBlank(packageName, "tests.generated");
-        className = defaultIfBlank(className, "RecordedFlowTest");
-        driverVariableName = defaultIfBlank(driverVariableName, "page");
+        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
+        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "page");
         boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
 
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
-                packageName,
-                className,
+                resolvedPackageName,
+                resolvedClassName,
                 resolvedOverwrite,
                 false,
                 false,
@@ -1013,7 +1013,7 @@ public class CaptureService {
                 false,
                 false,
                 CodegenBackend.PLAYWRIGHT);
-        return replayResult(result, driverVariableName);
+        return replayResult(result, resolvedDriverVariableName);
     }
 
     /**
