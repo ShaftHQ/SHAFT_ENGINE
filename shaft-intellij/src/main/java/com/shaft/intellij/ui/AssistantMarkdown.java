@@ -200,14 +200,23 @@ final class AssistantMarkdown {
         if (containsCodeFence(trimmed)) {
             return trimmed;
         }
-        String prettyJson = prettyJson(trimmed);
-        if (!prettyJson.isBlank()) {
-            return fence("json", prettyJson);
+        // Only attempt JSON pretty-printing if the trimmed input actually starts with
+        // a JSON object/array marker. Bare tokens/primitives must pass through untouched
+        // (DEFECT 1 fix: prevents "Running", "Denied", etc., from being wrapped in ```json).
+        if ((trimmed.startsWith("{") || trimmed.startsWith("[")) && isValidJson(trimmed)) {
+            String prettyJson = prettyJson(trimmed);
+            if (!prettyJson.isBlank()) {
+                return fence("json", prettyJson);
+            }
         }
         if (looksLikeJava(trimmed)) {
             return fence("java", trimmed);
         }
         return trimmed;
+    }
+
+    private static boolean isValidJson(String text) {
+        return parse(text) != null;
     }
 
     private static String knownToolMarkdown(String toolName, JsonElement parsed) {

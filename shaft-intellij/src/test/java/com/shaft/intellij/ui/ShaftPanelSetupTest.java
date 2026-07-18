@@ -3945,9 +3945,13 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantTranscriptRendersRoleBasedMessageBubbles() {
+        // The fenced code block lives on the assistant message, not the user message, on purpose:
+        // user bubbles now bypass Markdown entirely (exact-as-typed text only), so exercising the
+        // shared code-copy-button/syntax-highlighting machinery this test also covers requires an
+        // assistant bubble.
         AssistantTranscriptView transcript = new AssistantTranscriptView();
-        transcript.append("user", "Hello assistant\n\n```java\nclass UserPrompt {}\n```");
-        transcript.append("assistant", "Hi user");
+        transcript.append("user", "Hello assistant");
+        transcript.append("assistant", "Hi user\n\n```java\nclass UserPrompt {}\n```");
 
         List<JComponent> bubbles = transcriptBubbles(transcript);
         List<JEditorPane> panes = transcriptHtmlPanes(transcript);
@@ -4342,9 +4346,12 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantTranscriptUsesStandardMarkdownForHeadersRulesAndCodeBlocks() {
+        // Both payloads are assistant messages: user bubbles now bypass Markdown entirely, so
+        // headers/rules/code-blocks -- what this test actually targets -- can only be exercised
+        // through the assistant role.
         AssistantTranscriptView transcript = new AssistantTranscriptView();
-        transcript.append("user", """
-                ## User payload
+        transcript.append("assistant", """
+                ## First payload
 
                 ---
 
@@ -6560,6 +6567,40 @@ class ShaftPanelSetupTest {
             }
         });
         return count.get();
+    }
+
+    @Test
+    void focusPromptForCustomAnswerSelectsAllTextAfterSuggestedAnswerChipFill() throws Exception {
+        // DEFECT 2: the "Answer myself" button (focusPromptForCustomAnswer) only focused the
+        // composer without selecting existing text. If a suggested-answer chip was clicked first,
+        // its text remained and the user had to manually clear it. Fix: selectAll() after
+        // requestFocusInWindow() so typing replaces all text while keeping it recoverable.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(fakeProject(), connectedMcpSettings());
+        JTextComponent prompt = assistantPrompt(panel);
+
+        // Simulate filling the prompt with suggested-answer text (like a chip click would do).
+        String suggestedText = "Generate a login test";
+        prompt.setText(suggestedText);
+        prompt.setCaretPosition(0);
+
+        // Clear the selection to simulate the state after a chip is clicked but before
+        // custom-answer is invoked.
+        prompt.setSelectionStart(0);
+        prompt.setSelectionEnd(0);
+
+        // Invoke focusPromptForCustomAnswer via reflection since it's private.
+        Method focusMethod = ShaftAssistantPanel.class.getDeclaredMethod("focusPromptForCustomAnswer");
+        focusMethod.setAccessible(true);
+        focusMethod.invoke(panel);
+
+        // After the fix, the entire text should be selected so typing replaces it.
+        assertAll(
+                () -> assertEquals(suggestedText, prompt.getText(),
+                        "Prompt text should still contain the suggested answer"),
+                () -> assertEquals(0, prompt.getSelectionStart(),
+                        "Selection should start at position 0"),
+                () -> assertEquals(suggestedText.length(), prompt.getSelectionEnd(),
+                        "Selection should end at the text length, selecting all"));
     }
 
     // ------------------------------------------------------------------

@@ -89,7 +89,7 @@ final class AssistantCommand {
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
-                    For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
+                    For repeated search-result anchors, scope the locator to the first result container; for Wikipedia use By.id("searchInput") for the search box and `(//div[contains(@class,'mw-search-result-heading')])[1]//a` for the first result.
                     """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
     private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
             """

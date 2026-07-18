@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.intellij.ui.components.JBTextArea;
+import com.intellij.util.ui.JBUI;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -9,8 +10,10 @@ import javax.swing.JButton;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
+import javax.swing.text.html.HTMLEditorKit;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -155,6 +158,107 @@ class AssistantTranscriptViewTest {
                         "The existing bubble's HTML must be updated to the replaced content"),
                 () -> assertFalse(pane.getText().contains("first draft"),
                         "The stale content must not remain after replaceLast"));
+    }
+
+    /**
+     * Root cause: {@code renderMarkdownBlocks}'s plain-paragraph branch joins consecutive
+     * source lines with a plain space and no {@code <br>} is ever emitted anywhere in the file, so a
+     * deliberate single newline the user typed (or the agent streamed) reads as one run-on sentence.
+     * Checked via {@link AssistantTranscriptView#TRANSCRIPT_RENDERED_HTML_PROPERTY}, the exact HTML
+     * string {@link #findByType} panes store (see the class javadoc on that field) -- {@code
+     * JEditorPane#getText()} returns the document's plain-text content model, not its source markup,
+     * so it cannot see a {@code <br>} tag at all and is unsuitable for this assertion.
+     */
+    @Test
+    void singleNewlinesRenderAsLineBreaksInsteadOfCollapsingToASpace() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "line1\nline2");
+
+        JEditorPane pane = findByType(view, JEditorPane.class);
+        assertNotNull(pane);
+        String rendered = renderedHtmlOf(pane);
+        assertAll(
+                () -> assertTrue(rendered.contains("line1<br>line2"),
+                        "A single newline within one paragraph must render as a <br>, not collapse to "
+                                + "a space. Actual rendered HTML: " + rendered),
+                () -> assertTrue(pane.getText().contains("line1") && pane.getText().contains("line2"),
+                        "The plain rendered text must still contain both lines: " + pane.getText()));
+    }
+
+    /**
+     * User prose was run through the full Markdown parser, so a stray backtick opened a
+     * {@code <code>} span, {@code **} became {@code <strong>}, and a leading {@code #} could become a
+     * heading -- none of which the user actually asked for by typing those characters. User bubbles
+     * must show exactly what was typed, HTML-escaped only (agent/assistant bubbles are unaffected and
+     * keep the full Markdown pipeline, covered by the sibling
+     * {@link #singleNewlinesRenderAsLineBreaksInsteadOfCollapsingToASpace} test above).
+     */
+    @Test
+    void userMessagesRenderLiterallyInsteadOfThroughTheMarkdownParser() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("user", "back`tick **stars** #hash\nsecond line");
+
+        JEditorPane pane = findByType(view, JEditorPane.class);
+        assertNotNull(pane);
+        String rendered = renderedHtmlOf(pane);
+        assertAll(
+                () -> assertTrue(rendered.contains("back`tick **stars** #hash"),
+                        "The literal backtick/asterisks/hash the user typed must stay visible as "
+                                + "plain characters, not be consumed as Markdown syntax. Actual: " + rendered),
+                () -> assertTrue(rendered.contains("<br>"),
+                        "The embedded newline must still become a <br> exactly like an assistant "
+                                + "bubble. Actual: " + rendered),
+                () -> assertFalse(rendered.contains("<code>"),
+                        "A stray backtick in user text must never open a <code> span. Actual: " + rendered),
+                () -> assertFalse(rendered.contains("<strong>"),
+                        "Literal ** in user text must never become <strong>. Actual: " + rendered),
+                () -> assertFalse(rendered.contains("<h1>") || rendered.contains("<h2>")
+                                || rendered.contains("<h3>") || rendered.contains("<h4>")
+                                || rendered.contains("<h5>") || rendered.contains("<h6>"),
+                        "A leading # in user text must never become a heading. Actual: " + rendered));
+    }
+
+    /**
+     * Root cause: {@link AssistantTranscriptView}'s private {@code WidthAwareHtmlPane}
+     * returns Swing's int-truncated preferred width with zero right-edge slack, and the bubble is
+     * laid out at exactly that width -- clipping the last letter or two of short messages. This
+     * isolates the raw (unslacked) Swing/HTML measurement by feeding a bare, un-wrapped {@link
+     * JEditorPane} the exact same rendered HTML at a width far past what a single short word could
+     * ever need (so its preferred width converges to the same natural value regardless of the exact
+     * bubble budget), then asserts the production pane reports precisely that raw width plus the
+     * crop guard's {@code JBUI.scale(4)} slack -- the strongest assertion this black-box seam allows,
+     * since {@code WidthAwareHtmlPane} and {@code fallbackBubbleContentWidth()} are both private.
+     */
+    @Test
+    void shortUserMessagePreferredWidthAppliesTheCropGuardOverTheRawHtmlMeasurement() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("user", "Supercalifragilisticexpialidocious");
+
+        JEditorPane pane = findByType(view, JEditorPane.class);
+        assertNotNull(pane);
+        String rendered = renderedHtmlOf(pane);
+
+        JEditorPane raw = new JEditorPane();
+        raw.setContentType("text/html");
+        raw.setEditorKit(new HTMLEditorKit());
+        // Match fallbackHtmlPane()'s zero-inset border: a fresh JEditorPane's default look-and-feel
+        // border (BasicBorders$MarginBorder) otherwise adds its own margin on top of the content,
+        // which would confound this comparison with a second, unrelated source of extra width.
+        raw.setBorder(JBUI.Borders.empty());
+        raw.setText(rendered);
+        raw.setSize(new Dimension(2000, Short.MAX_VALUE));
+        int rawWidth = raw.getPreferredSize().width;
+
+        assertEquals(rawWidth + JBUI.scale(4), pane.getPreferredSize().width,
+                "The production pane must report the raw HTML measurement (" + rawWidth
+                        + "px) plus the JBUI.scale(4) crop guard -- not the bare raw measurement, "
+                        + "which is what today's zero-slack bug returns");
+    }
+
+    private static String renderedHtmlOf(JEditorPane pane) {
+        Object rendered = pane.getClientProperty(AssistantTranscriptView.TRANSCRIPT_RENDERED_HTML_PROPERTY);
+        assertTrue(rendered instanceof String, "Every rendered bubble stores its exact HTML behind this property");
+        return (String) rendered;
     }
 
     @Test

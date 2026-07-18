@@ -1268,7 +1268,11 @@ final class ShaftAssistantPanel extends JPanel {
                 && AssistantCommand.requiresShaftProject(invocation)) {
             invocation = AssistantCommand.shaftProjectRequiredNudge(invocation.toolName());
         }
-        append("user", AssistantMarkdown.normalizeMarkdown(text), "");
+        // Display-only: the transcript/chat-state bubble shows exactly what the user typed -- text
+        // is already trimmed above and normalizeMarkdown() here only ever affected what got
+        // rendered/persisted, never the actual invocation (built from `text` directly at
+        // AssistantCommand.fromPrompt() above), so this never changes agent behavior.
+        append("user", text, "");
         if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
             appendTerminalAgentMilestone("Failed");
             setRunning(false, "Switch to Agent mode");
@@ -2272,6 +2276,10 @@ final class ShaftAssistantPanel extends JPanel {
      */
     private void focusPromptForCustomAnswer() {
         prompt.requestFocusInWindow();
+        // DEFECT 2 fix: if a suggested-answer chip was clicked first, its text remains in the
+        // composer. Selecting all existing text lets typing replace it while keeping recovery
+        // possible (user can undo or Ctrl+Z to restore the chip's text).
+        prompt.selectAll();
     }
 
     private boolean verboseLocalAgentOutput() {
