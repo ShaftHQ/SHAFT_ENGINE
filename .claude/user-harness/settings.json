@@ -5,7 +5,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "sonnet",
   "statusLine": {
     "type": "command",
     "command": "bash C:/Users/Mohab/.claude/statusline-command.sh"
@@ -13,12 +13,22 @@
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "mcp-server-dev@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true
+    "skill-creator@claude-plugins-official": true,
+    "mempalace@mempalace": true
+  },
+  "extraKnownMarketplaces": {
+    "mempalace": {
+      "source": {
+        "source": "github",
+        "repo": "MemPalace/mempalace"
+      }
+    }
   },
   "effortLevel": "high",
   "autoUpdatesChannel": "latest",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": false
 }

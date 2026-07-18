@@ -21,7 +21,7 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
-- Blockers/small issues in path: fix inline. Anything else out-of-scope (enhancement, missing feature, degraded health metric) -- never silently drop: `gh issue create` same session (search first, consolidate). A PR/chat mention alone doesn't count. Don't hunt for extras.
+- Blockers/small issues in path: fix inline. Anything else out-of-scope (enhancement, missing feature, degraded health metric, followup) -- never silently drop or just chat it: interactive -> ask now-vs-issue; noninteractive -> always `gh issue create` same session (search first, consolidate). Don't hunt for extras.
 
 ## Windows/Codex Safety
 
@@ -57,6 +57,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - Docs/report web UI: `frontend-design` -> implement -> shaft-mcp browser evidence (screenshots + `browser_accessibility_audit`). Perf/network regressions: shaft-mcp `browser_network_requests`.
 - Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree facts: just `rg` the pom) -> `ci-failure-investigator` on breakage.
 - `context7`: past-cutoff library APIs only, else repo exemplars.
+- Context/history/relationships: `mempalace`/`graphify` first, not grep; `rg` still for live code verification (mempalace/graphify can be stale).
 - Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
 - Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`caveman`/`test-driven-development`/`graphify`/`work-github`.
 
