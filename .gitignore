@@ -114,3 +114,7 @@ __pycache__/
 # JVM fatal error / replay dumps (generated at CWD on a forked-test crash)
 hs_err_pid*.log
 replay_pid*.log
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json
