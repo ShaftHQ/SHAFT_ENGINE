@@ -691,6 +691,45 @@ class AssistantCommandTest {
     }
 
     @Test
+    void recordApiCommandStartsApiCaptureFromSlashAndNaturalLanguage() {
+        // Issue #3726: "Record API" must be a discoverable assistant command that starts an
+        // API-testing recording session (capture_api_start, with network request/response body
+        // capture enabled) instead of falling through to the plain UI recorder (capture_start).
+        AssistantCommand.Invocation slash = command("/record-api https://example.com/api");
+        AssistantCommand.Invocation naturalPrefill = command("Record API traffic on https://example.com");
+        AssistantCommand.Invocation naturalPhrase = command("record api traffic for the checkout flow");
+
+        assertAll(
+                () -> assertEquals("capture_api_start", slash.toolName()),
+                () -> assertEquals("https://example.com/api", slash.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("Chrome", slash.arguments().get("browser").getAsString()),
+                () -> assertTrue(slash.arguments().get("networkOptions").getAsJsonObject()
+                        .get("enabled").getAsBoolean()),
+                () -> assertTrue(slash.arguments().get("networkOptions").getAsJsonObject()
+                        .get("captureRequestBodies").getAsBoolean()),
+                () -> assertTrue(slash.arguments().get("networkOptions").getAsJsonObject()
+                        .get("captureResponseBodies").getAsBoolean()),
+                // RecordApiWebAction.recordApiPrompt's exact prefill text -- sent into the chat panel
+                // when Advanced UI is off (issue #3552's assistant-fallback route) -- must resolve to
+                // the same MCP tool the dedicated API Recording tab drives.
+                () -> assertEquals("capture_api_start", naturalPrefill.toolName()),
+                () -> assertEquals("https://example.com",
+                        naturalPrefill.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("capture_api_start", naturalPhrase.toolName()));
+    }
+
+    @Test
+    void recordApiNaturalLanguageDoesNotStealTheNoBrowserMobileApiRecordingPrompt() {
+        // RecordApiMobileAction's "without a browser" prefill drives a different MCP tool
+        // (mobile_api_record_start, a no-browser MITM proxy) -- it must keep routing to the mobile
+        // recorder, not the browser-launching capture_api_start this command adds.
+        AssistantCommand.Invocation mobileApiPrefill =
+                command("Record API traffic without a browser on Android");
+
+        assertEquals("mobile_record_start", mobileApiPrefill.toolName());
+    }
+
+    @Test
     void mobileRecordingOutweighsBrowserRecordingWithoutCrossPredicateExclusion() {
         // NATURAL_INTENTS used to resolve this by having isBrowserRecordingIntent explicitly call
         // isMobileRecordingStartIntent and bail out (the issue #3429 patch). That cross-predicate
@@ -870,15 +909,16 @@ class AssistantCommandTest {
         String expertTooltip = AssistantCommand.commandTooltip(true);
 
         assertAll(
-                // default composer shows only the five core entry points
-                () -> assertEquals(List.of("/record", "/record-mobile", "/codegen", "/doctor", "/upgrade"),
-                        coreHints),
+                // default composer shows only the six core entry points
+                () -> assertEquals(List.of("/record", "/record-mobile", "/record-api", "/codegen", "/doctor",
+                        "/upgrade"), coreHints),
                 // Expert mode reveals the rest, including the two new commands
-                () -> assertTrue(allHints.containsAll(List.of("/record", "/record-mobile", "/codegen", "/doctor",
-                        "/upgrade", "/partner", "/guide", "/guardrails", "/browser", "/mobile", "/project", "/verify",
-                        "/skills"))),
+                () -> assertTrue(allHints.containsAll(List.of("/record", "/record-mobile", "/record-api",
+                        "/codegen", "/doctor", "/upgrade", "/partner", "/guide", "/guardrails", "/browser",
+                        "/mobile", "/project", "/verify", "/skills"))),
                 () -> assertEquals(AssistantCommand.commandHints().size(), allHints.size()),
                 () -> assertTrue(coreTooltip.contains("/record-web")),
+                () -> assertTrue(coreTooltip.contains("/record-api")),
                 () -> assertFalse(coreTooltip.contains("/partner")),
                 () -> assertFalse(coreTooltip.contains("/verify")),
                 () -> assertFalse(coreTooltip.contains("/skills")),
@@ -900,6 +940,7 @@ class AssistantCommandTest {
                 () -> assertTrue(response.contains("**/codegen**")),
                 () -> assertTrue(response.contains("**/record**")),
                 () -> assertTrue(response.contains("**/record-mobile**")),
+                () -> assertTrue(response.contains("**/record-api**")),
                 () -> assertTrue(response.contains("**/doctor**")),
                 () -> assertTrue(response.contains("**/upgrade**")),
                 // expert commands are not shown as sections in the default help
