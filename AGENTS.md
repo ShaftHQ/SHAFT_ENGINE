@@ -42,7 +42,7 @@ Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, a
 
 - Guidance/memory: `py -3`/`python3 scripts/ci/validate_agent_setup.py`
 - Local code: affected tests, then one compile/package.
-- IntelliJ plugin: Gradle 9+ + JDK 21; screenshots via `ShaftPluginScreenshotRendererTest -Dshaft.intellij.screenshotDir=...`.
+- IntelliJ plugin: build/verify facts live in the `shaft-mastery` intellij-plugin chapter; load it.
 - Shared API/build/release: targeted, then full compile/package.
 - Visual: relevant test + image/browser evidence.
 - UI/report PRs need screenshots; draft/report if blocked.
