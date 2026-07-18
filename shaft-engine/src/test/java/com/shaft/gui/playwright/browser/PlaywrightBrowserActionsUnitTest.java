@@ -5,7 +5,9 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Route;
 import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.accessibility.AccessibilityActions;
+import org.mockito.MockedStatic;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -13,13 +15,17 @@ import org.testng.annotations.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -120,5 +126,29 @@ public class PlaywrightBrowserActionsUnitTest {
 
         Assert.assertSame(actions.routeFromHar(harFile.toString()), actions);
         Assert.assertNotNull(handler.get());
+    }
+
+    @Test
+    public void shouldMaskPasswordWhenLoggingBasicAuthenticationUrl() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        when(session.page()).thenReturn(page);
+        BrowserActions actions = new BrowserActions(session);
+
+        List<String> loggedMessages = new ArrayList<>();
+        try (MockedStatic<ReportManager> reportManager = mockStatic(ReportManager.class)) {
+            reportManager.when(() -> ReportManager.log(anyString())).thenAnswer(invocation -> {
+                loggedMessages.add(invocation.getArgument(0));
+                return null;
+            });
+
+            actions.navigateToURLWithBasicAuthentication(
+                    "https://example.com/secure", "user", "secretPass", null);
+        }
+
+        verify(page).navigate("https://user:secretPass@example.com/secure");
+        String logged = String.join("\n", loggedMessages);
+        Assert.assertFalse(logged.contains("secretPass"));
+        Assert.assertTrue(logged.contains("••••••••••"));
     }
 }
