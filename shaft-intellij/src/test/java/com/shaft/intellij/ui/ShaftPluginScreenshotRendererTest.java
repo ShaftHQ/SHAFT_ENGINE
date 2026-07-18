@@ -127,6 +127,7 @@ class ShaftPluginScreenshotRendererTest {
 
         Path assistantLightScreenshot = outputPath.resolve("intellij-plugin-assistant.png");
         Path assistantEmptyScreenshot = outputPath.resolve("intellij-plugin-assistant-empty.png");
+        Path assistantAttachmentsScreenshot = outputPath.resolve("intellij-plugin-assistant-attachments.png");
         Path assistantEmptyNarrowScreenshot = outputPath.resolve("intellij-plugin-assistant-empty-narrow.png");
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
@@ -165,6 +166,7 @@ class ShaftPluginScreenshotRendererTest {
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
         write(assistantEmptyScreenshot, renderAssistantEmpty(LIGHT_THEME, false));
+        write(assistantAttachmentsScreenshot, renderAssistantWithAttachments(LIGHT_THEME, false));
         write(assistantEmptyNarrowScreenshot, renderAssistantEmpty(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
@@ -203,6 +205,7 @@ class ShaftPluginScreenshotRendererTest {
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantEmptyScreenshot) > 0, assistantEmptyScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantAttachmentsScreenshot) > 0, assistantAttachmentsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantEmptyNarrowScreenshot) > 0, assistantEmptyNarrowScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
@@ -241,6 +244,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantEmptyScreenshot),
+                () -> assertDimensions(assistantAttachmentsScreenshot),
                 () -> assertDimensions(assistantEmptyNarrowScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
@@ -462,6 +466,44 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component, width, height));
         });
         return image.get();
+    }
+
+    /**
+     * Renders the composer with the attach affordances populated (issue #3727): the "Attach" toolbar
+     * button beside Send, and a removable chip per attachment above the prompt -- a picked file, a
+     * large file truncated with a visible note, and a picked image. Attaches through the same
+     * package-private {@code attachFileAtPath}/{@code attachImageAtPath} seams {@code
+     * ShaftPanelSetupTest} drives directly (real temp files on disk, not reflection), so this shot
+     * documents the exact production code path a real "Attach file from disk…" pick would run.
+     */
+    private static BufferedImage renderAssistantWithAttachments(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException, IOException {
+        Path fixtureDirectory = Files.createTempDirectory("shaft-assistant-attachments");
+        Path smallFile = fixtureDirectory.resolve("SignInTest.java");
+        Files.writeString(smallFile, ASSISTANT_SHAFT_CODE_SAMPLE);
+        Path largeFile = fixtureDirectory.resolve("huge-log.txt");
+        Files.writeString(largeFile, "x".repeat(20_000));
+        Path image = fixtureDirectory.resolve("failure-screenshot.png");
+        Files.write(image, new byte[]{(byte) 0x89, 'P', 'N', 'G'});
+
+        AtomicReference<BufferedImage> screenshot = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings,
+                    new ShaftAssistantChatState(), () -> {
+                    });
+            component.attachFileAtPath(smallFile);
+            component.attachFileAtPath(largeFile);
+            component.attachImageAtPath(image);
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            screenshot.set(render(component, WIDTH, HEIGHT));
+        });
+        return screenshot.get();
     }
 
     private static BufferedImage renderAssistantLiveOutput(String lookAndFeelClassName, boolean dark)

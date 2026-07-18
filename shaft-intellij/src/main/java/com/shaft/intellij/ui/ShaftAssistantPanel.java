@@ -180,6 +180,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JBTextArea prompt;
     private final AssistantTranscriptView transcript;
     private final JButton send;
+    private final JButton attach;
     private final JButton cancel;
     private final JButton copyLastResponse;
     private final JButton copyRawResponse;
@@ -248,6 +249,30 @@ final class ShaftAssistantPanel extends JPanel {
     private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
     private RecordingBackend activeRecordingBackend = RecordingBackend.WEBDRIVER;
     private javax.swing.JPanel emptyStateChips;
+    /**
+     * Files/images attached to the next prompt (issue #3727): removable chips rendered by {@link
+     * #refreshAttachmentsChipRow()}, folded into the outbound prompt text via {@link
+     * AssistantAttachments#outboundBlock} from {@link #send(Project)}. Cleared alongside the prompt
+     * text itself once a send actually goes through (mirrors the existing {@code prompt.setText("")}
+     * reset point), but preserved across a pre-flight gate bounce so a resend keeps them.
+     */
+    private List<AssistantAttachment> attachments = new ArrayList<>();
+    private javax.swing.JPanel attachmentsChipRow;
+    /**
+     * Resolves the current editor's content for "Add current file" (issue #3727). Defaults to the
+     * existing {@link #openFileContext(Project)} static helper so production behavior is unchanged;
+     * overridden via reflection in headless tests (no real {@code FileEditorManager} without a live
+     * IDE project) to simulate an open editor, per the "current-file... actions with simulated
+     * editors" TDD requirement.
+     */
+    private java.util.function.Function<Project, AssistantCommand.OpenFileContext> currentEditorFileProvider =
+            ShaftAssistantPanel::openFileContext;
+    /**
+     * Resolves every open editor's content for "Add all open files" (issue #3727). Same
+     * test-injection rationale as {@link #currentEditorFileProvider}.
+     */
+    private java.util.function.Function<Project, List<AssistantCommand.OpenFileContext>> openEditorFilesProvider =
+            ShaftAssistantPanel::realOpenEditorFiles;
     private CaptureReview pendingCaptureReview;
     private boolean generateCaptureReviewAfterStop;
     private boolean captureReviewGenerationRunning;
@@ -479,6 +504,8 @@ final class ShaftAssistantPanel extends JPanel {
         ShaftIconButtons.widen(send, 64);
         send.setToolTipText(SEND_TOOLTIP);
         bindSendHover();
+        attach = button("Attach", "Attach files or images to the prompt", event -> showAttachMenu());
+        ShaftIconButtons.apply(attach, ShaftIcons.ATTACH);
         cancel = button("Cancel", "Cancel assistant request", event -> cancelOrKillCurrent());
         ShaftIconButtons.apply(cancel, ShaftIcons.CANCEL);
         cancel.setEnabled(false);
@@ -608,7 +635,8 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(verboseAgentOutput);
         routeRow.add(autoCompact);
 
-        JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        sendActions.add(attach);
         sendActions.add(send);
         JPanel promptActions = new JPanel(new BorderLayout(6, 0));
         promptActions.add(sendActions, BorderLayout.EAST);
@@ -631,7 +659,14 @@ final class ShaftAssistantPanel extends JPanel {
         JBScrollPane promptScroll = new JBScrollPane(prompt);
         promptScroll.setMinimumSize(JBUI.size(320, 108));
         promptScroll.setPreferredSize(JBUI.size(560, 120));
-        composer.add(buildEmptyStateChips(), BorderLayout.NORTH);
+        // BoxLayout (not a plain BorderLayout NORTH slot), matching the {@code notices} panel
+        // precedent above: the attachments chip row is hidden by default (no attachments yet) and
+        // must collapse to zero height rather than reserve blank space (issue #3727).
+        JPanel composerTop = new JPanel();
+        composerTop.setLayout(new BoxLayout(composerTop, BoxLayout.Y_AXIS));
+        composerTop.add(buildAttachmentsChipRow());
+        composerTop.add(buildEmptyStateChips());
+        composer.add(composerTop, BorderLayout.NORTH);
         composer.add(promptScroll, BorderLayout.CENTER);
         composer.add(cloudKeyPanel, BorderLayout.WEST);
         composer.add(composerFooter, BorderLayout.SOUTH);
@@ -1217,7 +1252,9 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private static String fileName(String path) {
+    /** Package-private (not private): reused by {@link AssistantAttachment#displayName()} so an
+     * attachment chip's label uses the same file-name-only convention as the rest of the panel. */
+    static String fileName(String path) {
         if (path == null || path.isBlank()) {
             return "current";
         }
@@ -1245,6 +1282,10 @@ final class ShaftAssistantPanel extends JPanel {
         String selectedMode = String.valueOf(mode.getSelectedItem());
         String workingDirectory = project == null || project.getBasePath() == null ? "" : project.getBasePath();
         String conversationContext = conversationContextForPrompt();
+        // Issue #3727: attachments fold into the outbound prompt text only (never into the
+        // display bubble appended below, and never into the capture-review approval path, which
+        // carries no free-text prompt for attachments to join).
+        String attachmentsContext = AssistantAttachments.outboundBlock(attachments);
         boolean approvingCaptureReview = pendingCaptureReview != null && AssistantCommand.isCaptureApproval(text);
         AssistantCommand.Invocation invocation = approvingCaptureReview
                 ? AssistantCommand.approvedCaptureIntegration(
@@ -1261,7 +1302,8 @@ final class ShaftAssistantPanel extends JPanel {
                 customCommand.getText(),
                 allowSourceMutation.isSelected(),
                 openFileContext(project),
-                conversationContext);
+                conversationContext,
+                attachmentsContext);
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
         if (!approvingCaptureReview
                 && !ShaftProjectDetector.isShaftProject(project)
@@ -1304,6 +1346,10 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         prompt.setText("");
+        if (!attachments.isEmpty()) {
+            attachments = List.of();
+            refreshAttachmentsChipRow();
+        }
         if (invocation.isLocal()) {
             appendTerminalAgentMilestone("Completed");
             showLocalResponse(invocation.localResponse());
@@ -2869,6 +2915,180 @@ final class ShaftAssistantPanel extends JPanel {
             prompt.requestFocusInWindow();
         });
         return chip;
+    }
+
+    /**
+     * Removable-chip row for prompt attachments (issue #3727): current file / all open files / a
+     * picked file / a picked image, added via {@link #showAttachMenu()}. Hidden (zero height, via
+     * the {@code composerTop} BoxLayout) whenever {@link #attachments} is empty.
+     */
+    private javax.swing.JPanel buildAttachmentsChipRow() {
+        attachmentsChipRow = new javax.swing.JPanel(new WrapLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        attachmentsChipRow.getAccessibleContext().setAccessibleName("Prompt attachments");
+        attachmentsChipRow.setOpaque(false);
+        attachmentsChipRow.setVisible(false);
+        return attachmentsChipRow;
+    }
+
+    private void refreshAttachmentsChipRow() {
+        attachmentsChipRow.removeAll();
+        for (AssistantAttachment attachment : attachments) {
+            attachmentsChipRow.add(attachmentChip(attachment));
+        }
+        attachmentsChipRow.setVisible(!attachments.isEmpty());
+        attachmentsChipRow.revalidate();
+        attachmentsChipRow.repaint();
+        Container parent = attachmentsChipRow.getParent();
+        if (parent != null) {
+            parent.revalidate();
+            parent.repaint();
+        }
+    }
+
+    /** One removable attachment chip: name plus a trailing "×", the whole chip is the remove control. */
+    private JButton attachmentChip(AssistantAttachment attachment) {
+        JButton chip = new JButton(attachment.displayName() + "  ×");
+        chip.getAccessibleContext().setAccessibleName("Remove attachment " + attachment.displayName());
+        String note = attachment.truncated()
+                ? " (truncated to " + AssistantAttachment.MAX_CONTENT_CHARACTERS + " characters)"
+                : "";
+        chip.setToolTipText((attachment.image() ? "Attached image: " : "Attached file: ")
+                + attachment.path() + note + " — click to remove");
+        chip.setMargin(JBUI.insets(1, 8));
+        chip.addActionListener(event -> removeAttachment(attachment.path()));
+        return chip;
+    }
+
+    private void addAttachment(AssistantAttachment attachment) {
+        attachments = AssistantAttachments.withAttachment(attachments, attachment);
+        refreshAttachmentsChipRow();
+    }
+
+    private void removeAttachment(String path) {
+        attachments = AssistantAttachments.withoutAttachment(attachments, path);
+        refreshAttachmentsChipRow();
+    }
+
+    /** Popup menu behind the {@link #attach} toolbar button: the four attach affordances from
+     * issue #3727 -- current file, all open files, a picked file, a picked image. */
+    private void showAttachMenu() {
+        JPopupMenu menu = new JPopupMenu("Attach to prompt");
+        JMenuItem currentFile = new JMenuItem("Add current file");
+        currentFile.addActionListener(event -> addCurrentFileAttachment());
+        JMenuItem allOpenFiles = new JMenuItem("Add all open files");
+        allOpenFiles.addActionListener(event -> addAllOpenFilesAttachments());
+        JMenuItem pickFile = new JMenuItem("Attach file from disk…");
+        pickFile.addActionListener(event -> attachFileFromDisk());
+        JMenuItem pickImage = new JMenuItem("Attach screenshot or image…");
+        pickImage.addActionListener(event -> attachImageFromDisk());
+        menu.add(currentFile);
+        menu.add(allOpenFiles);
+        menu.addSeparator();
+        menu.add(pickFile);
+        menu.add(pickImage);
+        menu.show(attach, 0, attach.getHeight());
+    }
+
+    private void addCurrentFileAttachment() {
+        AssistantCommand.OpenFileContext current = currentEditorFileProvider.apply(project);
+        if (current == null || !current.present()) {
+            setStatus("No file is open to attach");
+            return;
+        }
+        addAttachment(AssistantAttachment.forText(current.path(), current.text()));
+        setStatus("Attached " + fileName(current.path()));
+    }
+
+    private void addAllOpenFilesAttachments() {
+        List<AssistantCommand.OpenFileContext> openFiles = openEditorFilesProvider.apply(project);
+        List<AssistantCommand.OpenFileContext> present = openFiles == null ? List.of() : openFiles.stream()
+                .filter(AssistantCommand.OpenFileContext::present)
+                .toList();
+        if (present.isEmpty()) {
+            setStatus("No open editor files to attach");
+            return;
+        }
+        for (AssistantCommand.OpenFileContext file : present) {
+            addAttachment(AssistantAttachment.forText(file.path(), file.text()));
+        }
+        setStatus("Attached " + present.size() + " open file" + (present.size() == 1 ? "" : "s"));
+    }
+
+    private void attachFileFromDisk() {
+        File selected = chooseFile("Attach File", null);
+        if (selected != null) {
+            attachFileAtPath(selected.toPath());
+        }
+    }
+
+    private void attachImageFromDisk() {
+        File selected = chooseFile("Attach Screenshot or Image",
+                new FileNameExtensionFilter("Images", "png", "jpg", "jpeg", "gif", "bmp"));
+        if (selected != null) {
+            attachImageAtPath(selected.toPath());
+        }
+    }
+
+    /**
+     * Reads {@code path} and adds it as a text attachment. Package-private (not private): factored
+     * out of {@link #attachFileFromDisk()} so headless tests can exercise the real read/attach logic
+     * without driving a {@link JFileChooser} dialog.
+     */
+    void attachFileAtPath(Path path) {
+        try {
+            String content = Files.readString(path);
+            addAttachment(AssistantAttachment.forText(path.toAbsolutePath().toString(), content));
+            setStatus("Attached " + path.getFileName());
+        } catch (IOException | RuntimeException unreadable) {
+            setStatus("Could not read " + path.getFileName());
+        }
+    }
+
+    /** Same test-seam rationale as {@link #attachFileAtPath}, for the image-attach affordance. */
+    void attachImageAtPath(Path path) {
+        addAttachment(AssistantAttachment.forImage(path.toAbsolutePath().toString()));
+        setStatus("Attached image " + path.getFileName());
+    }
+
+    private File chooseFile(String title, FileNameExtensionFilter filter) {
+        JFileChooser chooser = new JFileChooser(lastSaveDirectory().toFile());
+        chooser.setDialogTitle(title);
+        if (filter != null) {
+            chooser.setFileFilter(filter);
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return null;
+        }
+        return chooser.getSelectedFile();
+    }
+
+    /** Default {@link #openEditorFilesProvider}: every open editor's path and text, via the real
+     * {@link FileEditorManager} (production path; headless tests inject a fake provider instead). */
+    private static List<AssistantCommand.OpenFileContext> realOpenEditorFiles(Project project) {
+        if (project == null) {
+            return List.of();
+        }
+        try {
+            FileEditorManager manager = FileEditorManager.getInstance(project);
+            List<AssistantCommand.OpenFileContext> files = new ArrayList<>();
+            for (VirtualFile virtualFile : manager.getOpenFiles()) {
+                String text = readVirtualFileText(virtualFile);
+                if (!text.isEmpty()) {
+                    files.add(new AssistantCommand.OpenFileContext(virtualFile.getPath(), text));
+                }
+            }
+            return files;
+        } catch (RuntimeException | Error headlessTestEnvironment) {
+            return List.of();
+        }
+    }
+
+    private static String readVirtualFileText(VirtualFile virtualFile) {
+        try {
+            return com.intellij.openapi.vfs.VfsUtilCore.loadText(virtualFile);
+        } catch (IOException | RuntimeException unreadable) {
+            return "";
+        }
     }
 
     private void updateActionChrome() {

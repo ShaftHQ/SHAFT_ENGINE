@@ -72,6 +72,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.swing.text.JTextComponent;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -223,6 +224,307 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("playwright_recording_code_blocks", invocation.toolName()),
                 () -> assertEquals("recordings/custom-playwright.json",
                         invocation.arguments().get("recordingPath").getAsString()));
+    }
+
+    // ---- Attach-to-prompt affordances (issue #3727): current file / all open files / a disk file /
+    // an image, rendered as removable chips near the composer and folded into the outbound prompt
+    // text sent to the local-agent or cloud-provider MCP tool. ----
+
+    @Test
+    void fromPromptFoldsAttachmentsBlockIntoLocalAgentPromptText() {
+        String attachmentsBlock = AssistantAttachments.outboundBlock(List.of(
+                AssistantAttachment.forText("src/main/java/Foo.java", "class Foo {}")));
+
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this class",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "ASK",
+                ".",
+                "",
+                false,
+                AssistantCommand.OpenFileContext.empty(),
+                "",
+                attachmentsBlock);
+
+        String promptText = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(promptText.contains("Attached context:"), promptText),
+                () -> assertTrue(promptText.contains("File: src/main/java/Foo.java"), promptText),
+                () -> assertTrue(promptText.contains("class Foo {}"), promptText));
+    }
+
+    @Test
+    void fromPromptFoldsAttachmentsBlockIntoCloudPromptText() {
+        String attachmentsBlock = AssistantAttachments.outboundBlock(List.of(
+                AssistantAttachment.forText("Notes.txt", "remember to check locators")));
+
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Summarize this",
+                AssistantCommand.Selection.cloud("openai", "gpt-4.1"),
+                "ASK",
+                ".",
+                "",
+                false,
+                AssistantCommand.OpenFileContext.empty(),
+                "",
+                attachmentsBlock);
+
+        String promptText = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertEquals("autobot_provider_chat", invocation.toolName()),
+                () -> assertTrue(promptText.contains("Notes.txt"), promptText),
+                () -> assertTrue(promptText.contains("remember to check locators"), promptText));
+    }
+
+    @Test
+    void fromPromptWithoutAttachmentsContextBuildsPromptUnchanged() {
+        AssistantCommand.Invocation withoutAttachments = AssistantCommand.fromPrompt(
+                "Explain this class", "CODEX", "ASK", ".", "", false);
+
+        assertFalse(withoutAttachments.arguments().get("prompt").getAsString().contains("Attached context:"));
+    }
+
+    @Test
+    void outboundBlockTruncatesOversizedTextAttachmentWithVisibleNote() {
+        String huge = "x".repeat(AssistantAttachment.MAX_CONTENT_CHARACTERS + 500);
+        AssistantAttachment attachment = AssistantAttachment.forText("Big.java", huge);
+        String block = AssistantAttachments.outboundBlock(List.of(attachment));
+
+        assertAll(
+                () -> assertTrue(attachment.truncated()),
+                () -> assertEquals(AssistantAttachment.MAX_CONTENT_CHARACTERS, attachment.content().length()),
+                () -> assertTrue(block.contains("truncated to " + AssistantAttachment.MAX_CONTENT_CHARACTERS
+                        + " characters"), block));
+    }
+
+    @Test
+    void outboundBlockNotesImagePathInsteadOfEmbeddingBytes() {
+        AssistantAttachment image = AssistantAttachment.forImage("C:\\shots\\bug.png");
+        String block = AssistantAttachments.outboundBlock(List.of(image));
+
+        assertAll(
+                () -> assertTrue(block.contains("C:\\shots\\bug.png"), block),
+                () -> assertTrue(block.contains("text-only"), block),
+                () -> assertEquals("", image.content()));
+    }
+
+    @Test
+    void withAttachmentDedupesByPathReplacingEarlierEntry() {
+        List<AssistantAttachment> firstAdd = AssistantAttachments.withAttachment(
+                List.of(), AssistantAttachment.forText("Foo.java", "first"));
+        List<AssistantAttachment> secondAdd = AssistantAttachments.withAttachment(
+                firstAdd, AssistantAttachment.forText("Foo.java", "second"));
+
+        assertAll(
+                () -> assertEquals(1, secondAdd.size()),
+                () -> assertEquals("second", secondAdd.get(0).content()));
+    }
+
+    @Test
+    void addCurrentFileAttachmentUsesInjectedProviderAndShowsRemovableChip() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "currentEditorFileProvider",
+                (Function<Project, AssistantCommand.OpenFileContext>)
+                        p -> new AssistantCommand.OpenFileContext("SignInTest.java", "class SignInTest {}"));
+
+        invokePrivate(panel, "addCurrentFileAttachment");
+
+        @SuppressWarnings("unchecked")
+        List<AssistantAttachment> attachments = (List<AssistantAttachment>) getField(panel, "attachments");
+        JPanel chipRow = (JPanel) getField(panel, "attachmentsChipRow");
+        assertAll(
+                () -> assertEquals(1, attachments.size()),
+                () -> assertEquals("SignInTest.java", attachments.get(0).path()),
+                () -> assertTrue(chipRow.isVisible()),
+                () -> assertEquals(1, chipRow.getComponentCount()),
+                () -> assertTrue(((JButton) chipRow.getComponent(0)).getText().contains("SignInTest.java")));
+    }
+
+    @Test
+    void addCurrentFileAttachmentWithNoOpenFileShowsStatusAndAddsNothing() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "currentEditorFileProvider",
+                (Function<Project, AssistantCommand.OpenFileContext>) p -> AssistantCommand.OpenFileContext.empty());
+
+        invokePrivate(panel, "addCurrentFileAttachment");
+
+        assertAll(
+                () -> assertTrue(((List<?>) getField(panel, "attachments")).isEmpty()),
+                () -> assertTrue(containsText(panel, "No file is open to attach")));
+    }
+
+    @Test
+    void addAllOpenFilesAttachmentsUsesInjectedProviderForEverySimulatedEditor() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "openEditorFilesProvider",
+                (Function<Project, List<AssistantCommand.OpenFileContext>>) p -> List.of(
+                        new AssistantCommand.OpenFileContext("Foo.java", "class Foo {}"),
+                        new AssistantCommand.OpenFileContext("Bar.java", "class Bar {}")));
+
+        invokePrivate(panel, "addAllOpenFilesAttachments");
+
+        @SuppressWarnings("unchecked")
+        List<AssistantAttachment> attachments = (List<AssistantAttachment>) getField(panel, "attachments");
+        assertAll(
+                () -> assertEquals(2, attachments.size()),
+                () -> assertTrue(attachments.stream().anyMatch(a -> a.path().equals("Foo.java"))),
+                () -> assertTrue(attachments.stream().anyMatch(a -> a.path().equals("Bar.java"))));
+    }
+
+    @Test
+    void addAllOpenFilesAttachmentsWithNoOpenEditorsShowsStatusAndAddsNothing() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "openEditorFilesProvider",
+                (Function<Project, List<AssistantCommand.OpenFileContext>>) p -> List.of());
+
+        invokePrivate(panel, "addAllOpenFilesAttachments");
+
+        assertAll(
+                () -> assertTrue(((List<?>) getField(panel, "attachments")).isEmpty()),
+                () -> assertTrue(containsText(panel, "No open editor files to attach")));
+    }
+
+    @Test
+    void attachFileAtPathReadsRealFileFromDiskAndAddsAttachment(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path file = tempDir.resolve("notes.txt");
+        Files.writeString(file, "attach me");
+
+        panel.attachFileAtPath(file);
+
+        @SuppressWarnings("unchecked")
+        List<AssistantAttachment> attachments = (List<AssistantAttachment>) getField(panel, "attachments");
+        assertAll(
+                () -> assertEquals(1, attachments.size()),
+                () -> assertEquals("attach me", attachments.get(0).content()),
+                () -> assertFalse(attachments.get(0).image()));
+    }
+
+    @Test
+    void attachFileAtPathTruncatesOversizedFileWithVisibleChipNote(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path file = tempDir.resolve("big.txt");
+        Files.writeString(file, "y".repeat(AssistantAttachment.MAX_CONTENT_CHARACTERS + 1000));
+
+        panel.attachFileAtPath(file);
+
+        @SuppressWarnings("unchecked")
+        List<AssistantAttachment> attachments = (List<AssistantAttachment>) getField(panel, "attachments");
+        JPanel chipRow = (JPanel) getField(panel, "attachmentsChipRow");
+        JButton chip = (JButton) chipRow.getComponent(0);
+        assertAll(
+                () -> assertTrue(attachments.get(0).truncated()),
+                () -> assertTrue(chip.getToolTipText().contains("truncated"), chip.getToolTipText()));
+    }
+
+    @Test
+    void attachImageAtPathAddsImageAttachmentWithoutReadingBytes(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path image = tempDir.resolve("screenshot.png");
+        Files.write(image, new byte[]{(byte) 0x89, 'P', 'N', 'G'});
+
+        panel.attachImageAtPath(image);
+
+        @SuppressWarnings("unchecked")
+        List<AssistantAttachment> attachments = (List<AssistantAttachment>) getField(panel, "attachments");
+        assertAll(
+                () -> assertEquals(1, attachments.size()),
+                () -> assertTrue(attachments.get(0).image()),
+                () -> assertEquals("", attachments.get(0).content()),
+                () -> assertEquals(image.toAbsolutePath().toString(), attachments.get(0).path()));
+    }
+
+    @Test
+    void attachingSamePathTwiceDedupesInsteadOfDuplicatingChip(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path file = tempDir.resolve("dup.txt");
+        Files.writeString(file, "v1");
+        panel.attachFileAtPath(file);
+        Files.writeString(file, "v2");
+        panel.attachFileAtPath(file);
+
+        @SuppressWarnings("unchecked")
+        List<AssistantAttachment> attachments = (List<AssistantAttachment>) getField(panel, "attachments");
+        JPanel chipRow = (JPanel) getField(panel, "attachmentsChipRow");
+        assertAll(
+                () -> assertEquals(1, attachments.size()),
+                () -> assertEquals("v2", attachments.get(0).content()),
+                () -> assertEquals(1, chipRow.getComponentCount()));
+    }
+
+    @Test
+    void clickingAttachmentChipRemovesItAndHidesRowWhenEmpty(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path file = tempDir.resolve("removable.txt");
+        Files.writeString(file, "content");
+        panel.attachFileAtPath(file);
+
+        JPanel chipRow = (JPanel) getField(panel, "attachmentsChipRow");
+        JButton chip = (JButton) chipRow.getComponent(0);
+        chip.doClick();
+
+        assertAll(
+                () -> assertTrue(((List<?>) getField(panel, "attachments")).isEmpty()),
+                () -> assertFalse(chipRow.isVisible()),
+                () -> assertEquals(0, chipRow.getComponentCount()));
+    }
+
+    @Test
+    void sendClearsAttachmentsOnceThePromptActuallyGoesThrough(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path file = tempDir.resolve("clearMe.txt");
+        Files.writeString(file, "content");
+        panel.attachFileAtPath(file);
+        assertEquals(1, ((List<?>) getField(panel, "attachments")).size());
+
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        assistantMode.setSelectedItem("ASK");
+        JTextComponent prompt = assistantPrompt(panel);
+        prompt.setText("/help");
+
+        Method send = ShaftAssistantPanel.class.getDeclaredMethod("send", Project.class);
+        send.setAccessible(true);
+        send.invoke(panel, (Project) null);
+
+        assertAll(
+                () -> assertEquals("", prompt.getText()),
+                () -> assertTrue(((List<?>) getField(panel, "attachments")).isEmpty()),
+                () -> assertFalse(((JPanel) getField(panel, "attachmentsChipRow")).isVisible()));
+    }
+
+    /**
+     * A pre-flight gate bounce (e.g. "switch to Agent mode and resend") must not silently drop
+     * attachments the user already picked -- it returns before the {@code prompt.setText("")} reset
+     * point that also clears attachments, mirroring how it preserves the typed prompt text for the
+     * same resend.
+     */
+    @Test
+    void sendPreservesAttachmentsWhenBlockedByAPreflightGate(@TempDir Path tempDir) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Path file = tempDir.resolve("keepMe.txt");
+        Files.writeString(file, "content");
+        panel.attachFileAtPath(file);
+
+        // Same known-good MCP-access-gate trigger as
+        // assistantAskOrPlanMcpPromptOffersOneClickSwitchToAgentMode: PLAN mode plus a prompt that
+        // needs shaft-mcp browser tool access trips the "Switch to Agent mode" gate in send()
+        // before the prompt/attachments reset point.
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        assistantMode.setSelectedItem("PLAN");
+        assistantPrompt(panel).setText("open duckduckgo and search for SHAFT Engine");
+        clickAccessible(panel, "Send assistant prompt");
+
+        assertAll(
+                () -> assertNotNull(findByAccessibleName(panel, "Switch to Agent mode and resend", JButton.class),
+                        "Precondition: the gate must actually have fired"),
+                () -> assertEquals(1, ((List<?>) getField(panel, "attachments")).size(),
+                        "A gate bounce must preserve attachments for the resend, just like it preserves the prompt text"));
+    }
+
+    private static void invokePrivate(Object target, String methodName) throws Exception {
+        Method method = target.getClass().getDeclaredMethod(methodName);
+        method.setAccessible(true);
+        method.invoke(target);
     }
 
     @Test
