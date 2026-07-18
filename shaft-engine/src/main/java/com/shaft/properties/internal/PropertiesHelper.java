@@ -492,7 +492,10 @@ public class PropertiesHelper {
             }
             // "auto" keeps the retry-aware trace default: it resolves to retry mode when
             // retryMaximumNumberOfAttempts > 0 and to plain failure mode otherwise.
-            case "FAILURE_ONLY" -> applyEvidenceLevel("FailuresOnly", "FailuresOnly", false, false,
+            // Page-source/HTML snapshots stay off at this (default) level — screenshots are the
+            // default assertion evidence; opt into page source via BALANCED/FULL or the granular
+            // property directly (issue reported 2026-07-18).
+            case "FAILURE_ONLY" -> applyEvidenceLevel("FailuresOnly", "Never", false, false,
                     false, false, true, true, "auto");
             case "BALANCED" -> applyEvidenceLevel("ValidationPointsOnly", "FailuresOnly", false, false,
                     false, false, true, true, "auto");

@@ -705,6 +705,13 @@ public class AllureManagerUnitTest {
             SHAFT.Validations.assertThat().object(patched).contains("shaft-allure-html-preview").perform();
             SHAFT.Validations.assertThat().object(patched).contains("iframe[src^=\"blob:\"]").perform();
             SHAFT.Validations.assertThat().object(patched).contains("overflow-x: hidden !important").perform();
+            // Allure 2's real (non-modal) inline HTML attachment preview is a bare
+            // <iframe class="attachment__iframe"> whose shipped CSS only sets width, not height, so
+            // it collapses to a small scrollable strip (issue reported 2026-07-18); verified against
+            // a real generated Allure 2 report's decoded CSS bundle. The patch must target that exact
+            // class directly (independent of the Allure-3-oriented modal-detection JS heuristic).
+            SHAFT.Validations.assertThat().object(patched)
+                    .contains(".attachment__iframe:not(.attachment__iframe_fullscreen)").perform();
         } finally {
             Files.deleteIfExists(index);
             Files.deleteIfExists(reportDirectory);

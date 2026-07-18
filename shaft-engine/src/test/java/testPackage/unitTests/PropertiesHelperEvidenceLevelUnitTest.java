@@ -23,10 +23,16 @@ public class PropertiesHelperEvidenceLevelUnitTest {
         Assert.assertEquals(SHAFT.Properties.reporting.evidenceLevel(), "FAILURE_ONLY");
     }
 
+    @Test(description = "Assertion/validation evidence should default to screenshot-only: page-source "
+            + "HTML attachments are noise and must be explicitly opted into (issue reported 2026-07-18)")
+    public void whenToTakePageSourceSnapshotShouldDefaultToNever() {
+        Assert.assertEquals(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(), "Never");
+    }
+
     @DataProvider
     public Object[][] evidenceProfiles() {
         return new Object[][]{
-                {"FAILURE_ONLY", "FailuresOnly", "FailuresOnly", false, false, false, false, true, true, "auto"},
+                {"FAILURE_ONLY", "FailuresOnly", "Never", false, false, false, false, true, true, "auto"},
                 {"BALANCED", "ValidationPointsOnly", "FailuresOnly", false, false, false, false, true, true, "auto"},
                 {"FAST", "Never", "Never", false, false, false, false, false, false, "auto"},
                 {"FULL", "Always", "Always", true, true, true, true, true, true, "always"}
