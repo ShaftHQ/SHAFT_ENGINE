@@ -17,7 +17,7 @@ public class TestClass {
     SHAFT.TestData.JSON testData;
 
     @Test
-    public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+    public void navigateApiDemosExpandableListAndAssertGroupIsVisible() {
         ((AndroidDriver) driver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
         driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)

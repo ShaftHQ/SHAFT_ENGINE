@@ -5,23 +5,23 @@ Feature: Basic SHAFT_Engine Cucumber Web Steps
     Given I Open the target browser
 
   @SampleTests
-  Scenario: Navigate to DuckDuckGo.com, and Assert that the browser title is displayed correctly
-    When I Navigate to "https://duckduckgo.com/"
-    Then I Assert that the "title" attribute of the browser, contains "DuckDuckGo"
+  Scenario: Navigate to Wikipedia.org, and Assert that the browser title is displayed correctly
+    When I Navigate to "https://en.wikipedia.org/wiki/Main_Page"
+    Then I Assert that the "title" attribute of the browser, contains "Wikipedia"
     And I Close the current window
 
   @SampleTests
-  Scenario: Navigate to DuckDuckGo.com, search for a query, and Assert that the logo is displayed correctly
-    When I Navigate to "https://duckduckgo.com/"
-    Then I Assert that the element found by "xpath": "//div[contains(@class,'container_fullWidth__1H_L8')]//img", exactly matches with the expected reference image using AI OpenCV
+  Scenario: Navigate to Wikipedia.org, and Assert that the logo is displayed correctly
+    When I Navigate to "https://en.wikipedia.org/wiki/Main_Page"
+    Then I Assert that the element found by "xpath": "//img[@class='mw-logo-icon']", exactly matches with the expected reference image using AI OpenCV
     And I Close the current window
 
   @SampleTests
-  Scenario: Navigate to DuckDuckGo.com, search for a query, and Assert that the first result does not contain unexpected text
-    When I Navigate to "https://duckduckgo.com/"
-    And I Type "SHAFT_Engine" into the element found by "name": "q"
-    And I Press "Enter" into the element found by "name": "q"
-    And I Click the element found by "xpath": "(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']"
-    Then I Assert that the "title" attribute of the browser, contains "SHAFT"
-    And I Assert that the "text" attribute of the browser, contains "SHAFT"
+  Scenario: Navigate to Wikipedia.org, search for a query, and Assert that the first result does not contain unexpected text
+    When I Navigate to "https://en.wikipedia.org/wiki/Main_Page"
+    And I Type "Software testing framework" into the element found by "id": "searchInput"
+    And I Press "Enter" into the element found by "id": "searchInput"
+    And I Click the element found by "xpath": "(//div[contains(@class,'mw-search-result-heading')])[1]//a"
+    Then I Assert that the "title" attribute of the browser, contains "Unit testing"
+    And I Assert that the "text" attribute of the browser, contains "Software testing"
     And I Close the current window
