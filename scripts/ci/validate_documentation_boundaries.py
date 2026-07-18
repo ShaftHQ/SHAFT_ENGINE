@@ -56,9 +56,10 @@ IGNORED_DIRECTORIES = {
     "node_modules",
     "target",
 }
-# Root-relative directories (concurrent agent worktrees hold full repo copies).
+# Root-relative directories (concurrent agent worktrees and memory recovery areas hold full repo copies).
 IGNORED_RELATIVE_DIRECTORIES = {
     ".claude/worktrees",
+    ".memory/recovery",
 }
 
 

@@ -72,6 +72,14 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_ignores_markdown_inside_memory_recovery(self):
+        self.write(
+            ".memory/recovery/2026-01-01T00-00-00/memory/gotchas/example.md",
+            "# Memory recovery gotcha\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")
 
