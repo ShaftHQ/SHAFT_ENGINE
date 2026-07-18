@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body.md",
+  "content_hash": "sha256:1b1b6c0df12e84061e6c320848002268add93df21e5194eab33e640a9e8833df",
+  "created_at": "2026-07-18T02:06:26+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "PR #3710 squash-merge accidentally auto-closed issue #3708"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "git",
+    "merge",
+    "gotcha",
+    "work-github"
+  ],
+  "title": "gh pr merge --squash builds its commit message from branch commit history, not the PR body",
+  "type": "gotcha",
+  "updated_at": "2026-07-18T02:06:26+03:00"
+}
