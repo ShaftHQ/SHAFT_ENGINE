@@ -167,6 +167,41 @@ class ShaftAssistantPanelQuestionTest {
                 () -> assertTrue(transcript.markdown().contains("Pick one:")));
     }
 
+    @Test
+    void finishLocalAgentResponseStripsTheFenceWhenBothMarkersArePresent() throws Exception {
+        // When an answer contains BOTH a ```shaft-options fence AND the trailing structured JSON line,
+        // tier-1 detection (parseQuestion) correctly wins for the chips, but the displayed/persisted text
+        // must also have the fence stripped (issue #3719). The StructuredStreamParser removes the
+        // structured JSON line but leaves the fence, so displayResponse still contains fence markup
+        // that must be stripped by resolveQuestion.
+        ShaftAssistantPanel panel = newPanel();
+        AssistantTranscriptView transcript = transcriptOf(panel);
+        // Simulate a response where both markers are present with DIFFERENT option sets.
+        // The structured line (trailing) should win for chip options, but the fence should still be stripped.
+        String resultText = "Pick one?\\n"
+                + "```shaft-options\\n[\\\"Fence A\\\", \\\"Fence B\\\"]\\n```\\n"
+                + "{\\\"shaft-question\\\": \\\"Pick one?\\\", \\\"shaft-options\\\": [\\\"Structured A\\\", \\\"Structured B\\\"]}";
+        String stdout = "{\"type\":\"result\",\"result\":\"" + resultText
+                + "\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}\n";
+        String rawResponse = runClaudeStructuredStream(stdout).output();
+        String response = AssistantMarkdown.normalizeMarkdown(
+                AssistantLocalAgentRunner.stripTrailingUsageMetadata(rawResponse));
+
+        invokeFinishLocalAgentResponse(panel, response, rawResponse);
+
+        AssistantQuestionOptionsPanel widget =
+                (AssistantQuestionOptionsPanel) transcript.pendingWidgetForTest();
+        List<String> labels = widget.optionButtonsForTest().stream().map(JButton::getText).toList();
+        assertAll(
+                () -> assertTrue(labels.contains("Structured A"), "chips should use structured line options"),
+                () -> assertTrue(labels.contains("Structured B"), "chips should use structured line options"),
+                () -> assertFalse(labels.contains("Fence A"), "chips must not use fence options when structured line wins"),
+                () -> assertFalse(transcript.markdown().contains("shaft-options"),
+                        "the fence block must be stripped from displayed text even when structured line wins"),
+                () -> assertFalse(transcript.markdown().contains("Fence A"),
+                        "fence content must not appear in displayed text when structured line wins"));
+    }
+
     private static ShaftAssistantPanel newPanel() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         return new ShaftAssistantPanel(null, settings, ShaftAssistantChatState.getInstance(null));

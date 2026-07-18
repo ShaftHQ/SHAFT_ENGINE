@@ -2317,7 +2317,11 @@ final class ShaftAssistantPanel extends JPanel {
     private static ResolvedQuestion resolveQuestion(String displayResponse, String rawResponse) {
         AssistantQuestion runnerRecognized = AssistantLocalAgentRunner.parseQuestion(rawResponse);
         if (runnerRecognized != null) {
-            return new ResolvedQuestion(runnerRecognized, displayResponse);
+            // When tier 1 (structured protocol via runner) succeeds, the StructuredStreamParser has
+            // already stripped the structured JSON line from displayResponse, but any shaft-options
+            // fence that was also present should be stripped too (issue #3719).
+            String strippedDisplay = AssistantQuestion.stripOptionsFence(displayResponse);
+            return new ResolvedQuestion(runnerRecognized, strippedDisplay);
         }
         AssistantQuestion question = AssistantQuestion.detectStructuredLine(displayResponse);
         if (question == null) {

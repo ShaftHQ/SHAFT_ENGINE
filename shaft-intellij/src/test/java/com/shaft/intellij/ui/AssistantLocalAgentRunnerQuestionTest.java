@@ -101,6 +101,45 @@ class AssistantLocalAgentRunnerQuestionTest {
                 () -> assertNull(AssistantLocalAgentRunner.parseQuestion("plain prose answer, no trailing JSON")));
     }
 
+    @Test
+    void parseQuestionReturnsNullWhenFewerThanTwoOptionsRemainAfterFilteringBlanks() throws Exception {
+        // Issue #3719: parseQuestion must enforce the same validation as AssistantQuestion.parseOptionsArray,
+        // including filtering blank options and checking the 2-6 bounds. This test supplies options that
+        // are all blanks or have only one non-blank after filtering.
+        String resultText = "Pick one:\\n{\\\"shaft-question\\\": \\\"Pick one:\\\", \\\"shaft-options\\\": [\\\"\\\", \\\"  \\\", \\\"Just one\\\"]}";
+
+        String output = finalOutput(claudeInvocation(), claudeResultEvent(resultText) + "\n");
+
+        assertNull(AssistantLocalAgentRunner.parseQuestion(output),
+                "parseQuestion must filter blanks and require at least 2 non-blank options: " + output);
+    }
+
+    @Test
+    void parseQuestionReturnsNullWhenMoreThanSixOptionsAreProvided() throws Exception {
+        // Issue #3719: parseQuestion must enforce the same validation as AssistantQuestion.parseOptionsArray,
+        // including the 2-6 bounds.
+        String resultText = "Pick one:\\n{\\\"shaft-question\\\": \\\"Pick one:\\\", \\\"shaft-options\\\": [\\\"A\\\", \\\"B\\\", \\\"C\\\", \\\"D\\\", \\\"E\\\", \\\"F\\\", \\\"G\\\"]}";
+
+        String output = finalOutput(claudeInvocation(), claudeResultEvent(resultText) + "\n");
+
+        assertNull(AssistantLocalAgentRunner.parseQuestion(output),
+                "parseQuestion must reject more than 6 options: " + output);
+    }
+
+    @Test
+    void parseQuestionFiltersBlankOptionsAndAppliesBounds() throws Exception {
+        // Issue #3719: parseQuestion must filter blank options and validate the final count is in bounds.
+        String resultText = "Pick one:\\n{\\\"shaft-question\\\": \\\"Pick one:\\\", \\\"shaft-options\\\": [\\\"\\\", \\\"Option A\\\", \\\"  \\\", \\\"Option B\\\", \\\"\\\"]}";
+
+        String output = finalOutput(claudeInvocation(), claudeResultEvent(resultText) + "\n");
+        AssistantQuestion question = AssistantLocalAgentRunner.parseQuestion(output);
+
+        assertAll(
+                () -> assertTrue(question != null, "valid options after filtering should be accepted"),
+                () -> assertEquals(List.of("Option A", "Option B"), question.options(),
+                        "blank options must be filtered out"));
+    }
+
     private static String finalOutput(AssistantCommand.Invocation invocation, String stdout) throws Exception {
         StubProcess process = new StubProcess(stdout);
         ShaftMcpInvocation running = AssistantLocalAgentRunner.start(

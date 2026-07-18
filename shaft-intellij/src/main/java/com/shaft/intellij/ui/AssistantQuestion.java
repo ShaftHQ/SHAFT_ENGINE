@@ -72,6 +72,22 @@ record AssistantQuestion(String promptMarkdown, List<String> options) {
     }
 
     /**
+     * Removes any {@code shaft-options} fence from the given markdown, returning the remaining
+     * text unchanged if no fence is found. Used to strip the fence from displayed text when a
+     * structured question marker has already been detected via a different protocol (issue #3719).
+     */
+    static String stripOptionsFence(String markdown) {
+        if (markdown == null || markdown.isBlank()) {
+            return markdown;
+        }
+        Matcher matcher = OPTIONS_FENCE.matcher(markdown);
+        if (!matcher.find()) {
+            return markdown;
+        }
+        return (markdown.substring(0, matcher.start()) + markdown.substring(matcher.end())).strip();
+    }
+
+    /**
      * Detects the structured single-line protocol (issue #3719) at the end of {@code text}: its
      * last non-blank line must be a complete JSON object {@code {"shaft-question": "<text>",
      * "shaft-options": [...]}}. Returns {@code null} -- never a partially-populated instance --
@@ -136,7 +152,14 @@ record AssistantQuestion(String promptMarkdown, List<String> options) {
         return parseOptionsArray(parsed.getAsJsonArray());
     }
 
-    private static List<String> parseOptionsArray(JsonArray array) {
+    /**
+     * Parses a JSON array of option strings, filtering blank entries and validating that the
+     * result count is within the 2-6 bounds. Returns an empty list if the input is {@code null},
+     * not an array, or the final count falls outside the bounds. Called from both fence detection
+     * ({@code detect()}) and structured protocol parsing ({@link
+     * AssistantLocalAgentRunner#parseQuestion}). Package-private for reuse by the runner.
+     */
+    static List<String> parseOptionsArray(JsonArray array) {
         List<String> options = new ArrayList<>();
         for (JsonElement element : array) {
             if (element != null && element.isJsonPrimitive()) {
@@ -145,6 +168,9 @@ record AssistantQuestion(String promptMarkdown, List<String> options) {
                     options.add(option);
                 }
             }
+        }
+        if (options.size() < MIN_OPTIONS || options.size() > MAX_OPTIONS) {
+            return List.of();
         }
         return options;
     }

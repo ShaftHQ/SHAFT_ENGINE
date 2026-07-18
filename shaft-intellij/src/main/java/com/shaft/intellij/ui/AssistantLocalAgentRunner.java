@@ -1745,7 +1745,8 @@ final class AssistantLocalAgentRunner {
      * null} when {@code output} has no trailing metadata line, or the field is absent (the
      * overwhelming majority of runs, which never attempted the protocol), so callers fall back to
      * fence detection exactly as before this issue. Mirrors {@link #parsePlanProposal}'s
-     * trailing-line extraction.
+     * trailing-line extraction. Enforces the same validation as {@link AssistantQuestion#detect}:
+     * blanks are filtered from options, and the final count must be 2-6 (issue #3719).
      */
     static AssistantQuestion parseQuestion(String output) {
         String trimmed = output == null ? "" : output.strip();
@@ -1768,16 +1769,16 @@ final class AssistantLocalAgentRunner {
                 || optionsElement == null || !optionsElement.isJsonArray()) {
             return null;
         }
-        List<String> options = new ArrayList<>();
-        for (JsonElement optionElement : optionsElement.getAsJsonArray()) {
-            if (optionElement != null && optionElement.isJsonPrimitive()) {
-                options.add(optionElement.getAsString());
-            }
+        String questionText = textElement.getAsString().strip();
+        if (questionText.isEmpty()) {
+            return null;
         }
+        // Reuse AssistantQuestion's validation: filter blanks and check 2-6 bounds (issue #3719)
+        List<String> options = AssistantQuestion.parseOptionsArray(optionsElement.getAsJsonArray());
         if (options.isEmpty()) {
             return null;
         }
-        return new AssistantQuestion(textElement.getAsString(), options);
+        return new AssistantQuestion(questionText, options);
     }
 
     private static JsonObject resolveUsageObject(JsonObject usageHolder) {
