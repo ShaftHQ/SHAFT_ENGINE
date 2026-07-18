@@ -47,9 +47,8 @@
     stopped: false,
     minimized: false,
     coachDismissed: false,
-    // #3536 A1/C1: first-session control labels and the opt-in suppressed-events log follow the
-    // exact coachDismissed precedent (default here, sanitize below, write out in persist()).
-    toolbarLabelsDismissed: false,
+    // #3536 C1: the opt-in suppressed-events log follows the exact coachDismissed precedent
+    // (default here, sanitize below, write out in persist()).
     suppressedLogVisible: false,
     assertionMode: false,
     locatorMode: false,
@@ -76,7 +75,6 @@
   uiState.locatorMode = Boolean(uiState.locatorMode);
   uiState.minimized = Boolean(uiState.minimized);
   uiState.coachDismissed = Boolean(uiState.coachDismissed);
-  uiState.toolbarLabelsDismissed = Boolean(uiState.toolbarLabelsDismissed);
   uiState.suppressedLogVisible = Boolean(uiState.suppressedLogVisible);
   uiState.lastInteractionAt = Number(uiState.lastInteractionAt) || 0;
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
@@ -104,7 +102,6 @@
         stopped: uiState.stopped,
         minimized: uiState.minimized,
         coachDismissed: uiState.coachDismissed,
-        toolbarLabelsDismissed: uiState.toolbarLabelsDismissed,
         suppressedLogVisible: uiState.suppressedLogVisible,
         assertionMode: uiState.assertionMode,
         locatorMode: uiState.locatorMode,
@@ -1699,26 +1696,6 @@
         border-radius: 6px;
         box-shadow: 0 0 0 3px rgba(0, 110, 192, .2);
       }
-      /* A1 (#3536): first-session labeled toolbar. Labels stay hidden until
-         .show-ctrl-labels is toggled on the panel root by maybeShowToolbarLabels(). */
-      .ctrl-label { display: none; }
-      #shaft-capture-ui.show-ctrl-labels header button {
-        display: inline-flex;
-        align-items: center;
-        width: auto;
-        padding: 0 8px;
-      }
-      #shaft-capture-ui.show-ctrl-labels .ctrl-label {
-        display: inline;
-        margin-inline-start: 4px;
-      }
-      #shaft-capture-labels-dismiss {
-        width: auto;
-        height: auto;
-        padding: 2px 8px;
-        font-size: 11px;
-        font-weight: 700;
-      }
       /* C1 (#3536): opt-in persistent log of suppressed (transparently-ignored) navigations. */
       #shaft-capture-suppressed-toggle {
         display: block;
@@ -1816,10 +1793,7 @@
       warningLine.textContent = latestWarning;
       warningLine.hidden = !latestWarning;
     }
-    // A1 (#3536): pause's label is dynamic (Pause/Resume), so it is rebuilt here alongside the icon
-    // rather than baked into the static header markup like the assert/pick/stop labels.
-    pause.innerHTML = icon(uiState.paused ? "play" : "pause")
-      + '<span class="ctrl-label">' + (uiState.paused ? "Resume" : "Pause") + "</span>";
+    pause.innerHTML = icon(uiState.paused ? "play" : "pause");
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
     pause.setAttribute("aria-label", pause.title);
     assert.setAttribute("aria-pressed", String(uiState.assertionMode || assertionPanelOpen));
@@ -2086,7 +2060,6 @@
     });
     setStatus();
     maybeShowCoach();
-    maybeShowToolbarLabels();
     renderSuppressedLog();
   }
   const renderLocatorPanel = target => {
@@ -2274,12 +2247,11 @@
         <span class="brand-mark" aria-hidden="true">S</span>
         <strong id="shaft-capture-title">SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
-        <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}<span class="ctrl-label">Assert</span></button>
-        <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}<span class="ctrl-label">Pick</span></button>
-        <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}<span class="ctrl-label">Stop</span></button>
+        <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}</button>
+        <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}</button>
+        <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
         <button id="shaft-capture-help-toggle" type="button" title="Show recorder help" aria-label="Show recorder help" aria-expanded="false">?</button>
         <button id="shaft-capture-minimize" type="button" aria-expanded="true"></button>
-        <button id="shaft-capture-labels-dismiss" type="button" hidden>Hide labels</button>
       </header>
       <div id="shaft-capture-status" class="status-chip shaft-capture-readiness">
         <span id="shaft-capture-readiness-pill" class="status-pill"></span>
@@ -2384,16 +2356,6 @@
         if (coach) coach.hidden = true;
       });
     }
-    // A1 (#3536): dismissing the first-session labels is one-way for the rest of the session,
-    // mirroring coachDismissed.
-    const labelsDismiss = document.getElementById("shaft-capture-labels-dismiss");
-    if (labelsDismiss) {
-      labelsDismiss.addEventListener("click", () => {
-        uiState.toolbarLabelsDismissed = true;
-        persist();
-        maybeShowToolbarLabels();
-      });
-    }
     // C1 (#3536): toggling the suppressed-events log is opt-in and stays persisted for the session.
     const suppressedToggle = document.getElementById("shaft-capture-suppressed-toggle");
     if (suppressedToggle) {
@@ -2415,28 +2377,16 @@
       persist();
     });
     maybeShowCoach();
-    maybeShowToolbarLabels();
     renderSuppressedLog();
     renderActions();
   };
   // #3536: the panel is a fixed-height flex column (overflow:hidden), so first-run orientation
   // chrome and a modal sub-panel compete for the same vertical space. When the stop confirmation
-  // is open, suppress the coach so its buttons are never pushed out of the interactable area — the
-  // labeled toolbar's extra header line would otherwise clip the dialog on a first session.
+  // is open, suppress the coach so its buttons are never pushed out of the interactable area.
   const modalSubPanelOpen = () => {
     const stop = document.getElementById("shaft-capture-stop-confirm");
     return Boolean(stop && !stop.hidden);
   };
-  // A1 (#3536): first-session labeled toolbar, gated the same way as maybeShowCoach — top-frame
-  // only, and hidden once dismissed or once the session stops (mirroring stop hiding the coach).
-  function maybeShowToolbarLabels() {
-    const panel = document.getElementById("shaft-capture-ui");
-    if (!panel) return;
-    const show = topLevel && !uiState.toolbarLabelsDismissed && !uiState.stopped;
-    panel.classList.toggle("show-ctrl-labels", show);
-    const dismiss = document.getElementById("shaft-capture-labels-dismiss");
-    if (dismiss) dismiss.hidden = !show;
-  }
   // First-run coach marks (#3510 A3): a dismissible, session-scoped set of at-most-three tips shown
   // until the user dismisses them, so a first-time user is oriented without nagging returning users
   // (the "seen" flag rides the same top-frame sessionStorage as the rest of the UI state). The count

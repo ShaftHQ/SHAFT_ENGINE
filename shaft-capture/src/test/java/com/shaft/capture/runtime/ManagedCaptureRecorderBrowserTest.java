@@ -1023,45 +1023,43 @@ class ManagedCaptureRecorderBrowserTest {
     }
 
     /**
-     * Issue #3536 A1: icon-only header buttons show text labels for the first session until
-     * dismissed. The panel carries a {@code show-ctrl-labels} class while labels are visible, and
-     * dismissing persists {@code toolbarLabelsDismissed} so labels never come back for the rest of
-     * the session.
+     * The recorder toolbar is icon-only: no visible text labels ever render next to (or inside)
+     * the header buttons, and each control carries its accessible name via {@code title}/
+     * {@code aria-label} instead.
      */
     @Test
-    void overlayToolbarShowsFirstSessionLabelsUntilDismissed(@TempDir Path temp) throws Exception {
+    void overlayToolbarIsIconOnlyWithAccessibleNames(@TempDir Path temp) throws Exception {
         HttpServer server = localFixture();
-        Path output = temp.resolve("toolbar-labels.json");
+        Path output = temp.resolve("toolbar-icons.json");
         ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
                 "http://127.0.0.1:" + server.getAddress().getPort() + "/",
                 CaptureBrowser.parse("chrome"),
                 output,
-                temp.resolve("toolbar-labels-runtime"),
+                temp.resolve("toolbar-icons-runtime"),
                 true));
         try {
             recorder.start();
             WebDriver driver = recorder.driverForTesting();
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-            waitFor(() -> elementPresent(driver, By.id("shaft-capture-labels-dismiss")));
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
 
-            assertTrue(driver.findElement(By.id("shaft-capture-ui")).getAttribute("class")
-                            .contains("show-ctrl-labels"),
-                    "Labels must be visible on the first session.");
-            assertTrue(driver.findElement(By.id("shaft-capture-assert"))
-                            .findElement(By.cssSelector(".ctrl-label")).isDisplayed(),
-                    "A visible control label must render inside the Assert button.");
-            assertTrue(driver.findElement(By.id("shaft-capture-labels-dismiss")).isDisplayed(),
-                    "The dismiss affordance must be visible while labels show.");
+            assertTrue(driver.findElements(By.cssSelector("#shaft-capture-ui .ctrl-label")).isEmpty(),
+                    "No control-label elements must render in the recorder toolbar.");
+            assertTrue(driver.findElements(By.id("shaft-capture-labels-dismiss")).isEmpty(),
+                    "The removed 'Hide labels' affordance must not exist.");
 
-            driver.findElement(By.id("shaft-capture-labels-dismiss")).click();
-            waitFor(() -> !driver.findElement(By.id("shaft-capture-ui")).getAttribute("class")
-                    .contains("show-ctrl-labels"));
-            assertFalse(driver.findElement(By.id("shaft-capture-ui")).getAttribute("class")
-                            .contains("show-ctrl-labels"),
-                    "Dismissing must hide the labels.");
-            assertEquals(Boolean.TRUE, js.executeScript(
-                            "return globalThis.__shaftCaptureUiState.toolbarLabelsDismissed;"),
-                    "Dismissing must persist toolbarLabelsDismissed.");
+            WebElement pause = driver.findElement(By.id("shaft-capture-pause"));
+            WebElement assertButton = driver.findElement(By.id("shaft-capture-assert"));
+            WebElement pick = driver.findElement(By.id("shaft-capture-pick"));
+            WebElement stop = driver.findElement(By.id("shaft-capture-stop"));
+            assertEquals("", pause.getText(), "Pause button must show no visible text.");
+            assertEquals("", assertButton.getText(), "Assert button must show no visible text.");
+            assertEquals("", pick.getText(), "Pick button must show no visible text.");
+            assertEquals("", stop.getText(), "Stop button must show no visible text.");
+            assertTrue(pause.getAttribute("title") != null && !pause.getAttribute("title").isBlank(),
+                    "Pause button must carry accessible alt text via title.");
+            assertEquals("Add assertion", assertButton.getAttribute("aria-label"));
+            assertEquals("Toggle locator picker", pick.getAttribute("aria-label"));
+            assertEquals("Stop recording", stop.getAttribute("aria-label"));
 
             recorder.stop(false);
         } finally {
