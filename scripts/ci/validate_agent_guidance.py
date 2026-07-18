@@ -280,6 +280,20 @@ def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
                         f"body exceeds {maximum_body} characters",
                     )
                 )
+            maximum_skill_bytes = limits.get("max_skill_md_bytes")
+            if maximum_skill_bytes is not None:
+                # LF-normalized bytes: content came from read_text(), which
+                # already collapses CRLF, matching the per-file byte-budget
+                # precedent in validate_file_budgets.
+                actual_skill_bytes = len(content.encode("utf-8"))
+                if actual_skill_bytes > maximum_skill_bytes:
+                    errors.append(
+                        issue(
+                            "skill-md-byte-budget",
+                            skill_relative,
+                            f"{actual_skill_bytes} bytes exceeds configured maximum {maximum_skill_bytes}",
+                        )
+                    )
             if limits.get("require_openai_yaml"):
                 errors.extend(validate_skill_interface(root, directory, directory.name))
     return errors

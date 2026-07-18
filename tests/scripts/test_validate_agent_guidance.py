@@ -125,25 +125,45 @@ steps:
         self.write(".github/copilot-instructions.md", "x" * 4000)
         self.assertIn("character-budget", self.codes())
 
-    def test_enforces_total_guidance_reduction(self):
-        self.budget["total_guidance_globs"] = ["AGENTS.md", "CLAUDE.md"]
-        self.budget["reduction_baseline_bytes"] = 100
-        self.budget["minimum_reduction_percent"] = 60
-        self.write_budget()
-        self.write("AGENTS.md", "x" * 50)
-        self.assertIn("total-reduction", self.codes())
-
-    def test_total_reduction_counts_newlines_platform_independently(self):
-        # CRLF working-tree checkouts must not inflate the byte count versus the
-        # LF blobs CI sees; total-reduction must match the per-file byte metric,
-        # which already counts read_text()-normalized (LF) bytes.
+    def test_total_reduction_is_noop_when_unconfigured(self):
+        # The global byte-reduction floor (reduction_baseline_bytes /
+        # minimum_reduction_percent) was replaced by per-surface caps matched to
+        # actual load cost (issue #3745): when those keys are absent from the
+        # budget -- as in the default self.budget used across this suite --
+        # validate_total_reduction must never fire, no matter how large the
+        # scanned guidance is.
         self.budget["total_guidance_globs"] = ["AGENTS.md"]
-        self.budget["reduction_baseline_bytes"] = 100
-        self.budget["minimum_reduction_percent"] = 10  # cap = 90 bytes
         self.write_budget()
-        body = "\n".join(["x"] * 40)  # 79 bytes LF; 118 bytes if CRLF is counted raw
-        (self.root / "AGENTS.md").write_bytes(body.replace("\n", "\r\n").encode("utf-8"))
+        self.write("AGENTS.md", "x" * 500_000)
         self.assertNotIn("total-reduction", self.codes())
+
+    def test_rejects_oversized_skill_md_file(self):
+        self.budget["skill_budgets"] = {".github/skills": {"max_skill_md_bytes": 10}}
+        self.write_budget()
+        self.assertIn("skill-md-byte-budget", self.codes())
+
+    def test_accepts_skill_md_file_at_configured_byte_cap(self):
+        content = self.root.joinpath(".github/skills/example/SKILL.md").read_text(encoding="utf-8")
+        self.budget["skill_budgets"] = {
+            ".github/skills": {"max_skill_md_bytes": len(content.encode("utf-8"))}
+        }
+        self.write_budget()
+        self.assertNotIn("skill-md-byte-budget", self.codes())
+
+    def test_rejects_skill_md_file_one_byte_over_lf_normalized_cap(self):
+        # The cap counts LF-normalized bytes (matching the existing per-file
+        # byte-budget precedent), so a CRLF-heavy working tree checkout must not
+        # be penalized for line-ending width alone.
+        content = self.root.joinpath(".github/skills/example/SKILL.md").read_text(encoding="utf-8")
+        lf_normalized_bytes = len(content.encode("utf-8"))
+        self.root.joinpath(".github/skills/example/SKILL.md").write_bytes(
+            content.replace("\n", "\r\n").encode("utf-8")
+        )
+        self.budget["skill_budgets"] = {
+            ".github/skills": {"max_skill_md_bytes": lf_normalized_bytes}
+        }
+        self.write_budget()
+        self.assertNotIn("skill-md-byte-budget", self.codes())
 
     def test_counts_skill_metadata_in_host_budget(self):
         self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
