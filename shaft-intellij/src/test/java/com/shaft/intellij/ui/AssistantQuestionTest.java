@@ -137,7 +137,11 @@ class AssistantQuestionTest {
     }
 
     @Test
-    void structuredLineWorksWithNoLeadingProseAtAll() {
+    void structuredLineFallsBackToItsOwnQuestionTextWhenThereIsNoLeadingProse() {
+        // A chat bubble persisted as "" would strand ShaftAssistantPanel's streaming placeholder
+        // (replaceLocalAgentStreamPlaceholder treats a blank message as "leave it untouched"), so a
+        // model that skips leading prose still gets a real, readable bubble: the marker's own
+        // question text.
         String text = "{\"shaft-question\": \"Pick one:\", \"shaft-options\": [\"Yes\", \"No\"]}";
 
         AssistantQuestion question = AssistantQuestion.detectStructuredLine(text);
@@ -145,7 +149,7 @@ class AssistantQuestionTest {
         assertAll(
                 () -> assertTrue(question != null),
                 () -> assertEquals(List.of("Yes", "No"), question.options()),
-                () -> assertEquals("", question.promptMarkdown()));
+                () -> assertEquals("Pick one:", question.promptMarkdown()));
     }
 
     @Test

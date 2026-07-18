@@ -116,7 +116,11 @@ record AssistantQuestion(String promptMarkdown, List<String> options) {
             return null;
         }
         String remainder = (lastNewline < 0 ? "" : stripped.substring(0, lastNewline)).strip();
-        return new AssistantQuestion(remainder, options);
+        // A blank remainder (the model wrote no leading prose, just the marker line) would persist
+        // as an empty chat bubble -- worse, ShaftAssistantPanel#replaceLocalAgentStreamPlaceholder
+        // treats a blank message as "leave the streaming placeholder untouched", stranding it -- so
+        // fall back to the marker's own question text, which is always a real, readable question.
+        return new AssistantQuestion(remainder.isEmpty() ? questionText : remainder, options);
     }
 
     private static List<String> parseOptionsArray(String fenceBody) {
