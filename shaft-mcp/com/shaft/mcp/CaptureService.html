@@ -72,9 +72,9 @@
 <li><a href="#generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String)" tabindex="0">generateReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String)</a></li>
 <li><a href="#generateReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String,java.lang.String,io.modelcontextprotocol.server.McpSyncServerExchange)" tabindex="0">generateReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String, String, McpSyncServerExchange)</a></li>
 <li><a href="#generatePlaywrightReplay(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean,java.lang.String)" tabindex="0">generatePlaywrightReplay(String, String, String, String, boolean, boolean, boolean, boolean, boolean, String)</a></li>
-<li><a href="#codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">codeBlocks(String, String, String, String, boolean, String)</a></li>
-<li><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">recordAtTargetCodeBlocks(String, String, String, String, boolean, String, String, String)</a></li>
-<li><a href="#playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">playwrightCodeBlocks(String, String, String, String, boolean, String)</a></li>
+<li><a href="#codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String)" tabindex="0">codeBlocks(String, String, String, String, Boolean, String)</a></li>
+<li><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">recordAtTargetCodeBlocks(String, String, String, String, Boolean, String, String, String)</a></li>
+<li><a href="#playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String)" tabindex="0">playwrightCodeBlocks(String, String, String, String, Boolean, String)</a></li>
 <li><a href="#targetCandidates(java.lang.String,int)" tabindex="0">targetCandidates(String, int)</a></li>
 <li><a href="#compareCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">compareCodeBlocks(String, String, String, String, boolean, String)</a></li>
 <li><a href="#evidencePack(java.lang.String,java.lang.String,java.lang.String,java.util.List)" tabindex="0">evidencePack(String, String, String, List)</a></li>
@@ -209,11 +209,11 @@ business assertion" picker (issue #3530 negative-case).</div>
 <div class="block">Adds a human-review checkpoint to the active recording.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">codeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String)" class="member-name-link">codeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
- boolean&nbsp;overwrite,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;overwrite,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates deterministic copy-paste code blocks from a persisted Capture session without replaying.</div>
@@ -325,21 +325,21 @@ streaming best-effort milestone progress over the MCP exchange when the caller r
 copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">playwrightCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String)" class="member-name-link">playwrightCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
- boolean&nbsp;overwrite,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;overwrite,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates deterministic copy-paste SHAFT Playwright code blocks from a persisted Capture session.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">recordAtTargetCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">recordAtTargetCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
- boolean&nbsp;overwrite,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;overwrite,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetSourcePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;insertAfter,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
@@ -842,17 +842,22 @@ streaming best-effort milestone progress over the MCP exchange when the caller r
 </section>
 </li>
 <li>
-<section class="detail" id="codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)">
+<section class="detail" id="codeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String)">
 <h3>codeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_code_blocks",
       description="generates a Java full-class snippet plus agent guidance for repo-aware insertion from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">codeBlocks</span><wbr><span class="parameters">(@ToolParam(required=false,description="persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+ @ToolParam(required=false,description="generated project root inside the MCP workspace; defaults to generated-tests under the workspace")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
+ @ToolParam(required=false,description="Java package for the generated class; defaults to tests.generated")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ @ToolParam(required=false,description="Java class name for the generated class; defaults to RecordedFlowTest")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
- boolean&nbsp;overwrite,
+ @ToolParam(required=false,description="overwrite an existing generated file; defaults to false")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;overwrite,
+ @ToolParam(required=false,description="Java driver variable name used in extracted snippets; defaults to driver")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
 <div class="block">Generates deterministic copy-paste code blocks from a persisted Capture session without replaying.</div>
 <dl class="notes">
@@ -871,18 +876,24 @@ streaming best-effort milestone progress over the MCP exchange when the caller r
 </section>
 </li>
 <li>
-<section class="detail" id="recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String)">
+<section class="detail" id="recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String,java.lang.String,java.lang.String)">
 <h3>recordAtTargetCodeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_record_at_target_code_blocks",
       description="generates focused Capture snippets for insertion at an existing Java source anchor")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">recordAtTargetCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">recordAtTargetCodeBlocks</span><wbr><span class="parameters">(@ToolParam(required=false,description="persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+ @ToolParam(required=false,description="generated project root inside the MCP workspace; defaults to generated-tests under the workspace")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
+ @ToolParam(required=false,description="Java package for the generated class; defaults to tests.generated")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ @ToolParam(required=false,description="Java class name for the generated class; defaults to RecordedFlowTest")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
- boolean&nbsp;overwrite,
+ @ToolParam(required=false,description="overwrite an existing generated file; defaults to false")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;overwrite,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetSourcePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;insertAfter,
+ @ToolParam(required=false,description="Java driver variable name used in extracted snippets; defaults to driver")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
 <div class="block">Generates focused record-at-target code blocks for an existing Java source anchor.</div>
 <dl class="notes">
@@ -902,16 +913,22 @@ streaming best-effort milestone progress over the MCP exchange when the caller r
 </section>
 </li>
 <li>
-<section class="detail" id="playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)">
+<section class="detail" id="playwrightCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.String)">
 <h3>playwrightCodeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="playwright_capture_code_blocks",
       description="generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion from a persisted recording JSON (sessionPath); no active capture session required")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">playwrightCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">playwrightCodeBlocks</span><wbr><span class="parameters">(@ToolParam(required=false,description="persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
+ @ToolParam(required=false,description="generated project root inside the MCP workspace; defaults to generated-tests under the workspace")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
+ @ToolParam(required=false,description="Java package for the generated class; defaults to tests.generated")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
+ @ToolParam(required=false,description="Java class name for the generated class; defaults to RecordedFlowTest")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;className,
- boolean&nbsp;overwrite,
+ @ToolParam(required=false,description="overwrite an existing generated file; defaults to false")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;overwrite,
+ @ToolParam(required=false,description="JavaScript page variable name used in extracted snippets; defaults to page")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
 <div class="block">Generates deterministic copy-paste SHAFT Playwright code blocks from a persisted Capture session.</div>
 <dl class="notes">

@@ -309,7 +309,12 @@ guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of t
 so the set of skills and their descriptions always tracks <code>shaft-skills/</code> as of the shaft-mcp
 build. Existing files are left untouched unless <code>overwrite</code> is <code>true</code>; a skipped file is
 reported as a warning instead of failing the call, because <code>targetDirectory</code> is expected to be
-an existing user repository that may already carry its own agent configuration.</div>
+an existing user repository that may already carry its own agent configuration.
+
+<p>A bundled skill whose <code>SKILL.md</code> frontmatter declares <code>distribution: full</code> is a
+methodology skill whose value lives in its text, so it is scaffolded as its full body instead of a
+thin bridge: verbatim for claude/codex/opencode, and with an injected <code>applyTo: "**"</code> frontmatter
+key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>loop</code> - claude, codex, opencode, or vscode</dd>
