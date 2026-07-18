@@ -4,6 +4,13 @@
 # add '-d' option for detached execution
 # docker-compose -f selenium3.yml down --remove-orphans
 # http://localhost:4444/grid/console
+#
+# WARNING - NO WebDriver BiDi SUPPORT: the Selenium 3.141.59 hub/node protocol predates the
+# WebDriver BiDi specification entirely (BiDi and the `webSocketUrl` opt-in capability were
+# introduced in Selenium 4.6, see https://github.com/SeleniumHQ/selenium/issues/9817). Running
+# through THIS grid, the recorder, network capture, preload scripts, and any other BiDi-backed
+# SHAFT feature cannot work under any client-side configuration -- there is no BiDi endpoint to
+# connect to. Use selenium4.yml for BiDi-capable remote execution.
 version: '3.7'
 services:
    selenium-hub:
