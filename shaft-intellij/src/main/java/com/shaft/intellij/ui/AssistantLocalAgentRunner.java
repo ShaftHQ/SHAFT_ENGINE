@@ -1758,27 +1758,69 @@ final class AssistantLocalAgentRunner {
         if (parsed == null) {
             return null;
         }
+
+        JsonObject question = questionObject(parsed);
+        if (question == null) {
+            return null;
+        }
+
+        String text = questionText(question);
+        if (text == null) {
+            return null;
+        }
+
+        List<String> options = questionOptions(question);
+        if (options == null) {
+            return null;
+        }
+
+        return new AssistantQuestion(text, options);
+    }
+
+    /**
+     * Extracts and validates the question object from the parsed JSON. Returns {@code null} if
+     * the field is missing or not a JSON object.
+     */
+    private static JsonObject questionObject(JsonObject parsed) {
         JsonElement questionElement = parsed.get("question");
         if (questionElement == null || !questionElement.isJsonObject()) {
             return null;
         }
-        JsonObject question = questionElement.getAsJsonObject();
+        return questionElement.getAsJsonObject();
+    }
+
+    /**
+     * Extracts the question text from the question object. Returns {@code null} if the text
+     * field is missing, not a string, or empty after trimming.
+     */
+    private static String questionText(JsonObject question) {
         JsonElement textElement = question.get("text");
+        if (textElement == null || !textElement.isJsonPrimitive()
+                || !textElement.getAsJsonPrimitive().isString()) {
+            return null;
+        }
+        String text = textElement.getAsString().strip();
+        if (text.isEmpty()) {
+            return null;
+        }
+        return text;
+    }
+
+    /**
+     * Extracts and validates the options array from the question object. Returns {@code null} if
+     * the options field is missing, not an array, or the final count falls outside MIN/MAX bounds.
+     * Reuses AssistantQuestion's validation (issue #3719).
+     */
+    private static List<String> questionOptions(JsonObject question) {
         JsonElement optionsElement = question.get("options");
-        if (textElement == null || !textElement.isJsonPrimitive() || !textElement.getAsJsonPrimitive().isString()
-                || optionsElement == null || !optionsElement.isJsonArray()) {
+        if (optionsElement == null || !optionsElement.isJsonArray()) {
             return null;
         }
-        String questionText = textElement.getAsString().strip();
-        if (questionText.isEmpty()) {
-            return null;
-        }
-        // Reuse AssistantQuestion's validation: filter blanks and check 2-6 bounds (issue #3719)
         List<String> options = AssistantQuestion.parseOptionsArray(optionsElement.getAsJsonArray());
         if (options.isEmpty()) {
             return null;
         }
-        return new AssistantQuestion(questionText, options);
+        return options;
     }
 
     private static JsonObject resolveUsageObject(JsonObject usageHolder) {
