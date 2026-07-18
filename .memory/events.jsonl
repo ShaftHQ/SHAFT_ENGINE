@@ -365,3 +365,4 @@
 {"actor":"agent","event":"memory.created","id":"workflow.pdca-implicit-loop-lean-context-after-merges-mempalace-impact-analysis-with-test-coverage","timestamp":"2026-07-18T19:46:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.jq-is-not-installed-on-this-dev-machine-use-gh-jq-or-py-3-json-instead","timestamp":"2026-07-18T20:10:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.harness-integration-model-pdca-mapping-knowledge-triad-and-voice-live-in-act-as-fable","timestamp":"2026-07-18T20:10:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.jul-logger-suppression-match-the-registered-logger-name-and-hold-a-strong-static-reference","timestamp":"2026-07-18T20:13:27+03:00"}

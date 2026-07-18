@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/jul-logger-suppression-match-the-registered-logger-name-and-hold-a-strong-static-reference.md",
+  "content_hash": "sha256:d21d66fc7d91af6e21db73a0c8817cf37c3177ea8a629d22ea65625bce7febbb",
+  "created_at": "2026-07-18T20:13:27+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.jul-logger-suppression-match-the-registered-logger-name-and-hold-a-strong-static-reference",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Selenium socket warning root cause (#3722)"
+  },
+  "status": "active",
+  "tags": [
+    "jul",
+    "logging",
+    "selenium",
+    "gotcha"
+  ],
+  "title": "JUL logger suppression: match the registered logger name, and hold a strong static reference",
+  "type": "gotcha",
+  "updated_at": "2026-07-18T20:13:27+03:00"
+}

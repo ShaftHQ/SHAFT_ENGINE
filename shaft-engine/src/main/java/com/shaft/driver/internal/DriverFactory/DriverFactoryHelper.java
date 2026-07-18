@@ -69,7 +69,34 @@ import java.util.concurrent.TimeUnit;
 public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Resolving the local browser driver binary.";
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Resolving the Docker browser image and driver binary.";
-    private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
+    // Selenium's org.openqa.selenium.remote.http.WebSocket declares:
+    //     Logger LOG = Logger.getLogger(WebSocket.class.getName());
+    // as a static field on the OUTER interface, and its nested `Listener.onError(Throwable)` default
+    // method logs through that shared LOG field. The registered JUL logger name is therefore the outer
+    // interface's name ("...WebSocket"), NOT "...WebSocket$Listener" -- the "$Listener onError" text seen
+    // in the console output is only the JUL-inferred call-site (source class/method), not the logger name.
+    // A previous SHAFT fix attempt targeted "...WebSocket$Listener", which is not a logger Selenium ever
+    // creates, so it silently suppressed nothing and the warning always leaked through.
+    private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket";
+    // Must be a strong static reference: java.util.logging.LogManager only holds WEAK references to
+    // non-root loggers, so a fire-and-forget `Logger.getLogger(name).setLevel(...)` call is reclaimable
+    // by the GC; once collected, the next `Logger.getLogger(name)` (done internally by Selenium when it
+    // logs) creates a fresh Logger with the default (unset) level, silently undoing the suppression below.
+    private static final java.util.logging.Logger SELENIUM_WEBSOCKET_LOGGER = java.util.logging.Logger.getLogger(SELENIUM_WEBSOCKET_LISTENER_LOGGER);
+
+    static {
+        // Selenium's WebSocket$Listener.onError logs a benign "Connection reset" WARNING (JUL) whenever
+        // the underlying JDK HttpClient's async SelectorManager thread detects the browser process closing
+        // the socket during/after driver.quit(). This is known upstream noise (SeleniumHQ/selenium#13524,
+        // #14401, #15276 et al.) with no fix planned, since it fires after the WebDriver session is
+        // already torn down and never indicates a real test failure.
+        // This must be a permanent, one-time suppression rather than a toggle around each quit() call:
+        // the socket-reset detection happens on a background thread and can fire *after* quit() returns,
+        // racing a level-restore done in a try/finally around the synchronous quit() call (previous
+        // approach) and letting the warning leak through non-deterministically.
+        SELENIUM_WEBSOCKET_LOGGER.setLevel(java.util.logging.Level.SEVERE);
+    }
+
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> activeDriver = new ThreadLocal<>();
     private static final ThreadLocal<DriverFactoryHelper> activeHelper = new ThreadLocal<>();
@@ -735,9 +762,6 @@ public class DriverFactoryHelper {
     @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
-            java.util.logging.Logger seleniumWebSocketLogger = java.util.logging.Logger.getLogger(SELENIUM_WEBSOCKET_LISTENER_LOGGER);
-            java.util.logging.Level previousWebSocketLoggerLevel = seleniumWebSocketLogger.getLevel();
-            seleniumWebSocketLogger.setLevel(java.util.logging.Level.SEVERE);
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
@@ -766,7 +790,6 @@ public class DriverFactoryHelper {
                 HealingManager.clear(driver);
                 browserNetworkInterceptor = null;
                 releaseRemoteGridPreflightPermit();
-                seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");
             }
