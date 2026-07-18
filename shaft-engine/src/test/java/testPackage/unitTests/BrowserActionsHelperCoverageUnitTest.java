@@ -145,4 +145,28 @@ public class BrowserActionsHelperCoverageUnitTest {
                     "Navigate to url \"https://example.com/path\".", null, com.shaft.tools.io.internal.CheckpointStatus.PASS));
         }
     }
+
+    // Regression for issue #3732: navigateToURLWithBasicAuthentication used to gate the native
+    // HasAuthentication path solely on `executionAddress == "local"`, so remote executions always
+    // silently fell back to URL-embedded credentials even when BiDi was enabled. The decision is
+    // extracted here so local/remote x bidi-on/off -> expected strategy is unit-testable headlessly.
+    @Test
+    public void shouldSelectNativeAuthenticationForLocalExecutionRegardlessOfBiDi() {
+        Assert.assertEquals(helper.determineBasicAuthenticationStrategy("local", false),
+                BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION);
+        Assert.assertEquals(helper.determineBasicAuthenticationStrategy("local", true),
+                BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION);
+    }
+
+    @Test
+    public void shouldSelectNativeAuthenticationForRemoteExecutionWhenBiDiIsEnabled() {
+        Assert.assertEquals(helper.determineBasicAuthenticationStrategy("http://grid:4444/wd/hub", true),
+                BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION);
+    }
+
+    @Test
+    public void shouldFallBackToUrlEmbeddedCredentialsForRemoteExecutionWhenBiDiIsDisabled() {
+        Assert.assertEquals(helper.determineBasicAuthenticationStrategy("http://grid:4444/wd/hub", false),
+                BrowserActionsHelper.BasicAuthenticationStrategy.URL_EMBEDDED_CREDENTIALS);
+    }
 }

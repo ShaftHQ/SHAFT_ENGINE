@@ -220,8 +220,12 @@ public class BrowserActionsCoverageUnitTest {
     }
 
     @Test
-    public void navigateWithBasicAuthenticationShouldEmbedCredentialsForRemoteExecution() {
+    public void navigateWithBasicAuthenticationShouldEmbedCredentialsForRemoteExecutionWhenBiDiIsDisabled() {
+        // Regression for issue #3732: remote execution is genuinely incapable of the native
+        // HasAuthentication handler only when BiDi is disabled; that is the case this URL-embedded
+        // fallback exists for.
         SHAFT.Properties.platform.set().executionAddress("remote-grid");
+        SHAFT.Properties.platform.set().enableBiDi(false);
         when(driver.getCurrentUrl()).thenReturn("https://example.com/start");
 
         browserActions.navigateToURLWithBasicAuthentication(
@@ -231,6 +235,26 @@ public class BrowserActionsCoverageUnitTest {
                 "https://example.com/secure");
 
         Mockito.verify(navigation).to("https://user:pass@example.com/secure");
+    }
+
+    @Test
+    public void navigateWithBasicAuthenticationShouldUseNativeHandlerForRemoteExecutionWhenBiDiIsEnabled() {
+        // Regression for issue #3732: remote execution with BiDi enabled (the default) must use the
+        // real HasAuthentication.register() handler instead of silently downgrading to URL-embedded
+        // credentials, so BasicAuthenticationTests#basicAuthenticationWebdriverBidi actually exercises
+        // the BiDi-augmented path remotely.
+        SHAFT.Properties.platform.set().executionAddress("remote-grid");
+        SHAFT.Properties.platform.set().enableBiDi(true);
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/start");
+
+        browserActions.navigateToURLWithBasicAuthentication(
+                "https://example.com/secure",
+                "user",
+                "pass",
+                "https://example.com/secure");
+
+        Mockito.verify((HasAuthentication) driver).register(any(), any());
+        Mockito.verify(navigation).to("https://example.com/secure");
     }
 
     @Test

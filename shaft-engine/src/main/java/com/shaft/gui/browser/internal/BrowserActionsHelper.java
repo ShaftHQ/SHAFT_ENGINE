@@ -576,4 +576,44 @@ public class BrowserActionsHelper {
         InternetDomainName internetDomainName = InternetDomainName.from(host).topPrivateDomain();
         return internetDomainName.toString();
     }
+
+    /**
+     * The basic-authentication mechanism selected by {@link #determineBasicAuthenticationStrategy}.
+     */
+    public enum BasicAuthenticationStrategy {
+        /**
+         * Register a {@link org.openqa.selenium.HasAuthentication} handler on the driver instance
+         * (CDP-backed for Chromium browsers, augmented for remote sessions when BiDi is enabled).
+         */
+        NATIVE_HAS_AUTHENTICATION,
+        /**
+         * Embed the credentials directly in the target URL as a fallback for drivers/executions
+         * that cannot provide a native authentication handler.
+         */
+        URL_EMBEDDED_CREDENTIALS
+    }
+
+    /**
+     * Decides which basic-authentication mechanism {@link com.shaft.gui.browser.BrowserActions#navigateToURLWithBasicAuthentication}
+     * should use, given the current execution address and whether BiDi is enabled.
+     *
+     * <p>Local executions always get a real, directly-implemented {@code HasAuthentication} driver
+     * (ChromeDriver/EdgeDriver implement it natively via CDP), so they always use the native path.
+     * Remote executions only get a real {@code HasAuthentication} handler when BiDi is enabled,
+     * because that is the flag SHAFT.Properties.platform.enableBiDi() gates the remote driver's
+     * {@code Augmenter} wiring on (see {@code DriverFactoryHelper.connectToRemoteServer}); when BiDi
+     * is disabled remotely there is no augmented handler to register against, so credentials must be
+     * embedded in the URL instead (issue #3732).
+     *
+     * @param executionAddress the current {@code SHAFT.Properties.platform.executionAddress()} value
+     * @param biDiEnabled       the current {@code SHAFT.Properties.platform.enableBiDi()} value
+     * @return {@link BasicAuthenticationStrategy#NATIVE_HAS_AUTHENTICATION} when a real authentication
+     * handler can be provisioned, otherwise {@link BasicAuthenticationStrategy#URL_EMBEDDED_CREDENTIALS}
+     */
+    public BasicAuthenticationStrategy determineBasicAuthenticationStrategy(String executionAddress, boolean biDiEnabled) {
+        boolean isLocalExecution = "local".equalsIgnoreCase(executionAddress);
+        return (isLocalExecution || biDiEnabled)
+                ? BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION
+                : BasicAuthenticationStrategy.URL_EMBEDDED_CREDENTIALS;
+    }
 }
