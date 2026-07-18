@@ -15,9 +15,13 @@
 # `-DenableBiDi=true`/`SHAFT.Properties.platform.set().enableBiDi(true)` (the default). If your
 # test client instead runs as its own container on this compose network, or the grid is reachable
 # only via a different host/IP, SE_NODE_GRID_URL must be changed to match that reachable address on
-# every node -- a mismatch here breaks only BiDi (webSocketUrl points somewhere the client can't
-# open a websocket to); classic WebDriver HTTP commands keep working because they only ever talk to
-# the Hub's published port. See https://github.com/SeleniumHQ/docker-selenium#grid-url-and-session-timeout
+# every node -- a mismatch here breaks every websocket-backed feature: BiDi (webSocketUrl) AND
+# CDP/Augmenter access (se:cdp -- what HasAuthentication-based remote basic auth and DevTools
+# features ride on; upstream names SE_NODE_GRID_URL as the requirement for RemoteWebDriver
+# builder/Augmenter in Selenium 4). Classic WebDriver HTTP commands keep working because they only
+# ever talk to the Hub's published port. Note: CDP-backed features (e.g. basic auth via
+# HasAuthentication) are Chromium-only (chrome/edge nodes); firefox is BiDi-only.
+# See https://github.com/SeleniumHQ/docker-selenium#grid-url-and-session-timeout
 services:
   chrome:
     image: selenium/node-chrome:4.45.0-20260606
