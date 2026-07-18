@@ -78,7 +78,7 @@ jobs:
           python3 scripts/ci/validate_shaft_mcp_configuration.py
       - name: Run MCP module tests
         env:
-          MCP_RELATED_TESTS: ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi,CaptureServiceTest#codeBlocksToolGeneratesReusableReplaySnippetsInsideWorkspace,CaptureServiceTest#checkpointToolRequiresActiveCaptureSession,CaptureServiceTest#codeBlocksRejectSessionOutsideWorkspace,DoctorServiceTest#toolAnalyzesAllowlistedEvidenceOffline,DoctorServiceTest#documentedExternalClientsInvokeDoctorAnalyzeWithoutCredentials,DoctorServiceTest#failedAllureAnalysisRejectsPathsOutsideWorkspace,DoctorServiceTest#draftPublicationRequiresExplicitApprovalBeforeReadingManifest,MobileRecordingServiceTest#recordingGeneratesRedactedReplayCodeInsideWorkspace,MobileRecordingServiceTest#recordingCodeBlocksRejectPathOutsideWorkspace
+          MCP_RELATED_TESTS: ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi,CaptureServiceTest#codeBlocksToolGeneratesReusableReplaySnippetsInsideWorkspace,CaptureServiceTest#checkpointToolRequiresActiveCaptureSession,CaptureServiceTest#codeBlocksRejectSessionOutsideWorkspace,DoctorServiceTest#toolAnalyzesAllowlistedEvidenceOffline,DoctorServiceTest#documentedExternalClientsInvokeDoctorAnalyzeWithoutCredentials,DoctorServiceTest#failedAllureAnalysisRejectsPathsOutsideWorkspace,DoctorServiceTest#draftPublicationRequiresExplicitApprovalBeforeReadingManifest,MobileRecordingServiceTest#recordingGeneratesRedactedReplayCodeInsideWorkspace,MobileRecordingServiceTest#recordingCodeBlocksRejectPathOutsideWorkspace,ShaftProjectServiceTest
         run: >-
           mvn --batch-mode -pl shaft-mcp -am test
           -Dtest="${MCP_RELATED_TESTS}"
