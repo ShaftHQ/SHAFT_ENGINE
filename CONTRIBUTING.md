@@ -73,18 +73,11 @@ update, and troubleshooting runbook:
 
 - **memory CLI** — `npm install -g @aictx/memory@0.1.55` (pin matches
   `scripts/ci/validate_agent_setup.py`); repo store lives in `.memory/`.
-- **gbrain** — semantic repo index + MCP server, installed from its git
-  checkout (`git pull && bun install`, then
-  `gbrain apply-migrations --yes` and `gbrain doctor`). Embeddings come
-  from the `gbrain-ollama` Docker container (`ollama/ollama` with
-  `nomic-embed-text`, restart policy `unless-stopped`). Keep the scheduled
-  sync + dream tasks installed (Windows:
-  `tools/agent-infra/install-agent-tasks.ps1`; macOS/Linux:
-  `gbrain autopilot --install`) so the brain and repo map stay current.
 - **graphify** — deterministic repository map for pre-search file selection:
   `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
   from the repo root (cache in gitignored `graphify-out/`; see
-  `tools/repository-map/README.md`).
+  `tools/repository-map/README.md`). Nightly auto-refresh (Windows):
+  `tools/agent-infra/install-agent-tasks.ps1`.
 - **MCP servers** (`.mcp.json`) — `context7` (npx) and `maven-tools-mcp`
   (Docker) start on demand; they require Node and Docker locally.
 - **Claude Code plugins** — installed automatically from

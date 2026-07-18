@@ -29,7 +29,7 @@ No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `r
 
 ## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`; `gbrain query`/`code-def` for retrieval -- supplements, never replaces (`skills/retrieval-reflex/`; auto-synced). Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search` for retrieval. Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
 
 Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> file it now (Working Rules). Nothing durable is a valid outcome -- say so.
 
@@ -59,7 +59,6 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - `context7`: past-cutoff library APIs only, else repo exemplars.
 - Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
 - Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`caveman`/`test-driven-development`/`graphify`/`work-github`.
-- Local infra: gbrain + `gbrain-ollama` Docker.
 
 ## Agent Hierarchy & Model Routing
 
@@ -68,7 +67,3 @@ Fable plans/delegates/reviews/verifies on the main thread; it does not implement
 ## Completion
 
 Report changes/checks/outcomes + Learning Loop results: memory/graphify/skill/issue updates, or none.
-
-<!-- gbrain:retrieval-reflex:resolver-rows -->
-- retrieval-reflex | salient class/module/incident; brain-page pointer; asserting non-trivial repo detail
-<!-- /gbrain:retrieval-reflex:resolver-rows -->
