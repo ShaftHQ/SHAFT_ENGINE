@@ -131,6 +131,18 @@ public class AllureManager {
               border: 0 !important;
               background: #fff !important;
             }
+            /* Allure 2's own inline (non-fullscreen) HTML attachment preview renders a bare
+               <iframe class="attachment__iframe"> with only "width:100%" and no height in its
+               shipped CSS — it collapses to the browser's ~150px default iframe height, showing as
+               a compressed strip with a scrollbar until the user manually opens the "fullscreen"
+               view (whose "attachment__iframe_fullscreen" modifier does set height:85vh). Verified
+               against a real generated report's decoded CSS bundle (issue reported 2026-07-18).
+               ":not()" keeps the existing fullscreen modifier's own sizing untouched. */
+            .attachment__iframe:not(.attachment__iframe_fullscreen) {
+              width: 100% !important;
+              height: min(78vh, 1000px) !important;
+              min-height: 400px !important;
+            }
             </style>
             """;
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT = """

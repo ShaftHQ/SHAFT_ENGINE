@@ -200,6 +200,90 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         }
     }
 
+    @Test(description = "Assertion evidence for a failing driver/element validation should default to "
+            + "screenshot-only (no page-source HTML attachment); the HTML attachment must only reappear "
+            + "when whenToTakePageSourceSnapshot is explicitly set to a value that opts into it "
+            + "(issue reported 2026-07-18)")
+    public void driverValidationFailureShouldOmitPageSourceAttachmentByDefaultAndHonorPropertyGate() {
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.SOFT_ASSERT);
+        By locator = By.id("sample");
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = mock(WebElement.class);
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.set().scrollingMode("legacy");
+        when(driver.findElement(any(By.class))).thenReturn(element);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+        when(element.getAttribute("aria-label")).thenReturn("actualValue");
+
+        try (MockedConstruction<ScreenshotManager> screenshotManagerMocked = Mockito.mockConstruction(ScreenshotManager.class,
+                (mock, context) -> when(mock.takeScreenshot(any(), any(), anyString(), any(Boolean.class)))
+                        .thenReturn(List.of("Verify", "Screenshot", "bytes")));
+             MockedConstruction<BrowserActionsHelper> browserActionsHelperMocked = Mockito.mockConstruction(BrowserActionsHelper.class,
+                     (mock, context) -> when(mock.capturePageSnapshot(any())).thenReturn("<html/>"));
+             MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
+             MockedStatic<Allure> allureMocked = Mockito.mockStatic(Allure.class)) {
+            allureMocked.when(Allure::getLifecycle).thenCallRealMethod();
+
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+
+            // 1) default property (unset): screenshot only, no page-source HTML on failure
+            helper.validateElementAttribute(driver, locator, "aria-label", "expectedMismatch",
+                    ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE);
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            assertNoPageSourceAttachment(attachmentsCaptor.getValue(), "default property");
+            assertHasScreenshotAttachment(attachmentsCaptor.getValue(), "default property");
+            reportManagerHelperMocked.clearInvocations();
+
+            // 2) explicitly "Never": still suppressed on failure (the original defect let a failing
+            // validation bypass this property entirely)
+            SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+            helper.validateElementAttribute(driver, locator, "aria-label", "expectedMismatch",
+                    ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE);
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            assertNoPageSourceAttachment(attachmentsCaptor.getValue(), "whenToTakePageSourceSnapshot=Never");
+            reportManagerHelperMocked.clearInvocations();
+
+            // 3) explicitly "FailuresOnly": opt-in still works on failure (existing behavior preserved)
+            SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("FailuresOnly");
+            helper.validateElementAttribute(driver, locator, "aria-label", "expectedMismatch",
+                    ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE);
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            assertHasPageSourceAttachment(attachmentsCaptor.getValue(), "whenToTakePageSourceSnapshot=FailuresOnly");
+            reportManagerHelperMocked.clearInvocations();
+
+            // 4) explicitly "Always": opt-in works regardless of pass/fail
+            SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Always");
+            helper.validateElementAttribute(driver, locator, "aria-label", "expectedMismatch",
+                    ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE);
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            assertHasPageSourceAttachment(attachmentsCaptor.getValue(), "whenToTakePageSourceSnapshot=Always");
+        } finally {
+            // Each call above is a soft (SOFT_ASSERT) failure by design; clear the accumulated
+            // verification state so this test method itself does not get force-failed by SHAFT's
+            // end-of-test soft-assertion check.
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        }
+    }
+
+    private static void assertNoPageSourceAttachment(List<List<Object>> attachments, String scenario) {
+        boolean hasPageSource = attachments.stream().anyMatch(a -> a.size() > 1
+                && ("page HTML".equals(a.get(1)) || "page snapshot".equals(a.get(1))));
+        Assert.assertFalse(hasPageSource, "Unexpected page-source HTML attachment for scenario: " + scenario);
+    }
+
+    private static void assertHasPageSourceAttachment(List<List<Object>> attachments, String scenario) {
+        boolean hasPageSource = attachments.stream().anyMatch(a -> a.size() > 1
+                && ("page HTML".equals(a.get(1)) || "page snapshot".equals(a.get(1))));
+        Assert.assertTrue(hasPageSource, "Expected page-source HTML attachment for scenario: " + scenario);
+    }
+
+    private static void assertHasScreenshotAttachment(List<List<Object>> attachments, String scenario) {
+        boolean hasScreenshot = attachments.stream().anyMatch(a -> a.size() > 1 && "Screenshot".equals(a.get(1)));
+        Assert.assertTrue(hasScreenshot, "Expected screenshot attachment for scenario: " + scenario);
+    }
+
     @Test(description = "Covers private utility methods used by validation reporting")
     public void privateUtilityMethodsShouldReturnExpectedValues() throws Exception {
         Method normalizeDirection = ValidationsHelper.class.getDeclaredMethod("normalizeDirection", String.class);

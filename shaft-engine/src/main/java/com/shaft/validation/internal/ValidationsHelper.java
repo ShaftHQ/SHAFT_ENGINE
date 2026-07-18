@@ -1035,10 +1035,20 @@ public class ValidationsHelper {
             // prepare screenshot with element highlighting
             if (!skipDefaultScreenshot && attachments.isEmpty())
                 attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
-            // prepare page snapshot mhtml/html
+            // prepare page snapshot mhtml/html — property-gated (issue reported 2026-07-18): default
+            // assertion evidence is a screenshot and nothing else, so "never" must suppress the
+            // page-source attachment even on a failing validation. Previously the failure branch
+            // (!validationState) bypassed the property entirely, attaching page source on every
+            // failure regardless of the configured value.
             var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
-            if (!validationState
-                    || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
+            boolean shouldCapturePageSourceSnapshot = switch (whenToTakePageSourceSnapshot) {
+                case "never" -> false;
+                case "always", "validationpointsonly" -> true;
+                // "failuresonly" (and any legacy/unrecognized value) preserves the prior opt-in
+                // behavior: capture on failure only.
+                default -> !validationState;
+            };
+            if (shouldCapturePageSourceSnapshot) {
                 var logMessage = "";
                 long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
                 var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);

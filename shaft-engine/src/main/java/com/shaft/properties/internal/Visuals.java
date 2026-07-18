@@ -76,8 +76,11 @@ public interface Visuals extends EngineProperties<Visuals> {
     @DefaultValue("DriverSession")
     String videoParamsScope();
 
+    // Default OFF (issue reported 2026-07-18): assertion/validation evidence should be a screenshot
+    // and nothing else by default. Page-source/HTML snapshots are noisy and only opt-in via this
+    // property (or a richer evidenceLevel profile such as BALANCED/FULL).
     @Key("whenToTakePageSourceSnapshot")
-    @DefaultValue("failuresOnly")
+    @DefaultValue("Never")
     String whenToTakePageSourceSnapshot();
 
     @Key("shaft.updateSnapshots")
