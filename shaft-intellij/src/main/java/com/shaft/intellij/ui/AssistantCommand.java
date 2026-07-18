@@ -623,6 +623,30 @@ final class AssistantCommand {
             boolean allowSourceMutation,
             OpenFileContext openFileContext,
             String conversationContext) {
+        return fromPrompt(prompt, selection, mode, workingDirectory, customCommand, allowSourceMutation,
+                openFileContext, conversationContext, "");
+    }
+
+    /**
+     * Real entry point for building an Assistant invocation from prompt text (issue #3727 adds
+     * {@code attachmentsContext}: the pre-formatted {@link AssistantAttachments#outboundBlock} for
+     * whatever the user attached via the panel's attach affordances -- current file, all open
+     * files, a picked file, or an image path note). Folded into the outbound prompt text alongside
+     * {@code conversationContext} by {@link #localAgentPrompt} and {@link #cloudPrompt}, the only
+     * two call sites that carry a free-text "prompt" argument; direct MCP tool invocations (slash
+     * commands, natural-language tool routing) carry no such field and attachments are not applied
+     * to them (see {@link AssistantAttachments#outboundBlock} javadoc for the transport evidence).
+     */
+    static Invocation fromPrompt(
+            String prompt,
+            Selection selection,
+            String mode,
+            String workingDirectory,
+            String customCommand,
+            boolean allowSourceMutation,
+            OpenFileContext openFileContext,
+            String conversationContext,
+            String attachmentsContext) {
         String text = prompt == null ? "" : prompt.trim();
         if (text.isEmpty()) {
             return Invocation.local("Describe what you need in plain language — record a journey, "
@@ -674,7 +698,8 @@ final class AssistantCommand {
             }
         }
         if (selection.cloud()) {
-            return cloud(text, selection, mode, workingDirectory, openFileContext, conversationContext);
+            return cloud(text, selection, mode, workingDirectory, openFileContext, conversationContext,
+                    attachmentsContext);
         }
         if (!"CLI".equals(selection.runtime())) {
             return Invocation.local("SHAFT is configured for " + selection.displayName()
@@ -688,7 +713,7 @@ final class AssistantCommand {
         // Codex receives the effort as a real CLI config flag in AssistantLocalAgentRunner; the
         // other CLIs have no effort flag, so their prompt carries the preference instead.
         String localPrompt = localAgentPrompt(text, mode, allowSourceMutation, openFileContext,
-                conversationContext);
+                conversationContext, attachmentsContext);
         arguments.addProperty("prompt", "CODEX".equals(selection.family())
                 ? localPrompt
                 : withEffortHint(localPrompt, selection.effort()));
@@ -706,17 +731,24 @@ final class AssistantCommand {
             String mode,
             String workingDirectory,
             OpenFileContext openFileContext,
-            String conversationContext) {
+            String conversationContext,
+            String attachmentsContext) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("provider", selection.cloudProvider());
         arguments.addProperty("model", selection.cloudModel());
         arguments.addProperty("mode", mode);
         arguments.addProperty("prompt",
-                withEffortHint(cloudPrompt(text, mode, openFileContext, conversationContext), selection.effort()));
+                withEffortHint(cloudPrompt(text, mode, openFileContext, conversationContext, attachmentsContext),
+                        selection.effort()));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
         arguments.addProperty("allowSourceMutation", false);
         return Invocation.tool("autobot_provider_chat", arguments);
+    }
+
+    private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext,
+                                      String conversationContext, String attachmentsContext) {
+        return withAttachments(cloudPrompt(text, mode, openFileContext, conversationContext), attachmentsContext);
     }
 
     private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext,
@@ -2370,7 +2402,8 @@ final class AssistantCommand {
             String mode,
             boolean allowSourceMutation,
             OpenFileContext openFileContext,
-            String conversationContext) {
+            String conversationContext,
+            String attachmentsContext) {
         String lower = text.toLowerCase(Locale.ROOT);
         String normalizedMode = Selection.normalize(mode, "ASK");
         boolean agentMode = "AGENT".equals(normalizedMode);
@@ -2390,6 +2423,7 @@ final class AssistantCommand {
                 : SHAFT_OPTIONS_HINT + "\n\n" + text)
                 : hint + "\n\n" + text;
         withHint = withConversationContext(withHint, conversationContext);
+        withHint = withAttachments(withHint, attachmentsContext);
         if (!agentMode) {
             return withHint;
         }
@@ -2450,6 +2484,19 @@ final class AssistantCommand {
                 Current request:
                 %s
                 """.formatted(context, prompt).stripIndent().trim();
+    }
+
+    /**
+     * Appends the {@link AssistantAttachments#outboundBlock} (issue #3727) to an already-assembled
+     * prompt, mirroring {@link #withConversationContext}'s no-op-when-blank shape. Applied after
+     * conversation context so attachment content always reads as the most recent addition.
+     */
+    private static String withAttachments(String prompt, String attachmentsContext) {
+        String block = text(attachmentsContext);
+        if (block.isBlank()) {
+            return prompt;
+        }
+        return prompt + "\n\n" + block;
     }
 
     private static String codeRequestScope(String mode, OpenFileContext openFileContext) {

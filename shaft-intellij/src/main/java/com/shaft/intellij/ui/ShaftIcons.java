@@ -9,6 +9,7 @@ import java.awt.Graphics;
 
 public final class ShaftIcons {
     public static final Icon ADD = load("add");
+    public static final Icon ATTACH = load("attach");
     public static final Icon CANCEL = load("cancel");
     public static final Icon CHECK = load("check");
     public static final Icon CLEAR = load("clear");
