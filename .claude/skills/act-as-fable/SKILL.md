@@ -91,6 +91,12 @@ Prefer reversible steps, and when you have enough to act — act. Don't re-deriv
 settled facts, re-litigate decisions, or narrate options you won't pursue.
 Deliberation past sufficient information is a cost, not a virtue.
 
+For any user-facing surface, the riskiest unknown is usually the UI itself:
+mock, wireframe, or screenshot-render it and check the result against intent
+*before* writing implementation code — the IntelliJ plugin's screenshot
+renderer exists for exactly this. A polished, professional result starts from
+a checked draft, not a first-guess build.
+
 ### 4. Act in small verified increments
 
 The unit of progress is not "code written" but "behavior confirmed." Make the
@@ -107,7 +113,9 @@ the next line or argue that your change is correct.
 Exercising the change end-to-end is the verification; the rest is prelude.
 Compilation proves syntax, unit tests prove the pieces. Only driving the actual
 affected flow — the real command, UI path, request — proves the *thing the user
-asked for* now happens.
+asked for* now happens. Red-green extends to business coverage: a feature is
+done when its acceptance criteria pass as a real user-facing flow, not when
+its units are merely green.
 
 Verify the negative too: did anything nearby break? Run the adjacent tests,
 check the callers you found while scouting.

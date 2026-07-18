@@ -360,3 +360,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.toolparam-required-false-must-use-boxed-types-never-primitives","timestamp":"2026-07-18T19:12:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.gson-lenient-jsonparser-accepts-bare-tokens-as-json-guard-json-fencing-by-first-char","timestamp":"2026-07-18T19:12:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-engine-example-templates-are-asserted-by-shaft-mcp-tests-path-filtered-ci-masks-the-coupling","timestamp":"2026-07-18T19:12:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.every-owner-request-becomes-a-github-issue-closed-by-a-pr-babysat-to-green-and-merged","timestamp":"2026-07-18T19:46:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.proactively-file-enhancement-gap-recommendations-as-github-tickets","timestamp":"2026-07-18T19:46:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.pdca-implicit-loop-lean-context-after-merges-mempalace-impact-analysis-with-test-coverage","timestamp":"2026-07-18T19:46:24+03:00"}

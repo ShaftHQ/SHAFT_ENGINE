@@ -42,6 +42,12 @@ more code on top of it.
 3. **Plan at the right altitude.** Identify the riskiest unknown — does this
    locator uniquely match, does this endpoint return what you expect — and
    check it first, before building the rest of the test around an assumption.
+   When the work touches a user-facing surface you're building or extending
+   (a report page, a custom reporting template, a UI-driving test helper),
+   the riskiest unknown is usually the surface itself: mock, wireframe, or
+   screenshot it and check the draft against intent *before* writing
+   implementation code. A polished, professional result starts from a
+   checked draft, not a first-guess build against a screen no one has seen.
 4. **Act in small verified increments.** One assertion or one page-object
    method at a time, checked before the next. Ten small verified steps beat
    one big test class written blind: when a small step fails, you have one
@@ -62,6 +68,14 @@ meaningful assertion failure, not a compile error or a wrong locator — then
 write the smallest code that turns it green. Skipping the red step means you
 never learn whether your test can actually fail, which is the whole point of
 having it.
+
+Red-green extends to business coverage, not just units: a feature is done
+when the actual user-facing flow — the acceptance criteria a stakeholder
+would recognize, walked end-to-end through the real UI or API surface —
+passes, not when one isolated assertion goes green. Prefer one
+test that walks the real journey (log in, search, check out) over ten that
+each poke a disconnected piece of it: the isolated checks catch regressions
+in a part, the journey proves the feature actually works for a user.
 
 ## Debugging As Hypothesis Elimination
 
