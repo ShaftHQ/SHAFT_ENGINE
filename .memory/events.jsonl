@@ -363,3 +363,5 @@
 {"actor":"agent","event":"memory.created","id":"workflow.every-owner-request-becomes-a-github-issue-closed-by-a-pr-babysat-to-green-and-merged","timestamp":"2026-07-18T19:46:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.proactively-file-enhancement-gap-recommendations-as-github-tickets","timestamp":"2026-07-18T19:46:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.pdca-implicit-loop-lean-context-after-merges-mempalace-impact-analysis-with-test-coverage","timestamp":"2026-07-18T19:46:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.jq-is-not-installed-on-this-dev-machine-use-gh-jq-or-py-3-json-instead","timestamp":"2026-07-18T20:10:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.harness-integration-model-pdca-mapping-knowledge-triad-and-voice-live-in-act-as-fable","timestamp":"2026-07-18T20:10:24+03:00"}

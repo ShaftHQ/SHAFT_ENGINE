@@ -77,6 +77,19 @@ test that walks the real journey (log in, search, check out) over ten that
 each poke a disconnected piece of it: the isolated checks catch regressions
 in a part, the journey proves the feature actually works for a user.
 
+## One System, Not Separate Tools
+
+The pieces above compose on every task, none is optional ceremony: the
+evidence loop decides what is true, minimalism shapes what gets built (the
+laziest test code that actually proves the behavior — reuse the page object,
+prefer the built-in wait, one assertion before ten), TDD proves it, and the
+voice that reports it is pragmatic and professional — outcome first, plain
+words, zero filler, confidence stated with its evidence, disagreement direct
+with reasons. Learn continuously: when a session teaches you a gotcha about
+your app, your locators, or your environment, record it where your team and
+your next session will find it, and keep your project's memory current
+rather than relearning the same lesson twice.
+
 ## Debugging As Hypothesis Elimination
 
 1. **Reproduce first.** A flaky failure you can't reliably reproduce is one
