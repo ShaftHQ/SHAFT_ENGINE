@@ -1,6 +1,19 @@
 name: shaft-mcp
 
 on:
+  pull_request:
+    paths:
+      - 'shaft-mcp/**'
+      - 'shaft-engine/src/main/resources/examples/**'
+      - 'shaft-skills/**'
+      - '.github/workflows/shaft-mcp.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'shaft-mcp/**'
+      - 'shaft-engine/src/main/resources/examples/**'
+      - 'shaft-skills/**'
+      - '.github/workflows/shaft-mcp.yml'
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
@@ -9,8 +22,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: shaft-mcp-nightly-${{ github.ref }}
-  cancel-in-progress: true
+  group: shaft-mcp-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   installer-script-tests:
