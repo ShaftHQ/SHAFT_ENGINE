@@ -59,7 +59,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -68,6 +73,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -885,7 +892,11 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupPanelAppendsInstallShaftCliFlagWhenOptedIn() throws Exception {
+    void setupPanelInstallsShaftCliByDefaultAndAllowsOptingOut() throws Exception {
+        // Issue #3743: "Install SHAFT MCP" is a complete, one-click setup by default -- MCP,
+        // skills, AND shaft-cli together -- so the checkbox (tucked inside Advanced installer
+        // options, hidden by default) must start checked. It stays reachable only for a user who
+        // explicitly wants to opt back out.
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         JTextComponent installer = findByAccessibleName(panel, "MCP installer command", JTextComponent.class);
@@ -893,17 +904,237 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNotNull(installCli),
-                () -> assertFalse(installCli.isSelected()),
-                () -> assertFalse(installer.getText().contains("--install-shaft-cli")));
-
-        installCli.doClick();
-        // The flag must sit next to --install-shaft-skills so it stays inside the quoted
-        // PowerShell command on Windows instead of being appended after the closing quote.
-        assertTrue(installer.getText().contains("--install-shaft-skills --install-shaft-cli"),
-                installer.getText());
+                () -> assertTrue(installCli.isSelected(), "shaft-cli must install by default (issue #3743)"),
+                // The flag must sit next to --install-shaft-skills so it stays inside the quoted
+                // PowerShell command on Windows instead of being appended after the closing quote.
+                () -> assertTrue(installer.getText().contains("--install-shaft-skills --install-shaft-cli"),
+                        installer.getText()));
 
         installCli.doClick();
         assertFalse(installer.getText().contains("--install-shaft-cli"));
+
+        installCli.doClick();
+        assertTrue(installer.getText().contains("--install-shaft-skills --install-shaft-cli"),
+                installer.getText());
+    }
+
+    @Test
+    void installProcessCommandBuildsMcpSkillsAndCliArgvForTheSelectedClient() throws Exception {
+        // Issue #3743: the primary "Install SHAFT MCP" action hands ProcessBuilder a real argv
+        // list (no shell-quoting games), always requesting MCP + skills + CLI by default, for
+        // whichever client/target is currently selected.
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        List<String> command = installerProcessCommand(panel);
+        String joined = String.join(" ", command);
+
+        assertAll(
+                () -> assertTrue(joined.contains("install-shaft-mcp"), joined),
+                () -> assertTrue(joined.contains("codex"), joined),
+                () -> assertTrue(joined.contains("--install-shaft-skills --install-shaft-cli"), joined));
+        if (isWindowsOs()) {
+            assertAll(
+                    () -> assertEquals("powershell", command.get(0)),
+                    () -> assertEquals("-Command", command.get(command.size() - 2)));
+        } else {
+            assertAll(
+                    () -> assertEquals(List.of("sh", "-c"), command.subList(0, 2)),
+                    () -> assertTrue(joined.contains("sh \"$tmp\" --codex")));
+        }
+    }
+
+    @Test
+    void installProcessCommandHonorsAnExplicitOptOutOfShaftCli() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        findByAccessibleName(panel, "Also install shaft-cli command line", JCheckBox.class).doClick();
+
+        String joined = String.join(" ", installerProcessCommand(panel));
+
+        assertAll(
+                () -> assertTrue(joined.contains("--install-shaft-skills")),
+                () -> assertFalse(joined.contains("--install-shaft-cli"), joined));
+    }
+
+    @Test
+    void runInstallerProcessReducesARealSuccessfulProcessToASuccessResult() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        ShaftMcpToolResult result = runInstallerProcess(panel,
+                stubInstallerProcess("Installed shaft-mcp 10.3.20260710 for codex.", 0));
+
+        assertAll(
+                () -> assertTrue(result.success(), result.output()),
+                () -> assertTrue(result.output().contains("Installed shaft-mcp"), result.output()));
+    }
+
+    @Test
+    void runInstallerProcessReducesANonZeroExitToAFailureResultWithTheRawOutput() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        ShaftMcpToolResult result = runInstallerProcess(panel,
+                stubInstallerProcess("install-shaft-mcp: unsupported architecture: riscv64", 1));
+
+        assertAll(
+                () -> assertFalse(result.success()),
+                () -> assertTrue(result.output().contains("unsupported architecture"), result.output()));
+    }
+
+    @Test
+    void runInstallerProcessFailsClosedWhenTheLauncherCannotSpawnTheInstaller() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        setField(panel, "installerProcessLauncher",
+                (ShaftMcpSetupPanel.InstallerProcessLauncher) (command, workingDirectory) -> {
+                    throw new IOException("simulated spawn failure");
+                });
+
+        Method runInstallerProcess = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "runInstallerProcess", List.class, Path.class);
+        runInstallerProcess.setAccessible(true);
+        ShaftMcpToolResult result = (ShaftMcpToolResult) runInstallerProcess.invoke(
+                panel, List.of("sh", "-c", "echo hi"), Path.of("."));
+
+        assertAll(
+                () -> assertFalse(result.success()),
+                () -> assertTrue(result.output().contains("simulated spawn failure"), result.output()));
+    }
+
+    @Test
+    void showInstallResultOnSuccessClearsDiagnosticsAndPointsAtCheck() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        // Seed a stale failure so the success path's clearDiagnostics() is actually exercised.
+        setField(panel, "diagnosticOutput", "stale failure output");
+
+        showInstallResult(panel, ShaftMcpToolResult.success("Installed shaft-mcp for codex."), null);
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Press Check to verify")),
+                () -> assertEquals("", getField(panel, "diagnosticOutput")));
+    }
+
+    @Test
+    void showInstallResultOnFailureSurfacesRecoveryDetailsInsteadOfRawCommandText() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        showInstallResult(panel, ShaftMcpToolResult.failure("network unreachable"), null);
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Install failed")),
+                () -> assertTrue(containsText(panel, "copy the command and run it manually")),
+                () -> assertTrue(((String) getField(panel, "diagnosticOutput")).contains("network unreachable")),
+                // The recovery command is offered as a copyable fallback, not printed inline as
+                // unlabeled plain text in the main flow (issue #3743).
+                () -> assertNotNull(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class)));
+    }
+
+    @Test
+    void installButtonIsThePrimaryOneClickActionAndDispatchesToTheRealInstallerLauncher() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        JButton installButton = findByAccessibleName(panel, "Install SHAFT MCP", JButton.class);
+        assertAll(
+                () -> assertNotNull(installButton),
+                () -> assertTrue(installButton.isVisible()),
+                () -> assertTrue(installButton.isEnabled()),
+                // Advanced installer options (including the raw command text area) stay hidden by
+                // default alongside the new primary action (issue #3743 (b)).
+                () -> assertFalse(((JComponent) getField(panel, "installerDetailsPanel")).isVisible()));
+
+        AtomicReference<List<String>> launchedCommand = new AtomicReference<>();
+        CountDownLatch launched = new CountDownLatch(1);
+        setField(panel, "installerProcessLauncher",
+                (ShaftMcpSetupPanel.InstallerProcessLauncher) (command, workingDirectory) -> {
+                    launchedCommand.set(command);
+                    launched.countDown();
+                    return stubInstallerProcess("Installed.", 0);
+                });
+
+        installButton.doClick();
+
+        // The synchronous part of runInstall() (before the background hop) already shows the
+        // one-click, mcp+skills+cli progress narration -- no terminal, no raw command text.
+        assertTrue(containsText(panel, "Installing SHAFT MCP (MCP + skills + CLI)..."));
+        assertTrue(launched.await(5, TimeUnit.SECONDS), "the real installer launcher must be invoked");
+        String joinedCommand = String.join(" ", launchedCommand.get());
+        assertAll(
+                () -> assertTrue(joinedCommand.contains("--install-shaft-skills --install-shaft-cli"), joinedCommand),
+                () -> assertTrue(joinedCommand.contains("codex"), joinedCommand));
+    }
+
+    private static Process stubInstallerProcess(String output, int exitCode) {
+        return new Process() {
+            private final InputStream stdout = new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8));
+
+            @Override
+            public OutputStream getOutputStream() {
+                return new ByteArrayOutputStream();
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return stdout;
+            }
+
+            @Override
+            public InputStream getErrorStream() {
+                return new ByteArrayInputStream(new byte[0]);
+            }
+
+            @Override
+            public int waitFor() {
+                return exitCode;
+            }
+
+            @Override
+            public boolean waitFor(long timeout, TimeUnit unit) {
+                return true;
+            }
+
+            @Override
+            public int exitValue() {
+                return exitCode;
+            }
+
+            @Override
+            public void destroy() {
+                // No-op: stub process has nothing to terminate.
+            }
+
+            @Override
+            public Process destroyForcibly() {
+                return this;
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> installerProcessCommand(ShaftMcpSetupPanel panel) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("installerProcessCommand");
+        method.setAccessible(true);
+        return (List<String>) method.invoke(panel);
+    }
+
+    private static ShaftMcpToolResult runInstallerProcess(ShaftMcpSetupPanel panel, Process process) throws Exception {
+        setField(panel, "installerProcessLauncher",
+                (ShaftMcpSetupPanel.InstallerProcessLauncher) (command, workingDirectory) -> process);
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "runInstallerProcess", List.class, Path.class);
+        method.setAccessible(true);
+        return (ShaftMcpToolResult) method.invoke(panel, installerProcessCommand(panel), Path.of("."));
+    }
+
+    private static void showInstallResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult result, Throwable error)
+            throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "showInstallResult", ShaftMcpToolResult.class, Throwable.class);
+        method.setAccessible(true);
+        method.invoke(panel, result, error);
     }
 
     @Test
@@ -4564,7 +4795,7 @@ class ShaftPanelSetupTest {
             // Both the installer copy and the real verification are available from the start,
             // and stay visible in every state (issue #3560): the check is what completes setup,
             // so it is never hidden behind click sequencing or button visibility.
-            assertVisiblePrimarySetupActions(panel, "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
+            assertVisiblePrimarySetupActions(panel, "Install SHAFT MCP", "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
 
             clickAccessible(panel, "Copy SHAFT MCP install command");
             assertAll(
@@ -4580,10 +4811,10 @@ class ShaftPanelSetupTest {
             } else {
                 assertTrue(copied.get().contains("sh \"$tmp\" --codex"));
             }
-            assertVisiblePrimarySetupActions(panel, "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
+            assertVisiblePrimarySetupActions(panel, "Install SHAFT MCP", "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
 
             clickAccessible(panel, "Test SHAFT MCP connection");
-            assertVisiblePrimarySetupActions(panel, "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
+            assertVisiblePrimarySetupActions(panel, "Install SHAFT MCP", "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
         } finally {
             restoreProperty("shaft.intellij.mcp.applicationDataRoot", oldAppData);
             restoreProperty("shaft.intellij.mcp.bootstrapRoot", oldBootstrap);
@@ -4592,12 +4823,12 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel connectedPanel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe());
-        assertVisiblePrimarySetupActions(connectedPanel, "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
+        assertVisiblePrimarySetupActions(connectedPanel, "Install SHAFT MCP", "Copy SHAFT MCP install command", "Test SHAFT MCP connection");
 
         showTestResult(connectedPanel, ShaftMcpToolResult.success("Probe OK"));
         // Check and Copy remain visible/enabled alongside "Start chatting" (issue #3560): the row
         // color, not button visibility, now conveys that setup already passed.
-        assertVisiblePrimarySetupActions(connectedPanel, "Copy SHAFT MCP install command",
+        assertVisiblePrimarySetupActions(connectedPanel, "Install SHAFT MCP", "Copy SHAFT MCP install command",
                 "Test SHAFT MCP connection", "Start chatting with SHAFT Assistant");
     }
 
@@ -4629,7 +4860,7 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(copied.get().contains("install-shaft-mcp")),
                     () -> assertTrue(copied.get().contains("--install-shaft-skills")),
                     () -> assertVisiblePrimarySetupActions(panel,
-                            "Copy SHAFT MCP install command", "Test SHAFT MCP connection"),
+                            "Install SHAFT MCP", "Copy SHAFT MCP install command", "Test SHAFT MCP connection"),
                     () -> assertTrue(containsText(panel, "Installer command copied. Run it in terminal, then check.")));
         } finally {
             restoreProperty("shaft.intellij.mcp.applicationDataRoot", oldAppData);
@@ -6563,6 +6794,7 @@ class ShaftPanelSetupTest {
 
     private static boolean isSetupPrimaryAction(JButton button) {
         return List.of(
+                "Install SHAFT MCP",
                 "Copy SHAFT MCP install command",
                 "Test SHAFT MCP connection",
                 "Start chatting with SHAFT Assistant").contains(accessibleName(button));
