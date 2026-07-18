@@ -1,12 +1,12 @@
 {
-  "body_path": "memory/gotchas/assistantcommandtest-pins-assistantcommand-shaft-mcp-usage-hint-with-exact-match-assertequals-any-edit-to-that-constant-must-update-localagentpromptsincludegenericshaftmcpusagehint-too.md",
-  "content_hash": "sha256:fb8420eb55ca23eaa04a1e8c970e6b9df9d133ee2b95b1449ea8a7509f0e31d2",
+  "body_path": "memory/gotchas/assistantcommandtest-exact-match-mcp-usage-hint.md",
+  "content_hash": "sha256:252539815d7e92d17f7c0c67bc313caed74b774d656f7c5ef3007fa89bf85c64",
   "created_at": "2026-07-17T21:59:46+03:00",
   "evidence": [],
   "facets": {
     "category": "gotcha"
   },
-  "id": "gotcha.assistantcommandtest-pins-assistantcommand-shaft-mcp-usage-hint-with-exact-match-assertequals-any-edit-to-that-constant-must-update-localagentpromptsincludegenericshaftmcpusagehint-too",
+  "id": "gotcha.assistantcommandtest-exact-match-mcp-usage-hint",
   "scope": {
     "branch": null,
     "kind": "project",

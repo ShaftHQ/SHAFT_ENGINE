@@ -219,7 +219,10 @@ def collect_metrics(root: Path = ROOT) -> dict:
             characters += len(frontmatter.get("description", ""))
         host_tokens[host] = math.ceil(characters / 4)
     baseline = budget.get("reduction_baseline_bytes", 0)
-    guidance_bytes = sum(path.stat().st_size for path in guidance_paths)
+    # LF-normalized to match validate_total_reduction and the LF blobs CI sees.
+    guidance_bytes = sum(
+        len(path.read_text(encoding="utf-8").encode("utf-8")) for path in guidance_paths
+    )
     reduction = 0 if not baseline else round((1 - guidance_bytes / baseline) * 100, 2)
     memory_config = root / ".memory/config.json"
     memory_budget = None

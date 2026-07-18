@@ -111,7 +111,10 @@ def validate_total_reduction(root: Path, budget: dict) -> list[dict[str, str]]:
     if baseline is None or minimum_reduction is None:
         return []
     paths = expand_globs(root, budget.get("total_guidance_globs", []))
-    current = sum(path.stat().st_size for path in paths)
+    # Count LF-normalized bytes (read_text collapses CRLF) so the metric matches
+    # the per-file byte check and the LF blobs CI checks out, not the CRLF a
+    # Windows working tree carries.
+    current = sum(len(path.read_text(encoding="utf-8").encode("utf-8")) for path in paths)
     maximum = math.floor(baseline * (1 - minimum_reduction / 100))
     if current > maximum:
         return [

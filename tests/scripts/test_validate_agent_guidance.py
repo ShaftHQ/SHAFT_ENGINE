@@ -133,6 +133,18 @@ steps:
         self.write("AGENTS.md", "x" * 50)
         self.assertIn("total-reduction", self.codes())
 
+    def test_total_reduction_counts_newlines_platform_independently(self):
+        # CRLF working-tree checkouts must not inflate the byte count versus the
+        # LF blobs CI sees; total-reduction must match the per-file byte metric,
+        # which already counts read_text()-normalized (LF) bytes.
+        self.budget["total_guidance_globs"] = ["AGENTS.md"]
+        self.budget["reduction_baseline_bytes"] = 100
+        self.budget["minimum_reduction_percent"] = 10  # cap = 90 bytes
+        self.write_budget()
+        body = "\n".join(["x"] * 40)  # 79 bytes LF; 118 bytes if CRLF is counted raw
+        (self.root / "AGENTS.md").write_bytes(body.replace("\n", "\r\n").encode("utf-8"))
+        self.assertNotIn("total-reduction", self.codes())
+
     def test_counts_skill_metadata_in_host_budget(self):
         self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
         self.budget["host_skill_metadata_globs"] = {
