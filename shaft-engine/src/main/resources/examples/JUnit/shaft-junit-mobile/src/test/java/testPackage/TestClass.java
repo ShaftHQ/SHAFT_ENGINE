@@ -22,7 +22,7 @@ public class TestClass {
     }
 
     @Test
-    void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+    void navigateApiDemosExpandableListAndAssertGroupIsVisible() {
         ((AndroidDriver) driver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
         driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)

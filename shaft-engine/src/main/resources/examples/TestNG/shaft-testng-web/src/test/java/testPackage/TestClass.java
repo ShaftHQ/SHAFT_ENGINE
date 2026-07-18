@@ -13,20 +13,20 @@ public class TestClass {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 
-    String targetUrl = "https://duckduckgo.com/";
+    String targetUrl = "https://en.wikipedia.org/wiki/Main_Page";
 
-    By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
-    By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
-    By firstSearchResult = By.xpath("(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']");
+    By logo = By.xpath("//img[@class='mw-logo-icon']");
+    By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchInput").build(); // synonym to By.id("searchInput");
+    By firstSearchResult = By.xpath("(//div[contains(@class,'mw-search-result-heading')])[1]//a");
 
     @Test
-    public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
+    public void navigateToWikipediaAndAssertBrowserTitleIsDisplayedCorrectly() {
         driver.browser().navigateToURL(targetUrl)
                 .and().assertThat().title().contains(testData.get("expectedTitle"));
     }
 
     @Test
-    public void navigateToDuckDuckGoAndAssertLogoIsDisplayedCorrectly() {
+    public void navigateToWikipediaAndAssertLogoIsDisplayedCorrectly() {
         driver.browser().navigateToURL(targetUrl)
                 .and().element().assertThat(logo).matchesReferenceImage();
     }
@@ -35,9 +35,9 @@ public class TestClass {
     public void searchForQueryAndAssert() {
         driver.browser().navigateToURL(targetUrl)
                 .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER)
-                .and().element().click(firstSearchResult)
-                .and().assertThat().title().contains(testData.get("expectedResultTitle"))
-                .and().element().assertThat(By.tagName("body")).text().contains(testData.get("expectedResultText"));
+                .and().element().click(firstSearchResult);
+        driver.assertThat().browser().title().contains(testData.get("expectedResultTitle"));
+        driver.assertThat().element(By.tagName("body")).text().contains(testData.get("expectedResultText"));
     }
 
     @BeforeClass

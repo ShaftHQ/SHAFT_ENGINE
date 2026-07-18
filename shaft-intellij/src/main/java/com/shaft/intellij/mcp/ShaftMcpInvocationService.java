@@ -35,10 +35,8 @@ import java.util.function.Consumer;
  */
 public final class ShaftMcpInvocationService implements Disposable {
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(90);
-    private static final String DISCONNECTED_MESSAGE = "MCP connection is disconnected. Click 'Reconnect' to restore service.";
 
     private final Project project;
-    private final ShaftMcpConnectionState connectionState;
     private final ShaftMcpClientFactory clientFactory;
     private final Object clientLock = new Object();
     private ShaftMcpStdioClient sharedClient;
@@ -71,7 +69,6 @@ public final class ShaftMcpInvocationService implements Disposable {
      */
     ShaftMcpInvocationService(Project project, ShaftMcpClientFactory clientFactory) {
         this.project = project;
-        this.connectionState = project == null ? null : project.getService(ShaftMcpConnectionState.class);
         this.clientFactory = clientFactory;
     }
 
@@ -314,9 +311,6 @@ public final class ShaftMcpInvocationService implements Disposable {
         List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
-        }
-        if (connectionState != null && !connectionState.isConnected()) {
-            return completed(DISCONNECTED_MESSAGE);
         }
         Optional<Set<String>> known = knownToolNames();
         if (known.isPresent() && !known.get().contains(toolName)) {

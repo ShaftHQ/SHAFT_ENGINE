@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -82,10 +83,15 @@ class CaptureCollectorUtilityTest {
         assertTrue(preload.contains("Delete captured action"));
         assertTrue(preload.contains("pagehide"));
         assertTrue(preload.contains("beforeunload"));
-        // #3536 A1: first-session labeled toolbar.
-        assertTrue(preload.contains("toolbarLabelsDismissed"));
-        assertTrue(preload.contains("show-ctrl-labels"));
-        assertTrue(preload.contains("shaft-capture-labels-dismiss"));
+        // Recorder toolbar buttons are icon-only, with alt text via title/aria-label instead of
+        // visible text labels (no first-session labeled-toolbar affordance).
+        assertTrue(preload.contains("title=\"Add assertion\" aria-label=\"Add assertion\""));
+        assertTrue(preload.contains("title=\"Toggle locator picker\" aria-label=\"Toggle locator picker\""));
+        assertTrue(preload.contains("title=\"Stop recording\" aria-label=\"Stop recording\""));
+        assertFalse(preload.contains("toolbarLabelsDismissed"));
+        assertFalse(preload.contains("show-ctrl-labels"));
+        assertFalse(preload.contains("shaft-capture-labels-dismiss"));
+        assertFalse(preload.contains("ctrl-label"));
         // #3536 B5: step-row overflow menu.
         assertTrue(preload.contains("row-overflow-menu"));
         assertTrue(preload.contains("More actions"));

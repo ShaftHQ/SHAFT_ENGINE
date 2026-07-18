@@ -24,8 +24,6 @@ import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.java.InsertionAnchor;
 import com.shaft.intellij.java.InsertionAnchorResolver;
 import com.shaft.intellij.project.ShaftProjectDetector;
-import com.shaft.intellij.mcp.ShaftMcpConnectionState;
-import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpProgress;
@@ -261,15 +259,6 @@ final class ShaftAssistantPanel extends JPanel {
     private JButton convertSeleniumHint;
     private char contextPopupTrigger;
     private int contextTriggerOffset = -1;
-    private final ShaftMcpConnectionState connectionState;
-    // Captured once so addNotify()/removeNotify() pass the same listener reference to
-    // ShaftMcpConnectionState's add/remove pair; re-evaluating `this::onConnectionStateChanged` at
-    // each call site is not guaranteed to produce an identity-equal object, which silently broke
-    // removeStateChangeListener's List.remove(Object) and leaked one stale listener per
-    // addNotify()/removeNotify() cycle (issue #3621).
-    private final Runnable connectionStateListener = this::onConnectionStateChanged;
-    private ShaftMcpHeartbeat heartbeat;
-    private JButton reconnect;
     private int contextTruncationBoundaryIndex = -1;
     private String modelListFamily = "";
     private boolean modelListRefreshing;
@@ -305,7 +294,6 @@ final class ShaftAssistantPanel extends JPanel {
         this.settings = settings;
         this.chatState = chatState;
         this.configureFlow = setupFlow;
-        this.connectionState = project == null ? null : project.getService(ShaftMcpConnectionState.class);
         setBorder(JBUI.Borders.empty(12));
 
         chatSelector = new JComboBox<>();
@@ -492,9 +480,6 @@ final class ShaftAssistantPanel extends JPanel {
         cancel = button("Cancel", "Cancel assistant request", event -> cancelOrKillCurrent());
         ShaftIconButtons.apply(cancel, ShaftIcons.CANCEL);
         cancel.setEnabled(false);
-        reconnect = button("Reconnect", "Reconnect to MCP server", event -> reconnectMcp());
-        ShaftIconButtons.apply(reconnect, ShaftIcons.RERUN);
-        reconnect.setVisible(false);
         copyLastResponse = button("Copy response", "Copy last assistant response", event -> copyLastResponse());
         ShaftIconButtons.apply(copyLastResponse, ShaftIcons.COPY);
         copyLastResponse.setEnabled(false);
@@ -602,7 +587,6 @@ final class ShaftAssistantPanel extends JPanel {
         actionRow.add(saveTranscript);
         actionRow.add(clearTranscript);
         actionRow.add(rerunLastPrompt);
-        actionRow.add(reconnect);
         actionRow.add(cancel);
 
         JPanel routeRow = wrapRow();
@@ -817,24 +801,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     @Override
-    public void addNotify() {
-        super.addNotify();
-        startHeartbeat();
-        if (connectionState != null) {
-            connectionState.addStateChangeListener(connectionStateListener);
-            // Issue #3624: seed the display from the real current state immediately, instead of
-            // leaving whatever text was last set (or the constructor default) visible until the
-            // first async state-change event arrives.
-            updateConnectionDisplay();
-        }
-    }
-
-    @Override
     public void removeNotify() {
-        stopHeartbeat();
-        if (connectionState != null) {
-            connectionState.removeStateChangeListener(connectionStateListener);
-        }
         // Prevents a stuck-active recording key if the panel closes mid-recording (#3591 item 3).
         ShaftRecordingActivity.stopped(recordingKey);
         super.removeNotify();
@@ -3988,65 +3955,6 @@ final class ShaftAssistantPanel extends JPanel {
     private static String string(JsonObject object, String key, String fallback) {
         JsonElement value = object == null ? null : object.get(key);
         return value != null && value.isJsonPrimitive() ? value.getAsString() : fallback;
-    }
-
-    private synchronized void startHeartbeat() {
-        if (heartbeat == null && project != null && connectionState != null && mcpReady(settings)
-                && ShaftProjectDetector.isShaftProject(project)) {
-            heartbeat = new ShaftMcpHeartbeat(project, connectionState);
-            heartbeat.start();
-        }
-    }
-
-    private synchronized void stopHeartbeat() {
-        if (heartbeat != null) {
-            heartbeat.dispose();
-            heartbeat = null;
-        }
-    }
-
-    private void onConnectionStateChanged() {
-        ApplicationManager.getApplication().invokeLater(this::updateConnectionDisplay);
-    }
-
-    private void updateConnectionDisplay() {
-        if (connectionState == null) {
-            return;
-        }
-        ShaftMcpConnectionState.State state = connectionState.state();
-        reconnect.setVisible(state == ShaftMcpConnectionState.State.DISCONNECTED);
-        if (state == ShaftMcpConnectionState.State.DISCONNECTED && !running) {
-            setStatus(ShaftStatusPresentation.DISCONNECTED_ICON + " MCP disconnected. Click 'Reconnect' to restore.");
-            status.setForeground(ShaftStatusPresentation.disconnected());
-        } else if (state == ShaftMcpConnectionState.State.UNKNOWN && !running) {
-            // Issue #3624: neutral "checking" chip instead of assuming connected while the first
-            // heartbeat probe is still in flight.
-            setStatus(ShaftStatusPresentation.PENDING_ICON + " Checking MCP connection...");
-            status.setForeground(ShaftStatusPresentation.pending());
-        } else if (state == ShaftMcpConnectionState.State.CONNECTED
-                && (status.getText().contains("MCP disconnected") || status.getText().contains("Checking MCP connection"))) {
-            setStatus(READY_STATUS);
-            status.setForeground(javax.swing.UIManager.getColor("Label.foreground"));
-        }
-    }
-
-    private void reconnectMcp() {
-        if (project == null) {
-            return;
-        }
-        ShaftMcpInvocationService invocationService = ShaftMcpInvocationService.getInstance(project);
-        invocationService.testConnection().future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
-            boolean success = error == null && result != null && result.success();
-            if (connectionState != null) {
-                connectionState.setConnected(success);
-            }
-            if (success) {
-                setStatus("Reconnected successfully");
-                showTransientStatus("MCP reconnected. Ready to chat.");
-            } else {
-                setStatus("Reconnect failed. Check the MCP command.");
-            }
-        }));
     }
 
     private enum RecordingBackend {

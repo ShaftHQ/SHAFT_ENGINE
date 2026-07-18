@@ -26,11 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Exercises {@link ShaftMcpInvocationService} lifecycle and dispatch paths not pinned by
  * {@link ShaftMcpInvocationServiceCacheTest} or {@link ShaftMcpInvocationServiceTest}: the
- * public/test-seam constructor, the "not configured" and "disconnected" fail-fast branches of
- * {@code startListTools}/{@code startTool}, {@code dispose()}, {@code peekSharedClientAlive()},
- * a live server dying mid-dispatch (error categorization and shared-client eviction), and the
- * cancel/kill actions on a {@link ShaftMcpInvocation} returned by {@code startListTools}/
- * {@code startTool}.
+ * public/test-seam constructor, the "not configured" fail-fast branch of {@code startListTools}/
+ * {@code startTool}, {@code dispose()}, {@code peekSharedClientAlive()}, a live server dying
+ * mid-dispatch (error categorization and shared-client eviction), and the cancel/kill actions on
+ * a {@link ShaftMcpInvocation} returned by {@code startListTools}/{@code startTool}.
  */
 class ShaftMcpInvocationServiceLifecycleTest {
     private final List<ShaftMcpStdioClient> spawned = new ArrayList<>();
@@ -70,20 +69,6 @@ class ShaftMcpInvocationServiceLifecycleTest {
 
         assertFalse(result.success());
         assertTrue(result.output().contains("Configure the SHAFT MCP stdio command"), result.output());
-    }
-
-    @Test
-    void startToolReportsDisconnectedWhenConnectionStateIsDisconnected() {
-        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
-        connectionState.setConnected(false);
-        ShaftMcpInvocationService service =
-                new ShaftMcpInvocationService(fakeProjectWithConnectionState(connectionState), new RecordingFactory());
-
-        ShaftMcpToolResult result =
-                service.startTool("any_tool", new JsonObject(), settingsForMode("toolsList")).future().join();
-
-        assertFalse(result.success());
-        assertTrue(result.output().contains("disconnected"), result.output());
     }
 
     @Test
@@ -321,25 +306,6 @@ class ShaftMcpInvocationServiceLifecycleTest {
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "getBasePath" -> ".";
                     case "getName" -> "shaft-mcp-lifecycle-test-project";
-                    default -> defaultValue(method.getReturnType());
-                });
-    }
-
-    /**
-     * Same stub as {@link #fakeProject()}, except {@code getService(ShaftMcpConnectionState.class)}
-     * answers with the given (already constructed) connection-state instance, so tests can exercise
-     * {@link ShaftMcpInvocationService#startTool}'s disconnected fail-fast branch, which only
-     * triggers when the constructor was given a non-null project.
-     */
-    private static Project fakeProjectWithConnectionState(ShaftMcpConnectionState connectionState) {
-        return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
-                (proxy, method, arguments) -> switch (method.getName()) {
-                    case "equals" -> proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
-                    case "hashCode" -> System.identityHashCode(proxy);
-                    case "getBasePath" -> ".";
-                    case "getName" -> "shaft-mcp-lifecycle-test-project";
-                    case "getService" -> arguments != null && arguments.length == 1
-                            && arguments[0] == ShaftMcpConnectionState.class ? connectionState : null;
                     default -> defaultValue(method.getReturnType());
                 });
     }

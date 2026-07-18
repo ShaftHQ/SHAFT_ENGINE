@@ -4803,7 +4803,6 @@ class ShaftPanelSetupTest {
                 findByAccessibleName(panel, "Copy assistant transcript", JButton.class),
                 findByAccessibleName(panel, "Clear assistant transcript", JButton.class),
                 findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class),
-                findByAccessibleName(panel, "Reconnect to MCP server", JButton.class),
                 findByAccessibleName(panel, "Cancel assistant request", JButton.class));
         boolean anyVisible = false;
         for (JButton button : actionRowButtons) {

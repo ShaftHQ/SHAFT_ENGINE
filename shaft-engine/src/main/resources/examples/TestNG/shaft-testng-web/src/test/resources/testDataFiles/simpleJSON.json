@@ -1,6 +1,6 @@
 {
-  "searchQuery": "SHAFT_Engine",
-  "expectedTitle": "DuckDuckGo",
-  "expectedResultTitle": "SHAFT",
-  "expectedResultText": "SHAFT"
+  "searchQuery": "Software testing framework",
+  "expectedTitle": "Wikipedia",
+  "expectedResultTitle": "Unit testing",
+  "expectedResultText": "Software testing"
 }
