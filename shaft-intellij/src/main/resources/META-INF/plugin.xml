@@ -21,7 +21,6 @@
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftPluginResetService"/>
         <applicationService serviceImplementation="com.shaft.intellij.mcp.ShaftPluginExecutor"/>
-        <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpConnectionState"/>
         <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
         <projectService serviceImplementation="com.shaft.intellij.ui.ShaftAssistantChatState"/>
         <projectService serviceImplementation="com.shaft.intellij.approval.ToolApprovalService"/>

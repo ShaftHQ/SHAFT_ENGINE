@@ -200,10 +200,8 @@ class ShaftMcpInvocationServiceCacheTest {
 
     /**
      * Minimal {@link Project} stub: only {@code getBasePath()} (read by
-     * {@link ShaftMcpInvocationService}'s private {@code call()} helper) and {@code getService()}
-     * (read by the constructor for {@link ShaftMcpConnectionState}, returning {@code null} so the
-     * connected-state gate stays inert, matching the {@code null}-project test behavior elsewhere in
-     * this package) need real answers.
+     * {@link ShaftMcpInvocationService}'s private {@code call()} helper) and {@code getName()} need
+     * real answers; everything else falls through to {@link #defaultValue}.
      */
     private static Project fakeProject() {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
