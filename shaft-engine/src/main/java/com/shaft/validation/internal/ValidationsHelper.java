@@ -182,6 +182,36 @@ public class ValidationsHelper {
     }
 
     /**
+     * Same as {@link #reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List, long)}
+     * for callers that already attached authoritative comparison evidence through a different channel
+     * before invoking this method (e.g. a Playwright visual-diff image attached directly via
+     * {@code Allure.addAttachment}). When {@code richEvidenceAlreadyAttached} is {@code true}, the
+     * generic "Validation Test Data" Expected/Actual text attachments and the "Assertion evidence"
+     * card are skipped, since they would otherwise redundantly restate a boolean/opaque comparison
+     * result that carries no information beyond what the rich evidence already shows (issue #3804).
+     *
+     * @param validationCategory        the validation category
+     * @param validationState           true when the validation passed
+     * @param expected                  the reported expected value
+     * @param actual                    the reported actual value
+     * @param attachments               report attachments prepared by the backend
+     * @param validationStartTime       epoch milliseconds at which the validation started
+     * @param richEvidenceAlreadyAttached true to skip the generic supplementary evidence attachments
+     */
+    public static void reportValidationState(ValidationEnums.ValidationCategory validationCategory,
+                                             boolean validationState,
+                                             Object expected,
+                                             Object actual,
+                                             List<List<Object>> attachments,
+                                             long validationStartTime,
+                                             boolean richEvidenceAlreadyAttached) {
+        var validationsHelper = new ValidationsHelper(validationCategory);
+        validationsHelper.validationStartTime = validationStartTime;
+        validationsHelper.reportValidationState(validationState, expected, actual, null, null, attachments,
+                false, richEvidenceAlreadyAttached);
+    }
+
+    /**
      * Automatically formats an AssertionError by detecting the package from the stack trace.
      * This method extracts the package from the first stack trace element that is not from
      * framework packages (org.testng, java, com.shaft.validation.internal, etc.)
@@ -1021,6 +1051,10 @@ public class ValidationsHelper {
     }
 
     private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot) {
+        reportValidationState(validationState, expected, actual, driver, locator, attachments, skipDefaultScreenshot, false);
+    }
+
+    private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot, boolean richEvidenceAlreadyAttached) {
         TraceEventRecorder.Event traceEvent = TraceEventRecorder.start(
                 "validation",
                 this.validationCategoryString,
@@ -1064,7 +1098,7 @@ public class ValidationsHelper {
                 List<Object> pageSourceAttachment = Arrays.asList(this.validationCategoryString, logMessage, pageSnapshot);
                 attachments.add(pageSourceAttachment);
             }
-        } else {
+        } else if (!richEvidenceAlreadyAttached) {
             // prepare testData attachments; always attach expected/actual so every checkpoint carries its evidence
             List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
                     String.valueOf(expected));
@@ -1077,11 +1111,15 @@ public class ValidationsHelper {
         // Single primary assertion-evidence card (issue #3502 A+B): one HTML block carrying the
         // redacted expected/actual plus a diff, placed first so it headlines the Allure step. The
         // existing Expected/Actual text attachments stay (dual-write) so consumers that scrape
-        // those names keep working.
-        String evidenceCard = AssertionEvidenceReporter.renderCard(
-                this.validationCategoryString, validationState, expected, actual);
-        if (!evidenceCard.isBlank()) {
-            attachments.add(0, Arrays.asList("Assertion evidence", "assertion-evidence.html", evidenceCard));
+        // those names keep working. Skipped when the caller already attached authoritative rich
+        // comparison evidence elsewhere (e.g. a Playwright visual-diff image) — issue #3804: the
+        // card would otherwise redundantly restate a boolean/opaque result.
+        if (!richEvidenceAlreadyAttached) {
+            String evidenceCard = AssertionEvidenceReporter.renderCard(
+                    this.validationCategoryString, validationState, expected, actual);
+            if (!evidenceCard.isBlank()) {
+                attachments.add(0, Arrays.asList("Assertion evidence", "assertion-evidence.html", evidenceCard));
+            }
         }
         // add attachments
         long profilerAttachmentStart = !attachments.isEmpty() && FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;

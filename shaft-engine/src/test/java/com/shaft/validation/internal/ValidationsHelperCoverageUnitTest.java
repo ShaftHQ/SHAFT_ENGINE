@@ -171,4 +171,25 @@ public class ValidationsHelperCoverageUnitTest {
         Assert.assertTrue(captured.stream().anyMatch(attachment -> "Actual Value".equals(attachment.get(1))),
                 "Legacy Actual Value attachment must remain.");
     }
+
+    @Test(description = "reportValidationState must not attach redundant Expected/Actual text or an " +
+            "Assertion evidence card when the caller already attached rich comparison evidence " +
+            "(e.g. a Playwright visual-diff image) — issue #3804")
+    public void reportValidationStateSkipsSupplementaryEvidenceWhenRichEvidenceAlreadyAttached() {
+        List<List<Object>> captured = new ArrayList<>();
+        try (MockedStatic<ReportManagerHelper> reportMock = Mockito.mockStatic(ReportManagerHelper.class)) {
+            reportMock.when(() -> ReportManagerHelper.attach(any()))
+                    .thenAnswer(invocation -> {
+                        captured.addAll(invocation.getArgument(0));
+                        return null;
+                    });
+
+            ValidationsHelper.reportValidationState(ValidationCategory.HARD_ASSERT, true,
+                    true, true, new ArrayList<>(), System.currentTimeMillis(), true);
+        }
+
+        Assert.assertTrue(captured.isEmpty(),
+                "No Expected/Actual text or Assertion evidence card should be attached when the "
+                        + "caller already reported rich comparison evidence through another channel.");
+    }
 }
