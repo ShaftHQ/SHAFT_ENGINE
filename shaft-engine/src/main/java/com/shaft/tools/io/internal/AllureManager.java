@@ -1256,21 +1256,7 @@ public class AllureManager {
      */
     private static void writePatchedIndex(Path indexPath, IndexMarkerScan scan, String headPatch, String bodyPatch,
                                            String appRootPatch) throws IOException {
-        List<IndexInsertion> insertions = new ArrayList<>(3);
-        if (!headPatch.isEmpty()) {
-            long offset = scan.headEndOffset() >= 0 ? scan.headEndOffset() : 0L;
-            insertions.add(new IndexInsertion(offset, headPatch.getBytes(StandardCharsets.UTF_8)));
-        }
-        if (!appRootPatch.isEmpty()) {
-            long offset = scan.appRootOffset() >= 0 ? scan.appRootOffset()
-                    : (scan.bodyEndOffset() >= 0 ? scan.bodyEndOffset() : Long.MAX_VALUE);
-            insertions.add(new IndexInsertion(offset, appRootPatch.getBytes(StandardCharsets.UTF_8)));
-        }
-        if (!bodyPatch.isEmpty()) {
-            long offset = scan.bodyEndOffset() >= 0 ? scan.bodyEndOffset() : Long.MAX_VALUE;
-            insertions.add(new IndexInsertion(offset, bodyPatch.getBytes(StandardCharsets.UTF_8)));
-        }
-        insertions.sort(Comparator.comparingLong(IndexInsertion::offset));
+        List<IndexInsertion> insertions = buildIndexInsertions(scan, headPatch, bodyPatch, appRootPatch);
 
         Path tempPath = indexPath.resolveSibling(indexPath.getFileName() + ".shaft-patch.tmp");
         try {
@@ -1292,6 +1278,31 @@ public class AllureManager {
         } catch (AtomicMoveNotSupportedException e) {
             Files.move(tempPath, indexPath, StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    /**
+     * Assembles the offset-sorted insertion list for {@link #writePatchedIndex}: {@code headPatch}
+     * before {@code </head>} (or offset 0 if absent), {@code appRootPatch} before
+     * {@code <div id="app"} (falling back to the {@code bodyPatch} insertion point), and
+     * {@code bodyPatch} before {@code </body>} (or EOF if absent).
+     */
+    private static List<IndexInsertion> buildIndexInsertions(IndexMarkerScan scan, String headPatch, String bodyPatch,
+                                                             String appRootPatch) {
+        long bodyInsertionOffset = scan.bodyEndOffset() >= 0 ? scan.bodyEndOffset() : Long.MAX_VALUE;
+        List<IndexInsertion> insertions = new ArrayList<>(3);
+        if (!headPatch.isEmpty()) {
+            long offset = scan.headEndOffset() >= 0 ? scan.headEndOffset() : 0L;
+            insertions.add(new IndexInsertion(offset, headPatch.getBytes(StandardCharsets.UTF_8)));
+        }
+        if (!appRootPatch.isEmpty()) {
+            long offset = scan.appRootOffset() >= 0 ? scan.appRootOffset() : bodyInsertionOffset;
+            insertions.add(new IndexInsertion(offset, appRootPatch.getBytes(StandardCharsets.UTF_8)));
+        }
+        if (!bodyPatch.isEmpty()) {
+            insertions.add(new IndexInsertion(bodyInsertionOffset, bodyPatch.getBytes(StandardCharsets.UTF_8)));
+        }
+        insertions.sort(Comparator.comparingLong(IndexInsertion::offset));
+        return insertions;
     }
 
     /**
