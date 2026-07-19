@@ -247,6 +247,14 @@ final class ShaftAssistantPanel extends JPanel {
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
     private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
+    /**
+     * Session JSON path for the active {@code capture_api_*} recording (issue #3739). Unlike
+     * {@link #activeCaptureRecordingPath}/{@link #activePlaywrightRecordingPath}, {@code
+     * capture_api_start} returns no start-time output path -- the persisted session path only
+     * arrives in the {@code capture_api_stop} result's {@code CaptureStatus.outputPath}, extracted
+     * in {@link #showCaptureStopDiagnosticIfPending}.
+     */
+    private String activeApiRecordingPath = "";
     private RecordingBackend activeRecordingBackend = RecordingBackend.WEBDRIVER;
     private javax.swing.JPanel emptyStateChips;
     /**
@@ -1885,14 +1893,41 @@ final class ShaftAssistantPanel extends JPanel {
 
     private boolean showCaptureStopDiagnosticIfPending(
             String toolName, boolean success, String markdown, String output) {
-        boolean isCaptureStopTool = "capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName);
+        boolean isCaptureStopTool = "capture_stop".equals(toolName)
+                || "playwright_record_stop".equals(toolName)
+                || "capture_api_stop".equals(toolName);
         if (!success || !generateCaptureReviewAfterStop || !isCaptureStopTool) {
             return false;
         }
         stopCaptureStartDiagnostic();
+        if ("capture_api_stop".equals(toolName)) {
+            String sessionPath = apiSessionPathFromStopOutput(output);
+            if (sessionPath.isBlank()) {
+                // Issue #3739: capture_api_generate needs a persisted session path that this stop
+                // result did not report -- skip the generate call rather than send it a blank
+                // sessionPath, and clear the armed flag so a later unrelated stop can't misfire it.
+                generateCaptureReviewAfterStop = false;
+                showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown
+                        + "\n\n_No session path was returned by the stop result, so no code could be "
+                        + "generated automatically. Try stopping the recording again._", output);
+                return true;
+            }
+            activeApiRecordingPath = sessionPath;
+        }
         showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown, output);
         startCaptureCodeReview();
         return true;
+    }
+
+    /**
+     * Extracts the persisted session JSON path from a {@code capture_api_stop} result's {@code
+     * CaptureStatus} payload (issue #3739) -- the same parse {@link ApiRecordingSessionPanel} uses
+     * to feed its own Generate button, so the chat-driven record -> stop -> generate loop hands
+     * {@code capture_api_generate} the same sessionPath the Advanced-UI panel would.
+     */
+    private static String apiSessionPathFromStopOutput(String output) {
+        JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(output);
+        return status != null && status.has("outputPath") ? status.get("outputPath").getAsString() : "";
     }
 
     private void showFinalToolResult(String toolName, boolean success, String markdown, String output) {
@@ -3429,10 +3464,14 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private AssistantCommand.Invocation routeNaturalStopToActiveRecorder(String promptText, AssistantCommand.Invocation invocation) {
-        if (activeRecordingBackend == RecordingBackend.PLAYWRIGHT
-                && "capture_stop".equals(invocation.toolName())
-                && AssistantCommand.isStopRecording(promptText)) {
+        if (!"capture_stop".equals(invocation.toolName()) || !AssistantCommand.isStopRecording(promptText)) {
+            return invocation;
+        }
+        if (activeRecordingBackend == RecordingBackend.PLAYWRIGHT) {
             return AssistantCommand.stopPlaywrightRecording();
+        }
+        if (activeRecordingBackend == RecordingBackend.API) {
+            return AssistantCommand.stopApiRecording();
         }
         return invocation;
     }
@@ -3457,10 +3496,24 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewGenerationRunning = false;
             return;
         }
-        if (("capture_stop".equals(invocation.toolName()) || "playwright_record_stop".equals(invocation.toolName()))
+        if ("capture_api_start".equals(invocation.toolName())) {
+            // Issue #3739: capture_api_start has no start-time output path (it arrives only in the
+            // capture_api_stop result), and -- like playwright_record_start -- it never schedules
+            // capture_start's WebDriver-specific startup diagnostic.
+            activeRecordingBackend = RecordingBackend.API;
+            activeApiRecordingPath = "";
+            clearPendingCaptureReview();
+            generateCaptureReviewAfterStop = false;
+            captureReviewGenerationRunning = false;
+            return;
+        }
+        if (("capture_stop".equals(invocation.toolName()) || "playwright_record_stop".equals(invocation.toolName())
+                || "capture_api_stop".equals(invocation.toolName()))
                 && AssistantCommand.isStopRecording(promptText)) {
             if ("playwright_record_stop".equals(invocation.toolName())) {
                 activeRecordingBackend = RecordingBackend.PLAYWRIGHT;
+            } else if ("capture_api_stop".equals(invocation.toolName())) {
+                activeRecordingBackend = RecordingBackend.API;
             }
             stopCaptureStartDiagnostic();
             generateCaptureReviewAfterStop = true;
@@ -3472,9 +3525,13 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewGenerationRunning = true;
         setRunning(true, "Generating review code...");
         RecordingBackend reviewBackend = activeRecordingBackend;
-        lastReviewSessionPath = reviewBackend == RecordingBackend.PLAYWRIGHT
-                ? activePlaywrightRecordingPath
-                : activeCaptureRecordingPath;
+        if (reviewBackend == RecordingBackend.PLAYWRIGHT) {
+            lastReviewSessionPath = activePlaywrightRecordingPath;
+        } else if (reviewBackend == RecordingBackend.API) {
+            lastReviewSessionPath = activeApiRecordingPath;
+        } else {
+            lastReviewSessionPath = activeCaptureRecordingPath;
+        }
         AssistantCommand.Invocation invocation = recordingCodeReviewInvocation(reviewBackend);
         activeRecordingBackend = RecordingBackend.WEBDRIVER;
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
@@ -3483,6 +3540,10 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private AssistantCommand.Invocation recordingCodeReviewInvocation(RecordingBackend backend) {
+        if (backend == RecordingBackend.API) {
+            return AssistantCommand.Invocation.tool(
+                    "capture_api_generate", AssistantCommand.apiCaptureGenerate(activeApiRecordingPath));
+        }
         boolean playwright = backend == RecordingBackend.PLAYWRIGHT;
         return AssistantCommand.Invocation.tool(
                 playwright ? "playwright_recording_code_blocks" : "capture_code_blocks",
@@ -3495,7 +3556,8 @@ final class ShaftAssistantPanel extends JPanel {
         return "capture_code_blocks".equals(toolName)
                 || "playwright_recording_code_blocks".equals(toolName)
                 || "capture_generate_replay".equals(toolName)
-                || "playwright_capture_generate_replay".equals(toolName);
+                || "playwright_capture_generate_replay".equals(toolName)
+                || "capture_api_generate".equals(toolName);
     }
 
     private void showPendingCaptureReview() {
@@ -4283,7 +4345,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     private enum RecordingBackend {
         WEBDRIVER,
-        PLAYWRIGHT
+        PLAYWRIGHT,
+        API
     }
 
     private record ToolEvidence(String toolName, String payload, String createdAt) {

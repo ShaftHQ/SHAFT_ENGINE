@@ -226,6 +226,103 @@ class ShaftPanelSetupTest {
                         invocation.arguments().get("recordingPath").getAsString()));
     }
 
+    // ---- Issue #3739: chat-side capture_api_* recording gets the same deterministic
+    // record -> stop -> generate loop as the WebDriver/Playwright recorders. ----
+
+    @Test
+    void assistantTracksApiRecordingStartAndReroutesNaturalStopToApiStop() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        AssistantCommand.Invocation apiStart =
+                AssistantCommand.Invocation.tool("capture_api_start", new JsonObject());
+
+        rememberCaptureInvocation(panel, "/mcp capture_api_start {}", apiStart);
+
+        assertEquals(recordingBackend("API"), getField(panel, "activeRecordingBackend"));
+
+        AssistantCommand.Invocation naturalStop = AssistantCommand.fromPrompt(
+                "stop recording", "CODEX", "ASK", ".", "", false);
+        Method route = ShaftAssistantPanel.class.getDeclaredMethod(
+                "routeNaturalStopToActiveRecorder", String.class, AssistantCommand.Invocation.class);
+        route.setAccessible(true);
+        AssistantCommand.Invocation routedStop = (AssistantCommand.Invocation) route.invoke(
+                panel, "stop recording", naturalStop);
+
+        assertAll(
+                () -> assertEquals("capture_stop", naturalStop.toolName()),
+                () -> assertEquals("capture_api_stop", routedStop.toolName()),
+                () -> assertFalse(routedStop.arguments().get("discard").getAsBoolean()));
+    }
+
+    @Test
+    void armedApiStopExtractsSessionPathAndBuildsGenerateInvocationWithPanelDefaults() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeRecordingBackend", recordingBackend("API"));
+        setField(panel, "generateCaptureReviewAfterStop", true);
+
+        String output = mcpText("""
+                {
+                  "state": "STOPPED",
+                  "outputPath": "recordings/intellij-api-capture.json"
+                }
+                """);
+        Method showDiagnostic = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showCaptureStopDiagnosticIfPending", String.class, boolean.class, String.class, String.class);
+        showDiagnostic.setAccessible(true);
+        // Extracting the session path happens before startCaptureCodeReview()'s real MCP dispatch,
+        // which NPEs against the null test project -- mirrors
+        // directCodegenToolDispatchArmsSameStickyReviewGateAsRecordFlow's null-project pattern, so
+        // the state assertions below still hold even though the invoke() itself throws.
+        assertThrows(InvocationTargetException.class,
+                () -> showDiagnostic.invoke(panel, "capture_api_stop", true, "Stopped.", output));
+
+        assertEquals("recordings/intellij-api-capture.json", getField(panel, "activeApiRecordingPath"));
+
+        Method review = ShaftAssistantPanel.class.getDeclaredMethod(
+                "recordingCodeReviewInvocation", Class.forName("com.shaft.intellij.ui.ShaftAssistantPanel$RecordingBackend"));
+        review.setAccessible(true);
+        AssistantCommand.Invocation invocation =
+                (AssistantCommand.Invocation) review.invoke(panel, recordingBackend("API"));
+        JsonObject arguments = invocation.arguments();
+
+        assertAll(
+                () -> assertEquals("capture_api_generate", invocation.toolName()),
+                () -> assertEquals("recordings/intellij-api-capture.json", arguments.get("sessionPath").getAsString()),
+                () -> assertEquals("generated-tests", arguments.get("outputDirectory").getAsString()),
+                () -> assertEquals("tests.generated", arguments.get("packageName").getAsString()),
+                () -> assertEquals("", arguments.get("className").getAsString()),
+                () -> assertEquals("SCENARIO", arguments.get("style").getAsString()),
+                () -> assertEquals("SCHEMA", arguments.get("validationDepth").getAsString()),
+                () -> assertFalse(arguments.get("overwrite").getAsBoolean()),
+                () -> assertFalse(arguments.get("replay").getAsBoolean()),
+                () -> assertEquals("", arguments.get("openApiSpecPath").getAsString()),
+                () -> assertEquals(0, arguments.getAsJsonArray("excludedTransactionIds").size()),
+                () -> assertEquals(0, arguments.getAsJsonArray("pinnedJsonPaths").size()));
+    }
+
+    @Test
+    void armedApiStopWithBlankSessionPathSkipsGenerateAndExplains() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeRecordingBackend", recordingBackend("API"));
+        setField(panel, "generateCaptureReviewAfterStop", true);
+
+        String output = mcpText("""
+                {
+                  "state": "STOPPED",
+                  "outputPath": ""
+                }
+                """);
+        Method showDiagnostic = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showCaptureStopDiagnosticIfPending", String.class, boolean.class, String.class, String.class);
+        showDiagnostic.setAccessible(true);
+        boolean handled = (Boolean) showDiagnostic.invoke(panel, "capture_api_stop", true, "Stopped.", output);
+
+        assertAll(
+                () -> assertTrue(handled),
+                () -> assertFalse((Boolean) getField(panel, "generateCaptureReviewAfterStop")),
+                () -> assertFalse((Boolean) getField(panel, "captureReviewGenerationRunning")),
+                () -> assertTrue(containsText(panel, "session path")));
+    }
+
     // ---- Attach-to-prompt affordances (issue #3727): current file / all open files / a disk file /
     // an image, rendered as removable chips near the composer and folded into the outbound prompt
     // text sent to the local-agent or cloud-provider MCP tool. ----
