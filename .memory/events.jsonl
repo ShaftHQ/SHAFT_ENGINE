@@ -387,3 +387,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.c-program-files-java-jdk-21-has-a-stale-cds-archive-that-breaks-gradles-java-version-probe-unrelated-to-daemon-jvm-criteria-guards","timestamp":"2026-07-19T18:39:23+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.restoring-the-pre-test-lookandfeel-instance-does-not-un-stick-intellijs-defaulttreeui-sticky-latch","timestamp":"2026-07-19T19:02:45+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.rgb-hue-heuristics-isblueish-isgreenish-isyellowish-need-a-dominance-threshold-or-a-near-gray-leaked-color-reads-as-a-hue","timestamp":"2026-07-19T19:02:45+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shafthq-github-io-classic-heading-id-breaks-acorn-mdx-parse-on-md-files-use-heading-id-instead","timestamp":"2026-07-19T21:43:50+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-issue-3786-fixed-shafttestspaneltest-broke-under-full-suite-screenshotdir-because-a-second-screenshot-test-never-restored-its-installed-l-f","timestamp":"2026-07-19T21:43:50+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.restoring-the-pre-test-lookandfeel-instance-does-not-un-stick-intellijs-defaulttreeui-sticky-latch","timestamp":"2026-07-19T21:54:55+03:00"}
