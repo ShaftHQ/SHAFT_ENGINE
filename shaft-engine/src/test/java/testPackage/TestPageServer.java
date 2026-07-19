@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.concurrent.Executors;
 
 public final class TestPageServer {
+    private static final long MAX_REQUESTED_DELAY_MILLIS = 5_000L;
     private static final Object LOCK = new Object();
     private static volatile HttpServer server;
     private static volatile int port;
@@ -68,7 +69,35 @@ public final class TestPageServer {
                 return;
             }
 
+            applyRequestedDelay(exchange.getRequestURI().getQuery());
             send(exchange, 200, Files.readAllBytes(fixture), contentType(fixture));
+        }
+    }
+
+    /**
+     * Fixtures that need to prove readiness waits hold for a genuinely in-flight request (rather
+     * than a JS-only trick that resolves instantly) can append {@code ?delayMs=N} to a
+     * same-file/self-fetch URL to make this server hold the response open for {@code N}
+     * milliseconds (capped at {@link #MAX_REQUESTED_DELAY_MILLIS}) before replying. Requests
+     * without the parameter are served immediately, unaffected.
+     */
+    private static void applyRequestedDelay(String query) {
+        if (query == null || query.isBlank()) {
+            return;
+        }
+        for (String param : query.split("&")) {
+            String[] keyValue = param.split("=", 2);
+            if (keyValue.length == 2 && "delayMs".equals(keyValue[0])) {
+                try {
+                    long delayMillis = Math.min(MAX_REQUESTED_DELAY_MILLIS, Math.max(0L, Long.parseLong(keyValue[1])));
+                    Thread.sleep(delayMillis);
+                } catch (NumberFormatException ignored) {
+                    // malformed delayMs; serve immediately
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                return;
+            }
         }
     }
 

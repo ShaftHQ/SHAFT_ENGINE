@@ -13,6 +13,7 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.browser.internal.ScrollSweepPlanner;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -1390,6 +1391,89 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     public BrowserActions waitForLazyLoading() {
         JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
         return this;
+    }
+
+    /**
+     * Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+     * steps, up to {@code timeouts.lazyLoadingScrollSweepMaxSteps}, default {@code 20}), waiting
+     * for lazy-loading readiness between steps, to force scroll-triggered content (infinite
+     * lists, IntersectionObserver sections that only hydrate once visible) to fully load before
+     * full-page assertions or screenshots. Stops early once the page stops growing and the
+     * viewport bottom has been reached ({@link com.shaft.gui.browser.internal.ScrollSweepPlanner}).
+     *
+     * <p>Use this right before assertions or screenshots on pages known to lazy-load additional
+     * content on scroll -- it is never invoked automatically from any readiness wait, since
+     * sweeping the whole page is not a safe default before an arbitrary action.
+     *
+     * <p><b>Mutates scroll position while it runs</b>: the page is scrolled down step by step,
+     * then restored to its original scroll position when the sweep finishes.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com/infinite-list")
+     *       .and().scrollToLoadAll()
+     *       .and().captureScreenshot();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions scrollToLoadAll() {
+        var driver = driverFactoryHelper.getDriver();
+        var js = (JavascriptExecutor) driver;
+        long originalScrollY = readLong(js, "return window.pageYOffset || document.documentElement.scrollTop || 0;");
+        int maxSteps = Math.max(0, SHAFT.Properties.timeouts.lazyLoadingScrollSweepMaxSteps());
+
+        int completedSteps = 0;
+        boolean bottomReached = false;
+        try {
+            long previousPageHeight = readPageHeight(js);
+            while (completedSteps < maxSteps) {
+                long viewportHeight = readLong(js, "return window.innerHeight || 0;");
+                js.executeScript("window.scrollBy(0, arguments[0]);", viewportHeight);
+                JavaScriptWaitManager.waitForLazyLoading(driver);
+                completedSteps++;
+
+                long currentPageHeight = readPageHeight(js);
+                long scrollY = readLong(js, "return window.pageYOffset || document.documentElement.scrollTop || 0;");
+                bottomReached = (scrollY + viewportHeight) >= currentPageHeight;
+
+                boolean stop = ScrollSweepPlanner.shouldStop(
+                        completedSteps, maxSteps, previousPageHeight, currentPageHeight, bottomReached);
+                previousPageHeight = currentPageHeight;
+                if (stop) {
+                    break;
+                }
+            }
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "scroll sweep failed after " + completedSteps + " step(s)",
+                    rootCauseException);
+        } finally {
+            // Best-effort restore even when a step or the failure report throws; never mask the
+            // original failure with a restore failure.
+            try {
+                js.executeScript("window.scrollTo(0, arguments[0]);", originalScrollY);
+            } catch (Exception ignored) {
+                // The driver/session may already be unusable; the sweep outcome was reported above.
+            }
+        }
+        browserActionsHelper.passAction(driver, "Scroll sweep completed after " + completedSteps
+                + " step(s); bottom reached: " + bottomReached);
+        return this;
+    }
+
+    private static long readLong(JavascriptExecutor js, String script) {
+        Object value = js.executeScript(script);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
+    }
+
+    private static long readPageHeight(JavascriptExecutor js) {
+        return readLong(js, "return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, "
+                + "document.body.offsetHeight, document.documentElement.offsetHeight, "
+                + "document.body.clientHeight, document.documentElement.clientHeight);");
     }
 
     /**

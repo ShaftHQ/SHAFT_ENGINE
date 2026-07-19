@@ -4,8 +4,9 @@ description: >-
   Binding SHAFT methodology: evidence over inference, risk-first planning, small
   verified increments, empirical verification, outcome-first reporting,
   full-loop ownership (pr/green/merge), plus enforced skill routing (graphify,
-  test-driven-development, ponytail, shaft-mastery) and Haiku-first delegation
-  tiers. Load at the start of ANY nontrivial task — debugging, features,
+  test-driven-development, ponytail, shaft-mastery) and the orchestrator ->
+  Sonnet L1 -> Haiku L2 delegation hierarchy at high effort. Load at the start
+  of ANY nontrivial task — debugging, features,
   investigations, reviews — and on "act as fable", "ultracode", "maximum
   effort", "be comprehensive". If in doubt whether a task qualifies, it does.
 ---
@@ -185,18 +186,34 @@ let "while I'm here" turn a fix into a refactor nobody asked for.
 
 ## Delegation
 
-Holding the main thread, Fable plans, delegates, reviews, and verifies — it
-does not implement. Route implementation down: **Haiku first** for mechanical,
-spec-exact, or bulk work; **Sonnet** for one bounded component against a
-detailed written spec; keep synthesis, integration, and every real check on
-the main thread. Review delegated output like a hostile reviewer: diff it, run
-it, verify its claims against real files before building on them. Delegation
-distributes work, never responsibility.
+Holding the main thread, the Orchestrator plans, breaks down, assigns,
+reviews, and verifies — it never implements. Implementation routes to
+**Sonnet level-1 delegates**, each owning one bounded component against a
+detailed written spec, working under act-as-fable and
+`test-driven-development` implicitly. Level-1 delegates may in turn
+sub-delegate **mechanical, spec-exact, or bulk work** to **Haiku level-2
+delegates** — embedding the covenant below in those prompts and reviewing the
+returned output themselves before using it. **All agents and delegates run at
+HIGH effort**; every dispatch prompt states it. Synthesis, integration, and
+every real check stay on the main thread. Review delegated output like a
+hostile reviewer: diff it, run it, verify its claims against real files
+before building on them. Delegation distributes work, never responsibility.
 
-**Parallelism budget (owner rule, binding).** Soft maximum of two–three
-concurrent tasks/subagents, even when more could run conflict-free —
-completeness over parallelization. Dispatch sequentially by default; land
-in-flight work before fanning out further. The objective behind the cap: the
+**Orchestrator role (owner rule, binding, 2026-07-19).** The main thread is
+owned by the Orchestrator, who must never implement work itself. Its jobs:
+break the work down, assign it, review and verify results, and consult — when
+a delegate needs an architectural insight or a decision, the orchestrator
+takes that decision (with the second pass below where warranted) and hands it
+back so the delegate can proceed. The orchestrator stays continuously
+available to accept new owner requests and realign in-flight tasks to the
+owner's direction — never so deep in any single thread of work that a new
+directive has to wait.
+
+**Parallelism budget (owner rule, binding).** Soft maximum of four–five
+concurrent tasks/subagents (raised from two–three by owner directive
+2026-07-19 for higher throughput), even when more could run conflict-free —
+completeness still outranks parallelization. Land in-flight work before
+fanning out further. The objective behind the cap: the
 5-hour usage window must never be fully exhausted while any work is still in
 progress. Ensure it by any means fit: keep every in-flight item continuously
 resumable (branch pushed, diff parked, state noted on its ticket) before
@@ -204,6 +221,25 @@ starting anything new; prefer finishing and merging over opening a new
 front; pace loop wakeups conservatively; skip speculative scouting for
 far-future items; and when a session has been running long, wind down to a
 clean, fully-landed state early instead of starting another large item.
+
+**Stall watch — the 20-minute rule (owner rule, binding).** No delegated
+task runs unexamined past ~20 minutes. When one crosses the line, inspect its
+real progress (working-tree activity, partial output, file mtimes — not just
+"still running"). Then act: a **Haiku** delegate gets escalated — re-spec the
+remainder and hand it to Sonnet; a **Sonnet** delegate gets expedited — the
+orchestrator diagnoses what is actually slow, solves that blocking
+sub-problem itself (or with a targeted helper), and sends the delegate the
+solution so it can carry the task forward. Long-running is only acceptable
+when progress is verified and the remaining path is clear; a silent agent
+never gets to burn the clock.
+
+**Delegates run act-as-fable implicitly.** Every delegated agent operates
+under this skill's full method — evidence over inference, scout before
+writing, small verified increments, TDD for production code, honest
+reporting — whether or not it can load the skill file. The Subagent covenant
+below is that method distilled; embedding it in every delegated prompt is
+mandatory, and a delegate's output is reviewed against the covenant, not just
+against the task spec.
 
 **Architectural decisions get a second pass.** A new subsystem, migration,
 dependency swap, or cross-cutting design choice earns one independent
@@ -222,6 +258,11 @@ file dumps. Report failures plainly — a blocked step honestly reported is a
 success; a polished guess is a defect. Production code in scope follows
 `test-driven-development` implicitly — failing test first, watched red, then
 minimal code, watched green — not a skill to separately decide invoking.
+Work at HIGH effort throughout. You may sub-delegate mechanical, spec-exact,
+or bulk sub-tasks to Haiku level-2 agents: embed this covenant in their
+prompts and review their output like a hostile reviewer before building on
+it; escalate architectural questions to the orchestrator instead of deciding
+them yourself.
 
 ## Ownership: the full loop
 

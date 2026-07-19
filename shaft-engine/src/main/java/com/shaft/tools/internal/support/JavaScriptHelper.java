@@ -340,13 +340,17 @@ public enum JavaScriptHelper {
             }
             return window._shaftNetworkRequests || 0;"""),
     BROWSER_READINESS_STATE("""
-            (function() {
+            return (function() {
               if (!window._shaftNetworkTracker) {
                 window._shaftNetworkTracker = true;
                 window._shaftNetworkRequests = 0;
                 window._shaftNetworkActivitySequence = 0;
+                window._shaftBeaconCount = 0;
+                window._shaftEventSourceCount = 0;
+                window._shaftWebSocketCount = 0;
                 var markActivity = function() {
                   window._shaftNetworkActivitySequence = (window._shaftNetworkActivitySequence || 0) + 1;
+                  window._shaftIdleSeen = false;
                 };
                 var finishRequest = function() {
                   window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1);
@@ -377,6 +381,91 @@ public enum JavaScriptHelper {
                     }
                   };
                 }
+                // navigator.sendBeacon is fire-and-forget (no XHR/fetch involved), so without
+                // this patch beacon calls made during the readiness wait were invisible to the
+                // network-activity marker. Beacons complete synchronously from the page's point
+                // of view, so we only bump the activity sequence (like finishRequest) rather than
+                // tracking an in-flight count.
+                if (navigator.sendBeacon) {
+                  var origSendBeacon = navigator.sendBeacon;
+                  navigator.sendBeacon = function() {
+                    window._shaftBeaconCount = (window._shaftBeaconCount || 0) + 1;
+                    markActivity();
+                    return origSendBeacon.apply(navigator, arguments);
+                  };
+                }
+                // EventSource/WebSocket are long-lived connections, not discrete requests: a page
+                // can hold one open indefinitely (SSE feed, chat socket) with no intention of ever
+                // going "network idle". We only observe how many were constructed -- callers may
+                // use this for diagnostics -- and deliberately never feed it into
+                // activeRequests/networkActivityMarker: long-lived connections must never pin the quiet window.
+                if (window.EventSource) {
+                  var OrigEventSource = window.EventSource;
+                  window.EventSource = new Proxy(OrigEventSource, {
+                    construct: function(target, args) {
+                      window._shaftEventSourceCount = (window._shaftEventSourceCount || 0) + 1;
+                      return Reflect.construct(target, args);
+                    }
+                  });
+                }
+                if (window.WebSocket) {
+                  var OrigWebSocket = window.WebSocket;
+                  window.WebSocket = new Proxy(OrigWebSocket, {
+                    construct: function(target, args) {
+                      window._shaftWebSocketCount = (window._shaftWebSocketCount || 0) + 1;
+                      return Reflect.construct(target, args);
+                    }
+                  });
+                }
+              }
+              // Main-thread idle signal (requestIdleCallback -> requestAnimationFrame -> immediate
+              // fallback). Semantics: window._shaftIdleSeen starts/returns to false whenever
+              // markActivity() runs (real XHR/fetch/beacon activity implies the engine was just
+              // busy dispatching it), and flips true once a probe callback actually fires. Exactly
+              // one probe is kept pending at a time, re-armed on every readiness poll below, so the
+              // signal catches up shortly after the page goes quiet instead of only sampling once.
+              // In this increment mainThreadIdleSeen is returned as an OBSERVED field only and is
+              // never a hard gate on the documentReady/jQuery/Angular/network pass condition or
+              // folded into networkActivityMarker: virtually every page reaches an idle callback
+              // within milliseconds of load, so gating on it would add a universal false-activity
+              // blip, and pages that deliberately keep the main thread busy (tickers, game loops)
+              // must never be hung waiting for an idle tick that never comes. A future increment
+              // may fold it in strictly as an additional non-blocking marker component.
+              if (!window._shaftIdleArmed) {
+                window._shaftIdleArmed = true;
+                var shaftArmIdleProbe = function() {
+                  window._shaftIdleSeen = true;
+                  window._shaftIdleArmed = false;
+                };
+                if (window.requestIdleCallback) {
+                  window.requestIdleCallback(shaftArmIdleProbe);
+                } else if (window.requestAnimationFrame) {
+                  window.requestAnimationFrame(shaftArmIdleProbe);
+                } else {
+                  setTimeout(shaftArmIdleProbe, 0);
+                }
+              }
+              // DOM-mutation tracking for the (opt-in, default-off) DOM-stability quiet window.
+              // Always installed -- the observer itself is cheap and installing it unconditionally
+              // keeps this snippet static (no per-call templating) -- but childList/subtree only:
+              // attribute and characterData mutations are excluded so that carousels, tickers, and
+              // clocks that merely toggle an attribute or repaint text content don't perpetually
+              // reset a DOM-stability wait that opts in via timeouts.lazyLoadingDomStabilityQuietWindowMillis.
+              // JavaScriptWaitManager only reads domMutationMarker when that property is > 0, so
+              // installing the observer here never changes the default (property == 0) behavior.
+              if (!window._shaftDomMutationObserver) {
+                window._shaftDomMutationSeq = 0;
+                try {
+                  window._shaftDomMutationObserver = new MutationObserver(function(mutations) {
+                    window._shaftDomMutationSeq = (window._shaftDomMutationSeq || 0) + mutations.length;
+                  });
+                  window._shaftDomMutationObserver.observe(document.documentElement, {
+                    childList: true,
+                    subtree: true,
+                    attributes: false,
+                    characterData: false
+                  });
+                } catch (e) {}
               }
               var resourceCount = 0;
               var latestResourceEnd = 0;
@@ -411,7 +500,12 @@ public enum JavaScriptHelper {
                 activeRequests: window._shaftNetworkRequests || 0,
                 networkActivityMarker: (window._shaftNetworkActivitySequence || 0) + ':' + resourceCount + ':' + latestResourceEnd,
                 jqueryActive: jqueryActive,
-                angularActive: angularActive
+                angularActive: angularActive,
+                beaconCount: window._shaftBeaconCount || 0,
+                eventSourceCount: window._shaftEventSourceCount || 0,
+                webSocketCount: window._shaftWebSocketCount || 0,
+                mainThreadIdleSeen: window._shaftIdleSeen || false,
+                domMutationMarker: window._shaftDomMutationSeq || 0
               };
             })();"""),
     INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION("""
