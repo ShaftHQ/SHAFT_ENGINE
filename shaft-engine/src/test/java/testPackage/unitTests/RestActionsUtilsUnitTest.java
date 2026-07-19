@@ -98,7 +98,7 @@ public class RestActionsUtilsUnitTest {
     // ─── RequestType enum ─────────────────────────────────────────────────────
 
     @Test(description = "RequestType enum has required HTTP method constants")
-    public void requestTypeEnumHasFiveConstants() {
+    public void requestTypeEnumHasRequiredHttpMethodConstants() {
         // Assert named constants exist rather than brittle exact count
         Assert.assertNotNull(RestActions.RequestType.valueOf("GET"), "RequestType must have GET");
         Assert.assertNotNull(RestActions.RequestType.valueOf("POST"), "RequestType must have POST");
