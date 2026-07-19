@@ -1,8 +1,10 @@
 package com.shaft.intellij.testrunner;
 
 import com.intellij.ui.JBColor;
+import com.shaft.intellij.ui.LookAndFeelIsolationExtension;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComboBox;
@@ -30,6 +32,23 @@ class ShaftRunConfigurationOverridesPanelScreenshotTest {
         // the plugin's SVG action icons, which makes screenshot evidence unrepresentative.
         com.intellij.openapi.util.IconLoader.activate();
     }
+
+    private static final String[] THEME_DEFAULT_KEYS = {
+            "Panel.background", "TabbedPane.background", "TabbedPane.foreground", "SplitPane.background",
+            "ScrollPane.background", "Viewport.background", "Label.foreground", "Button.background",
+            "Button.foreground", "ComboBox.background", "ComboBox.foreground", "TextArea.background",
+            "TextArea.foreground", "TextArea.caretForeground", "TextField.background", "TextField.foreground",
+            "TextField.caretForeground", "Component.borderColor"
+    };
+    // Issue #3786: this class installs a real platform L&F (configureLookAndFeel below) exactly
+    // like ShaftPluginScreenshotRendererTest but, unlike that class, never restored it -- the leaked
+    // L&F (and the "TreeUI" -> DefaultTreeUI UIManager mapping that comes with it) stayed active for
+    // the rest of the JVM and broke ShaftTestsPanelTest whenever the full suite ran with
+    // -Dshaft.intellij.screenshotDir set. Reuses the same LookAndFeelIsolationExtension mechanism
+    // ShaftPluginScreenshotRendererTest already proved sufficient (issue #3782 / PR #3781, #3787).
+    @RegisterExtension
+    static final LookAndFeelIsolationExtension LOOK_AND_FEEL_ISOLATION =
+            new LookAndFeelIsolationExtension(THEME_DEFAULT_KEYS);
 
     private static final int WIDTH = 640;
     private static final int HEIGHT = 260;

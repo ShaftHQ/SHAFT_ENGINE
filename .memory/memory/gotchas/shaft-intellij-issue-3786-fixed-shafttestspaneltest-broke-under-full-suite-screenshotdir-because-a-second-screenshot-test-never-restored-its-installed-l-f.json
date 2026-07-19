@@ -1,0 +1,34 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-issue-3786-fixed-shafttestspaneltest-broke-under-full-suite-screenshotdir-because-a-second-screenshot-test-never-restored-its-installed-l-f.md",
+  "content_hash": "sha256:5efebfbf47d5534415bdf2f75e4ea5e67514b7d943b0bc021c0169493d7552be",
+  "created_at": "2026-07-19T21:43:50+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-intellij-issue-3786-fixed-shafttestspaneltest-broke-under-full-suite-screenshotdir-because-a-second-screenshot-test-never-restored-its-installed-l-f",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Resolve issue #3786 (shaft-intellij DefaultTreeUI/ShaftTestsPanelTest full-suite + screenshotDir combo) and record the verified shafthq.github.io MDX heading-anchor gotcha"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "gradle",
+    "junit5",
+    "defaulttreeui",
+    "lookandfeelisolationextension",
+    "screenshot-renderer",
+    "issue-3786",
+    "jdk21"
+  ],
+  "title": "shaft-intellij issue #3786 fixed: ShaftTestsPanelTest broke under full-suite + screenshotDir because a SECOND screenshot test never restored its installed L&F",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T21:43:50+03:00"
+}

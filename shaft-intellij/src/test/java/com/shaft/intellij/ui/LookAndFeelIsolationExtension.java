@@ -33,14 +33,28 @@ import java.util.Map;
  *
  * <p>Register with {@code @RegisterExtension} (a plain {@code @ExtendWith(...)} cannot pass the
  * declared key set, since JUnit would need a no-arg constructor for that).
+ *
+ * <p><strong>Every test class in this module that installs a real platform L&amp;F must register
+ * this extension</strong> -- issue #3786 found a second screenshot test
+ * ({@code ShaftRunConfigurationOverridesPanelScreenshotTest}, package {@code
+ * com.shaft.intellij.testrunner}) that called {@code UIManager.setLookAndFeel(...)} with no
+ * restoration at all. That leaked L&amp;F stayed active for the rest of the JVM (Swing's {@code
+ * UIManager.setLookAndFeel} only discards accumulated {@code UIManager.put} overrides -- including
+ * the platform's {@code "TreeUI" -> DefaultTreeUI} mapping, see {@link
+ * ShaftPluginScreenshotRendererTest#lightThemeCheckboxRendersVisibleGlyphAndReflectsSelectionState}'s
+ * javadoc -- when a L&amp;F switch actually happens; a class that never switches back never triggers
+ * that discard), which is what broke {@code ShaftTestsPanelTest}
+ * even though it never touches Swing L&amp;F itself. This class is declared {@code public} precisely
+ * so every package under this module can reuse the same snapshot/restore mechanism instead of
+ * missing it.
  */
-final class LookAndFeelIsolationExtension implements BeforeEachCallback, AfterEachCallback {
+public final class LookAndFeelIsolationExtension implements BeforeEachCallback, AfterEachCallback {
     private final String[] uiManagerKeys;
     private LookAndFeel originalLookAndFeel;
     private Boolean originalIsBright;
     private final Map<String, Object> originalUiManagerValues = new LinkedHashMap<>();
 
-    LookAndFeelIsolationExtension(String... uiManagerKeys) {
+    public LookAndFeelIsolationExtension(String... uiManagerKeys) {
         this.uiManagerKeys = uiManagerKeys;
     }
 
