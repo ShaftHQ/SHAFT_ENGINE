@@ -24,47 +24,54 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
  * finally-block mechanism this extension extracts), so this exercises the real production
  * snapshot/restore logic without standing up the full JUnit Platform engine to test a JUnit
  * extension.
+ *
+ * <p>All Swing state capture happens inside {@link #captureSwingState()} (on the EDT, as Swing
+ * requires); every assertion runs directly in the {@code @Test} method body on the captured
+ * {@link SwingSnapshot} values, not inside an {@code invokeAndWait} lambda.
  */
 class LookAndFeelIsolationExtensionTest {
     private static final String KEY = "Button.background";
     private static final String INTELLIJ_LAF = "com.intellij.ide.ui.laf.IntelliJLaf";
+    private static final Color MUTATED_KEY_VALUE = new Color(0x45494A);
 
     @Test
-    void restoresLookAndFeelJbColorAndDeclaredUiManagerKeysAfterATestMutatesThem()
-            throws Exception {
-        AtomicReference<LookAndFeel> originalLookAndFeel = new AtomicReference<>();
-        AtomicReference<Boolean> originalIsBright = new AtomicReference<>();
-        AtomicReference<Object> originalKeyValue = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            originalLookAndFeel.set(UIManager.getLookAndFeel());
-            originalIsBright.set(JBColor.isBright());
-            originalKeyValue.set(UIManager.get(KEY));
-        });
+    void restoresLookAndFeelJbColorAndDeclaredUiManagerKeysAfterATestMutatesThem() throws Exception {
+        SwingSnapshot original = captureSwingState();
 
         LookAndFeelIsolationExtension extension = new LookAndFeelIsolationExtension(KEY);
         extension.beforeEach(null);
+        SwingSnapshot mutated;
         try {
             mutateSwingState();
-            // Sanity-check the mutation actually took hold, or the restore assertions below would
-            // be vacuously green for the wrong reason (nothing to restore in the first place).
-            SwingUtilities.invokeAndWait(() -> {
-                assertNotEquals(originalIsBright.get(), JBColor.isBright(),
-                        "test setup should have flipped the JBColor dark flag");
-                assertEquals(new Color(0x45494A), UIManager.get(KEY),
-                        "test setup should have overridden the declared UIManager key");
-            });
+            mutated = captureSwingState();
         } finally {
             extension.afterEach(null);
         }
+        SwingSnapshot restored = captureSwingState();
 
-        SwingUtilities.invokeAndWait(() -> {
-            assertEquals(originalLookAndFeel.get(), UIManager.getLookAndFeel(),
-                    "the exact pre-test LookAndFeel instance should be restored");
-            assertEquals(originalIsBright.get(), JBColor.isBright(),
-                    "the JBColor dark/bright flag should be restored");
-            assertEquals(originalKeyValue.get(), UIManager.get(KEY),
-                    "the declared UIManager key should be restored to its pre-test value");
-        });
+        // Sanity-check the mutation actually took hold, or the restore assertions below would be
+        // vacuously green for the wrong reason (nothing to restore in the first place).
+        assertNotEquals(original.isBright(), mutated.isBright(),
+                "test setup should have flipped the JBColor dark flag");
+        assertEquals(MUTATED_KEY_VALUE, mutated.keyValue(),
+                "test setup should have overridden the declared UIManager key");
+
+        assertEquals(original.lookAndFeel(), restored.lookAndFeel(),
+                "the exact pre-test LookAndFeel instance should be restored");
+        assertEquals(original.isBright(), restored.isBright(),
+                "the JBColor dark/bright flag should be restored");
+        assertEquals(original.keyValue(), restored.keyValue(),
+                "the declared UIManager key should be restored to its pre-test value");
+    }
+
+    private record SwingSnapshot(LookAndFeel lookAndFeel, boolean isBright, Object keyValue) {
+    }
+
+    private static SwingSnapshot captureSwingState() throws InterruptedException, InvocationTargetException {
+        AtomicReference<SwingSnapshot> snapshot = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() ->
+                snapshot.set(new SwingSnapshot(UIManager.getLookAndFeel(), JBColor.isBright(), UIManager.get(KEY))));
+        return snapshot.get();
     }
 
     private static void mutateSwingState() throws InterruptedException, InvocationTargetException {
@@ -78,7 +85,7 @@ class LookAndFeelIsolationExtensionTest {
             JBColor.setDark(true);
             // The same near-gray dark override that leaked into ToolApprovalPromptPanelTest per the
             // memory gotcha from PR #3781/#3777.
-            UIManager.put(KEY, new Color(0x45494A));
+            UIManager.put(KEY, MUTATED_KEY_VALUE);
         });
     }
 }
