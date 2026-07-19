@@ -136,6 +136,28 @@ public class ReportManagerHelperUnitTests {
     }
 
     @Test
+    public void executionSummaryShouldIncludeStarCtaWhenAllTestsPassed() {
+        String summary = ReportManagerHelper.prepareExecutionSummaryMessage("4", "4", "0", "0");
+
+        SHAFT.Validations.assertThat().object(summary).contains("github.com/ShaftHQ/SHAFT_ENGINE").perform();
+        SHAFT.Validations.assertThat().object(summary).contains("Star SHAFT on GitHub").perform();
+    }
+
+    @Test
+    public void executionSummaryShouldOmitStarCtaWhenAnyTestFailed() {
+        String summary = ReportManagerHelper.prepareExecutionSummaryMessage("4", "3", "1", "0");
+
+        SHAFT.Validations.assertThat().object(summary).doesNotContain("github.com/ShaftHQ/SHAFT_ENGINE").perform();
+    }
+
+    @Test
+    public void executionSummaryShouldOmitStarCtaWhenNoTestsRan() {
+        String summary = ReportManagerHelper.prepareExecutionSummaryMessage("0", "0", "0", "0");
+
+        SHAFT.Validations.assertThat().object(summary).doesNotContain("github.com/ShaftHQ/SHAFT_ENGINE").perform();
+    }
+
+    @Test
     public void deduplicateConsecutiveLogLinesShouldKeepOnlyAdjacentUniqueLines() throws Exception {
         Method deduplicateMethod = ReportManagerHelper.class.getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
         deduplicateMethod.setAccessible(true);
