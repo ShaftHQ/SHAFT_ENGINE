@@ -163,7 +163,7 @@ public class ScreenshotHelper {
             var result = cdpDriver.executeCdpCommand("Page.captureScreenshot", screenshot_config);
             String base64EncodedPng = (String) ((Map<String, ?>) result).get("data");
             return OutputType.BYTES.convertFromBase64Png(base64EncodedPng);
-        } catch (org.openqa.selenium.TimeoutException exception) {
+        } catch (org.openqa.selenium.TimeoutException | UnsupportedCommandException exception) {
                 /* Error:  org.openqa.selenium.TimeoutException: java.net.http.HttpTimeoutException: request timed out
                     Build info: version: '4.16.1', revision: '9b4c83354e'
                     System info: os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '12.7.1', java.version: '21.0.1'
@@ -171,6 +171,13 @@ public class ScreenshotHelper {
                     Command: [xxx, executeCdpCommand {cmd=Page.captureScreenshot, params={fromSurface=true, optimizeForSpeed=true, captureBeyondViewport=true, clip={width=1905, x=0, y=0, scale=1, height=2555}}}]
                  */
             // in some cases it was noticed that the full page screenshot Cdp command can cause a timeout, and therefore a workaround should be implemented
+
+            // Issue #3794: on a remote MicrosoftEdge grid session, Selenium's AdditionalHttpCommands
+            // ServiceLoader merge has no per-browser isApplicable() concept -- both selenium-chrome-driver
+            // and selenium-edge-driver register "executeCdpCommand" with different URL templates, and
+            // chrome's (/goog/cdp/execute) wins even for an Edge session, so the Edge node 404s it:
+            // org.openqa.selenium.UnsupportedCommandException: unknown command: unknown command: session/xxx/goog/cdp/execute
+            // (this catch was present for #2841 but was accidentally dropped by the #2895 refactor)
             return takeFullPageScreenshotManually(driver);
         }
     }

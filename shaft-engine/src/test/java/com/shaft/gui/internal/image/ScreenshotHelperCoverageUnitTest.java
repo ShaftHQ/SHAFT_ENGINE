@@ -185,6 +185,43 @@ public class ScreenshotHelperCoverageUnitTest {
                 .executeScript("window.scrollTo(0, arguments[0]);", 0);
     }
 
+    @Test
+    public void makeFullScreenshotShouldFallBackToManualStitchingWhenCdpCommandIsUnsupported() throws Exception {
+        // Reproduces issue #3794: on a remote MicrosoftEdge grid session, Selenium's
+        // AdditionalHttpCommands ServiceLoader merge has no per-browser isApplicable() concept, so
+        // with both selenium-chrome-driver and selenium-edge-driver on the classpath, executeCdpCommand
+        // resolves to chrome's HTTP path (/goog/cdp/execute) even for an Edge session. The Edge grid
+        // node rejects that path, and Selenium's ErrorCodec decodes the W3C "unknown command" response
+        // into UnsupportedCommandException (see org.openqa.selenium.remote.ErrorCodec), e.g.:
+        // org.openqa.selenium.UnsupportedCommandException: unknown command: unknown command: session/xxx/goog/cdp/execute
+        SHAFT.Properties.platform.set().targetPlatform("LINUX");
+        SHAFT.Properties.web.set().targetBrowserName("MicrosoftEdge");
+        SHAFT.Properties.mobile.set().browserName("");
+
+        WebDriver remoteEdgeDriver = Mockito.mock(WebDriver.class,
+                Mockito.withSettings().extraInterfaces(HasCdp.class, JavascriptExecutor.class));
+        HasCdp cdpDriver = (HasCdp) remoteEdgeDriver;
+        when(cdpDriver.executeCdpCommand(anyString(), any()))
+                .thenThrow(new org.openqa.selenium.UnsupportedCommandException(
+                        "unknown command: unknown command: session/deadbeef/goog/cdp/execute"));
+
+        when(((JavascriptExecutor) remoteEdgeDriver).executeScript(Mockito.contains("Math.max("))).thenReturn(50L);
+        when(((JavascriptExecutor) remoteEdgeDriver).executeScript(Mockito.contains("window.devicePixelRatio"))).thenReturn(1.0);
+        when(((JavascriptExecutor) remoteEdgeDriver).executeScript(Mockito.contains("window.pageYOffset"))).thenReturn(0L);
+        when(((JavascriptExecutor) remoteEdgeDriver).executeScript(Mockito.contains("window.scrollTo"), any())).thenReturn(null);
+        when(((JavascriptExecutor) remoteEdgeDriver).executeScript(Mockito.contains("document.documentElement.style.overflow = 'hidden';"))).thenReturn(null);
+        when(((JavascriptExecutor) remoteEdgeDriver).executeScript(Mockito.contains("document.documentElement.style.overflow = 'visible';"))).thenReturn(null);
+
+        byte[] viewport = createPngBytes(80, 50, Color.MAGENTA);
+        try (MockedConstruction<ScreenshotManager> mocked = Mockito.mockConstruction(ScreenshotManager.class,
+                (mock, context) -> when(mock.takeScreenshot(any(), any(), any())).thenReturn(viewport))) {
+            byte[] result = ScreenshotHelper.makeFullScreenshot(remoteEdgeDriver);
+            Assert.assertNotNull(result, "Full-page screenshot should fall back to manual stitching instead of "
+                    + "propagating UnsupportedCommandException from the mis-routed remote CDP call.");
+        }
+        Mockito.verify(cdpDriver).executeCdpCommand(anyString(), any());
+    }
+
     private static void setStaticField(String fieldName, Object value) throws Exception {
         Field field = ScreenshotHelper.class.getDeclaredField(fieldName);
         field.setAccessible(true);
