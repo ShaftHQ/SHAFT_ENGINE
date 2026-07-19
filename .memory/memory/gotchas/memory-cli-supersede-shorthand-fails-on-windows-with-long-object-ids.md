@@ -1,0 +1,5 @@
+On Windows, `memory remember --stdin` with the `supersede` shorthand fails with `MemoryValidationFailed: File could not be written atomically` (underlying ENOENT on temp-file rename). Root cause: `supersede_object` auto-creates a `supersedes` relation file named by concatenating both full object ids (e.g., `gotcha-<long-id-A>-supersedes-gotcha-<long-id-B>.json`). With two long descriptive gotcha ids, this filename reached ~290 chars, exceeding Windows MAX_PATH when combined with the repo/worktree path prefix.
+
+Workaround: use `memory save --stdin` with a raw `update_object` patch setting `status: superseded`, `superseded_by`, and the corrected body. This writes only the object's own sidecar, no relation file.
+
+Upstream bug in @aictx/memory v0.1.55 (our READ access only); tracked locally as issue #3790. Successful workaround demonstrated in PR #3789 commit b88484867d.
