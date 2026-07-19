@@ -5,6 +5,7 @@ import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
@@ -800,6 +801,7 @@ public class DriverFactoryHelper {
             } finally {
                 HealingManager.clear(driver);
                 browserNetworkInterceptor = null;
+                BidiNetworkActivitySource.closeAndRemove(driver);
                 releaseRemoteGridPreflightPermit();
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");

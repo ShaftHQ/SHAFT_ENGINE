@@ -54,6 +54,7 @@ public class JavaScriptWaitManager {
         final boolean[] pageActivityObserved = {false};
         final long[] domIdleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
         final String[] lastDomMutationMarker = {null};
+        BidiNetworkActivitySource bidiSource = BidiNetworkActivitySource.forDriver(driver);
         new SynchronizationManager(driver)
                 .fluentWait(Duration.ofSeconds(Math.max(1, SHAFT.Properties.timeouts.waitForLazyLoadingTimeout())))
                 .pollingEvery(pollingInterval())
@@ -68,7 +69,7 @@ public class JavaScriptWaitManager {
                             long nowMillis = System.currentTimeMillis();
                             boolean networkIdle = hasMetMinimumIdleWindow(
                                     readiness.activeRequests(),
-                                    readiness.networkActivityMarker(),
+                                    combinedNetworkActivityMarker(readiness.networkActivityMarker(), bidiSource),
                                     idleSinceMillis,
                                     lastNetworkActivityMarker,
                                     networkActivityObserved,
@@ -158,6 +159,38 @@ public class JavaScriptWaitManager {
 
         var requiredIdleWindow = networkActivityObserved[0] ? minimumIdleWindow() : initialIdleObservationWindow();
         return (nowMillis - idleSinceMillis[0]) >= requiredIdleWindow.toMillis();
+    }
+
+    /**
+     * Folds a healthy {@link BidiNetworkActivitySource}'s advisory signal into the JS-derived
+     * network-activity marker consumed by {@link #hasMetMinimumIdleWindow(long, String, long[],
+     * String[], boolean[], long)} (issue #3749, Increment B).
+     * <p>
+     * When {@code bidiSource} is {@code null} or {@link BidiNetworkActivitySource#healthy()
+     * unhealthy} (no BiDi session, or {@code SHAFT.Properties.platform.enableBiDi()} is
+     * {@code false}), this returns {@code jsMarker} unchanged: the readiness wait's pass condition
+     * is then bit-for-bit identical to before this signal existed.
+     * <p>
+     * Otherwise the source's {@link BidiNetworkActivitySource#activityMarker() activity sequence}
+     * and {@link BidiNetworkActivitySource#inFlightCount() advisory in-flight count} are both
+     * concatenated into the marker string. Deliberately <b>not</b> fed into the {@code
+     * activeRequests} hard-gate parameter of {@code hasMetMinimumIdleWindow}: BiDi observes SSE/
+     * WebSocket-upgrade requests that never complete, and a hard {@code inFlightCount() == 0}
+     * requirement would regress the JS layer's existing tolerance of those long-lived connections
+     * (it simply can't see them) into a wait that never passes. Folding the count into the marker
+     * instead means a change in either value only resets/extends the quiet window exactly like any
+     * other marker change -- never blocks past it, and never holds the wait past the existing 30s
+     * ceiling.
+     *
+     * @param jsMarker  the JS-derived {@code networkActivityMarker} for this poll
+     * @param bidiSource the driver's cached BiDi source, or {@code null} when none exists
+     * @return the combined marker string to feed into the quiet-window state machine
+     */
+    private static String combinedNetworkActivityMarker(String jsMarker, BidiNetworkActivitySource bidiSource) {
+        if (bidiSource == null || !bidiSource.healthy()) {
+            return jsMarker;
+        }
+        return jsMarker + "|bidi:" + bidiSource.activityMarker() + ":" + bidiSource.inFlightCount();
     }
 
     private static boolean hasMetMinimumIdleWindow(long activeRequests, String networkActivityMarker,

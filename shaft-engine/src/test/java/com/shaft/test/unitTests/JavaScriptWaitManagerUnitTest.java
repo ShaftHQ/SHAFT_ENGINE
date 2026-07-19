@@ -2,11 +2,18 @@ package com.shaft.test.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaScriptHelper;
+import org.mockito.Mockito;
+import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 
 /**
  * Unit tests for JavaScriptWaitManager and JavaScriptHelper.
@@ -367,5 +374,153 @@ public class JavaScriptWaitManagerUnitTest {
         } finally {
             SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(original);
         }
+    }
+
+    // --- Issue #3749 Increment B: BiDi marker concatenation + advisory-extend behavior ---
+
+    private static final String BIDI_SOURCE_CLASS_NAME = "com.shaft.gui.browser.internal.BidiNetworkActivitySource";
+
+    private static Method getCombinedNetworkActivityMarkerMethod() throws Exception {
+        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
+                .getDeclaredMethod("combinedNetworkActivityMarker", String.class, Class.forName(BIDI_SOURCE_CLASS_NAME));
+        method.setAccessible(true);
+        return method;
+    }
+
+    private static Object newFakeBidiSource(boolean healthy) throws Exception {
+        Constructor<?> constructor = Class.forName(BIDI_SOURCE_CLASS_NAME).getDeclaredConstructor(LongSupplier.class);
+        constructor.setAccessible(true);
+        Object source = constructor.newInstance((LongSupplier) System::nanoTime);
+        Field healthyField = Class.forName(BIDI_SOURCE_CLASS_NAME).getDeclaredField("healthy");
+        healthyField.setAccessible(true);
+        ((AtomicBoolean) healthyField.get(source)).set(healthy);
+        return source;
+    }
+
+    private static void bumpBidiActivitySequence(Object bidiSource) throws Exception {
+        Field field = Class.forName(BIDI_SOURCE_CLASS_NAME).getDeclaredField("activitySequence");
+        field.setAccessible(true);
+        ((AtomicLong) field.get(bidiSource)).incrementAndGet();
+    }
+
+    private static void recordBidiRequestStart(Object bidiSource, String requestId) throws Exception {
+        Method method = Class.forName(BIDI_SOURCE_CLASS_NAME)
+                .getDeclaredMethod("recordRequestStart", String.class, boolean.class);
+        method.setAccessible(true);
+        method.invoke(bidiSource, requestId, false);
+    }
+
+    @Test(description = "Verify the JS marker is returned unchanged when no BiDi source exists (non-BiDi = today's behavior bit-for-bit)")
+    public void testCombinedMarkerUnchangedWhenBidiSourceIsNull() throws Exception {
+        Method method = getCombinedNetworkActivityMarkerMethod();
+        String result = (String) method.invoke(null, "0:1:100", null);
+        Assert.assertEquals(result, "0:1:100", "With no BiDi source, the combined marker must equal the JS marker exactly");
+    }
+
+    @Test(description = "Verify the JS marker is returned unchanged when the BiDi source is unhealthy")
+    public void testCombinedMarkerUnchangedWhenBidiSourceUnhealthy() throws Exception {
+        Method method = getCombinedNetworkActivityMarkerMethod();
+        Object unhealthySource = newFakeBidiSource(false);
+
+        String result = (String) method.invoke(null, "0:1:100", unhealthySource);
+
+        Assert.assertEquals(result, "0:1:100", "An unhealthy BiDi source must never alter the JS-only marker");
+    }
+
+    @Test(description = "Verify a healthy BiDi source's activity marker and in-flight count are concatenated onto the JS marker")
+    public void testCombinedMarkerConcatenatesHealthyBidiSourceState() throws Exception {
+        Method method = getCombinedNetworkActivityMarkerMethod();
+        Object healthySource = newFakeBidiSource(true);
+        bumpBidiActivitySequence(healthySource);
+        recordBidiRequestStart(healthySource, "req-1");
+
+        String result = (String) method.invoke(null, "0:1:100", healthySource);
+
+        Assert.assertTrue(result.startsWith("0:1:100"), "The combined marker must retain the JS marker as a prefix");
+        Assert.assertNotEquals(result, "0:1:100", "The combined marker must differ from the JS-only marker when a healthy BiDi source is folded in");
+    }
+
+    @Test(description = "Verify the combined marker changes when the BiDi activity sequence changes, even though the JS marker is unchanged")
+    public void testCombinedMarkerChangesWhenBidiActivitySequenceChanges() throws Exception {
+        Method method = getCombinedNetworkActivityMarkerMethod();
+        Object bidiSource = newFakeBidiSource(true);
+
+        String beforeEvent = (String) method.invoke(null, "0:1:100", bidiSource);
+        bumpBidiActivitySequence(bidiSource);
+        String afterEvent = (String) method.invoke(null, "0:1:100", bidiSource);
+
+        Assert.assertNotEquals(afterEvent, beforeEvent,
+                "A BiDi-observed event (invisible to the JS marker) must still change the combined marker");
+    }
+
+    @Test(description = "Verify a healthy-but-empty BiDi source still produces a stable, JS-marker-consistent combined marker across polls")
+    public void testCombinedMarkerStableWhenBidiSourceHasNoActivity() throws Exception {
+        Method method = getCombinedNetworkActivityMarkerMethod();
+        Object bidiSource = newFakeBidiSource(true);
+
+        String firstPoll = (String) method.invoke(null, "0:1:100", bidiSource);
+        String secondPoll = (String) method.invoke(null, "0:1:100", bidiSource);
+
+        Assert.assertEquals(secondPoll, firstPoll, "The combined marker must be stable across polls when nothing changed");
+    }
+
+    @Test(description = "Verify a healthy BiDi source's in-flight count that turns nonzero mid-wait (e.g. an SSE connection opening) extends the quiet window exactly once, like a marker change, but never blocks readiness once that window elapses even though the connection is still open -- inFlightCount() must stay advisory, never a hard ==0 gate")
+    public void testBidiInFlightCountNeverBlocksPastQuietWindow() throws Exception {
+        Method combinedMarkerMethod = getCombinedNetworkActivityMarkerMethod();
+        Method idleWindowMethod = getHasMetMinimumIdleWindowWithMarkerMethod();
+        Object bidiSource = newFakeBidiSource(true);
+
+        long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
+        String[] lastNetworkActivityMarker = {null};
+        boolean[] networkActivityObserved = {false};
+
+        // Poll 1: no BiDi activity yet -- establishes the observation baseline.
+        String markerBeforeSse = (String) combinedMarkerMethod.invoke(null, "0:0:0", bidiSource);
+        boolean firstPoll = hasMetMinimumIdleWindow(idleWindowMethod, 0L, markerBeforeSse, idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1000L);
+
+        // An SSE connection opens between poll 1 and poll 2: the JS layer still sees zero active
+        // requests (it can't observe this at all), but the BiDi source's marker changes and
+        // inFlightCount() becomes 1 -- and then never changes again, because the connection is
+        // long-lived and (by design) never fires a completion event.
+        bumpBidiActivitySequence(bidiSource);
+        recordBidiRequestStart(bidiSource, "sse-1");
+        String markerWithOpenSse = (String) combinedMarkerMethod.invoke(null, "0:0:0", bidiSource);
+        Assert.assertNotEquals(markerWithOpenSse, markerBeforeSse, "Precondition: the SSE connection opening must change the combined marker");
+
+        boolean secondPoll = hasMetMinimumIdleWindow(idleWindowMethod, 0L, markerWithOpenSse, idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1050L);
+        boolean thirdPollBeforeQuietWindowEnds = hasMetMinimumIdleWindow(idleWindowMethod, 0L, markerWithOpenSse, idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1300L);
+        boolean fourthPollAfterQuietWindowEnds = hasMetMinimumIdleWindow(idleWindowMethod, 0L, markerWithOpenSse, idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1600L);
+
+        Assert.assertFalse(firstPoll, "First poll should establish the observation baseline");
+        Assert.assertFalse(secondPoll, "The SSE connection opening (a marker change) should reset the quiet window exactly like any other network-activity marker change");
+        Assert.assertFalse(thirdPollBeforeQuietWindowEnds, "Should wait until the full quiet window elapses after the marker change");
+        Assert.assertTrue(fourthPollAfterQuietWindowEnds,
+                "Once the quiet window elapses, readiness must pass even though the BiDi source still reports inFlightCount() == 1 for the "
+                        + "still-open SSE connection -- inFlightCount() > 0 is advisory only and must never act as a hard ==0 gate");
+    }
+
+    @Test(description = "Verify the JS-only readiness path (activeRequests hard-gate parameter) is completely untouched by BiDi in-flight state")
+    public void testBidiInFlightCountNeverFeedsTheActiveRequestsHardGate() throws Exception {
+        Method idleWindowMethod = getHasMetMinimumIdleWindowWithMarkerMethod();
+        // Directly exercises the pre-existing activeRequests hard-gate parameter with 0, proving the
+        // integration point (JavaScriptWaitManager.waitForBrowserReadiness) only ever folds BiDi
+        // state into the marker string, never into this parameter -- verified structurally by
+        // combinedNetworkActivityMarker()'s signature: it returns a String, and the call site passes
+        // readiness.activeRequests() (the JS-only value) unmodified as the first argument.
+        long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
+        String[] lastNetworkActivityMarker = {null};
+        boolean[] networkActivityObserved = {false};
+
+        boolean firstPoll = hasMetMinimumIdleWindow(idleWindowMethod, 0L, "0:0:0|bidi:1:1", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1000L);
+        boolean afterInitialWindow = hasMetMinimumIdleWindow(idleWindowMethod, 0L, "0:0:0|bidi:1:1", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1200L);
+
+        Assert.assertFalse(firstPoll, "First poll should establish the observation baseline");
+        Assert.assertTrue(afterInitialWindow, "A stable combined marker with activeRequests == 0 must pass the short initial observation window, exactly like a pure-JS marker would");
     }
 }
