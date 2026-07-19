@@ -1437,7 +1437,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 long scrollY = readLong(js, "return window.pageYOffset || document.documentElement.scrollTop || 0;");
                 bottomReached = (scrollY + viewportHeight) >= currentPageHeight;
 
-                boolean stop = com.shaft.gui.browser.internal.ScrollSweepPlanner.shouldStop(
+                boolean stop = ScrollSweepPlanner.shouldStop(
                         completedSteps, maxSteps, previousPageHeight, currentPageHeight, bottomReached);
                 previousPageHeight = currentPageHeight;
                 if (stop) {
