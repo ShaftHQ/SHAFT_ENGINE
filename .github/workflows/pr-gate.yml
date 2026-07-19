@@ -1,0 +1,322 @@
+name: PR Gate
+
+# Phase 1 of the CI overhaul (issue #3814): a single path-conditioned gate that
+# will become the one required status check once Phase 2 flips the branch
+# ruleset. Runs ALONGSIDE the existing per-area workflows for now; nothing is
+# deleted or modified by this file. If a merge queue is ever enabled, add
+# `merge_group:` to the triggers below.
+#
+# Deliberately pull_request-only: dorny/paths-filter cannot resolve a diff
+# base outside push/pull_request events, so a workflow_dispatch run would
+# either always fail the changes job or (if gated) skip every leg and pass
+# vacuously. The standalone per-area workflows keep their own
+# workflow_dispatch entry points until Phase 3 folds them in.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-22.04
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      intellij: ${{ steps.filter.outputs.intellij }}
+      cli: ${{ steps.filter.outputs.cli }}
+      capture: ${{ steps.filter.outputs.capture }}
+      templates: ${{ steps.filter.outputs.templates }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
+        with:
+          filters: |
+            docs:
+              - "**/*.md"
+              - "**/*.mdx"
+              - "scripts/ci/validate_documentation_boundaries.py"
+            intellij:
+              - 'shaft-intellij/**'
+              - '.github/workflows/intellij-plugin.yml'
+              - '.github/workflows/publish-intellij-plugin.yml'
+              - 'scripts/mcp/**'
+              - 'tests/scripts/test_install_shaft_mcp.py'
+              - 'scripts/ci/verify_shaft_mcp_installer_release.py'
+              - 'scripts/ci/validate_installer_contract.py'
+              - 'tests/scripts/test_validate_installer_contract.py'
+              - 'shaft-mcp/src/main/java/com/shaft/mcp/**'
+              - 'shaft-capture/**'
+              - 'shaft-skills/**'
+              - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
+              - 'tests/scripts/test_mcp_tool_catalog_sync.py'
+              - 'shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json'
+              - 'shaft-cli/src/main/java/com/shaft/commandline/command/**'
+            cli:
+              - 'shaft-cli/**'
+              - 'pom.xml'
+            capture:
+              - 'shaft-capture/**'
+            templates:
+              - 'shaft-engine/src/main/resources/examples/**'
+              - 'shaft-skills/**'
+              - 'shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java'
+              - 'shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java'
+            infra:
+              - '.github/workflows/pr-gate.yml'
+
+  docs-boundary:
+    name: Documentation Boundary Gate
+    needs: changes
+    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Validate documentation boundaries
+        run: python3 scripts/ci/validate_documentation_boundaries.py
+
+  # intellij-plugin.yml runs two independent PR jobs today (installer
+  # verification across three OSes, and the Gradle plugin build); both are
+  # replicated faithfully here rather than folded into one job.
+  intellij-verify:
+    name: Installer verification (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Run unittest for installer script
+        run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog tests.scripts.test_mcp_tool_catalog_sync -v
+      - name: Validate installer contract
+        run: python scripts/ci/validate_installer_contract.py
+      - name: Verify installer release
+        run: python scripts/ci/verify_shaft_mcp_installer_release.py
+
+  intellij-build:
+    name: Build IntelliJ plugin
+    needs: changes
+    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.0.0'
+      - name: Build IntelliJ plugin
+        run: gradle -p shaft-intellij check buildPlugin verifyPlugin
+      - name: Upload plugin distribution
+        uses: actions/upload-artifact@v7
+        with:
+          name: shaft-intellij-plugin
+          path: shaft-intellij/build/distributions/*.zip
+          if-no-files-found: error
+
+  cli:
+    name: shaft-cli (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2025]
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+          cache: 'maven'
+      - name: Test shaft-cli
+        run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true'
+      - name: Package shaft-cli and run the binary
+        shell: bash
+        run: |
+          mvn --batch-mode -pl shaft-cli package -DskipTests '-DheadlessExecution=true' -q
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar --version
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
+
+  capture-e2e:
+    name: SHAFT Capture Browser E2E
+    needs: changes
+    if: needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: "25"
+          distribution: "zulu"
+          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.5
+      # pr-gate has no earlier install step for this module set, unlike the
+      # standalone shaft-capture-e2e.yml which is the only workflow to build
+      # this leg, so the install step is carried over verbatim here.
+      - name: Install SHAFT Capture prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine,shaft-pilot-core,shaft-capture
+          -am install -DskipTests -Dgpg.skip
+      - name: Run headless SHAFT Capture browser E2E tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-capture test
+          -DincludeCaptureBrowserE2E
+          -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
+          -Dgpg.skip
+
+  template-coupling:
+    name: Template Coupling Gate
+    needs: changes
+    if: needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.12
+      - name: Run template-coupled shaft-mcp tests
+        run: >-
+          mvn --batch-mode -pl shaft-mcp -am test
+          -Dtest="ShaftProjectServiceTest"
+          -Dsurefire.failIfNoSpecifiedTests=false
+          -DheadlessExecution=true
+          -Dgpg.skip
+
+  # Moved from security.yml's dependency-review job. Runs unconditionally on
+  # every pull_request (no path leg matches it in the `changes` job, mirroring
+  # its unconditional-per-PR behavior in security.yml today) and temporarily
+  # double-runs alongside security.yml's own dependency-review job until
+  # Phase 3 removes it from security.yml.
+  dependency-review:
+    name: Dependency Review
+    needs: changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v5
+        with:
+          config-file: './.github/dependency-review-config.yml'
+
+  summary:
+    name: PR Gate Summary
+    needs:
+      - changes
+      - docs-boundary
+      - intellij-verify
+      - intellij-build
+      - cli
+      - capture-e2e
+      - template-coupling
+      - dependency-review
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Evaluate leg results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCS_RESULT: ${{ needs.docs-boundary.result }}
+          INTELLIJ_VERIFY_RESULT: ${{ needs.intellij-verify.result }}
+          INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
+          CLI_RESULT: ${{ needs.cli.result }}
+          CAPTURE_RESULT: ${{ needs.capture-e2e.result }}
+          TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
+          DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
+        run: |
+          set -uo pipefail
+
+          {
+            echo "| Leg | Result |"
+            echo "| --- | --- |"
+            echo "| changes | ${CHANGES_RESULT} |"
+            echo "| docs-boundary | ${DOCS_RESULT} |"
+            echo "| intellij-verify | ${INTELLIJ_VERIFY_RESULT} |"
+            echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
+            echo "| cli | ${CLI_RESULT} |"
+            echo "| capture-e2e | ${CAPTURE_RESULT} |"
+            echo "| template-coupling | ${TEMPLATES_RESULT} |"
+            echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${CHANGES_RESULT}" != "success" ]; then
+            echo "::error::changes job did not succeed (${CHANGES_RESULT})"
+            exit 1
+          fi
+
+          status=0
+          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${TEMPLATES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::a required leg did not pass (result: ${result})"
+                status=1
+                ;;
+            esac
+          done
+
+          exit "$status"
