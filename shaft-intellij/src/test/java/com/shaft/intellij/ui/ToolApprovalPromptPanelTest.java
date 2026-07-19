@@ -179,16 +179,26 @@ class ToolApprovalPromptPanelTest {
                         "Deny should keep the platform default button color, not a scope color"));
     }
 
+    // Issue #3782: a leaked dark-theme UIManager override (e.g. Button.background 0x45494A, a
+    // near-gray with red/green/blue only 1-5 units apart) from another test's L&F install can read
+    // as "blueish" under a plain greater-than comparison. Requiring a real minimum gap between the
+    // dominant channel and the others keeps these heuristics meaningful for genuinely color-coded
+    // buttons while no longer misclassifying an ambient near-gray leak as a hue.
+    private static final int HUE_DOMINANCE_THRESHOLD = 15;
+
     private static boolean isGreenish(Color color) {
-        return color.getGreen() > color.getRed() && color.getGreen() > color.getBlue();
+        return color.getGreen() - color.getRed() > HUE_DOMINANCE_THRESHOLD
+                && color.getGreen() - color.getBlue() > HUE_DOMINANCE_THRESHOLD;
     }
 
     private static boolean isBlueish(Color color) {
-        return color.getBlue() > color.getRed() && color.getBlue() > color.getGreen();
+        return color.getBlue() - color.getRed() > HUE_DOMINANCE_THRESHOLD
+                && color.getBlue() - color.getGreen() > HUE_DOMINANCE_THRESHOLD;
     }
 
     private static boolean isYellowish(Color color) {
-        return color.getBlue() < color.getRed() && color.getBlue() < color.getGreen();
+        return color.getRed() - color.getBlue() > HUE_DOMINANCE_THRESHOLD
+                && color.getGreen() - color.getBlue() > HUE_DOMINANCE_THRESHOLD;
     }
 
     private static JButton findByLabel(List<JButton> buttons, String label) {

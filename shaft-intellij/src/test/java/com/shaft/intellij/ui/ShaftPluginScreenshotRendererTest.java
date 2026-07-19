@@ -10,6 +10,7 @@ import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
@@ -24,7 +25,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.plaf.ColorUIResource;
 import javax.swing.text.JTextComponent;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -48,7 +48,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -88,6 +87,14 @@ class ShaftPluginScreenshotRendererTest {
             "TextArea.foreground", "TextArea.caretForeground", "TextField.background", "TextField.foreground",
             "TextField.caretForeground", "Component.borderColor"
     };
+    // Issue #3782: snapshots/restores the LookAndFeel instance, JBColor dark flag, and every
+    // THEME_DEFAULT_KEYS UIManager key around each test in this class, on the EDT -- extracted from
+    // (and behaviorally identical to) the inline finally block PR #3781 proved sufficient (5/5
+    // consecutive green full-suite runs) for lightThemeCheckboxRendersVisibleGlyphAndReflectsSelectionState,
+    // the only test in this class that installs a real platform L&F during an ordinary test run.
+    @RegisterExtension
+    static final LookAndFeelIsolationExtension LOOK_AND_FEEL_ISOLATION =
+            new LookAndFeelIsolationExtension(THEME_DEFAULT_KEYS);
     private static final String ASSISTANT_SHAFT_CODE_SAMPLE = """
             ```java
             public class SignInTest {
@@ -1499,59 +1506,32 @@ class ShaftPluginScreenshotRendererTest {
      * only becomes the active {@code TreeUI} delegate (with assertions that do not tolerate a L&F
      * swap mid-suite) once a platform L&F has been set at least once, and {@code Button.background}
      * et al. (see {@link #applyThemeDefaults}) are {@code UIManager.put} overrides that, by Swing
-     * design, persist across L&F switches instead of resetting with them. So this test captures and
-     * restores both the exact pre-test {@link LookAndFeel} instance/{@link JBColor} dark flag *and*
-     * every {@link #applyThemeDefaults} key's prior value, to leave the JVM exactly as it found it.
+     * design, persist across L&F switches instead of resetting with them. So {@link
+     * #LOOK_AND_FEEL_ISOLATION} captures and restores both the exact pre-test {@link LookAndFeel}
+     * instance/{@link JBColor} dark flag *and* every {@link #applyThemeDefaults} key's prior value,
+     * around this and every other test in this class, to leave the JVM exactly as it found it.
      */
     @Test
     void lightThemeCheckboxRendersVisibleGlyphAndReflectsSelectionState()
             throws InterruptedException, InvocationTargetException {
-        AtomicReference<LookAndFeel> originalLookAndFeel = new AtomicReference<>();
-        AtomicReference<Boolean> originalIsBright = new AtomicReference<>();
-        Map<String, Object> originalThemeDefaults = new LinkedHashMap<>();
-        SwingUtilities.invokeAndWait(() -> {
-            originalLookAndFeel.set(UIManager.getLookAndFeel());
-            originalIsBright.set(JBColor.isBright());
-            for (String key : THEME_DEFAULT_KEYS) {
-                originalThemeDefaults.put(key, UIManager.get(key));
-            }
-        });
-        try {
-            BufferedImage lightUnselected = renderCheckboxGlyph(LIGHT_THEME, false, false);
-            BufferedImage lightSelected = renderCheckboxGlyph(LIGHT_THEME, false, true);
-            BufferedImage darkUnselected = renderCheckboxGlyph(DARK_THEME, true, false);
-            BufferedImage darkSelected = renderCheckboxGlyph(DARK_THEME, true, true);
+        BufferedImage lightUnselected = renderCheckboxGlyph(LIGHT_THEME, false, false);
+        BufferedImage lightSelected = renderCheckboxGlyph(LIGHT_THEME, false, true);
+        BufferedImage darkUnselected = renderCheckboxGlyph(DARK_THEME, true, false);
+        BufferedImage darkSelected = renderCheckboxGlyph(DARK_THEME, true, true);
 
-            assertAll(
-                    () -> assertFalse(isUniformImage(lightUnselected),
-                            "Light-theme unselected checkbox should paint a glyph, not a flat uniform block"),
-                    () -> assertFalse(isUniformImage(lightSelected),
-                            "Light-theme selected checkbox should paint a glyph, not a flat uniform block"),
-                    () -> assertTrue(imagesDiffer(lightUnselected, lightSelected),
-                            "Light-theme selected and unselected checkboxes should render differently"),
-                    () -> assertFalse(isUniformImage(darkUnselected),
-                            "Dark-theme unselected checkbox should paint a glyph, not a flat uniform block"),
-                    () -> assertFalse(isUniformImage(darkSelected),
-                            "Dark-theme selected checkbox should paint a glyph, not a flat uniform block"),
-                    () -> assertTrue(imagesDiffer(darkUnselected, darkSelected),
-                            "Dark-theme selected and unselected checkboxes should render differently"));
-        } finally {
-            SwingUtilities.invokeAndWait(() -> {
-                try {
-                    if (originalLookAndFeel.get() != null) {
-                        UIManager.setLookAndFeel(originalLookAndFeel.get());
-                    }
-                } catch (UnsupportedLookAndFeelException exception) {
-                    throw new IllegalStateException("Unable to restore the pre-test look and feel", exception);
-                }
-                if (originalIsBright.get() != null) {
-                    JBColor.setDark(!originalIsBright.get());
-                }
-                // UIManager.put(key, null) removes the override entirely, so keys that had no prior
-                // value go back to falling through to the (now-restored) L&F's own default.
-                originalThemeDefaults.forEach(UIManager::put);
-            });
-        }
+        assertAll(
+                () -> assertFalse(isUniformImage(lightUnselected),
+                        "Light-theme unselected checkbox should paint a glyph, not a flat uniform block"),
+                () -> assertFalse(isUniformImage(lightSelected),
+                        "Light-theme selected checkbox should paint a glyph, not a flat uniform block"),
+                () -> assertTrue(imagesDiffer(lightUnselected, lightSelected),
+                        "Light-theme selected and unselected checkboxes should render differently"),
+                () -> assertFalse(isUniformImage(darkUnselected),
+                        "Dark-theme unselected checkbox should paint a glyph, not a flat uniform block"),
+                () -> assertFalse(isUniformImage(darkSelected),
+                        "Dark-theme selected checkbox should paint a glyph, not a flat uniform block"),
+                () -> assertTrue(imagesDiffer(darkUnselected, darkSelected),
+                        "Dark-theme selected and unselected checkboxes should render differently"));
     }
 
     private static BufferedImage renderCheckboxGlyph(String lookAndFeelClassName, boolean dark, boolean selected)
