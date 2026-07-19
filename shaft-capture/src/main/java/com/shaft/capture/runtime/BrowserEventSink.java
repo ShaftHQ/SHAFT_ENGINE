@@ -29,6 +29,14 @@ import java.util.function.Supplier;
  */
 final class BrowserEventSink implements AutoCloseable {
     private static final int MAX_REQUEST_BYTES = 131_072;
+    /**
+     * Sentinel browsing-context id stamped on every signal this sink delivers: page JS posting to
+     * this loopback endpoint has no visibility into its own BiDi browsing-context id, so it can
+     * never report the tab's real one. {@link CaptureEventPipeline} correlates this sentinel back
+     * to the tab most recently confirmed by a genuine BiDi signal (issue #3803) instead of treating
+     * it as a distinct context.
+     */
+    static final String LOOPBACK_BROWSING_CONTEXT_ID = "loopback";
 
     private final Consumer<BrowserSignal> signalConsumer;
     private final Consumer<String> warningConsumer;
@@ -227,7 +235,8 @@ final class BrowserEventSink implements AutoCloseable {
             if (!payload.isObject()) {
                 return;
             }
-            signalConsumer.accept(BrowserSignal.fromJson(mapper.writeValueAsString(payload), "loopback"));
+            signalConsumer.accept(BrowserSignal.fromJson(
+                    mapper.writeValueAsString(payload), LOOPBACK_BROWSING_CONTEXT_ID));
         } catch (JacksonException exception) {
             warningConsumer.accept("A malformed browser interaction signal was ignored.");
         }
