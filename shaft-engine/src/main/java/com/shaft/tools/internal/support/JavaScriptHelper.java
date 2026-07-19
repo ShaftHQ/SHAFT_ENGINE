@@ -340,7 +340,7 @@ public enum JavaScriptHelper {
             }
             return window._shaftNetworkRequests || 0;"""),
     BROWSER_READINESS_STATE("""
-            (function() {
+            return (function() {
               if (!window._shaftNetworkTracker) {
                 window._shaftNetworkTracker = true;
                 window._shaftNetworkRequests = 0;
