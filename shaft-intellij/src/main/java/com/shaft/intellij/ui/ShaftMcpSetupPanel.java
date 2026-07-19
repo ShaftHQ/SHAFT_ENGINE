@@ -73,7 +73,8 @@ final class ShaftMcpSetupPanel extends JPanel {
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
-            "Next: pick your agent, click the install command (a terminal opens with it pre-typed), run it, then check.";
+            "Next: pick your agent, then press Install SHAFT MCP -- this opens a terminal with the MCP+skills+CLI "
+                    + "install command ready to go; run it there, then press Check.";
     private static final String CHECK_NEXT_STEP = "Press Check now.";
     private static final String GEMINI_FAMILY = "GEMINI";
     private static final String GEMINI_KEY_NAME = "GEMINI_API_KEY";
@@ -132,6 +133,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyUpgradeCommand;
     private final JButton checkUpgrade;
     private final JLabel upgradeDetail;
+    private final JButton installNow;
     private final JButton checkMcpVersion;
     private final JButton copyMcpInstallCommand;
     private final JLabel mcpVersionDetail;
@@ -316,6 +318,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         installShaftCli.getAccessibleContext().setAccessibleName("Also install shaft-cli command line");
         installShaftCli.setToolTipText("Also install the shaft-cli command line (--install-shaft-cli), "
                 + "a terminal interface to the same SHAFT MCP tools");
+        // Complete setup by default (issue #3743): MCP + skills + shaft-cli install together with
+        // one click. This checkbox (inside Advanced installer options, hidden by default) exists
+        // only for a user who explicitly wants to opt back out of the CLI.
+        installShaftCli.setSelected(true);
         installShaftCli.addActionListener(event -> installerTargetChanged());
         installerCommand.setText(installerCommand());
         copyUpgradeCommand = new JButton("Copy");
@@ -337,6 +343,18 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
         applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
         checkMcpVersion.addActionListener(event -> runMcpVersionCheck(true));
+        // Primary one-click install action (issue #3743; reworked for JetBrains Marketplace
+        // compliance -- see ShaftPluginSecurityTest, which forbids this plugin from spawning
+        // processes): opens a terminal with the full MCP + skills + CLI command pre-typed through
+        // the same TerminalOpener seam as "Copy SHAFT MCP install command" below; the plugin never
+        // executes the command itself, the user presses Enter.
+        installNow = new JButton("Install");
+        installNow.getAccessibleContext().setAccessibleName("Install SHAFT MCP");
+        installNow.setToolTipText("Opens a terminal with the SHAFT MCP + skills + shaft-cli install command "
+                + "pre-typed for the selected client -- press Enter there to run it, then press Check.");
+        installNow.setMnemonic(KeyEvent.VK_I);
+        applyLabeledAction(installNow, ShaftIcons.DOWNLOAD);
+        installNow.addActionListener(event -> runInstall());
         copyMcpInstallCommand = new JButton("Copy");
         copyMcpInstallCommand.getAccessibleContext().setAccessibleName("Copy SHAFT MCP install command");
         copyMcpInstallCommand.setToolTipText("Copy the SHAFT MCP install/update command and open a terminal with "
@@ -439,6 +457,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         toast.setVisible(false);
         status = new JLabel();
         status.setPreferredSize(JBUI.size(560, 28));
+        // Pin the minimum to the same size (issue #3743): a JLabel's UI-computed minimum size
+        // ignores an overridden preferred size and falls back to its own natural single-line
+        // height, so once the new "Install SHAFT MCP" row grew tall enough to leave the "form"
+        // column a few pixels short, GridBagLayout's shortage-distribution silently squashed this
+        // row down to that smaller natural minimum instead of any of the zero-slack rows around it
+        // -- the exact same footgun setupStateLabel's badges were already pinned against below.
+        status.setMinimumSize(JBUI.size(560, 28));
         setStatusText(GUIDE_SETUP_STEP);
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
         copyCommand = new JButton("Copy command");
@@ -531,6 +556,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         // "3 Install SHAFT MCP" — one row, one Check, one Copy, badge driven by mcpVersionStepState().
         JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         installActions.setOpaque(false);
+        installActions.add(installNow);
         installActions.add(checkMcpVersion);
         installActions.add(copyMcpInstallCommand);
         installActions.add(mcpVersionDetail);
@@ -1177,6 +1203,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyUpgradeCommand.setEnabled(!running);
         checkMcpVersion.setEnabled(!running);
         copyMcpInstallCommand.setEnabled(!running);
+        installNow.setEnabled(!running);
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
         startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
@@ -1451,15 +1478,29 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private static String installerCommandFor(String target) {
+        String body = installerScriptBody(target, false);
+        return isWindows() ? "powershell -NoProfile -ExecutionPolicy Bypass -Command '" + body + "'" : body;
+    }
+
+    /**
+     * The installer script's inner body (download-and-invoke on Windows, download-and-run on
+     * Unix), shared by every call site that builds an installer command string -- {@link
+     * #installerCommandFor(String)} and, via the "Also install shaft-cli" checkbox, {@link
+     * #installerCommand()} -- so they never drift apart. This string is always handed to a
+     * terminal for the user to run, never executed by the plugin itself (issue #3743 rework: see
+     * {@code ShaftPluginSecurityTest}, which forbids this plugin from spawning OS processes).
+     */
+    private static String installerScriptBody(String target, boolean installCli) {
         String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/" + INSTALLER_BRANCH
                 + "/scripts/mcp/install-shaft-mcp";
+        String flags = installCli ? "--install-shaft-skills --install-shaft-cli" : "--install-shaft-skills";
         if (isWindows()) {
-            return "powershell -NoProfile -ExecutionPolicy Bypass -Command '$installer=Join-Path $env:TEMP \"install-shaft-mcp.ps1\"; "
+            return "$installer=Join-Path $env:TEMP \"install-shaft-mcp.ps1\"; "
                     + "Invoke-WebRequest -UseBasicParsing \"" + url
-                    + ".ps1\" -OutFile $installer; & $installer -Client " + target + " --install-shaft-skills'";
+                    + ".ps1\" -OutFile $installer; & $installer -Client " + target + " " + flags;
         }
         return "tmp=\"${TMPDIR:-/tmp}/install-shaft-mcp.sh\"; curl -fL " + url
-                + ".sh -o \"$tmp\" && sh \"$tmp\" --" + target + " --install-shaft-skills";
+                + ".sh -o \"$tmp\" && sh \"$tmp\" --" + target + " " + flags;
     }
 
     /**
@@ -1511,6 +1552,28 @@ final class ShaftMcpSetupPanel extends JPanel {
                 ? "Terminal opened with the SHAFT MCP install command pre-typed. Press Enter there to run it; "
                 + "when it finishes, press Check."
                 : "SHAFT MCP install command copied. Paste it into a terminal, run it; when it finishes, press Check.");
+        updateActionState(false);
+    }
+
+    /**
+     * Primary "Install SHAFT MCP" action (issue #3743; reworked for JetBrains Marketplace
+     * compliance -- {@code ShaftPluginSecurityTest} forbids this plugin from spawning OS
+     * processes). Routes the full MCP + skills + CLI command through the exact same {@link
+     * #terminalOpener} seam {@link #copyMcpInstallCommand()} uses: a terminal opens with the
+     * command pre-typed and the user presses Enter to actually run it -- the plugin itself never
+     * executes anything.
+     */
+    private void runInstall() {
+        String command = installerCommand();
+        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> setStatusText(typed
+                ? "Command ready in the terminal -- run it, then press Check."
+                : "Couldn't auto-type the command there. Use Copy and paste it manually, then press Check."));
+        if (opened) {
+            openIntellijTerminal();
+            setStatusText("Terminal opened — typing the command...");
+        } else {
+            setStatusText("Could not open a terminal. Use Copy to get the install command instead.");
+        }
         updateActionState(false);
     }
 
