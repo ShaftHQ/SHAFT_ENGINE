@@ -246,7 +246,14 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(html.contains("--color-intent-primary-bg: #006ec0"), html);
         Assert.assertTrue(html.contains(":root[data-theme=\"dark\"]"), html);
         Assert.assertTrue(html.contains("--color-intent-primary-bg: #4cc2ff"), html);
-        Assert.assertFalse(html.contains("--color-bg-"), html);
+        // Scoped to the theme-colors block itself: it must use the "--color-intent-primary-bg"
+        // naming scheme, never the older/rejected "--color-bg-*" prefix. Scoping (rather than
+        // scanning the whole combined patched file) keeps this guard from tripping on unrelated
+        // patches elsewhere in the page that legitimately reference other real Allure variables
+        // (e.g. the header-buttons bar's "--color-bg-canvas", issue #3802).
+        String themeColorsBlock = html.substring(html.indexOf("id=\"shaft-allure-theme-colors\""),
+                html.indexOf("</style>", html.indexOf("id=\"shaft-allure-theme-colors\"")));
+        Assert.assertFalse(themeColorsBlock.contains("--color-bg-"), themeColorsBlock);
         Assert.assertTrue(html.contains("width: 100% !important"), html);
         Assert.assertTrue(html.contains("height: auto !important"), html);
         Assert.assertEquals(html.split("id=\"shaft-overview-panel-style\"", -1).length - 1, 1, html);
@@ -258,6 +265,35 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(html.contains("id=\"shaft-overview-frame\""), html);
         Assert.assertTrue(html.contains("id=\"shaft-overview-panel-script\""), html);
         Assert.assertTrue(html.contains("overview-panel-injection-marker"), html);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldInjectHeaderButtonsBeforeAppRootExactlyOnce() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index,
+                "<html><head></head><body><div id=\"app\"></div></body></html>",
+                StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+
+        Assert.assertEquals(html.split("id=\"shaft-header-buttons\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("id=\"shaft-header-buttons-style\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("href=\"https://shafthq.github.io\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("href=\"https://github.com/ShaftHQ/SHAFT_ENGINE\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("target=\"_blank\"", -1).length - 1, 2, html);
+        Assert.assertEquals(html.split("rel=\"noopener\"", -1).length - 1, 2, html);
+        Assert.assertTrue(html.contains("User Guide"), html);
+        Assert.assertTrue(html.contains("Star SHAFT"), html);
+        // The bar must be a real sibling BEFORE the app root, not inside it or after </body>,
+        // so it survives Allure's own client-side route switching (Overview/Suites/Graphs/Timeline).
+        Assert.assertTrue(html.indexOf("id=\"shaft-header-buttons-style\"") < html.indexOf("id=\"shaft-header-buttons\""), html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-header-buttons\"") < html.indexOf("id=\"app\""), html);
+        Assert.assertTrue(html.indexOf("id=\"app\"") < html.indexOf("</body>"), html);
     }
 
     @Test
@@ -323,8 +359,10 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertFalse(scan.previewScriptPresent());
         Assert.assertFalse(scan.themeColorsPresent());
         Assert.assertFalse(scan.overviewPanelPresent());
+        Assert.assertFalse(scan.headerButtonsPresent());
         Assert.assertEquals(scan.headEndOffset(), headEndOffset);
         Assert.assertEquals(scan.bodyEndOffset(), lastBodyEndOffset);
+        Assert.assertEquals(scan.appRootOffset(), -1L);
     }
 
     @Test
