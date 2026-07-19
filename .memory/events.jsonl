@@ -379,3 +379,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.mocked-executescript-suites-cannot-catch-script-body-return-bugs","timestamp":"2026-07-19T16:03:11+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.npm-overrides-reject-yarn-resolutions-glob-keys","timestamp":"2026-07-19T16:03:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.properties-catalog-generator-check-idempotence-cannot-detect-silent-description-loss","timestamp":"2026-07-19T17:23:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.abstractbutton-includes-jcheckbox-jradiobutton-forcing-basicbuttonui-on-it-kills-checkbox-glyphs","timestamp":"2026-07-19T17:59:10+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellijs-screenshot-renderer-test-never-runs-its-body-in-ci-assumefalse-on-dshaft-intellij-screenshotdir","timestamp":"2026-07-19T17:59:10+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.swing-uimanager-put-overrides-persist-across-uimanager-setlookandfeel-switches-intellijs-defaulttreeui-requires-a-l-f-to-have-been-installed-at-least-once","timestamp":"2026-07-19T17:59:10+03:00"}

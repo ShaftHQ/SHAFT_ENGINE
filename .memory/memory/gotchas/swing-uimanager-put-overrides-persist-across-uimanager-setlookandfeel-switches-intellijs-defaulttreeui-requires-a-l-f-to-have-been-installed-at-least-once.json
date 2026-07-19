@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/swing-uimanager-put-overrides-persist-across-uimanager-setlookandfeel-switches-intellijs-defaulttreeui-requires-a-l-f-to-have-been-installed-at-least-once.md",
+  "content_hash": "sha256:8dc0c9989c903d53353c3ae1ceaaa0cb03405a64d695a6695a105738fd5eb591",
+  "created_at": "2026-07-19T17:59:10+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.swing-uimanager-put-overrides-persist-across-uimanager-setlookandfeel-switches-intellijs-defaulttreeui-requires-a-l-f-to-have-been-installed-at-least-once",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix light-theme IntelliJLaf checkbox rendering defect in shaft-intellij headless screenshot renderer (issue #3777)"
+  },
+  "status": "active",
+  "tags": [
+    "swing",
+    "intellij-platform",
+    "test-isolation",
+    "gotcha",
+    "shaft-intellij"
+  ],
+  "title": "Swing UIManager.put() overrides persist across UIManager.setLookAndFeel() switches; IntelliJ's DefaultTreeUI requires a L&F to have been installed at least once",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T17:59:10+03:00"
+}
