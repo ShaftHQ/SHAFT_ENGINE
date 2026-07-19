@@ -6,13 +6,17 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -410,6 +414,65 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         return result.output();
     }
 
+    // -- Streaming timing: lines must arrive incrementally, not only buffered at EOF ------------
+
+    @Test
+    void verboseStreamingDeliversEachStubbedProcessLineIncrementallyBeforeExit() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "stub-agent --print", false);
+        DelayedLinesStubProcess process = new DelayedLinesStubProcess(
+                List.of("line one", "line two", "line three"), 40);
+        List<String> delivered = new CopyOnWriteArrayList<>();
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, delivered::add, (command, workingDirectory, environment) -> process);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(3, delivered.size()),
+                () -> assertEquals("line one", delivered.get(0)),
+                () -> assertEquals("line two", delivered.get(1)),
+                () -> assertEquals("line three", delivered.get(2)));
+    }
+
+    @Test
+    void structuredClaudeStreamProducesHumanReadableProgressAndParsesTerminalUsage() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CLAUDE_CODE", "ASK", ".", "", false);
+        String toolUseEvent = """
+                {"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_1","name":"shaft_guide_search","input":{}}]}}""";
+        String assistantTextEvent = """
+                {"type":"assistant","message":{"content":[{"type":"text","text":"Looking into the failure now."}]}}""";
+        String terminalEvent = """
+                {"type":"result","subtype":"success","result":"The failure was a stale locator.","usage":{"input_tokens":123,"output_tokens":45}}""";
+        StubProcess process = new StubProcess(
+                String.join("\n", toolUseEvent, assistantTextEvent, terminalEvent) + "\n");
+        List<String> delivered = new CopyOnWriteArrayList<>();
+
+        // requireCommandAvailable=false: this exercises the real claude default command shape without
+        // depending on the claude CLI actually being installed on the test machine's PATH.
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, delivered::add, (command, workingDirectory, environment) -> process, false);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        AssistantLocalAgentRunner.TokenUsage usage = AssistantLocalAgentRunner.parseTokenUsage(result.output());
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertTrue(result.output().contains("The failure was a stale locator.")),
+                () -> assertFalse(delivered.isEmpty()),
+                () -> assertTrue(delivered.stream().anyMatch(line -> line.contains("shaft_guide_search")),
+                        "Expected a human-readable tool_use line: " + delivered),
+                () -> assertTrue(delivered.stream().anyMatch(line -> line.contains("Looking into the failure now.")),
+                        "Expected the assistant text to be delivered: " + delivered),
+                () -> assertTrue(delivered.stream().noneMatch(line -> line.startsWith("{")),
+                        "Consumer lines should be human-readable, not raw JSON: " + delivered),
+                () -> assertEquals(123, usage.inputTokens()),
+                () -> assertEquals(45, usage.outputTokens()),
+                () -> assertFalse(usage.estimated()));
+    }
+
     private static AssistantCommand.Invocation copilotInvocation() {
         return AssistantCommand.fromPrompt("Explain this failure", "COPILOT_CLI", "ASK", ".", "", false);
     }
@@ -508,6 +571,106 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         @Override
         public boolean isAlive() {
             return false;
+        }
+    }
+
+    /**
+     * Stub {@link Process} whose stdout drips out one line at a time with a delay between lines,
+     * proving the live-output consumer receives each line as it streams rather than only at EOF --
+     * {@link StubProcess} above replays its whole stdout content at once, which cannot distinguish
+     * "delivered incrementally" from "buffered until the process exits."
+     */
+    private static final class DelayedLinesStubProcess extends Process {
+        private final InputStream stdout;
+
+        DelayedLinesStubProcess(List<String> lines, long delayMillisPerLine) {
+            this.stdout = new DelayedLinesInputStream(lines, delayMillisPerLine);
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return new ByteArrayOutputStream();
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return stdout;
+        }
+
+        @Override
+        public InputStream getErrorStream() {
+            return new ByteArrayInputStream(new byte[0]);
+        }
+
+        @Override
+        public int waitFor() {
+            return 0;
+        }
+
+        @Override
+        public boolean waitFor(long timeout, TimeUnit unit) {
+            return true;
+        }
+
+        @Override
+        public int exitValue() {
+            return 0;
+        }
+
+        @Override
+        public void destroy() {
+            // No underlying OS process to terminate.
+        }
+
+        @Override
+        public Process destroyForcibly() {
+            return this;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return false;
+        }
+    }
+
+    /**
+     * Feeds newline-delimited lines to a reader with a delay between each line, simulating a slow
+     * streaming CLI process for verbose-output tests.
+     */
+    private static final class DelayedLinesInputStream extends InputStream {
+        private final List<byte[]> chunks = new ArrayList<>();
+        private final long delayMillisPerLine;
+        private int chunkIndex;
+        private int positionInChunk;
+        private boolean delayedForCurrentChunk;
+
+        DelayedLinesInputStream(List<String> lines, long delayMillisPerLine) {
+            this.delayMillisPerLine = delayMillisPerLine;
+            for (String line : lines) {
+                chunks.add((line + "\n").getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        @Override
+        public synchronized int read() throws IOException {
+            while (chunkIndex < chunks.size() && positionInChunk >= chunks.get(chunkIndex).length) {
+                chunkIndex++;
+                positionInChunk = 0;
+                delayedForCurrentChunk = false;
+            }
+            if (chunkIndex >= chunks.size()) {
+                return -1;
+            }
+            if (!delayedForCurrentChunk) {
+                delayedForCurrentChunk = true;
+                try {
+                    Thread.sleep(delayMillisPerLine);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while simulating delayed output", exception);
+                }
+            }
+            return chunks.get(chunkIndex)[positionInChunk++] & 0xFF;
         }
     }
 }

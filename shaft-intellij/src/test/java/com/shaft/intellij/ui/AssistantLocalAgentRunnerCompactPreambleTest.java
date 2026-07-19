@@ -11,12 +11,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -198,6 +201,58 @@ class AssistantLocalAgentRunnerCompactPreambleTest {
         assertAll(
                 () -> assertFalse(result.success(), result.output()),
                 () -> assertTrue(consumedLines.isEmpty(), consumedLines.toString()));
+    }
+
+    // -- startWithOptionalCompact(Invocation, boolean, Consumer, ProcessLauncher): command ordering --
+
+    @Test
+    void autoCompactIssuesCompactCommandBeforeUserPromptInvocation() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CLAUDE_CODE", "ASK", ".", "stub-agent --print", false);
+        List<List<String>> launchedCommands = new CopyOnWriteArrayList<>();
+        AtomicInteger launchCount = new AtomicInteger();
+
+        AssistantLocalAgentRunner.ProcessLauncher launcher = (command, workingDirectory, environment) -> {
+            launchedCommands.add(command);
+            int index = launchCount.getAndIncrement();
+            return index == 0
+                    ? new StubProcess("Compaction complete.", "", 0, true)
+                    : new StubProcess("Explanation of the failure.", "", 0, true);
+        };
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.startWithOptionalCompact(
+                invocation, true, output -> { }, launcher);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(2, launchedCommands.size()),
+                () -> assertTrue(launchedCommands.get(0).contains("/compact"),
+                        "Compact command should be issued first: " + launchedCommands),
+                () -> assertEquals(AssistantLocalAgentRunner.commandFor(invocation.arguments()),
+                        launchedCommands.get(1)));
+    }
+
+    @Test
+    void autoCompactSkipsGracefullyWithoutFailingRequestWhenCliDoesNotSupportCompaction() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "COPILOT_CLI", "ASK", ".", "stub-agent ask", false);
+        List<List<String>> launchedCommands = new CopyOnWriteArrayList<>();
+        AssistantLocalAgentRunner.ProcessLauncher launcher = (command, workingDirectory, environment) -> {
+            launchedCommands.add(command);
+            return new StubProcess("ask response", "", 0, true);
+        };
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.startWithOptionalCompact(
+                invocation, true, output -> { }, launcher);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(1, launchedCommands.size(), "Unsupported CLI should skip compaction, not fail: "
+                        + launchedCommands),
+                () -> assertEquals(AssistantLocalAgentRunner.commandFor(invocation.arguments()),
+                        launchedCommands.get(0)));
     }
 
     private static JsonObject claudeArguments() {

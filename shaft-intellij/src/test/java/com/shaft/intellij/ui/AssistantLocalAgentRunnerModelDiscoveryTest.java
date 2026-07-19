@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -207,6 +209,27 @@ class AssistantLocalAgentRunnerModelDiscoveryTest {
         List<String> models = AssistantLocalAgentRunner.listModels(arguments);
 
         assertTrue(models.isEmpty(), models.toString());
+    }
+
+    // -- listModels(JsonObject, ProcessLauncher): end-to-end plain-text CLI output ---------------
+
+    @Test
+    void modelSelectorPopulatesFromStubbedCliWithNoHardcodedModelNames() {
+        // Regression guard: the model selector must populate exclusively from what the CLI reports
+        // (here, plain newline-delimited text, unlike the JSON-stdout cases above) and never fall
+        // back to a hardcoded model list baked into the plugin.
+        StubProcess process = new StubProcess("stub-model-alpha\nstub-model-beta\n", "", 0, true);
+
+        List<String> models = AssistantLocalAgentRunner.listModels(
+                arguments("CLAUDE_CODE"), (command, workingDirectory, environment) -> process);
+
+        assertAll(
+                () -> assertEquals(2, models.size()),
+                () -> assertTrue(models.contains("stub-model-alpha")),
+                () -> assertTrue(models.contains("stub-model-beta")),
+                () -> assertFalse(models.contains("claude-opus-4-8")),
+                () -> assertFalse(models.contains("claude-sonnet-5")),
+                () -> assertFalse(models.contains("gpt-4.1")));
     }
 
     private static JsonObject arguments(String client) {
