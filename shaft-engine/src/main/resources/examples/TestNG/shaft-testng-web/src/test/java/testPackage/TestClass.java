@@ -15,9 +15,11 @@ public class TestClass {
 
     String targetUrl = "https://en.wikipedia.org/wiki/Main_Page";
 
-    By logo = By.xpath("//img[@class='mw-logo-icon']");
+    // Wikipedia's shared page-header logo lockup (icon + wordmark + tagline): present, static, and
+    // identically rendered on every article -- unlike the small 50x50 icon alone, this larger
+    // composite element reliably has a non-zero rendered size the moment the header paints.
+    By logo = By.xpath("//a[@class='mw-logo']");
     By searchBox = Locator.hasAnyTagName().hasAttribute("id", "searchInput").build(); // synonym to By.id("searchInput");
-    By firstSearchResult = By.xpath("(//div[contains(@class,'mw-search-result-heading')])[1]//a");
 
     @Test
     public void navigateToWikipediaAndAssertBrowserTitleIsDisplayedCorrectly() {
@@ -31,11 +33,15 @@ public class TestClass {
                 .and().element().assertThat(logo).matchesReferenceImage();
     }
 
+    // Typing the exact title of an existing Wikipedia article and submitting the search form
+    // (Enter) deterministically redirects straight to that article -- MediaWiki's "go to page"
+    // behavior for an exact title match, verified via `curl -L` (search=Software+testing ->
+    // wikipedia.org/wiki/Software_testing). This avoids asserting on Wikipedia's live, ranked
+    // full-text search results, which drift over time and are not a stable test oracle.
     @Test
     public void searchForQueryAndAssert() {
         driver.browser().navigateToURL(targetUrl)
-                .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER)
-                .and().element().click(firstSearchResult);
+                .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER);
         driver.assertThat().browser().title().contains(testData.get("expectedResultTitle"));
         driver.assertThat().element(By.tagName("body")).text().contains(testData.get("expectedResultText"));
     }

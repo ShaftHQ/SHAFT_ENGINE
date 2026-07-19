@@ -34,7 +34,6 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiProvider;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chromium.AddHasCdp;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.DevToolsException;
@@ -634,35 +633,37 @@ public class DriverFactoryHelper {
             else {
                 var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
                 driver.setFileDetector(new LocalFileDetector());
-                // Note: org.openqa.selenium.remote.Augmenter#addDriverAugmentation returns a NEW
-                // Augmenter (immutable builder) rather than mutating `this`; every call below must
-                // reassign `augmenter`, otherwise the added augmentation is silently discarded.
-                var augmenter = new Augmenter();
-                var targetBrowser = SHAFT.Properties.web.targetBrowserName().toLowerCase();
-                var isChromiumBrowser = Arrays.asList("chrome", "edge").contains(targetBrowser);
-                if (isChromiumBrowser) {
-                    augmenter = augmenter.addDriverAugmentation(new AddHasCdp() {
-                        @Override
-                        public Map<String, CommandInfo> getAdditionalCommands() {
-                            return Map.of();
-                        }
-                    });
-                }
-                if (SHAFT.Properties.platform.enableBiDi()) {
-                    augmenter = augmenter.addDriverAugmentation(new BiDiProvider());
-                    if (isChromiumBrowser) {
-                        // Selenium's HasAuthentication is CDP-backed (org.openqa.selenium.remote.AddHasAuthentication),
-                        // not auto-discovered via ServiceLoader for RemoteWebDriver, so navigateToURLWithBasicAuthentication
-                        // would otherwise always fall back to URL-embedded credentials on remote executions (issue #3732).
-                        augmenter = augmenter.addDriverAugmentation(new AddHasAuthentication());
-                    }
-                }
-                return augmenter.augment(driver);
+                return augmentRemoteWebDriver(driver, SHAFT.Properties.web.targetBrowserName().toLowerCase(), SHAFT.Properties.platform.enableBiDi());
             }
         } catch (Throwable throwable) {
             ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
             throw throwable;
         }
+    }
+
+    // Note: org.openqa.selenium.remote.Augmenter#addDriverAugmentation returns a NEW
+    // Augmenter (immutable builder) rather than mutating `this`; every call below must
+    // reassign `augmenter`, otherwise the added augmentation is silently discarded.
+    //
+    // Do NOT add a custom AddHasCdp augmentation here: `new Augmenter()` already
+    // ServiceLoader-registers the driver-specific concrete AddHasCdp (org.openqa.selenium.chrome.AddHasCdp /
+    // org.openqa.selenium.edge.AddHasCdp, both shipped in the selenium-chrome-driver / selenium-edge-driver
+    // jars) for any chromium (chrome/edge) session. Adding a second AddHasCdp on top makes Augmenter#augment
+    // collect two Augmentation entries for the same HasCdp interface; ByteBuddy's DynamicType.Builder#implement
+    // then throws "IllegalStateException: Already implemented interface ... HasCdp" the moment the second
+    // .implement(HasCdp.class) is requested, killing every chromium remote/grid session (issue #3788).
+    static WebDriver augmentRemoteWebDriver(RemoteWebDriver driver, String browserName, boolean enableBiDi) {
+        var augmenter = new Augmenter();
+        if (enableBiDi) {
+            augmenter = augmenter.addDriverAugmentation(new BiDiProvider());
+            if (Arrays.asList("chrome", "edge").contains(browserName)) {
+                // Selenium's HasAuthentication is CDP-backed (org.openqa.selenium.remote.AddHasAuthentication),
+                // not auto-discovered via ServiceLoader for RemoteWebDriver, so navigateToURLWithBasicAuthentication
+                // would otherwise always fall back to URL-embedded credentials on remote executions (issue #3732).
+                augmenter = augmenter.addDriverAugmentation(new AddHasAuthentication());
+            }
+        }
+        return augmenter.augment(driver);
     }
 
     private static boolean isWindowsPlatform() {

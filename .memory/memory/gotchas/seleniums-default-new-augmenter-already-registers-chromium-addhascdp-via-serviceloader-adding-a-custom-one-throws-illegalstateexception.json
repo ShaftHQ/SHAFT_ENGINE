@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/seleniums-default-new-augmenter-already-registers-chromium-addhascdp-via-serviceloader-adding-a-custom-one-throws-illegalstateexception.md",
+  "content_hash": "sha256:70b2afc13c00df327a91a0080b9db27fd287a071be257f682de0342f39864c77",
+  "created_at": "2026-07-19T22:15:10+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.seleniums-default-new-augmenter-already-registers-chromium-addhascdp-via-serviceloader-adding-a-custom-one-throws-illegalstateexception",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Issue #3788: grid execution broken -- chromium double-HasCdp augmentation, green-masked example CI, stale sample test data"
+  },
+  "status": "active",
+  "tags": [
+    "selenium",
+    "augmenter",
+    "hascdp",
+    "chromium",
+    "grid",
+    "bytebuddy",
+    "gotcha"
+  ],
+  "title": "Selenium's default new Augmenter() already registers chromium AddHasCdp via ServiceLoader -- adding a custom one throws IllegalStateException",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T22:15:10+03:00"
+}
