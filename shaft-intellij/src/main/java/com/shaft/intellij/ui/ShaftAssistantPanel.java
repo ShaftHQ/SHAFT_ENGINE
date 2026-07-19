@@ -242,6 +242,13 @@ final class ShaftAssistantPanel extends JPanel {
     private int localAgentStreamPlaceholderMessageIndex = -1;
     private StringBuilder localAgentOutput;
     private boolean localAgentBubbleRendersContent;
+    // issue #3751 part 2, HIGH finding 2: readAsync's stdout/stderr reader threads used to invoke one
+    // ApplicationManager#invokeLater per output line, flooding the EDT queue on a chatty CLI stream.
+    // This coalesces per-run into throttled ~100ms batch flushes -- see the field's flush() call sites
+    // in showAgentResult/stopLocalAgentStreaming, which drain any not-yet-flushed lines before a
+    // terminal render reads localAgentOutput, so a run's very last streamed lines are never lost or
+    // silently delayed past the terminal state.
+    private LocalAgentOutputCoalescer localAgentOutputCoalescer;
     private final Deque<Runnable> queuedLocalAgentApprovalPrompts = new ArrayDeque<>();
     private boolean localAgentApprovalPromptShowing;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
@@ -1377,11 +1384,20 @@ final class ShaftAssistantPanel extends JPanel {
             appendAgentMilestone("Running");
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
+            // readAsync calls its output consumer once per stdout/stderr line, from both reader
+            // threads concurrently -- coalesce into throttled ~100ms batch flushes on the EDT instead
+            // of one invokeLater per line (issue #3751 part 2, HIGH finding 2).
+            localAgentOutputCoalescer = new LocalAgentOutputCoalescer(
+                    batch -> batch.forEach(line -> appendLocalAgentOutput(streamToken, line)),
+                    flush -> {
+                        Timer timer = new Timer(100, event -> flush.run());
+                        timer.setRepeats(false);
+                        timer.start();
+                    });
             currentInvocation = AssistantLocalAgentRunner.startWithOptionalCompact(
                     invocation,
                     autoCompact.isSelected(),
-                    output -> ApplicationManager.getApplication().invokeLater(
-                            () -> appendLocalAgentOutput(streamToken, output)),
+                    localAgentOutputCoalescer::enqueue,
                     localAgentApprovalHandler(streamToken));
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
@@ -1968,6 +1984,12 @@ final class ShaftAssistantPanel extends JPanel {
         if (handleKilledOrStaleAgentStream(streamToken)) {
             return;
         }
+        // Drain any lines the coalescer is still holding for its next throttled flush before this
+        // terminal path reads localAgentOutput below -- otherwise the run's very last streamed lines
+        // could be missing from the partial-output snapshot (issue #3751 part 2, HIGH finding 2).
+        if (localAgentOutputCoalescer != null) {
+            localAgentOutputCoalescer.flush();
+        }
         boolean cancelled = error instanceof CancellationException;
         // Snapshot before setRunning(false, ...) clears killRequested for the next run.
         boolean killed = cancelled && killRequested;
@@ -2198,7 +2220,8 @@ final class ShaftAssistantPanel extends JPanel {
         localAgentOutput.append(line == null ? "" : line);
         if (verboseLocalAgentOutput()) {
             localAgentBubbleRendersContent = true;
-            replaceLocalAgentStreamPlaceholder("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
+            replaceLocalAgentStreamPlaceholder(
+                    "assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()), false);
         } else {
             // Verbose gates the full streaming bubble, but a non-verbose run must not look frozen
             // either (issue #3546): surface a compact milestone bubble in the transcript instead
@@ -2312,7 +2335,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         String displayResponse = withLocalAgentTokenUsage(response, rawResponse);
         ResolvedQuestion resolved = resolveQuestion(displayResponse, rawResponse);
-        replaceLocalAgentStreamPlaceholder("assistant", resolved.toPersist());
+        replaceLocalAgentStreamPlaceholder("assistant", resolved.toPersist(), true);
         localAgentStreamPlaceholderMessageIndex = -1;
         lastResponse = resolved.toPersist();
         lastRawResponse = rawResponse == null ? "" : rawResponse;
@@ -2411,6 +2434,11 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void stopLocalAgentStreaming() {
         if (activeLocalAgentStreamToken > 0) {
+            // Same reasoning as showAgentResult: drain the coalescer's not-yet-flushed lines before
+            // reading localAgentOutput for the "Killed" finalization below.
+            if (localAgentOutputCoalescer != null) {
+                localAgentOutputCoalescer.flush();
+            }
             killedLocalAgentStreamToken = activeLocalAgentStreamToken;
             // A killed run never reaches finishLocalAgentResponse (handleKilledOrStaleAgentStream
             // short-circuits the eventual async completion for this stream token), so this synchronous
@@ -2422,7 +2450,7 @@ final class ShaftAssistantPanel extends JPanel {
                     ? formatLocalAgentStreamingResponse(localAgentOutput.toString())
                             + "\n\n_Killed._ (partial output above)"
                     : "_Killed._";
-            replaceLocalAgentStreamPlaceholder("assistant", finalized);
+            replaceLocalAgentStreamPlaceholder("assistant", finalized, true);
             localAgentStreamPlaceholderMessageIndex = -1;
         }
         activeLocalAgentStreamToken = -1;
@@ -4016,8 +4044,48 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void updateContextTruncationBoundary() {
-        conversationContextForPrompt();
+        computeTruncationBoundaryIndex();
         transcript.setTruncationBoundaryIndex(contextTruncationBoundaryIndex);
+    }
+
+    /**
+     * Computes {@link #contextTruncationBoundaryIndex} only -- issue #3751 part 2, MEDIUM finding 5:
+     * {@code append()} calls {@link #updateContextTruncationBoundary()} after every single message
+     * (including every non-verbose streamed milestone line), but {@link #conversationContextForPrompt}
+     * was doing the FULL context-string build (entries list, per-entry role-prefixed string
+     * concatenation, clipping, {@code String.join}) purely to derive this one index as a side effect,
+     * then discarding the string. This mirrors that method's exact same truncation-boundary math
+     * without allocating any of that -- {@link #conversationContextForPrompt} (called once per actual
+     * send, not once per line) is still the only place that needs the real joined text and keeps
+     * computing this same index itself when it runs.
+     */
+    private void computeTruncationBoundaryIndex() {
+        List<ShaftAssistantChatState.Message> messages = chatState.activeMessages();
+        if (messages.isEmpty()) {
+            contextTruncationBoundaryIndex = -1;
+            return;
+        }
+        int total = 0;
+        int oldestIncludedIndex = -1;
+        boolean loopCompletedWithoutBreak = true;
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            ShaftAssistantChatState.Message message = messages.get(index);
+            if (message == null || message.markdown == null || message.markdown.isBlank()) {
+                continue;
+            }
+            int entryLength = contextRole(message.role).length() + 2 + message.markdown.trim().length();
+            int nextTotal = total + entryLength + 2;
+            if (nextTotal > MAX_AGENT_CONTEXT_CHARACTERS && oldestIncludedIndex != -1) {
+                contextTruncationBoundaryIndex = index + 1;
+                loopCompletedWithoutBreak = false;
+                break;
+            }
+            oldestIncludedIndex = index;
+            total = nextTotal;
+        }
+        if (loopCompletedWithoutBreak && oldestIncludedIndex == 0) {
+            contextTruncationBoundaryIndex = -1;
+        }
     }
 
     private static String contextRole(String role) {
@@ -4045,8 +4113,14 @@ final class ShaftAssistantPanel extends JPanel {
      * #3695, e.g. "Cancelling...") can now be appended after the placeholder and before this call,
      * so a plain last-message replace would silently clobber the wrong (most recent milestone)
      * bubble instead and leave the true placeholder stuck on screen forever.
+     *
+     * @param forceRender whether to bypass {@link AssistantTranscriptView}'s ~100ms streamed-render
+     *     throttle (issue #3751 part 2, HIGH finding 1) and force this update onto the bubble
+     *     immediately -- {@code false} for intermediate per-line streaming updates (the throttle is
+     *     the point), {@code true} for the run's terminal call (a completed/killed/cancelled run must
+     *     never leave the bubble showing stale throttled-away content)
      */
-    private void replaceLocalAgentStreamPlaceholder(String role, String message) {
+    private void replaceLocalAgentStreamPlaceholder(String role, String message, boolean forceRender) {
         if (message == null || message.isBlank()) {
             return;
         }
@@ -4065,10 +4139,14 @@ final class ShaftAssistantPanel extends JPanel {
             // Common case: no milestone bubble was appended after the placeholder yet -- the fast,
             // incremental single-bubble update still applies.
             transcript.replaceLast(normalizedRole, message);
+            if (forceRender) {
+                transcript.flushStreamedRender();
+            }
         } else {
             // A milestone bubble now sits after the placeholder -- resync the whole transcript from
             // the chat-state source of truth, so the placeholder's own bubble (not the trailing
-            // milestone bubble) is the one that visibly changes.
+            // milestone bubble) is the one that visibly changes. Always a full, immediate render
+            // already, so forceRender needs no special handling here.
             transcript.setMessages(active.messages);
         }
     }
