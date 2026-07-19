@@ -13,6 +13,7 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.browser.internal.ScrollSweepPlanner;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
