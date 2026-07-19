@@ -56,3 +56,17 @@ unverified JDKs.
 Plugin tests run headless via the IntelliJ test framework; Swing panels are
 unit-testable if logic is separated from EDT wiring. Playwright/webapp tools
 cannot see Swing — evidence is the screenshot renderer, not a browser.
+
+Any test that installs a real platform L&F (`UIManager.setLookAndFeel`) must
+register `LookAndFeelIsolationExtension` (`shaft-intellij/src/test/java/.../ui/`,
+issue #3782) so it snapshots/restores the `LookAndFeel` instance, `JBColor`
+dark flag, and declared `UIManager` keys on the EDT — `UIManager.put()`
+overrides persist across L&F switches by Swing design, and IntelliJ's
+`DefaultTreeUI` only becomes the active `TreeUI` delegate once a platform
+L&F has been installed at least once in the JVM, a latch that restoring the
+L&F instance does **not** undo. Confirmed live (issue #3786): running the
+*whole* module's `gradlew test` together with
+`-Dshaft.intellij.screenshotDir=...` still breaks `ShaftTestsPanelTest`'s
+tree-selection tests via that sticky latch even with the extension in
+place — always scope screenshot regeneration with
+`--tests ShaftPluginScreenshotRendererTest`, never a bare full-suite run.
