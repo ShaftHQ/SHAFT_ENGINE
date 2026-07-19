@@ -28,6 +28,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -114,11 +115,20 @@ final class RecorderToolPanel extends JPanel {
         JButton review = button("Review code", "Generate reviewed SHAFT code blocks from the recording",
                 ShaftIcons.CODE, this::reviewCode);
 
+        JPanel targetUrlRow = row("Target URL", 'U', targetUrl);
+        JPanel browserRow = row("Browser", 'B', browser);
+        JPanel headlessRow = row("Headless", 'H', headless);
+        JPanel outputPathRow = row("Output path", 'O', outputPath);
+        // Issue #3771: each row() panel packs its own label at that label's natural width, so
+        // without this the fields beside "Browser"/"Headless" land left of "Target URL"/"Output
+        // path" -- a ragged left edge next to a real aligned form.
+        alignLabelColumn(targetUrlRow, browserRow, headlessRow, outputPathRow);
+
         JPanel quickStartFields = new JPanel(new GridLayout(0, 1, 4, 4));
-        quickStartFields.add(row("Target URL", 'U', targetUrl));
-        quickStartFields.add(row("Browser", 'B', browser));
-        quickStartFields.add(row("Headless", 'H', headless));
-        quickStartFields.add(row("Output path", 'O', outputPath));
+        quickStartFields.add(targetUrlRow);
+        quickStartFields.add(browserRow);
+        quickStartFields.add(headlessRow);
+        quickStartFields.add(outputPathRow);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.add(start);
@@ -509,6 +519,28 @@ final class RecorderToolPanel extends JPanel {
         row.add(label, BorderLayout.WEST);
         row.add(component, BorderLayout.CENTER);
         return row;
+    }
+
+    /**
+     * Equalizes the label column of a set of {@link #row} panels (issue #3771): each row is its own
+     * independent {@link BorderLayout}, so left to its own natural size a longer label (e.g.
+     * "Target URL") pushes its field further right than a shorter sibling label (e.g. "Browser"),
+     * producing a ragged left edge across the Quick Start section. Widening every label to the
+     * group's widest preferred size lines every field up in one column.
+     */
+    private static void alignLabelColumn(JPanel... rows) {
+        int columnWidth = 0;
+        for (JPanel row : rows) {
+            columnWidth = Math.max(columnWidth, rowLabel(row).getPreferredSize().width);
+        }
+        for (JPanel row : rows) {
+            JLabel label = rowLabel(row);
+            label.setPreferredSize(new Dimension(columnWidth, label.getPreferredSize().height));
+        }
+    }
+
+    private static JLabel rowLabel(JPanel row) {
+        return (JLabel) row.getComponent(0);
     }
 
     private static JButton button(String text, String description, Icon icon, Runnable action) {

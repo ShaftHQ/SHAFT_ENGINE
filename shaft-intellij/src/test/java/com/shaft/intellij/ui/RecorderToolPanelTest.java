@@ -11,6 +11,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Container;
@@ -54,6 +55,36 @@ class RecorderToolPanelTest {
                 () -> assertNotNull(outputPath),
                 () -> assertEquals("recordings/intellij-capture.json", outputPath.getText(),
                         "Must match ToolTemplates.recorder()'s capture_start template default"));
+    }
+
+    /**
+     * Issue #3771 (professional UX polish): each Quick Start row ("Target URL", "Browser",
+     * "Headless", "Output path") is built by {@code row()} as its own independent {@link
+     * java.awt.BorderLayout}, so a label's WEST slot naturally sizes to that label's own text --
+     * "Target URL"/"Output path" are longer than "Browser"/"Headless" -- and the fields beside them
+     * land at different x-offsets, a ragged left edge that reads as unpolished next to a real
+     * aligned form.
+     */
+    @Test
+    void quickStartRowLabelsShareAConsistentColumnWidthSoFieldsAlign() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+        JLabel targetUrlLabel = findByAccessibleName(panel, "Target URL", JLabel.class);
+        JLabel browserLabel = findByAccessibleName(panel, "Browser", JLabel.class);
+        JLabel headlessLabel = findByAccessibleName(panel, "Headless", JLabel.class);
+        JLabel outputPathLabel = findByAccessibleName(panel, "Output path", JLabel.class);
+
+        assertAll(
+                () -> assertNotNull(targetUrlLabel),
+                () -> assertNotNull(browserLabel),
+                () -> assertNotNull(headlessLabel),
+                () -> assertNotNull(outputPathLabel),
+                () -> assertEquals(targetUrlLabel.getPreferredSize().width, browserLabel.getPreferredSize().width,
+                        "Quick Start row labels must share a column width so fields align"),
+                () -> assertEquals(targetUrlLabel.getPreferredSize().width, headlessLabel.getPreferredSize().width,
+                        "Quick Start row labels must share a column width so fields align"),
+                () -> assertEquals(targetUrlLabel.getPreferredSize().width, outputPathLabel.getPreferredSize().width,
+                        "Quick Start row labels must share a column width so fields align"));
     }
 
     @Test
