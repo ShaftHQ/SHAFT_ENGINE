@@ -32,6 +32,7 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.SearchContext;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
@@ -748,6 +749,48 @@ public class ActionsCoverageUnitTest {
             RuntimeException exception = Assert.expectThrows(RuntimeException.class, () -> new Actions(helper).click(LOCATOR));
             Assert.assertTrue(hasCause(exception, InvalidElementStateException.class));
             verify((JavascriptExecutor) driver, org.mockito.Mockito.never()).executeScript(eq("arguments[0].click();"), eq(element));
+        }
+    }
+
+    @Test
+    public void performActionShouldReportOriginalExceptionAsRootCauseWhenFailureScreenshotThrows() {
+        // Reproduces #3795: an action fails, and while SHAFT is capturing the failure screenshot
+        // the element has already gone stale (e.g. ENTER navigated away). The reported root cause
+        // must remain the ORIGINAL action failure, never the screenshot-capture failure.
+        // A plain WebDriverException is neither one of FluentWait's ignored/retried exceptions
+        // (unlike StaleElementReferenceException) nor InvalidElementStateException (which triggers
+        // a JavaScript-click fallback instead of failing) - so it propagates to the failure handler
+        // deterministically on the first attempt.
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        RuntimeException originalFailure = new WebDriverException(
+                "element became unusable after ENTER navigated away");
+        doThrow(originalFailure).when(element).click();
+        // Default highlight method is "AI": takeFailureScreenshot -> captureScreenshot ->
+        // takeAIHighlightedScreenshot calls element.getRect() first, which is now stale too.
+        when(element.getRect()).thenThrow(new StaleElementReferenceException(
+                "stale element reference: element is not attached to the page document"));
+        // The viewport fallback screenshot also fails here, so the outer safety net has to win.
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES))
+                .thenThrow(new WebDriverException("session deleted because of page crash"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helper).click(LOCATOR));
+
+            Throwable rootCause = exception;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            Assert.assertSame(rootCause, originalFailure,
+                    "Expected the original action failure to remain the reported root cause, not the screenshot failure.");
+            boolean screenshotFailureWasSuppressed = java.util.Arrays.stream(rootCause.getSuppressed())
+                    .anyMatch(suppressed -> suppressed.getMessage() != null
+                            && suppressed.getMessage().contains("element is not attached to the page document"));
+            Assert.assertTrue(screenshotFailureWasSuppressed,
+                    "Expected the screenshot-capture failure to be attached as suppressed, not to replace the root cause.");
         }
     }
 
