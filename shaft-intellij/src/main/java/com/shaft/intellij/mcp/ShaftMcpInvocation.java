@@ -30,7 +30,10 @@ public record ShaftMcpInvocation(CompletableFuture<ShaftMcpToolResult> future, R
      * @return whether the future accepted cancellation
      */
     public boolean kill() {
+        // Cancel before killing: killAction unblocks the worker thread, which could otherwise
+        // complete the future normally first and make cancel(true) report false.
+        boolean cancelled = future.cancel(true);
         killAction.run();
-        return future.cancel(true);
+        return cancelled;
     }
 }

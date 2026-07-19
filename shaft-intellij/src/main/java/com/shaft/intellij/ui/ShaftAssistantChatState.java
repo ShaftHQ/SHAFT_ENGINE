@@ -19,7 +19,10 @@ import java.util.regex.Pattern;
 @State(name = "ShaftAssistantChatState", storages = @Storage(StoragePathMacros.WORKSPACE_FILE))
 public final class ShaftAssistantChatState implements PersistentStateComponent<ShaftAssistantChatState.StateData> {
     private static final int MAX_SESSIONS = 12;
-    private static final int MAX_MESSAGES_PER_SESSION = 80;
+    // Package-private (not private): AssistantTranscriptView reuses this exact constant, rather than
+    // duplicating the number, to bound its own rendered messages/bubbles to the same trim policy
+    // (issue #3751 part 2, MEDIUM finding 4).
+    static final int MAX_MESSAGES_PER_SESSION = 80;
     private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
             "(?iu)([\"']?\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|set-cookie)\\b[\"']?\\s*[:=]\\s*)([\"']?)[^\\s`'\",}]+([\"']?)");

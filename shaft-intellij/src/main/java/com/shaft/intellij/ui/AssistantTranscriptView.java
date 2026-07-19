@@ -40,7 +40,9 @@ import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
+import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -66,6 +68,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -117,6 +120,26 @@ final class AssistantTranscriptView extends JPanel {
     private final List<RenderedBubble> renderedBubbles = new ArrayList<>();
     private int bubbleCreationCount;
     private String markdown = "";
+    // issue #3751 part 2, HIGH finding 3: joinMessages() concatenates every persisted message, so
+    // recomputing it eagerly on every streamed append()/replaceLast() call is O(total transcript size)
+    // per line. Every hot-path mutator instead just sets this flag; markdown() computes lazily, once,
+    // the next time anything actually reads it (persist, "Copy full transcript", etc.) -- which happens
+    // far less often than once per streamed line.
+    private boolean markdownDirty;
+    // issue #3751 part 2, HIGH finding 1: ShaftAssistantPanel's Verbose-mode streaming path calls
+    // replaceLast() with the ENTIRE accumulated buffer on every output line; re-converting Markdown and
+    // re-parsing the whole HTML document (JEditorPane#setText) on every single call is O(current buffer
+    // size) per call, O(N^2) over a run. updateLastBubbleIncrementally() throttles the expensive
+    // convert+setText work to at most once per this interval -- the underlying message model is always
+    // updated immediately regardless, so markdown()/persistence are never stale, only the visible bubble
+    // can lag by up to this long mid-stream. Matches the ~100ms throttle LocalAgentOutputCoalescer's
+    // production Timer already uses, so a run never renders faster than it can already be batched.
+    private static final long STREAMED_RENDER_MIN_INTERVAL_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
+    // Seeded a full interval in the past (relative to a real System.nanoTime() reading taken right
+    // here) rather than a sentinel like Long.MIN_VALUE: nanoTime()'s absolute value is arbitrary
+    // per-JVM, so `now - Long.MIN_VALUE` silently overflows for any realistic `now`, wrapping to a
+    // value that satisfies the "too soon" check and throttles away the very first streamed render.
+    private long lastStreamedRenderNanos = System.nanoTime() - STREAMED_RENDER_MIN_INTERVAL_NANOS;
     private final LafManagerListener lafListener;
     private Disposable lafConnectionDisposable;
     private int truncationBoundaryIndex = -1;
@@ -173,11 +196,16 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     String markdown() {
+        if (markdownDirty) {
+            markdown = joinMessages(messages);
+            markdownDirty = false;
+        }
         return markdown;
     }
 
     void clear() {
         markdown = "";
+        markdownDirty = false;
         messages.clear();
         messageRawEvidence.clear();
         pendingWidget = null;
@@ -206,11 +234,53 @@ final class AssistantTranscriptView extends JPanel {
             // addMessage() silently dropped a blank message -- nothing changed, nothing to render.
             return;
         }
-        markdown = joinMessages(messages);
-        if (canAppendIncrementally()) {
+        boolean incremental = canAppendIncrementally();
+        trimOldestIfOverCapacity(incremental);
+        markdownDirty = true;
+        if (incremental) {
             appendBubbleIncrementally(messages.size() - 1);
         } else {
             refresh();
+        }
+    }
+
+    /**
+     * Drops the oldest persisted message(s) once the transcript exceeds the same {@link
+     * ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION} cap {@code ShaftAssistantChatState} already
+     * enforces on save (issue #3751 part 2, MEDIUM finding 4): non-verbose runs append one milestone
+     * bubble per output line with no prior cap on {@link #messages}/{@link #messageRawEvidence}/{@link
+     * #renderedBubbles}. Called right after a new message is added, before it is rendered, so the view
+     * never retains more than the cap regardless of how many messages a run appends. {@code
+     * bubbleCreationCount} is a cumulative construction counter and is deliberately never decremented
+     * here -- trimming removes old bubbles, it does not "un-construct" them.
+     *
+     * @param incrementalBubbleTrackingInSync whether {@link #renderedBubbles} is 1:1 with {@link
+     *     #messages} minus the just-added message (mirrors {@link #canAppendIncrementally()}, computed
+     *     by the caller before this trim can shift indices) -- when {@code false} (a full {@link
+     *     #refresh()} is about to run anyway), only the data model is trimmed and {@link
+     *     #renderedBubbles} is left for {@link #renderFallbackTranscript()} to rebuild from scratch.
+     */
+    private void trimOldestIfOverCapacity(boolean incrementalBubbleTrackingInSync) {
+        int overflow = messages.size() - ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION;
+        if (overflow <= 0) {
+            return;
+        }
+        for (int trimmed = 0; trimmed < overflow; trimmed++) {
+            messages.remove(0);
+            if (!messageRawEvidence.isEmpty()) {
+                messageRawEvidence.remove(0);
+            }
+            if (incrementalBubbleTrackingInSync && !renderedBubbles.isEmpty()) {
+                RenderedBubble oldest = renderedBubbles.remove(0);
+                fallbackPanel.remove(oldest.row);
+            }
+            if (truncationBoundaryIndex >= 0) {
+                truncationBoundaryIndex--;
+            }
+        }
+        if (incrementalBubbleTrackingInSync) {
+            fallbackPanel.revalidate();
+            fallbackPanel.repaint();
         }
     }
 
@@ -228,12 +298,33 @@ final class AssistantTranscriptView extends JPanel {
         // The replaced content no longer corresponds to whatever evidence (if any) was captured for
         // the message being overwritten, and replaceLast() has no evidence of its own to carry over.
         setLastRawEvidence("");
-        markdown = joinMessages(messages);
+        markdownDirty = true;
         if (updateLastBubbleIncrementally(last.role, message)) {
             scrollLatestIntoView();
         } else {
             refresh();
         }
+    }
+
+    /**
+     * Forces the last streamed bubble to reflect its current model content immediately, bypassing the
+     * {@link #STREAMED_RENDER_MIN_INTERVAL_NANOS} throttle (issue #3751 part 2, HIGH finding 1).
+     * {@code ShaftAssistantPanel} must call this once a run's streamed output ends (completed,
+     * cancelled, or failed) -- otherwise the visible bubble can remain stale from a throttled-away
+     * render for up to that interval past the run's actual last {@link #replaceLast(String, String)}.
+     * A no-op if there is no in-sync last bubble to flush (nothing streamed, or the last mutation fell
+     * back to a full {@link #refresh()}, which already rendered current content).
+     */
+    void flushStreamedRender() {
+        if (messages.isEmpty() || renderedBubbles.size() != messages.size()) {
+            return;
+        }
+        ShaftAssistantChatState.Message last = messages.get(messages.size() - 1);
+        RenderedBubble handle = renderedBubbles.get(renderedBubbles.size() - 1);
+        if (!handle.role.equals(last.role)) {
+            return;
+        }
+        renderBubbleContent(handle, last.markdown);
     }
 
     /**
@@ -282,9 +373,92 @@ final class AssistantTranscriptView extends JPanel {
         if (!role.equals(handle.role)) {
             return false;
         }
+        // issue #3751 part 2, HIGH finding 1, fast path: the Verbose streaming shape only ever GROWS
+        // inside its trailing fenced code block (constant header + whole accumulated buffer in one
+        // fence -- see ShaftAssistantPanel#formatLocalAgentStreamingResponse), so append just the new
+        // characters to the pane's existing document model instead of re-converting Markdown and
+        // re-parsing the entire HTML document. O(delta) per streamed update instead of O(buffer).
+        if (tryAppendStreamedFenceDelta(handle, updatedMarkdown)) {
+            long now = System.nanoTime();
+            if (now - lastStreamedRenderNanos >= STREAMED_RENDER_MIN_INTERVAL_NANOS) {
+                lastStreamedRenderNanos = now;
+                // Collapse re-measure forces a preferred-size pass -- throttle it; the delta text
+                // itself is already visible regardless.
+                handle.outputPanel.updateCollapseState();
+            }
+            return true;
+        }
+        // Slow path (content changed in a non-append way): skip the expensive Markdown->HTML convert
+        // + full JEditorPane#setText re-parse when the last one ran too recently -- the model
+        // (messages/markdown) is already fully up to date regardless via the caller, so this only
+        // throttles the VISIBLE bubble's refresh rate to ~10Hz. flushStreamedRender() forces a final
+        // render past this throttle once the caller's run actually finishes streaming.
+        long now = System.nanoTime();
+        if (now - lastStreamedRenderNanos < STREAMED_RENDER_MIN_INTERVAL_NANOS) {
+            return true;
+        }
+        lastStreamedRenderNanos = now;
+        renderBubbleContent(handle, updatedMarkdown);
+        return true;
+    }
+
+    // The closing fence line of a fenced code block: a newline followed by nothing but backticks
+    // (three or more -- ShaftAssistantPanel#fencedCodeBlock grows the fence when the content itself
+    // contains one).
+    private static final Pattern CLOSING_FENCE_LINE = Pattern.compile("\n`{3,}");
+
+    /**
+     * Fast path for the Verbose streaming shape (issue #3751 part 2, HIGH finding 1): when {@code
+     * next} is exactly the bubble's previously rendered Markdown with new text inserted immediately
+     * before its trailing closing code fence, inserts just that delta into the rendered {@link
+     * HTMLDocument} -- the fence's content renders as plain text inside {@code <pre><code>}, so a
+     * model-level {@code insertString} (no HTML parsing at all) at the document's tail is equivalent
+     * to the full re-render, minus the O(buffer) cost. Returns {@code false} for any other change
+     * shape, leaving the caller to do a full (throttled) re-render. The rendered-HTML client property
+     * intentionally goes stale during a delta streak; the terminal {@link #flushStreamedRender()} (or
+     * any slow-path render) restores full consistency.
+     */
+    private boolean tryAppendStreamedFenceDelta(RenderedBubble handle, String next) {
+        String prev = handle.streamedMarkdown;
+        if (prev == null || USER_ROLE.equals(handle.role) || next.length() <= prev.length()) {
+            return false;
+        }
+        int fenceStart = prev.lastIndexOf('\n');
+        if (fenceStart < 0) {
+            return false;
+        }
+        String closingFence = prev.substring(fenceStart);
+        if (!CLOSING_FENCE_LINE.matcher(closingFence).matches() || !next.endsWith(closingFence)) {
+            return false;
+        }
+        int prevCoreLength = prev.length() - closingFence.length();
+        int nextCoreLength = next.length() - closingFence.length();
+        if (nextCoreLength <= prevCoreLength || !next.regionMatches(0, prev, 0, prevCoreLength)) {
+            return false;
+        }
+        String delta = next.substring(prevCoreLength, nextCoreLength);
+        HTMLDocument document = (HTMLDocument) handle.htmlPane.getDocument();
+        // The document's plain text ends with the code block's last line followed by the implied
+        // trailing newline every Swing text document carries; inserting just before that newline,
+        // with the code run's own character attributes, extends the <pre><code> content in place.
+        int insertOffset = document.getLength() - 1;
+        if (insertOffset < 1) {
+            return false;
+        }
+        try {
+            document.insertString(insertOffset, delta,
+                    document.getCharacterElement(insertOffset - 1).getAttributes());
+        } catch (BadLocationException e) {
+            return false;
+        }
+        handle.streamedMarkdown = next;
+        return true;
+    }
+
+    private void renderBubbleContent(RenderedBubble handle, String updatedMarkdown) {
         Color foreground = handle.htmlPane.getForeground();
         Color background = handle.bubble.getBackground();
-        String bodyHtml = USER_ROLE.equals(role)
+        String bodyHtml = USER_ROLE.equals(handle.role)
                 ? convertPlainUserText(updatedMarkdown)
                 : convertMarkdown(updatedMarkdown);
         String rendered = toFallbackHtml(bodyHtml, foreground, background);
@@ -295,7 +469,7 @@ final class AssistantTranscriptView extends JPanel {
         removeRawEvidenceDisclosure(handle.bubble);
         handle.bubble.revalidate();
         handle.bubble.repaint();
-        return true;
+        handle.streamedMarkdown = updatedMarkdown;
     }
 
     private void removeRawEvidenceDisclosure(JPanel bubble) {
@@ -384,6 +558,17 @@ final class AssistantTranscriptView extends JPanel {
      */
     int bubbleCreationCountForTest() {
         return bubbleCreationCount;
+    }
+
+    /**
+     * Current number of persisted messages -- distinct from {@link #bubbleCreationCountForTest()}'s
+     * cumulative construction count, this reflects the cap-and-trim policy (issue #3751 part 2,
+     * MEDIUM finding 4): the view never retains more than {@link
+     * ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION} messages/bubbles at once, regardless of how
+     * many were appended over a run.
+     */
+    int currentMessageCountForTest() {
+        return messages.size();
     }
 
     private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
@@ -481,6 +666,11 @@ final class AssistantTranscriptView extends JPanel {
         private final JEditorPane htmlPane;
         private final String role;
         private final CollapsibleOutputPanel outputPanel;
+        // The exact Markdown this bubble last rendered, kept so streamed replaceLast() calls can
+        // detect "same content, grown only inside the trailing fenced code block" and append just the
+        // delta to the pane's document instead of re-parsing everything (issue #3751 part 2, HIGH
+        // finding 1). Updated by every full render and by each successful delta append.
+        private String streamedMarkdown;
 
         private RenderedBubble(JComponent row, JPanel bubble, JEditorPane htmlPane, String role,
                 CollapsibleOutputPanel outputPanel) {
@@ -681,7 +871,9 @@ final class AssistantTranscriptView extends JPanel {
             bubble.add(evidenceFooter(rawEvidence), BorderLayout.SOUTH);
         }
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        return new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
+        RenderedBubble handle = new RenderedBubble(row, bubble, htmlPane, normalizedRole, outputPanel);
+        handle.streamedMarkdown = markdown;
+        return handle;
     }
 
     /**
