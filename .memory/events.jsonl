@@ -378,3 +378,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shafthq-github-io-is-yarn-locked-npm-ci-silently-yields-incomplete-node-modules","timestamp":"2026-07-19T11:59:34+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.mocked-executescript-suites-cannot-catch-script-body-return-bugs","timestamp":"2026-07-19T16:03:11+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.npm-overrides-reject-yarn-resolutions-glob-keys","timestamp":"2026-07-19T16:03:19+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.properties-catalog-generator-check-idempotence-cannot-detect-silent-description-loss","timestamp":"2026-07-19T17:23:54+03:00"}
