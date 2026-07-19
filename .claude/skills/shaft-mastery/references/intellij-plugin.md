@@ -6,6 +6,18 @@ source/target compatibility is 17). UI evidence comes from
 `ShaftPluginScreenshotRendererTest -Dshaft.intellij.screenshotDir=...` —
 visible UI changes must regenerate screenshots for the PR.
 
+`shaft-intellij/settings.gradle.kts` enforces the JDK-25-crashes-the-daemon
+constraint directly (issue #3784): it fails fast with an actionable message
+if the Gradle Daemon JVM is newer than JDK 21, instead of letting JDK 25
+crash the daemon (`EXCEPTION_ACCESS_VIOLATION` in G1 GC on Windows). A hard
+Gradle Daemon JVM criteria/toolchain pin to exactly JDK 21 was considered
+and rejected: that mechanism takes precedence over `JAVA_HOME` and
+`-Dorg.gradle.java.home` (Gradle docs), which would have forced CI's
+`intellij-plugin.yml` `build-and-verify` job — JDK 17 only, via a
+system-installed `gradle`, not the wrapper — onto a JDK 21 it never
+installs. The guard leaves JDK 17-21 alone and only rejects newer,
+unverified JDKs.
+
 ## Threading & UI rules
 - EDT-only for Swing mutation; use `invokeLater`/`Application.invokeLater`
   from background threads, and never block the EDT on MCP/process I/O —
