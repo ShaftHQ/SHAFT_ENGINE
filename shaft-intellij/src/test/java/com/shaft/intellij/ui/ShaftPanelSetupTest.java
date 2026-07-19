@@ -327,6 +327,60 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(panel, "session path")));
     }
 
+    // ---- Issue #3767: the armed-stop path ("stop recording" with generateCaptureReviewAfterStop
+    // set) short-circuits before showFinalToolResult on both its return-true branches, so
+    // ShaftRecordingActivity.stopped(recordingKey) -- the only place that clears the readiness
+    // strip's recording badge for stop tools -- never fired. The badge stayed lit until
+    // removeNotify() or an unrelated later stop happened to clear it. ----
+
+    @Test
+    void armedCaptureStopClearsRecordingBadgeBeforeReviewGenerationThrows() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeRecordingBackend", recordingBackend("WEBDRIVER"));
+        setField(panel, "generateCaptureReviewAfterStop", true);
+        String recordingKey = (String) getField(panel, "recordingKey");
+        ShaftRecordingActivity.resetForTests();
+        ShaftRecordingActivity.started(recordingKey);
+        assertTrue(ShaftRecordingActivity.active());
+
+        Method showDiagnostic = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showCaptureStopDiagnosticIfPending", String.class, boolean.class, String.class, String.class);
+        showDiagnostic.setAccessible(true);
+        // Mirrors armedApiStopExtractsSessionPathAndBuildsGenerateInvocationWithPanelDefaults: the
+        // armed path's startCaptureCodeReview() call NPEs against the null test project, but the
+        // badge must be cleared before that dispatch is attempted, not after.
+        assertThrows(InvocationTargetException.class,
+                () -> showDiagnostic.invoke(panel, "capture_stop", true, "Stopped.", "Stopped."));
+
+        assertFalse(ShaftRecordingActivity.active(), "armed capture_stop should clear the recording badge");
+    }
+
+    @Test
+    void armedApiStopWithBlankSessionPathClearsRecordingBadge() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeRecordingBackend", recordingBackend("API"));
+        setField(panel, "generateCaptureReviewAfterStop", true);
+        String recordingKey = (String) getField(panel, "recordingKey");
+        ShaftRecordingActivity.resetForTests();
+        ShaftRecordingActivity.started(recordingKey);
+
+        String output = mcpText("""
+                {
+                  "state": "STOPPED",
+                  "outputPath": ""
+                }
+                """);
+        Method showDiagnostic = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showCaptureStopDiagnosticIfPending", String.class, boolean.class, String.class, String.class);
+        showDiagnostic.setAccessible(true);
+        boolean handled = (Boolean) showDiagnostic.invoke(panel, "capture_api_stop", true, "Stopped.", output);
+
+        assertAll(
+                () -> assertTrue(handled),
+                () -> assertFalse(ShaftRecordingActivity.active(),
+                        "blank-sessionPath armed stop should still clear the recording badge"));
+    }
+
     // ---- Attach-to-prompt affordances (issue #3727): current file / all open files / a disk file /
     // an image, rendered as removable chips near the composer and folded into the outbound prompt
     // text sent to the local-agent or cloud-provider MCP tool. ----
