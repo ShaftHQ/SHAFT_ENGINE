@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -910,29 +911,37 @@ public class Actions extends ElementActions {
                     ? ElementActionabilityDiagnostics.collect(
                             locator, driverFactoryHelper.getDriver(), foundElements.get(), exception)
                     : Map.of();
+            // take failure screenshot - a failure here (e.g. the element went stale between the
+            // original failure and this screenshot attempt) must never mask the original exception
             try {
-                // take failure screenshot
                 if (foundElements.get() == null || foundElements.get().size() != 1) {
                     screenshot.set(0, takeFailureScreenshot(null));
                 } else {
                     screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
                 }
-                recordFlakeProfile(flakeProfile, false);
-                // report broken
+            } catch (RuntimeException screenshotException) {
+                // fall back to a viewport-only screenshot instead of failing the screenshot step
+                try {
+                    screenshot.set(0, takeFailureScreenshot(null));
+                } catch (RuntimeException viewportScreenshotException) {
+                    screenshotException.addSuppressed(viewportScreenshotException);
+                    screenshot.set(0, null);
+                }
+                exception.addSuppressed(screenshotException);
+            }
+            recordFlakeProfile(flakeProfile, false);
+            try {
+                // report broken - always reported against the ORIGINAL exception
                 reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0),
                         exception, actionability);
-            } catch (RuntimeException exception2) {
-                if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
-                    // in case a new exception was thrown while attempting to take a screenshot
-                    exception2.addSuppressed(exception);
-                    recordFlakeProfile(flakeProfile, false);
-                    // report broken
-                    reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0),
-                            exception2, actionability);
-                } else {
-                    // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
-                    throw exception2;
+            } catch (RuntimeException reportedException) {
+                if (Objects.equals(reportedException.getCause(), exception)) {
+                    // expected: SHAFT's designed wrapper carrying the original exception as its cause
+                    throw reportedException;
                 }
+                // the reporting pipeline itself failed unexpectedly; the original failure must still win
+                exception.addSuppressed(reportedException);
+                throw exception;
             }
         }
         //report pass
