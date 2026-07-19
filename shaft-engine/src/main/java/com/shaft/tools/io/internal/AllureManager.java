@@ -91,6 +91,12 @@ public class AllureManager {
     private static final String ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID = "shaft-allure-attachment-preview-script";
     private static final String ALLURE_THEME_COLORS_ID = "shaft-allure-theme-colors";
     private static final String ALLURE_OVERVIEW_PANEL_ID = "shaft-overview-panel-style";
+    private static final String ALLURE_HEADER_BUTTONS_ID = "shaft-header-buttons";
+    /** Literal opening tag of the Allure "awesome" plugin's React/Preact mount point, present at a
+     *  fixed, stable location (the first element in {@code <body>}) across single-file and
+     *  multi-file Allure 3 output alike; verified against a real {@code allure generate} run
+     *  (issue #3802). Used purely as an insertion point, not a presence marker. */
+    private static final String ALLURE_APP_ROOT_TAG = "<div id=\"app\"";
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE = """
             <style id="shaft-allure-attachment-preview-fix">
             .shaft-allure-image-modal {
@@ -497,6 +503,111 @@ public class AllureManager {
                 + "</div>"
                 + "</div>"
                 + ALLURE_OVERVIEW_PANEL_SCRIPT;
+    }
+
+    private static final String ALLURE_HEADER_BUTTONS_STYLE = """
+            <style id="shaft-header-buttons-style">
+            #shaft-header-buttons {
+              display: flex;
+              justify-content: flex-end;
+              align-items: center;
+              flex-wrap: wrap;
+              gap: 8px;
+              box-sizing: border-box;
+              padding: 10px 24px;
+              font-family: inherit;
+              background: var(--color-bg-canvas, #ffffff);
+              border-bottom: 1px solid var(--color-border-subtle, rgba(16, 42, 49, 0.10));
+            }
+
+            .shaft-header-btn {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 6px 14px;
+              border-radius: 999px;
+              font-family: inherit;
+              font-size: 13px;
+              font-weight: 600;
+              line-height: 1.2;
+              white-space: nowrap;
+              text-decoration: none;
+              cursor: pointer;
+              transition: background-color 0.15s ease, border-color 0.15s ease;
+            }
+
+            .shaft-header-btn:focus-visible {
+              outline: 2px solid var(--color-focus-ring, #006ec0);
+              outline-offset: 2px;
+            }
+
+            .shaft-header-btn--primary {
+              background: var(--color-intent-primary-bg, #006ec0);
+              color: var(--color-intent-primary-on-bg, #ffffff);
+              border: 1px solid transparent;
+            }
+
+            .shaft-header-btn--primary:hover {
+              background: var(--color-intent-primary-bg-hover, #005da3);
+            }
+
+            .shaft-header-btn--primary:active {
+              background: var(--color-intent-primary-bg-active, #004d86);
+            }
+
+            .shaft-header-btn--secondary {
+              background: var(--color-control-bg, rgba(200, 214, 231, 0.55));
+              color: var(--color-text-primary, #102a31);
+              border: 1px solid var(--color-border-default, rgba(16, 42, 49, 0.18));
+            }
+
+            .shaft-header-btn--secondary:hover {
+              background: var(--color-control-bg-hover, rgba(200, 214, 231, 0.75));
+            }
+
+            .shaft-header-btn--secondary:active {
+              background: var(--color-control-bg-active, rgba(200, 214, 231, 0.92));
+            }
+
+            .shaft-header-btn-star {
+              font-size: 13px;
+              line-height: 1;
+            }
+
+            @media (max-width: 480px) {
+              #shaft-header-buttons {
+                padding: 8px 12px;
+                gap: 6px;
+              }
+
+              .shaft-header-btn {
+                padding: 5px 10px;
+                font-size: 12px;
+              }
+            }
+            </style>
+            """;
+
+    /**
+     * Builds the persistent "User Guide" / "Star SHAFT" header buttons bar (issue #3802) patched
+     * as a real sibling immediately before the Allure "awesome" plugin's {@code <div id="app">}
+     * mount point. Being outside {@code #app} means Preact/React never touches it, so it survives
+     * every client-side route change (Overview, Suites, Graphs, Timeline) without needing a
+     * {@code position: fixed} overlay or any brittle coupling to Allure's own (hashed, unstable)
+     * CSS module class names. Both links open in a new tab and carry no live star-count, so the
+     * static report keeps working fully offline (opened via {@code file://}).
+     *
+     * @return the HTML fragment to splice immediately before {@code <div id="app">}
+     */
+    private static String allureHeaderButtonsPatch() {
+        return ALLURE_HEADER_BUTTONS_STYLE
+                + "<div id=\"" + ALLURE_HEADER_BUTTONS_ID + "\">"
+                + "<a class=\"shaft-header-btn shaft-header-btn--primary\" href=\"https://shafthq.github.io\""
+                + " target=\"_blank\" rel=\"noopener\">User Guide</a>"
+                + "<a class=\"shaft-header-btn shaft-header-btn--secondary\" href=\"https://github.com/ShaftHQ/SHAFT_ENGINE\""
+                + " target=\"_blank\" rel=\"noopener\" aria-label=\"Star SHAFT on GitHub\">"
+                + "<span class=\"shaft-header-btn-star\" aria-hidden=\"true\">&#9733;</span> Star SHAFT</a>"
+                + "</div>";
     }
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
@@ -947,13 +1058,16 @@ public class AllureManager {
      * @param previewFixPresent    {@code true} when the attachment-preview-fix {@code <style>} id is present
      * @param previewScriptPresent {@code true} when the attachment-preview-fix {@code <script>} id is present
      * @param themeColorsPresent   {@code true} when the theme-colors {@code <style>} id is present
+     * @param headerButtonsPresent {@code true} when the header-buttons bar id is present
      * @param headEndOffset        absolute byte offset of the first {@code </head>}, or {@code -1} if absent
      * @param bodyEndOffset        absolute byte offset of the last {@code </body>}, or {@code -1} if absent
+     * @param appRootOffset        absolute byte offset of the first {@code <div id="app"}, or {@code -1} if absent
      */
     // package-private so unit tests can assert scan results without reflection
     record IndexMarkerScan(boolean previewFixPresent, boolean previewScriptPresent,
                            boolean themeColorsPresent, boolean overviewPanelPresent,
-                           long headEndOffset, long bodyEndOffset) {
+                           boolean headerButtonsPresent,
+                           long headEndOffset, long bodyEndOffset, long appRootOffset) {
     }
 
     /** A byte-range insertion to apply while streaming {@code index.html} to its patched copy. */
@@ -962,8 +1076,9 @@ public class AllureManager {
 
     /**
      * Patches the generated Allure single-file report's {@code index.html} to inject SHAFT's
-     * attachment-preview-fix styling/script and theme-color overrides, without ever holding the
-     * whole file in memory.
+     * attachment-preview-fix styling/script, theme-color overrides, the "SHAFT Overview" panel, and
+     * the persistent "User Guide" / "Star SHAFT" header buttons (issue #3802) — without ever holding
+     * the whole file in memory.
      *
      * <p>Single-file Allure reports inline every attachment as base64, so {@code index.html} can
      * grow far beyond the forked JVM's heap; the previous implementation read the whole file into a
@@ -993,10 +1108,11 @@ public class AllureManager {
             if (!scan.overviewPanelPresent()) {
                 bodyPatch += allureOverviewPanelPatch();
             }
-            if (headPatch.isEmpty() && bodyPatch.isEmpty()) {
+            String appRootPatch = scan.headerButtonsPresent() ? "" : allureHeaderButtonsPatch();
+            if (headPatch.isEmpty() && bodyPatch.isEmpty() && appRootPatch.isEmpty()) {
                 return;
             }
-            writePatchedIndex(indexPath, scan, headPatch, bodyPatch);
+            writePatchedIndex(indexPath, scan, headPatch, bodyPatch, appRootPatch);
         } catch (IOException e) {
             ReportManager.logDiscrete("Could not patch Allure report styling: " + e.getMessage());
         }
@@ -1012,6 +1128,8 @@ public class AllureManager {
         byte[] previewScriptMarker = ("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"").getBytes(StandardCharsets.UTF_8);
         byte[] themeColorsMarker = ("id=\"" + ALLURE_THEME_COLORS_ID + "\"").getBytes(StandardCharsets.UTF_8);
         byte[] overviewPanelMarker = ("id=\"" + ALLURE_OVERVIEW_PANEL_ID + "\"").getBytes(StandardCharsets.UTF_8);
+        byte[] headerButtonsMarker = ("id=\"" + ALLURE_HEADER_BUTTONS_ID + "\"").getBytes(StandardCharsets.UTF_8);
+        byte[] appRootMarker = ALLURE_APP_ROOT_TAG.getBytes(StandardCharsets.UTF_8);
         byte[] headEndMarker = "</head>".getBytes(StandardCharsets.UTF_8);
         byte[] bodyEndMarker = "</body>".getBytes(StandardCharsets.UTF_8);
 
@@ -1019,15 +1137,20 @@ public class AllureManager {
         boolean previewScriptPresent = false;
         boolean themeColorsPresent = false;
         boolean overviewPanelPresent = false;
+        boolean headerButtonsPresent = false;
         boolean headFound = false;
+        boolean appRootFound = false;
         long headEndOffset = -1;
         long bodyEndOffset = -1;
+        long appRootOffset = -1;
 
         int maxMarkerLength = Math.max(previewFixMarker.length,
                 Math.max(previewScriptMarker.length,
                         Math.max(themeColorsMarker.length,
                                 Math.max(overviewPanelMarker.length,
-                                        Math.max(headEndMarker.length, bodyEndMarker.length)))));
+                                        Math.max(headerButtonsMarker.length,
+                                                Math.max(appRootMarker.length,
+                                                        Math.max(headEndMarker.length, bodyEndMarker.length)))))));
         int carryLength = maxMarkerLength - 1;
         byte[] window = new byte[carryLength + INDEX_PATCH_BUFFER_SIZE];
         int carried = 0;
@@ -1059,12 +1182,24 @@ public class AllureManager {
                 int minStart = Math.max(0, carried - overviewPanelMarker.length + 1);
                 overviewPanelPresent = indexOfMarker(window, windowLength, minStart, overviewPanelMarker, false) >= 0;
             }
+            if (!headerButtonsPresent) {
+                int minStart = Math.max(0, carried - headerButtonsMarker.length + 1);
+                headerButtonsPresent = indexOfMarker(window, windowLength, minStart, headerButtonsMarker, false) >= 0;
+            }
             if (!headFound) {
                 int minStart = Math.max(0, carried - headEndMarker.length + 1);
                 int matchIndex = indexOfMarker(window, windowLength, minStart, headEndMarker, false);
                 if (matchIndex >= 0) {
                     headEndOffset = windowStartOffset + matchIndex;
                     headFound = true;
+                }
+            }
+            if (!appRootFound) {
+                int minStart = Math.max(0, carried - appRootMarker.length + 1);
+                int matchIndex = indexOfMarker(window, windowLength, minStart, appRootMarker, false);
+                if (matchIndex >= 0) {
+                    appRootOffset = windowStartOffset + matchIndex;
+                    appRootFound = true;
                 }
             }
             int bodyMinStart = Math.max(0, carried - bodyEndMarker.length + 1);
@@ -1079,7 +1214,8 @@ public class AllureManager {
             carried = newCarry;
         }
 
-        return new IndexMarkerScan(previewFixPresent, previewScriptPresent, themeColorsPresent, overviewPanelPresent, headEndOffset, bodyEndOffset);
+        return new IndexMarkerScan(previewFixPresent, previewScriptPresent, themeColorsPresent, overviewPanelPresent,
+                headerButtonsPresent, headEndOffset, bodyEndOffset, appRootOffset);
     }
 
     /**
@@ -1110,17 +1246,25 @@ public class AllureManager {
 
     /**
      * Streams {@code indexPath} to a sibling temp file, inserting {@code headPatch} immediately
-     * before {@code scan.headEndOffset()} (or at offset 0 if absent) and {@code bodyPatch}
-     * immediately before {@code scan.bodyEndOffset()} (or at EOF if absent), then atomically
-     * replaces {@code indexPath}. Offsets are computed on the original (unpatched) file; since
-     * neither patch constant contains the literals {@code </head>} or {@code </body>}, this is
-     * equivalent to the old post-insertion string arithmetic.
+     * before {@code scan.headEndOffset()} (or at offset 0 if absent), {@code appRootPatch}
+     * immediately before {@code scan.appRootOffset()} (falling back to the {@code bodyPatch}
+     * insertion point when the app-root tag is absent, e.g. an unrecognised report layout), and
+     * {@code bodyPatch} immediately before {@code scan.bodyEndOffset()} (or at EOF if absent), then
+     * atomically replaces {@code indexPath}. Offsets are computed on the original (unpatched) file;
+     * since none of the patch constants contain the literals {@code </head>}, {@code </body>}, or
+     * {@code <div id="app"}, this is equivalent to the old post-insertion string arithmetic.
      */
-    private static void writePatchedIndex(Path indexPath, IndexMarkerScan scan, String headPatch, String bodyPatch) throws IOException {
-        List<IndexInsertion> insertions = new ArrayList<>(2);
+    private static void writePatchedIndex(Path indexPath, IndexMarkerScan scan, String headPatch, String bodyPatch,
+                                           String appRootPatch) throws IOException {
+        List<IndexInsertion> insertions = new ArrayList<>(3);
         if (!headPatch.isEmpty()) {
             long offset = scan.headEndOffset() >= 0 ? scan.headEndOffset() : 0L;
             insertions.add(new IndexInsertion(offset, headPatch.getBytes(StandardCharsets.UTF_8)));
+        }
+        if (!appRootPatch.isEmpty()) {
+            long offset = scan.appRootOffset() >= 0 ? scan.appRootOffset()
+                    : (scan.bodyEndOffset() >= 0 ? scan.bodyEndOffset() : Long.MAX_VALUE);
+            insertions.add(new IndexInsertion(offset, appRootPatch.getBytes(StandardCharsets.UTF_8)));
         }
         if (!bodyPatch.isEmpty()) {
             long offset = scan.bodyEndOffset() >= 0 ? scan.bodyEndOffset() : Long.MAX_VALUE;
