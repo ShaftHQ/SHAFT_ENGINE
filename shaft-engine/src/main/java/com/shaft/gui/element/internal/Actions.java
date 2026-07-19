@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -934,7 +935,7 @@ public class Actions extends ElementActions {
                 reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0),
                         exception, actionability);
             } catch (RuntimeException reportedException) {
-                if (reportedException.getCause() == exception) {
+                if (Objects.equals(reportedException.getCause(), exception)) {
                     // expected: SHAFT's designed wrapper carrying the original exception as its cause
                     throw reportedException;
                 }
