@@ -158,6 +158,13 @@ public class ReportManagerHelperUnitTests {
     }
 
     @Test
+    public void executionSummaryShouldOmitStarCtaWhenAllTestsSkipped() {
+        String summary = ReportManagerHelper.prepareExecutionSummaryMessage("4", "0", "0", "4");
+
+        SHAFT.Validations.assertThat().object(summary).doesNotContain("github.com/ShaftHQ/SHAFT_ENGINE").perform();
+    }
+
+    @Test
     public void deduplicateConsecutiveLogLinesShouldKeepOnlyAdjacentUniqueLines() throws Exception {
         Method deduplicateMethod = ReportManagerHelper.class.getDeclaredMethod("deduplicateConsecutiveLogLines", byte[].class);
         deduplicateMethod.setAccessible(true);

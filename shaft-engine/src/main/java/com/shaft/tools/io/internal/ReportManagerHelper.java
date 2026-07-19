@@ -444,9 +444,9 @@ public class ReportManagerHelper {
                 + "  ·  " + ANSI_GREEN + "✓ Passed: " + passed + ANSI_FG_DEFAULT
                 + "  ·  " + ANSI_RED + "✗ Failed: " + failed + ANSI_FG_DEFAULT
                 + "  ·  " + ANSI_YELLOW + "⊘ Skipped: " + skipped + ANSI_FG_DEFAULT;
-        String trimmedTotal = total == null ? "" : total.trim();
+        String trimmedPassed = passed == null ? "" : passed.trim();
         String trimmedFailed = failed == null ? "" : failed.trim();
-        if (!"0".equals(trimmedTotal) && "0".equals(trimmedFailed)) {
+        if (!"0".equals(trimmedPassed) && "0".equals(trimmedFailed)) {
             summary += "\n⭐ Enjoyed a clean run? Star SHAFT on GitHub: "
                     + ANSI_UNDERLINE + "https://github.com/ShaftHQ/SHAFT_ENGINE" + ANSI_UNDERLINE_OFF;
         }
