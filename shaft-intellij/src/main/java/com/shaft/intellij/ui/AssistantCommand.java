@@ -2241,6 +2241,38 @@ final class AssistantCommand {
         return Invocation.tool("playwright_record_stop", stopRecording());
     }
 
+    /**
+     * Reroutes a natural "stop recording" phrase to {@code capture_api_stop} (issue #3739) when
+     * the API backend is the active recorder -- {@link #recording} itself is stateless and always
+     * resolves a bare stop phrase to {@code capture_stop}, so {@code ShaftAssistantPanel} calls
+     * this from {@code routeNaturalStopToActiveRecorder} once it knows the active backend.
+     */
+    static Invocation stopApiRecording() {
+        return Invocation.tool("capture_api_stop", stopRecording());
+    }
+
+    /**
+     * Builds the {@code capture_api_generate} argument shape for the chat-driven record -> stop ->
+     * generate loop (issue #3739), matching {@code ApiRecordingSessionPanel.generateCode()}'s
+     * Advanced-UI defaults exactly: no excluded transactions, no pinned response fields, and the
+     * same output directory/package/style/validation-depth defaults.
+     */
+    static JsonObject apiCaptureGenerate(String sessionPath) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", sessionPath == null ? "" : sessionPath);
+        arguments.addProperty("outputDirectory", "generated-tests");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "");
+        arguments.addProperty("style", "SCENARIO");
+        arguments.addProperty("validationDepth", "SCHEMA");
+        arguments.addProperty("overwrite", false);
+        arguments.addProperty("replay", false);
+        arguments.addProperty("openApiSpecPath", "");
+        arguments.add("excludedTransactionIds", new JsonArray());
+        arguments.add("pinnedJsonPaths", new JsonArray());
+        return arguments;
+    }
+
     private static String defaultCaptureRecordingPath() {
         return DEFAULT_CAPTURE_RECORDING_PATH_PREFIX + System.currentTimeMillis() + ".json";
     }
