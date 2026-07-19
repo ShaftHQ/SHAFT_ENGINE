@@ -193,10 +193,11 @@ the main thread. Review delegated output like a hostile reviewer: diff it, run
 it, verify its claims against real files before building on them. Delegation
 distributes work, never responsibility.
 
-**Parallelism budget (owner rule, binding).** Soft maximum of two–three
-concurrent tasks/subagents, even when more could run conflict-free —
-completeness over parallelization. Dispatch sequentially by default; land
-in-flight work before fanning out further. The objective behind the cap: the
+**Parallelism budget (owner rule, binding).** Soft maximum of four–five
+concurrent tasks/subagents (raised from two–three by owner directive
+2026-07-19 for higher throughput), even when more could run conflict-free —
+completeness still outranks parallelization. Land in-flight work before
+fanning out further. The objective behind the cap: the
 5-hour usage window must never be fully exhausted while any work is still in
 progress. Ensure it by any means fit: keep every in-flight item continuously
 resumable (branch pushed, diff parked, state noted on its ticket) before
