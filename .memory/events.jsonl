@@ -391,3 +391,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-issue-3786-fixed-shafttestspaneltest-broke-under-full-suite-screenshotdir-because-a-second-screenshot-test-never-restored-its-installed-l-f","timestamp":"2026-07-19T21:43:50+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.restoring-the-pre-test-lookandfeel-instance-does-not-un-stick-intellijs-defaulttreeui-sticky-latch","timestamp":"2026-07-19T21:54:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-cli-supersede-shorthand-fails-on-windows-with-long-object-ids","timestamp":"2026-07-19T22:05:53+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.selenium-augmenter-adddriveraugmentation-is-an-immutable-builder-always-reassign-the-return-value","timestamp":"2026-07-19T22:15:10+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.selenium-hasauthentication-is-cdp-backed-chromium-only-not-bidi-backed-remotewebdriver-needs-explicit-addhasauthentication","timestamp":"2026-07-19T22:15:10+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.seleniums-default-new-augmenter-already-registers-chromium-addhascdp-via-serviceloader-adding-a-custom-one-throws-illegalstateexception","timestamp":"2026-07-19T22:15:10+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle","timestamp":"2026-07-19T22:15:10+03:00"}

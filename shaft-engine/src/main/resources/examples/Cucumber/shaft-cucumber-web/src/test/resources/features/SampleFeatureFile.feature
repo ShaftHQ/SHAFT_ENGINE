@@ -22,6 +22,6 @@ Feature: Basic SHAFT_Engine Cucumber Web Steps
     And I Type "Software testing framework" into the element found by "id": "searchInput"
     And I Press "Enter" into the element found by "id": "searchInput"
     And I Click the element found by "xpath": "(//div[contains(@class,'mw-search-result-heading')])[1]//a"
-    Then I Assert that the "title" attribute of the browser, contains "Unit testing"
+    Then I Assert that the "title" attribute of the browser, contains "Test automation"
     And I Assert that the "text" attribute of the browser, contains "Software testing"
     And I Close the current window

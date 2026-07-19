@@ -1,6 +1,6 @@
 {
   "searchQuery": "Software testing framework",
   "expectedTitle": "Wikipedia",
-  "expectedResultTitle": "Unit testing",
+  "expectedResultTitle": "Test automation",
   "expectedResultText": "Software testing"
 }
