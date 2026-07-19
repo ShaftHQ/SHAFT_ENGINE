@@ -56,6 +56,9 @@
 <li><a href="#waitForLazyLoadingTimeout()" tabindex="0">waitForLazyLoadingTimeout()</a></li>
 <li><a href="#lazyLoadingNetworkIdleInitialObservationMillis()" tabindex="0">lazyLoadingNetworkIdleInitialObservationMillis()</a></li>
 <li><a href="#lazyLoadingNetworkIdleQuietWindowMillis()" tabindex="0">lazyLoadingNetworkIdleQuietWindowMillis()</a></li>
+<li><a href="#lazyLoadingPollingIntervalMillis()" tabindex="0">lazyLoadingPollingIntervalMillis()</a></li>
+<li><a href="#lazyLoadingDomStabilityQuietWindowMillis()" tabindex="0">lazyLoadingDomStabilityQuietWindowMillis()</a></li>
+<li><a href="#lazyLoadingScrollSweepMaxSteps()" tabindex="0">lazyLoadingScrollSweepMaxSteps()</a></li>
 <li><a href="#defaultElementIdentificationTimeout()" tabindex="0">defaultElementIdentificationTimeout()</a></li>
 <li><a href="#waitForUiStateTimeout()" tabindex="0">waitForUiStateTimeout()</a></li>
 <li><a href="#apiSocketTimeout()" tabindex="0">apiSocketTimeout()</a></li>
@@ -163,55 +166,73 @@ SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600);
 </div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingNetworkIdleInitialObservationMillis()" class="member-name-link">lazyLoadingNetworkIdleInitialObservationMillis</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingDomStabilityQuietWindowMillis()" class="member-name-link">lazyLoadingDomStabilityQuietWindowMillis</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Required DOM-mutation quiet window in milliseconds before the browser-readiness
+wait treats the DOM as stable.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingNetworkIdleInitialObservationMillis()" class="member-name-link">lazyLoadingNetworkIdleInitialObservationMillis</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Initial network observation window in milliseconds when no requests were seen.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingNetworkIdleQuietWindowMillis()" class="member-name-link">lazyLoadingNetworkIdleQuietWindowMillis</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingNetworkIdleQuietWindowMillis()" class="member-name-link">lazyLoadingNetworkIdleQuietWindowMillis</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Required network quiet window in milliseconds after observed activity.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#pageLoadTimeout()" class="member-name-link">pageLoadTimeout</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#remoteServerInstanceCreationTimeout()" class="member-name-link">remoteServerInstanceCreationTimeout</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingPollingIntervalMillis()" class="member-name-link">lazyLoadingPollingIntervalMillis</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Polling interval in milliseconds for the browser-readiness <code>fluentWait</code> loop.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#lazyLoadingScrollSweepMaxSteps()" class="member-name-link">lazyLoadingScrollSweepMaxSteps</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Maximum number of progressive-scroll steps that <code>BrowserActions.scrollToLoadAll()</code>
+will perform while sweeping a page for scroll-triggered lazy content, bounding its
+worst-case cost regardless of how far the page keeps growing.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#pageLoadTimeout()" class="member-name-link">pageLoadTimeout</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scriptExecutionTimeout()" class="member-name-link">scriptExecutionTimeout</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#remoteServerInstanceCreationTimeout()" class="member-name-link">remoteServerInstanceCreationTimeout</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scriptExecutionTimeout()" class="member-name-link">scriptExecutionTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
 of individual configuration properties at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>long</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#shellSessionTimeout()" class="member-name-link">shellSessionTimeout</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#sshServerAliveInterval()" class="member-name-link">sshServerAliveInterval</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>long</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#shellSessionTimeout()" class="member-name-link">shellSessionTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#sshServerAliveInterval()" class="member-name-link">sshServerAliveInterval</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">JSch <code>ServerAliveInterval</code> in seconds for remote SSH sessions.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#timeoutForRemoteServerToBeUp()" class="member-name-link">timeoutForRemoteServerToBeUp</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#timeoutForRemoteServerToBeUp()" class="member-name-link">timeoutForRemoteServerToBeUp</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoadingTimeout()" class="member-name-link">waitForLazyLoadingTimeout</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoadingTimeout()" class="member-name-link">waitForLazyLoadingTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Timeout in seconds for SHAFT's browser lazy-loading synchronization.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForRemoteServerToBeUp()" class="member-name-link">waitForRemoteServerToBeUp</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForUiStateTimeout()" class="member-name-link">waitForUiStateTimeout</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForRemoteServerToBeUp()" class="member-name-link">waitForRemoteServerToBeUp</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForUiStateTimeout()" class="member-name-link">waitForUiStateTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Timeout in seconds for default UI state waits.</div>
 </div>
 </div>
@@ -298,6 +319,44 @@ of individual configuration properties at runtime.</div>
 @DefaultValue("500")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">lazyLoadingNetworkIdleQuietWindowMillis</span>()</div>
 <div class="block">Required network quiet window in milliseconds after observed activity.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lazyLoadingPollingIntervalMillis()">
+<h3>lazyLoadingPollingIntervalMillis</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("lazyLoadingPollingIntervalMillis")
+@DefaultValue("200")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">lazyLoadingPollingIntervalMillis</span>()</div>
+<div class="block">Polling interval in milliseconds for the browser-readiness <code>fluentWait</code> loop.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lazyLoadingDomStabilityQuietWindowMillis()">
+<h3>lazyLoadingDomStabilityQuietWindowMillis</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("lazyLoadingDomStabilityQuietWindowMillis")
+@DefaultValue("0")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">lazyLoadingDomStabilityQuietWindowMillis</span>()</div>
+<div class="block">Required DOM-mutation quiet window in milliseconds before the browser-readiness
+wait treats the DOM as stable. <code>0</code> (default) disables DOM-stability folding
+entirely, preserving today's behavior bit-for-bit: the readiness wait then never
+reads the DOM-mutation marker as part of its pass condition.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lazyLoadingScrollSweepMaxSteps()">
+<h3>lazyLoadingScrollSweepMaxSteps</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("lazyLoadingScrollSweepMaxSteps")
+@DefaultValue("20")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">lazyLoadingScrollSweepMaxSteps</span>()</div>
+<div class="block">Maximum number of progressive-scroll steps that <code>BrowserActions.scrollToLoadAll()</code>
+will perform while sweeping a page for scroll-triggered lazy content, bounding its
+worst-case cost regardless of how far the page keeps growing.</div>
 </div>
 </section>
 </li>

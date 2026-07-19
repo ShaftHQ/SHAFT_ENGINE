@@ -101,6 +101,7 @@
 <li><a href="#captureSnapshot()" tabindex="0">captureSnapshot()</a></li>
 <li><a href="#generateLightHouseReport()" tabindex="0">generateLightHouseReport()</a></li>
 <li><a href="#waitForLazyLoading()" tabindex="0">waitForLazyLoading()</a></li>
+<li><a href="#scrollToLoadAll()" tabindex="0">scrollToLoadAll()</a></li>
 <li><a href="#getContext()" tabindex="0">getContext()</a></li>
 <li><a href="#setContext(java.lang.String)" tabindex="0">setContext(String)</a></li>
 <li><a href="#getWindowHandles()" tabindex="0">getWindowHandles()</a></li>
@@ -312,35 +313,44 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Replays recorded HAR (HTTP Archive) responses through the browser network interceptor.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
- int&nbsp;height)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#scrollToLoadAll()" class="member-name-link">scrollToLoadAll</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Types text into the current browser prompt dialog.</div>
+<div class="block">Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+steps, up to <code>timeouts.lazyLoadingScrollSweepMaxSteps</code>), waiting for lazy-loading
+readiness between steps, to force scroll-triggered content (infinite lists, IntersectionObserver
+sections that only hydrate once visible) to fully load before full-page assertions or
+screenshots.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#verifyContract(java.lang.String,java.lang.String...)" class="member-name-link">verifyContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserAssertions.html" title="interface in com.shaft.gui.driver">BrowserAssertions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
+ int&nbsp;height)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Types text into the current browser prompt dialog.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#verifyContract(java.lang.String,java.lang.String...)" class="member-name-link">verifyContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserAssertions.html" title="interface in com.shaft.gui.driver">BrowserAssertions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -836,6 +846,28 @@
 <h3>waitForLazyLoading</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></span>&nbsp;<span class="element-name">waitForLazyLoading</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="scrollToLoadAll()">
+<h3>scrollToLoadAll</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></span>&nbsp;<span class="element-name">scrollToLoadAll</span>()</div>
+<div class="block">Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+steps, up to <code>timeouts.lazyLoadingScrollSweepMaxSteps</code>), waiting for lazy-loading
+readiness between steps, to force scroll-triggered content (infinite lists, IntersectionObserver
+sections that only hydrate once visible) to fully load before full-page assertions or
+screenshots. Use it right before such assertions on pages known to lazy-load on scroll --
+it is never invoked automatically by any readiness wait, since sweeping the whole page is not
+a safe default before an arbitrary action.
+
+<p><b>Mutates scroll position during execution</b> (restored to its original position when
+the sweep finishes, including on early exit).</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
 </div>
 </section>
 </li>

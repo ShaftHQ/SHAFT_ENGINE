@@ -119,6 +119,7 @@
 <li><a href="#captureSnapshot()" tabindex="0">captureSnapshot()</a></li>
 <li><a href="#generateLightHouseReport()" tabindex="0">generateLightHouseReport()</a></li>
 <li><a href="#waitForLazyLoading()" tabindex="0">waitForLazyLoading()</a></li>
+<li><a href="#scrollToLoadAll()" tabindex="0">scrollToLoadAll()</a></li>
 <li><a href="#getContext()" tabindex="0">getContext()</a></li>
 <li><a href="#setContext(java.lang.String)" tabindex="0">setContext(String)</a></li>
 <li><a href="#getWindowHandles()" tabindex="0">getWindowHandles()</a></li>
@@ -516,53 +517,62 @@ is different, else refreshes the current page.</div>
 <div class="block">Saves the current browser cookies, <code>localStorage</code>, and <code>sessionStorage</code> to a JSON file.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollToLoadAll()" class="member-name-link">scrollToLoadAll</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+steps, up to <code>timeouts.lazyLoadingScrollSweepMaxSteps</code>, default <code>20</code>), waiting
+for lazy-loading readiness between steps, to force scroll-triggered content (infinite
+lists, IntersectionObserver sections that only hydrate once visible) to fully load before
+full-page assertions or screenshots.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus to another context</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
  int&nbsp;height)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Resizes the current window size based on the provided width and height</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts recording selected browser traffic into an HTTP contract.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus to another window</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#throttleNetwork(long,long,long)" class="member-name-link">throttleNetwork</a><wbr>(long&nbsp;latencyMs,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#throttleNetwork(long,long,long)" class="member-name-link">throttleNetwork</a><wbr>(long&nbsp;latencyMs,
  long&nbsp;downloadKbps,
  long&nbsp;uploadKbps)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Applies fixed latency and throughput limits for DevTools-capable browsers.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Types text into the current browser prompt dialog.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyContract(java.lang.String,java.lang.String...)" class="member-name-link">verifyContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyContract(java.lang.String,java.lang.String...)" class="member-name-link">verifyContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts soft-verify validation of live browser responses against an HTTP contract.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverBrowserValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverBrowserValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverBrowserValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverBrowserValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Opens a soft-assertion (verification) builder scoped to the current browser state.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Waits for the page to finish lazy-loading by polling JavaScript readiness conditions.</div>
 </div>
 </div>
@@ -1788,6 +1798,39 @@ or deferred script execution).
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../driver/BrowserActionsContract.html#waitForLazyLoading()">waitForLazyLoading</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="scrollToLoadAll()">
+<h3>scrollToLoadAll</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></span>&nbsp;<span class="element-name">scrollToLoadAll</span>()</div>
+<div class="block">Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+steps, up to <code>timeouts.lazyLoadingScrollSweepMaxSteps</code>, default <code>20</code>), waiting
+for lazy-loading readiness between steps, to force scroll-triggered content (infinite
+lists, IntersectionObserver sections that only hydrate once visible) to fully load before
+full-page assertions or screenshots. Stops early once the page stops growing and the
+viewport bottom has been reached (<a href="internal/ScrollSweepPlanner.html" title="class in com.shaft.gui.browser.internal"><code>ScrollSweepPlanner</code></a>).
+
+<p>Use this right before assertions or screenshots on pages known to lazy-load additional
+content on scroll -- it is never invoked automatically from any readiness wait, since
+sweeping the whole page is not a safe default before an arbitrary action.
+
+<p><b>Mutates scroll position while it runs</b>: the page is scrolled down step by step,
+then restored to its original scroll position when the sweep finishes.
+
+<p>Example:
+<pre><code>driver.browser().navigateToURL("https://example.com/infinite-list")
+      .and().scrollToLoadAll()
+      .and().captureScreenshot();
+</code></pre></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../driver/BrowserActionsContract.html#scrollToLoadAll()">scrollToLoadAll</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
 <dt>Returns:</dt>
 <dd>a self-reference to be used to chain actions</dd>
 </dl>

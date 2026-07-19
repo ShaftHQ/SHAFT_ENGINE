@@ -63,6 +63,9 @@
 <li><a href="#waitForLazyLoadingTimeout(int)" tabindex="0">waitForLazyLoadingTimeout(int)</a></li>
 <li><a href="#lazyLoadingNetworkIdleInitialObservationMillis(int)" tabindex="0">lazyLoadingNetworkIdleInitialObservationMillis(int)</a></li>
 <li><a href="#lazyLoadingNetworkIdleQuietWindowMillis(int)" tabindex="0">lazyLoadingNetworkIdleQuietWindowMillis(int)</a></li>
+<li><a href="#lazyLoadingPollingIntervalMillis(int)" tabindex="0">lazyLoadingPollingIntervalMillis(int)</a></li>
+<li><a href="#lazyLoadingDomStabilityQuietWindowMillis(int)" tabindex="0">lazyLoadingDomStabilityQuietWindowMillis(int)</a></li>
+<li><a href="#lazyLoadingScrollSweepMaxSteps(int)" tabindex="0">lazyLoadingScrollSweepMaxSteps(int)</a></li>
 <li><a href="#defaultElementIdentificationTimeout(double)" tabindex="0">defaultElementIdentificationTimeout(double)</a></li>
 <li><a href="#waitForUiStateTimeout(int)" tabindex="0">waitForUiStateTimeout(int)</a></li>
 <li><a href="#apiSocketTimeout(int)" tabindex="0">apiSocketTimeout(int)</a></li>
@@ -163,48 +166,57 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 </div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingNetworkIdleInitialObservationMillis(int)" class="member-name-link">lazyLoadingNetworkIdleInitialObservationMillis</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingDomStabilityQuietWindowMillis(int)" class="member-name-link">lazyLoadingDomStabilityQuietWindowMillis</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingNetworkIdleQuietWindowMillis(int)" class="member-name-link">lazyLoadingNetworkIdleQuietWindowMillis</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingNetworkIdleInitialObservationMillis(int)" class="member-name-link">lazyLoadingNetworkIdleInitialObservationMillis</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#lazyLoadingTimeout(int)" class="member-name-link">lazyLoadingTimeout</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingNetworkIdleQuietWindowMillis(int)" class="member-name-link">lazyLoadingNetworkIdleQuietWindowMillis</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingPollingIntervalMillis(int)" class="member-name-link">lazyLoadingPollingIntervalMillis</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lazyLoadingScrollSweepMaxSteps(int)" class="member-name-link">lazyLoadingScrollSweepMaxSteps</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#lazyLoadingTimeout(int)" class="member-name-link">lazyLoadingTimeout</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span>
 <div class="deprecation-comment">Use <a href="#waitForLazyLoadingTimeout(int)"><code>waitForLazyLoadingTimeout(int)</code></a>.</div>
 </div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageLoadTimeout(int)" class="member-name-link">pageLoadTimeout</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#remoteServerInstanceCreationTimeout(int)" class="member-name-link">remoteServerInstanceCreationTimeout</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageLoadTimeout(int)" class="member-name-link">pageLoadTimeout</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scriptExecutionTimeout(int)" class="member-name-link">scriptExecutionTimeout</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#remoteServerInstanceCreationTimeout(int)" class="member-name-link">remoteServerInstanceCreationTimeout</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#shellSessionTimeout(long)" class="member-name-link">shellSessionTimeout</a><wbr>(long&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scriptExecutionTimeout(int)" class="member-name-link">scriptExecutionTimeout</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sshServerAliveInterval(int)" class="member-name-link">sshServerAliveInterval</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#shellSessionTimeout(long)" class="member-name-link">shellSessionTimeout</a><wbr>(long&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#timeoutForRemoteServerToBeUp(int)" class="member-name-link">timeoutForRemoteServerToBeUp</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sshServerAliveInterval(int)" class="member-name-link">sshServerAliveInterval</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading(boolean)" class="member-name-link">waitForLazyLoading</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#timeoutForRemoteServerToBeUp(int)" class="member-name-link">timeoutForRemoteServerToBeUp</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoadingTimeout(int)" class="member-name-link">waitForLazyLoadingTimeout</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading(boolean)" class="member-name-link">waitForLazyLoading</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForRemoteServerToBeUp(boolean)" class="member-name-link">waitForRemoteServerToBeUp</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoadingTimeout(int)" class="member-name-link">waitForLazyLoadingTimeout</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForUiStateTimeout(int)" class="member-name-link">waitForUiStateTimeout</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForRemoteServerToBeUp(boolean)" class="member-name-link">waitForRemoteServerToBeUp</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForUiStateTimeout(int)" class="member-name-link">waitForUiStateTimeout</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -306,6 +318,30 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>lazyLoadingNetworkIdleQuietWindowMillis</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></span>&nbsp;<span class="element-name">lazyLoadingNetworkIdleQuietWindowMillis</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lazyLoadingPollingIntervalMillis(int)">
+<h3>lazyLoadingPollingIntervalMillis</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></span>&nbsp;<span class="element-name">lazyLoadingPollingIntervalMillis</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lazyLoadingDomStabilityQuietWindowMillis(int)">
+<h3>lazyLoadingDomStabilityQuietWindowMillis</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></span>&nbsp;<span class="element-name">lazyLoadingDomStabilityQuietWindowMillis</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lazyLoadingScrollSweepMaxSteps(int)">
+<h3>lazyLoadingScrollSweepMaxSteps</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></span>&nbsp;<span class="element-name">lazyLoadingScrollSweepMaxSteps</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
 </div>
 </section>
 </li>
