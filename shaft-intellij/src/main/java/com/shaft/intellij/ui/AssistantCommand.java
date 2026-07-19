@@ -272,11 +272,16 @@ final class AssistantCommand {
     //    api ..." phrase that happens to also satisfy the browser/mobile recognizers' broad keyword
     //    lists still starts the API-capture recorder (issue #3726). isApiRecordingIntent excludes
     //    "without a browser" phrasing up front so RecordApiMobileAction's no-browser proxy prefill
-    //    (mobile_api_record_start) is left to isMobileRecordingStartIntent, uncontested.
+    //    is left to isMobileApiRecordingIntent instead (issue #3738): WEIGHT_MOBILE_API_RECORDING
+    //    sits between WEIGHT_API_RECORDING and WEIGHT_MOBILE_RECORDING so that prefill starts
+    //    mobile_api_record_start deterministically, outscoring both isMobileRecordingStartIntent's
+    //    broad "android"/"mobile" keywords and isBrowserRecordingIntent's "browser" keyword (which
+    //    the literal words "without a browser" also happen to satisfy).
     private static final int WEIGHT_COMMAND_HELP = 100;
     private static final int WEIGHT_NAMED_TOOL_REQUEST = 90;
     private static final int WEIGHT_PROJECT_UPGRADE = 80;
     private static final int WEIGHT_API_RECORDING = 70;
+    private static final int WEIGHT_MOBILE_API_RECORDING = 68;
     private static final int WEIGHT_MOBILE_RECORDING = 65;
     private static final int WEIGHT_BROWSER_RECORDING = 60;
     private static final int WEIGHT_TOPIC_CONTROL = 55;
@@ -303,6 +308,8 @@ final class AssistantCommand {
                     (text, workingDirectory) -> browser(text)),
             new NaturalIntent(WEIGHT_API_RECORDING, AssistantCommand::isApiRecordingIntent,
                     (text, workingDirectory) -> recordApi(text)),
+            new NaturalIntent(WEIGHT_MOBILE_API_RECORDING, AssistantCommand::isMobileApiRecordingIntent,
+                    (text, workingDirectory) -> recordApiMobile(text)),
             new NaturalIntent(WEIGHT_BROWSER_RECORDING, AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
             new NaturalIntent(WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStartIntent,
@@ -1670,6 +1677,36 @@ final class AssistantCommand {
         return Invocation.tool("capture_api_start", apiCaptureStart(rest));
     }
 
+    /**
+     * Starts RecordApiMobileAction's no-browser API/network-traffic recording (issue #3738) via
+     * {@code mobile_api_record_start}, the loopback MITM proxy that captures native mobile API
+     * traffic without launching a browser. Mirrors the argument shape RecordApiMobileAction's
+     * Advanced-UI path builds directly: platform, plus blank deviceLabel/outputPath left for the
+     * user to fill in via the API Recording tab.
+     */
+    private static Invocation recordApiMobile(String text) {
+        return Invocation.tool("mobile_api_record_start", mobileApiRecordStart(text));
+    }
+
+    private static JsonObject mobileApiRecordStart(String text) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("platform", platformName(mobileApiRecordingPlatform(text)));
+        arguments.addProperty("deviceLabel", "");
+        arguments.addProperty("outputPath", "");
+        return arguments;
+    }
+
+    /**
+     * Extracts the platform word following " on " in RecordApiMobileAction's prefill (for example
+     * "Record API traffic without a browser on Android"). Returns blank when no such trailing
+     * platform is present, letting {@link #platformName(String)} default it to Android.
+     */
+    private static String mobileApiRecordingPlatform(String text) {
+        String trimmed = text(text);
+        int index = trimmed.toLowerCase(Locale.ROOT).lastIndexOf(" on ");
+        return index < 0 ? "" : firstWord(trimmed.substring(index + 4));
+    }
+
     private static JsonObject apiCaptureStart(String rest) {
         JsonObject arguments = new JsonObject();
         String targetUrl = parseLeadingUrl(rest);
@@ -1932,7 +1969,7 @@ final class AssistantCommand {
      * for example RecordApiWebAction's exact Assistant prefill ("Record API traffic on
      * https://..."). Deliberately excludes "without a browser" phrasing up front: that marks
      * RecordApiMobileAction's no-browser proxy prefill, which drives a different MCP tool
-     * ({@code mobile_api_record_start}, via {@link #isMobileRecordingStartIntent}) that this
+     * ({@code mobile_api_record_start}, via {@link #isMobileApiRecordingIntent}) that this
      * command does not.
      */
     private static boolean isApiRecordingIntent(String text) {
@@ -2004,6 +2041,22 @@ final class AssistantCommand {
             }
         }
         return "";
+    }
+
+    /**
+     * True for RecordApiMobileAction's no-browser proxy prefill (issue #3738), for example
+     * "Record API traffic without a browser on Android" -- the loopback MITM proxy captures
+     * native mobile API traffic directly, so this must resolve to {@code mobile_api_record_start}
+     * rather than {@code isApiRecordingIntent}'s browser-driven {@code capture_api_start} or
+     * {@code isMobileRecordingStartIntent}'s UI-driven {@code mobile_record_start}. Requires both
+     * "without a browser" and "api" wording so plain browser-API phrases (no "without a browser")
+     * and plain mobile-recording phrases (no "api") still resolve to their own intents.
+     */
+    private static boolean isMobileApiRecordingIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.startsWith("record ")
+                && normalized.contains("api")
+                && normalized.contains("without a browser");
     }
 
     private static boolean isMobileRecordingStartIntent(String text) {

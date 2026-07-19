@@ -89,12 +89,41 @@ class AssistantCommandRoutingTest {
     @Test
     void recordApiNaturalLanguageDoesNotStealTheNoBrowserMobileApiRecordingPrompt() {
         // RecordApiMobileAction's "without a browser" prefill drives a different MCP tool
-        // (mobile_api_record_start, a no-browser MITM proxy) -- it must keep routing to the mobile
-        // recorder, not the browser-launching capture_api_start this command adds.
+        // (mobile_api_record_start, a no-browser MITM proxy) -- it now has its own deterministic
+        // route (issue #3738); capture_api_start (this command) must still not steal it.
         AssistantCommand.Invocation mobileApiPrefill =
                 command("Record API traffic without a browser on Android");
 
-        assertEquals("mobile_record_start", mobileApiPrefill.toolName());
+        assertEquals("mobile_api_record_start", mobileApiPrefill.toolName());
+    }
+
+    @Test
+    void noBrowserApiRecordingPrefillRoutesToMobileApiRecordStart() {
+        // Issue #3738: RecordApiMobileAction's no-browser proxy prefill ("Record API traffic
+        // without a browser on <platform>") was being swallowed by isMobileRecordingStartIntent's
+        // broad "android"/"mobile" keyword list and routed to mobile_record_start (the UI-driven
+        // mobile recorder) instead of the intended mobile_api_record_start proxy tool. It must
+        // resolve deterministically to mobile_api_record_start with the same argument shape
+        // RecordApiMobileAction's Advanced-UI path builds (platform, blank deviceLabel/outputPath).
+        AssistantCommand.Invocation androidPrefill =
+                command("Record API traffic without a browser on Android");
+        AssistantCommand.Invocation iosPrefill =
+                command("Record API traffic without a browser on iOS");
+        // Plain mobile-recording phrasing (no "without a browser"/API wording) must keep starting
+        // the UI-driven mobile recorder -- no regression on the existing route.
+        AssistantCommand.Invocation plainMobileRecording =
+                command("Record my mobile actions on the Android emulator");
+
+        assertAll(
+                () -> assertEquals("mobile_api_record_start", androidPrefill.toolName()),
+                () -> assertEquals("Android", androidPrefill.arguments().get("platform").getAsString()),
+                () -> assertEquals("", androidPrefill.arguments().get("deviceLabel").getAsString()),
+                () -> assertEquals("", androidPrefill.arguments().get("outputPath").getAsString()),
+                () -> assertEquals("mobile_api_record_start", iosPrefill.toolName()),
+                () -> assertEquals("iOS", iosPrefill.arguments().get("platform").getAsString()),
+                () -> assertEquals("", iosPrefill.arguments().get("deviceLabel").getAsString()),
+                () -> assertEquals("", iosPrefill.arguments().get("outputPath").getAsString()),
+                () -> assertEquals("mobile_record_start", plainMobileRecording.toolName()));
     }
 
     @Test
