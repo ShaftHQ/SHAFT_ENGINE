@@ -231,7 +231,13 @@ orchestrator diagnoses what is actually slow, solves that blocking
 sub-problem itself (or with a targeted helper), and sends the delegate the
 solution so it can carry the task forward. Long-running is only acceptable
 when progress is verified and the remaining path is clear; a silent agent
-never gets to burn the clock.
+never gets to burn the clock. The rule is recursive and global across every
+delegation and sub-delegation workflow: each delegating agent at every level
+owes the same watch to its own sub-delegates (an L1 Sonnet watches its L2
+Haiku helpers identically). And the check-in is consultancy, not monitoring —
+a stalled delegate gets concrete support: the blocking sub-problem diagnosed
+and solved, an architectural decision taken, or a re-spec of the remainder;
+never a bare "status?" ping.
 
 **Delegates run act-as-fable implicitly.** Every delegated agent operates
 under this skill's full method — evidence over inference, scout before
