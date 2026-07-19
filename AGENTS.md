@@ -64,7 +64,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 
 ## Agent Hierarchy & Model Routing
 
-Fable plans/delegates/reviews/verifies on the main thread; it does not implement. Route down: Haiku (mechanical/spec-exact/bulk), Sonnet (one bounded component per written spec), Explore/Plan for research; synthesis + final verification stay on the main thread. Delegation tiers, the subagent covenant, and the architectural-decision second pass are owned by act-as-fable. No Workflow tool or saved workflows (`.claude/workflows/` stays deleted). PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
+Orchestrator owns the main thread and never implements: it breaks down work, assigns it, reviews/verifies output, takes architectural decisions when delegates need consultation, checks in on any task running >20 minutes, and stays continuously available to accept new owner requests and realign in-flight tasks. Level 1: Sonnet delegates implement bounded components under act-as-fable + test-driven-development. Level 2: level-1 delegates may sub-delegate mechanical/spec-exact/bulk work to Haiku. All agents and delegates run at HIGH effort. Explore/Plan for research; synthesis + final verification stay on the main thread. Delegation tiers, the subagent covenant, and the architectural-decision second pass are owned by act-as-fable. No Workflow tool or saved workflows (`.claude/workflows/` stays deleted). PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
 
 ## Completion
 
