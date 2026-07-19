@@ -87,8 +87,16 @@ class ShaftProjectServiceTest {
         assertTrue(pom.contains("<shaft.version>10.10.20260703</shaft.version>"));
     }
 
+    // Issue #3788 Defect C: the sample used to search a phrase and click Wikipedia's top-ranked
+    // full-text result, asserting exact equality against that live, ranked title -- unfixable by
+    // data updates alone (drifted three times in one day during grid verification: "Unit testing"
+    // -> "Test automation" -> "Robot Framework - Wikipedia"). The redesigned flow types the *exact*
+    // title of an existing article and submits (Enter); MediaWiki redirects an exact title match
+    // straight to that article (verified server-side via `curl -L`), so the assertions below no
+    // longer depend on search ranking. This test is the spec for that template shape -- it must
+    // mirror shaft-engine's example templates (TestNG/JUnit/Cucumber web samples) exactly.
     @Test
-    void generatedWebSamplesSearchFirstResultAndValidateResultPage() throws Exception {
+    void generatedWebSamplesSearchExactTitleAndValidateArticlePage() throws Exception {
         ShaftProjectService service = new ShaftProjectService(
                 McpWorkspacePolicy.of(temp),
                 new FakeRunner(),
@@ -108,11 +116,28 @@ class ShaftProjectServiceTest {
                 false,
                 false,
                 true);
+        Path testngProject = testngResult.projectDirectory();
         String testngSample = Files.readString(
-                testngResult.projectDirectory().resolve("src/test/java/testPackage/TestClass.java"));
-        assertTrue(testngSample.contains("click(firstSearchResult)"));
+                testngProject.resolve("src/test/java/testPackage/TestClass.java"));
+        // No more "click the ranked first search result" step or locator.
+        assertFalse(testngSample.contains("firstSearchResult"));
+        assertFalse(testngSample.contains("click(firstSearchResult)"));
+        // Deterministic title/text assertions still read from test data, same field names.
         assertTrue(testngSample.contains("expectedResultTitle"));
         assertTrue(testngSample.contains("expectedResultText"));
+        // Visual check repointed at the larger, always-static logo lockup, not the small icon alone.
+        assertTrue(testngSample.contains("//a[@class='mw-logo']"));
+        assertFalse(testngSample.contains("mw-logo-icon"));
+
+        String testngData = Files.readString(
+                testngProject.resolve("src/test/resources/testDataFiles/simpleJSON.json"));
+        assertTrue(testngData.contains("\"searchQuery\": \"Software testing\""));
+        assertTrue(testngData.contains("\"expectedResultTitle\": \"Software testing\""));
+        assertFalse(testngData.contains("Software testing framework"));
+
+        String testngProperties = Files.readString(
+                testngProject.resolve("src/main/resources/properties/custom.properties"));
+        assertTrue(testngProperties.contains("defaultElementIdentificationTimeout=20"));
 
         McpShaftProjectGenerationResult cucumberResult = service.createProject(
                 "generated-web-cucumber",
@@ -128,10 +153,17 @@ class ShaftProjectServiceTest {
                 true);
         String cucumberFlow = Files.readString(cucumberResult.projectDirectory()
                 .resolve("src/test/resources/features/SampleFeatureFile.feature"));
-        assertTrue(cucumberFlow.contains(
+        assertFalse(cucumberFlow.contains(
                 "I Click the element found by \"xpath\": \"(//div[contains(@class,'mw-search-result-heading')])[1]//a\""));
-        assertTrue(cucumberFlow.contains("I Assert that the \"title\" attribute of the browser, contains \"Unit testing\""));
+        assertTrue(cucumberFlow.contains("I Type \"Software testing\" into the element found by \"id\": \"searchInput\""));
+        assertTrue(cucumberFlow.contains("I Assert that the \"title\" attribute of the browser, contains \"Software testing\""));
         assertTrue(cucumberFlow.contains("I Assert that the \"text\" attribute of the browser, contains \"Software testing\""));
+        assertTrue(cucumberFlow.contains("\"xpath\": \"//a[@class='mw-logo']\""));
+        assertFalse(cucumberFlow.contains("mw-logo-icon"));
+
+        String cucumberProperties = Files.readString(
+                cucumberResult.projectDirectory().resolve("src/main/resources/properties/custom.properties"));
+        assertTrue(cucumberProperties.contains("defaultElementIdentificationTimeout=20"));
     }
 
     @Test
