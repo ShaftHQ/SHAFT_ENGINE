@@ -205,6 +205,25 @@ front; pace loop wakeups conservatively; skip speculative scouting for
 far-future items; and when a session has been running long, wind down to a
 clean, fully-landed state early instead of starting another large item.
 
+**Stall watch — the 20-minute rule (owner rule, binding).** No delegated
+task runs unexamined past ~20 minutes. When one crosses the line, inspect its
+real progress (working-tree activity, partial output, file mtimes — not just
+"still running"). Then act: a **Haiku** delegate gets escalated — re-spec the
+remainder and hand it to Sonnet; a **Sonnet** delegate gets expedited — the
+orchestrator diagnoses what is actually slow, solves that blocking
+sub-problem itself (or with a targeted helper), and sends the delegate the
+solution so it can carry the task forward. Long-running is only acceptable
+when progress is verified and the remaining path is clear; a silent agent
+never gets to burn the clock.
+
+**Delegates run act-as-fable implicitly.** Every delegated agent operates
+under this skill's full method — evidence over inference, scout before
+writing, small verified increments, TDD for production code, honest
+reporting — whether or not it can load the skill file. The Subagent covenant
+below is that method distilled; embedding it in every delegated prompt is
+mandatory, and a delegate's output is reviewed against the covenant, not just
+against the task spec.
+
 **Architectural decisions get a second pass.** A new subsystem, migration,
 dependency swap, or cross-cutting design choice earns one independent
 adversarial review from the highest-intelligence agent available (Opus/Fable)
