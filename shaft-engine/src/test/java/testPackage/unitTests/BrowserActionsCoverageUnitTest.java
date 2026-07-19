@@ -3,11 +3,13 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.Command;
@@ -158,6 +160,21 @@ public class BrowserActionsCoverageUnitTest {
 
         Assert.assertThrows(RuntimeException.class,
                 () -> browserActions.navigateToURL("https://example.com/down", "https://example.com/down"));
+    }
+
+    @Test(description = "Regression for issue #3774: navigateToURL(String,String) must still apply the " +
+            "post-navigation waitForLazyLoading wait when initialURL is null (e.g. getCurrentUrl() throws " +
+            "UnsupportedCommandException), matching the non-null branch's behavior.")
+    public void navigateToURLShouldWaitForLazyLoadingWhenInitialUrlIsNull() {
+        when(driver.getCurrentUrl()).thenThrow(new UnsupportedCommandException("current URL is not available"));
+
+        try (MockedStatic<JavaScriptWaitManager> javaScriptWaitManagerMocked = Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            browserActions.navigateToURL("https://example.com/target", "https://example.com/target");
+
+            // Once from forceStopCurrentNavigation() (pre-navigation), and once more after the
+            // null-initialURL navigation completes -- matching the non-null branch's post-navigation wait.
+            javaScriptWaitManagerMocked.verify(() -> JavaScriptWaitManager.waitForLazyLoading(driver), Mockito.times(2));
+        }
     }
 
     @Test

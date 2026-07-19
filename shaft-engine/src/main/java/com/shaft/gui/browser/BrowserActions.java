@@ -427,10 +427,10 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 else
                     // already on the same page
                     driverFactoryHelper.getDriver().navigate().refresh();
-                JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
             } else
                 // navigate to new url
                 browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), null, modifiedTargetUrl, targetUrlAfterRedirection);
+            JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
 
             // validate successful navigation
             if (!targetUrl.contains("\n")) {
