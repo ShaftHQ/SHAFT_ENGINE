@@ -561,7 +561,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private void reportValidationState(Outcome outcome, long validationStartTime) {
         ValidationsHelper.reportValidationState(validationCategory, outcome.passed(), outcome.expected(),
-                outcome.actual(), attachments(outcome), validationStartTime);
+                outcome.actual(), attachments(outcome), validationStartTime, outcome.visualComparisonAttached());
     }
 
     private List<List<Object>> attachments(Outcome outcome) {
