@@ -6,7 +6,7 @@
     },
     "maven-tools-mcp": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.1.1"]
+      "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]
     }
   }
 }
