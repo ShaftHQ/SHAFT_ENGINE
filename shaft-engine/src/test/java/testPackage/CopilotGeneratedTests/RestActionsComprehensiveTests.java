@@ -525,14 +525,18 @@ public class RestActionsComprehensiveTests {
 
     @Test
     public void testRequestTypeEnum() {
+        // Assert named constants exist rather than brittle exact count
         Assert.assertNotNull(RequestType.GET);
         Assert.assertNotNull(RequestType.POST);
         Assert.assertNotNull(RequestType.PUT);
         Assert.assertNotNull(RequestType.PATCH);
         Assert.assertNotNull(RequestType.DELETE);
-        
+        Assert.assertNotNull(RequestType.HEAD);
+        Assert.assertNotNull(RequestType.OPTIONS);
+
+        // Assert all can be retrieved by name
         RequestType[] values = RequestType.values();
-        Assert.assertEquals(values.length, 5);
+        Assert.assertTrue(values.length >= 7, "RequestType must have at least GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS");
     }
 
     // ========== Edge Cases and Error Handling Tests ==========

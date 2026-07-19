@@ -389,14 +389,39 @@ public class RestActionsCoverageUnitTest {
         Mockito.when(ok.getStatusLine()).thenReturn("HTTP/1.1 200 OK");
         Validations.assertThat().object(actions.evaluateResponseStatusCode(ok, 0)).isTrue().perform();
 
+        // Test the new contract: evaluateResponseStatusCode returns false on mismatch and doesn't throw
         Response mismatch = Mockito.mock(Response.class);
         Mockito.when(mismatch.getStatusCode()).thenReturn(500);
         Mockito.when(mismatch.getStatusLine()).thenReturn("HTTP/1.1 500 Internal Server Error");
-        Assert.assertThrows(RuntimeException.class, () -> actions.evaluateResponseStatusCode(mismatch, 200));
+        boolean result = actions.evaluateResponseStatusCode(mismatch, 200);
+        Validations.assertThat().object(result).isFalse().perform();
 
         RestActions.passAction("covered-path");
         Assert.assertThrows(RuntimeException.class,
                 () -> RestActions.failAction("force-failure", new RuntimeException("boom")));
+    }
+
+    @Test
+    public void requestBuilderPublicPathThrowsAssertionErrorOnStatusMismatch() throws Exception {
+        // Regression: public path RequestBuilder.perform still throws AssertionError to users on status mismatch
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/test", exchange -> {
+            exchange.sendResponseHeaders(500, 0);
+            exchange.close();
+        });
+        server.start();
+
+        try {
+            int port = server.getAddress().getPort();
+            String baseUrl = "http://127.0.0.1:" + port + "/";
+            RestActions actions = new RestActions(baseUrl);
+            Assert.assertThrows(AssertionError.class,
+                    () -> actions.buildNewRequest("test", RestActions.RequestType.GET)
+                            .setTargetStatusCode(200)
+                            .perform());
+        } finally {
+            server.stop(0);
+        }
     }
 
     @Test

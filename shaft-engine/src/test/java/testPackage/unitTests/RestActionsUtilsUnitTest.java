@@ -97,10 +97,20 @@ public class RestActionsUtilsUnitTest {
 
     // ─── RequestType enum ─────────────────────────────────────────────────────
 
-    @Test(description = "RequestType enum has all 5 expected constants")
+    @Test(description = "RequestType enum has required HTTP method constants")
     public void requestTypeEnumHasFiveConstants() {
-        Assert.assertEquals(RestActions.RequestType.values().length, 5,
-                "RequestType must have GET, POST, PATCH, DELETE, PUT");
+        // Assert named constants exist rather than brittle exact count
+        Assert.assertNotNull(RestActions.RequestType.valueOf("GET"), "RequestType must have GET");
+        Assert.assertNotNull(RestActions.RequestType.valueOf("POST"), "RequestType must have POST");
+        Assert.assertNotNull(RestActions.RequestType.valueOf("PATCH"), "RequestType must have PATCH");
+        Assert.assertNotNull(RestActions.RequestType.valueOf("DELETE"), "RequestType must have DELETE");
+        Assert.assertNotNull(RestActions.RequestType.valueOf("PUT"), "RequestType must have PUT");
+        Assert.assertNotNull(RestActions.RequestType.valueOf("HEAD"), "RequestType must have HEAD");
+        Assert.assertNotNull(RestActions.RequestType.valueOf("OPTIONS"), "RequestType must have OPTIONS");
+
+        // Assert length is at least 7 so additive verbs don't re-break this
+        Assert.assertTrue(RestActions.RequestType.values().length >= 7,
+                "RequestType must have at least GET, POST, PATCH, DELETE, PUT, HEAD, OPTIONS");
     }
 
     @Test(description = "RequestType.GET can be retrieved by name")
