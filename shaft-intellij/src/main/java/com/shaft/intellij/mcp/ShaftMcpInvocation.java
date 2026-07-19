@@ -17,11 +17,21 @@ public record ShaftMcpInvocation(CompletableFuture<ShaftMcpToolResult> future, R
     /**
      * Requests invocation cancellation.
      *
-     * @return whether the cancellation request was sent
+     * @return whether the future accepted cancellation
      */
     public boolean cancel() {
+        // Cancel before running cancelAction, same ordering constraint as kill(): future.cancel(true)
+        // does not interrupt a supplyAsync worker thread, so cancelAction is still what actually drives
+        // the graceful stop -- but running it first would let the worker's own eventual
+        // `throw new CancellationException(...)` complete the future first, and CompletableFuture wraps
+        // a thrown exception in a CompletionException that whenComplete hands to observers unwrapped
+        // (unlike Future#get()). Every `error instanceof CancellationException` check downstream (e.g.
+        // ShaftAssistantPanel#showAgentResult) would then never fire, rendering a soft cancel as
+        // "Failed" instead (issue #3768). Cancelling first deterministically leaves the future holding
+        // a bare CancellationException.
+        boolean acknowledged = future.cancel(true);
         cancelAction.run();
-        return true;
+        return acknowledged;
     }
 
     /**

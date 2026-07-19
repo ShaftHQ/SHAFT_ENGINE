@@ -15,11 +15,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -201,9 +199,11 @@ class ShaftMcpInvocationServiceLifecycleTest {
 
         ShaftMcpInvocation gracefulInvocation = service.startListTools(false, settings);
         cancelUntilDone(gracefulInvocation::cancel, gracefulInvocation.future());
-        CompletionException gracefulFailure =
-                assertThrows(CompletionException.class, () -> gracefulInvocation.future().join());
-        assertInstanceOf(CancellationException.class, gracefulFailure.getCause());
+        // Issue #3768: cancel() now calls future.cancel(true) itself (previously only cancelAction
+        // ran, leaving the background task's own thrown CancellationException to complete the future,
+        // wrapped in a CompletionException). join() on an actually-cancelled future throws the bare
+        // CancellationException directly rather than a CompletionException wrapper.
+        assertThrows(CancellationException.class, () -> gracefulInvocation.future().join());
         assertEquals(Optional.of(true), service.peekSharedClientAlive(),
                 "a graceful cancel must not terminate the shared server process");
 
@@ -222,9 +222,8 @@ class ShaftMcpInvocationServiceLifecycleTest {
         ShaftMcpInvocation gracefulInvocation =
                 service.startTool("never_answered", new JsonObject(), settings);
         cancelUntilDone(gracefulInvocation::cancel, gracefulInvocation.future());
-        CompletionException gracefulFailure =
-                assertThrows(CompletionException.class, () -> gracefulInvocation.future().join());
-        assertInstanceOf(CancellationException.class, gracefulFailure.getCause());
+        // Issue #3768: see the equivalent comment in startListToolsGracefulCancelAbandons... above.
+        assertThrows(CancellationException.class, () -> gracefulInvocation.future().join());
         assertEquals(Optional.of(true), service.peekSharedClientAlive(),
                 "a graceful cancel must not terminate the shared server process");
 

@@ -68,6 +68,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -3918,6 +3922,66 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(transcript.contains("Killed ("), transcript),
                 () -> assertFalse(transcript.contains("Cancelled ("), transcript));
+    }
+
+    /**
+     * Issue #3768 regression: unlike the tests above, which hand-construct the {@code (result,
+     * error)} pair {@code showAgentResult} receives, this test drives a REAL
+     * {@link CompletableFuture#supplyAsync} worker -- mirroring how {@code AssistantLocalAgentRunner}
+     * actually resolves a soft cancel, by *throwing* {@link CancellationException} from inside the
+     * async task rather than calling {@code future.cancel(...)} itself -- through the real
+     * {@link ShaftMcpInvocation#cancel()} the Cancel button calls. It then forwards whatever
+     * {@code future.whenComplete} actually observes into {@code showAgentResult}, exactly mirroring
+     * {@code ShaftAssistantPanel#send}'s real {@code whenComplete} registration minus the
+     * {@code ApplicationManager.getApplication().invokeLater(...)} EDT hop -- which cannot run in this
+     * headless harness (see {@code invokeApplyConnectAgentResult} above for the same, established
+     * workaround). Before the #3768 fix, {@code cancel()} left the future to complete with a
+     * {@code CompletionException}-wrapped {@code CancellationException}, so {@code showAgentResult}'s
+     * {@code error instanceof CancellationException} check never fired and the run rendered "Failed".
+     */
+    @Test
+    void assistantSoftCancelThroughRealFutureRendersCancelledNotFailed() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        CountDownLatch cancelActionRan = new CountDownLatch(1);
+        ExecutorService worker = Executors.newSingleThreadExecutor();
+        try {
+            CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> {
+                workerStarted.countDown();
+                try {
+                    assertTrue(cancelActionRan.await(5, TimeUnit.SECONDS), "cancelAction must unblock the worker");
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new CancellationException("cancelled");
+            }, worker);
+            ShaftMcpInvocation invocation = new ShaftMcpInvocation(future, cancelActionRan::countDown);
+            setField(panel, "currentInvocation", invocation);
+            panel.setRunning(true, "Thinking...");
+            assertTrue(workerStarted.await(5, TimeUnit.SECONDS),
+                    "The worker must be blocked waiting for cancelAction before cancel() runs, or the race is nondeterministic");
+
+            AtomicReference<ShaftMcpToolResult> observedResult = new AtomicReference<>();
+            AtomicReference<Throwable> observedError = new AtomicReference<>();
+            CountDownLatch completed = new CountDownLatch(1);
+            future.whenComplete((result, error) -> {
+                observedResult.set(result);
+                observedError.set(error);
+                completed.countDown();
+            });
+
+            cancelOrKillCurrent(panel);
+
+            assertTrue(completed.await(5, TimeUnit.SECONDS), "The future must complete after cancel()");
+            showAgentResult(panel, -1, observedResult.get(), observedError.get());
+
+            String transcript = transcriptMarkdown(panel);
+            assertAll(
+                    () -> assertTrue(transcript.contains("Cancelled"), transcript),
+                    () -> assertFalse(transcript.contains("Failed"), transcript));
+        } finally {
+            worker.shutdownNow();
+        }
     }
 
     @Test

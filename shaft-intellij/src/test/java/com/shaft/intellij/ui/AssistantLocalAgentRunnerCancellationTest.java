@@ -8,7 +8,6 @@ import java.io.OutputStream;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -42,13 +41,15 @@ class AssistantLocalAgentRunnerCancellationTest {
                 "The stub process must be blocked inside waitFor before cancelling, or the race is nondeterministic");
         boolean acknowledged = running.cancel();
 
-        ExecutionException failure = assertThrows(ExecutionException.class,
+        // Issue #3768: cancel() now calls future.cancel(true) itself, so get() on the genuinely
+        // cancelled future throws a bare CancellationException, not ExecutionException-wrapped.
+        assertThrows(CancellationException.class,
                 () -> running.future().get(5, TimeUnit.SECONDS));
 
         assertAll(
                 () -> assertTrue(acknowledged),
-                () -> assertTrue(failure.getCause() instanceof CancellationException,
-                        "A cancelled run must fail with CancellationException, was: " + failure.getCause()),
+                () -> assertTrue(running.future().isCancelled(),
+                        "cancel() must mark the future cancelled synchronously via future.cancel(true)"),
                 () -> assertTrue(process.destroyCalled(), "cancel() [force=false] must call Process#destroy()"),
                 () -> assertFalse(process.destroyForciblyCalled(), "A soft cancel must never force-kill the process"));
     }
