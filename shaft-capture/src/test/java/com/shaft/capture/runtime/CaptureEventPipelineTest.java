@@ -1,6 +1,9 @@
 package com.shaft.capture.runtime;
 
 import com.shaft.capture.collector.BrowserSignal;
+import com.shaft.capture.generate.CaptureGenerationRequest;
+import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.generate.CaptureGenerator;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
@@ -8,12 +11,14 @@ import com.shaft.capture.model.ExternalTestDataReference;
 import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
+import com.shaft.pilot.ai.ApprovalPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +76,57 @@ class CaptureEventPipelineTest {
         assertFalse(sessionJson.contains(SECRET_CANARY));
         assertFalse(dataJson.contains(SECRET_CANARY));
         assertTrue(dataJson.contains("alice"));
+    }
+
+    @Test
+    void asyncTypedInteractionDeliveredThroughLoopbackSinkStaysInTheSameLogicalWindow(
+            @TempDir Path temp) throws Exception {
+        // Issue #3803: BrowserEventSink -- the loopback HTTP channel wired as a second delivery
+        // path for BiDi preload signals by #3495 -- tags every signal it carries with the literal
+        // browsing-context id "loopback" (BrowserEventSink.java:230), never the tab's real BiDi
+        // context id. An async-typed interaction (e.g. a self-driving demo login that types via
+        // setTimeout, arriving ~2.5s after the page opened) can race across that channel and win:
+        // when it does, logicalWindow() saw a contextId it had never seen before and minted a
+        // phantom second logical window for a session that only ever had one tab, emitting a
+        // WindowEvent.SWITCH that CaptureGenerator then rejects as a window never opened.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        String realContextId = "context-tab-1";
+        // BiDi's own BrowsingContextInspector reports the tab's real context id for window-open
+        // and navigation-committed signals: those never go through the loopback sink.
+        pipeline.accept(signalFromContext(
+                "window_open", START, realContextId, Map.of(), Map.of(), Map.of()));
+        pipeline.accept(signalFromContext(
+                "navigation", START.plusMillis(50), realContextId, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/login")));
+        pipeline.accept(signalFromContext(
+                "input", START.plusSeconds(3), "loopback", usernameTarget(),
+                Map.of("value", "shaft.user", "committed", true), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertFalse(events.stream().anyMatch(event -> event instanceof CaptureEvent.WindowEvent windowEvent
+                        && windowEvent.action() == CaptureEvent.WindowAction.SWITCH),
+                "A single tab that never opened another window must never emit a WindowEvent.SWITCH: "
+                        + events);
+        CaptureEvent.TypeEvent typed = assertInstanceOf(CaptureEvent.TypeEvent.class, events.getLast());
+        assertEquals("window-1", typed.context().page().logicalWindowId(),
+                "The loopback-delivered interaction must resolve to the same logical window as the "
+                        + "tab's real BiDi context, not mint a second one.");
+
+        CaptureGenerationResult generated = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                output, temp.resolve("generated"), "generated.capture", "", false,
+                false, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll()));
+        assertTrue(generated.successful(),
+                "Codegen must succeed for a single-tab async-typed session: "
+                        + generated.report().unsupportedEvents());
     }
 
     @Test
@@ -788,6 +844,23 @@ class CaptureEventPipelineTest {
                 "framePath", List.of()));
         page.putAll(pageOverrides);
         return new BrowserSignal(kind, timestamp, "context-1", page, target, data);
+    }
+
+    private static BrowserSignal signalFromContext(
+            String kind,
+            Instant timestamp,
+            String browsingContextId,
+            Map<String, Object> target,
+            Map<String, Object> data,
+            Map<String, Object> pageOverrides) {
+        Map<String, Object> page = new java.util.LinkedHashMap<>(Map.of(
+                "url", "https://example.test/login",
+                "title", "Login",
+                "width", 1280,
+                "height", 720,
+                "framePath", List.of()));
+        page.putAll(pageOverrides);
+        return new BrowserSignal(kind, timestamp, browsingContextId, page, target, data);
     }
 
     private static Map<String, Object> usernameTarget() {

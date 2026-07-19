@@ -103,6 +103,15 @@ final class CaptureEventPipeline implements AutoCloseable {
     private Instant lastAppendedNavigationAt = Instant.EPOCH;
     private String lastWindow = "";
     private List<String> lastFramePath = List.of();
+    // The tab most recently confirmed by a genuine BiDi signal (window-open, navigation-committed,
+    // or an interaction delivered over the BiDi script channel). BrowserEventSink's loopback HTTP
+    // channel -- a redundant delivery path for the same preload-script signals, added by #3495 so
+    // bfcache-restored pages that lost their BiDi channel still get delivered -- cannot report a
+    // real browsing-context id (page JS has no visibility into it) and stamps every signal it
+    // carries with the literal sentinel "loopback" instead. Resolving that sentinel to this tracked
+    // id keeps a single tab's signals under one logical window regardless of which channel wins the
+    // delivery race; see resolveBrowsingContextId().
+    private String currentRealBrowsingContextId = "";
     private boolean closed;
 
     CaptureEventPipeline(
@@ -302,10 +311,10 @@ final class CaptureEventPipeline implements AutoCloseable {
             case "step_delete" -> deleteStep(signal);
             case "step_reorder" -> reorderStep(signal);
             case "window_open" -> append(new CaptureEvent.WindowEvent(
-                    context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(signal.browsingContextId())),
+                    context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(resolveBrowsingContextId(signal))),
                     RedactionSummary.empty(), List.of());
             case "window_close" -> append(new CaptureEvent.WindowEvent(
-                    context(signal), CaptureEvent.WindowAction.CLOSE, logicalWindow(signal.browsingContextId())),
+                    context(signal), CaptureEvent.WindowAction.CLOSE, logicalWindow(resolveBrowsingContextId(signal))),
                     RedactionSummary.empty(), List.of());
             case "alert" -> emitAlert(signal);
             default -> {
@@ -705,7 +714,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         PageContext page = new PageContext(
                 safeUrl.value(),
                 safeTitle.value(),
-                logicalWindow(signal.browsingContextId()),
+                logicalWindow(resolveBrowsingContextId(signal)),
                 frames,
                 integer(signal.page().get("width"), 0),
                 integer(signal.page().get("height"), 0));
@@ -994,6 +1003,28 @@ final class CaptureEventPipeline implements AutoCloseable {
     private String logicalWindow(String contextId) {
         String key = contextId == null || contextId.isBlank() ? "default" : contextId;
         return logicalWindows.computeIfAbsent(key, ignored -> "window-" + (logicalWindows.size() + 1));
+    }
+
+    /**
+     * Resolves the effective browsing-context id used to look up a signal's logical window,
+     * correlating {@link BrowserEventSink}'s loopback-sink sentinel ({@code "loopback"}) back to
+     * the tab most recently confirmed by a genuine BiDi signal. Without this correlation, a
+     * loopback delivery winning its redundant-channel race against the BiDi channel carried a
+     * different raw id than the rest of the session and {@link #logicalWindow(String)} minted a
+     * phantom second logical window for a tab that never actually changed (issue #3803).
+     *
+     * @param signal the signal being normalized
+     * @return the real browsing-context id this signal's tab is known by
+     */
+    private String resolveBrowsingContextId(BrowserSignal signal) {
+        String contextId = signal.browsingContextId();
+        if (BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID.equals(contextId)) {
+            return currentRealBrowsingContextId.isBlank() ? contextId : currentRealBrowsingContextId;
+        }
+        if (!contextId.isBlank()) {
+            currentRealBrowsingContextId = contextId;
+        }
+        return contextId;
     }
 
     private static String targetKey(BrowserSignal signal) {
