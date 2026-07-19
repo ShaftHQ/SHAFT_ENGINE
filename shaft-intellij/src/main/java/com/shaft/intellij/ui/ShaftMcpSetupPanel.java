@@ -534,7 +534,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel agentControls = new JPanel();
         agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
         agentControls.setOpaque(false);
-        agentControls.add(labeledControl("Assistant family", family));
+        JPanel familyRow = labeledControl("Assistant family", family);
+        agentControls.add(familyRow);
         runtimeRow = labeledControl("Runtime", runtime);
         agentControls.add(runtimeRow);
         apiKeyRow = labeledControl("Gemini API key", geminiApiKey);
@@ -542,6 +543,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
         agentControls.add(recommendedAgent);
+        // Issue #3771: each labeledControl row above packs its own label at that label's natural
+        // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
+        // them land at different x-offsets -- a ragged left edge next to a real aligned form.
+        alignLabelColumn(familyRow, runtimeRow, apiKeyRow);
         JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         checkActions.setOpaque(false);
         checkActions.add(test);
@@ -2357,6 +2362,29 @@ final class ShaftMcpSetupPanel extends JPanel {
         row.add(label);
         row.add(control);
         return row;
+    }
+
+    /**
+     * Equalizes the label column of a set of {@link #labeledControl} rows (issue #3771): each row
+     * is its own independent {@link FlowLayout}, so left to its own natural size a longer label
+     * (e.g. "Assistant family") pushes its control further right than a shorter sibling label (e.g.
+     * "Runtime"), producing a ragged left edge across the group. Widening every label to the
+     * group's widest preferred size lines every control up in one column, matching the aligned
+     * look {@code stepRow}'s label/badge columns already have.
+     */
+    private static void alignLabelColumn(JPanel... rows) {
+        int columnWidth = 0;
+        for (JPanel row : rows) {
+            columnWidth = Math.max(columnWidth, rowLabel(row).getPreferredSize().width);
+        }
+        for (JPanel row : rows) {
+            JLabel label = rowLabel(row);
+            label.setPreferredSize(new Dimension(columnWidth, label.getPreferredSize().height));
+        }
+    }
+
+    private static JLabel rowLabel(JPanel row) {
+        return (JLabel) row.getComponent(0);
     }
 
     private static void styleStepRow(JPanel row, String state) {

@@ -2360,6 +2360,40 @@ class ShaftPanelSetupTest {
         }
     }
 
+    /**
+     * Issue #3771 (professional UX polish): the "2 Pick agent" step stacks "Assistant family" and
+     * "Runtime" as two independently-packed {@code labeledControl} rows (each its own flow-layout
+     * row), so their labels naturally size to their own text ("Assistant family" is longer than
+     * "Runtime") and the dropdowns beside them land at different x-offsets -- a ragged left edge
+     * that reads as unpolished next to a real aligned form. The fix gives every label in the group
+     * the same preferred width (the widest label's), so every control in the column starts at the
+     * same x regardless of its own label's text length.
+     */
+    @Test
+    void pickAgentRowLabelsShareAConsistentColumnWidthSoControlsAlign() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        AtomicReference<JLabel> familyLabel = new AtomicReference<>();
+        AtomicReference<JLabel> runtimeLabel = new AtomicReference<>();
+        walkComponents(chooseRow, comp -> {
+            if (comp instanceof JLabel lbl && "Assistant family".equals(lbl.getText())) {
+                familyLabel.set(lbl);
+            }
+            if (comp instanceof JLabel lbl && "Runtime".equals(lbl.getText())) {
+                runtimeLabel.set(lbl);
+            }
+        });
+
+        assertAll(
+                () -> assertNotNull(familyLabel.get(), "Should find 'Assistant family' label"),
+                () -> assertNotNull(runtimeLabel.get(), "Should find 'Runtime' label"),
+                () -> assertEquals(familyLabel.get().getPreferredSize().width, runtimeLabel.get().getPreferredSize().width,
+                        "\"Assistant family\" and \"Runtime\" labels must share a column width so their "
+                                + "dropdowns align at the same x"));
+    }
+
     @Test
     void doneStepRowCollapsesOnceLaterStepIsActiveAndReExpandsOnClick() throws Exception {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
