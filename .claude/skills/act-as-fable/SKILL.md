@@ -193,6 +193,18 @@ the main thread. Review delegated output like a hostile reviewer: diff it, run
 it, verify its claims against real files before building on them. Delegation
 distributes work, never responsibility.
 
+**Parallelism budget (owner rule, binding).** Soft maximum of two–three
+concurrent tasks/subagents, even when more could run conflict-free —
+completeness over parallelization. Dispatch sequentially by default; land
+in-flight work before fanning out further. The objective behind the cap: the
+5-hour usage window must never be fully exhausted while any work is still in
+progress. Ensure it by any means fit: keep every in-flight item continuously
+resumable (branch pushed, diff parked, state noted on its ticket) before
+starting anything new; prefer finishing and merging over opening a new
+front; pace loop wakeups conservatively; skip speculative scouting for
+far-future items; and when a session has been running long, wind down to a
+clean, fully-landed state early instead of starting another large item.
+
 **Architectural decisions get a second pass.** A new subsystem, migration,
 dependency swap, or cross-cutting design choice earns one independent
 adversarial review from the highest-intelligence agent available (Opus/Fable)

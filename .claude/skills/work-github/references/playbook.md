@@ -93,6 +93,27 @@ For each item, decide dispatch shape:
 - Haiku is for low-risk mechanical edits, log/report summarization, and bulk
   repetitive triage — not for a spec that requires judgment calls mid-flight.
 
+## 3b. Tracking tickets for phased work (mandatory conventions)
+
+Any issue whose work is delivered in more than one phase/increment is a
+*tracking ticket*, and these conventions are binding for it:
+
+- **Title prefix**: the tracking ticket's title starts with `Tracking: `
+  (rename the issue when it becomes phased, keep the rest of the title).
+- **Subtickets**: every phase gets its own GitHub subticket in the repo the
+  work lands in; the tracking ticket's body holds a `## Tracking` section
+  with one checkbox per phase, each linking the subticket (`- [ ] Phase N —
+  <name> (#<subticket>)`) or, for already-merged phases, the delivering PR.
+- **Closing**: each phase's PR closes its *subticket* with the `Closes #N`
+  keyword — never the tracking ticket. When a subticket's PR merges, check
+  its checkbox in the tracking ticket's body in the same session.
+- **Progress comments**: after every completed iteration/increment, post a
+  comment on the tracking ticket summarizing what landed (PR link, what
+  shipped, what remains) — the ticket must read as a current status page.
+- **Close-out**: once all the work is complete and every checkbox is
+  checked, close the tracking ticket yourself in the same session, with a
+  final summary comment — don't leave it open awaiting a human close.
+
 ## 4. Review before you commit — every time
 
 A subagent's self-report describes what it intended, not necessarily what it

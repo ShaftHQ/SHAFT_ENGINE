@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/shafthq-github-io-is-yarn-locked-npm-ci-silently-yields-incomplete-node-modules.md",
+  "content_hash": "sha256:7b95b3f07bfd4ee44774a8a1d07a8a32dccea98a03770e0f40cd3e96264318b5",
+  "created_at": "2026-07-19T11:59:34+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shafthq-github-io-is-yarn-locked-npm-ci-silently-yields-incomplete-node-modules",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ streaming perf (#3751 part 2) + docs revamp phase 1 (#822)"
+  },
+  "status": "active",
+  "tags": [
+    "docs-repo",
+    "yarn",
+    "npm",
+    "build"
+  ],
+  "title": "shafthq.github.io is yarn-locked; npm ci silently yields incomplete node_modules",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T11:59:34+03:00"
+}

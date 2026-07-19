@@ -1915,6 +1915,10 @@ final class ShaftAssistantPanel extends JPanel {
         if (!success || !generateCaptureReviewAfterStop || !isCaptureStopTool) {
             return false;
         }
+        // A stop that armed the review DID stop the recording on both branches below (blank
+        // sessionPath included), but neither reaches showFinalToolResult -- the only other place
+        // that clears the readiness strip's recording badge for stop tools (issue #3767).
+        ShaftRecordingActivity.stopped(recordingKey);
         stopCaptureStartDiagnostic();
         if ("capture_api_stop".equals(toolName)) {
             String sessionPath = apiSessionPathFromStopOutput(output);
