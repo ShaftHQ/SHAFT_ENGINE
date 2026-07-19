@@ -140,6 +140,10 @@ final class AssistantTranscriptView extends JPanel {
     // per-JVM, so `now - Long.MIN_VALUE` silently overflows for any realistic `now`, wrapping to a
     // value that satisfies the "too soon" check and throttles away the very first streamed render.
     private long lastStreamedRenderNanos = System.nanoTime() - STREAMED_RENDER_MIN_INTERVAL_NANOS;
+    // The closing fence line of a fenced code block: a newline followed by nothing but backticks
+    // (three or more -- ShaftAssistantPanel#fencedCodeBlock grows the fence when the content itself
+    // contains one).
+    private static final Pattern CLOSING_FENCE_LINE = Pattern.compile("\n`{3,}");
     private final LafManagerListener lafListener;
     private Disposable lafConnectionDisposable;
     private int truncationBoundaryIndex = -1;
@@ -402,11 +406,6 @@ final class AssistantTranscriptView extends JPanel {
         return true;
     }
 
-    // The closing fence line of a fenced code block: a newline followed by nothing but backticks
-    // (three or more -- ShaftAssistantPanel#fencedCodeBlock grows the fence when the content itself
-    // contains one).
-    private static final Pattern CLOSING_FENCE_LINE = Pattern.compile("\n`{3,}");
-
     /**
      * Fast path for the Verbose streaming shape (issue #3751 part 2, HIGH finding 1): when {@code
      * next} is exactly the bubble's previously rendered Markdown with new text inserted immediately
@@ -419,24 +418,13 @@ final class AssistantTranscriptView extends JPanel {
      * any slow-path render) restores full consistency.
      */
     private boolean tryAppendStreamedFenceDelta(RenderedBubble handle, String next) {
-        String prev = handle.streamedMarkdown;
-        if (prev == null || USER_ROLE.equals(handle.role) || next.length() <= prev.length()) {
+        if (USER_ROLE.equals(handle.role)) {
             return false;
         }
-        int fenceStart = prev.lastIndexOf('\n');
-        if (fenceStart < 0) {
+        String delta = streamedFenceDelta(handle.streamedMarkdown, next);
+        if (delta == null) {
             return false;
         }
-        String closingFence = prev.substring(fenceStart);
-        if (!CLOSING_FENCE_LINE.matcher(closingFence).matches() || !next.endsWith(closingFence)) {
-            return false;
-        }
-        int prevCoreLength = prev.length() - closingFence.length();
-        int nextCoreLength = next.length() - closingFence.length();
-        if (nextCoreLength <= prevCoreLength || !next.regionMatches(0, prev, 0, prevCoreLength)) {
-            return false;
-        }
-        String delta = next.substring(prevCoreLength, nextCoreLength);
         HTMLDocument document = (HTMLDocument) handle.htmlPane.getDocument();
         // The document's plain text ends with the code block's last line followed by the implied
         // trailing newline every Swing text document carries; inserting just before that newline,
@@ -453,6 +441,30 @@ final class AssistantTranscriptView extends JPanel {
         }
         handle.streamedMarkdown = next;
         return true;
+    }
+
+    /**
+     * Returns the text that was inserted immediately before {@code prev}'s trailing closing code
+     * fence to produce {@code next}, or {@code null} when the change is not that exact append shape.
+     */
+    private static String streamedFenceDelta(String prev, String next) {
+        if (prev == null || next.length() <= prev.length()) {
+            return null;
+        }
+        int fenceStart = prev.lastIndexOf('\n');
+        if (fenceStart < 0) {
+            return null;
+        }
+        String closingFence = prev.substring(fenceStart);
+        if (!CLOSING_FENCE_LINE.matcher(closingFence).matches() || !next.endsWith(closingFence)) {
+            return null;
+        }
+        int prevCoreLength = prev.length() - closingFence.length();
+        int nextCoreLength = next.length() - closingFence.length();
+        if (nextCoreLength <= prevCoreLength || !next.regionMatches(0, prev, 0, prevCoreLength)) {
+            return null;
+        }
+        return next.substring(prevCoreLength, nextCoreLength);
     }
 
     private void renderBubbleContent(RenderedBubble handle, String updatedMarkdown) {
