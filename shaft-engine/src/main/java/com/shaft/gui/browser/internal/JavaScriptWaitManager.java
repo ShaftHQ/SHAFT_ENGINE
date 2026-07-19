@@ -52,9 +52,11 @@ public class JavaScriptWaitManager {
         final String[] lastNetworkActivityMarker = {null};
         final boolean[] networkActivityObserved = {false};
         final boolean[] pageActivityObserved = {false};
+        final long[] domIdleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
+        final String[] lastDomMutationMarker = {null};
         new SynchronizationManager(driver)
                 .fluentWait(Duration.ofSeconds(Math.max(1, SHAFT.Properties.timeouts.waitForLazyLoadingTimeout())))
-                .pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL)
+                .pollingEvery(pollingInterval())
                 .until(f -> {
                     if (f instanceof JavascriptExecutor javascriptExecutor) {
                         try {
@@ -63,17 +65,24 @@ public class JavaScriptWaitManager {
                             if (!readiness.documentReady() || readiness.jqueryActive() > 0L || readiness.angularActive() > 0L) {
                                 pageActivityObserved[0] = true;
                             }
+                            long nowMillis = System.currentTimeMillis();
                             boolean networkIdle = hasMetMinimumIdleWindow(
                                     readiness.activeRequests(),
                                     readiness.networkActivityMarker(),
                                     idleSinceMillis,
                                     lastNetworkActivityMarker,
                                     networkActivityObserved,
-                                    System.currentTimeMillis());
+                                    nowMillis);
+                            boolean domStable = isDomStable(
+                                    String.valueOf(readiness.domMutationMarker()),
+                                    domIdleSinceMillis,
+                                    lastDomMutationMarker,
+                                    nowMillis);
                             return readiness.documentReady()
                                     && readiness.jqueryActive() == 0L
                                     && readiness.angularActive() == 0L
-                                    && networkIdle;
+                                    && networkIdle
+                                    && domStable;
                         } catch (Exception exception) {
                             ReportManagerHelper.logDiscrete(exception);
                             return false;
@@ -82,6 +91,15 @@ public class JavaScriptWaitManager {
                     return true;
                 });
         return pageActivityObserved[0] || networkActivityObserved[0];
+    }
+
+    /**
+     * Polling interval for the browser-readiness {@code fluentWait} loop, sourced from
+     * {@code timeouts.lazyLoadingPollingIntervalMillis} (default {@code 200}, matching the
+     * previous hardcoded {@link #ACTIVE_REQUEST_POLLING_INTERVAL}).
+     */
+    private static Duration pollingInterval() {
+        return Duration.ofMillis(Math.max(1, SHAFT.Properties.timeouts.lazyLoadingPollingIntervalMillis()));
     }
 
     private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
@@ -170,6 +188,60 @@ public class JavaScriptWaitManager {
         return (nowMillis - idleSinceMillis[0]) >= requiredIdleWindow.toMillis();
     }
 
+    /**
+     * Folds the DOM-mutation marker into the DOM-stability quiet-window decision, gated
+     * entirely behind {@code timeouts.lazyLoadingDomStabilityQuietWindowMillis}.
+     * <p>
+     * When the property is {@code <= 0} (default {@code 0}), this always returns
+     * {@code true} without inspecting {@code domMutationMarker} at all, so the readiness
+     * wait's pass condition is bit-for-bit identical to before this signal existed. Only
+     * when the property is {@code > 0} does a change in {@code domMutationMarker} reset the
+     * quiet window, requiring the configured number of milliseconds of DOM stability
+     * (childList/subtree mutations only; see {@link JavaScriptHelper#BROWSER_READINESS_STATE})
+     * before the wait is allowed to pass.
+     *
+     * @param domMutationMarker     current DOM-mutation sequence marker
+     * @param domIdleSinceMillis    single-element state holder for the DOM quiet-window start timestamp
+     * @param lastDomMutationMarker single-element state holder for the last observed DOM-mutation marker
+     * @param nowMillis             current time in milliseconds
+     * @return {@code true} when DOM stability is disabled or its quiet window has been satisfied
+     */
+    private static boolean isDomStable(String domMutationMarker, long[] domIdleSinceMillis,
+                                        String[] lastDomMutationMarker, long nowMillis) {
+        int quietWindowMillis = Math.max(0, SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis());
+        if (quietWindowMillis <= 0) {
+            return true;
+        }
+        return hasMetDomStabilityQuietWindow(domMutationMarker, domIdleSinceMillis, lastDomMutationMarker,
+                quietWindowMillis, nowMillis);
+    }
+
+    /**
+     * Evaluates whether the DOM-mutation marker has remained stable for the configured
+     * DOM-stability quiet window. Unlike {@link #hasMetMinimumIdleWindow(long, String, long[], String[], boolean[], long)},
+     * there is no separate "no activity yet observed" short observation window: the same
+     * {@code quietWindowMillis} duration applies both to the first observation and to any
+     * subsequent marker change, since DOM mutation counts (unlike network requests) have no
+     * natural zero/nonzero in-flight state to distinguish an initial from a steady-state wait.
+     *
+     * @param domMutationMarker     current DOM-mutation sequence marker
+     * @param idleSinceMillis       single-element state holder for the quiet-window start timestamp
+     * @param lastDomMutationMarker single-element state holder for the last observed marker
+     * @param quietWindowMillis     required quiet window in milliseconds
+     * @param nowMillis             current time in milliseconds
+     * @return {@code true} once the marker has been stable for {@code quietWindowMillis}
+     */
+    private static boolean hasMetDomStabilityQuietWindow(String domMutationMarker, long[] idleSinceMillis,
+                                                          String[] lastDomMutationMarker, long quietWindowMillis,
+                                                          long nowMillis) {
+        if (lastDomMutationMarker[0] == null || !Objects.equals(lastDomMutationMarker[0], domMutationMarker)) {
+            lastDomMutationMarker[0] = domMutationMarker;
+            idleSinceMillis[0] = nowMillis;
+            return false;
+        }
+        return (nowMillis - idleSinceMillis[0]) >= quietWindowMillis;
+    }
+
     private static Duration initialIdleObservationWindow() {
         return Duration.ofMillis(Math.max(0, SHAFT.Properties.timeouts.lazyLoadingNetworkIdleInitialObservationMillis()));
     }
@@ -230,7 +302,7 @@ public class JavaScriptWaitManager {
     }
 
     private record BrowserReadinessState(boolean documentReady, long activeRequests, String networkActivityMarker,
-                                         long jqueryActive, long angularActive) {
+                                         long jqueryActive, long angularActive, long domMutationMarker) {
         private static BrowserReadinessState from(Object returnedValue) {
             if (returnedValue instanceof Map<?, ?> state) {
                 return new BrowserReadinessState(
@@ -238,9 +310,10 @@ public class JavaScriptWaitManager {
                         parseLong(state.get("activeRequests")),
                         String.valueOf(Objects.requireNonNullElse(state.get("networkActivityMarker"), "")),
                         parseLong(state.get("jqueryActive")),
-                        parseLong(state.get("angularActive")));
+                        parseLong(state.get("angularActive")),
+                        parseLong(state.get("domMutationMarker")));
             }
-            return new BrowserReadinessState(true, parseLong(returnedValue), "", 0L, 0L);
+            return new BrowserReadinessState(true, parseLong(returnedValue), "", 0L, 0L, 0L);
         }
 
         private static long parseLong(Object value) {

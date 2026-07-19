@@ -60,6 +60,23 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("500")
     int lazyLoadingNetworkIdleQuietWindowMillis();
 
+    /**
+     * Polling interval in milliseconds for the browser-readiness {@code fluentWait} loop.
+     */
+    @Key("lazyLoadingPollingIntervalMillis")
+    @DefaultValue("200")
+    int lazyLoadingPollingIntervalMillis();
+
+    /**
+     * Required DOM-mutation quiet window in milliseconds before the browser-readiness
+     * wait treats the DOM as stable. {@code 0} (default) disables DOM-stability folding
+     * entirely, preserving today's behavior bit-for-bit: the readiness wait then never
+     * reads the DOM-mutation marker as part of its pass condition.
+     */
+    @Key("lazyLoadingDomStabilityQuietWindowMillis")
+    @DefaultValue("0")
+    int lazyLoadingDomStabilityQuietWindowMillis();
+
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("10")
     double defaultElementIdentificationTimeout();
@@ -174,6 +191,16 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty lazyLoadingNetworkIdleQuietWindowMillis(int value) {
             setProperty("lazyLoadingNetworkIdleQuietWindowMillis", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty lazyLoadingPollingIntervalMillis(int value) {
+            setProperty("lazyLoadingPollingIntervalMillis", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty lazyLoadingDomStabilityQuietWindowMillis(int value) {
+            setProperty("lazyLoadingDomStabilityQuietWindowMillis", String.valueOf(value));
             return this;
         }
 
