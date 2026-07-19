@@ -11,9 +11,9 @@ import testPackage.TestPageServer;
 
 /**
  * Live, local, headless-Chrome integration coverage for issue #3749's layered lazy-loading
- * readiness waits (Increment D), replacing the flaky external-site dependency of
- * {@code testPackage.legacy.LazyLoadingTests} with a self-contained fixture
- * ({@code lazyLoadingFixture.html}) served locally over HTTP via {@link TestPageServer}.
+ * readiness waits (Increment D), replacing the flaky external-site legacy test retired in
+ * issue #3773 with a self-contained fixture ({@code lazyLoadingFixture.html}) served locally
+ * over HTTP via {@link TestPageServer}.
  * <p>
  * Run scoped and headless: {@code mvn -pl shaft-engine test
  * '-Dtest=LazyLoadingFixtureLiveTest' -DheadlessExecution=true '-Dallure.automaticallyOpen=false'}.
