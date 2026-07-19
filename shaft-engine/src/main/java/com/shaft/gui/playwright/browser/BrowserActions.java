@@ -29,8 +29,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContract {
+    // Matches embedded credentials in URLs (e.g. protocol://user:password@host); compiled once for reuse
+    private static final Pattern EMBEDDED_PASSWORD_PATTERN = Pattern.compile(":\\/\\/.*:(.*)@");
+
     private final PlaywrightSession session;
 
     public BrowserActions(PlaywrightSession session) {
@@ -102,9 +107,10 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions navigateToURL(String targetUrl) {
-        return timedPageLoad("playwright.browser.navigateToURL", targetUrl, () -> {
+        String loggedUrl = obfuscateEmbeddedPassword(targetUrl);
+        return timedPageLoad("playwright.browser.navigateToURL", loggedUrl, () -> {
             page().navigate(targetUrl);
-            ReportManager.log("Navigate to url \"" + targetUrl + "\".");
+            ReportManager.log("Navigate to url \"" + loggedUrl + "\".");
         });
     }
 
@@ -595,6 +601,14 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
             BrowserPerformanceExecutionReport.recordBrowserAction(actionName, durationNanos);
             BrowserPerformanceExecutionReport.recordPageLoad(pageName, durationNanos);
         }
+    }
+
+    private String obfuscateEmbeddedPassword(String targetUrl) {
+        Matcher matcher = EMBEDDED_PASSWORD_PATTERN.matcher(targetUrl);
+        if (matcher.find()) {
+            return targetUrl.replaceAll(matcher.group(1), "•".repeat(matcher.group(1).length()));
+        }
+        return targetUrl;
     }
 
     private org.openqa.selenium.Cookie toSeleniumCookie(Cookie cookie) {
