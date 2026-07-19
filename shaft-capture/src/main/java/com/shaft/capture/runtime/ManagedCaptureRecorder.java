@@ -403,6 +403,10 @@ class ManagedCaptureRecorder {
     private void configureShaft() {
         SHAFT.Properties.clearForCurrentThread();
         SHAFT.Properties.platform.set()
+                // Deliberately pinned to local execution (issue #3733): interactive recording
+                // requires the launched browser on the user's own screen -- a remote-grid browser
+                // renders on the grid node where the user cannot see or click it. Any configured
+                // executionAddress applies when generated tests run, never at recording time.
                 .executionAddress("local")
                 .enableBiDi(true);
         SHAFT.Properties.web.set()
