@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 25
         uses: actions/setup-java@v5
@@ -39,19 +39,40 @@ jobs:
         run: |
           mvn -e clean test "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=${{ matrix.browser }}" "-DexecutionAddress=localhost:4444" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-DretryMaximumNumberOfAttempts=1" "-DsetParallel=NONE" "-DsetParallelMode=DYNAMIC"
 
+      - name: Rename Allure Report for Upload
+        if: always()
+        run: mv allure-report/*AllureReport.html "allure-report/web-${{ matrix.browser }}_Allure.html" 2>/dev/null || true
+
       - name: Upload Allure Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: allure-report-${{ matrix.browser }}
-          path: "allure-report/*.html"
+          path: "allure-report/web-${{ matrix.browser }}_Allure.html"
           if-no-files-found: ignore
+          archive: false
 
       - name: Test Summary
         if: always()
-        uses: test-summary/action@v2
-        with:
-          paths: "target/surefire-reports/TEST-*.xml"
+        run: |
+          extract_field() {
+            grep -o "\"$1\" *: *[0-9]*" "$2" 2>/dev/null | head -1 | grep -o '[0-9]*' || true
+          }
+          SUMMARY="allure-report/summary.json"
+          if [ -f "$SUMMARY" ]; then
+            TOTAL=$(extract_field total "$SUMMARY");     TOTAL=${TOTAL:-0}
+            PASSED=$(extract_field passed "$SUMMARY");   PASSED=${PASSED:-0}
+            FAILED=$(extract_field failed "$SUMMARY");   FAILED=${FAILED:-0}
+            BROKEN=$(extract_field broken "$SUMMARY");   BROKEN=${BROKEN:-0}
+            SKIPPED=$(extract_field skipped "$SUMMARY"); SKIPPED=${SKIPPED:-0}
+          else
+            TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0
+          fi
+          {
+            echo "## 📊 web-${{ matrix.browser }} — Test Results"
+            echo "| Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped |"
+            echo "|------:|----------:|----------:|----------:|----------:|"
+            echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Cleanup
         if: always()
