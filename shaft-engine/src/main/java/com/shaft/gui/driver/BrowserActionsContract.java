@@ -182,6 +182,24 @@ public interface BrowserActionsContract {
 
     BrowserActionsContract waitForLazyLoading();
 
+    /**
+     * Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+     * steps, up to {@code timeouts.lazyLoadingScrollSweepMaxSteps}), waiting for lazy-loading
+     * readiness between steps, to force scroll-triggered content (infinite lists, IntersectionObserver
+     * sections that only hydrate once visible) to fully load before full-page assertions or
+     * screenshots. Use it right before such assertions on pages known to lazy-load on scroll --
+     * it is never invoked automatically by any readiness wait, since sweeping the whole page is not
+     * a safe default before an arbitrary action.
+     *
+     * <p><b>Mutates scroll position during execution</b> (restored to its original position when
+     * the sweep finishes, including on early exit).
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    default BrowserActionsContract scrollToLoadAll() {
+        throw new UnsupportedOperationException("scrollToLoadAll is not supported by this browser actions implementation.");
+    }
+
     String getContext();
 
     BrowserActionsContract setContext(String context);

@@ -14,6 +14,7 @@ public class TimeoutsTests {
     int lazyLoadingNetworkIdleQuietWindowMillis;
     int lazyLoadingPollingIntervalMillis;
     int lazyLoadingDomStabilityQuietWindowMillis;
+    int lazyLoadingScrollSweepMaxSteps;
     double defaultElementIdentificationTimeout;
     int waitForUiStateTimeout;
     int apiSocketTimeout;
@@ -41,6 +42,7 @@ public class TimeoutsTests {
         lazyLoadingNetworkIdleQuietWindowMillis = SHAFT.Properties.timeouts.lazyLoadingNetworkIdleQuietWindowMillis();
         lazyLoadingPollingIntervalMillis = SHAFT.Properties.timeouts.lazyLoadingPollingIntervalMillis();
         lazyLoadingDomStabilityQuietWindowMillis = SHAFT.Properties.timeouts.lazyLoadingDomStabilityQuietWindowMillis();
+        lazyLoadingScrollSweepMaxSteps = SHAFT.Properties.timeouts.lazyLoadingScrollSweepMaxSteps();
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         waitForUiStateTimeout = SHAFT.Properties.timeouts.waitForUiStateTimeout();
         apiSocketTimeout = SHAFT.Properties.timeouts.apiSocketTimeout();
@@ -69,6 +71,7 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().lazyLoadingNetworkIdleQuietWindowMillis(lazyLoadingNetworkIdleQuietWindowMillis);
         SHAFT.Properties.timeouts.set().lazyLoadingPollingIntervalMillis(lazyLoadingPollingIntervalMillis);
         SHAFT.Properties.timeouts.set().lazyLoadingDomStabilityQuietWindowMillis(lazyLoadingDomStabilityQuietWindowMillis);
+        SHAFT.Properties.timeouts.set().lazyLoadingScrollSweepMaxSteps(lazyLoadingScrollSweepMaxSteps);
         SHAFT.Properties.timeouts.set().lazyLoadingTimeout(waitForLazyLoadingTimeout + 1);
         SHAFT.Validations.assertThat().object(SHAFT.Properties.timeouts.waitForLazyLoadingTimeout()).isEqualTo(waitForLazyLoadingTimeout + 1).perform();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);

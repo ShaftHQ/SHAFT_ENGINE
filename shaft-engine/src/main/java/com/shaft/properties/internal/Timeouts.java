@@ -77,6 +77,15 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("0")
     int lazyLoadingDomStabilityQuietWindowMillis();
 
+    /**
+     * Maximum number of progressive-scroll steps that {@code BrowserActions.scrollToLoadAll()}
+     * will perform while sweeping a page for scroll-triggered lazy content, bounding its
+     * worst-case cost regardless of how far the page keeps growing.
+     */
+    @Key("lazyLoadingScrollSweepMaxSteps")
+    @DefaultValue("20")
+    int lazyLoadingScrollSweepMaxSteps();
+
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("10")
     double defaultElementIdentificationTimeout();
@@ -201,6 +210,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty lazyLoadingDomStabilityQuietWindowMillis(int value) {
             setProperty("lazyLoadingDomStabilityQuietWindowMillis", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty lazyLoadingScrollSweepMaxSteps(int value) {
+            setProperty("lazyLoadingScrollSweepMaxSteps", String.valueOf(value));
             return this;
         }
 
