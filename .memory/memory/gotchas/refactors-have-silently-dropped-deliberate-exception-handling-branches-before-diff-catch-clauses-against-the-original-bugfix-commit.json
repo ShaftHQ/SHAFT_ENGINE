@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/refactors-have-silently-dropped-deliberate-exception-handling-branches-before-diff-catch-clauses-against-the-original-bugfix-commit.md",
+  "content_hash": "sha256:3593d22f10cb69eca8f2165e24acfa8f4bf683dd331f1dc20c1b7dacf0009924",
+  "created_at": "2026-07-20T00:12:38+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.refactors-have-silently-dropped-deliberate-exception-handling-branches-before-diff-catch-clauses-against-the-original-bugfix-commit",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "issue #3798 - generated project workflow template freshness + session gotchas from #3794/#3797 CDP screenshot fix"
+  },
+  "status": "active",
+  "tags": [
+    "gotcha",
+    "refactor-safety",
+    "exception-handling",
+    "regression",
+    "screenshothelper",
+    "code-review"
+  ],
+  "title": "Refactors have silently dropped deliberate exception-handling branches before; diff catch clauses against the original bugfix commit",
+  "type": "gotcha",
+  "updated_at": "2026-07-20T00:12:38+03:00"
+}

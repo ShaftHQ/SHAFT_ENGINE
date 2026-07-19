@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/selenium-additionalhttpcommands-merge-is-not-browser-scoped-remote-edge-executecdpcommand-hits-chromes-goog-cdp-execute.md",
+  "content_hash": "sha256:07f4e175865d829940bc813ba58909f4ae3759e9f71f81b02550a6c38efe08ef",
+  "created_at": "2026-07-20T00:12:38+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.selenium-additionalhttpcommands-merge-is-not-browser-scoped-remote-edge-executecdpcommand-hits-chromes-goog-cdp-execute",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "issue #3798 - generated project workflow template freshness + session gotchas from #3794/#3797 CDP screenshot fix"
+  },
+  "status": "active",
+  "tags": [
+    "gotcha",
+    "selenium",
+    "cdp",
+    "remotewebdriver",
+    "edge",
+    "chrome",
+    "additionalhttpcommands"
+  ],
+  "title": "Selenium AdditionalHttpCommands merge is not browser-scoped: remote Edge executeCdpCommand hits chrome's /goog/cdp/execute",
+  "type": "gotcha",
+  "updated_at": "2026-07-20T00:12:38+03:00"
+}

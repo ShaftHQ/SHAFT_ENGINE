@@ -395,3 +395,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.selenium-hasauthentication-is-cdp-backed-chromium-only-not-bidi-backed-remotewebdriver-needs-explicit-addhasauthentication","timestamp":"2026-07-19T22:15:10+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.seleniums-default-new-augmenter-already-registers-chromium-addhascdp-via-serviceloader-adding-a-custom-one-throws-illegalstateexception","timestamp":"2026-07-19T22:15:10+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle","timestamp":"2026-07-19T22:15:10+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.refactors-have-silently-dropped-deliberate-exception-handling-branches-before-diff-catch-clauses-against-the-original-bugfix-commit","timestamp":"2026-07-20T00:12:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.selenium-additionalhttpcommands-merge-is-not-browser-scoped-remote-edge-executecdpcommand-hits-chromes-goog-cdp-execute","timestamp":"2026-07-20T00:12:38+03:00"}
