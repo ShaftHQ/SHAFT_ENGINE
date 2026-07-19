@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/c-program-files-java-jdk-21-has-a-stale-cds-archive-that-breaks-gradles-java-version-probe-unrelated-to-daemon-jvm-criteria-guards.md",
+  "content_hash": "sha256:b817d23b884d102e931a7a1816d8c97857fcf3bb99dd2a13d6feb97dfe48d912",
+  "created_at": "2026-07-19T18:39:23+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.c-program-files-java-jdk-21-has-a-stale-cds-archive-that-breaks-gradles-java-version-probe-unrelated-to-daemon-jvm-criteria-guards",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij Gradle build crashes on JDK 25 daemon; enforce JDK requirement (issue #3784)"
+  },
+  "status": "active",
+  "tags": [
+    "windows",
+    "jdk",
+    "gradle",
+    "cds",
+    "environment",
+    "dev-machine"
+  ],
+  "title": "C:/Program Files/Java/jdk-21 has a stale CDS archive that breaks Gradle's java -version probe (unrelated to daemon JVM criteria/guards)",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T18:39:23+03:00"
+}
