@@ -5139,6 +5139,31 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void saveTranscriptHidesWithItsActionRowSiblingsInTheEmptyState() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        layoutPanel(panel);
+
+        JButton saveTranscript = findByAccessibleName(panel, "Save assistant transcript to file", JButton.class);
+        assertNotNull(saveTranscript, "Save transcript button should be wired into the action row");
+        assertFalse(saveTranscript.isVisible(),
+                "Save transcript should hide on a fresh, empty panel like its copyTranscript/clearTranscript siblings");
+
+        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+        flushPendingLayoutAndRepaint(panel);
+
+        assertTrue(saveTranscript.isVisible(), "Save transcript should show once the transcript has content");
+
+        clickAccessible(panel, "Clear assistant transcript");
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        flushPendingLayoutAndRepaint(panel);
+
+        assertFalse(saveTranscript.isVisible(),
+                "Save transcript should hide again once the transcript is cleared back to the empty state");
+    }
+
+    @Test
     void writeTranscriptSyncWritesExportedTranscriptContent(@TempDir Path tempDir) throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
         panel.simulateAppendForTest("user", "Plan a resilient login test", "");

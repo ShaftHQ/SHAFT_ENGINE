@@ -3132,7 +3132,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void updateActionChrome() {
         if (copyLastResponse == null || copyRawResponse == null || copyTranscript == null
-                || clearTranscript == null || rerunLastPrompt == null || cancel == null) {
+                || clearTranscript == null || rerunLastPrompt == null || cancel == null
+                || saveTranscript == null) {
             return;
         }
         boolean hasResponse = !lastResponse.isBlank();
@@ -3150,6 +3151,8 @@ final class ShaftAssistantPanel extends JPanel {
         copyTranscript.setEnabled(hasTranscript);
         clearTranscript.setVisible(hasTranscript);
         clearTranscript.setEnabled(hasTranscript && !running);
+        saveTranscript.setVisible(hasTranscript);
+        saveTranscript.setEnabled(hasTranscript);
         rerunLastPrompt.setVisible(canRerun);
         rerunLastPrompt.setEnabled(canRerun && !running);
         cancel.setVisible(running);
