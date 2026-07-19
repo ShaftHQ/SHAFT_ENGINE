@@ -438,13 +438,23 @@ public class ReportManagerHelper {
                 + className + "." + testMethodName + "'");
     }
 
-    public static void logExecutionSummary(String total, String passed, String failed, String skipped) {
+    public static String prepareExecutionSummaryMessage(String total, String passed, String failed, String skipped) {
         String summary = "Test Execution Summary Results" + "\n"
                 + "Total: " + total
                 + "  ·  " + ANSI_GREEN + "✓ Passed: " + passed + ANSI_FG_DEFAULT
                 + "  ·  " + ANSI_RED + "✗ Failed: " + failed + ANSI_FG_DEFAULT
                 + "  ·  " + ANSI_YELLOW + "⊘ Skipped: " + skipped + ANSI_FG_DEFAULT;
-        createImportantReportEntry(summary);
+        String trimmedPassed = passed == null ? "" : passed.trim();
+        String trimmedFailed = failed == null ? "" : failed.trim();
+        if (!"0".equals(trimmedPassed) && "0".equals(trimmedFailed)) {
+            summary += "\n⭐ Enjoyed a clean run? Star SHAFT on GitHub: "
+                    + ANSI_UNDERLINE + "https://github.com/ShaftHQ/SHAFT_ENGINE" + ANSI_UNDERLINE_OFF;
+        }
+        return summary;
+    }
+
+    public static void logExecutionSummary(String total, String passed, String failed, String skipped) {
+        createImportantReportEntry(prepareExecutionSummaryMessage(total, passed, failed, skipped));
         if ("0".equals(total == null ? "" : total.trim())) {
             // A zero-test run is almost always a silent Surefire provider mismatch, not a real
             // empty suite: SHAFT ships the JUnit Platform, so a bare consumer pom auto-detects
