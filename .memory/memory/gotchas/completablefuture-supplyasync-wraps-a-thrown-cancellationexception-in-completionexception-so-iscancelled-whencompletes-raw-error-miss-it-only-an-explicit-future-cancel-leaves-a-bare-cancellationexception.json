@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/completablefuture-supplyasync-wraps-a-thrown-cancellationexception-in-completionexception-so-iscancelled-whencompletes-raw-error-miss-it-only-an-explicit-future-cancel-leaves-a-bare-cancellationexception.md",
+  "content_hash": "sha256:39b5283ee2a28eaf42f5bcbcbaba43671c51bc34fc466882f87f60af07750967",
+  "created_at": "2026-07-19T04:58:53+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.completablefuture-supplyasync-wraps-a-thrown-cancellationexception-in-completionexception-so-iscancelled-whencompletes-raw-error-miss-it-only-an-explicit-future-cancel-leaves-a-bare-cancellationexception",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Stabilize flaky AssistantLocalAgentRunnerCancellationTest force-cancel race (issue #3758)"
+  },
+  "status": "active",
+  "tags": [
+    "completablefuture",
+    "cancellationexception",
+    "completionexception",
+    "race-condition",
+    "shaft-intellij",
+    "flaky-test",
+    "issue-3758"
+  ],
+  "title": "CompletableFuture.supplyAsync wraps a thrown CancellationException in CompletionException, so isCancelled()/whenComplete's raw error miss it -- only an explicit future.cancel() leaves a bare CancellationException",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T04:58:53+03:00"
+}
