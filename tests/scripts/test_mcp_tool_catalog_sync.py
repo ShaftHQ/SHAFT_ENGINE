@@ -30,6 +30,18 @@ CLI_COMMAND_DIR = REPO_ROOT / "shaft-cli" / "src" / "main" / "java" / "com" / "s
 ASSISTANT_COMMAND_PATH = (
     REPO_ROOT / "shaft-intellij" / "src" / "main" / "java" / "com" / "shaft" / "intellij" / "ui" / "AssistantCommand.java"
 )
+SHAFT_ASSISTANT_PANEL_PATH = (
+    REPO_ROOT / "shaft-intellij" / "src" / "main" / "java" / "com" / "shaft" / "intellij" / "ui" / "ShaftAssistantPanel.java"
+)
+GUIDED_WORKFLOW_PANEL_PATH = (
+    REPO_ROOT / "shaft-intellij" / "src" / "main" / "java" / "com" / "shaft" / "intellij" / "ui" / "GuidedWorkflowPanel.java"
+)
+# Gate 1e (issue #3866 A4): the three IntelliJ UI classes that actually compose/pass an MCP tool
+# name into a tools/call dispatch method. Deliberately narrow to these five dispatch call sites --
+# NOT a blanket string scan of the file -- so lookup tables like AssistantCommand's INTENT_KEYWORDS
+# (dictionary keys such as "mobile_record_start" used only for natural-language phrase matching,
+# never passed to a dispatch call) can never trip this gate.
+DISPATCH_UI_CLASS_PATHS = (ASSISTANT_COMMAND_PATH, SHAFT_ASSISTANT_PANEL_PATH, GUIDED_WORKFLOW_PANEL_PATH)
 
 # The other half of issue #3506: AssistantCommand.java is being refactored (concurrently with this
 # gate) to a single static intent-keyword table. That table is expected to carry this exact marker
@@ -93,6 +105,90 @@ def _normalize(text: str) -> str:
     """
     stripped = re.sub(r'["+\\]', " ", text)
     return re.sub(r"\s+", " ", stripped).strip().lower()
+
+
+
+# Gate 1e: the exact method calls through which these three classes issue (or hand off) an MCP
+# tools/call -- Invocation.tool(...)/new ToolCall(...) in AssistantCommand.java build the call
+# target directly; ShaftAssistantPanel.java and GuidedWorkflowPanel.java relay it one hop further
+# via ShaftMcpInvocationService#startTool, ToolPrefill#prefill, and GuidedWorkflowPanel's own
+# invokeStepTool. A call to any *other* method (Map.get, String.contains, ...) is never scanned.
+DISPATCH_CALL_PATTERN = re.compile(r"(?:\.startTool|prefill\.prefill|invokeStepTool|Invocation\.tool|new\s+ToolCall)\s*\(")
+_STRING_LITERAL_PATTERN = re.compile(r'"(?:[^"\\]|\\.)*"')
+_FULL_LITERAL_PATTERN = re.compile(r'^"((?:[^"\\]|\\.)*)"$')
+
+
+def _first_call_argument(text: str, open_paren_index: int) -> str:
+    """
+    Return the raw text of the first top-level argument of a call, given the index of its `(`.
+
+    Tracks string-literal state and paren depth so a comma or paren inside a nested call or a
+    string literal never ends the argument early (e.g. `foo(bar(a, b), "x, y")`'s first argument
+    is `bar(a, b)`, not `bar(a`).
+    """
+    depth = 1
+    in_string = False
+    escape = False
+    i = open_paren_index + 1
+    start = i
+    while i < len(text) and depth > 0:
+        char = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        elif char == "," and depth == 1:
+            break
+        i += 1
+    return text[start:i].strip()
+
+
+def dispatch_tool_name_violations(text: str, scanned_tools: set[str]) -> list[str]:
+    """
+    Scan `text` for MCP tools/call dispatch sites (`DISPATCH_CALL_PATTERN`) and return one
+    human-readable violation string per problem found in the tool-name (first) argument:
+
+    - built via string concatenation (e.g. `prefix + "_step_delete"`) -- post-sweep, every
+      surviving tool is a single unconditional name, so the caller never needs to compose one from
+      an engine/backend prefix; a `+` in this position is exactly the Finding-1 (#3866) bug shape.
+    - a plain string literal naming a tool that is not in the live scanned `@Tool` set (i.e. a
+      deleted/renamed tool referenced by exact name).
+
+    A bare identifier or method call (e.g. `toolName`, `invocation.toolName()`) is intentionally
+    left unchecked -- its value cannot be resolved statically, and letting it through is the
+    documented, deliberately narrow scope for this regex-based gate (it is not a concatenation, so
+    it is not the bug shape this gate targets).
+    """
+    violations: list[str] = []
+    for match in DISPATCH_CALL_PATTERN.finditer(text):
+        argument = _first_call_argument(text, match.end() - 1)
+        literal_match = _FULL_LITERAL_PATTERN.match(argument)
+        if literal_match:
+            tool_name = literal_match.group(1)
+            if tool_name and tool_name not in scanned_tools:
+                violations.append(
+                    f"{match.group(0).strip('(').strip()}(\"{tool_name}\") names a tool not in the "
+                    "live scanned @Tool set (deleted/renamed tool referenced by stale literal name)"
+                )
+            continue
+        without_literals = _STRING_LITERAL_PATTERN.sub('""', argument)
+        if "+" in without_literals:
+            violations.append(
+                f"{match.group(0).strip('(').strip()}({argument}) builds its tool-name argument via "
+                "string concatenation instead of an unconditional literal"
+            )
+    return violations
 
 
 class McpToolCatalogSyncTest(unittest.TestCase):
@@ -201,6 +297,74 @@ class IntentKeywordsValidityTest(unittest.TestCase):
             missing,
             "mcp-tool-manifest.json intentKeywords phrase(s) not found in the AssistantCommand.java "
             f"intent-keyword table (after the marker comment): {missing}",
+        )
+
+
+class DispatchToolNameScannerTest(unittest.TestCase):
+
+    """
+    Unit-level proof that `dispatch_tool_name_violations` actually catches the Finding-1 (#3866)
+    bug shape, and does not false-positive on lookup-table dictionary keys or unresolvable
+    identifiers/method calls used as the tool-name argument.
+    """
+
+    def test_flags_prefix_concatenation_building_a_stale_tool_name(self):
+        # The exact shape of the landed-then-reverted GuidedWorkflowPanel bug: a backend prefix
+        # string-concatenated with a literal suffix, passed straight into the dispatch call.
+        text = 'invokeStepTool(prefix + "_step_delete", arguments);'
+        violations = dispatch_tool_name_violations(text, scanned_tools={"capture_step_delete"})
+        self.assertEqual(1, len(violations), violations)
+        self.assertIn("concatenation", violations[0])
+
+    def test_flags_a_literal_tool_name_deleted_from_the_scanned_set(self):
+        text = 'Invocation.tool("playwright_step_delete", arguments);'
+        violations = dispatch_tool_name_violations(text, scanned_tools={"capture_step_delete"})
+        self.assertEqual(1, len(violations), violations)
+        self.assertIn("playwright_step_delete", violations[0])
+
+    def test_passes_the_unconditional_replacement_tool_name(self):
+        text = 'invokeStepTool("capture_step_delete", arguments);'
+        violations = dispatch_tool_name_violations(text, scanned_tools={"capture_step_delete"})
+        self.assertEqual([], violations)
+
+    def test_does_not_flag_an_intent_keywords_dictionary_key(self):
+        # Map.entry/.get(...) is not one of the five dispatch call patterns, so a natural-language
+        # lookup key that happens to look like a deleted tool name (e.g. AssistantCommand's
+        # INTENT_KEYWORDS map) must never trip this gate.
+        text = 'INTENT_KEYWORDS.get("mobile_record_start")'
+        violations = dispatch_tool_name_violations(text, scanned_tools=set())
+        self.assertEqual([], violations)
+
+    def test_does_not_flag_an_unresolvable_identifier_or_method_call(self):
+        text = (
+            'invocationService.startTool(toolName, arguments);\n'
+            'invocationService.startTool(invocation.toolName(), invocation.arguments());\n'
+        )
+        violations = dispatch_tool_name_violations(text, scanned_tools=set())
+        self.assertEqual([], violations)
+
+
+class DispatchToolNameSubsetTest(unittest.TestCase):
+
+    """
+    Gate 1e (issue #3866 A4): every literal MCP tool name dispatched from AssistantCommand.java,
+    ShaftAssistantPanel.java, or GuidedWorkflowPanel.java must be a real, currently scanned tool,
+    and none may be composed via string concatenation of an engine/backend prefix (the exact shape
+    of the Finding-1 regression this gate exists to catch).
+    """
+
+    def test_no_dispatched_tool_name_is_stale_or_prefix_concatenated(self):
+        scanned = GENERATOR.scanned_tool_names()
+        violations: list[str] = []
+        for path in DISPATCH_UI_CLASS_PATHS:
+            for violation in dispatch_tool_name_violations(path.read_text(encoding="utf-8"), scanned):
+                violations.append(f"{path.name}: {violation}")
+
+        self.assertEqual(
+            [],
+            violations,
+            "MCP dispatch call(s) reference a stale/deleted tool name or build one via string "
+            f"concatenation: {violations}",
         )
 
 
