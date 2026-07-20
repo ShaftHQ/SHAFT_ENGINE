@@ -9,17 +9,20 @@
 # PR-blocking Maven test job in this repo. What actually blocks a merge is:
 #
 # 1. ``.github/workflows/security.yml``
-#    - ``dependency-review`` job: ``actions/dependency-review-action`` against
-#      ``.github/dependency-review-config.yml`` (pull_request only).
 #    - ``codeql`` job: GitHub CodeQL static analysis for Java, run against a
 #      full multi-module build
 #      (``mvn -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,
 #      shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,
 #      shaft-sikulix,shaft-mcp -am clean package -DskipTests -Dgpg.skip``).
-# 2. ``.github/workflows/intellij-plugin.yml``: path-filtered (``shaft-intellij/**``)
-#    Gradle ``check buildPlugin verifyPlugin``. Out of scope for this script,
-#    which only mirrors the Maven reactor gates; run Gradle directly for
-#    ``shaft-intellij`` changes.
+# 2. ``.github/workflows/pr-gate.yml`` (the required ``PR Gate Summary``
+#    check, issue #3814): a single path-conditioned gate whose legs include
+#    ``dependency-review`` (``actions/dependency-review-action`` against
+#    ``.github/dependency-review-config.yml``, moved here out of
+#    ``security.yml``) plus path-filtered docs-boundary, IntelliJ installer
+#    verification, IntelliJ Gradle ``check buildPlugin verifyPlugin``,
+#    shaft-cli build/test, SHAFT Capture browser E2E, and Template Coupling
+#    legs. Out of scope for this script, which only mirrors the Maven
+#    reactor gates; run Gradle directly for ``shaft-intellij`` changes.
 # 3. The Maven Enforcer rules that fire on every ``mvn verify``/``package``/
 #    ``install`` in the reactor:
 #    - Root ``pom.xml`` ``<pluginManagement>`` (~line 555-605, execution id

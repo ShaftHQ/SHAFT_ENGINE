@@ -18,9 +18,6 @@
     },
     "shaft-mcp/.github/copilot-instructions.md": {
       "max_chars": 1500
-    },
-    ".github/codex/prompts/refresh-agent-instructions.md": {
-      "max_chars": 2500
     }
   },
   "host_contexts": {
@@ -66,8 +63,7 @@
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/README.md",
-    ".github/skills/*/SKILL.md",
-    ".github/codex/prompts/refresh-agent-instructions.md"
+    ".github/skills/*/SKILL.md"
   ],
   "expected_skill_names": {
     ".agents/skills": [
@@ -132,9 +128,7 @@
     ".github/instructions/*.instructions.md",
     ".github/skills/README.md",
     ".github/skills/*/SKILL.md",
-    ".github/pull_request_template.md",
-    ".github/codex/prompts/refresh-agent-instructions.md",
-    ".github/workflows/refresh-agent-instructions.yml"
+    ".github/pull_request_template.md"
   ],
   "scope_files": [
     ".github/instructions/framework-source.instructions.md",
@@ -184,6 +178,5 @@
     ".github/skills/deepseek/",
     ".github/skills/qwen/"
   ],
-  "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml",
   "notes": "Principle (#3745): each guidance surface is bounded by its own load cost, not a shared global pool. Always-loaded files (AGENTS.md, CLAUDE.md, copilot instructions, skill name/description metadata) are bounded by max_estimated_tokens_per_host, since every host pays that cost every session. Trigger-loaded skill bodies are bounded per skill by skill_budgets[<root>].max_skill_md_bytes (.claude/skills 16384, .github/skills 4096 -- each matched to that host's actual per-skill load cost) so growing one skill never taxes another's budget. The .agents bridge stays on its own thinness caps (max_description_chars/max_body_chars), since those bodies are Codex-loaded metadata, not lazy on-demand content. Content quality within any cap is governed by the duplicate-paragraph and forbidden-pattern intent guards, never by a shared byte pool. Environmental gotcha (applies to every byte check above, including the per-skill cap): measure LF-normalized bytes, i.e. len(read_text().encode()) not raw stat().st_size -- Path.read_text() already collapses CRLF, matching the LF blobs CI checks out, so this avoids inflating the count with Windows-CRLF working-tree line endings that CI never sees."
 }

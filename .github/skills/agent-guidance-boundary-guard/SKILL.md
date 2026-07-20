@@ -13,7 +13,6 @@ Use for agent guidance and memory/config surfaces. Keep `AGENTS.md` canonical an
 2. Keep `.agents` skill bodies under their configured budget and include `agents/openai.yaml` with `allow_implicit_invocation: true`.
 3. For `.codex` or `.memory` changes, preserve the restricted Memory MCP setup and avoid routine diary/end-session saves.
 4. Run `python3 scripts/ci/validate_agent_setup.py --skip-external`; run the full command when network/npm access is stable.
-5. If refresh automation changes guidance, check `.github/workflows/refresh-agent-instructions.yml` allowlist before widening scope.
 
 ## Output
 
