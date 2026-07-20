@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaft-intellijs-screenshot-renderer-test-never-runs-its-body-in-ci-assumefalse-on-dshaft-intellij-screenshotdir.md",
-  "content_hash": "sha256:5f5d51fc447e5c87de09eb1fdac833d1f738b222d6e4c711e4afd20bf246985c",
+  "content_hash": "sha256:32cea560d27a6f16c431d88aebfb78cd9e7a8dd4246a3e4045677530b5610bcd",
   "created_at": "2026-07-19T17:59:10+03:00",
   "evidence": [],
   "facets": {
@@ -26,5 +26,5 @@
   ],
   "title": "shaft-intellij's screenshot renderer test never runs its body in CI (assumeFalse on -Dshaft.intellij.screenshotDir)",
   "type": "gotcha",
-  "updated_at": "2026-07-19T17:59:10+03:00"
+  "updated_at": "2026-07-20T18:17:21+03:00"
 }

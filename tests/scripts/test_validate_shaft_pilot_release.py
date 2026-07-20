@@ -152,9 +152,20 @@ platformVersion=2024.3
         """{"status":"passed"}""",
     )
     _write_text(
+        root / ".github/actions/intellij-verify/action.yml",
+        """name: 'Verify or Publish IntelliJ Plugin'
+        runs:
+          using: 'composite'
+          steps:
+            - name: Run Gradle build
+              shell: bash
+              run: gradle -p shaft-intellij check buildPlugin verifyPlugin
+        """,
+    )
+    _write_text(
         root / ".github/workflows/mavenCentral_cd.yml",
         """Verify IntelliJ plugin release candidate
-      gradle -p shaft-intellij check buildPlugin verifyPlugin
+      uses: ./.github/actions/intellij-verify
 Validate SHAFT Pilot release contract
 Run deterministic SHAFT Pilot tests
 Run headless SHAFT Capture release journey
@@ -166,7 +177,7 @@ Verify published Maven Central coordinates
     _write_text(
         root / ".github/workflows/shaft-pilot-release.yml",
         """Verify IntelliJ plugin release candidate
-      gradle -p shaft-intellij check buildPlugin verifyPlugin
+      uses: ./.github/actions/intellij-verify
 Validate SHAFT Pilot release contract
 Run deterministic SHAFT Pilot tests
 Run headless SHAFT Capture release journey
@@ -217,6 +228,85 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
 
         self.assertTrue(
             any("capture-browser-secret-canary" in error for error in errors)
+        )
+
+    def test_intellij_verify_composite_reference_satisfies_release_gate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
+            )
+
+            errors = MODULE.validate_static(root)
+
+        self.assertEqual([], errors)
+
+    def test_missing_intellij_verify_composite_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
+            )
+            (root / ".github/actions/intellij-verify/action.yml").unlink()
+
+            errors = MODULE.validate_static(root)
+
+        self.assertIn(
+            "intellij-verify composite action must verify the IntelliJ plugin release candidate",
+            errors,
+        )
+
+    def test_intellij_verify_composite_missing_gradle_command_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
+            )
+            _write_text(
+                root / ".github/actions/intellij-verify/action.yml",
+                """name: 'Verify or Publish IntelliJ Plugin'
+                runs:
+                  using: 'composite'
+                  steps:
+                    - name: Run Gradle build
+                      shell: bash
+                      run: echo "gradle command removed"
+                """,
+            )
+
+            errors = MODULE.validate_static(root)
+
+        self.assertIn(
+            "intellij-verify composite action must verify the IntelliJ plugin release candidate",
+            errors,
+        )
+
+    def test_workflows_missing_intellij_verify_reference_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
+            )
+            for workflow in ("mavenCentral_cd.yml", "shaft-pilot-release.yml"):
+                _write_text(
+                    root / ".github/workflows" / workflow,
+                    """Verify IntelliJ plugin release candidate
+Validate SHAFT Pilot release contract
+Run deterministic SHAFT Pilot tests
+Run headless SHAFT Capture release journey
+Validate Maven publication
+Deploy to Maven Central
+Verify published Maven Central coordinates
+""",
+                )
+
+            errors = MODULE.validate_static(root)
+
+        self.assertIn(
+            "mavenCentral_cd.yml must verify the IntelliJ plugin release candidate", errors
+        )
+        self.assertIn(
+            "shaft-pilot-release.yml must verify the IntelliJ plugin release candidate", errors
         )
 
     def test_plugin_version_must_match_reactor_version(self):

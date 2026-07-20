@@ -1,0 +1,18 @@
+name: 'Run Release Contract Validators'
+description: >-
+  Runs the six SHAFT release-contract validators, in order: reactor versions,
+  modular documentation, documentation boundaries, Maven publication,
+  shaft-mcp configuration, and SHAFT Pilot release. Callers must set up
+  Python 3 before invoking this action.
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate release contracts
+      shell: bash
+      run: |
+        python3 scripts/ci/validate_reactor_versions.py
+        python3 scripts/ci/validate_modular_documentation.py
+        python3 scripts/ci/validate_documentation_boundaries.py
+        python3 scripts/ci/validate_maven_publication.py
+        python3 scripts/ci/validate_shaft_mcp_configuration.py
+        python3 scripts/ci/validate_shaft_pilot_release.py

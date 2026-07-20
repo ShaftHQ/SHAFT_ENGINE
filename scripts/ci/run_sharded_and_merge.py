@@ -17,10 +17,10 @@ Orchestrates, for a total of N shards:
 This intentionally does not replace or touch the existing manual class-filter
 CI partitioning in ``.github/workflows/e2eTests.yml`` -- it is a separate,
 opt-in recipe for the ``-Dshaft.shard`` mechanism, runnable locally or wired
-into a CI matrix job (see ``.github/workflows/sharded-merged-report.yml``,
-which runs shards 1..N as parallel jobs and calls this same assemble/merge
-machinery across job boundaries via artifact upload/download instead of
-in one local process).
+into a CI matrix job.
+See the published guide for the property, this script, and a generic
+GitHub Actions matrix example:
+https://shafthq.github.io/docs/reference/guides/Sharded_Execution
 
 Usage:
     scripts/ci/run_sharded_and_merge.py --shards 3 --test "%regex[.*SmokeTest.*]"

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/facts/shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget.md",
-  "content_hash": "sha256:4d2ea7fc2996cb8189f237317247093ec6a79272a816f7d156ef056133807717",
+  "content_hash": "sha256:2f3ed62e1526be323c80e21b9df435232e439a9abd11fb621de16b4611acb0a6",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [],
   "facets": {
@@ -26,5 +26,5 @@
   ],
   "title": "SHAFT CI facts: no PR-blocking test gate, Codacy quirks, installer verification, guidance budget",
   "type": "fact",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-20T18:30:12+03:00"
 }

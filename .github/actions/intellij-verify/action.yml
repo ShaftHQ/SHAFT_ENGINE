@@ -1,0 +1,74 @@
+name: 'Verify or Publish IntelliJ Plugin'
+description: >-
+  Sets up JDK 17 and Gradle 9, then runs the shaft-intellij Gradle build
+  (check buildPlugin verifyPlugin). When publish=='true', also validates the
+  JetBrains Marketplace secrets and signs/publishes the plugin.
+inputs:
+  publish:
+    description: 'When "true", also sign and publish the plugin to the JetBrains Marketplace.'
+    required: false
+    default: 'false'
+  marketplace-token:
+    description: 'JetBrains Marketplace publishing token. Required when publish=="true".'
+    required: false
+    default: ''
+  certificate-chain:
+    description: 'JetBrains plugin signing certificate chain. Required when publish=="true".'
+    required: false
+    default: ''
+  private-key:
+    description: 'JetBrains plugin signing private key. Required when publish=="true".'
+    required: false
+    default: ''
+  private-key-password:
+    description: 'JetBrains plugin signing private key password. Required when publish=="true".'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up JDK 17
+      uses: actions/setup-java@v5
+      with:
+        java-version: '17'
+        distribution: 'zulu'
+        check-latest: true
+    - name: Set up Gradle 9
+      uses: gradle/actions/setup-gradle@v6
+      with:
+        gradle-version: '9.0.0'
+    - name: Validate Marketplace secrets
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        ORG_GRADLE_PROJECT_intellijPlatformPublishingToken: ${{ inputs.marketplace-token }}
+        ORG_GRADLE_PROJECT_intellijPlatformCertificateChain: ${{ inputs.certificate-chain }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKey: ${{ inputs.private-key }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword: ${{ inputs.private-key-password }}
+      run: |
+        missing=0
+        for name in \
+          ORG_GRADLE_PROJECT_intellijPlatformPublishingToken \
+          ORG_GRADLE_PROJECT_intellijPlatformCertificateChain \
+          ORG_GRADLE_PROJECT_intellijPlatformPrivateKey \
+          ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword; do
+          if [ -z "${!name}" ]; then
+            echo "::error::$name is required to publish the IntelliJ plugin"
+            missing=1
+          fi
+        done
+        exit "$missing"
+    - name: Run Gradle build
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        ORG_GRADLE_PROJECT_intellijPlatformPublishingToken: ${{ inputs.marketplace-token }}
+        ORG_GRADLE_PROJECT_intellijPlatformCertificateChain: ${{ inputs.certificate-chain }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKey: ${{ inputs.private-key }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword: ${{ inputs.private-key-password }}
+      run: |
+        if [ "$PUBLISH" = "true" ]; then
+          gradle -p shaft-intellij check buildPlugin verifyPlugin signPlugin publishPlugin
+        else
+          gradle -p shaft-intellij check buildPlugin verifyPlugin
+        fi

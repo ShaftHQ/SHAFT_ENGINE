@@ -243,13 +243,21 @@ def validate(root: Path = ROOT) -> list[str]:
     if "needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]" not in central_workflow:
         errors.append("release announcements must wait for the public shaft-mcp installer matrix")
     dependency_output = "-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency"
+    mcp_jar_build_action_path = root / ".github/actions/mcp-jar-build/action.yml"
+    if not mcp_jar_build_action_path.is_file():
+        errors.append("mcp-jar-build composite action must copy shaft-mcp runtime dependencies to the root target/dependency path")
+    else:
+        mcp_jar_build_action = mcp_jar_build_action_path.read_text(encoding="utf-8")
+        if "dependency:copy-dependencies" not in mcp_jar_build_action or dependency_output not in mcp_jar_build_action:
+            errors.append("mcp-jar-build composite action must copy shaft-mcp runtime dependencies to the root target/dependency path")
     for workflow_name, workflow_text in (
             ("shaft-mcp.yml", mcp_workflow),
             ("mavenCentral_cd.yml", central_workflow),
-            ("shaft-pilot-release.yml", pilot_release_workflow),
     ):
-        if "dependency:copy-dependencies" not in workflow_text or dependency_output not in workflow_text:
-            errors.append(f"{workflow_name} must copy shaft-mcp runtime dependencies to the root target/dependency path")
+        if "./.github/actions/mcp-jar-build" not in workflow_text:
+            errors.append(f"{workflow_name} must copy shaft-mcp runtime dependencies via the mcp-jar-build composite action")
+    if "dependency:copy-dependencies" not in pilot_release_workflow or dependency_output not in pilot_release_workflow:
+        errors.append("shaft-pilot-release.yml must copy shaft-mcp runtime dependencies to the root target/dependency path")
     if "-pl shaft-mcp -am install" not in mcp_workflow:
         errors.append("shaft-mcp workflow must install reactor artifacts before copying thin runtime dependencies")
     installer_implementation = root / "scripts/mcp/install_shaft_mcp.py"

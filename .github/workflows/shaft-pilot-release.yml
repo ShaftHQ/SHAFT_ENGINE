@@ -80,18 +80,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Set up JDK 17 for IntelliJ plugin
-        uses: actions/setup-java@v5
-        with:
-          java-version: "17"
-          distribution: "zulu"
-          check-latest: true
-      - name: Set up Gradle 9
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: "9.0.0"
       - name: Verify IntelliJ plugin release candidate
-        run: gradle -p shaft-intellij check buildPlugin verifyPlugin
+        uses: ./.github/actions/intellij-verify
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
@@ -104,13 +94,7 @@ jobs:
         with:
           maven-version: 3.9.12
       - name: Validate release contracts
-        run: |
-          python3 scripts/ci/validate_reactor_versions.py
-          python3 scripts/ci/validate_modular_documentation.py
-          python3 scripts/ci/validate_documentation_boundaries.py
-          python3 scripts/ci/validate_maven_publication.py
-          python3 scripts/ci/validate_shaft_mcp_configuration.py
-          python3 scripts/ci/validate_shaft_pilot_release.py
+        uses: ./.github/actions/release-contract-validators
       - name: Install SHAFT Pilot prerequisites without tests
         run: >-
           mvn --batch-mode
@@ -130,12 +114,7 @@ jobs:
       - name: Verify populated Pilot Allure results
         run: python3 scripts/ci/validate_shaft_pilot_release.py --check-test-results
       - name: Run headless SHAFT Capture release journey
-        run: >-
-          mvn --batch-mode
-          -pl shaft-capture test
-          -DincludeCaptureBrowserE2E
-          -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
-          -Dgpg.skip
+        uses: ./.github/actions/capture-browser-e2e
       - name: Upload coverage to Codecov
         if: always() && github.event_name != 'pull_request'
         uses: ./.github/actions/upload-jacoco-coverage

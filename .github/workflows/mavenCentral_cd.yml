@@ -96,18 +96,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Set up JDK 17 for IntelliJ plugin
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-          check-latest: true
-      - name: Set up Gradle 9
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '9.0.0'
       - name: Verify IntelliJ plugin release candidate
-        run: gradle -p shaft-intellij check buildPlugin verifyPlugin
+        uses: ./.github/actions/intellij-verify
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
@@ -158,12 +148,7 @@ jobs:
       - name: Verify populated Pilot Allure results
         run: python3 scripts/ci/validate_shaft_pilot_release.py --check-test-results
       - name: Run headless SHAFT Capture release journey
-        run: >-
-          mvn --batch-mode
-          -pl shaft-capture test
-          -DincludeCaptureBrowserE2E
-          -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
-          -Dgpg.skip
+        uses: ./.github/actions/capture-browser-e2e
       - name: Upload coverage to Codecov
         # Skip when the Pilot test step never ran (e.g. an earlier build/verify step
         # failed first) so a broken build doesn't also report a fabricated coverage failure.
@@ -178,11 +163,13 @@ jobs:
             ./shaft-ai/target/jacoco/jacoco.xml,
             ./shaft-heal/target/jacoco/jacoco.xml,
             ./shaft-mcp/target/jacoco/jacoco.xml
+      - name: Build shaft-mcp runtime dependency layout
+        uses: ./.github/actions/mcp-jar-build
+        with:
+          install-args: clean install
       - name: Validate Maven publication
         run: |
           python3 scripts/ci/validate_maven_publication.py
-          mvn --batch-mode clean install -DskipTests -Dgpg.skip
-          mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
           python3 scripts/ci/validate_maven_publication.py --check-build-outputs
           python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
           python3 scripts/ci/validate_shaft_mcp_transports.py
