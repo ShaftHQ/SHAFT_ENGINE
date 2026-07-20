@@ -22,8 +22,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Test(singleThreaded = true)
 public class AllureManagerCoverageUnitTest {
@@ -38,6 +40,7 @@ public class AllureManagerCoverageUnitTest {
         deleteRecursively(testDirectory);
         Files.createDirectories(allureResultsDirectory);
         resetAllureManagerState();
+        resetCheckpointCounterState();
         SHAFT.Properties.paths.set().allureResults(allureResultsDirectory + File.separator);
         SHAFT.Properties.allure.set()
                 .accumulateReports(false)
@@ -58,6 +61,7 @@ public class AllureManagerCoverageUnitTest {
     public void tearDown() throws Exception {
         invoke("stopRealtimeMonitoring");
         resetAllureManagerState();
+        resetCheckpointCounterState();
         setField("cachedAllureCommandPrefix", "");
         setField("allureResultsFolderPath", SHAFT.Properties.paths.allureResults());
         Properties.clearForCurrentThread();
@@ -380,6 +384,40 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(html.contains("<main>x</main>"), html);
     }
 
+    /**
+     * Regression for issue #3821: {@code patchGeneratedAllureReportIndexShouldHandleMissingHeadAndBodyTags}
+     * passed 19/19 in isolation but failed once inside a 103-test batch. Root cause: {@link CheckpointCounter}'s
+     * {@code checkpoints} list is static/process-wide and was never reset between TestNG methods, so any
+     * earlier test in the same forked JVM that records a checkpoint (any SHAFT Validation/Verification via
+     * {@code ValidationsHelper}, or this very class's {@link #patchGeneratedAllureReportIndexShouldInjectAttachmentPreviewAndThemeCssOnce})
+     * makes {@link CheckpointCounter#overviewReportHtml()} non-empty by the time this test runs. That makes
+     * {@code AllureManager#allureOverviewPanelPatch()} append the "SHAFT Overview" panel (ending in
+     * {@code </script>\n}) after the theme-colors {@code <style>} block, so the patched file no longer ends
+     * with {@code </style>\n} -- not because any byte was truncated, but because a different (complete,
+     * valid) patch was appended. Deliberately deterministic: {@code dependsOnMethods} forces this checkpoint
+     * -recording "pollution" test to run immediately before the assertion test, exercising the exact
+     * setUp()/tearDown() isolation this fix adds, without relying on batch timing or GC pressure.
+     */
+    @Test
+    public void checkpointPollutionSetupForMissingHeadAndBodyTagsRegression() {
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "simulated-earlier-test-in-batch", CheckpointStatus.PASS);
+    }
+
+    @Test(dependsOnMethods = "checkpointPollutionSetupForMissingHeadAndBodyTagsRegression")
+    public void patchGeneratedAllureReportIndexShouldHandleMissingHeadAndBodyTagsDespitePriorCheckpointPollution() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<main>x</main>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+        Assert.assertTrue(html.startsWith("<style id=\"shaft-allure-attachment-preview-fix\">"), html);
+        Assert.assertTrue(html.endsWith("</style>\n"), html);
+        Assert.assertTrue(html.contains("<main>x</main>"), html);
+    }
+
     @Test
     public void patchGeneratedAllureReportIndexShouldStreamLargeReportsWithBoundedAllocation() throws Exception {
         Path reportDirectory = testDirectory.resolve("generated-report");
@@ -559,6 +597,31 @@ public class AllureManagerCoverageUnitTest {
         setField("allureResultsFolderPath", "");
         setField("allureOutPutDirectory", "");
         setField("realtimeMonitoringProcess", null);
+    }
+
+    /**
+     * Clears {@link CheckpointCounter}'s process-wide {@code checkpoints}/{@code passedCheckpoints}/
+     * {@code failedCheckpoints} state (issue #3821). That state is static and shared by every test in
+     * the same forked JVM (any SHAFT Validation/Verification records a checkpoint via
+     * {@code ValidationsHelper}), so without this reset, {@link AllureManager#allureOverviewPanelPatch()}
+     * silently picked up checkpoints left behind by unrelated, earlier-run tests: the "SHAFT Overview"
+     * panel would be appended to the patched {@code index.html} even in tests that expect a plain
+     * theme-colors-only patch, making the outcome depend on execution order within the fork rather
+     * than on this test's own setup. Mirrors the reflection pattern {@code CheckpointAndReportingTest}
+     * and {@code PlaywrightActionsE2ETestBase} already use to reach the same private fields.
+     */
+    private static void resetCheckpointCounterState() throws Exception {
+        Field checkpointsField = CheckpointCounter.class.getDeclaredField("checkpoints");
+        checkpointsField.setAccessible(true);
+        ((List<?>) checkpointsField.get(null)).clear();
+
+        Field passedField = CheckpointCounter.class.getDeclaredField("passedCheckpoints");
+        passedField.setAccessible(true);
+        ((AtomicInteger) passedField.get(null)).set(0);
+
+        Field failedField = CheckpointCounter.class.getDeclaredField("failedCheckpoints");
+        failedField.setAccessible(true);
+        ((AtomicInteger) failedField.get(null)).set(0);
     }
 
     private static String quote(String value) {
