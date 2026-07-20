@@ -94,3 +94,21 @@ jobs:
         with:
           image-tag: shaft-mcp:test
           container-name: shaft-mcp-smoke
+
+  notify:
+    name: Notify on nightly failure
+    needs: [installer-script-tests, package-and-smoke]
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:shaft-mcp'

@@ -1,0 +1,81 @@
+name: 'Notify Nightly Failure'
+description: >-
+  Surface a scheduled/nightly workflow failure as a single deduped GitHub issue,
+  and close that issue automatically when the workflow next succeeds (recovery).
+inputs:
+  outcome:
+    description: >-
+      Aggregated result of the workflow's real jobs, computed by the caller from
+      needs.*.result: 'failure' files/keeps the tracking issue, 'success' closes
+      it on recovery, and 'skip' (e.g. cancelled/skipped) is a no-op.
+    required: true
+  workflow-name:
+    description: 'Human-readable workflow name used in the issue title and body.'
+    required: true
+  label:
+    description: 'Unique label used to dedupe the tracking issue for this workflow.'
+    required: true
+  github-token:
+    description: 'Token with issues:write. Defaults to the job token.'
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: 'composite'
+  steps:
+    - name: File, keep, or close the nightly tracking issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        OUTCOME: ${{ inputs.outcome }}
+        WF_NAME: ${{ inputs.workflow-name }}
+        LABEL: ${{ inputs.label }}
+        REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+
+        # 'skip' (cancelled/superseded/skipped) must not file or close anything —
+        # a concurrency-cancelled run is not a real failure and not a recovery.
+        if [ "$OUTCOME" = "skip" ]; then
+          echo "Outcome is 'skip'; no issue action taken."
+          exit 0
+        fi
+
+        # Ensure the dedupe label exists (idempotent; --force updates in place).
+        gh label create "$LABEL" --repo "$REPO" --color B60205 \
+          --description "Auto-filed tracking issue for a failing nightly workflow" --force >/dev/null 2>&1 || true
+
+        # At most one open tracking issue per workflow, keyed on the dedupe label.
+        existing=$(gh issue list --repo "$REPO" --state open --label "$LABEL" \
+          --json number --jq '.[0].number // empty')
+
+        if [ "$OUTCOME" = "success" ]; then
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" \
+              --body "✅ Recovered: [\`$WF_NAME\`]($RUN_URL) passed on run \`$GITHUB_RUN_ID\`. Closing this auto-filed tracking issue."
+            gh issue close "$existing" --repo "$REPO" --reason completed
+            echo "Closed recovered tracking issue #$existing."
+          else
+            echo "Success with no open tracking issue; nothing to do."
+          fi
+          exit 0
+        fi
+
+        # OUTCOME == failure
+        if [ -n "$existing" ]; then
+          gh issue comment "$existing" --repo "$REPO" \
+            --body "❌ Still failing: [\`$WF_NAME\`]($RUN_URL) failed again on run \`$GITHUB_RUN_ID\`."
+          echo "Updated existing tracking issue #$existing."
+        else
+          BODY=$(printf '%s\n' \
+            "The scheduled workflow **$WF_NAME** failed." \
+            "" \
+            "- Run: $RUN_URL" \
+            "" \
+            "Filed automatically. Dedupes on the \`$LABEL\` label (one open issue per workflow) and closes automatically when \`$WF_NAME\` next succeeds.")
+          url=$(gh issue create --repo "$REPO" \
+            --title "Nightly failure: $WF_NAME" \
+            --label "$LABEL" \
+            --body "$BODY")
+          echo "Filed new tracking issue: $url"
+        fi
