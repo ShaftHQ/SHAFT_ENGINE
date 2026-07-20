@@ -1,12 +1,12 @@
 {
-  "body_path": "memory/gotchas/shaftassistantpanel-soft-cancel-always-renders-as-failed-never-cancelled-error-instanceof-cancellationexception-never-fires-for-the-soft-cancel-path-filed-as-issue-3768.md",
-  "content_hash": "sha256:0e5a92713f5a5081da4f670ab6b8e1598012a6606afe99d3a788d6412cdf13a8",
+  "body_path": "memory/gotchas/shaftassistantpanel-soft-cancel-renders-failed-not-cancelled-issue-3768.md",
+  "content_hash": "sha256:9ce95f1fe9efa9789f77a6ceea58b247004c729fb3e74dd53e011aeb68cea4d2",
   "created_at": "2026-07-19T04:58:53+03:00",
   "evidence": [],
   "facets": {
     "category": "gotcha"
   },
-  "id": "gotcha.shaftassistantpanel-soft-cancel-always-renders-as-failed-never-cancelled-error-instanceof-cancellationexception-never-fires-for-the-soft-cancel-path-filed-as-issue-3768",
+  "id": "gotcha.shaftassistantpanel-soft-cancel-renders-failed-not-cancelled-issue-3768",
   "scope": {
     "branch": null,
     "kind": "project",
@@ -27,5 +27,5 @@
   ],
   "title": "ShaftAssistantPanel soft Cancel always renders as Failed, never Cancelled -- error instanceof CancellationException never fires for the soft-cancel path (filed as issue #3768)",
   "type": "gotcha",
-  "updated_at": "2026-07-19T04:58:53+03:00"
+  "updated_at": "2026-07-20T08:53:12+03:00"
 }

@@ -1,12 +1,12 @@
 {
-  "body_path": "memory/gotchas/completablefuture-supplyasync-wraps-a-thrown-cancellationexception-in-completionexception-so-iscancelled-whencompletes-raw-error-miss-it-only-an-explicit-future-cancel-leaves-a-bare-cancellationexception.md",
-  "content_hash": "sha256:39b5283ee2a28eaf42f5bcbcbaba43671c51bc34fc466882f87f60af07750967",
+  "body_path": "memory/gotchas/completablefuture-supplyasync-wraps-cancellationexception-in-completionexception.md",
+  "content_hash": "sha256:9113a2cde66ec0f2ebafab590e0ba8cd29a5c3fa51cb86ac5f374d93cbedca36",
   "created_at": "2026-07-19T04:58:53+03:00",
   "evidence": [],
   "facets": {
     "category": "gotcha"
   },
-  "id": "gotcha.completablefuture-supplyasync-wraps-a-thrown-cancellationexception-in-completionexception-so-iscancelled-whencompletes-raw-error-miss-it-only-an-explicit-future-cancel-leaves-a-bare-cancellationexception",
+  "id": "gotcha.completablefuture-supplyasync-wraps-cancellationexception-in-completionexception",
   "scope": {
     "branch": null,
     "kind": "project",
@@ -29,5 +29,5 @@
   ],
   "title": "CompletableFuture.supplyAsync wraps a thrown CancellationException in CompletionException, so isCancelled()/whenComplete's raw error miss it -- only an explicit future.cancel() leaves a bare CancellationException",
   "type": "gotcha",
-  "updated_at": "2026-07-19T04:58:53+03:00"
+  "updated_at": "2026-07-20T08:53:12+03:00"
 }
