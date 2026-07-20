@@ -55,6 +55,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#increment(com.shaft.tools.io.internal.CheckpointType,java.lang.String,com.shaft.tools.io.internal.CheckpointStatus)" tabindex="0">increment(CheckpointType, String, CheckpointStatus)</a></li>
+<li><a href="#resetForTesting()" tabindex="0">resetForTesting()</a></li>
 <li><a href="#attach()" tabindex="0">attach()</a></li>
 </ol>
 </li>
@@ -120,6 +121,11 @@ publish the generated report attachment.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Creates a new checkpoint entry and updates the pass/fail counters.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resetForTesting()" class="member-name-link">resetForTesting</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Testing-support hook only &mdash; <strong>not for production use</strong>.</div>
+</div>
 </div>
 </div>
 </div>
@@ -170,6 +176,26 @@ attributed and deep-linked to its owning test even though the checkpoint list is
 <dd><code>message</code> - the checkpoint message</dd>
 <dd><code>status</code> - the final status of the checkpoint</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="resetForTesting()">
+<h3>resetForTesting</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">resetForTesting</span>()</div>
+<div class="block">Testing-support hook only &mdash; <strong>not for production use</strong>. Resets the
+process-wide, static checkpoint accumulation back to its initial empty/zero state: it clears
+the <code>checkpoints</code> list, zeroes the <code>passedCheckpoints</code>/<code>failedCheckpoints</code>
+counters, and resets the monotonic <code>checkpointSequence</code> id source so the next captured
+checkpoint restarts at id <code>1</code>.
+
+<p>Because this static state is shared by every test in the same forked JVM (any SHAFT
+Validation/Verification records a checkpoint via <code>ValidationsHelper</code>), tests that must
+isolate themselves from checkpoints left behind by earlier-run tests call this between methods.
+It exists as a single, <code>public</code> entry point so those tests no longer each reflect into
+these private fields to clear them (issue #3846); it is <code>public</code> rather than
+package-private because consumer tests live outside this package.</div>
 </div>
 </section>
 </li>
