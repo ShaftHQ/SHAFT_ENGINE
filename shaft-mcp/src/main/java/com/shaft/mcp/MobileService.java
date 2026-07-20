@@ -810,17 +810,43 @@ public class MobileService {
      */
     @Tool(name = "mobile_type", description = "types a value into a mobile element; sensitive fields are redacted per field")
     public McpMobileActionResult type(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
-        String code = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
+        return typeInternal(locatorStrategy, locatorValue, textValue, false);
+    }
+
+    /**
+     * Dispatches a unified {@code element_type} call to the touch-recording type/append implementation.
+     * Package-private engine-dispatch seam used by {@link ElementService}; reuses the same recording
+     * path as {@link #type(locatorStrategy, String, String)} so recording behavior stays identical to
+     * calling {@code mobile_type} directly (design doc amendment A1).
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @param textValue text to type
+     * @param append when true, appends to existing content via {@code typeAppend} instead of clearing first
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dispatchType(locatorStrategy locatorStrategy, String locatorValue, String textValue, boolean append) {
+        return typeInternal(locatorStrategy, locatorValue, textValue, append);
+    }
+
+    private McpMobileActionResult typeInternal(
+            locatorStrategy locatorStrategy, String locatorValue, String textValue, boolean append) {
+        String method = append ? "typeAppend" : "type";
+        String code = "driver.element()." + method + "(" + locatorCode(locatorStrategy, locatorValue)
                 + ", " + java(textValue) + ");";
-        String redactedCode = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
+        String redactedCode = "driver.element()." + method + "(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"<redacted>\");";
         boolean sensitive = isSensitiveTypedValue(locatorValue, textValue);
         try {
-            getDriver().element().type(getLocator(locatorStrategy, locatorValue), textValue);
-            return actionResult("type", locatorStrategy, locatorValue, Map.of("value", text(textValue)), code,
+            if (append) {
+                getDriver().element().typeAppend(getLocator(locatorStrategy, locatorValue), textValue);
+            } else {
+                getDriver().element().type(getLocator(locatorStrategy, locatorValue), textValue);
+            }
+            return actionResult(method, locatorStrategy, locatorValue, Map.of("value", text(textValue)), code,
                     redactedCode, sensitive);
         } catch (Exception exception) {
-            logger.error("Mobile type failed (values redacted)", exception);
+            logger.error("Mobile {} failed (values redacted)", method, exception);
             throw exception;
         }
     }

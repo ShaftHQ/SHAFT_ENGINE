@@ -48,6 +48,34 @@ public class PlaywrightService {
     }
 
     /**
+     * Returns the active Playwright session's browser-level actions as the shared
+     * {@link com.shaft.gui.driver.BrowserActionsContract}, so {@link BrowserService}'s unified
+     * {@code browser_*} tools can dispatch to Playwright and web/mobile through the same contract
+     * calls (navigate, refresh, back/forward, window sizing, cookies, accessibility, network mocking).
+     *
+     * @return the active Playwright session's browser actions
+     */
+    com.shaft.gui.driver.BrowserActionsContract browserActions() {
+        return getDriver().browser();
+    }
+
+    /**
+     * Captures an aria snapshot on the active Playwright session. Package-private engine-dispatch
+     * seam used by {@link BrowserService#ariaSnapshot}; not an MCP tool because no new tool names may
+     * be introduced in this commit (the existing {@code browser_aria_snapshot} tool covers this
+     * dispatch).
+     *
+     * @param locatorStrategy locator strategy; leave unset together with locatorValue to snapshot the whole page
+     * @param locatorValue locator value; leave blank to snapshot the whole page
+     * @return the aria snapshot serialized as YAML
+     */
+    String ariaSnapshot(locatorStrategy locatorStrategy, String locatorValue) {
+        boolean wholePage = locatorStrategy == null || locatorValue == null || locatorValue.isBlank();
+        By locator = wholePage ? By.tagName("html") : getLocator(locatorStrategy, locatorValue);
+        return getDriver().element().ariaSnapshot(locator);
+    }
+
+    /**
      * Initializes a SHAFT Playwright browser session.
      *
      * @param browser chromium, chrome, firefox, webkit, or safari; blank uses SHAFT defaults
@@ -572,6 +600,42 @@ public class PlaywrightService {
             description = "checks whether a SHAFT Playwright element is enabled")
     public boolean isEnabled(locatorStrategy locatorStrategy, String locatorValue) {
         return locator(locatorStrategy, locatorValue).isEnabled();
+    }
+
+    /**
+     * Checks whether a Playwright element (for example a checkbox or radio button) is selected, via
+     * the raw Playwright {@code Locator.isChecked()} (design doc amendment A8). Package-private
+     * engine-dispatch seam used by {@link ElementService#isSelected}; not an MCP tool because no new
+     * tool names may be introduced in this commit (the old {@code element_is_selected} tool name
+     * already covers this dispatch).
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @return true when the element is checked/selected
+     */
+    boolean isSelected(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).isChecked();
+    }
+
+    /**
+     * Drags an element by an offset using SHAFT Playwright. Package-private engine-dispatch seam used
+     * by {@link ElementService#dragAndDrop} when {@code offsetX}/{@code offsetY} are supplied instead
+     * of a target locator; reuses the same recording path as the other Playwright element tools.
+     *
+     * @param locatorStrategy source locator strategy
+     * @param locatorValue source locator value
+     * @param xOffset horizontal offset
+     * @param yOffset vertical offset
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dragAndDropByOffset(locatorStrategy locatorStrategy, String locatorValue, int xOffset, int yOffset) {
+        By locator = getLocator(locatorStrategy, locatorValue);
+        getDriver().element().dragAndDropByOffset(locator, xOffset, yOffset);
+        String code = "driver.element().dragAndDropByOffset(" + locatorCode(locatorStrategy, locatorValue)
+                + ", " + xOffset + ", " + yOffset + ");";
+        return record("drag_and_drop_by_offset", locatorStrategy, locatorValue, Map.of(
+                        "xOffset", String.valueOf(xOffset), "yOffset", String.valueOf(yOffset)),
+                code, false);
     }
 
     private SHAFT.GUI.Playwright getDriver() {
