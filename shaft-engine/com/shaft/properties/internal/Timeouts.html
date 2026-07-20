@@ -73,6 +73,7 @@
 <li><a href="#waitForRemoteServerToBeUp()" tabindex="0">waitForRemoteServerToBeUp()</a></li>
 <li><a href="#timeoutForRemoteServerToBeUp()" tabindex="0">timeoutForRemoteServerToBeUp()</a></li>
 <li><a href="#remoteServerInstanceCreationTimeout()" tabindex="0">remoteServerInstanceCreationTimeout()</a></li>
+<li><a href="#remoteServerConnectionAttemptTimeout()" tabindex="0">remoteServerConnectionAttemptTimeout()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
 </ol>
 </li>
@@ -197,42 +198,51 @@ worst-case cost regardless of how far the page keeps growing.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#pageLoadTimeout()" class="member-name-link">pageLoadTimeout</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#remoteServerInstanceCreationTimeout()" class="member-name-link">remoteServerInstanceCreationTimeout</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#remoteServerConnectionAttemptTimeout()" class="member-name-link">remoteServerConnectionAttemptTimeout</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Timeout in seconds for a single HTTP connect/read attempt made by the underlying HTTP client
+while creating a remote WebDriver session.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scriptExecutionTimeout()" class="member-name-link">scriptExecutionTimeout</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#remoteServerInstanceCreationTimeout()" class="member-name-link">remoteServerInstanceCreationTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Timeout in minutes for the overall remote WebDriver session-creation retry budget: the total
+time <code>DriverFactoryHelper</code> keeps retrying failed connection attempts before giving up.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scriptExecutionTimeout()" class="member-name-link">scriptExecutionTimeout</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Timeouts.SetProperty.html" title="class in com.shaft.properties.internal">Timeouts.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
 of individual configuration properties at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>long</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#shellSessionTimeout()" class="member-name-link">shellSessionTimeout</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#sshServerAliveInterval()" class="member-name-link">sshServerAliveInterval</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>long</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#shellSessionTimeout()" class="member-name-link">shellSessionTimeout</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#sshServerAliveInterval()" class="member-name-link">sshServerAliveInterval</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">JSch <code>ServerAliveInterval</code> in seconds for remote SSH sessions.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#timeoutForRemoteServerToBeUp()" class="member-name-link">timeoutForRemoteServerToBeUp</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#timeoutForRemoteServerToBeUp()" class="member-name-link">timeoutForRemoteServerToBeUp</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoadingTimeout()" class="member-name-link">waitForLazyLoadingTimeout</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForLazyLoadingTimeout()" class="member-name-link">waitForLazyLoadingTimeout</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Timeout in seconds for SHAFT's browser lazy-loading synchronization.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForRemoteServerToBeUp()" class="member-name-link">waitForRemoteServerToBeUp</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForUiStateTimeout()" class="member-name-link">waitForUiStateTimeout</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForRemoteServerToBeUp()" class="member-name-link">waitForRemoteServerToBeUp</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#waitForUiStateTimeout()" class="member-name-link">waitForUiStateTimeout</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Timeout in seconds for default UI state waits.</div>
 </div>
 </div>
@@ -505,6 +515,33 @@ Values <code>&lt;= 0</code> disable keep-alive packets.</div>
 <div class="member-signature"><span class="annotations">@Key("remoteServerInstanceCreationTimeout")
 @DefaultValue("5")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">remoteServerInstanceCreationTimeout</span>()</div>
+<div class="block">Timeout in minutes for the overall remote WebDriver session-creation retry budget: the total
+time <code>DriverFactoryHelper</code> keeps retrying failed connection attempts before giving up.
+Does <strong>not</strong> bound a single HTTP connect/read attempt against the grid -- see
+<a href="#remoteServerConnectionAttemptTimeout()"><code>remoteServerConnectionAttemptTimeout()</code></a> for that. Prior to introducing that property,
+this single value simultaneously bounded the per-attempt HTTP client timeout, the outer retry
+budget, and the progress bar, so one hung attempt could silently consume the entire budget
+without the retry loop ever getting a chance to retry (issue #3811).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="remoteServerConnectionAttemptTimeout()">
+<h3>remoteServerConnectionAttemptTimeout</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("remoteServerConnectionAttemptTimeout")
+@DefaultValue("120")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">remoteServerConnectionAttemptTimeout</span>()</div>
+<div class="block">Timeout in seconds for a single HTTP connect/read attempt made by the underlying HTTP client
+while creating a remote WebDriver session. Decoupled from
+<a href="#remoteServerInstanceCreationTimeout()"><code>remoteServerInstanceCreationTimeout()</code></a>, which bounds only the overall retry budget
+(in minutes) across all attempts: this property bounds one connection attempt, so an
+unreachable or saturated grid fails an attempt fast and the retry loop actually gets to retry
+within the overall budget, instead of one attempt burning the whole window (issue #3811).
+The default stays deliberately generous because a healthy-but-busy grid holds the new-session
+POST open while the request waits in its session queue; a timed-out attempt that gets retried
+enqueues a duplicate request. Lower this (e.g. to 10-30) only where fail-fast matters more
+than queue tolerance, such as CI with adaptive throttling.</div>
 </div>
 </section>
 </li>
