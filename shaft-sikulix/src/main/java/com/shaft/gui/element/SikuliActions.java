@@ -1,6 +1,7 @@
 package com.shaft.gui.element;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.sikulix.internal.SikuliNativeLibraryStager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.sikuli.basics.Settings;
@@ -356,6 +357,7 @@ public class SikuliActions {
     }
 
     private void initializeSikuliEngineForCurrentScreen() {
+        SikuliNativeLibraryStager.ensureOpenCvNativeStaged();
         Settings.setShowActions(false);
         Settings.ActionLogs = true;
         Settings.InfoLogs = true;
