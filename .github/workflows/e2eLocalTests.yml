@@ -216,17 +216,22 @@ jobs:
           if (-not $installed) {
             throw "WinAppDriver did not finish installing at $winAppDriverPath after 60s."
           }
-      - name: Start Appium server
+      - name: Start Appium server and run Windows desktop flow
+        continue-on-error: true
         shell: powershell
         run: |
-          # Write the server's own stdout/stderr to a file via Appium's native --log flag
-          # rather than relying solely on PowerShell job-stream buffering. Start-Job +
-          # Receive-Job at cleanup was found to surface zero lines of server output across
-          # a full ~12-minute run in CI (#3806) even though the same pattern captures
-          # output reliably in isolated local testing on the same OS/PowerShell version.
-          # A log file survives regardless of that buffering behavior and lets us inspect
-          # what the "windows" driver actually did while creating the session, including
-          # for runs that hang for the full 300s timeout.
+          # The Appium server and the test MUST run in the same step. When the
+          # server was started via Start-Job in a *separate* step, that job's
+          # child process was torn down as soon as the start step's pwsh exited,
+          # so nothing was listening on 4723 by the time the test step ran: every
+          # POST /session failed instantly with java.nio.channels.ClosedChannelException
+          # and SHAFT retried until the 300s remote-session timeout. The server
+          # --log confirmed it -- it stopped right after the in-step /status probe
+          # with no POST /session ever logged server-side (run 29717278042, #3806).
+          # (That same cross-step death, not stream buffering, is why an earlier
+          # Receive-Job at cleanup surfaced zero server output.) Co-locating start
+          # + test keeps the server alive for the whole session-creation window;
+          # the --log file still feeds the diagnostics artifact.
           $appiumLog = Join-Path $env:RUNNER_TEMP 'appium-server.log'
           Start-Job -Name shaft-appium -ScriptBlock {
             param($logPath)
@@ -249,13 +254,13 @@ jobs:
             }
             throw "Appium server did not become ready."
           }
-      - name: Run Appium Windows desktop flow
-        continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:\Windows\System32\notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=WindowsDesktopAppiumE2ETest"
-      - name: Stop Appium server
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:\Windows\System32\notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=WindowsDesktopAppiumE2ETest"
+      - name: Dump Appium server log
         if: always()
         shell: powershell
         run: |
+          # The server ran inside the previous step's shell, so its Start-Job is
+          # already gone here -- only the on-disk --log file survives to inspect.
           $appiumLog = Join-Path $env:RUNNER_TEMP 'appium-server.log'
           Write-Output "=== Appium server log ($appiumLog) ==="
           if (Test-Path $appiumLog) {
@@ -263,9 +268,6 @@ jobs:
           } else {
             Write-Output "(log file was not created)"
           }
-          Write-Output "=== Receive-Job (PowerShell job stream, for comparison) ==="
-          Receive-Job -Name shaft-appium -ErrorAction SilentlyContinue
-          Get-Job -Name shaft-appium -ErrorAction SilentlyContinue | Stop-Job
       - name: Upload Appium server log
         if: always()
         uses: actions/upload-artifact@v7
