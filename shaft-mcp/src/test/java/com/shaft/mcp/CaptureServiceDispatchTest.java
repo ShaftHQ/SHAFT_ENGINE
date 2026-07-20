@@ -321,6 +321,64 @@ class CaptureServiceDispatchTest {
     }
 
     @Test
+    void apiStartDispatchesToMobileWhenMobilePlatformIsExplicitlyRequestedWithNoActiveEngine() {
+        // mobile_api_record_start's loopback MITM proxy never required a live Appium/WebDriver
+        // session (platform/deviceLabel are stored for reference only) -- capture_api_start must
+        // preserve that "no browser session required" behavior for a caller who explicitly names a
+        // mobilePlatform, not only when a mobile engine already happens to be active, otherwise a
+        // caller with ActiveEngine.NONE (the common case, since the mobile API capture is
+        // deliberately standalone) would incorrectly launch a WEB browser instead.
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        MobileApiCaptureStatus mobileStartStatus = new MobileApiCaptureStatus(
+                true, "session-2", 8081, "", 0, List.of());
+        when(mobileService.mobileApiRecordStart("Android", "", "recordings/api.json"))
+                .thenReturn(mobileStartStatus);
+        CaptureService service = service(playwrightService, mobileService);
+        EngineService.setActiveEngine(null);
+
+        McpCaptureApiUnionStatus started = service.apiStart(
+                null, null, null, null, "recordings/api.json", "Android", "");
+
+        assertEquals(ActiveEngine.NONE, started.engine());
+        assertEquals(mobileStartStatus, started.mobileStatus());
+        assertNull(started.webStatus());
+        verify(mobileService).mobileApiRecordStart("Android", "", "recordings/api.json");
+        verify(playwrightService, org.mockito.Mockito.never()).recordStart(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void apiStatusAndStopReachTheStandaloneMobileApiSessionWithNoActiveEngine() {
+        // A mobile API capture started standalone (no driver_initialize, ActiveEngine stays NONE --
+        // see apiStartDispatchesToMobileWhenMobilePlatformIsExplicitlyRequestedWithNoActiveEngine)
+        // must still have its follow-up capture_api_status/capture_api_stop/capture_api_transactions
+        // calls reach the same mobile session, not fall through to the unrelated WEB CaptureManager.
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        MobileApiCaptureStatus activeMobileStatus = new MobileApiCaptureStatus(
+                true, "session-3", 8082, "", 2, List.of());
+        MobileApiCaptureStatus stoppedMobileStatus = new MobileApiCaptureStatus(
+                false, "session-3", 0, "", 2, List.of());
+        when(mobileService.mobileApiRecordStatus()).thenReturn(activeMobileStatus);
+        when(mobileService.mobileApiRecordStop(false)).thenReturn(stoppedMobileStatus);
+        when(mobileService.mobileApiRecordTransactions()).thenReturn(List.of());
+        CaptureService service = service(playwrightService, mobileService);
+        EngineService.setActiveEngine(null);
+
+        McpCaptureApiUnionStatus status = service.apiStatus();
+        List<com.shaft.capture.runtime.NetworkTransaction> transactions = service.apiTransactions(false, "");
+        McpCaptureApiUnionStatus stopped = service.apiStop(false);
+
+        assertEquals(activeMobileStatus, status.mobileStatus());
+        assertNull(status.webStatus());
+        assertEquals(stoppedMobileStatus, stopped.mobileStatus());
+        assertTrue(transactions.isEmpty());
+        verify(mobileService).mobileApiRecordTransactions();
+        verify(mobileService).mobileApiRecordStop(false);
+    }
+
+    @Test
     void generateReplayDispatchesToMobileReplayWhenMobileEngineIsActive() {
         PlaywrightService playwrightService = mock(PlaywrightService.class);
         MobileService mobileService = mock(MobileService.class);

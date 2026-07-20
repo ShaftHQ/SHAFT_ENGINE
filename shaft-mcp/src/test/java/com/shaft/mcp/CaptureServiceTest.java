@@ -534,6 +534,34 @@ class CaptureServiceTest {
     }
 
     @Test
+    void generateReplayRunsEndToEndWithZeroArgsAfterACaptureStartStopChain() throws Exception {
+        // Design doc Decision 3's param-defaults acceptance bar: the codegen chain must run with
+        // zero args end-to-end (capture_start -> capture_stop -> capture_generate_replay). This
+        // simulates the capture_start/capture_stop half by placing a persisted recording exactly
+        // where a real WEB CDP session would have written it, then proves capture_generate_replay
+        // needs neither an explicit sessionPath nor an explicit backend: sessionPath resolves to the
+        // most recently modified recording under recordings/ (the same lookup capture_code_blocks
+        // and status() use), and backend resolves to WEB from the (default, unset) active engine.
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Files.copy(repositoryRoot().resolve(
+                        "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"),
+                recordings.resolve("capture-latest.json"));
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.generateReplay(
+                    null, null, null, null, false, false, false, false, false, null, null, null, null);
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(),
+                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+    }
+
+    @Test
     void codeBlocksToolStillRaisesAClearErrorWhenSessionPathIsBlankAndNoRecordingsExist() {
         // The fallback must not silently swallow the "nothing to generate from" case: with no
         // recordings/ directory at all, McpWorkspacePolicy's existing "is required" error still

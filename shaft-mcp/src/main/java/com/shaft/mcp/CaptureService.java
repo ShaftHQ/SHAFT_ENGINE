@@ -499,8 +499,10 @@ public class CaptureService {
      */
     @Tool(name = "capture_api_start",
             description = "starts SHAFT Capture with API network recording enabled; dispatches to the mobile "
-                    + "loopback MITM proxy when a mobile engine is active, absorbing mobile_api_record_start "
-                    + "(outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and ignored on WEB)")
+                    + "loopback MITM proxy when a mobile engine is active OR mobilePlatform is explicitly given "
+                    + "(the mobile proxy never requires a live Appium/WebDriver session), absorbing "
+                    + "mobile_api_record_start (outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and "
+                    + "ignored on WEB)")
     public McpCaptureApiUnionStatus apiStart(
             String targetUrl,
             String browser,
@@ -510,7 +512,12 @@ public class CaptureService {
             @ToolParam(required = false) String mobilePlatform,
             @ToolParam(required = false) String mobileDeviceLabel) {
         ActiveEngine engine = EngineService.activeEngine();
-        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+        // The mobile loopback MITM proxy is deliberately standalone (platform/deviceLabel are
+        // stored for reference only, per mobileApiRecordStart's contract) -- an explicit
+        // mobilePlatform is as strong a signal as an already-active mobile engine, so a caller
+        // never needs to driver_initialize a mobile session just to record API traffic.
+        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB
+                || (mobilePlatform != null && !mobilePlatform.isBlank())) {
             return new McpCaptureApiUnionStatus(engine, null,
                     mobileService.mobileApiRecordStart(mobilePlatform, mobileDeviceLabel, outputPath));
         }
@@ -541,11 +548,11 @@ public class CaptureService {
      */
     @Tool(name = "capture_api_status",
             description = "returns SHAFT Capture session status including network transaction count and recent "
-                    + "endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active")
+                    + "endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or "
+                    + "when a standalone mobile API session (started with no active engine) is already running")
     public McpCaptureApiUnionStatus apiStatus() {
-        ActiveEngine engine = EngineService.activeEngine();
-        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
-            return new McpCaptureApiUnionStatus(engine, null, mobileService.mobileApiRecordStatus());
+        if (mobileApiSessionActiveOrEngineIsMobile()) {
+            return new McpCaptureApiUnionStatus(EngineService.activeEngine(), null, mobileService.mobileApiRecordStatus());
         }
         return new McpCaptureApiUnionStatus(ActiveEngine.WEB, manager.status(), null);
     }
@@ -558,11 +565,11 @@ public class CaptureService {
      */
     @Tool(name = "capture_api_stop",
             description = "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; "
-                    + "dispatches to the mobile loopback MITM proxy when a mobile engine is active")
+                    + "dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a "
+                    + "standalone mobile API session (started with no active engine) is already running")
     public McpCaptureApiUnionStatus apiStop(boolean discard) {
-        ActiveEngine engine = EngineService.activeEngine();
-        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
-            return new McpCaptureApiUnionStatus(engine, null, mobileService.mobileApiRecordStop(discard));
+        if (mobileApiSessionActiveOrEngineIsMobile()) {
+            return new McpCaptureApiUnionStatus(EngineService.activeEngine(), null, mobileService.mobileApiRecordStop(discard));
         }
         return new McpCaptureApiUnionStatus(ActiveEngine.WEB, manager.stop(discard), null);
     }
@@ -577,18 +584,32 @@ public class CaptureService {
     @Tool(name = "capture_api_transactions",
             description = "returns captured network transactions without bodies or sensitive headers; supports "
                     + "filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions "
-                    + "when a mobile engine is active (includeAssets/excludePattern are WEB-only there)")
+                    + "when a mobile engine is active, or when a standalone mobile API session is already running "
+                    + "(includeAssets/excludePattern are WEB-only there)")
     public List<NetworkTransaction> apiTransactions(
             boolean includeAssets,
             String excludePattern) {
-        ActiveEngine engine = EngineService.activeEngine();
-        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+        if (mobileApiSessionActiveOrEngineIsMobile()) {
             return mobileService.mobileApiRecordTransactions();
         }
         NetworkCaptureOptions filter = new NetworkCaptureOptions();
         filter.excludeAssets = !includeAssets;
         filter.excludePattern = excludePattern == null ? "" : excludePattern;
         return manager.networkTransactions(filter, 100);
+    }
+
+    /**
+     * Whether capture_api_status/capture_api_stop/capture_api_transactions should dispatch to the
+     * mobile loopback MITM proxy: either a mobile engine is active, or -- since that proxy is
+     * deliberately standalone and never requires one (see {@link #apiStart}) -- a mobile API session
+     * is already running with no engine active at all.
+     */
+    private boolean mobileApiSessionActiveOrEngineIsMobile() {
+        ActiveEngine engine = EngineService.activeEngine();
+        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+            return true;
+        }
+        return mobileService.mobileApiRecordStatus().active();
     }
 
     /**
