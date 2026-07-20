@@ -15,6 +15,7 @@ import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
 
 /**
  * Internal utility class responsible for attaching test artifacts (screenshots, recordings,
@@ -359,7 +360,7 @@ public class AttachmentReporter {
         if (containsAny(combined, "link", "uri", "text/uri-list")) return "link";
         if (containsAny(combined, "engine logs")) return "engine logs";
         if (containsAny(combined, "zip", "trace", "diagnostics", "application/zip")) return "zip";
-        if (containsAny(combined, "octet-stream", "binary")) return "binary";
+        if (containsWord(combined, "octet-stream", "binary")) return "binary";
         if (containsAny(combined, "properties")) return "properties";
         return "default";
     }
@@ -390,6 +391,21 @@ public class AttachmentReporter {
     private static boolean containsAny(String value, String... tokens) {
         for (String token : tokens) {
             if (value.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Like {@link #containsAny}, but requires each token to appear as a whole word/segment
+     * (word-boundary match) rather than as a raw substring, so a user-supplied type/name that
+     * merely contains the token inside a larger word (e.g. {@code "unknownBinaryType"} containing
+     * {@code "binary"}) does not self-match.
+     */
+    private static boolean containsWord(String value, String... tokens) {
+        for (String token : tokens) {
+            if (Pattern.compile("\\b" + Pattern.quote(token) + "\\b").matcher(value).find()) {
                 return true;
             }
         }
