@@ -29,6 +29,7 @@ public class TimeoutsTests {
     Boolean waitForRemoteServerToBeUp;
     int timeoutForRemoteServerToBeUp;
     int remoteServerInstanceCreationTimeout;
+    int remoteServerConnectionAttemptTimeout;
 
 
     @BeforeClass
@@ -57,6 +58,7 @@ public class TimeoutsTests {
         waitForRemoteServerToBeUp = SHAFT.Properties.timeouts.waitForRemoteServerToBeUp();
         timeoutForRemoteServerToBeUp = SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp();
         remoteServerInstanceCreationTimeout = SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout();
+        remoteServerConnectionAttemptTimeout = SHAFT.Properties.timeouts.remoteServerConnectionAttemptTimeout();
 
     }
 
@@ -87,6 +89,7 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(waitForRemoteServerToBeUp);
         SHAFT.Properties.timeouts.set().timeoutForRemoteServerToBeUp(timeoutForRemoteServerToBeUp);
         SHAFT.Properties.timeouts.set().remoteServerInstanceCreationTimeout(remoteServerInstanceCreationTimeout);
+        SHAFT.Properties.timeouts.set().remoteServerConnectionAttemptTimeout(remoteServerConnectionAttemptTimeout);
 
     }
 

@@ -149,9 +149,34 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("1")
     int timeoutForRemoteServerToBeUp();
 
+    /**
+     * Timeout in minutes for the overall remote WebDriver session-creation retry budget: the total
+     * time {@code DriverFactoryHelper} keeps retrying failed connection attempts before giving up.
+     * Does <strong>not</strong> bound a single HTTP connect/read attempt against the grid -- see
+     * {@link #remoteServerConnectionAttemptTimeout()} for that. Prior to introducing that property,
+     * this single value simultaneously bounded the per-attempt HTTP client timeout, the outer retry
+     * budget, and the progress bar, so one hung attempt could silently consume the entire budget
+     * without the retry loop ever getting a chance to retry (issue #3811).
+     */
     @Key("remoteServerInstanceCreationTimeout")
     @DefaultValue("5")
     int remoteServerInstanceCreationTimeout();
+
+    /**
+     * Timeout in seconds for a single HTTP connect/read attempt made by the underlying HTTP client
+     * while creating a remote WebDriver session. Decoupled from
+     * {@link #remoteServerInstanceCreationTimeout()}, which bounds only the overall retry budget
+     * (in minutes) across all attempts: this property bounds one connection attempt, so an
+     * unreachable or saturated grid fails an attempt fast and the retry loop actually gets to retry
+     * within the overall budget, instead of one attempt burning the whole window (issue #3811).
+     * The default stays deliberately generous because a healthy-but-busy grid holds the new-session
+     * POST open while the request waits in its session queue; a timed-out attempt that gets retried
+     * enqueues a duplicate request. Lower this (e.g. to 10-30) only where fail-fast matters more
+     * than queue tolerance, such as CI with adaptive throttling.
+     */
+    @Key("remoteServerConnectionAttemptTimeout")
+    @DefaultValue("120")
+    int remoteServerConnectionAttemptTimeout();
 
     default SetProperty set() {
         return new SetProperty();
@@ -289,6 +314,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty remoteServerInstanceCreationTimeout(int value) {
             setProperty("remoteServerInstanceCreationTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty remoteServerConnectionAttemptTimeout(int value) {
+            setProperty("remoteServerConnectionAttemptTimeout", String.valueOf(value));
             return this;
         }
 

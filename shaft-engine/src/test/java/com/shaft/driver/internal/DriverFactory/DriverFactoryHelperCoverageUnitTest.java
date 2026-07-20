@@ -3,6 +3,7 @@ package com.shaft.driver.internal.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.OptionsManager;
+import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
@@ -558,9 +559,45 @@ public class DriverFactoryHelperCoverageUnitTest {
         }
 
         var clientConfig = (ClientConfig) constructionArguments.get(0).get(2);
-        var expectedTimeout = Duration.ofSeconds(TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()));
+        var expectedTimeout = Duration.ofSeconds(SHAFT.Properties.timeouts.remoteServerConnectionAttemptTimeout());
         SHAFT.Validations.assertThat().object(clientConfig.connectionTimeout()).isEqualTo(expectedTimeout).perform();
         SHAFT.Validations.assertThat().object(clientConfig.readTimeout()).isEqualTo(expectedTimeout).perform();
+    }
+
+    @Test
+    public void initializeDriverShouldDecoupleHttpClientTimeoutFromRetryBudget() {
+        // issue #3811: remoteServerInstanceCreationTimeout used to triple-bind the per-attempt HTTP
+        // client timeout, the outer retry budget, and the progress bar. Setting it to a large value
+        // must no longer inflate the per-attempt HTTP client timeout, which is now governed solely by
+        // the decoupled remoteServerConnectionAttemptTimeout property.
+        SHAFT.Properties.platform.set().targetPlatform("windows");
+        SHAFT.Properties.platform.set().executionAddress("http://localhost:4444");
+        SHAFT.Properties.web.set().targetBrowserName("chrome").headlessExecution(true);
+        SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
+        SHAFT.Properties.healenium.set().healEnabled(false);
+        SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
+        SHAFT.Properties.timeouts.set().remoteServerInstanceCreationTimeout(45);
+        SHAFT.Properties.timeouts.set().remoteServerConnectionAttemptTimeout(7);
+
+        var constructionArguments = new java.util.ArrayList<List<?>>();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try (MockedConstruction<RemoteWebDriver> ignored = org.mockito.Mockito.mockConstruction(RemoteWebDriver.class,
+                (mock, context) -> {
+                    constructionArguments.add(context.arguments());
+                    WebDriver.Options options = org.mockito.Mockito.mock(WebDriver.Options.class);
+                    WebDriver.Window window = org.mockito.Mockito.mock(WebDriver.Window.class);
+                    org.mockito.Mockito.when(mock.manage()).thenReturn(options);
+                    org.mockito.Mockito.when(options.window()).thenReturn(window);
+                    org.mockito.Mockito.when(mock.getCapabilities()).thenReturn(new ImmutableCapabilities());
+                })) {
+            helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.CHROME, null);
+        }
+
+        var clientConfig = (ClientConfig) constructionArguments.get(0).get(2);
+        // per-attempt HTTP timeout must reflect the new decoupled property (7s), not the 45-minute
+        // retry budget that the old triple-bound implementation would have used instead.
+        SHAFT.Validations.assertThat().object(clientConfig.connectionTimeout()).isEqualTo(Duration.ofSeconds(7)).perform();
+        SHAFT.Validations.assertThat().object(clientConfig.readTimeout()).isEqualTo(Duration.ofSeconds(7)).perform();
     }
 
     @Test
@@ -576,6 +613,71 @@ public class DriverFactoryHelperCoverageUnitTest {
             helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, null);
             SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
         }
+    }
+
+    @Test
+    public void connectToRemoteServerShouldQuitCreatedDriverWhenPostCreationSetupThrows() {
+        // issue #3811: a live RemoteWebDriver session was created against the grid, but the
+        // post-creation setFileDetector/augmentRemoteWebDriver step then threw. Before the fix, the
+        // failure was rethrown without quitting the already-created session, leaking a grid slot for
+        // up to SE_NODE_SESSION_TIMEOUT. The created driver must be quit before the failure propagates.
+        SHAFT.Properties.platform.set().targetPlatform("windows");
+        SHAFT.Properties.platform.set().executionAddress("http://localhost:4444");
+        SHAFT.Properties.web.set().targetBrowserName("chrome").headlessExecution(true);
+        SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
+        SHAFT.Properties.healenium.set().healEnabled(false);
+        SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
+
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        java.util.concurrent.atomic.AtomicReference<RemoteWebDriver> createdDriver = new java.util.concurrent.atomic.AtomicReference<>();
+        try (MockedConstruction<RemoteWebDriver> ignored = org.mockito.Mockito.mockConstruction(RemoteWebDriver.class,
+                (mock, context) -> {
+                    createdDriver.set(mock);
+                    org.mockito.Mockito.doThrow(new RuntimeException("post-creation setup failure"))
+                            .when(mock).setFileDetector(org.mockito.Mockito.any());
+                })) {
+            try {
+                helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.CHROME, null);
+            } catch (Throwable expected) {
+                // expected: post-creation setup failure propagates
+            }
+        }
+
+        SHAFT.Validations.assertThat().object(createdDriver.get()).isNotNull().perform();
+        org.mockito.Mockito.verify(createdDriver.get()).quit();
+        SHAFT.Validations.assertThat().object(helper.getDriver()).isNull().perform();
+    }
+
+    @Test
+    public void setRemoteDriverInstanceShouldQuitCreatedDriverWhenPostCreationAppiumSetupThrows() {
+        // issue #3811: same leak as connectToRemoteServerShouldQuitCreatedDriverWhenPostCreationSetupThrows,
+        // but for the setRemoteDriverInstance-level post-creation setup (Appium settings applied after
+        // setDriver(...) already stored the created session) rather than the connectToRemoteServer-level
+        // setup that runs before the session is handed back.
+        SHAFT.Properties.platform.set().targetPlatform("android");
+        SHAFT.Properties.platform.set().executionAddress("http://localhost:4723");
+        SHAFT.Properties.mobile.set().browserName("").automationName("UIAutomator2");
+        SHAFT.Properties.healenium.set().healEnabled(false);
+        SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
+
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        java.util.concurrent.atomic.AtomicReference<AndroidDriver> createdDriver = new java.util.concurrent.atomic.AtomicReference<>();
+        try (MockedConstruction<AndroidDriver> ignored = org.mockito.Mockito.mockConstruction(AndroidDriver.class,
+                (mock, context) -> {
+                    createdDriver.set(mock);
+                    org.mockito.Mockito.doThrow(new RuntimeException("post-creation appium setting failure"))
+                            .when(mock).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                })) {
+            try {
+                helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, null);
+            } catch (Throwable expected) {
+                // expected: post-creation appium setting failure propagates
+            }
+        }
+
+        SHAFT.Validations.assertThat().object(createdDriver.get()).isNotNull().perform();
+        org.mockito.Mockito.verify(createdDriver.get()).quit();
+        SHAFT.Validations.assertThat().object(helper.getDriver()).isNull().perform();
     }
 
     @Test
