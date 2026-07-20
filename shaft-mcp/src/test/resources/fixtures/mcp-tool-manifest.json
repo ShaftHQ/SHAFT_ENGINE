@@ -277,6 +277,18 @@
       "deprecated": false
     },
     {
+      "name": "capture_step_delete",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_step_reorder",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "capture_stop",
       "mutation": true,
       "sensitive": false,

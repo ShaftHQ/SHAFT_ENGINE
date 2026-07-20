@@ -29,6 +29,7 @@ import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -60,59 +61,110 @@ public class CaptureService {
     private final CaptureManager manager;
     private final McpWorkspacePolicy workspacePolicy;
     private final McpCaptureCodeBlockService codeBlocks;
+    private final PlaywrightService playwrightService;
+    private final MobileService mobileService;
 
     /**
-     * Creates the default MCP Capture service.
+     * Creates the default MCP Capture service, wiring default Playwright/mobile services for direct
+     * Java callers and tests that construct this class without Spring.
      */
     public CaptureService() {
-        this(new CaptureManager(), McpWorkspacePolicy.current(), new McpCaptureCodeBlockService());
-        // Only the Spring-managed instance registers: element_*/natural_act tools fall back to
+        this(new CaptureManager(), McpWorkspacePolicy.current(), new McpCaptureCodeBlockService(),
+                new PlaywrightService(), new MobileService(new EngineService()));
+        // Only a fully-default-wired instance registers: element_*/natural_act tools fall back to
         // driving the active capture session's browser when no driver_initialize session exists.
-        EngineService.registerCaptureDriverBridge(() -> manager.activeShaftDriver().orElse(null));
+        // Package-private test constructors below intentionally skip this so throwaway per-test
+        // CaptureManager instances never leak into this shared static bridge.
+        registerCaptureDriverBridge();
+    }
+
+    /**
+     * Spring entry point: {@code capture_start}/{@code capture_status}/{@code capture_stop}/
+     * {@code capture_step_delete}/{@code capture_step_reorder} dispatch to these engine services'
+     * existing recorder tools when a Playwright or mobile session is active (design doc amendment A3).
+     */
+    @Autowired
+    CaptureService(PlaywrightService playwrightService, MobileService mobileService) {
+        this(new CaptureManager(), McpWorkspacePolicy.current(), new McpCaptureCodeBlockService(),
+                playwrightService, mobileService);
+        registerCaptureDriverBridge();
     }
 
     CaptureService(
             CaptureManager manager,
             McpWorkspacePolicy workspacePolicy,
             McpCaptureCodeBlockService codeBlocks) {
+        this(manager, workspacePolicy, codeBlocks, new PlaywrightService(), new MobileService(new EngineService()));
+    }
+
+    CaptureService(
+            CaptureManager manager,
+            McpWorkspacePolicy workspacePolicy,
+            McpCaptureCodeBlockService codeBlocks,
+            PlaywrightService playwrightService,
+            MobileService mobileService) {
         this.manager = manager;
         this.workspacePolicy = workspacePolicy;
         this.codeBlocks = codeBlocks;
+        this.playwrightService = playwrightService;
+        this.mobileService = mobileService;
+    }
+
+    private void registerCaptureDriverBridge() {
+        EngineService.registerCaptureDriverBridge(() -> manager.activeShaftDriver().orElse(null));
     }
 
     /**
-     * Launches a fresh SHAFT-managed browser and starts deterministic capture.
+     * Starts deterministic capture, dispatching on the MCP session's active engine (design doc
+     * amendment A3): a WEB session (or no active session) always launches a fresh SHAFT-managed
+     * browser via its own CDP capture, regardless of what else is active; a PLAYWRIGHT or mobile
+     * (MOBILE_NATIVE/MOBILE_WEB) session instead records actions performed on that already-active
+     * driver, delegating to that engine's own recorder start ({@code playwright_record_start}/
+     * {@code mobile_record_start}).
      *
-     * @param targetUrl initial http, https, or file URL
-     * @param browser Chrome or Edge; blank selects Chrome
-     * @param outputPath capture JSON path; blank selects a timestamped recording
+     * @param targetUrl initial http, https, or file URL; WEB/NONE only
+     * @param browser Chrome or Edge; blank selects Chrome; WEB/NONE only
+     * @param outputPath recording/capture JSON path; blank selects a timestamped recording
      * @param headless whether to launch without a visible window; unspecified defaults to headless
-     *                  per repo policy, matching {@link #apiStart}
-     * @param sessionGoal optional user intent for the journey; drives generated test class and method names
-     * @return safe recorder status
+     *                  per repo policy, matching {@link #apiStart}; WEB/NONE only
+     * @param sessionGoal WEB/NONE: optional user intent for the journey, drives generated test class
+     *                     and method names; PLAYWRIGHT/mobile: used as the recorder's descriptive mode label
+     * @return union recorder status; {@link McpCaptureUnionStatus#engine()} names the dispatched engine
      */
     @Tool(name = "capture_start",
-            description = "starts a privacy-safe SHAFT managed-browser recording; while it is active, "
-                    + "element_* and natural_act tools drive the recorded browser directly (no "
-                    + "driver_initialize needed); sessionGoal names the generated test")
-    public CaptureStatus start(
-            @ToolParam(required = false, description = "initial http, https, or file URL; blank opens an empty browser")
+            description = "starts a recording, dispatching to the active engine: WEB (or no active session) "
+                    + "always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while "
+                    + "it is active, element_* tools drive the recorded browser directly (no driver_initialize "
+                    + "needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver "
+                    + "(targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, "
+                    + "or is used as the recorder's mode label on PLAYWRIGHT/mobile)")
+    public McpCaptureUnionStatus start(
+            @ToolParam(required = false, description = "initial http, https, or file URL; blank opens an empty browser; WEB/NONE only")
             String targetUrl,
-            @ToolParam(required = false, description = "Chrome or Edge; blank selects Chrome")
+            @ToolParam(required = false, description = "Chrome or Edge; blank selects Chrome; WEB/NONE only")
             String browser,
-            @ToolParam(required = false, description = "capture JSON path; blank selects a timestamped recording")
+            @ToolParam(required = false, description = "recording/capture JSON path; blank selects a timestamped recording")
             String outputPath,
-            @ToolParam(required = false, description = "whether to launch without a visible window; blank/omitted defaults to headless per repo policy")
+            @ToolParam(required = false, description = "whether to launch without a visible window; blank/omitted defaults to headless per repo policy; WEB/NONE only")
             Boolean headless,
-            @ToolParam(required = false, description = "optional user intent for the journey; drives generated test class and method names")
+            @ToolParam(required = false, description = "optional user intent for the journey; drives generated test class and method names on WEB, or the recorder's mode label on PLAYWRIGHT/mobile")
             String sessionGoal) {
-        CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
-        request.targetUrl = targetUrl;
-        request.browser = browser;
-        request.outputPath = outputPath;
-        request.headless = resolveHeadless(headless);
-        request.sessionGoal = sessionGoal;
-        return startWithOptions(request);
+        ActiveEngine engine = EngineService.activeEngine();
+        return switch (engine) {
+            case PLAYWRIGHT -> new McpCaptureUnionStatus(engine, null,
+                    playwrightService.recordStart(outputPath, sessionGoal, false), null);
+            case MOBILE_NATIVE, MOBILE_WEB -> new McpCaptureUnionStatus(engine, null, null,
+                    mobileService.recordStart(outputPath, sessionGoal, false));
+            case WEB, NONE -> {
+                CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
+                request.targetUrl = targetUrl;
+                request.browser = browser;
+                request.outputPath = outputPath;
+                request.headless = resolveHeadless(headless);
+                request.sessionGoal = sessionGoal;
+                yield new McpCaptureUnionStatus(ActiveEngine.WEB, startWithOptions(request), null, null);
+            }
+        };
     }
 
     /**
@@ -227,15 +279,29 @@ public class CaptureService {
     }
 
     /**
-     * Returns safe recorder status without captured values.
+     * Returns safe recorder status, dispatching on the MCP session's active engine (design doc
+     * amendment A3): the returned union's {@code engine} discriminator names which recording family
+     * ({@code webStatus}, {@code playwrightStatus}, or {@code mobileStatus}) is populated.
      *
-     * @return current or final recorder status
+     * @return current or final recorder status for the active engine
      */
     @Tool(name = "capture_status",
-            description = "returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, "
-                    + "warnings, and output status; when no session is active the warnings list persisted recordings "
-                    + "that can be turned into code without a live session")
-    public CaptureStatus status() {
+            description = "returns recorder status for the active engine: WEB (or no active session) returns "
+                    + "SHAFT Capture session, browser, URL, event count, pending debounced-signal count, "
+                    + "warnings, and output status (when no session is active the warnings list persisted "
+                    + "recordings that can be turned into code without a live session); PLAYWRIGHT/mobile "
+                    + "return that engine's own recorder status; the union's engine field names which is populated")
+    public McpCaptureUnionStatus status() {
+        ActiveEngine engine = EngineService.activeEngine();
+        return switch (engine) {
+            case PLAYWRIGHT -> new McpCaptureUnionStatus(engine, null, playwrightService.recordStatus(), null);
+            case MOBILE_NATIVE, MOBILE_WEB ->
+                    new McpCaptureUnionStatus(engine, null, null, mobileService.recordStatus());
+            case WEB, NONE -> new McpCaptureUnionStatus(ActiveEngine.WEB, webStatus(), null, null);
+        };
+    }
+
+    private CaptureStatus webStatus() {
         CaptureStatus status = manager.status();
         if (status.state() != CaptureStatus.State.NOT_RUNNING) {
             return status;
@@ -324,17 +390,79 @@ public class CaptureService {
     }
 
     /**
-     * Stops the active recording.
+     * Stops the active recording, dispatching on the MCP session's active engine (design doc
+     * amendment A3); see {@link #status()} for the union return shape.
      *
      * @param discard whether to delete capture artifacts after shutdown
-     * @return final recorder status
+     * @return final recorder status for the active engine
      */
     @Tool(name = "capture_stop",
-            description = "stops SHAFT Capture; after COMPLETED, show outputPath and generate replay-proven code by "
-                    + "passing it as sessionPath to capture_generate_replay (or capture_code_blocks for a faster, "
-                    + "unproven draft)")
-    public CaptureStatus stop(boolean discard) {
-        return manager.stop(discard);
+            description = "stops the active recording for the active engine; after WEB reaches COMPLETED, show "
+                    + "outputPath and generate replay-proven code by passing it as sessionPath to "
+                    + "capture_generate_replay (or capture_code_blocks for a faster, unproven draft); the "
+                    + "union's engine field names which recorder was stopped")
+    public McpCaptureUnionStatus stop(boolean discard) {
+        ActiveEngine engine = EngineService.activeEngine();
+        return switch (engine) {
+            case PLAYWRIGHT -> new McpCaptureUnionStatus(engine, null, playwrightService.recordStop(discard), null);
+            case MOBILE_NATIVE, MOBILE_WEB ->
+                    new McpCaptureUnionStatus(engine, null, null, mobileService.recordStop(discard));
+            case WEB, NONE -> new McpCaptureUnionStatus(ActiveEngine.WEB, manager.stop(discard), null, null);
+        };
+    }
+
+    /**
+     * Deletes a recorded step by its stable stepId from the active Playwright or mobile recording
+     * (mirrors {@code mobile_step_delete}/{@code playwright_step_delete}), dispatching on the MCP
+     * session's active engine. A WEB CDP {@code capture_start} session has no step editor for this
+     * (design doc amendment A3): {@link McpRecordingStepEditor} only understands the mobile/Playwright
+     * JSON recording format, so this returns an actionable error naming the active engine instead.
+     *
+     * @param stepId stable step id (e.g. "m2"), as surfaced in recorder status
+     * @return updated recorder status for the active engine
+     */
+    @Tool(name = "capture_step_delete",
+            description = "deletes a recorded step by its stable stepId from the active Playwright or mobile "
+                    + "recording (mirrors mobile_step_delete/playwright_step_delete); returns an actionable "
+                    + "error naming the active engine for a WEB CDP capture_start session, whose recording "
+                    + "format has no step editor")
+    public McpMobileRecordingStatus stepDelete(String stepId) {
+        ActiveEngine engine = EngineService.activeEngine();
+        return switch (engine) {
+            case PLAYWRIGHT -> playwrightService.stepDelete(stepId);
+            case MOBILE_NATIVE, MOBILE_WEB -> mobileService.stepDelete(stepId);
+            case WEB, NONE -> throw noStepEditorFor(engine, "capture_step_delete");
+        };
+    }
+
+    /**
+     * Moves a recorded step up or down by its stable stepId within the active Playwright or mobile
+     * recording (mirrors {@code mobile_step_reorder}/{@code playwright_step_reorder}), dispatching on
+     * the MCP session's active engine; see {@link #stepDelete(String)} for why a WEB CDP session
+     * returns an actionable error instead.
+     *
+     * @param stepId stable step id (e.g. "m2"), as surfaced in recorder status
+     * @param direction "up" or "down"
+     * @return updated recorder status for the active engine
+     */
+    @Tool(name = "capture_step_reorder",
+            description = "moves a recorded step up or down by its stable stepId (direction: up|down) within "
+                    + "the active Playwright or mobile recording (mirrors mobile_step_reorder/"
+                    + "playwright_step_reorder); returns an actionable error naming the active engine for a "
+                    + "WEB CDP capture_start session, whose recording format has no step editor")
+    public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
+        ActiveEngine engine = EngineService.activeEngine();
+        return switch (engine) {
+            case PLAYWRIGHT -> playwrightService.stepReorder(stepId, direction);
+            case MOBILE_NATIVE, MOBILE_WEB -> mobileService.stepReorder(stepId, direction);
+            case WEB, NONE -> throw noStepEditorFor(engine, "capture_step_reorder");
+        };
+    }
+
+    private static UnsupportedOperationException noStepEditorFor(ActiveEngine engine, String toolName) {
+        return new UnsupportedOperationException(toolName + " is not supported for the active engine (" + engine
+                + "): a WEB CDP capture_start recording has no step editor for this JSON format. Start a "
+                + "Playwright or mobile recording (playwright_record_start/mobile_record_start) to edit steps.");
     }
 
     /**

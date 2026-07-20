@@ -11,6 +11,7 @@ import com.shaft.capture.model.PageContext;
 import com.shaft.capture.model.RedactionSummary;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStatus;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,6 +30,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CaptureServiceTest {
     @TempDir
     Path temp;
+
+    // capture_status/capture_stop dispatch on EngineService's static ActiveEngine (design doc
+    // amendment A3); reset it after every test so a leftover engine from another test class never
+    // diverts these WEB-focused tests to the Playwright/mobile branch.
+    @AfterEach
+    void resetActiveEngine() {
+        EngineService.setActiveEngine(null);
+    }
 
     @Test
     void codeBlocksToolGeneratesReusableReplaySnippetsInsideWorkspace() throws Exception {
@@ -303,8 +312,8 @@ class CaptureServiceTest {
     void statusAndStopReturnIdleCaptureStateWhenNoSessionIsActive() {
         CaptureService service = service();
         try {
-            assertEquals(CaptureStatus.State.NOT_RUNNING, service.status().state());
-            assertEquals(CaptureStatus.State.NOT_RUNNING, service.stop(false).state());
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.status().webStatus().state());
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.stop(false).webStatus().state());
         } finally {
             service.close();
         }
@@ -442,7 +451,7 @@ class CaptureServiceTest {
         CaptureService service = service();
         CaptureStatus status;
         try {
-            status = service.status();
+            status = service.status().webStatus();
         } finally {
             service.close();
         }
@@ -458,7 +467,7 @@ class CaptureServiceTest {
         CaptureService service = service();
         CaptureStatus status;
         try {
-            status = service.status();
+            status = service.status().webStatus();
         } finally {
             service.close();
         }
