@@ -145,6 +145,13 @@ tasks {
         filesMatching("messages/ShaftBundle.properties") {
             expand("pluginVersion" to project.version.toString())
         }
+        // Bundles a build-time copy of shaft-mcp's canonical tool catalog (design doc Decision 4/5;
+        // issue #3870/#3866 T4) so ToolCatalogIndex can read the surviving 89-tool list and any
+        // curated intentKeywords overlay entries from the plugin's own classpath at runtime, instead
+        // of hand-maintaining a second copy that can drift from the live @Tool registrations.
+        from(project.file("../shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json")) {
+            into("META-INF/shaft-mcp")
+        }
     }
 
     test {

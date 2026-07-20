@@ -6,8 +6,10 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.intellij.mcp.ShaftCommandLine;
+import com.shaft.intellij.mcp.ToolCatalogIndex;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -446,6 +448,35 @@ final class AssistantCommand {
                     "save storage state",
                     "load session",
                     "load storage state")));
+
+    /**
+     * Augments a built-in keyword list with any curated {@code intentKeywords} the bundled
+     * {@link ToolCatalogIndex} carries for the same tool (design doc Decision 5, amendment A7):
+     * closes the drift risk of two hand-maintained keyword sources (this file's INTENT_KEYWORDS map
+     * and the index's curated overlay) diverging, by making the index an additive, single growth
+     * path instead of a second copy that has to be kept in sync by hand.
+     *
+     * <p>Additive only, never subtractive: {@code toolName} keys that are internal
+     * INTENT_KEYWORDS lookup labels rather than real tool names (for example
+     * {@code "mobile_record_start"}, absorbed into {@code capture_start} by the W1 tool sweep) have
+     * no entry in the index and this is a no-op for them, returning {@code builtin} unchanged.</p>
+     *
+     * @param toolName exact tool name the keywords route to
+     * @param builtin  this file's hand-maintained fallback list for that tool, preserved verbatim as
+     *                 the first entries so existing behavior never regresses if the index is absent
+     * @return {@code builtin} followed by any index-curated entries not already present, in order,
+     *     with no duplicates
+     */
+    static List<String> keywordsFor(String toolName, List<String> builtin) {
+        List<String> fromIndex = ToolCatalogIndex.intentKeywords(toolName);
+        if (fromIndex.isEmpty()) {
+            return builtin;
+        }
+        Set<String> merged = new LinkedHashSet<>(builtin);
+        merged.addAll(fromIndex);
+        return List.copyOf(merged);
+    }
+
     // "start <mode> recording" phrasings match as a whole prefix (equal to the phrase, or the
     // phrase followed by more words) via matchesWholeWordPrefix, rather than the anywhere-in-text
     // keywords above -- kept out of the map above because they need different match semantics.
@@ -684,6 +715,19 @@ final class AssistantCommand {
             upgradeAgentRequest = true;
         } else if (text.startsWith("/")) {
             return slash(text, workingDirectory, openFileContext);
+        }
+        if (!liveCodegenRequest && !upgradeAgentRequest) {
+            // Deterministic-first routing (design doc Decision 5, issue #3870/#3866 T4 goal 3-4): an
+            // explicit tool-name mention is the single most unambiguous signal available and must
+            // win over every softer heuristic below it, including isCodeGenerationRequest's
+            // substring triggers -- a tool whose own name happens to contain a trigger word (for
+            // example capture_codegen_features, which contains "codegen") would otherwise be
+            // swallowed into the free-form code-generation/local-agent path before ever reaching
+            // this check.
+            String explicitTool = matchedExplicitToolName(text);
+            if (explicitTool != null) {
+                return explicitToolMention(text);
+            }
         }
         boolean codeGenerationRequest = !upgradeAgentRequest && isCodeGenerationRequest(text);
         // A code-generation request that already names a recording JSON converts deterministically:
@@ -1845,6 +1889,71 @@ final class AssistantCommand {
         return Invocation.sequence(calls);
     }
 
+    // Deterministic-first routing (design doc Decision 5, issue #3870/#3866 T4 goal 3-4): a call
+    // verb is optional -- "element_click ..." and "call element_click ..." both resolve -- so every
+    // one of the 89 surviving tools is directly addressable by name, not only the handful with a
+    // bespoke natural-language recognizer elsewhere in this file.
+    private static final List<String> EXPLICIT_TOOL_CALL_VERBS =
+            List.of("call ", "run ", "invoke ", "use ", "execute ");
+
+    /**
+     * Returns the exact tool name explicitly named at the start of {@code text} (optionally after
+     * one leading call verb, see {@link #EXPLICIT_TOOL_CALL_VERBS}), or {@code null} when the
+     * leading token isn't a known name from the bundled {@link ToolCatalogIndex}. Deliberately
+     * requires the mention to lead the prompt rather than merely appear anywhere in it: real tool
+     * names are long, unique snake_case identifiers a user is unlikely to type unless deliberately
+     * naming the tool, but requiring the lead keeps ordinary conversational mentions ("explain what
+     * element_click does") from being misread as a call.
+     */
+    private static String matchedExplicitToolName(String text) {
+        Set<String> toolNames = ToolCatalogIndex.toolNames();
+        if (toolNames.isEmpty()) {
+            return null;
+        }
+        String normalized = normalizeNaturalCommand(text);
+        for (String verb : EXPLICIT_TOOL_CALL_VERBS) {
+            if (normalized.startsWith(verb)) {
+                normalized = normalized.substring(verb.length());
+                break;
+            }
+        }
+        String firstToken = firstWord(normalized);
+        return toolNames.contains(firstToken) ? firstToken : null;
+    }
+
+    /**
+     * Builds a direct {@code Invocation.tool} for an explicitly-named tool mention. Any text after
+     * the mention (and its optional call verb) is tried as JSON tool arguments; anything that isn't
+     * a valid JSON object (a blank remainder, free-form prose, malformed JSON) falls back to empty
+     * arguments rather than guessing -- the same "no magic auto-fill" contract {@code rawMcp} uses
+     * for the {@code /mcp} slash command.
+     */
+    private static Invocation explicitToolMention(String text) {
+        String toolName = matchedExplicitToolName(text);
+        String rest = textAfterToolMention(text, toolName);
+        if (!rest.isBlank()) {
+            try {
+                JsonElement parsed = JsonParser.parseString(rest);
+                if (parsed.isJsonObject()) {
+                    return Invocation.tool(toolName, parsed.getAsJsonObject());
+                }
+            } catch (JsonParseException ignored) {
+                // Fall through to empty arguments.
+            }
+        }
+        return Invocation.tool(toolName, new JsonObject());
+    }
+
+    private static String textAfterToolMention(String text, String toolName) {
+        String trimmed = text(text);
+        String afterFirst = afterFirstWord(trimmed);
+        if (firstWord(trimmed).equalsIgnoreCase(toolName)) {
+            return afterFirst;
+        }
+        // A call verb led the mention ("call element_click ..."): skip its second word too.
+        return afterFirstWord(afterFirst);
+    }
+
     /**
      * Scores every natural-language intent that matches {@code text} and dispatches the
      * highest-weight match (see the {@code WEIGHT_*} constants above {@link #NATURAL_INTENTS}).
@@ -1881,7 +1990,7 @@ final class AssistantCommand {
 
     private static boolean isCodingPartnerIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return startsWithAny(normalized, INTENT_KEYWORDS.get("shaft_coding_partner_plan"))
+        return startsWithAny(normalized, keywordsFor("shaft_coding_partner_plan", INTENT_KEYWORDS.get("shaft_coding_partner_plan")))
                 && !naturalCodingPartnerIntent(text).isBlank();
     }
 
@@ -1904,19 +2013,19 @@ final class AssistantCommand {
 
     private static boolean isGuideSearchIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return startsWithAny(normalized, INTENT_KEYWORDS.get("shaft_guide_search"))
+        return startsWithAny(normalized, keywordsFor("shaft_guide_search", INTENT_KEYWORDS.get("shaft_guide_search")))
                 && !naturalQuery(text).isBlank();
     }
 
     private static boolean isScenarioSearchIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return startsWithAny(normalized, INTENT_KEYWORDS.get("test_automation_scenarios"))
+        return startsWithAny(normalized, keywordsFor("test_automation_scenarios", INTENT_KEYWORDS.get("test_automation_scenarios")))
                 && !naturalQuery(text).isBlank();
     }
 
     private static boolean isGuardrailsCheckIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return startsWithAny(normalized, INTENT_KEYWORDS.get("test_code_guardrails_check"))
+        return startsWithAny(normalized, keywordsFor("test_code_guardrails_check", INTENT_KEYWORDS.get("test_code_guardrails_check")))
                 && !naturalCode(text).isBlank();
     }
 
@@ -1933,11 +2042,13 @@ final class AssistantCommand {
      * are dead: {@code isNaturalUpgradeIntent} in {@code fromPrompt} intercepts that phrasing
      * before {@code directIntent} (and this predicate) is ever consulted, routing it to the
      * agent-performed upgrade instead (issue #3426 B6). Removed rather than left as unreachable
-     * branches.
+     * branches -- {@code keywordsFor}'s bundled-index contribution for this tool happens to include
+     * those same two dead phrasings (the curated overlay was seeded from a broader phrase set), so
+     * they stay unreachable here for the same reason, harmlessly.
      */
     private static boolean isProjectUpgradeIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return startsWithAny(normalized, INTENT_KEYWORDS.get("shaft_project_upgrade"));
+        return startsWithAny(normalized, keywordsFor("shaft_project_upgrade", INTENT_KEYWORDS.get("shaft_project_upgrade")));
     }
 
     private static boolean containsAny(String text, String... needles) {
@@ -2017,7 +2128,7 @@ final class AssistantCommand {
         if (!normalized.startsWith("record ")) {
             return false;
         }
-        return containsAny(normalized, INTENT_KEYWORDS.get("capture_start"));
+        return containsAny(normalized, keywordsFor("capture_start", INTENT_KEYWORDS.get("capture_start")));
     }
 
     /**
@@ -2042,7 +2153,7 @@ final class AssistantCommand {
     private static boolean isMobileControlIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
         return normalized.contains("mobile")
-                && containsAny(normalized, INTENT_KEYWORDS.get("mobile_toolchain_status"));
+                && containsAny(normalized, keywordsFor("mobile_toolchain_status", INTENT_KEYWORDS.get("mobile_toolchain_status")));
     }
 
     private static String naturalMobileCommand(String text) {
@@ -2147,7 +2258,7 @@ final class AssistantCommand {
     // workspace.
     private static boolean isDoctorIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return startsWithAny(normalized, INTENT_KEYWORDS.get("doctor_analyze_failed_allure"));
+        return startsWithAny(normalized, keywordsFor("doctor_analyze_failed_allure", INTENT_KEYWORDS.get("doctor_analyze_failed_allure")));
     }
 
     private static String naturalQuery(String text) {
