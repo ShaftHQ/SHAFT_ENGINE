@@ -1,5 +1,10 @@
 name: Security
 
+# Phase 3 of the CI overhaul (issue #3814, B1): dependency-review moved to
+# pr-gate.yml's own `dependency-review` job. This workflow now carries only
+# CodeQL, which stays here rather than folding into pr-gate.yml because no
+# org-wide CodeQL default setup is configured for this repository.
+
 on:
   push:
     branches: [ main ]
@@ -14,7 +19,6 @@ on:
 permissions:
   actions: read
   contents: read
-  pull-requests: read
   security-events: write
 
 concurrency:
@@ -22,17 +26,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  dependency-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v5
-        with:
-          config-file: './.github/dependency-review-config.yml'
-
   codeql:
     name: CodeQL
     runs-on: ubuntu-22.04

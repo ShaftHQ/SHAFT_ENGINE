@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/paid-agent-work-audit-gated.md",
-  "content_hash": "sha256:7e9105c42c75a417bcc93d14aaa45acceb2994cba322906abf17c5016db546c8",
+  "content_hash": "sha256:ecab9f8bd05aa95324fffad364eb215ef89609001d62935f959b49ef285381f0",
   "created_at": "2026-06-15T17:06:51+03:00",
   "evidence": [
     {
@@ -25,7 +25,7 @@
     "kind": "agent",
     "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
   },
-  "status": "active",
+  "status": "stale",
   "tags": [
     "agents",
     "cost",
@@ -33,5 +33,5 @@
   ],
   "title": "Gate paid agent refresh behind deterministic audit",
   "type": "constraint",
-  "updated_at": "2026-06-15T17:06:51+03:00"
+  "updated_at": "2026-07-20T07:30:05+03:00"
 }

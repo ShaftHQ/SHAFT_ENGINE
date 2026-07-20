@@ -1,19 +1,33 @@
 name: PR Gate
 
-# Phase 1 of the CI overhaul (issue #3814): a single path-conditioned gate that
-# will become the one required status check once Phase 2 flips the branch
-# ruleset. Runs ALONGSIDE the existing per-area workflows for now; nothing is
-# deleted or modified by this file. If a merge queue is ever enabled, add
+# The single path-conditioned gate for this repository (issue #3814). Phase 1
+# introduced it as the "PR Gate Summary" required status check; Phase 3 folded
+# the per-area workflows it replicates (docs-boundary-gate.yml,
+# intellij-plugin.yml, shaft-capture-e2e.yml, shaft-cli.yml,
+# template-coupling.yml) into this file and deleted them, so this workflow is
+# now the ONLY trigger source for those legs -- keep its path filters in sync
+# with what those files used to list (see the deletion checklist in
+# .github/workflows/README.md). If a merge queue is ever enabled, add
 # `merge_group:` to the triggers below.
 #
-# Deliberately pull_request-only: dorny/paths-filter cannot resolve a diff
-# base outside push/pull_request events, so a workflow_dispatch run would
-# either always fail the changes job or (if gated) skip every leg and pass
-# vacuously. The standalone per-area workflows keep their own
-# workflow_dispatch entry points until Phase 3 folds them in.
+# Deliberately pull_request + push(main) only, no workflow_dispatch:
+# dorny/paths-filter cannot resolve a diff base outside push/pull_request
+# events, so a workflow_dispatch run would either always fail the changes job
+# or (if gated) skip every leg and pass vacuously. The push trigger covers the
+# main-branch coverage the folded workflows used to provide: on a `push` to a
+# branch that is also the configured `base` (main, here), dorny/paths-filter
+# diffs against the most recent commit on that branch before the push (its
+# documented "long-lived branch" behavior) rather than a PR base -- see the
+# dorny/paths-filter README at the pinned SHA for the exact semantics. The
+# `changes` job carries no `if:`, so it always runs on both event types, and
+# the `dependency-review` job's own `if: github.event_name == 'pull_request'`
+# makes it report `skipped` (not a failure) on push, which the summary job's
+# success|skipped leg check already accepts.
 
 on:
   pull_request:
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -40,6 +54,12 @@ jobs:
         id: filter
         uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
         with:
+          # Ignored on pull_request (the action always diffs against the PR
+          # base there). On push, base == the triggering branch, which is the
+          # documented "long-lived branch" case: diff against the most recent
+          # commit on main before the push, not the repository default branch
+          # merge-base search.
+          base: main
           filters: |
             docs:
               - "**/*.md"
@@ -47,7 +67,6 @@ jobs:
               - "scripts/ci/validate_documentation_boundaries.py"
             intellij:
               - 'shaft-intellij/**'
-              - '.github/workflows/intellij-plugin.yml'
               - '.github/workflows/publish-intellij-plugin.yml'
               - 'scripts/mcp/**'
               - 'tests/scripts/test_install_shaft_mcp.py'
