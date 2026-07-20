@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.validate_agent_guidance import validate_repository
+from scripts.ci.validate_agent_guidance import parse_frontmatter, validate_repository
 
 
 class ValidateAgentGuidanceTest(unittest.TestCase):
@@ -269,6 +269,31 @@ policy:
     def test_current_repository_configuration_is_valid(self):
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])
+
+    def test_parse_frontmatter_reads_folded_block_scalar_description_in_full(self):
+        # Regression: the parser used to stop at the "description: >-" marker
+        # line itself, so every multi-line folded description in
+        # .claude/skills/*/SKILL.md was silently counted as its 2-character
+        # marker -- undercounting the "claude" host_context token estimate
+        # (validate_host_contexts) for every skill using folded style.
+        content = (
+            "---\n"
+            "name: example\n"
+            "description: >-\n"
+            "  First line of the description.\n"
+            "  Second line, still folded onto the first with a space.\n"
+            "---\n\nBody.\n"
+        )
+        frontmatter = parse_frontmatter(content)
+        self.assertEqual(
+            frontmatter["description"],
+            "First line of the description. Second line, still folded onto the first with a space.",
+        )
+
+    def test_parse_frontmatter_reads_literal_block_scalar_preserving_newlines(self):
+        content = "---\nname: example\ndescription: |-\n  Line one.\n  Line two.\n---\n\nBody.\n"
+        frontmatter = parse_frontmatter(content)
+        self.assertEqual(frontmatter["description"], "Line one.\nLine two.")
 
 
 if __name__ == "__main__":

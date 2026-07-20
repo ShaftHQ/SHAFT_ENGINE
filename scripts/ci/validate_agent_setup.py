@@ -25,6 +25,7 @@ from scripts.ci.validate_agent_guidance import (  # noqa: E402
 from scripts.ci.validate_documentation_boundaries import (  # noqa: E402
     validate_repository as validate_documentation,
 )
+from scripts.ci.validate_skills import validate_repository as validate_skill_hygiene  # noqa: E402
 
 MEMORY_PACKAGE = "@aictx/memory@0.1.55"
 MEMORY_TOOLS = {
@@ -257,6 +258,7 @@ def validate_repository(
             for message in validate_documentation(root)
         ],
         *validate_memory_setup(root),
+        *validate_skill_hygiene(root),
     ]
     if run_external:
         errors.extend(

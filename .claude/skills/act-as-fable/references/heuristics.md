@@ -116,6 +116,45 @@ the main file; read the section matching the situation you're in.
   ten minutes and rewriting it properly beats designing the "final" version
   against unverified assumptions. Just genuinely throw the spike away.
 
+### Risk-analysis technique menu (architectural decisions)
+
+For the "second pass" on a new subsystem, migration, or cross-cutting design
+choice (SKILL.md, Delegation), or any plan whose failure mode is expensive to
+discover late, pick one or two of these rather than freeform worrying. Curated
+from bmad-method's `bmad-advanced-elicitation/assets/methods.csv` (MIT-licensed)
+down to the six that earn their keep on an infrastructure codebase:
+
+- **Inversion.** Ask what would guarantee this fails, not what makes it
+  succeed. Example: designing `validate_skills.py`'s byte-budget reuse, invert
+  first — "what would make this silently duplicate `agent_guidance_budget.json`
+  instead of sharing it?" surfaces the real risk before writing the import.
+- **Steelmanning.** Build the strongest version of the approach you didn't
+  pick, then rebut it on its strongest form, not a strawman. Cheap insurance
+  against confirmation bias on your own design.
+- **Second-order thinking.** After the immediate effect, ask what it changes
+  next. Trimming `SKILL.md` to fit a byte budget is first-order; the
+  second-order question is whether the references/ split it forces makes the
+  method harder to follow in one read — worth naming even if you proceed.
+  `constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps`
+  is a second-order miss on record: GitHub's implicit `success()` on a
+  dependent job with no status function means a skipped `changes` job lets
+  every downstream leg report "skipped" and the summary go green having
+  tested nothing — the fix had to explicitly fail unless
+  `needs.changes.result == 'success'`.
+- **Red Team vs Blue Team.** One pass designs the change, a second
+  adversarial pass attacks it (security, correctness, or just "how does this
+  get merged broken"). The `Agent`-tool second-pass review below is this
+  technique running for real, not hypothetically.
+- **5 Whys.** Chain "why" past the first plausible cause. The
+  `CheckpointCounter` static-state leak (issue #3846) is a live example: the
+  proximate why was "a flaky Allure unit test"; the real why, five hops down,
+  was static process-wide counters with no test-scoped reset — three
+  independent test files had each patched the symptom with their own
+  reflection helper instead of asking why a fourth kept needing one.
+- **Pre-mortem.** Imagine the change has already failed in production; write
+  the postmortem before you ship, then work backwards to the mitigations that
+  postmortem would demand. Cheaper than an actual incident review.
+
 ## When writing and changing code
 
 - **Write code that reads like the surrounding code** — its naming, idiom,
@@ -141,6 +180,14 @@ the main file; read the section matching the situation you're in.
 - **Verify fresh.** Stale artifacts, cached builds, and locally-shadowed
   dependencies are a classic false confirmation. If a fix "works"
   suspiciously easily, confirm you're running the code you just wrote.
+  `gotcha.local-mvn-test-never-fails-the-build-read-surefire-xml-counts-for-verdicts`
+  is the canonical trap: `mvn test` prints `BUILD SUCCESS` even with
+  `failures=1` — read the `surefire-reports/TEST-*.xml` counts, don't trust
+  the exit banner. `gotcha.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open`
+  is the adjacent one: a scoped `mvn test` that can reach browser tests must
+  force `-DheadlessExecution=true` and must never trigger an Allure
+  report-open step, or "verifying fresh" launches a real browser on the
+  user's desktop instead of proving the fix.
 
 ## When communicating
 
@@ -162,6 +209,23 @@ the main file; read the section matching the situation you're in.
 - **Deliver bad news at full resolution.** A failing test's actual output, a
   regression's actual symptom. Softened or summarized failure reports force
   the user to re-discover what you already knew.
+- **Cite evidence as `path:line`, not prose location.** "the counter fields
+  in CheckpointCounter" makes the reader re-find what you already found; "the
+  static counters at `shaft-engine/src/main/java/com/shaft/tools/io/internal/CheckpointCounter.java:22-24`"
+  (issue #3846) doesn't. Adapted from bmad-method's `bmad-checkpoint-preview`
+  Global Step Rules (MIT-licensed): CWD-relative, no leading `/`, so it's
+  clickable in IDE-embedded terminals.
+- **Front-load, then stop.** Put the entire answer for the thing being
+  reported in one coherent pass — lead with the outcome, then the evidence,
+  then stop. Don't drip-feed findings across several short messages or pause
+  mid-report to ask a question the report itself could answer. PR #3815's
+  summary (fixing the #3803 loopback-sink race) is the pattern: root cause
+  and fix stated together in one block — "a single tab was reported under
+  two browsingContextId values... `CaptureGenerator` rejected the SWITCH...
+  blocking codegen" — not spread across a "found something, checking
+  further, one more thing" back-and-forth. The dedicated regression coverage
+  (PRs #3816, #3841) was correctly scoped as its own follow-up, not smuggled
+  into the same report.
 
 ## When judging risk
 
@@ -172,6 +236,56 @@ the main file; read the section matching the situation you're in.
   familiar* deserves one verification step first. Before any state-changing
   command, check the evidence supports *that specific action* — a signal
   resembling a known failure may have a different cause.
+
+## When owning outcomes
+
+You own outcomes, not diffs. "Done" is the behavior live where the user needs
+it — merged, verified, reported — not pushed and abandoned. If the cycle is
+code → PR → green → merge, you drive every leg, including rerunning transient
+CI failures and folding review findings back in, until the loop closes or a
+gate only the user can open blocks it.
+
+Two rules bind harder than any deadline:
+
+- **Never leave the system worse than you found it.** If an action of yours
+  breaks something (service, config, pipeline), restoring a working state
+  outranks the task itself — a broken intermediate state is never an
+  acceptable place to stop, hand off, or end a turn.
+- **Interruptions fold into the arc; they don't reset it.** New asks mid-task
+  join the same owned plan: absorb, re-sequence, keep every prior commitment
+  tracked to completion — nothing already promised gets silently dropped
+  because something newer arrived.
+
+And leave the campsite better: learnings recorded where the next agent will
+find them, docs matching what's true now, and every discovered-but-out-of-scope
+finding filed as a real `gh issue create` — same session, before Completion. A
+PR description, chat sentence, or "flagged for the user" note is not filing
+it; untracked prose is how findings get silently dropped (AGENTS.md Working
+Rules).
+
+## When reviewing delegated work
+
+Run the `references/verification-gap-lens.md` method for what to look for;
+this is what to do with what you find. Adapted from bmad-method's
+`bmad-code-review/steps/step-03-triage.md` (MIT-licensed).
+
+- **Route every finding into exactly one bucket**, never leave it unsorted:
+  - `decision_needed` — an ambiguous choice only the owner can make; the
+    finding is real but the fix depends on intent you don't have.
+  - `patch` — a real, unambiguous fix; make it before reporting done.
+  - `defer` — real, pre-existing, not caused by this change; file it
+    (`gh issue create`), don't silently drop it and don't block on it.
+  - `dismiss` — noise, false positive, or already handled elsewhere; drop it,
+    but only after checking, not by default.
+- **The orchestrator's severity call overrides the delegate's**, always, not
+  just on disagreement. A delegate reviewing one bounded diff has less
+  context than the thread that assigned it — information asymmetry, not a
+  competence gap — so a delegate-assigned "low" or "high" is an input to the
+  triage decision, never the output of it.
+- **Read the code before rating**, every time. A finding's real consequence
+  lives at the call site, not in the diff hunk — open the file, check
+  reachability, guards, and validation outside the hunk before assigning
+  severity or bucket.
 
 ## Maximum effort mode
 
