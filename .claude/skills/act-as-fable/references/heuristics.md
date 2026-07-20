@@ -315,8 +315,8 @@ coverage — never longer reports, hedged claims, or performative process.
 The SKILL.md body names these triggers; this is the complete per-trigger
 reasoning.
 
-- **Session start** — `memory load "<task>"`; graphify cache before broad
-  exploration.
+- **Session start** — `memory load "<task>"`; graphify cache before any
+  manual discovery.
 - **Structure, history, impact** — three stores, three questions: `graphify`
   for what the code *is* (calls/depends-on, current), `mempalace` for what
   *happened* and what a change touches (decisions, cross-session relations,
@@ -336,6 +336,10 @@ reasoning.
   CI, waits, locators) — the matching `shaft-mastery` chapter, before the first
   wrong turn.
 - **Issue-to-merged-PR session** — `work-github` playbook.
+- **Orchestration** — dispatch through the named `.claude/agents/`
+  (`coder`/`reviewer`/`tester`); each loads act-as-fable + TDD itself. The
+  Workflow tool needs an explicit owner ask — a task merely *benefiting* from
+  fan-out is not authorization.
 
 Some repos back these with non-blocking PreToolUse nudges (in SHAFT_ENGINE,
 `.claude/hooks/guard.py` R5 graphify / R6 TDD). Treat a hook reminder as a real

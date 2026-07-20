@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/vendored-caveman-terse-prose-skill-mit-proxy-free-core-into-claude-skills.md",
-  "content_hash": "sha256:e9862a9b6cc1cbedb58a329e24cc38a300bd9d92b002dc54955bbbdbeac3f88e",
+  "content_hash": "sha256:9f75ff517719ce1adde4b777d666d3b19ed931b30d256cf2a80b07258855b7de",
   "created_at": "2026-07-18T02:55:15+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "Vendored caveman terse-prose skill (MIT) proxy-free core into .claude/skills",
   "type": "decision",
-  "updated_at": "2026-07-18T02:55:15+03:00"
+  "updated_at": "2026-07-20T17:51:54+03:00"
 }

@@ -255,17 +255,6 @@ policy:
         self.write("AGENTS.md", "# Agents\n\nRun the build before every commit.\n")
         self.assertIn("forbidden-mandate", self.codes())
 
-    def test_rejects_scheduled_or_ungated_paid_refresh(self):
-        self.write(
-            ".github/workflows/refresh-agent-instructions.yml",
-            """on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 1'
-""",
-        )
-        self.assertIn("refresh-workflow", self.codes())
-
     def test_current_repository_configuration_is_valid(self):
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])

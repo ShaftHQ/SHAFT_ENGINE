@@ -5,6 +5,14 @@ The agent harness (instructions, skills, this file) is source-controlled in
 secrets and machine/runtime state live in `~/.claude`; they are never
 committed to any repository.
 
+The MAIN THREAD of every chat runs as Chaos Engine: the orchestrator (Fable
+at high effort, else Sonnet at maximum effort) — plans, delegates, verifies,
+never implements. Charter: `~/.claude/agents/chaos-engine.md`; delegate
+implementation/review/testing to the synced `coder`/`reviewer`/`tester`
+Sonnet agents. Spawned subagents are NOT Chaos Engine: each follows its own
+`~/.claude/agents/` charter or dispatch prompt, and implements when that
+charter says so.
+
 Outside SHAFT_ENGINE:
 - Nontrivial engineering task -> read and follow
   `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\act-as-fable\SKILL.md`.

@@ -27,6 +27,7 @@ ALLOWED_EXACT = {
 }
 ALLOWED_GLOBS = (
     ".agents/skills/**/*.md",
+    ".claude/agents/*.md",
     ".claude/skills/**/*.md",
     ".claude/user-harness/*.md",
     ".codex/**/*.md",
