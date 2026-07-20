@@ -302,7 +302,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         preAttached.add(List.of("Expected Aria Snapshot", "sample.yaml", "expectedYaml"));
 
         Method reportValidationState = ValidationsHelper.class.getDeclaredMethod("reportValidationState",
-                boolean.class, Object.class, Object.class, WebDriver.class, By.class, List.class, boolean.class, boolean.class);
+                boolean.class, Object.class, Object.class, WebDriver.class, By.class, List.class, boolean.class);
         reportValidationState.setAccessible(true);
 
         try (MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
@@ -310,7 +310,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
             @SuppressWarnings({"rawtypes", "unchecked"})
             ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
 
-            reportValidationState.invoke(helper, true, "expected", "actual", driver, locator, preAttached, false, false);
+            reportValidationState.invoke(helper, true, "expected", "actual", driver, locator, preAttached, false);
 
             reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
             List<List<Object>> attachments = attachmentsCaptor.getValue();
@@ -335,7 +335,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         SHAFT.Properties.reporting.set().flakeProfilerEnabled(true);
 
         Method reportValidationState = ValidationsHelper.class.getDeclaredMethod("reportValidationState",
-                boolean.class, Object.class, Object.class, WebDriver.class, By.class, List.class, boolean.class, boolean.class);
+                boolean.class, Object.class, Object.class, WebDriver.class, By.class, List.class, boolean.class);
         reportValidationState.setAccessible(true);
 
         try (MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
@@ -347,7 +347,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
             @SuppressWarnings({"rawtypes", "unchecked"})
             ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
 
-            reportValidationState.invoke(helper, true, "expected", "actual", driver, locator, new ArrayList<>(), false, false);
+            reportValidationState.invoke(helper, true, "expected", "actual", driver, locator, new ArrayList<>(), false);
 
             reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
             List<List<Object>> attachments = attachmentsCaptor.getValue();
