@@ -31,8 +31,12 @@ public class SelectMethodTests {
 
                 clickDropDownList("Div 1000");
 
-            } catch (AssertionError error){
-                
+            } catch (AssertionError | RuntimeException error){
+                // SHAFT.GUI.WebDriver#element().select() reports element-action failures via
+                // Actions.report(), which always wraps and throws RuntimeException (not
+                // AssertionError) -- see Actions.java's report()/reportBroken(). Catching only
+                // AssertionError never actually caught a failed select, so this test failed
+                // unconditionally whenever "Div 1000" was correctly rejected as not found.
             }
         }
     }

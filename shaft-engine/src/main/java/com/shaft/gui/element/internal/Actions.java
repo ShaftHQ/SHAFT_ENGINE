@@ -1352,7 +1352,18 @@ public class Actions extends ElementActions {
 
     private byte[] takeAIHighlightedScreenshot(WebElement element, boolean isPass) {
         // getElementLocation
-        Rectangle elementLocation = element.getRect();
+        Rectangle elementLocation;
+        try {
+            elementLocation = element.getRect();
+        } catch (UnhandledAlertException unhandledAlertException) {
+            // The action being photographed opened a JS dialog (alert/confirm/prompt). A JS
+            // dialog blocks the renderer, so *every* WebDriver command except alert-handling
+            // ones -- including a plain, unhighlighted screenshot -- fails the same way until
+            // the dialog is handled. Evidence capture is best-effort: skip it rather than fail
+            // what was otherwise a successful action (SHAFT_ENGINE#3820).
+            ReportManagerHelper.logDiscrete(unhandledAlertException);
+            return null;
+        }
 
         //take screenshot
         byte[] src = takeScreenshot(element);
