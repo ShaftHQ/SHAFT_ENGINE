@@ -582,6 +582,27 @@ public class ReportManagerHelperUnitTests {
     }
 
     @Test
+    public void createLogEntryShouldEscapeRawControlBytesInsteadOfEmittingThemVerbatim() {
+        // Regression for #3807: java.nio.file.InvalidPathException echoes the offending
+        // path verbatim (e.g. "bad\0path"), so a NUL byte can reach this sink straight
+        // from JDK exception messages -- not just from attachment/screenshot bytes.
+        // Emitting it raw makes ripgrep flip the CI job log to binary mode and silently
+        // truncate post-mortem searches past that point. Tabs and newlines are real
+        // formatting and must survive untouched.
+        ReportManagerHelper.createLogEntry("bad\0path with \u0007 bell,\ttab, and\nnewline", Level.INFO);
+
+        List<String> output = ReportContext.snapshotOutput();
+        String renderedLine = output.get(output.size() - 1);
+
+        SHAFT.Validations.assertThat().object(renderedLine).doesNotContain("\0").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).doesNotContain("\u0007").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).contains("bad\\x00path").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).contains("\\x07 bell").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).contains("\ttab").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).contains("\nnewline").perform();
+    }
+
+    @Test
     public void privateHelpersShouldReturnExpectedValues() throws Exception {
         Method createSeparatorMethod = ReportManagerHelper.class.getDeclaredMethod("createSeparator", char.class);
         createSeparatorMethod.setAccessible(true);

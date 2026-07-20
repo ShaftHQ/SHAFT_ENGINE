@@ -754,7 +754,38 @@ public class ReportManagerHelper {
     }
 
     private static String normalizeLogText(String logText) {
-        return logText == null ? "null" : logText.trim();
+        return logText == null ? "null" : sanitizeControlCharacters(logText.trim());
+    }
+
+    /**
+     * Escapes raw ASCII control bytes (NUL and friends) that occasionally leak into log
+     * text from JDK exception messages -- e.g. {@link java.nio.file.InvalidPathException}
+     * echoes an offending path verbatim, embedded NUL byte and all (#3807). A literal NUL
+     * reaching the console/log file flips log-scraping tools like ripgrep into binary mode
+     * and silently truncates every search past that point, so control bytes are replaced
+     * with a visible {@code \xNN} escape here -- the single sink every console/log-file log
+     * line passes through -- rather than at each call site. Tab, newline, and carriage
+     * return are real formatting and are left untouched.
+     *
+     * @param text the trimmed log text to sanitize
+     * @return the same text with unsafe control bytes replaced by visible escapes
+     */
+    private static String sanitizeControlCharacters(String text) {
+        StringBuilder sanitized = null;
+        for (int i = 0; i < text.length(); i++) {
+            char character = text.charAt(i);
+            boolean isUnsafeControlCharacter = character < 0x20 && character != '\t' && character != '\n' && character != '\r'
+                    || character == 0x7F;
+            if (isUnsafeControlCharacter) {
+                if (sanitized == null) {
+                    sanitized = new StringBuilder(text.length() + 16).append(text, 0, i);
+                }
+                sanitized.append(String.format("\\x%02X", (int) character));
+            } else if (sanitized != null) {
+                sanitized.append(character);
+            }
+        }
+        return sanitized == null ? text : sanitized.toString();
     }
 
     public static void createLogEntry(String logText, Level loglevel) {
