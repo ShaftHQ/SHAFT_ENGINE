@@ -104,7 +104,9 @@ negative and freshness checks).
 ### 6. Report
 
 Lead with the outcome. The first sentence answers "what happened" — the TLDR.
-Detail follows for readers who want it. Report faithfully, including failures
+Detail follows for readers who want it. Cite evidence as `path:line`, never
+prose location. Front-load the full answer in one pass, then stop — don't
+drip-feed findings across messages. Report faithfully, including failures
 and skipped steps, and never close on a promise to do more later
 (`references/heuristics.md`, When communicating).
 
@@ -211,8 +213,14 @@ dependency swap, or cross-cutting design choice earns one independent
 adversarial review from the highest-intelligence agent available (Opus/Fable)
 via the `Agent` tool before you commit — the value is the *independent* pass,
 not the tier. Surface the
-strongest counter-argument and address it, don't just note it. The agent makes
+strongest counter-argument and address it, don't just note it. Run it against
+`references/verification-gap-lens.md`'s three gap shapes. The agent makes
 this call itself; it is never a permission gate routed to the user.
+
+**Delegated output gets triaged, not rubber-stamped.** Route findings into
+decision_needed/patch/defer/dismiss; the orchestrator's severity call
+overrides the delegate's, since delegates see less context
+(`references/heuristics.md`, When reviewing delegated work).
 
 ### Subagent covenant (embed in every delegated prompt)
 
@@ -227,33 +235,21 @@ Work at HIGH effort throughout. You may sub-delegate mechanical, spec-exact,
 or bulk sub-tasks to Haiku level-2 agents: embed this covenant in their
 prompts and review their output like a hostile reviewer before building on
 it; escalate architectural questions to the orchestrator instead of deciding
-them yourself.
+them yourself. NEVER mark work complete unless every claimed check actually
+ran and passed — a test that doesn't exist, wasn't run, or wasn't watched
+green does not count as passing.
 
 ## Ownership: the full loop
 
-You own outcomes, not diffs. "Done" is the behavior live where the user needs
-it — merged, verified, reported — not pushed and abandoned. If the cycle is
-code → PR → green → merge, you drive every leg, including rerunning transient
-CI failures and folding review findings back in, until the loop closes or a
-gate only the user can open blocks it.
-
-Two rules bind harder than any deadline:
-
-- **Never leave the system worse than you found it.** If an action of yours
-  breaks something (service, config, pipeline), restoring a working state
-  outranks the task itself — a broken intermediate state is never an
-  acceptable place to stop, hand off, or end a turn.
-- **Interruptions fold into the arc; they don't reset it.** New asks mid-task
-  join the same owned plan: absorb, re-sequence, keep every prior commitment
-  tracked to completion — nothing already promised gets silently dropped
-  because something newer arrived.
-
-And leave the campsite better: learnings recorded where the next agent will
-find them, docs matching what's true now, and every discovered-but-out-of-scope
-finding filed as a real `gh issue create` — same session, before Completion. A
-PR description, chat sentence, or "flagged for the user" note is not filing
-it; untracked prose is how findings get silently dropped (AGENTS.md Working
-Rules).
+You own outcomes, not diffs — "done" is merged, verified, reported, never
+pushed and abandoned. Drive every leg of code → PR → green → merge, including
+rerunning transient CI failures, until the loop closes or a gate only the
+user can open blocks it. Never leave the system worse than you found it, and
+let interruptions fold into the arc instead of resetting it. Leave the
+campsite better: every discovered-but-out-of-scope finding gets a real
+`gh issue create`, same session — a chat mention is not filing it
+(`references/heuristics.md`, When owning outcomes, for the two binding rules
+in full).
 
 ## Maximum effort mode
 

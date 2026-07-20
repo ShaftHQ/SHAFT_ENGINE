@@ -54,6 +54,31 @@ genuine blocker (a decision only the user can make, not a step you could
 resolve by reading more code). The user asked for unattended execution —
 honor that by not manufacturing more checkpoints than the one they granted.
 
+### Mid-session realignment: named HALT conditions
+
+Per act-as-fable's Ownership, a new ask mid-run joins the same owned plan —
+absorb and keep going, in most cases. But absorbing on missing evidence is
+how a session drifts silently off the owner's actual intent. HALT and ask,
+by name, when any of these hold (adapted from bmad-method's
+`bmad-correct-course/checklist.md` halt-condition pattern, MIT-licensed —
+not its PRD/epic machinery, which doesn't apply here):
+
+- **HALT if the realignment changes the branch/PR/merge-authority shape
+  agreed in step 1.** A broad "keep going" for the original scope is not
+  authorization for a different shape — re-run `AskUserQuestion` for the
+  delta, don't silently reinterpret.
+- **HALT if you cannot ground the new ask in real code.** No matching
+  symptom, file, or prior art after an honest search means you'd be
+  building on a guess — say what you searched and ask, don't proceed on
+  inference.
+- **HALT if the new ask conflicts with work already in flight** (same file
+  scope, contradictory requirement, or it obsoletes a sub-item mid-commit).
+  Surface the conflict and the two options; don't quietly drop either side.
+- **HALT if merge authority for the newly-added scope was never granted.**
+  Authorization doesn't transfer (act-as-fable, When judging risk) — an
+  auto-merge mandate for the original item set doesn't extend to scope
+  added after the fact.
+
 ## 2. Branch and track
 
 - Fetch and prune, then branch fresh off `origin/main` (or the target repo's

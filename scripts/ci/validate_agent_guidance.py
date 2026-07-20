@@ -127,19 +127,56 @@ def validate_total_reduction(root: Path, budget: dict) -> list[dict[str, str]]:
     return []
 
 
+_BLOCK_SCALAR_HEADER = re.compile(r"^[|>][+-]?\d*$")
+
+
 def parse_frontmatter(content: str) -> dict[str, str] | None:
-    """Parse simple top-level YAML frontmatter without external dependencies."""
+    """Parse simple top-level YAML frontmatter without external dependencies.
+
+    Handles single-line scalars and multi-line block scalars (`>`, `>-`,
+    `|`, `|-`) -- several skill descriptions use folded style, and a value
+    of just the block-scalar marker (e.g. `description: >-`) is not the
+    real content. This stays a small proxy parser for flat frontmatter, not
+    a full YAML implementation: no nested mappings or sequences.
+    """
     if not content.startswith("---\n"):
         return None
     marker = content.find("\n---\n", 4)
     if marker < 0:
         return None
+    lines = content[4:marker].splitlines()
     values: dict[str, str] = {}
-    for raw_line in content[4:marker].splitlines():
+    index = 0
+    while index < len(lines):
+        raw_line = lines[index]
+        index += 1
         if ":" not in raw_line or raw_line[:1].isspace():
             continue
         key, value = raw_line.split(":", 1)
-        values[key.strip()] = value.strip().strip("\"'")
+        key = key.strip()
+        value = value.strip()
+        if _BLOCK_SCALAR_HEADER.match(value):
+            folded = value.startswith(">")
+            block_lines: list[str] = []
+            while index < len(lines) and (lines[index][:1].isspace() or not lines[index].strip()):
+                block_lines.append(lines[index].strip())
+                index += 1
+            if folded:
+                paragraphs: list[str] = []
+                current: list[str] = []
+                for block_line in block_lines:
+                    if block_line:
+                        current.append(block_line)
+                    elif current:
+                        paragraphs.append(" ".join(current))
+                        current = []
+                if current:
+                    paragraphs.append(" ".join(current))
+                values[key] = "\n\n".join(paragraphs)
+            else:
+                values[key] = "\n".join(block_lines).strip()
+        else:
+            values[key] = value.strip("\"'")
     return values
 
 
