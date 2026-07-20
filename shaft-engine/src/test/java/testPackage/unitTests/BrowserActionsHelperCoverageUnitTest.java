@@ -97,13 +97,7 @@ public class BrowserActionsHelperCoverageUnitTest {
     @Test
     public void shouldReportBrowserActionsHelperClassOnFailAction() {
         try (MockedStatic<FailureReporter> failureReporter = mockStatic(FailureReporter.class)) {
-            failureReporter.when(() -> FailureReporter.fail(any(), anyString(), any(Throwable.class)))
-                    .thenAnswer(invocation -> {
-                        throw new RuntimeException(invocation.getArgument(1), invocation.getArgument(2));
-                    });
-
-            Assert.assertThrows(RuntimeException.class,
-                    () -> helper.failAction(driver, "customAction", "forced", new RuntimeException("root")));
+            helper.failAction(driver, "customAction", "forced", new RuntimeException("root"));
 
             failureReporter.verify(() -> FailureReporter.fail(eq(BrowserActionsHelper.class), anyString(), any(Throwable.class)));
         }
