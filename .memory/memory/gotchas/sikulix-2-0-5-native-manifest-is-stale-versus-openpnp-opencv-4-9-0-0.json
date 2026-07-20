@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/sikulix-2-0-5-native-manifest-is-stale-versus-openpnp-opencv-4-9-0-0.md",
+  "content_hash": "sha256:aee7387d5b50d7ee7e37cab80a9da1986efa2a83906df5af2574abf3cf2a7b02",
+  "created_at": "2026-07-20T03:48:27+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.sikulix-2-0-5-native-manifest-is-stale-versus-openpnp-opencv-4-9-0-0",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Nightly E2E campaign + CI overhaul session 2026-07-20: durable gotchas from forensics and fixes"
+  },
+  "status": "active",
+  "tags": [
+    "sikulix",
+    "opencv",
+    "natives",
+    "shaft-sikulix"
+  ],
+  "title": "SikuliX 2.0.5 native manifest is stale versus openpnp opencv 4.9.0-0",
+  "type": "gotcha",
+  "updated_at": "2026-07-20T03:48:27+03:00"
+}
