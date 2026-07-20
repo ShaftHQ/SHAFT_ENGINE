@@ -418,3 +418,4 @@
 {"actor":"agent","event":"memory.marked_stale","id":"constraint.paid-agent-work-audit-gated","reason":"Retired in PR #3836: refresh-agent-instructions.yml (the workflow this constraint gated) was deleted; agent-instruction refresh is now manual only, no CI-invoked paid audit gate remains.","timestamp":"2026-07-20T18:17:21+03:00"}
 {"actor":"agent","event":"memory.updated","id":"fact.shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget","timestamp":"2026-07-20T18:30:12+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync","timestamp":"2026-07-20T18:30:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-07-20T23:29:00+03:00"}

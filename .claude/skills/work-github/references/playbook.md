@@ -30,17 +30,17 @@ user anything.
 
 ## 1. Ask once, at the start, then go unattended
 
-This repo's `AGENTS.md` defaults to one branch/worktree/PR per session,
-sub-tasks as commits — which conflicts with a literal
-"branch/code/test/push/pr/green/merge" loop over several independent items.
+This repo's `AGENTS.md` defaults to one branch/worktree per session with
+sub-tasks as commits, grouped into one PR per group of related subtasks (Sec.
+3b below) — not the older single-PR-per-session convention it supersedes.
 Do not silently pick an interpretation; do not ask piecemeal mid-session
 either. Surface the real decisions in **one** `AskUserQuestion` call, grounded
 in what step 0 found:
 
-- **Branch/PR shape** — single branch + single PR + one commit per item
-  (matches AGENTS.md's default; recommend this unless items are numerous and
-  genuinely unrelated), vs. a separate branch+PR per item looped
-  sequentially.
+- **Branch/PR shape** — one branch, one tracking issue, one issue per
+  subtask, and one PR per group of related subtasks (the default per Sec.
+  3b) vs. a separate branch+PR per item looped sequentially, for cases
+  genuinely too disjoint to group.
 - **Merge authority** — auto-merge each PR once CI is green, vs. hold for
   manual review.
 - **Any item whose scope is genuinely ambiguous** — e.g. an item the issue
@@ -118,26 +118,95 @@ For each item, decide dispatch shape:
 - Haiku is for low-risk mechanical edits, log/report summarization, and bulk
   repetitive triage — not for a spec that requires judgment calls mid-flight.
 
-## 3b. Tracking tickets for phased work (mandatory conventions)
+## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)
 
-Any issue whose work is delivered in more than one phase/increment is a
-*tracking ticket*, and these conventions are binding for it:
+Owner directive (2026-07-20): this is the binding default for **every** new
+substantial work request from the very start — not only for an issue that
+later turns out to need multiple phases. Analyze, plan, and architect the
+request *before* any code lands, then open the tracking issue. It supersedes
+any older "1 PR per session" framing found elsewhere in this repo's docs: a
+session may open several grouped PRs, one per group of related subtasks.
 
-- **Title prefix**: the tracking ticket's title starts with `Tracking: `
-  (rename the issue when it becomes phased, keep the rest of the title).
-- **Subtickets**: every phase gets its own GitHub subticket in the repo the
-  work lands in; the tracking ticket's body holds a `## Tracking` section
-  with one checkbox per phase, each linking the subticket (`- [ ] Phase N —
-  <name> (#<subticket>)`) or, for already-merged phases, the delivering PR.
-- **Closing**: each phase's PR closes its *subticket* with the `Closes #N`
-  keyword — never the tracking ticket. When a subticket's PR merges, check
-  its checkbox in the tracking ticket's body in the same session.
-- **Progress comments**: after every completed iteration/increment, post a
-  comment on the tracking ticket summarizing what landed (PR link, what
-  shipped, what remains) — the ticket must read as a current status page.
-- **Close-out**: once all the work is complete and every checkbox is
-  checked, close the tracking ticket yourself in the same session, with a
-  final summary comment — don't leave it open awaiting a human close.
+- **Title prefix**: the tracking issue's title starts with `Tracking: `
+  (rename an issue when it turns out to need phasing, keep the rest of the
+  title).
+- **Subtask issues**: every subtask gets its own real, linked GitHub issue in
+  the repo the work lands in — never just a checkbox with no ticket behind
+  it. The tracking issue's body holds a `## Tracking` section with one
+  checkbox per subtask, each linking its issue (`- [ ] Subtask N — <name>
+  (#<subtask-issue>)`).
+- **Grouped PRs, multiple `Closes #N`**: group related subtasks into one PR
+  rather than opening one PR per subtask. Each PR body carries one
+  `Closes #N` line per subtask issue that PR completes — never the tracking
+  issue itself, and never a plain `#N` reference (see the "closing keywords"
+  memory constraint). A session doing several unrelated groups of subtasks
+  opens several such PRs.
+- **On each subtask close**: check that subtask's box in the tracking
+  issue's body and post a progress comment on the tracking issue summarizing
+  what shipped (PR link) and what remains — the tracking issue must read as
+  a current status page, not a stale plan.
+- **Close-out**: when the *last* subtask closes and every checkbox is
+  checked, close the tracking issue itself in the same session, with a final
+  summary comment — don't leave it open awaiting a human close.
+
+### Example `gh` invocations
+
+Open the tracking issue with a checkbox list (subtask issues don't exist yet,
+so the checkboxes start unlinked and get backfilled with issue links once
+each subtask issue is filed):
+
+```bash
+gh issue create --title "Tracking: <feature/program name>" --body "$(cat <<'EOF'
+## Summary
+<one-paragraph plan/architecture for the whole request>
+
+## Tracking
+- [ ] Subtask 1 — <name> (#TBD)
+- [ ] Subtask 2 — <name> (#TBD)
+- [ ] Subtask 3 — <name> (#TBD)
+EOF
+)"
+```
+
+File one real issue per subtask, then backfill its number into the tracking
+issue body (`gh issue edit <tracker> --body-file -` or a targeted PATCH via
+`gh api`):
+
+```bash
+gh issue create --title "<Subtask 1 name>" --body "Subtask of #<tracker>. <scope>"
+```
+
+Open a PR for a group of related subtasks, closing every subtask issue that
+group completes:
+
+```bash
+gh pr create --title "<group summary>" --body "$(cat <<'EOF'
+## Summary
+- <what this group of subtasks does and why>
+
+Closes #<subtask-1>
+Closes #<subtask-2>
+
+## Test plan
+- [ ] <check>
+EOF
+)"
+```
+
+After that PR merges, check the completed subtasks' boxes and post the
+progress comment on the tracker in the same session:
+
+```bash
+gh issue edit <tracker> --body-file updated-tracker-body.md   # boxes now [x]
+gh issue comment <tracker> --body "Landed #<subtask-1>, #<subtask-2> via PR #<pr>. Remaining: #<subtask-3>."
+```
+
+When the last subtask closes, close the tracker itself with a final summary:
+
+```bash
+gh issue comment <tracker> --body "All subtasks complete. <final summary>."
+gh issue close <tracker>
+```
 
 ## 4. Review before you commit — every time
 
