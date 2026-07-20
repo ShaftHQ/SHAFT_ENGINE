@@ -62,16 +62,25 @@ table row.
 
 ### Direct command names — don't guess
 
-Full exact tool names and CLI commands live in two generated reference files,
-never invented from memory:
+Full exact tool names, param schemas, and CLI commands live in generated
+artifacts, never invented from memory:
 
-- `../references/shaft-mcp-tools.md` — every MCP tool name and description,
-  regenerated from the shaft-mcp `@Tool`/`@McpTool` annotations by
-  `scripts/mcp/generate_shaft_skills_tool_catalog.py`. This is the interim
-  single source of truth for the tool catalog; it will be superseded by a
-  cached, schema-rich `shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json`
-  once that artifact lands (tracked separately — check whether it exists
-  before assuming this markdown file is still current).
+- `shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json` — the
+  canonical, schema-rich catalog: every tool's name, owning service,
+  description, full param list (name/type/required/default/description),
+  curated `intentKeywords`/`slashAlias`/`cliCommand`, and a recorded
+  `example` request/response where one exists. Java-dumped from the live
+  Spring-registered `ToolCallback`/`@McpTool` schemas
+  (`tool-index-mechanical.json`) and merged with the hand-curated overlay
+  (`tool-index-overlay.json`) by `scripts/mcp/generate_tool_index.py`; a
+  drift gate (`ToolIndexMechanicalDumpTest`) fails CI if it skews from the
+  live tool set. Prefer this file whenever a param schema, default, or
+  intent keyword is needed, not just a name.
+- `../references/shaft-mcp-tools.md` — every MCP tool name and description
+  only (no param schemas), regenerated from the shaft-mcp `@Tool`/`@McpTool`
+  annotations by `scripts/mcp/generate_shaft_skills_tool_catalog.py`. Kept
+  as a lighter-weight quick-name lookup alongside the JSON index above, not
+  a stale duplicate of it — both are generated and CI-gated independently.
 - `../references/shaft-cli-commands.md` — every `shaft-cli` command, alias,
   and exit code.
 
