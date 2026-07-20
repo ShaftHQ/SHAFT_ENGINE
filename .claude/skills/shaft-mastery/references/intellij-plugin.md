@@ -13,10 +13,10 @@ crash the daemon (`EXCEPTION_ACCESS_VIOLATION` in G1 GC on Windows). A hard
 Gradle Daemon JVM criteria/toolchain pin to exactly JDK 21 was considered
 and rejected: that mechanism takes precedence over `JAVA_HOME` and
 `-Dorg.gradle.java.home` (Gradle docs), which would have forced CI's
-`intellij-plugin.yml` `build-and-verify` job — JDK 17 only, via a
-system-installed `gradle`, not the wrapper — onto a JDK 21 it never
-installs. The guard leaves JDK 17-21 alone and only rejects newer,
-unverified JDKs.
+`pr-gate.yml` `intellij-build` job — JDK 17 only, via the
+`.github/actions/intellij-verify` composite's system-installed `gradle`, not
+the wrapper — onto a JDK 21 it never installs. The guard leaves JDK 17-21
+alone and only rejects newer, unverified JDKs.
 
 ## Threading & UI rules
 - EDT-only for Swing mutation; use `invokeLater`/`Application.invokeLater`

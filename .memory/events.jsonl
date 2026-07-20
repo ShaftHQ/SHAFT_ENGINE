@@ -410,3 +410,11 @@
 {"actor":"agent","event":"memory.updated","id":"decision.agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions","timestamp":"2026-07-20T17:51:54+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.vendored-caveman-terse-prose-skill-mit-proxy-free-core-into-claude-skills","timestamp":"2026-07-20T17:51:54+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.delegation-model-fable-main-thread-plans-delegates-reviews-verifies-and-does-not-implement-haiku-first-tiers","timestamp":"2026-07-20T17:51:54+03:00"}
+{"actor":"agent","event":"memory.updated","id":"fact.shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget","timestamp":"2026-07-20T18:17:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync","timestamp":"2026-07-20T18:17:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.gradle-daemon-jvm-criteria-gradle-daemon-jvm-properties-takes-precedence-over-java-home-and-dorg-gradle-java-home","timestamp":"2026-07-20T18:17:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.shaft-intellijs-screenshot-renderer-test-never-runs-its-body-in-ci-assumefalse-on-dshaft-intellij-screenshotdir","timestamp":"2026-07-20T18:17:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.paid-agent-work-audit-gated","timestamp":"2026-07-20T18:17:21+03:00"}
+{"actor":"agent","event":"memory.marked_stale","id":"constraint.paid-agent-work-audit-gated","reason":"Retired in PR #3836: refresh-agent-instructions.yml (the workflow this constraint gated) was deleted; agent-instruction refresh is now manual only, no CI-invoked paid audit gate remains.","timestamp":"2026-07-20T18:17:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"fact.shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget","timestamp":"2026-07-20T18:30:12+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync","timestamp":"2026-07-20T18:30:12+03:00"}
