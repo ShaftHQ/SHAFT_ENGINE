@@ -307,6 +307,30 @@ public class TestNGListenerHelperCoverageUnitTest {
         }
     }
 
+    @Test
+    public void logFinishedTestInformationShouldAnnotateRetriedFailedAttemptInsteadOfSkipped() {
+        // TestNG's TestInvoker forces the status to SKIP (and sets wasRetried=true) for every failed
+        // attempt that RetryAnalyzer chooses to retry; only the terminal attempt keeps its real
+        // FAILURE/SUCCESS status. The live console line must reflect that the attempt actually
+        // failed and is being retried, not parrot the misleading SKIP status (#3833).
+        ITestResult retrySuppressedAttempt = createResultForLogging("sampleMethod", ITestResult.SKIP);
+        Mockito.when(retrySuppressedAttempt.wasRetried()).thenReturn(true);
+
+        ITestResult terminalSkip = createResultForLogging("sampleMethod", ITestResult.SKIP);
+        Mockito.when(terminalSkip.wasRetried()).thenReturn(false);
+
+        try (MockedStatic<com.shaft.tools.io.internal.ReportManagerHelper> reportManagerHelper = Mockito.mockStatic(com.shaft.tools.io.internal.ReportManagerHelper.class)) {
+            reportManagerHelper.when(com.shaft.tools.io.internal.ReportManagerHelper::getTestClassName).thenReturn("sampleClass");
+            reportManagerHelper.when(com.shaft.tools.io.internal.ReportManagerHelper::getTestMethodName).thenReturn("sampleMethod");
+
+            TestNGListenerHelper.logFinishedTestInformation(retrySuppressedAttempt);
+            TestNGListenerHelper.logFinishedTestInformation(terminalSkip);
+
+            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation(Mockito.eq("sampleClass"), Mockito.eq("sampleMethod"), Mockito.eq("sample description"), Mockito.eq("Failed (retried)"), Mockito.any()));
+            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation(Mockito.eq("sampleClass"), Mockito.eq("sampleMethod"), Mockito.eq("sample description"), Mockito.eq("Skipped"), Mockito.any()));
+        }
+    }
+
     private static ITestResult createResultFromMethod(String methodName) {
         try {
             Method method = TestNGListenerHelperCoverageUnitTest.class.getDeclaredMethod(methodName);

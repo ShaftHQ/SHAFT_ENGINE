@@ -481,13 +481,13 @@ public class ReportManagerHelper {
 
         String statusIndicator = switch (testStatus.toUpperCase()) {
             case "PASSED" -> "✓";
-            case "FAILED" -> "✗";
+            case "FAILED", "FAILED (RETRIED)" -> "✗";
             case "SKIPPED" -> "⊘";
             default -> "●";
         };
 
         Level logLevel = switch (testStatus.toUpperCase()) {
-            case "FAILED" -> Level.ERROR;
+            case "FAILED", "FAILED (RETRIED)" -> Level.ERROR;
             case "SKIPPED" -> Level.WARN;
             default -> Level.INFO;
         };

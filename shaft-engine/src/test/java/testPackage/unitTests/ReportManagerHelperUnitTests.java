@@ -1,6 +1,7 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.AttachmentReporter;
@@ -11,6 +12,7 @@ import com.shaft.tools.io.internal.ReportContext;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.mockito.Mockito;
+import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -87,6 +89,31 @@ public class ReportManagerHelperUnitTests {
 
         SHAFT.Validations.assertThat().object(ReportManagerHelper.prepareIssuesLog()).isEqualTo("").perform();
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getIssueCounter()).isEqualTo(0).perform();
+    }
+
+    @Test
+    public void logFinishedTestInformationShouldRenderRetriedFailureNotSkippedForWasRetriedResult() {
+        ITestNGMethod iTestNGMethod = Mockito.mock(ITestNGMethod.class);
+        Mockito.when(iTestNGMethod.getQualifiedName()).thenReturn("testPackage.unitTests.ReportManagerHelperUnitTests.sampleMethod");
+        Mockito.when(iTestNGMethod.isTest()).thenReturn(true);
+
+        // TestNG's TestInvoker forces the status to SKIP (and sets wasRetried=true) for every failed
+        // attempt that RetryAnalyzer chooses to retry; the live console line must not claim that
+        // attempt was "Skipped" -- it actually failed and is being retried.
+        ITestResult retrySuppressedAttempt = Mockito.mock(ITestResult.class);
+        Mockito.when(retrySuppressedAttempt.getMethod()).thenReturn(iTestNGMethod);
+        Mockito.when(retrySuppressedAttempt.getStatus()).thenReturn(ITestResult.SKIP);
+        Mockito.when(retrySuppressedAttempt.wasRetried()).thenReturn(true);
+        Mockito.when(retrySuppressedAttempt.getThrowable()).thenReturn(new AssertionError("boom"));
+
+        TestNGListenerHelper.logFinishedTestInformation(retrySuppressedAttempt);
+
+        List<String> output = ReportContext.snapshotOutput();
+        String renderedLine = output.get(output.size() - 1);
+
+        SHAFT.Validations.assertThat().object(renderedLine).contains("Status: Failed (retried)").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).doesNotContain("Status: Skipped").perform();
+        SHAFT.Validations.assertThat().object(renderedLine).doesNotContain("⊘").perform();
     }
 
     @Test

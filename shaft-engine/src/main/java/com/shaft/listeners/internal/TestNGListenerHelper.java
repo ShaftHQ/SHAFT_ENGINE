@@ -496,7 +496,12 @@ public class TestNGListenerHelper {
                 } else if (iTestResult.getStatus() == ITestResult.FAILURE) {
                     methodStatus = "Failed";
                 } else if (iTestResult.getStatus() == ITestResult.SKIP) {
-                    methodStatus = "Skipped";
+                    // TestNG's TestInvoker forces the status to SKIP (and sets wasRetried=true) for every
+                    // failed attempt that RetryAnalyzer chooses to retry; only the terminal attempt keeps
+                    // its real FAILURE/SUCCESS status. Reporting one of these retry-suppressed attempts as
+                    // "Skipped" is factually wrong -- it actually failed and is being retried -- so the live
+                    // console line is annotated instead of parroting the misleading SKIP status.
+                    methodStatus = iTestResult.wasRetried() ? "Failed (retried)" : "Skipped";
                 }
                 ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus, iTestResult.getThrowable());
             }
