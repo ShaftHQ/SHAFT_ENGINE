@@ -57,7 +57,7 @@ class MobileServiceConfigurationTest {
         assertTrue(code.contains(".mobileEmulationWidth(390)"));
         assertTrue(code.contains(".mobileEmulationUserAgent(\"agent\\\"mobile\")"));
         verify(engineService).quitDriver();
-        verify(engineService).initializeConfiguredDriver("mobile web emulation");
+        verify(engineService).initializeConfiguredDriver("mobile web emulation", ActiveEngine.MOBILE_WEB);
     }
 
     @Test
@@ -110,7 +110,7 @@ class MobileServiceConfigurationTest {
         assertTrue(androidCode.contains(".targetPlatform(\"Android\")"));
         assertTrue(androidCode.contains(".executionAddress(\"http://127.0.0.1:4723\")"));
         assertTrue(androidCode.contains(".automationName(\"UiAutomator2\")"));
-        verify(androidEngine).initializeConfiguredDriver("mobile native Android");
+        verify(androidEngine).initializeConfiguredDriver("mobile native Android", ActiveEngine.MOBILE_NATIVE);
 
         EngineService iosEngine = mock(EngineService.class);
         MobileService ios = new MobileService(iosEngine, McpWorkspacePolicy.of(temp));
@@ -129,7 +129,7 @@ class MobileServiceConfigurationTest {
         assertEquals("iOS", iosResult.platformName());
         assertTrue(iosResult.warnings().stream().anyMatch(warning -> warning.contains("bundleId")));
         assertTrue(iosResult.codeBlocks().getFirst().code().contains(".automationName(\"XCUITest\")"));
-        verify(iosEngine).initializeConfiguredDriver("mobile native iOS");
+        verify(iosEngine).initializeConfiguredDriver("mobile native iOS", ActiveEngine.MOBILE_NATIVE);
         assertThrows(IllegalArgumentException.class,
                 () -> ios.initializeNative("windows", "", "", "", "", "", "", "", "", ""));
     }

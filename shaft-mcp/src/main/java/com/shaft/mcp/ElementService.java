@@ -5,7 +5,11 @@ import org.openqa.selenium.By;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 import static com.shaft.mcp.EngineService.getDriver;
 import static com.shaft.mcp.EngineService.getLocator;
@@ -16,6 +20,22 @@ import static com.shaft.mcp.EngineService.getLocator;
 @Service
 public class ElementService {
     private static final Logger logger = LoggerFactory.getLogger(ElementService.class);
+    private final PlaywrightService playwrightService;
+    private final MobileService mobileService;
+
+    /**
+     * Creates the default element service, wiring default Playwright/mobile services for direct
+     * Java callers and tests that construct this class without Spring.
+     */
+    public ElementService() {
+        this(new PlaywrightService(), new MobileService(new EngineService()));
+    }
+
+    @Autowired
+    ElementService(PlaywrightService playwrightService, MobileService mobileService) {
+        this.playwrightService = playwrightService;
+        this.mobileService = mobileService;
+    }
 
     /**
      * Hovers over an element.
@@ -29,14 +49,63 @@ public class ElementService {
     }
 
     /**
-     * Clicks an element.
+     * Clicks an element, dispatching to whichever engine is currently active (web/mobile WebDriver
+     * or Playwright) and routing through that engine's recording wrapper when a mobile or Playwright
+     * recording is active.
      *
      * @param locatorStrategy locator strategy
      * @param locatorValue locator value
+     * @param mode click gesture; blank/omitted defaults to {@link ClickMode#SINGLE}. {@link ClickMode#DOUBLE}
+     *             and {@link ClickMode#LONG} absorb the former element_double_click/element_click_and_hold/
+     *             mobile_double_tap/mobile_long_tap tools; {@link ClickMode#LONG} is not supported on the
+     *             Playwright engine.
+     * @return the active engine and, when a recording is active, the recorded step's code block
      */
-    @Tool(name = "element_click", description = "clicks an element")
-    public void click(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, "click", locator -> getDriver().element().click(locator));
+    @Tool(name = "element_click", description = "clicks an element; optional mode selects single (default) | "
+            + "double | long; dispatches to the active engine and records the step when a mobile or "
+            + "Playwright recording is active")
+    public ElementActionResult click(
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            @ToolParam(required = false) ClickMode mode) {
+        ClickMode resolvedMode = mode == null ? ClickMode.SINGLE : mode;
+        ActiveEngine engine = EngineService.activeEngine();
+        return switch (engine) {
+            case PLAYWRIGHT -> fromDispatchResult(engine,
+                    playwrightService.dispatchClick(locatorStrategy, locatorValue, resolvedMode));
+            case MOBILE_NATIVE, MOBILE_WEB -> fromDispatchResult(engine,
+                    mobileService.dispatchClick(locatorStrategy, locatorValue, resolvedMode));
+            case WEB, NONE -> {
+                webClick(locatorStrategy, locatorValue, resolvedMode);
+                yield new ElementActionResult(engine.name(), false, null, List.of());
+            }
+        };
+    }
+
+    /**
+     * Java-caller convenience overload defaulting {@code mode} to {@link ClickMode#SINGLE}; not an
+     * MCP tool.
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @return the active engine and, when a recording is active, the recorded step's code block
+     */
+    public ElementActionResult click(locatorStrategy locatorStrategy, String locatorValue) {
+        return click(locatorStrategy, locatorValue, null);
+    }
+
+    private static void webClick(locatorStrategy locatorStrategy, String locatorValue, ClickMode mode) {
+        withLocator(locatorStrategy, locatorValue, "click", locator -> {
+            switch (mode) {
+                case DOUBLE -> getDriver().element().doubleClick(locator);
+                case LONG -> getDriver().element().clickAndHold(locator);
+                case SINGLE -> getDriver().element().click(locator);
+            }
+        });
+    }
+
+    private static ElementActionResult fromDispatchResult(ActiveEngine engine, McpMobileActionResult result) {
+        return new ElementActionResult(engine.name(), result.recorded(), result.codeBlock(), result.warnings());
     }
 
     /**

@@ -10,6 +10,8 @@ import org.openqa.selenium.By;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -21,6 +23,41 @@ public class EngineService {
     private static final Logger logger = LoggerFactory.getLogger(EngineService.class);
     private static SHAFT.GUI.WebDriver driver;
     private static boolean engineInitialized = false;
+    private static ActiveEngine activeEngine = ActiveEngine.NONE;
+    private final PlaywrightService playwrightService;
+
+    /**
+     * Creates the default engine service, wiring a default {@link PlaywrightService} for direct
+     * Java callers and tests that construct this class without Spring.
+     */
+    public EngineService() {
+        this(new PlaywrightService());
+    }
+
+    @Autowired
+    EngineService(PlaywrightService playwrightService) {
+        this.playwrightService = playwrightService;
+    }
+
+    /**
+     * Returns the MCP session's currently active automation engine.
+     *
+     * @return the active engine; {@link ActiveEngine#NONE} when no session has been initialized
+     */
+    static ActiveEngine activeEngine() {
+        return activeEngine;
+    }
+
+    /**
+     * Sets the MCP session's currently active automation engine. Called by {@code driver_initialize},
+     * {@code driver_quit}, and the Playwright/mobile init and quit tools so engine-dispatching tools
+     * (for example {@code element_click}) always route to whichever engine is really active.
+     *
+     * @param engine the new active engine; {@code null} normalizes to {@link ActiveEngine#NONE}
+     */
+    static void setActiveEngine(ActiveEngine engine) {
+        activeEngine = engine == null ? ActiveEngine.NONE : engine;
+    }
     // Folder values keep the engine defaults' trailing slash: several engine call sites join
     // folder + file by concatenation, and a missing slash wrote files like
     // "allure-resultsenvironment.xml" into every consumer project root.
@@ -135,24 +172,56 @@ public class EngineService {
     }
 
     /**
-     * Initializes the WebDriver for the specified browser type.
+     * Initializes the WebDriver for the specified browser type, or another engine session when
+     * {@code engine} selects one.
      *
      * @param targetBrowser The type of browser to initialize (e.g., CHROME, FIREFOX).
+     * @param engine which engine to start; blank/omitted defaults to {@link ActiveEngine#WEB}.
+     *               {@link ActiveEngine#PLAYWRIGHT} starts a SHAFT Playwright session instead of a
+     *               WebDriver session. {@link ActiveEngine#MOBILE_NATIVE} and
+     *               {@link ActiveEngine#MOBILE_WEB} are not yet supported here -- use
+     *               {@code mobile_initialize_native} / {@code mobile_initialize_web_emulation}.
      */
-    @Tool(name = "driver_initialize", description = "launches browser")
-    public void initializeDriver(BrowserType targetBrowser) {
+    @Tool(name = "driver_initialize", description = "launches browser; optional engine selects web (default) "
+            + "| playwright -- mobile engines still use mobile_initialize_native/mobile_initialize_web_emulation")
+    public void initializeDriver(BrowserType targetBrowser, @ToolParam(required = false) ActiveEngine engine) {
+        ActiveEngine resolvedEngine = engine == null ? ActiveEngine.WEB : engine;
+        if (resolvedEngine == ActiveEngine.MOBILE_NATIVE || resolvedEngine == ActiveEngine.MOBILE_WEB) {
+            throw new IllegalArgumentException("driver_initialize does not yet support engine=" + resolvedEngine
+                    + "; use mobile_initialize_native or mobile_initialize_web_emulation instead.");
+        }
+        if (resolvedEngine == ActiveEngine.PLAYWRIGHT) {
+            playwrightService.initialize(targetBrowser == null ? null : targetBrowser.name(),
+                    SHAFT.Properties.web.headlessExecution());
+            return;
+        }
         try {
             SHAFT.Properties.web.set().targetBrowserName(targetBrowser.name());
-            initializeConfiguredDriver(targetBrowser.name());
+            initializeConfiguredDriver(targetBrowser.name(), ActiveEngine.WEB);
         } catch (Exception e) {
             logger.error("Failed to initialize driver for browser: {}", targetBrowser.name(), e);
             throw e;
         }
     }
 
+    /**
+     * Java-caller convenience overload defaulting {@code engine} to {@link ActiveEngine#WEB}; not
+     * an MCP tool.
+     *
+     * @param targetBrowser The type of browser to initialize (e.g., CHROME, FIREFOX).
+     */
+    public void initializeDriver(BrowserType targetBrowser) {
+        initializeDriver(targetBrowser, null);
+    }
+
     void initializeConfiguredDriver(String sessionName) {
+        initializeConfiguredDriver(sessionName, ActiveEngine.WEB);
+    }
+
+    void initializeConfiguredDriver(String sessionName, ActiveEngine engine) {
         ensureEngineInitialized();
         driver = new SHAFT.GUI.WebDriver();
+        setActiveEngine(engine);
         logger.info("Driver initialized successfully: {}", sessionName);
     }
 
@@ -207,13 +276,19 @@ public class EngineService {
     }
 
     /**
-     * Quits the WebDriver, closing all associated browser windows.
+     * Quits whichever engine session is currently active (web, mobile, or Playwright), closing all
+     * associated browser windows.
      */
-    @Tool(name = "driver_quit", description = "closes browser")
+    @Tool(name = "driver_quit", description = "closes whichever engine session (web, mobile, or Playwright) is currently active")
     public void quitDriver() {
+        if (activeEngine == ActiveEngine.PLAYWRIGHT) {
+            playwrightService.quit();
+            return;
+        }
         try {
             logger.info("Active driver will be closed");
             if (driver == null) {
+                setActiveEngine(ActiveEngine.NONE);
                 return;
             }
             driver.quit();
@@ -221,6 +296,8 @@ public class EngineService {
         } catch (Exception e) {
             logger.error("Failed to close driver.", e);
             throw e;
+        } finally {
+            setActiveEngine(ActiveEngine.NONE);
         }
     }
 

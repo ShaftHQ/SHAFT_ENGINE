@@ -148,7 +148,7 @@ public class MobileService {
                 .mobileEmulationHeight(customDevice ? height : 0)
                 .mobileEmulationPixelRatio(pixelRatio > 0 ? pixelRatio : 1.0)
                 .mobileEmulationUserAgent(text(userAgent));
-        engineService.initializeConfiguredDriver("mobile web emulation");
+        engineService.initializeConfiguredDriver("mobile web emulation", ActiveEngine.MOBILE_WEB);
         if (!text(targetUrl).isBlank()) {
             getDriver().browser().navigateToURL(targetUrl);
         }
@@ -213,7 +213,7 @@ public class MobileService {
                 .appPackage(text(appPackage))
                 .appActivity(text(appActivity))
                 .bundleId(text(bundleId));
-        engineService.initializeConfiguredDriver("mobile native " + platform);
+        engineService.initializeConfiguredDriver("mobile native " + platform, ActiveEngine.MOBILE_NATIVE);
         logger.info("Native mobile session initialized (platform: {}, device name length: {})",
                 platform, text(deviceName).length());
         return new McpMobileSessionResult(
@@ -781,6 +781,25 @@ public class MobileService {
                 locator -> getDriver().touch().longTap(locator),
                 "driver.element().touch().longTap(" + locatorCode(locatorStrategy, locatorValue) + ");",
                 false);
+    }
+
+    /**
+     * Dispatches a unified {@code element_click} call to the touch-action implementation for the
+     * requested {@link ClickMode}. Package-private engine-dispatch seam used by {@link ElementService};
+     * reuses the existing {@code @Tool} methods so recording behavior stays identical to calling
+     * {@code mobile_tap}/{@code mobile_double_tap}/{@code mobile_long_tap} directly.
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @param mode requested click gesture
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dispatchClick(locatorStrategy locatorStrategy, String locatorValue, ClickMode mode) {
+        return switch (mode) {
+            case DOUBLE -> doubleTap(locatorStrategy, locatorValue);
+            case LONG -> longTap(locatorStrategy, locatorValue);
+            case SINGLE -> tap(locatorStrategy, locatorValue);
+        };
     }
 
     /**

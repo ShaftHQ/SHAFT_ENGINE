@@ -62,6 +62,7 @@ public class PlaywrightService {
         }
         quit();
         driver = new SHAFT.GUI.Playwright();
+        EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);
         logger.info("Playwright driver initialized (browser length: {}, headless: {})",
                 browser == null ? 0 : browser.length(), headless);
     }
@@ -75,6 +76,28 @@ public class PlaywrightService {
             driver.quit();
             driver = null;
         }
+        EngineService.setActiveEngine(ActiveEngine.NONE);
+    }
+
+    /**
+     * Dispatches a unified {@code element_click} call to the Playwright click implementation for
+     * the requested {@link ClickMode}. Package-private engine-dispatch seam used by
+     * {@link ElementService}; reuses the existing {@code @Tool} methods so recording behavior stays
+     * identical to calling {@code playwright_element_click}/{@code playwright_element_double_click}
+     * directly.
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @param mode requested click gesture
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dispatchClick(locatorStrategy locatorStrategy, String locatorValue, ClickMode mode) {
+        return switch (mode) {
+            case DOUBLE -> doubleClick(locatorStrategy, locatorValue);
+            case LONG -> throw new IllegalArgumentException(
+                    "element_click mode=LONG is not supported for the Playwright engine (activeEngine=PLAYWRIGHT)");
+            case SINGLE -> click(locatorStrategy, locatorValue);
+        };
     }
 
     /**
