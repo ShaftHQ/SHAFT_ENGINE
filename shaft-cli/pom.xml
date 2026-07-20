@@ -28,6 +28,13 @@
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <!-- Deterministic file-to-code codegen engine backing `shaft-cli codegen` (Decision 6:
+             CLI-first for single-session actions, no MCP server involved). -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-capture</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
