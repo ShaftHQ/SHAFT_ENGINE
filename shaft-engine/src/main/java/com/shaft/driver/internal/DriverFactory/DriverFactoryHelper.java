@@ -519,11 +519,43 @@ public class DriverFactoryHelper {
     }
 
     private static ClientConfig createRemoteWebDriverClientConfig(URL targetExecutionUrl) {
-        var timeout = Duration.ofSeconds(remoteServerInstanceCreationTimeout);
+        // Read live (not cached in a static field like remoteServerInstanceCreationTimeout above) so the
+        // SHAFT.Properties.timeouts.set().remoteServerConnectionAttemptTimeout(...) override -- and the
+        // decoupling from remoteServerInstanceCreationTimeout itself (issue #3811) -- actually take
+        // effect: that property bounds only the overall retry budget; this bounds a single HTTP
+        // connect/read attempt so a hung/unreachable grid fails one attempt fast instead of silently
+        // consuming the whole retry budget.
+        var timeout = Duration.ofSeconds(SHAFT.Properties.timeouts.remoteServerConnectionAttemptTimeout());
         return ClientConfig.defaultConfig()
                 .baseUrl(targetExecutionUrl)
                 .connectionTimeout(timeout)
                 .readTimeout(timeout);
+    }
+
+    /**
+     * Best-effort teardown for a remote WebDriver session that was created successfully but whose
+     * post-creation setup then failed. Grid nodes otherwise pin a slot for the leaked session until
+     * SE_NODE_SESSION_TIMEOUT elapses (issue #3811), so it must be quit even though the caller never
+     * received the driver. Any exception raised while quitting is attached to the original failure via
+     * {@code addSuppressed} and swallowed here -- it must never replace or mask the original failure
+     * that triggered this cleanup (same pattern as the failure-screenshot path fixed in #3795).
+     *
+     * @param driver          the driver instance to quit; a no-op if {@code null}
+     * @param originalFailure the failure that triggered this cleanup; the quit failure (if any) is
+     *                        recorded on it via {@code addSuppressed}
+     */
+    private static void quitLeakedRemoteDriverBestEffort(WebDriver driver, Throwable originalFailure) {
+        if (driver == null) {
+            return;
+        }
+        try {
+            driver.quit();
+        } catch (Throwable quitFailure) {
+            if (originalFailure != null) {
+                originalFailure.addSuppressed(quitFailure);
+            }
+            ReportManagerHelper.logDiscrete(quitFailure, Level.DEBUG);
+        }
     }
 
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
@@ -632,8 +664,15 @@ public class DriverFactoryHelper {
             else if (isWindowsAppiumExecution(capabilities)) return new WindowsDriver(targetExecutionUrlObject, capabilities);
             else {
                 var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
-                driver.setFileDetector(new LocalFileDetector());
-                return augmentRemoteWebDriver(driver, SHAFT.Properties.web.targetBrowserName().toLowerCase(), SHAFT.Properties.platform.enableBiDi());
+                try {
+                    driver.setFileDetector(new LocalFileDetector());
+                    return augmentRemoteWebDriver(driver, SHAFT.Properties.web.targetBrowserName().toLowerCase(), SHAFT.Properties.platform.enableBiDi());
+                } catch (Throwable postCreationFailure) {
+                    // the live RemoteWebDriver session was already created against the grid; quit it
+                    // before rethrowing so a post-creation failure doesn't leak a pinned grid slot (#3811)
+                    quitLeakedRemoteDriverBestEffort(driver, postCreationFailure);
+                    throw postCreationFailure;
+                }
             }
         } catch (Throwable throwable) {
             ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
@@ -1153,6 +1192,14 @@ public class DriverFactoryHelper {
             ReportManager.logDiscrete("Remote WebDriver session was created.");
             ReportManager.logDiscrete("Remote WebDriver session creation completed in " + (System.currentTimeMillis() - remoteCreationStart) + "ms.");
         } catch (Throwable throwable) {
+            // the remote session may already have been created (setDriver(...) above succeeded) before
+            // this later post-creation setup step failed; quit it so the failure doesn't leak a pinned
+            // grid slot for up to SE_NODE_SESSION_TIMEOUT (#3811). No-op if creation itself never
+            // succeeded (driver is still null/unset at this point).
+            if (driver != null) {
+                quitLeakedRemoteDriverBestEffort(driver, throwable);
+                setDriver(null);
+            }
             //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
             //this happens when the URL has an unsupported format
             Throwable throwable1 = throwable;
