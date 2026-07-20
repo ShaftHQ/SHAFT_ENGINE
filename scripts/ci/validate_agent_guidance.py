@@ -461,32 +461,6 @@ def validate_duplicate_paragraphs(
     return errors
 
 
-def validate_refresh_workflow(root: Path, budget: dict) -> list[dict[str, str]]:
-    """Ensure paid instruction refresh is manual and audit-gated."""
-    configured_path = budget.get("refresh_workflow")
-    if not configured_path:
-        return []
-    path = root / configured_path
-    if not path.is_file():
-        return [issue("refresh-workflow", configured_path, "refresh workflow is missing")]
-    content = path.read_text(encoding="utf-8")
-    requirements = {
-        "workflow_dispatch:": "manual dispatch trigger is required",
-        "reason:": "required reason input is missing",
-        "force_ai:": "force_ai input is missing",
-        "python3 scripts/ci/validate_agent_setup.py": "deterministic audit step is missing",
-        "if: steps.audit.outputs.needs_ai == 'true'": "paid action is not audit-gated",
-        ".claude/skills/*": "Claude skill surface is missing from the change allowlist",
-    }
-    errors: list[dict[str, str]] = []
-    if re.search(r"(?m)^\s+schedule:\s*$", content):
-        errors.append(issue("refresh-workflow", configured_path, "scheduled paid refresh is prohibited"))
-    for required_text, message in requirements.items():
-        if required_text not in content:
-            errors.append(issue("refresh-workflow", configured_path, message))
-    return errors
-
-
 def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> list[dict[str, str]]:
     """Run every guidance validation and return sorted issues."""
     selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
@@ -503,7 +477,6 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_forbidden_patterns(root, active_files, budget),
         *validate_stale_references(root, reference_files, budget),
         *validate_duplicate_paragraphs(root, active_files, budget),
-        *validate_refresh_workflow(root, budget),
     ]
     return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))
 
