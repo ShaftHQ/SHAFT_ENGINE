@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.properties.internal.Properties;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -18,11 +19,13 @@ import java.awt.HeadlessException;
 import java.io.File;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyMap;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +92,21 @@ public class BrowserActionsHelperCoverageUnitTest {
                 () -> helper.failAction(driver, "customAction", "forced"));
         Assert.assertThrows(RuntimeException.class,
                 () -> helper.failAction(driver, "customAction", "forced", new RuntimeException("forced")));
+    }
+
+    @Test
+    public void shouldReportBrowserActionsHelperClassOnFailAction() {
+        try (MockedStatic<FailureReporter> failureReporter = mockStatic(FailureReporter.class)) {
+            failureReporter.when(() -> FailureReporter.fail(any(), anyString(), any(Throwable.class)))
+                    .thenAnswer(invocation -> {
+                        throw new RuntimeException(invocation.getArgument(1), invocation.getArgument(2));
+                    });
+
+            Assert.assertThrows(RuntimeException.class,
+                    () -> helper.failAction(driver, "customAction", "forced", new RuntimeException("root")));
+
+            failureReporter.verify(() -> FailureReporter.fail(eq(BrowserActionsHelper.class), anyString(), any(Throwable.class)));
+        }
     }
 
     @Test

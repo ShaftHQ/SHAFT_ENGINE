@@ -2,7 +2,6 @@ package com.shaft.gui.browser.internal;
 
 import com.shaft.tools.io.internal.CheckpointStatus;
 import com.google.common.net.InternetDomainName;
-import com.shaft.db.DatabaseActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -170,7 +169,7 @@ public class BrowserActionsHelper {
                            Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length > 0) {
-            FailureReporter.fail(DatabaseActions.class, message, rootCauseException[0]);
+            FailureReporter.fail(BrowserActionsHelper.class, message, rootCauseException[0]);
         } else {
             FailureReporter.fail(message);
         }
