@@ -1,0 +1,1 @@
+During the 07-19 nightly forensics, job logs for runs from 07-13/07-15 returned HTTP 410 Gone; only run metadata survives. Pull and archive logs (gh run view --log > file) the same day an incident is noticed, or the evidence window closes and you are left inferring from commit timestamps.

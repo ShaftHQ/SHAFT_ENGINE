@@ -397,3 +397,9 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle","timestamp":"2026-07-19T22:15:10+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.refactors-have-silently-dropped-deliberate-exception-handling-branches-before-diff-catch-clauses-against-the-original-bugfix-commit","timestamp":"2026-07-20T00:12:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.selenium-additionalhttpcommands-merge-is-not-browser-scoped-remote-edge-executecdpcommand-hits-chromes-goog-cdp-execute","timestamp":"2026-07-20T00:12:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.github-actions-job-logs-expire-after-roughly-5-6-days-http-410","timestamp":"2026-07-20T03:48:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.local-e2e-job-logs-contain-null-bytes-that-make-ripgrep-silently-truncate","timestamp":"2026-07-20T03:48:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.testng-retry-semantics-suppressed-attempts-fire-ontestskipped-with-wasretried-true","timestamp":"2026-07-20T03:48:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shafthq-github-io-default-branch-is-master-not-main","timestamp":"2026-07-20T03:48:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-07-20T03:48:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.sikulix-2-0-5-native-manifest-is-stale-versus-openpnp-opencv-4-9-0-0","timestamp":"2026-07-20T03:48:27+03:00"}

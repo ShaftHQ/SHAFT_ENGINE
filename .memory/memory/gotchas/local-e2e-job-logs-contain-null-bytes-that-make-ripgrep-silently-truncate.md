@@ -1,0 +1,1 @@
+Downloaded Local E2E (Windows) job logs embed NUL bytes; ripgrep switches to binary mode and silently truncates matches. Clean first with tr -d (NUL) before grepping. Source of the null bytes still unidentified (issue #3807 part 1 remains open).
