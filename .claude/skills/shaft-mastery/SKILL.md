@@ -1,16 +1,11 @@
 ---
 name: shaft-mastery
 description: >
-  Ten distilled expert domains for working on SHAFT_ENGINE (Java test-automation
-  framework). Load the ONE matching chapter from references/ before deep work on:
-  Selenium/WebDriver BiDi or the recorder (selenium-bidi), Allure report internals
-  (allure-internals), Appium/mobile toolchains (appium-mobile), Maven Central
-  release engineering (maven-release), TestNG/JUnit listeners and forked-JVM
-  properties (testng-lifecycle), IntelliJ Platform plugin dev (intellij-plugin),
-  MCP protocol engineering (mcp-protocol), GitHub Actions CI forensics
-  (ci-forensics), flaky-test stabilization and wait strategies (wait-strategies),
-  or locator design and self-healing (locator-healing). Read only the chapter you
-  need; each is self-contained and grounded in real SHAFT incidents.
+  Ten expert chapters for deep SHAFT_ENGINE work. Load the ONE matching
+  references/ chapter before deep work on: selenium-bidi, allure-internals,
+  appium-mobile, maven-release, testng-lifecycle, intellij-plugin,
+  mcp-protocol, ci-forensics, wait-strategies, locator-healing. Each is
+  self-contained and grounded in real SHAFT incidents.
 ---
 
 # SHAFT Mastery

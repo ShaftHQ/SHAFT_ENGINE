@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 MANIFEST = ("CLAUDE.md", "settings.json", "statusline-command.sh")
+AGENTS_DIR = "agents"
 
 
 def repo_root() -> Path:
@@ -28,14 +29,16 @@ def main() -> int:
     dst_dir = user_claude_dir()
 
     sources = {name: src_dir / name for name in MANIFEST}
+    # Agent charters deploy globally so every chat gets Chaos Engine + L1 agents.
+    for agent in sorted((repo_root() / ".claude" / "agents").glob("*.md")):
+        sources[f"{AGENTS_DIR}/{agent.name}"] = agent
     missing_sources = [str(p) for p in sources.values() if not p.is_file()]
     if missing_sources:
         print("ERROR: manifest source file(s) missing: " + ", ".join(missing_sources))
         return 2
 
     all_in_sync = True
-    for name in MANIFEST:
-        src = sources[name]
+    for name, src in sources.items():
         dst = dst_dir / name
         src_bytes = src.read_bytes()
 

@@ -2,7 +2,7 @@
 
 ## Repository
 
-ChaosEngine, by Mohab Mohie. SHAFT_ENGINE is a Maven Java automation framework; config wins. Core `shaft-engine/`; optional `shaft-*`; tools `scripts/ci/`. Start at goal/files; prefer `rg`.
+ChaosEngine, by Mohab Mohie. SHAFT_ENGINE is a Maven Java automation framework; config wins. Core `shaft-engine/`; optional `shaft-*`; tools `scripts/ci/`. Start at goal/files.
 
 ## Routing
 
@@ -22,23 +22,23 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
-- Blockers/small issues in path: fix inline. Anything else out-of-scope (enhancement, missing feature, degraded health metric, followup) -- never silently drop or just chat it: interactive -> ask now-vs-issue; noninteractive -> always `gh issue create` same session (search first, consolidate). Don't hunt for extras.
+- Blockers in path: fix inline. Any other out-of-scope finding -- never drop or just chat it: interactive -> ask now-vs-issue; noninteractive -> `gh issue create` same session (search first, consolidate). Don't hunt for extras.
 
 ## Windows/Codex Safety
 
-No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT.Properties.allure; defaults `true` -- opens the report in a browser post-run; not `allure.open`, the Allure-3-CLI flag, already `false`) + GUI-off Lighthouse `-D...=false`.
+No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT prop, defaults `true` -- auto-opens browser; not Allure-3-CLI `allure.open`) + GUI-off Lighthouse `-D...=false`.
 
 ## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search` for retrieval. Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Retrieve: `memory load "<task>"`/`memory search`. Save durable decisions/gotchas/corrections with evidence; reuse IDs; no duplicates/diaries.
 
 Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> file it now (Working Rules). Nothing durable is a valid outcome -- say so.
 
-User harness (`~/.claude`) deploys from canonical `.claude/user-harness/` via `py -3 scripts/agents/sync_user_harness.py` (`--check`/`--apply`). Secrets live only in `~/.claude`, never in the repo.
+User harness (`~/.claude`, incl. `agents/`) deploys from canonical `.claude/user-harness/` + `.claude/agents/` via `py -3 scripts/agents/sync_user_harness.py` (`--check`/`--apply`). Secrets live only in `~/.claude`, never in the repo.
 
 ## Validation
 
-Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or disposable copy. Use the smallest non-redundant check; rerun only after edits/rebases/dependency changes.
+Before forked Maven/Surefire/TestNG runs, load gotchas; if delete gotcha active, avoid `mvn test` -- compile/test-compile, static checks, or disposable copy. Smallest non-redundant check; rerun only after edits/rebases/deps.
 
 - Guidance/memory: `py -3`/`python3 scripts/ci/validate_agent_setup.py`
 - Local code: affected tests, then one compile/package.
@@ -58,13 +58,13 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - Docs/report web UI: `frontend-design` -> implement -> shaft-mcp browser evidence (screenshots + `browser_accessibility_audit`). Perf/network regressions: shaft-mcp `browser_network_requests`.
 - Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree facts: just `rg` the pom; Docker down -- never start it: `curl` search.maven.org) -> `ci-failure-investigator` on breakage.
 - `context7`: past-cutoff library APIs only, else repo exemplars.
-- Context/history/relationships: `mempalace`/`graphify` first, not grep; `rg` still for live code verification (mempalace/graphify can be stale).
+- Discovery: `memory`/`mempalace`/`graphify` before any manual search -- never grep for what a store knows; `rg` only to verify live code (stores can be stale).
 - Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
-- Repo `.claude/skills/`: `act-as-fable` methodology (binding: always, every model, every subagent; owns skill-routing triggers + delegation tiers); `shaft-mastery`/`ponytail`/`caveman`/`test-driven-development`/`graphify`/`work-github`.
+- Repo `.claude/skills/`: `act-as-fable` binds always (every model/subagent; owns routing, tiers, and the always-on `caveman` voice); `ponytail` binds every implementation decision; `shaft-mastery`/`test-driven-development`/`graphify`/`work-github` by trigger.
 
 ## Agent Hierarchy & Model Routing
 
-Orchestrator owns the main thread, never implements: breaks down/assigns/reviews, decides architecture on consult, checks tasks >20 min, always accepts owner realignment. L1 Sonnet implements (act-as-fable + TDD); may sub-delegate mechanical/bulk to L2 Haiku. All agents HIGH effort. Synthesis + final verification on main thread; act-as-fable owns tiers/covenant/second pass. No Workflow tool or saved workflows (`.claude/workflows/` stays deleted). PDCA personas are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook looping + Maven fork gotchas -> Windows runaways).
+Chaos Engine (`.claude/agents/chaos-engine.md`) is the main-thread orchestrator of every chat: Fable@high effort, else Sonnet@max. Never implements: breaks down/assigns/reviews, decides architecture on consult, checks tasks >20 min, accepts owner realignment. Delegates to `coder`/`reviewer`/`tester` (Sonnet L1; they load act-as-fable + TDD first); L1 may sub-delegate mechanical/bulk to L2 Haiku. All HIGH effort. Synthesis + final verification on main thread; act-as-fable owns tiers/covenant/second pass. Workflow tool/saved workflows only on explicit owner ask (`.claude/workflows/` stays deleted). PDCA personas are phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook loops + Maven forks -> Windows runaways).
 
 ## Completion
 

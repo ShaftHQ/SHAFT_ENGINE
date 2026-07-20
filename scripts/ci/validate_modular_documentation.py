@@ -227,7 +227,7 @@ def main() -> None:
         for name in ("api.yml", "web.yml")
     }
     for name, workflow in example_workflows.items():
-        if "actions/checkout@v6" not in workflow:
+        if "actions/checkout@v7" not in workflow:
             fail(f"{name}: use the current checkout action")
         if "Set up JDK 25" not in workflow or "java-version: '25'" not in workflow:
             fail(f"{name}: use the repository JDK 25 baseline")

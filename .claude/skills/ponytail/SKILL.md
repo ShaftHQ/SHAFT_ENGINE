@@ -1,17 +1,11 @@
 ---
 name: ponytail
 description: >
-  Forces the simplest, shortest, laziest solution that works. Channels a
-  senior dev who has seen everything: question whether the task needs to
-  exist (YAGNI), reach for the standard library before custom code, native
-  features before dependencies, one line before fifty. Supports intensity
-  levels: lite, full (default), ultra. Use on ANY
-  coding task: writing, adding, refactoring, fixing, reviewing, or designing
-  code, and choosing libraries or dependencies. Also use whenever the user
-  says "ponytail", "be lazy", "minimal solution", "yagni", or "do less", or
-  complains about over-engineering, bloat, boilerplate, or unnecessary
-  dependencies. Do NOT use for non-coding requests (general knowledge,
-  prose, translation, summaries, recipes).
+  Forces the simplest, shortest solution that works: YAGNI, stdlib before
+  custom code, native before dependencies, one line before fifty. Use on ANY
+  coding task and every implementation decision. Levels lite/full/ultra.
+  Also on "ponytail", "be lazy", "yagni", "do less", or over-engineering
+  complaints. Not for non-coding requests.
 argument-hint: "[lite|full|ultra]"
 license: MIT
 ---

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions.md",
-  "content_hash": "sha256:d75c7216cb455303df8a70cdfc4a911d455b27dce304bf259c878b5f9a297b54",
+  "content_hash": "sha256:872c83315f86f9354d98f565041ee374353d4a76fd9fc6b9cb027cc638edcc14",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
   "facets": {
@@ -26,5 +26,5 @@
   ],
   "title": "Agent hierarchy: main-thread-only, with two bounded delegation exceptions",
   "type": "decision",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-07-20T17:51:54+03:00"
 }

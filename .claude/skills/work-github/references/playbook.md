@@ -103,8 +103,8 @@ For each item, decide dispatch shape:
   fix live alongside an existing persistence contract without breaking it").
   Per this repo's Agent Hierarchy, that judgment call belongs to the main
   thread, not a subagent guessing at a spec you haven't written yet.
-- **Delegate to a Sonnet subagent** once you can write a *detailed, concrete*
-  spec: exact files, exact method/field names verified against the real
+- **Delegate to a Sonnet L1 agent** (`coder`; `reviewer`/`tester` for their
+  lanes) once you can write a *detailed, concrete* spec: exact files, exact method/field names verified against the real
   code, the precedent pattern to follow (with a real file:line reference),
   what's explicitly out of scope, what tests to add and where, and the exact
   validation command to run. A vague spec produces a vague implementation —
