@@ -31,6 +31,12 @@
 /shaft-visual/generate_allure_report.bat
 /shaft-visual/src/main/resources/properties/
 /shaft-visual/src/test/resources/META-INF/services/
+# SHAFT regenerates the default property set into each module's resources at
+# runtime; only the hand-authored custom.properties (already tracked) belongs
+# in git, same as shaft-engine/shaft-heal/shaft-visual above (#3856).
+/shaft-ai/src/main/resources/properties/
+/shaft-doctor/src/main/resources/properties/
+/shaft-pilot-core/src/main/resources/properties/
 /allure-report/
 /allure-report-check/
 /allurerc.yaml
