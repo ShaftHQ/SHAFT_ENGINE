@@ -68,7 +68,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -213,7 +213,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -249,7 +249,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -285,7 +285,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -624,7 +624,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures" "-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber" "-Dcucumber.plugin=pretty,json:allure-results/cucumber.json,html:allure-results/cucumberReport.html,com.shaft.listeners.CucumberTestRunnerListener" "-Dtest=%regex[.*(CucumberTests|CucumberFeatureListenerUnitTest|CucumberTestRunnerListenerUnitTest).*]"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures" "-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber" "-Dcucumber.plugin=pretty,json:allure-results/cucumber.json,html:allure-results/cucumberReport.html,com.shaft.listeners.CucumberTestRunnerListener" "-Dtest=%regex[.*(CucumberTests|CucumberFeatureListenerUnitTest|CucumberTestRunnerListenerUnitTest).*]"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -685,7 +685,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -789,6 +789,10 @@ jobs:
             "-DtargetBrowserName=chrome" \
             "-DheadlessExecution=true" \
             "-DremoteServerInstanceCreationTimeout=10" \
+            "-DremotePreflightEnabled=true" \
+            "-DremoteAdaptiveSessionThrottling=true" \
+            "-DremotePreflightFailFast=true" \
+            "-DremoteServerConnectionAttemptTimeout=15" \
             "-DgenerateAllureReportArchive=true" \
             "-Dallure.automaticallyOpen=false" \
             "-Dallure.open=false" \

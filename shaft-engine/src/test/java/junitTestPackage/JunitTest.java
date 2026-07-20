@@ -68,6 +68,8 @@ public class JunitTest {
 
     @AfterEach
     void afterEach() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
     }
 }
