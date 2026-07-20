@@ -444,11 +444,16 @@ public class OptionsManager {
             chromePreferences.put("profile.password_manager_enabled", false);
             chromePreferences.put("profile.password_manager_leak_detection", false);
             chromePreferences.put("profile.default_content_settings.popups", 0);
-            options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
             options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-            options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
             options.setCapability(CapabilityType.ENABLE_DOWNLOADS, true);
         }
+        // Unconditionally match Firefox/Safari: without this, modern Chromium's default
+        // "dismiss and notify" unhandledPromptBehavior auto-dismisses JS alert/confirm/prompt
+        // dialogs as a side effect of the command that opened them (e.g. the click that calls
+        // window.alert()), so AlertActions' subsequent switchTo().alert() finds nothing and
+        // throws NoAlertPresentException (SHAFT_ENGINE#3820).
+        options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.IGNORE);
         options.setExperimentalOption("prefs", chromePreferences);
         // Timeouts and page load strategy
         if (DriverFactoryHelper.isNotMobileExecution())
