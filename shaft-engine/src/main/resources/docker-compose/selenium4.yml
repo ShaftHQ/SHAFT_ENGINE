@@ -24,7 +24,7 @@
 # See https://github.com/SeleniumHQ/docker-selenium#grid-url-and-session-timeout
 services:
   chrome:
-    image: selenium/node-chrome:4.45.0-20260606
+    image: selenium/node-chrome:4.46.0-20260707
     shm_size: 2gb
     depends_on:
       selenium-hub:
@@ -39,7 +39,7 @@ services:
       - SE_RECORD_VIDEO=true
 
   edge:
-    image: selenium/node-edge:4.45.0-20260606
+    image: selenium/node-edge:4.46.0-20260707
     shm_size: 2gb
     depends_on:
       selenium-hub:
@@ -54,7 +54,7 @@ services:
       - SE_RECORD_VIDEO=true
 
   firefox:
-    image: selenium/node-firefox:4.45.0-20260606
+    image: selenium/node-firefox:4.46.0-20260707
     shm_size: 2gb
     depends_on:
       selenium-hub:
@@ -69,7 +69,7 @@ services:
       - SE_RECORD_VIDEO=true
 
   selenium-hub:
-    image: selenium/hub:4.45.0-20260606
+    image: selenium/hub:4.46.0-20260707
     container_name: selenium-hub
     ports:
       - "4442:4442"
