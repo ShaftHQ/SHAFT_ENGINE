@@ -113,8 +113,40 @@ class ManagedCaptureRecorderBrowserTest {
         assertTrue(eventTypes.contains(CaptureEvent.ToggleEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.UploadEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.FrameEvent.class));
-        assertTrue(eventTypes.contains(CaptureEvent.WindowEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.AlertEvent.class));
+
+        // Regression for issue #3816: `eventTypes.contains(WindowEvent.class)` alone let a phantom
+        // SWITCH slip through undetected, since any legitimate window event already satisfied it.
+        // This journey's window-event shape is deterministic: one OPEN_TAB for the original tab plus
+        // one OPEN_TAB/CLOSE pair for the real popup, and exactly one SWITCH into the same-origin
+        // iframe and one back out of it (BiDi reports a same-origin iframe's own browsing-context id
+        // as its script-channel message source, which the pipeline treats as a distinct logical
+        // window -- a legitimate, pre-existing quirk unrelated to #3803/#3815). A mis-resolved
+        // loopback signal minting a bogus extra logical window would surface as an extra SWITCH here.
+        List<CaptureEvent.WindowEvent> windowEvents = session.events().stream()
+                .filter(CaptureEvent.WindowEvent.class::isInstance)
+                .map(CaptureEvent.WindowEvent.class::cast)
+                .toList();
+        assertEquals(2, windowEvents.stream()
+                        .filter(event -> event.action() == CaptureEvent.WindowAction.SWITCH)
+                        .count(),
+                "Exactly two SWITCH events are expected (into and out of the iframe); a phantom "
+                        + "SWITCH means a signal was attributed to the wrong logical window: " + windowEvents);
+        assertEquals(2, windowEvents.stream()
+                        .filter(event -> event.action() == CaptureEvent.WindowAction.OPEN_TAB)
+                        .count(),
+                "Exactly two OPEN_TAB events are expected (the original tab and the real popup): "
+                        + windowEvents);
+        assertEquals(1, windowEvents.stream()
+                        .filter(event -> event.action() == CaptureEvent.WindowAction.CLOSE)
+                        .count(),
+                "Exactly one CLOSE event is expected (the real popup being closed): " + windowEvents);
+        Set<String> distinctWindows = windowEvents.stream()
+                .map(CaptureEvent.WindowEvent::logicalWindowId)
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(3, distinctWindows.size(),
+                "Expected exactly 3 logical windows (the original tab, the iframe's own BiDi "
+                        + "context, and the real popup); an extra one is a phantom window: " + distinctWindows);
 
         // Regression for issue #3393: a native double-click used to fire click(detail 1),
         // click(detail 2), and dblclick, each emitting its own ClickEvent -- one user gesture
@@ -146,6 +178,100 @@ class ManagedCaptureRecorderBrowserTest {
                 assertTrue(entries.findAny().isEmpty());
             }
         }
+    }
+
+    /**
+     * Regression for issue #3803 (fixed by PR #3815, promoted here by #3816): every signal from a
+     * BiDi-preload-installed recorder is delivered through two racing channels -- the BiDi script
+     * channel (which reports the tab's real browsing-context id) and {@code BrowserEventSink}'s
+     * loopback HTTP sink (which can only ever stamp the {@code "loopback"} sentinel, since page JS
+     * has no visibility into its own BiDi context id) -- and whichever arrives first at
+     * {@code CaptureEventPipeline.accept} is the one that gets recorded. An interaction signalled
+     * well after page load -- a self-driving demo login that types via {@code setTimeout}, exactly
+     * like the Guided Workflows Live E2E scenario -- is the kind of delayed signal observed racing
+     * loopback ahead of BiDi in production. Pre-#3815, a loopback win minted a phantom second
+     * logical window and a SWITCH that {@code CaptureGenerator} then rejected as a window never
+     * opened; post-fix the sentinel resolves back to the tab's one real BiDi context regardless of
+     * which channel wins, which this drives end to end against the real dual-channel delivery
+     * rather than constructing signals directly (see {@code CaptureEventPipelineTest}'s
+     * {@code asyncTypedInteractionDeliveredThroughLoopbackSinkStaysInTheSameLogicalWindow} for that
+     * lower-level proof).
+     *
+     * <p><b>Single-tab only, by design.</b> This pins today's intended single-tab behavior --
+     * exactly one logical window, zero WindowEvents. It deliberately does not cover the residual
+     * multi-tab limitation documented on {@code CaptureEventPipeline.resolveBrowsingContextId()}:
+     * in a multi-tab session, a loopback signal from an older tab that wins its race after a newer
+     * tab's context has become "current" is misattributed to the wrong tab for the race window's
+     * duration. That is inherent -- the sentinel carries no tab identity of its own, since page JS
+     * cannot see its own BiDi browsing-context id -- and is out of scope for this test; see issue
+     * #3816.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void asyncTypedLoginStaysInSingleLogicalWindowAcrossLoopbackRace(
+            String browserName, @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-async-login.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/async-login",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-async-login-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("username")));
+
+            // The fixture page's own script types both fields via setTimeout ~2.5s and ~2.9s after
+            // load -- the same async-typed condition reported in #3803 -- so this exercises the
+            // real loopback-vs-BiDi delivery race end to end instead of constructing signals.
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Username")));
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Password")));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+        List<CaptureEvent.TypeEvent> typed = session.events().stream()
+                .filter(CaptureEvent.TypeEvent.class::isInstance)
+                .map(CaptureEvent.TypeEvent.class::cast)
+                .toList();
+        assertEquals(2, typed.size(), "Both async-typed fields must be recorded exactly once: " + typed);
+
+        // This is a genuine single-tab session -- no window was ever opened besides the original
+        // tab -- so the only WindowEvent may be the initial OPEN_TAB for that one tab; a SWITCH or a
+        // second OPEN_TAB here is a phantom window from a loopback signal that was not resolved back
+        // to the real BiDi context, regardless of which delivery channel won the race for the
+        // delayed typed signals.
+        List<CaptureEvent.WindowEvent> windowEvents = session.events().stream()
+                .filter(CaptureEvent.WindowEvent.class::isInstance)
+                .map(CaptureEvent.WindowEvent.class::cast)
+                .toList();
+        assertEquals(List.of(CaptureEvent.WindowAction.OPEN_TAB), windowEvents.stream()
+                        .map(CaptureEvent.WindowEvent::action)
+                        .toList(),
+                "A single-tab async-typed session must emit exactly one WindowEvent -- the initial "
+                        + "OPEN_TAB -- and never a SWITCH: " + windowEvents);
+
+        // Every event -- including whichever ones the loopback channel may have delivered -- must
+        // share one logical window: proof that a loopback win (if it happened for either field in
+        // this run) resolved to the same window as the BiDi-delivered signals instead of minting a
+        // second one.
+        Set<String> logicalWindows = session.events().stream()
+                .map(event -> event.context().page().logicalWindowId())
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(Set.of("window-1"), logicalWindows,
+                "Every event in this single-tab async-typed session must share logical window "
+                        + "'window-1': " + logicalWindows);
     }
 
     /**
@@ -1361,6 +1487,30 @@ class ManagedCaptureRecorderBrowserTest {
                 "<!doctype html><title>Nav A</title><a id=\"to-b\" href=\"/nav-b\">Go to B</a>"));
         server.createContext("/nav-b", exchange -> respond(exchange,
                 "<!doctype html><title>Nav B</title><p id=\"nav-b-page\">B</p>"));
+        // Self-driving demo login (Guided Workflows Live style): types both fields via setTimeout
+        // well after page load, reproducing the async-typed interaction that raced
+        // BrowserEventSink's loopback HTTP sink against the BiDi script channel in issue #3803.
+        server.createContext("/async-login", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Async Login Fixture</title></head>
+                <body>
+                  <label>Username <input id="username" name="username"></label>
+                  <label>Password <input id="password" name="password" type="password"></label>
+                  <script>
+                    function typeInto(id, value) {
+                      const el = document.getElementById(id);
+                      el.focus();
+                      el.value = value;
+                      el.dispatchEvent(new Event("input", {bubbles: true}));
+                      el.dispatchEvent(new Event("change", {bubbles: true}));
+                    }
+                    setTimeout(() => typeInto("username", "demo.user"), 2500);
+                    setTimeout(() => typeInto("password", "demo.pass"), 2900);
+                  </script>
+                </body>
+                </html>
+                """));
         server.start();
         return server;
     }
