@@ -17,7 +17,9 @@ public class JunitParallelizationTests {
 
     @AfterEach
     void tearDown() {
-        driver.quit();
+        if (driver != null) {
+            driver.quit();
+        }
     }
 
     @RepeatedTest(20)
