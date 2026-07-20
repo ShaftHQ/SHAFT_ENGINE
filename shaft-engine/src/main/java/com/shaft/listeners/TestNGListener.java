@@ -482,10 +482,17 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestSkipped(ITestResult testResult) {
         skippedTests.add(testResult.getMethod());
-        String throwableMessage = testResult.getThrowable() != null ? testResult.getThrowable().getMessage() : "";
-        ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
-                testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
-                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
+        // TestNG's TestInvoker forces the status to SKIP (and sets wasRetried=true) for every failed
+        // attempt that RetryAnalyzer chooses to retry; only the terminal attempt keeps its real
+        // FAILURE/SUCCESS status and fires onTestFailure/onTestSuccess. Recording a report row for
+        // one of these retry-suppressed attempts is what makes deterministic failures render as a
+        // misleading multi-run PASS/PASS/failure shape (#3810) instead of a single final outcome.
+        if (!testResult.wasRetried()) {
+            String throwableMessage = testResult.getThrowable() != null ? testResult.getThrowable().getMessage() : "";
+            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
+                    testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
+                    ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
+        }
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
     }
 }

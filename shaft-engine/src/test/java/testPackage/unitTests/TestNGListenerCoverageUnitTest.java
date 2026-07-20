@@ -9,6 +9,7 @@ import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.mockito.MockedStatic;
@@ -286,6 +287,122 @@ public class TestNGListenerCoverageUnitTest {
         } finally {
             restoreTrackedResultState(originalState);
             setReportPortalEnabled(false);
+        }
+    }
+
+    @Test
+    public void onTestSkippedShouldNotRecordExecutionSummaryRowForRetrySuppressedAttempt() throws Exception {
+        // TestNG's TestInvoker forces the ITestResult status to SKIP (and sets wasRetried=true)
+        // for every failed attempt that will be retried (see TestInvoker#handleInvocationResult).
+        // Only the terminal attempt keeps its real FAILURE/SUCCESS status. Reporting a row here
+        // for a retry-suppressed attempt is exactly the "retry-inflated" duplicate-entry bug from #3810.
+        TestNGListener listener = new TestNGListener();
+        ITestResult retrySuppressedAttempt = createTestResult("deterministicFailure", new RuntimeException("boom"));
+        Mockito.when(retrySuppressedAttempt.wasRetried()).thenReturn(true);
+        TrackedResultState originalState = captureTrackedResultState();
+        try (MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestSkipped(retrySuppressedAttempt);
+
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString()), Mockito.never());
+        } finally {
+            restoreTrackedResultState(originalState);
+        }
+    }
+
+    @Test
+    public void onTestSkippedShouldRecordExecutionSummaryRowForGenuineSkip() throws Exception {
+        TestNGListener listener = new TestNGListener();
+        ITestResult genuineSkip = createTestResult("skippedDueToDependency", null);
+        Mockito.when(genuineSkip.wasRetried()).thenReturn(false);
+        TrackedResultState originalState = captureTrackedResultState();
+        try (MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestSkipped(genuineSkip);
+
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.eq(ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name()),
+                    Mockito.anyString()), Mockito.times(1));
+        } finally {
+            restoreTrackedResultState(originalState);
+        }
+    }
+
+    @Test
+    public void deterministicFailureWithRetriesShouldRecordExactlyOneExecutionSummaryRowForFinalFailure() throws Exception {
+        // Reproduces #3810: retryMaximumNumberOfAttempts=2 against a test that fails identically
+        // every attempt. TestNG invokes the method 3 times total; the first 2 failures are coerced
+        // to SKIP+wasRetried=true by TestInvoker, only the 3rd (final) attempt keeps FAILURE status.
+        TestNGListener listener = new TestNGListener();
+        RuntimeException deterministicFailure = new RuntimeException("assertion failed: 2 != 3");
+        ITestResult retryAttempt1 = createTestResult("deterministicFailure", deterministicFailure);
+        Mockito.when(retryAttempt1.wasRetried()).thenReturn(true);
+        ITestResult retryAttempt2 = createTestResult("deterministicFailure", deterministicFailure);
+        Mockito.when(retryAttempt2.wasRetried()).thenReturn(true);
+        ITestResult finalAttempt = createTestResult("deterministicFailure", deterministicFailure);
+        Mockito.when(finalAttempt.wasRetried()).thenReturn(false);
+        TrackedResultState originalState = captureTrackedResultState();
+
+        try (MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestSkipped(retryAttempt1);
+            listener.onTestSkipped(retryAttempt2);
+            listener.onTestFailure(finalAttempt);
+
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString()), Mockito.times(1));
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.eq(ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name()),
+                    Mockito.anyString()), Mockito.times(1));
+        } finally {
+            restoreTrackedResultState(originalState);
+        }
+    }
+
+    @Test
+    public void retriedThenPassedShouldRecordExactlyOneExecutionSummaryRowForFinalPass() throws Exception {
+        TestNGListener listener = new TestNGListener();
+        ITestResult retryAttempt = createTestResult("flakyThenPassed", new RuntimeException("transient"));
+        Mockito.when(retryAttempt.wasRetried()).thenReturn(true);
+        ITestResult finalPass = createTestResult("flakyThenPassed", null);
+        TrackedResultState originalState = captureTrackedResultState();
+
+        try (MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestSkipped(retryAttempt);
+            listener.onTestSuccess(finalPass);
+
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.eq(ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name()),
+                    Mockito.anyString()), Mockito.times(1));
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString()), Mockito.times(1));
+        } finally {
+            restoreTrackedResultState(originalState);
+        }
+    }
+
+    @Test
+    public void distinctDataProviderInvocationsShouldEachRecordTheirOwnExecutionSummaryRow() throws Exception {
+        // Guards against the rejected fix's collapse bug: a Set<ITestNGMethod> guard would treat every
+        // data-provider invocation of the same method (same ITestNGMethod reference) as a duplicate.
+        TestNGListener listener = new TestNGListener();
+        ITestResult invocationOne = createTestResult("dataDrivenTest", null);
+        ITestResult invocationTwo = createTestResult("dataDrivenTest", null);
+        TrackedResultState originalState = captureTrackedResultState();
+
+        try (MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestSuccess(invocationOne);
+            listener.onTestSuccess(invocationTwo);
+
+            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.casesDetailsIncrement(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString()), Mockito.times(2));
+        } finally {
+            restoreTrackedResultState(originalState);
         }
     }
 
