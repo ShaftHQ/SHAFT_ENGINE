@@ -207,8 +207,8 @@ public class ValidationsHelper {
                                              boolean richEvidenceAlreadyAttached) {
         var validationsHelper = new ValidationsHelper(validationCategory);
         validationsHelper.validationStartTime = validationStartTime;
-        validationsHelper.reportValidationState(validationState, expected, actual, null, null, attachments,
-                false, richEvidenceAlreadyAttached);
+        validationsHelper.reportValidationStateWithRichEvidence(validationState, expected, actual, attachments,
+                richEvidenceAlreadyAttached);
     }
 
     /**
@@ -1050,11 +1050,15 @@ public class ValidationsHelper {
         reportValidationState(validationState, expected, actual, driver, locator, attachments, false);
     }
 
+    /**
+     * Terminal implementation for every WebDriver-affiliated (and driver-less-but-not-rich-evidence)
+     * validation path. This path never carries pre-attached rich evidence — only the driver-less
+     * Playwright entry point does, via {@link #reportValidationStateWithRichEvidence} — so it always
+     * attaches the standard testData/screenshot evidence and the assertion-evidence card (issue
+     * #3840: the rich-evidence flag is intentionally not accepted/forwarded here since it would
+     * always be {@code false} on this path).
+     */
     private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot) {
-        reportValidationState(validationState, expected, actual, driver, locator, attachments, skipDefaultScreenshot, false);
-    }
-
-    private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot, boolean richEvidenceAlreadyAttached) {
         TraceEventRecorder.Event traceEvent = TraceEventRecorder.start(
                 "validation",
                 this.validationCategoryString,
@@ -1064,9 +1068,42 @@ public class ValidationsHelper {
         //initialize attachments object if no attachments were already prepared
         attachments = attachments == null ? new ArrayList<>() : attachments;
 
-        prepareEvidenceAttachments(validationState, expected, actual, driver, locator, skipDefaultScreenshot,
-                richEvidenceAlreadyAttached, attachments);
-        attachEvidenceCardIfNeeded(richEvidenceAlreadyAttached, validationState, expected, actual, attachments);
+        prepareEvidenceAttachments(validationState, expected, actual, driver, locator, skipDefaultScreenshot, attachments);
+        attachEvidenceCard(validationState, expected, actual, attachments);
+
+        finishReportingValidationState(validationState, expected, actual, locator, attachments, traceEvent);
+    }
+
+    /**
+     * Terminal implementation for the driver-less Playwright visual-evidence entry point (issue
+     * #3804 / PR #3823). Unlike the WebDriver-affiliated overload above, this path can be told that
+     * the caller already attached authoritative rich comparison evidence elsewhere (e.g. a
+     * Playwright visual-diff image via {@code Allure.addAttachment}); when {@code
+     * richEvidenceAlreadyAttached} is {@code true}, the generic "Validation Test Data" text and the
+     * "Assertion evidence" card are skipped since they would otherwise redundantly restate an
+     * opaque boolean result. There is no WebDriver on this path, which is why the flag lives here
+     * instead of being threaded through the driver-affiliated overloads (issue #3840).
+     */
+    private void reportValidationStateWithRichEvidence(boolean validationState, Object expected, Object actual,
+                                                        List<List<Object>> attachments, boolean richEvidenceAlreadyAttached) {
+        TraceEventRecorder.Event traceEvent = TraceEventRecorder.start(
+                "validation",
+                this.validationCategoryString,
+                (By) null,
+                null);
+        recordProfiledValidationState(validationState);
+        attachments = attachments == null ? new ArrayList<>() : attachments;
+
+        if (!richEvidenceAlreadyAttached) {
+            prepareTestDataAttachments(expected, actual, attachments);
+            attachEvidenceCard(validationState, expected, actual, attachments);
+        }
+
+        finishReportingValidationState(validationState, expected, actual, null, attachments, traceEvent);
+    }
+
+    private void finishReportingValidationState(boolean validationState, Object expected, Object actual, By locator,
+                                                 List<List<Object>> attachments, TraceEventRecorder.Event traceEvent) {
         attachEvidenceWithProfiling(attachments);
 
         // determine checkpoint type
@@ -1078,17 +1115,16 @@ public class ValidationsHelper {
     }
 
     /**
-     * Prepares the reportable evidence attachments, mutating {@code attachments} in place. When a
-     * WebDriver is present the driver-derived evidence (screenshot/page-snapshot) is always
-     * considered; {@code richEvidenceAlreadyAttached} only gates the plain testData attachments
-     * prepared below when no driver is available.
+     * Prepares the reportable evidence attachments, mutating {@code attachments} in place: the
+     * driver-derived evidence (screenshot/page-snapshot) when a WebDriver is present, otherwise the
+     * plain testData attachments. This overload is only reached from the WebDriver-affiliated
+     * terminal above, which never carries pre-attached rich evidence.
      */
     private void prepareEvidenceAttachments(boolean validationState, Object expected, Object actual, WebDriver driver,
-                                            By locator, boolean skipDefaultScreenshot, boolean richEvidenceAlreadyAttached,
-                                            List<List<Object>> attachments) {
+                                            By locator, boolean skipDefaultScreenshot, List<List<Object>> attachments) {
         if (driver != null) {
             prepareWebDriverAttachments(driver, locator, validationState, skipDefaultScreenshot, attachments);
-        } else if (!richEvidenceAlreadyAttached) {
+        } else {
             prepareTestDataAttachments(expected, actual, attachments);
         }
     }
@@ -1155,14 +1191,12 @@ public class ValidationsHelper {
     // Single primary assertion-evidence card (issue #3502 A+B): one HTML block carrying the
     // redacted expected/actual plus a diff, placed first so it headlines the Allure step. The
     // existing Expected/Actual text attachments stay (dual-write) so consumers that scrape
-    // those names keep working. Skipped when the caller already attached authoritative rich
-    // comparison evidence elsewhere (e.g. a Playwright visual-diff image) — issue #3804: the
-    // card would otherwise redundantly restate a boolean/opaque result.
-    private void attachEvidenceCardIfNeeded(boolean richEvidenceAlreadyAttached, boolean validationState,
-                                            Object expected, Object actual, List<List<Object>> attachments) {
-        if (richEvidenceAlreadyAttached) {
-            return;
-        }
+    // those names keep working. The rich-evidence path (#3804 / #3823) skips calling this
+    // altogether rather than passing a flag in, since it's the only path that can have
+    // authoritative comparison evidence attached elsewhere already — see
+    // reportValidationStateWithRichEvidence.
+    private void attachEvidenceCard(boolean validationState, Object expected, Object actual,
+                                    List<List<Object>> attachments) {
         String evidenceCard = AssertionEvidenceReporter.renderCard(
                 this.validationCategoryString, validationState, expected, actual);
         if (!evidenceCard.isBlank()) {
