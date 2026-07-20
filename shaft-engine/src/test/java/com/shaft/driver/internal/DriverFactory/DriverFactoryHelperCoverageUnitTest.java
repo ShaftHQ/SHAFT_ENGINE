@@ -1013,6 +1013,99 @@ public class DriverFactoryHelperCoverageUnitTest {
     }
 
     @Test
+    public void attemptRemoteServerPingShouldHonorRuntimeOverrideOfTimeoutForRemoteServerToBeUp() throws Exception {
+        // issue #3826: appiumServerInitializationTimeout (backed by timeoutForRemoteServerToBeUp) used to
+        // be cached in a `static final` field seeded once at class-load time, so a runtime
+        // SHAFT.Properties.timeouts.set().timeoutForRemoteServerToBeUp(...) override had no effect:
+        // attemptRemoteServerPing() kept retrying against whatever budget was in scope at class-load
+        // (default 1 minute) instead of the overridden one. An always-500 local server plus a tiny
+        // (0-minute) override proves the override is read live: a fixed implementation gives up almost
+        // immediately, a stale-cache implementation keeps retrying for the class-load-time default and
+        // blows past the bounded wait below.
+        //
+        // Both the hub URL (a ThreadLocal, see TARGET_HUB_URL) and the property override (also
+        // thread-scoped, see ThreadLocalPropertiesManager) must be set on the SAME thread that invokes
+        // attemptRemoteServerPing() -- so both the setup and the invocation run inside one task submitted
+        // to the bounding executor, and the test thread only waits on the Future.
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/wd/hub/status/", exchange -> {
+            byte[] response = "{\"value\":{\"ready\":false}}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(500, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Method attemptRemoteServerPing = DriverFactoryHelper.class.getDeclaredMethod("attemptRemoteServerPing");
+            attemptRemoteServerPing.setAccessible(true);
+
+            Future<Object> pingAttempt = executor.submit(() -> {
+                setTargetHubUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/wd/hub");
+                SHAFT.Properties.timeouts.set().timeoutForRemoteServerToBeUp(0);
+                return attemptRemoteServerPing.invoke(null);
+            });
+            try {
+                pingAttempt.get(5, TimeUnit.SECONDS);
+                org.testng.Assert.fail("Expected attemptRemoteServerPing() to fail against the always-500 server.");
+            } catch (java.util.concurrent.ExecutionException expectedFailureOnceBudgetElapses) {
+                // expected: the server never reports ready, so the ping must fail once the (overridden,
+                // live-read) budget elapses -- proves the override was actually honored.
+            } catch (java.util.concurrent.TimeoutException stillRetrying) {
+                org.testng.Assert.fail("attemptRemoteServerPing() did not honor the runtime override of "
+                        + "timeoutForRemoteServerToBeUp(0): still retrying after 5s, which means it used a "
+                        + "stale class-load-time timeout instead of reading the property live.");
+            }
+        } finally {
+            executor.shutdownNow();
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void attemptRemoteServerConnectionShouldHonorRuntimeOverrideOfRemoteServerInstanceCreationTimeout() throws Exception {
+        // issue #3826: remoteServerInstanceCreationTimeout was cached in a `static final` field seeded once
+        // at class-load time (default 5 minutes), so a runtime
+        // SHAFT.Properties.timeouts.set().remoteServerInstanceCreationTimeout(...) override had no effect on
+        // the remote WebDriver session-creation retry budget. Forcing every RemoteWebDriver construction to
+        // fail with a retryable SessionNotCreatedException plus a tiny (0-minute) override proves the
+        // override is read live, the same way attemptRemoteServerPingShouldHonorRuntimeOverrideOf... proves
+        // it for timeoutForRemoteServerToBeUp above.
+        //
+        // As above: the hub URL, the target platform, and the property override are all thread-scoped, so
+        // they must be set on the same thread that calls attemptRemoteServerConnection().
+        Method attemptRemoteServerConnection = DriverFactoryHelper.class.getDeclaredMethod("attemptRemoteServerConnection", org.openqa.selenium.Capabilities.class);
+        attemptRemoteServerConnection.setAccessible(true);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (MockedConstruction<RemoteWebDriver> ignored = org.mockito.Mockito.mockConstruction(RemoteWebDriver.class,
+                (mock, context) -> {
+                    throw new org.openqa.selenium.SessionNotCreatedException("grid still initializing");
+                })) {
+            Future<Object> connectionAttempt = executor.submit(() -> {
+                SHAFT.Properties.platform.set().targetPlatform("windows");
+                setTargetHubUrl("http://127.0.0.1:4444/wd/hub");
+                SHAFT.Properties.timeouts.set().remoteServerInstanceCreationTimeout(0);
+                return attemptRemoteServerConnection.invoke(null, new ImmutableCapabilities());
+            });
+            try {
+                connectionAttempt.get(5, TimeUnit.SECONDS);
+                org.testng.Assert.fail("Expected attemptRemoteServerConnection() to fail against the always-failing constructor.");
+            } catch (java.util.concurrent.ExecutionException expectedFailureOnceBudgetElapses) {
+                // expected: the constructor always throws a retryable failure, so the connection attempt
+                // must fail once the (overridden, live-read) budget elapses -- proves the override was
+                // actually honored.
+            } catch (java.util.concurrent.TimeoutException stillRetrying) {
+                org.testng.Assert.fail("attemptRemoteServerConnection() did not honor the runtime override of "
+                        + "remoteServerInstanceCreationTimeout(0): still retrying after 5s, which means it "
+                        + "used a stale class-load-time timeout instead of reading the property live.");
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     public void configureRemoteDriverInstanceShouldCoverDesktopOptionRoutingBranches() throws Exception {
         SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
         SHAFT.Properties.platform.set().executionAddress("http://localhost:4444").targetPlatform("Linux");
