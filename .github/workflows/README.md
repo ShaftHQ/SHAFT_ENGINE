@@ -29,7 +29,6 @@ flowchart TD
   NIGHTLY --> GRID["Update Selenium Grid Docker Versions"]
 
   MANUAL["Manual only"] --> RELEASE_PR["Prepare Release Pull Request"]
-  MANUAL --> SHARD["Sharded Execution + Merged Report Demo"]
 ```
 
 `workflow_run` links use the workflow `name`, not the file name. Renaming
@@ -68,11 +67,11 @@ the event simply never fires.
 | `lambdatestTests.yml` | LambdaTest E2E Tests | Nightly at 01:00 UTC, plus manual | Uploads LambdaTest mobile apps, verifies LambdaTest credentials, and runs native Android, native iOS, web app, and desktop web suites. | Serial cloud-provider workflow: later jobs depend on earlier mobile upload jobs. Delete only if LambdaTest coverage is intentionally retired. |
 | `update-selenium-grid-versions.yml` | Update Selenium Grid Docker Versions | Weekly Monday 08:00 UTC, plus manual | Reads SeleniumHQ Docker Compose references, updates SHAFT's Selenium Grid image versions, validates Docker Compose syntax, and opens an automated PR. | Maintenance bot for `shaft-engine/src/main/resources/docker-compose/selenium4.yml`, which is used by Selenium Grid E2E jobs. |
 | `prepare-release-pr.yml` | Prepare Release Pull Request | Manual only, with release date input | Computes the dated SHAFT release version, updates release metadata and `Internal.java` tool versions, validates static release contracts, and opens an automated PR. | Creates the release PR that later feeds `Maven Central Continuous Delivery` after merge. Its `scripts/ci/prepare_release_pr.py` already rewrites `shaft.version` in every pom.xml under the repo (including the sample example projects), which is why the old post-release `sync-sample-projects-version.yml` workflow was deleted as redundant. |
-| `sharded-merged-report.yml` | Sharded Execution + Merged Report Demo | Manual only, with an optional `-Dtest=` filter input | Dispatch-only demo of the `-Dshaft.shard=N/M` sharding + merged-report pipeline (issue #3347): shards a TestNG run across a matrix, then assembles and merges the per-shard report. | Deliberately **not** deleted in Phase 3 (B5): blocked on a user-guide docs update that must land first to document the sharding recipe for consumers. Does not replace or touch `e2eTests.yml`'s existing manual class-filter partitioning. No downstream dependents. |
+| `sharded-merged-report.yml` *(deleted, Phase 3 remainder)* | Sharded Execution + Merged Report Demo | was: Manual only, with an optional `-Dtest=` filter input | was: Dispatch-only demo of the `-Dshaft.shard=N/M` sharding + merged-report pipeline (issue #3347): sharded a TestNG run across a matrix, then assembled and merged the per-shard report. | Deleted (issue #3863, completing B5 of #3814's Phase 3): the user-guide docs update that previously blocked deletion landed in a parallel docs PR. Did not replace or touch `e2eTests.yml`'s existing manual class-filter partitioning; `scripts/ci/assemble_shard_blob.py`/`ShardMergeCli` and their tests are untouched (unrelated to the demo dispatch workflow). No downstream dependents. |
 | `copilot-setup-steps.yml` *(deleted, Phase 3)* | Copilot Setup Steps | was: Manual only | was: Prepared the GitHub Copilot coding-agent environment. | Deleted in Phase 3 of issue #3814 (clean, no dependents, B-verdict GO). |
 | `refresh-agent-instructions.yml` *(deleted, Phase 3)* | Refresh Agent Instructions | was: Manual only, with reason and optional `force_ai` input | was: Audited agent guidance, optionally ran Codex to refresh guidance surfaces. | Deleted in Phase 3 of issue #3814 (B3), with same-PR cleanup: the `refresh_workflow` key and its references were removed from `scripts/ci/agent_guidance_budget.json` (its consuming check, `validate_refresh_workflow`, is a no-op when that key is absent), the `.memory` constraint that gated it was marked stale via `memory remember`, and the orphaned `.github/codex/prompts/refresh-agent-instructions.md` prompt was deleted alongside it. |
 | `docs-boundary-gate.yml` *(deleted, Phase 3)* | Documentation Boundary Gate | was: Pull requests touching Markdown or the boundary validator | Folded into `pr-gate.yml`'s `docs-boundary` leg. |
-| `intellij-plugin.yml` *(deleted, Phase 3)* | IntelliJ Plugin | was: Pull requests and pushes touching `shaft-intellij`, plus manual | Folded into `pr-gate.yml`'s `intellij-verify` and `intellij-build` legs. Not to be confused with `publish-intellij-plugin.yml` (release-side, kept). |
+| `intellij-plugin.yml` *(deleted, Phase 3)* | IntelliJ Plugin | was: Pull requests and pushes touching `shaft-intellij`, plus manual | Folded into `pr-gate.yml`'s `installer-verify` and `intellij-build` legs. Not to be confused with `publish-intellij-plugin.yml` (release-side, kept). |
 | `shaft-capture-e2e.yml` *(deleted, Phase 3)* | SHAFT Capture Browser E2E | was: Pull requests touching `shaft-capture/**`, plus manual | Folded into `pr-gate.yml`'s `capture-e2e` leg. |
 | `shaft-cli.yml` *(deleted, Phase 3)* | shaft-cli | was: Pull requests and pushes touching `shaft-cli/**` or `pom.xml`, plus manual | Folded into `pr-gate.yml`'s `cli` leg. |
 | `template-coupling.yml` *(deleted, Phase 3)* | Template Coupling Gate | was: Pull requests touching example templates or `shaft-skills/**` | Folded into `pr-gate.yml`'s `template-coupling` leg. |
@@ -99,10 +98,15 @@ there is no other file to update.
 | `.github/actions/upload-jacoco-coverage` | `post-test-report`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Generates required JaCoCo XML reports when needed and uploads coverage to Codecov. |
 | `.github/actions/reclaim-disk-space` | `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Frees unused preinstalled runner toolchains and Docker images (optionally also build outputs) so the release container build doesn't run out of disk. |
 | `.github/actions/mcp-container-smoke` | `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Builds the shaft-mcp Docker image and verifies it answers the MCP `initialize` handshake before the container is trusted. |
+| `.github/actions/intellij-verify` | `pr-gate.yml`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `publish-intellij-plugin.yml` | Sets up JDK 17 and Gradle 9, then runs the shaft-intellij Gradle build (`check buildPlugin verifyPlugin`); when `publish: 'true'`, also validates JetBrains Marketplace secrets and signs/publishes the plugin. |
+| `.github/actions/capture-browser-e2e` | `pr-gate.yml`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml` | Runs the headless SHAFT Capture browser E2E suite (`ManagedCaptureRecorderBrowserTest`, `CaptureGeneratedReplayBrowserTest`). Callers install the module prerequisites first. |
+| `.github/actions/release-contract-validators` | `shaft-pilot-release.yml`, `prepare-release-pr.yml` | Runs the six SHAFT release-contract validators (reactor versions, modular documentation, documentation boundaries, Maven publication, shaft-mcp configuration, SHAFT Pilot release) in a fixed order. Callers set up Python 3 first. |
+| `.github/actions/mcp-jar-build` | `shaft-mcp.yml`, `mavenCentral_cd.yml` | Installs reactor artifacts (`install-args` input), then copies shaft-mcp's runtime dependencies into its thin-classpath `target/dependency` directory. |
 
-`pr-gate.yml` does not use any shared composite action yet — extracting one
-for its legs (S1/B2) was deliberately deferred out of Phase 3 so the
-release-contract validators keep matching a deletion-only diff.
+`pr-gate.yml`'s `intellij-build` and `capture-e2e` legs use the composites
+above; its other legs (`cli`, `template-coupling`) still have no shared
+composite action (S1/B2 remains deferred for the parts not extracted in the
+Phase 3 remainder, issue #3863).
 
 ## Generated PR Workflows
 
@@ -139,8 +143,25 @@ Deleted, folded into `pr-gate.yml`: `docs-boundary-gate.yml`, `intellij-plugin.y
 (no longer needed): `copilot-setup-steps.yml` (B-verdict GO), `refresh-agent-instructions.yml`
 (B3, with same-PR cleanup of everything that referenced it). Narrowed, not deleted:
 `security.yml` lost only its `dependency-review` job (B1; CodeQL stays — no org-wide CodeQL
-default setup exists). Explicitly **not** touched: `sharded-merged-report.yml` (B5, blocked on
-user-guide docs), `shaft-pilot-release.yml`, and the release chain
+default setup exists). Explicitly **not** touched at the time: `sharded-merged-report.yml` (B5,
+blocked on user-guide docs), `shaft-pilot-release.yml`, and the release chain
 (`mavenCentral_cd.yml` → `publish-intellij-plugin.yml` / `publish-shaft-mcp.yml` → `deploy-shaft-mcp.yml`
-→ `publishJavaDocs.yml`). Composite-action extraction for `pr-gate.yml`'s legs (S1/B2) is deferred to a
-future phase; this pass is deletion-only so it doesn't require rewriting the release-contract validators.
+→ `publishJavaDocs.yml`). Composite-action extraction for `pr-gate.yml`'s legs (S1/B2) was deferred to a
+future phase; this pass was deletion-only so it didn't require rewriting the release-contract validators.
+
+### Phase 3 remainder (issue #3863)
+
+`sharded-merged-report.yml` deleted, completing B5: the user-guide docs update that blocked it
+landed in a parallel docs PR; `scripts/ci/run_sharded_and_merge.py` and its tests are untouched
+(a separate task updates its docstring once the docs URL exists). S1/B2 partially landed: four
+composite actions were extracted — `intellij-verify` (replaces the byte-identical JDK 17 + Gradle 9
++ `gradle -p shaft-intellij check buildPlugin verifyPlugin[ signPlugin publishPlugin]` block in
+`pr-gate.yml`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, and `publish-intellij-plugin.yml`),
+`capture-browser-e2e` (the shared `mvn ... -pl shaft-capture test -DincludeCaptureBrowserE2E ...`
+invocation in `pr-gate.yml`, `mavenCentral_cd.yml`, and `shaft-pilot-release.yml`),
+`release-contract-validators` (the six release validators shared by `shaft-pilot-release.yml` and
+`prepare-release-pr.yml`), and `mcp-jar-build` (the reactor-install + `dependency:copy-dependencies`
+pair shared by `shaft-mcp.yml` and `mavenCentral_cd.yml`; `shaft-pilot-release.yml` keeps its
+split-step shape untouched). `scripts/ci/validate_shaft_pilot_release.py` and
+`scripts/ci/validate_shaft_mcp_configuration.py` were updated in the same change to assert the new
+composite-action references instead of the literal command text that used to live in each workflow.
