@@ -433,9 +433,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 ? "The Playwright recorder start request does not take a browser parameter."
                 : "Browser used for the WebDriver capture recorder and the Mobile web-emulation session.");
         sessionPath.setToolTipText(mobile()
-                ? "Mobile recording JSON output path (mobile_record_start outputPath)."
+                ? "Mobile recording JSON output path (capture_start outputPath)."
                 : playwrightBackend
-                ? "Playwright recording JSON output path (playwright_record_start outputPath)."
+                ? "Playwright recording JSON output path (capture_start outputPath)."
                 : "Capture session JSON output path (capture_start outputPath).");
         // Critical scope boundary (issue #3639): there is no capture_step_delete/capture_step_reorder
         // tool for the WebDriver backend, and capture_status carries no per-step summaries to select
@@ -458,7 +458,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             case START_MOBILE_EMULATION -> {
                 // The mobile flow records against the emulated session, so keep the backend in sync.
                 backend.setSelectedItem(BACKEND_MOBILE);
-                prefill.prefill("mobile_initialize_web_emulation", mobileWebEmulation());
+                prefill.prefill("driver_initialize", mobileWebEmulation());
             }
             case ANALYZE_FAILED_ALLURE -> prefill.prefill("doctor_analyze_failed_allure", failedAllureAnalysis());
             case WEEKLY_FLAKY_TRIAGE -> prefill.prefill("doctor_analyze_failed_allure", weeklyFlakyTriage());
@@ -630,8 +630,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             return;
         }
         boolean playwrightBackend = playwright();
-        String startTool = playwrightBackend ? "playwright_record_start" : "capture_start";
-        String statusTool = playwrightBackend ? "playwright_record_status" : "capture_status";
+        String startTool = "capture_start";
+        String statusTool = "capture_status";
         JsonObject arguments;
         if (playwrightBackend) {
             arguments = new JsonObject();
@@ -690,13 +690,13 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void startMobileRecording() {
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
-            prefill.prefill("mobile_record_start", mobileRecordStartArguments());
-            startStatusPolling("mobile_record_status");
+            prefill.prefill("capture_start", mobileRecordStartArguments());
+            startStatusPolling("capture_status");
             return;
         }
         setRecorderStatus("Starting emulated mobile session at "
                 + displayUrl(targetUrl.getText().trim()) + "...");
-        invocationService.startTool("mobile_initialize_web_emulation", mobileWebEmulation())
+        invocationService.startTool("driver_initialize", mobileWebEmulation())
                 .future()
                 .whenComplete((sessionResult, sessionError) -> onEdt(() -> {
                     if (failed(sessionResult, sessionError)) {
@@ -705,7 +705,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                         return;
                     }
                     setRecorderStatus("Emulated session ready. Starting mobile recorder...");
-                    invocationService.startTool("mobile_record_start", mobileRecordStartArguments())
+                    invocationService.startTool("capture_start", mobileRecordStartArguments())
                             .future()
                             .whenComplete((recordResult, recordError) -> onEdt(() -> {
                                 if (failed(recordResult, recordError)) {
@@ -714,7 +714,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                                     return;
                                 }
                                 setRecorderStatus("Mobile recording started.");
-                                startStatusPolling("mobile_record_status");
+                                startStatusPolling("capture_status");
                             }));
                 }));
     }
@@ -741,9 +741,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void stopRecording() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("discard", false);
-        String stopTool = mobile()
-                ? "mobile_record_stop"
-                : playwright() ? "playwright_record_stop" : "capture_stop";
+        String stopTool = "capture_stop";
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
             prefill.prefill(stopTool, arguments);
@@ -766,17 +764,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * Returns the {@code *_code_blocks} MCP tool matching the selected backend, shared by
-     * "Review code", "Insert at caret", and "Create test class" so the three actions always
-     * generate from the same recording.
+     * Returns the {@code capture_code_blocks} MCP tool, shared by "Review code", "Insert at caret",
+     * and "Create test class" so the three actions always generate from the same recording.
      */
     private String codeBlocksToolName() {
-        if (mobile()) {
-            return "mobile_recording_code_blocks";
-        }
-        if (playwright()) {
-            return "playwright_recording_code_blocks";
-        }
         return "capture_code_blocks";
     }
 
@@ -1154,11 +1145,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     /**
-     * Parses a {@code playwright_record_status}/{@code mobile_record_status} response's
-     * {@code steps} array (each entry shaped like {@code McpMobileStepSummary}: stepId, sequence,
-     * action, locatorStrategy, locatorValue, risky) into display rows. Package-private for
-     * {@code GuidedWorkflowPanelTest} (mirrors {@code ApiRecordingSessionPanel#parseTransactions}:
-     * pure parsing worth covering directly without standing up the full panel).
+     * Parses a {@code capture_status} response's {@code steps} array (each entry shaped like
+     * {@code McpMobileStepSummary}: stepId, sequence, action, locatorStrategy, locatorValue,
+     * risky) into display rows. Package-private for {@code GuidedWorkflowPanelTest} (mirrors
+     * {@code ApiRecordingSessionPanel#parseTransactions}: pure parsing worth covering directly
+     * without standing up the full panel).
      *
      * @param status the polled status, or null
      * @return one row per recorded step, in wire order; empty when {@code status} has no per-step

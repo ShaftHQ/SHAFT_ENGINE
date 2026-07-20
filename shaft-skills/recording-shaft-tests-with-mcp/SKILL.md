@@ -12,7 +12,7 @@ Record first, then generate reviewed SHAFT code. Treat recordings as evidence an
 ## WebDriver Capture Flow
 
 1. Call `shaft-mcp:shaft_guide_search` for Capture and the target test area.
-2. Start with `shaft-mcp:capture_start` or `shaft-mcp:capture_start_codegen`.
+2. Start with `shaft-mcp:capture_start`.
 3. Use the visible browser or MCP element tools to perform the flow.
 4. Add checkpoints with `shaft-mcp:capture_checkpoint` for assertions, page transitions, or named flow blocks.
 5. Check readiness with `shaft-mcp:capture_status`; resolve `BLOCKED` or important `RISKY` findings.
@@ -28,17 +28,17 @@ Record first, then generate reviewed SHAFT code. Treat recordings as evidence an
 
 | Target | Tools |
 | --- | --- |
-| SHAFT Playwright direct record | `shaft-mcp:playwright_initialize`, `shaft-mcp:playwright_record_start`, `shaft-mcp:playwright_record_status`, `shaft-mcp:playwright_record_stop`, `shaft-mcp:playwright_recording_code_blocks`, `shaft-mcp:playwright_replay_recording` |
-| Playwright Capture generation | `shaft-mcp:playwright_capture_generate_replay`, `shaft-mcp:playwright_capture_code_blocks` |
-| Mobile MCP recording | `shaft-mcp:mobile_record_start`, `shaft-mcp:mobile_record_stop`, `shaft-mcp:mobile_recording_code_blocks` |
-| Appium Inspector wrapper | `shaft-mcp:mobile_inspector_record_prepare`, `shaft-mcp:mobile_inspector_record_start`, `shaft-mcp:mobile_inspector_record_control`, `shaft-mcp:mobile_inspector_record_stop` |
+| SHAFT Playwright direct record | `shaft-mcp:driver_initialize` (with engine=playwright), `shaft-mcp:capture_start`, `shaft-mcp:capture_status`, `shaft-mcp:capture_stop`, `shaft-mcp:capture_code_blocks`, `shaft-mcp:capture_generate_replay` |
+| Playwright Capture generation | `shaft-mcp:capture_generate_replay`, `shaft-mcp:capture_code_blocks` |
+| Mobile MCP recording | `shaft-mcp:capture_start`, `shaft-mcp:capture_stop`, `shaft-mcp:capture_code_blocks` |
+| Appium Inspector wrapper | `shaft-mcp:mobile_inspector_record_start`, `shaft-mcp:mobile_inspector_record_status`, `shaft-mcp:mobile_inspector_record_stop` |
 | Repo-aware insertion plan | `shaft-mcp:shaft_coding_partner_plan`, then target-specific code blocks |
 
 ## Official Playwright Sidecar
 
 Use official Playwright CLI or Playwright MCP as a delegated browser-exploration sidecar when the user asks for it, when installed Playwright skills are already active, or when the task needs token-efficient snapshots, network/storage inspection, console output, tracing, video, PDF, or Playwright Test Agent planning.
 
-Bring only evidence back into SHAFT: command transcript, page snapshot, locator notes, screenshots, HAR/storage paths, traces, and the exact user steps. Then call `shaft-mcp:shaft_coding_partner_plan`, `shaft-mcp:capture_start_codegen`, `shaft-mcp:capture_codegen_features`, and WebDriver or Playwright code-block tools according to the target Java backend.
+Bring only evidence back into SHAFT: command transcript, page snapshot, locator notes, screenshots, HAR/storage paths, traces, and the exact user steps. Then call `shaft-mcp:shaft_coding_partner_plan`, `shaft-mcp:capture_start`, `shaft-mcp:capture_codegen_features`, and WebDriver or Playwright code-block tools according to the target Java backend.
 
 ## Integration Rules
 

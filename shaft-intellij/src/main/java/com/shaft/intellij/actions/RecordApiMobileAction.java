@@ -16,7 +16,7 @@ import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Prepares an MCP {@code mobile_api_record_start} request and opens the API Recording tab so a
+ * Prepares an MCP {@code capture_api_start} request and opens the API Recording tab so a
  * backend team can capture and generate a SHAFT.API test without launching a browser -- the
  * loopback MITM proxy captures native mobile API traffic directly (issue #3530 A2).
  */
@@ -44,8 +44,8 @@ public final class RecordApiMobileAction extends AnAction implements DumbAware {
         String trimmedPlatform = platform.trim();
 
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("platform", trimmedPlatform);
-        arguments.addProperty("deviceLabel", "");
+        arguments.addProperty("mobilePlatform", trimmedPlatform);
+        arguments.addProperty("mobileDeviceLabel", "");
         arguments.addProperty("outputPath", "");
 
         if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
@@ -68,7 +68,7 @@ public final class RecordApiMobileAction extends AnAction implements DumbAware {
     }
 
     /**
-     * Plain-language Assistant equivalent of the {@code mobile_api_record_start} MCP request.
+     * Plain-language Assistant equivalent of the {@code capture_api_start} MCP request.
      * Package-private for {@code RecordApiMobileActionTest}.
      */
     static String recordApiMobilePrompt(String platform) {

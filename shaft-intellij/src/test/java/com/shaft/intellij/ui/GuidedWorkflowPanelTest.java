@@ -64,7 +64,7 @@ class GuidedWorkflowPanelTest {
         useTemplate.doClick();
         CapturedInvocation mobileEmulation = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_initialize_web_emulation", mobileEmulation.toolName()),
+                () -> assertEquals("driver_initialize", mobileEmulation.toolName()),
                 // Default combo selection is "Chrome" (matches CaptureBrowser#parse and
                 // MobileService#browserType, both case-insensitive) -- not the old hardcoded "CHROME".
                 () -> assertEquals("Chrome", mobileEmulation.arguments().get("browser").getAsString()),
@@ -139,26 +139,26 @@ class GuidedWorkflowPanelTest {
         start.doClick();
         CapturedInvocation mobileStart = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_record_start", mobileStart.toolName()),
+                () -> assertEquals("capture_start", mobileStart.toolName()),
                 () -> assertFalse(mobileStart.arguments().get("includeSensitiveValues").getAsBoolean()));
 
         stop.doClick();
         CapturedInvocation mobileStop = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_record_stop", mobileStop.toolName()),
+                () -> assertEquals("capture_stop", mobileStop.toolName()),
                 () -> assertFalse(mobileStop.arguments().get("discard").getAsBoolean()));
 
         review.doClick();
         CapturedInvocation mobileReview = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_recording_code_blocks", mobileReview.toolName()),
+                () -> assertEquals("capture_code_blocks", mobileReview.toolName()),
                 () -> assertEquals("driver", mobileReview.arguments().get("driverVariableName").getAsString()));
 
         select(backend, "Playwright");
         stop.doClick();
-        assertEquals("playwright_record_stop", last(invocations).toolName());
+        assertEquals("capture_stop", last(invocations).toolName());
         review.doClick();
-        assertEquals("playwright_recording_code_blocks", last(invocations).toolName());
+        assertEquals("capture_code_blocks", last(invocations).toolName());
     }
 
     @Test
@@ -197,7 +197,7 @@ class GuidedWorkflowPanelTest {
         useTemplate.doClick();
         CapturedInvocation mobileEmulation = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_initialize_web_emulation", mobileEmulation.toolName()),
+                () -> assertEquals("driver_initialize", mobileEmulation.toolName()),
                 () -> assertEquals("Edge", mobileEmulation.arguments().get("browser").getAsString(),
                         "mobileWebEmulation() must read the same selected combo item"));
     }
@@ -409,11 +409,11 @@ class GuidedWorkflowPanelTest {
 
         select(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class), "Mobile (web emulation)");
         insertAtCaret.doClick();
-        assertEquals("mobile_recording_code_blocks", last(invocations).toolName());
+        assertEquals("capture_code_blocks", last(invocations).toolName());
 
         select(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class), "Playwright");
         createTestClass.doClick();
-        assertEquals("playwright_recording_code_blocks", last(invocations).toolName());
+        assertEquals("capture_code_blocks", last(invocations).toolName());
     }
 
     @Test
@@ -492,7 +492,7 @@ class GuidedWorkflowPanelTest {
         select(templates, "Start mobile emulation session for recording");
         findButton(panel, "Use template").doClick();
 
-        assertEquals("mobile_initialize_web_emulation", last(invocations).toolName());
+        assertEquals("driver_initialize", last(invocations).toolName());
         assertEquals("Mobile (web emulation)", String.valueOf(backend.getSelectedItem()));
     }
 

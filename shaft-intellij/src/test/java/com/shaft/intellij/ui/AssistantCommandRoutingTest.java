@@ -50,8 +50,8 @@ class AssistantCommandRoutingTest {
                         command("record a web flow on https://example.com").toolName()),
                 () -> assertEquals("capture_start",
                         command("Record my actions on https://example.com/login").toolName()),
-                () -> assertEquals("mobile_record_start", mobilePrefill.toolName()),
-                () -> assertEquals("mobile_record_start",
+                () -> assertEquals("capture_start", mobilePrefill.toolName()),
+                () -> assertEquals("capture_start",
                         command("record my app on the emulator").toolName()),
                 // Non-recording "record"-adjacent asks still go to the agent untouched.
                 () -> assertEquals("autobot_local_agent_run",
@@ -89,12 +89,12 @@ class AssistantCommandRoutingTest {
     @Test
     void recordApiNaturalLanguageDoesNotStealTheNoBrowserMobileApiRecordingPrompt() {
         // RecordApiMobileAction's "without a browser" prefill drives a different MCP tool
-        // (mobile_api_record_start, a no-browser MITM proxy) -- it now has its own deterministic
+        // (capture_api_start with mobile routing) -- it now has its own deterministic
         // route (issue #3738); capture_api_start (this command) must still not steal it.
         AssistantCommand.Invocation mobileApiPrefill =
                 command("Record API traffic without a browser on Android");
 
-        assertEquals("mobile_api_record_start", mobileApiPrefill.toolName());
+        assertEquals("capture_api_start", mobileApiPrefill.toolName());
     }
 
     @Test
@@ -115,15 +115,15 @@ class AssistantCommandRoutingTest {
                 command("Record my mobile actions on the Android emulator");
 
         assertAll(
-                () -> assertEquals("mobile_api_record_start", androidPrefill.toolName()),
-                () -> assertEquals("Android", androidPrefill.arguments().get("platform").getAsString()),
-                () -> assertEquals("", androidPrefill.arguments().get("deviceLabel").getAsString()),
+                () -> assertEquals("capture_api_start", androidPrefill.toolName()),
+                () -> assertEquals("Android", androidPrefill.arguments().get("mobilePlatform").getAsString()),
+                () -> assertEquals("", androidPrefill.arguments().get("mobileDeviceLabel").getAsString()),
                 () -> assertEquals("", androidPrefill.arguments().get("outputPath").getAsString()),
-                () -> assertEquals("mobile_api_record_start", iosPrefill.toolName()),
-                () -> assertEquals("iOS", iosPrefill.arguments().get("platform").getAsString()),
-                () -> assertEquals("", iosPrefill.arguments().get("deviceLabel").getAsString()),
+                () -> assertEquals("capture_api_start", iosPrefill.toolName()),
+                () -> assertEquals("iOS", iosPrefill.arguments().get("mobilePlatform").getAsString()),
+                () -> assertEquals("", iosPrefill.arguments().get("mobileDeviceLabel").getAsString()),
                 () -> assertEquals("", iosPrefill.arguments().get("outputPath").getAsString()),
-                () -> assertEquals("mobile_record_start", plainMobileRecording.toolName()));
+                () -> assertEquals("capture_start", plainMobileRecording.toolName()));
     }
 
     @Test
@@ -143,8 +143,8 @@ class AssistantCommandRoutingTest {
                 command("record my actions on the android emulator");
 
         assertAll(
-                () -> assertEquals("mobile_record_start", mobileWordPrefill.toolName()),
-                () -> assertEquals("mobile_record_start", ambiguousPhrase.toolName()));
+                () -> assertEquals("capture_start", mobileWordPrefill.toolName()),
+                () -> assertEquals("capture_start", ambiguousPhrase.toolName()));
     }
 
     @Test
@@ -176,7 +176,10 @@ class AssistantCommandRoutingTest {
                 .arguments().get("targetUrl").getAsString());
         assertEquals("capture_start", command("/record").toolName());
         assertEquals("Chrome", command("/record").arguments().get("browser").getAsString());
-        assertEquals("playwright_record_start", command("/record playwright").toolName());
+        assertTrue(command("/record playwright").isSequence());
+        assertEquals(List.of("driver_initialize", "capture_start"),
+                command("/record playwright").toolCalls().stream()
+                        .map(AssistantCommand.ToolCall::toolName).toList());
         assertTrue(command("/inspect").isLocal());
         assertTrue(command("/locator").isLocal());
         assertTrue(command("/inspect https://example.com sign in").isSequence());
@@ -202,18 +205,18 @@ class AssistantCommandRoutingTest {
         assertTrue(command("/generatetest recordings/capture-session.json").arguments().get("replay").getAsBoolean());
         assertFalse(command("/generatetest recordings/capture-session.json").arguments().get("useAi").getAsBoolean());
         assertTrue(command("/generatetest recordings/playwright-session.json").isSequence());
-        assertEquals(List.of("playwright_initialize", "playwright_replay_recording"),
+        assertEquals(List.of("driver_initialize", "capture_generate_replay"),
                 command("/generatetest recordings/playwright-session.json").toolCalls().stream()
                         .map(AssistantCommand.ToolCall::toolName).toList());
         assertEquals("recordings/playwright-session.json",
                 command("/generatetest recordings/playwright-session.json")
-                        .toolCalls().get(1).arguments().get("recordingPath").getAsString());
+                        .toolCalls().get(1).arguments().get("sessionPath").getAsString());
         assertEquals("capture_generate_replay", command("/codegen recordings/capture-session.json").toolName());
-        assertEquals("mobile_replay_recording", command("/codegen mobile recordings/mobile-session.json").toolName());
+        assertEquals("capture_generate_replay", command("/codegen mobile recordings/mobile-session.json").toolName());
         assertEquals("recordings/mobile-session.json",
                 command("/codegen mobile recordings/mobile-session.json")
-                        .arguments().get("recordingPath").getAsString());
-        assertEquals("mobile_inspector_record_prepare",
+                        .arguments().get("sessionPath").getAsString());
+        assertEquals("mobile_inspector_record_start",
                 command("/record-mobile inspector Android recordings/inspector.json").toolName());
     }
 
@@ -421,10 +424,9 @@ class AssistantCommandRoutingTest {
                 () -> assertEquals(List.of("driver_initialize", "browser_open_intent"),
                         natural.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
                 () -> assertTrue(playwright.isSequence()),
-                () -> assertEquals(List.of("playwright_initialize", "playwright_browser_navigate"),
+                () -> assertEquals(List.of("driver_initialize", "browser_navigate"),
                         playwright.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
-                () -> assertEquals("chrome", playwright.toolCalls().get(0).arguments().get("browser").getAsString()),
-                () -> assertFalse(playwright.toolCalls().get(0).arguments().get("headless").getAsBoolean()),
+                () -> assertEquals("CHROME", playwright.toolCalls().get(0).arguments().get("targetBrowser").getAsString()),
                 () -> assertEquals("https://example.com",
                         playwright.toolCalls().get(1).arguments().get("targetUrl").getAsString()));
     }
@@ -443,8 +445,14 @@ class AssistantCommandRoutingTest {
                 () -> assertEquals("browser_refresh", command("/browser refresh").toolName()),
                 () -> assertEquals("browser_navigate_back", command("/browser back").toolName()),
                 () -> assertEquals("browser_navigate_forward", command("/browser forward").toolName()),
-                () -> assertEquals("browser_maximize_window", command("/browser maximize").toolName()),
-                () -> assertEquals("browser_fullscreen_window", command("/browser fullscreen").toolName()),
+                () -> assertEquals("browser_set_window_size", command("/browser maximize").toolName()),
+                () -> assertEquals(0, command("/browser maximize").arguments().get("width").getAsInt()),
+                () -> assertEquals(0, command("/browser maximize").arguments().get("height").getAsInt()),
+                () -> assertEquals("MAXIMIZE", command("/browser maximize").arguments().get("mode").getAsString()),
+                () -> assertEquals("browser_set_window_size", command("/browser fullscreen").toolName()),
+                () -> assertEquals(0, command("/browser fullscreen").arguments().get("width").getAsInt()),
+                () -> assertEquals(0, command("/browser fullscreen").arguments().get("height").getAsInt()),
+                () -> assertEquals("FULLSCREEN", command("/browser fullscreen").arguments().get("mode").getAsString()),
                 () -> assertEquals("driver_quit", command("/browser quit").toolName()));
     }
 
@@ -459,31 +467,32 @@ class AssistantCommandRoutingTest {
                 () -> assertEquals("mobile_toolchain_status", command("/mobile doctor Android").toolName()),
                 () -> assertEquals("Android",
                         command("/mobile status Android").arguments().get("platformName").getAsString()),
-                () -> assertEquals("mobile_initialize_native", nativeSession.toolName()),
-                () -> assertEquals("Android", nativeSession.arguments().get("platformName").getAsString()),
-                () -> assertEquals("Pixel_6", nativeSession.arguments().get("deviceName").getAsString()),
-                () -> assertEquals("mobile_initialize_web_emulation", webSession.toolName()),
-                () -> assertEquals("https://example.com", webSession.arguments().get("targetUrl").getAsString()),
-                () -> assertEquals("CHROME", webSession.arguments().get("browser").getAsString()),
-                () -> assertFalse(webSession.arguments().get("headless").getAsBoolean()),
+                () -> assertEquals("driver_initialize", nativeSession.toolName()),
+                () -> assertEquals("MOBILE_NATIVE", nativeSession.arguments().get("engine").getAsString()),
+                () -> assertEquals("Android", nativeSession.arguments().get("mobileOptions").getAsJsonObject().get("platformName").getAsString()),
+                () -> assertEquals("Pixel_6", nativeSession.arguments().get("mobileOptions").getAsJsonObject().get("deviceName").getAsString()),
+                () -> assertEquals("driver_initialize", webSession.toolName()),
+                () -> assertEquals("MOBILE_WEB", webSession.arguments().get("engine").getAsString()),
+                () -> assertEquals("https://example.com", webSession.arguments().get("mobileOptions").getAsJsonObject().get("targetUrl").getAsString()),
+                () -> assertEquals("CHROME", webSession.arguments().get("mobileOptions").getAsJsonObject().get("browser").getAsString()),
                 () -> assertEquals("mobile_get_accessibility_tree", command("/mobile tree").toolName()),
-                () -> assertEquals("mobile_take_screenshot", command("/mobile screenshot target/mobile.png").toolName()),
+                () -> assertEquals("browser_take_screenshot", command("/mobile screenshot target/mobile.png").toolName()),
                 () -> assertFalse(command("/mobile screenshot target/mobile.png").arguments().get("includeBase64").getAsBoolean()),
                 () -> assertEquals("mobile_get_contexts", command("/mobile contexts").toolName()),
                 () -> assertEquals("mobile_switch_context", command("/mobile switch WEBVIEW_chrome").toolName()),
                 () -> assertEquals("WEBVIEW_chrome", command("/mobile switch WEBVIEW_chrome").arguments().get("contextName").getAsString()),
                 () -> assertEquals("mobile_switch_context", command("/mobile context NATIVE_APP").toolName()),
-                () -> assertEquals("mobile_record_start", command("/mobile-record start recordings/mobile.json").toolName()),
+                () -> assertEquals("capture_start", command("/mobile-record start recordings/mobile.json").toolName()),
                 () -> assertEquals("recordings/mobile.json",
                         command("/mobile-record start recordings/mobile.json").arguments().get("outputPath").getAsString()),
-                () -> assertEquals("mobile_record_stop", command("/app-record stop").toolName()),
-                () -> assertEquals("mobile_inspector_record_prepare", inspector.toolName()),
-                () -> assertEquals("mobile_inspector_record_prepare", command("/inspector-record Android recordings/inspector.json").toolName()),
+                () -> assertEquals("capture_stop", command("/app-record stop").toolName()),
+                () -> assertEquals("mobile_inspector_record_start", inspector.toolName()),
+                () -> assertEquals("mobile_inspector_record_start", command("/inspector-record Android recordings/inspector.json").toolName()),
                 () -> assertEquals("Android", inspector.arguments().get("platformName").getAsString()),
                 () -> assertEquals("recordings/inspector.json", inspector.arguments().get("outputPath").getAsString()),
-                () -> assertEquals("mobile_recording_code_blocks",
+                () -> assertEquals("capture_code_blocks",
                         command("/mobile-codegen recordings/mobile.json").toolName()),
-                () -> assertEquals("mobile_replay_recording",
+                () -> assertEquals("capture_generate_replay",
                         command("/mobile-replay recordings/mobile.json").toolName()),
                 () -> assertEquals("driver_quit", command("/mobile quit").toolName()),
                 () -> assertTrue(unknown.isLocal()),
@@ -505,10 +514,10 @@ class AssistantCommandRoutingTest {
                 () -> assertEquals(1080, size.arguments().get("height").getAsInt()),
                 () -> assertEquals(1280, resizeDefault.arguments().get("width").getAsInt()),
                 () -> assertEquals(800, resizeDefault.arguments().get("height").getAsInt()),
-                () -> assertEquals("browser_delete_all_cookies", command("/browser clear cookies").toolName()),
-                () -> assertEquals("browser_delete_all_cookies", command("/browser delete all cookies").toolName()),
-                () -> assertEquals("browser_delete_cookie", deleteCookie.toolName()),
-                () -> assertEquals("sessionId", deleteCookie.arguments().get("cookieName").getAsString()),
+                () -> assertEquals("browser_delete_cookies", command("/browser clear cookies").toolName()),
+                () -> assertEquals("browser_delete_cookies", command("/browser delete all cookies").toolName()),
+                () -> assertEquals("browser_delete_cookies", deleteCookie.toolName()),
+                () -> assertEquals("sessionId", deleteCookie.arguments().get("name").getAsString()),
                 () -> assertTrue(command("/browser delete cookie").isLocal()),
                 () -> assertEquals("browser_aria_snapshot", command("/browser aria").toolName()),
                 () -> assertEquals("", command("/browser aria").arguments().get("locatorValue").getAsString()),
@@ -536,12 +545,12 @@ class AssistantCommandRoutingTest {
                         command("resize the browser window to 1920x1080").toolName()),
                 () -> assertEquals(1920, command("resize the browser window to 1920x1080")
                         .arguments().get("width").getAsInt()),
-                () -> assertEquals("browser_delete_all_cookies",
+                () -> assertEquals("browser_delete_cookies",
                         command("clear cookies on the browser").toolName()),
-                () -> assertEquals("browser_delete_cookie",
+                () -> assertEquals("browser_delete_cookies",
                         command("delete cookie sessionId from the browser").toolName()),
                 () -> assertEquals("sessionId", command("delete cookie sessionId from the browser")
-                        .arguments().get("cookieName").getAsString()),
+                        .arguments().get("name").getAsString()),
                 () -> assertEquals("browser_aria_snapshot",
                         command("aria snapshot of the current browser page").toolName()),
                 () -> assertEquals("browser_accessibility_audit",
@@ -556,17 +565,17 @@ class AssistantCommandRoutingTest {
     @Test
     void playwrightBrowserCommandsExposeNavigationAndWindowTools() {
         assertAll(
-                () -> assertEquals("playwright_browser_refresh", command("/browser playwright refresh").toolName()),
-                () -> assertEquals("playwright_browser_navigate_back", command("/browser playwright back").toolName()),
-                () -> assertEquals("playwright_browser_navigate_forward", command("/browser playwright forward").toolName()),
-                () -> assertEquals("playwright_browser_set_window_size", command("/browser playwright size 1024x768").toolName()),
+                () -> assertEquals("browser_refresh", command("/browser playwright refresh").toolName()),
+                () -> assertEquals("browser_navigate_back", command("/browser playwright back").toolName()),
+                () -> assertEquals("browser_navigate_forward", command("/browser playwright forward").toolName()),
+                () -> assertEquals("browser_set_window_size", command("/browser playwright size 1024x768").toolName()),
                 () -> assertEquals(1024, command("/browser playwright size 1024x768").arguments().get("width").getAsInt()),
                 () -> assertEquals(768, command("/browser playwright size 1024x768").arguments().get("height").getAsInt()),
-                () -> assertEquals("playwright_browser_new_window", command("/browser playwright newtab https://example.com").toolName()),
-                () -> assertEquals("TAB", command("/browser playwright newtab https://example.com").arguments().get("windowType").getAsString()),
+                () -> assertEquals("browser_navigate", command("/browser playwright newtab https://example.com").toolName()),
+                () -> assertTrue(command("/browser playwright newtab https://example.com").arguments().get("newWindow").getAsBoolean()),
                 () -> assertEquals("https://example.com", command("/browser playwright newtab https://example.com").arguments().get("targetUrl").getAsString()),
-                () -> assertEquals("playwright_browser_new_window", command("/browser playwright newwindow").toolName()),
-                () -> assertEquals("WINDOW", command("/browser playwright newwindow").arguments().get("windowType").getAsString()));
+                () -> assertEquals("browser_navigate", command("/browser playwright newwindow").toolName()),
+                () -> assertTrue(command("/browser playwright newwindow").arguments().get("newWindow").getAsBoolean()));
     }
 
     @Test
@@ -617,7 +626,8 @@ class AssistantCommandRoutingTest {
                 () -> assertEquals("target/allure-results",
                         analyze.arguments().getAsJsonArray("allureResultPaths").get(0).getAsString()),
                 () -> assertEquals("C:/work/project", analyze.arguments().get("repositoryRoot").getAsString()),
-                () -> assertEquals("playwright_doctor_analyze_failed_allure", playwrightAnalyze.toolName()),
+                () -> assertEquals("doctor_analyze_failed_allure", playwrightAnalyze.toolName()),
+                () -> assertEquals("playwright", playwrightAnalyze.arguments().get("backend").getAsString()),
                 () -> assertEquals("doctor_suggest_fix", suggest.toolName()),
                 () -> assertEquals("target/shaft-doctor/doctor-report.json",
                         suggest.arguments().get("jsonReportPath").getAsString()),
@@ -719,11 +729,11 @@ class AssistantCommandRoutingTest {
                 () -> assertTrue(projectUpgrade.arguments().get("dryRun").getAsBoolean()),
                 () -> assertFalse(projectUpgrade.arguments().get("approve").getAsBoolean()),
                 () -> assertEquals(".", projectUpgrade.arguments().get("projectRoot").getAsString()),
-                () -> assertEquals("mobile_record_start", command("start mobile recording").toolName()),
+                () -> assertEquals("capture_start", command("start mobile recording").toolName()),
                 () -> assertEquals("capture_start", command("start a browser recording").toolName()),
                 () -> assertEquals("doctor_analyze_failed_allure",
                         command("run doctor on target/allure-results").toolName()),
-                () -> assertEquals("mobile_recording_code_blocks",
+                () -> assertEquals("capture_code_blocks",
                         command("generate mobile code from recordings/mobile.json").toolName()),
                 () -> assertEquals("mobile_toolchain_status",
                         command("check my Android mobile toolchain").toolName()),
@@ -735,7 +745,7 @@ class AssistantCommandRoutingTest {
                         command("inspect the current mobile screen").arguments().get("maxCharacters").getAsInt()),
                 () -> assertEquals("mobile_get_contexts",
                         command("show mobile contexts").toolName()),
-                () -> assertEquals("mobile_take_screenshot",
+                () -> assertEquals("browser_take_screenshot",
                         command("take a mobile screenshot target/shaft-mobile/home.png").toolName()),
                 () -> assertFalse(command("take a mobile screenshot target/shaft-mobile/home.png")
                         .arguments().get("includeBase64").getAsBoolean()),
@@ -854,7 +864,7 @@ class AssistantCommandRoutingTest {
                 () -> assertEquals("", recordScenario.arguments().get("targetUrl").getAsString()),
                 () -> assertEquals("capture_start", recordNewScenario.toolName()),
                 () -> assertEquals("", recordNewScenario.arguments().get("targetUrl").getAsString()),
-                () -> assertEquals("mobile_record_start", mobileRecording.toolName(),
+                () -> assertEquals("capture_start", mobileRecording.toolName(),
                         "the narrow record-a-scenario predicate must not collide with mobile recording intent"));
     }
 
@@ -878,7 +888,7 @@ class AssistantCommandRoutingTest {
         String prompt = invocation.arguments().get("prompt").getAsString();
         assertAll(
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
-                () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
+                () -> assertTrue(prompt.contains("start a fresh session with capture_start"), prompt),
                 () -> assertTrue(prompt.contains("capture_generate_replay"), prompt),
                 () -> assertTrue(prompt.contains("healer_run_failed_test"), prompt),
                 () -> assertTrue(prompt.contains("Page Object Model"), prompt),

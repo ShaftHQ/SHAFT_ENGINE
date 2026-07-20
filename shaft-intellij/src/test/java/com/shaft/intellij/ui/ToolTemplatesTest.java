@@ -25,12 +25,7 @@ class ToolTemplatesTest {
             "browser_open_intent",
             "browser_take_screenshot",
             "capture_backend_comparison",
-            "capture_record_at_target_code_blocks",
-            "playwright_browser_take_screenshot",
-            "playwright_record_start",
-            "playwright_record_status",
-            "playwright_record_stop",
-            "playwright_capture_generate_replay");
+            "capture_record_at_target_code_blocks");
 
     @Test
     void categoriesKeepCopilotLikeAssistantToolsSecondary() {
@@ -69,16 +64,24 @@ class ToolTemplatesTest {
 
     @Test
     void workflowTemplatesExposePlaywrightAndInspectorCoverage() {
-        Set<String> templateTools = allTemplates().stream()
+        // Tool sweep W1 (89-tool catalog): Playwright no longer has its own tool names -- it is
+        // reached through the same capture_*/browser_* tools as WebDriver and Mobile, dispatching
+        // on whichever engine is active (or an explicit backend:"playwright" argument). Coverage
+        // for Playwright is therefore proven by the presence of a "backend":"playwright" template,
+        // not by a separate playwright_* tool name.
+        List<ToolTemplate> templates = allTemplates();
+        Set<String> templateTools = templates.stream()
                 .map(ToolTemplate::toolName)
                 .collect(Collectors.toSet());
+        boolean hasPlaywrightBackendTemplate = templates.stream()
+                .anyMatch(template -> template.arguments().contains("\"backend\": \"playwright\""));
 
-        assertTrue(templateTools.contains("playwright_record_start"));
-        assertTrue(templateTools.contains("playwright_record_status"));
-        assertTrue(templateTools.contains("playwright_record_stop"));
-        assertTrue(templateTools.contains("playwright_recording_code_blocks"));
-        assertTrue(templateTools.contains("playwright_capture_code_blocks"));
-        assertTrue(templateTools.contains("playwright_capture_generate_replay"));
+        assertTrue(hasPlaywrightBackendTemplate);
+        assertTrue(templateTools.contains("capture_start"));
+        assertTrue(templateTools.contains("capture_status"));
+        assertTrue(templateTools.contains("capture_stop"));
+        assertTrue(templateTools.contains("capture_code_blocks"));
+        assertTrue(templateTools.contains("capture_generate_replay"));
         assertTrue(templateTools.contains("capture_target_candidates"));
         assertTrue(templateTools.contains("capture_record_at_target_code_blocks"));
         assertTrue(templateTools.contains("capture_backend_comparison"));
@@ -86,8 +89,6 @@ class ToolTemplatesTest {
         assertTrue(templateTools.contains("browser_open_intent"));
         assertTrue(templateTools.contains("browser_get_page_dom"));
         assertTrue(templateTools.contains("browser_take_screenshot"));
-        assertTrue(templateTools.contains("playwright_browser_get_page_dom"));
-        assertTrue(templateTools.contains("playwright_browser_take_screenshot"));
         assertTrue(templateTools.contains("trace_read"));
         assertTrue(templateTools.contains("trace_summarize"));
         assertTrue(templateTools.contains("shaft_coding_partner_plan"));
@@ -219,7 +220,7 @@ class ToolTemplatesTest {
         ToolTemplate mobileGetElement = templateByName("mobile_get_accessibility_tree");
         ToolTemplate mobileContexts = templateByName("mobile_get_contexts");
         ToolTemplate mobileSwitchContext = templateByName("mobile_switch_context");
-        ToolTemplate mobileScreenshot = templateByName("mobile_take_screenshot");
+        ToolTemplate mobileScreenshot = templateByLabel("Take Mobile Screenshot");
         assertNotNull(mobileGetElement);
         assertNotNull(mobileContexts);
         assertNotNull(mobileSwitchContext);
@@ -415,6 +416,13 @@ class ToolTemplatesTest {
     private static ToolTemplate templateByName(String toolName) {
         return allTemplates().stream()
                 .filter(template -> toolName.equals(template.toolName()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static ToolTemplate templateByLabel(String label) {
+        return allTemplates().stream()
+                .filter(template -> label.equals(template.label()))
                 .findFirst()
                 .orElse(null);
     }

@@ -111,10 +111,11 @@ class ApiRecordingSessionPanelTest {
 
     @Test
     void pureApiModePollsTheNoBrowserMobileProxyTools() {
-        // issue #3530 A2: the pure-API session panel polls the mobile_api_record_* tools instead
-        // of capture_api_*, sharing the same transaction-parsing/table-model logic above.
-        assertEquals("mobile_api_record_transactions", ApiRecordingSessionPanel.CaptureMode.PURE_API.transactionsTool());
-        assertEquals("mobile_api_record_stop", ApiRecordingSessionPanel.CaptureMode.PURE_API.stopTool());
+        // issue #3530 A2: both WEB and PURE_API session panels poll the same capture_api_* tools,
+        // which internally dispatch to either the browser-based recorder or the loopback MITM proxy
+        // based on active session context, sharing the same transaction-parsing/table-model logic above.
+        assertEquals("capture_api_transactions", ApiRecordingSessionPanel.CaptureMode.PURE_API.transactionsTool());
+        assertEquals("capture_api_stop", ApiRecordingSessionPanel.CaptureMode.PURE_API.stopTool());
     }
 
     @Test

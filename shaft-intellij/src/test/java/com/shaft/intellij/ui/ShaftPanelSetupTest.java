@@ -204,12 +204,20 @@ class ShaftPanelSetupTest {
         AssistantCommand.Invocation routedStop = (AssistantCommand.Invocation) route.invoke(
                 panel, "stop recording", naturalStop);
 
+        // "/record playwright" must switch the active engine to Playwright before calling
+        // capture_start (design doc amendment A3): capture_start dispatches on whichever engine is
+        // already active, so without the driver_initialize step first it would launch its own web
+        // CDP browser instead of recording the Playwright session.
+        List<String> playwrightStartToolNames = playwrightStart.toolCalls().stream()
+                .map(AssistantCommand.ToolCall::toolName)
+                .toList();
+
         assertAll(
                 () -> assertEquals("capture_start", webStart.toolName()),
                 () -> assertEquals("https://example.com", webStart.arguments().get("targetUrl").getAsString()),
-                () -> assertEquals("playwright_record_start", playwrightStart.toolName()),
-                () -> assertEquals("playwright_record_stop", explicitPlaywrightStop.toolName()),
-                () -> assertEquals("playwright_record_stop", routedStop.toolName()));
+                () -> assertEquals(List.of("driver_initialize", "capture_start"), playwrightStartToolNames),
+                () -> assertEquals("capture_stop", explicitPlaywrightStop.toolName()),
+                () -> assertEquals("capture_stop", routedStop.toolName()));
     }
 
     @Test
@@ -225,9 +233,10 @@ class ShaftPanelSetupTest {
         AssistantCommand.Invocation invocation = (AssistantCommand.Invocation) review.invoke(panel, playwrightBackend);
 
         assertAll(
-                () -> assertEquals("playwright_recording_code_blocks", invocation.toolName()),
+                () -> assertEquals("capture_code_blocks", invocation.toolName()),
                 () -> assertEquals("recordings/custom-playwright.json",
-                        invocation.arguments().get("recordingPath").getAsString()));
+                        invocation.arguments().get("sessionPath").getAsString()),
+                () -> assertEquals("playwright", invocation.arguments().get("backend").getAsString()));
     }
 
     // ---- Issue #3739: chat-side capture_api_* recording gets the same deterministic
@@ -5617,7 +5626,7 @@ class ShaftPanelSetupTest {
         click(panel, "Start recording");
         CapturedInvocation playwright = last(invocations);
         assertAll(
-                () -> assertEquals("playwright_record_start", playwright.toolName()),
+                () -> assertEquals("capture_start", playwright.toolName()),
                 () -> assertTrue(playwright.arguments().has("outputPath")),
                 () -> assertTrue(playwright.arguments().has("includeSensitiveValues")),
                 () -> assertFalse(playwright.arguments().has("targetUrl")));

@@ -422,11 +422,11 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
     /**
      * Opens (or reuses) the API Recording tab for a no-browser pure-API session, starting
-     * {@code mobile_api_record_start} and populating the pairing panel (proxy port + CA
+     * {@code capture_api_start} and populating the pairing panel (proxy port + CA
      * certificate) once it returns (issue #3530 A2).
      *
      * @param headerText title shown above the transactions table (e.g. the target platform)
-     * @param startArguments arguments for the {@code mobile_api_record_start} MCP call
+     * @param startArguments arguments for the {@code capture_api_start} MCP call
      */
     public void showPureApiRecordingTab(@NotNull String headerText, @NotNull JsonObject startArguments) {
         if (workflowCards == null || workflowLayout == null) {
@@ -446,14 +446,14 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         selectWorkflow(apiRecordingPanel);
 
         ShaftMcpInvocationService.getInstance(project)
-                .startTool("mobile_api_record_start", startArguments)
+                .startTool("capture_api_start", startArguments)
                 .future()
                 .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager.getApplication()
                         .invokeLater(() -> applyMobileApiRecordStartResult(result, error)));
     }
 
     /**
-     * Applies the {@code mobile_api_record_start} result to the current API Recording panel: an
+     * Applies the {@code capture_api_start} result to the current API Recording panel: an
      * error/failure surfaces as a status message, otherwise the pairing panel is populated.
      * Split from {@link #showPureApiRecordingTab} (and further split below) to keep each method's
      * branching within PMD's NPath complexity threshold.

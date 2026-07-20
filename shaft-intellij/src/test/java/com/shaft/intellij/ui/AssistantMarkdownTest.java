@@ -671,32 +671,6 @@ class AssistantMarkdownTest {
     }
 
     @Test
-    void healerMarkdownAlsoDispatchesForThePlaywrightHealerToolName() {
-        String markdown = AssistantMarkdown.fromMcpOutput("playwright_healer_run_failed_test", mcpText("""
-                {
-                  "schemaVersion": "1.0",
-                  "status": "PASSED",
-                  "attempts": [
-                    {"attemptNumber": 1, "exitCode": 0, "timedOut": false, "passed": true,
-                     "allureResultCount": 1, "failedAllureResultCount": 0, "diagnostics": ""}
-                  ],
-                  "analysis": {
-                    "schemaVersion": "1.0", "status": "DETERMINISTIC", "bundleId": "",
-                    "primaryCause": "UNKNOWN", "confidence": "UNKNOWN", "summary": "",
-                    "actions": [], "codeBlocks": [], "bundlePath": "", "jsonReportPath": "",
-                    "markdownReportPath": "", "warnings": []
-                  },
-                  "actions": [], "codeBlocks": [], "warnings": []
-                }
-                """));
-
-        assertAll(
-                () -> assertTrue(markdown.contains("Healer:"), markdown),
-                () -> assertTrue(markdown.contains("PASSED"), markdown),
-                () -> assertTrue(markdown.contains("Attempt 1"), markdown));
-    }
-
-    @Test
     void rejectsNativeSeleniumGeneratedJavaSnippetsWithRegenerationTools() {
         String markdown = AssistantMarkdown.fromMcpOutput("capture_code_blocks", mcpText("""
                 {

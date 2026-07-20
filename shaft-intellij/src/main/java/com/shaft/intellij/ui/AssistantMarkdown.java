@@ -227,7 +227,7 @@ final class AssistantMarkdown {
             case "autobot_provider_status" -> providerStatusMarkdown(parsed);
             case "shaft_coding_partner_diff" -> codingPartnerDiffMarkdown(parsed);
             case "verify_run_focused" -> verifyMarkdown(parsed);
-            case "healer_run_failed_test", "playwright_healer_run_failed_test" -> healerMarkdown(parsed);
+            case "healer_run_failed_test" -> healerMarkdown(parsed);
             default -> "";
         };
     }
@@ -969,8 +969,8 @@ final class AssistantMarkdown {
     }
 
     /**
-     * Renders an {@code McpHealerRunResult} ({@code healer_run_failed_test},
-     * {@code playwright_healer_run_failed_test}) as a readable card: the overall status, each
+     * Renders an {@code McpHealerRunResult} ({@code healer_run_failed_test}, optionally with
+     * {@code backend=playwright}) as a readable card: the overall status, each
      * guarded rerun attempt, the nested Doctor {@code analysis} (delegated to {@link
      * #doctorMarkdown(JsonObject)} so a manual doctor run and a healer's embedded diagnosis read
      * identically — issue #3552), and the top-level review-only actions/code blocks. The top-level

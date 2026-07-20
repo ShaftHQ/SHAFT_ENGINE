@@ -236,7 +236,7 @@ class AssistantCommandTest {
                         "do not put driver.element()/locator calls directly in a @Test method body"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("fluent design and action chaining"), generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("start a fresh session with capture_start_codegen"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("start a fresh session with capture_start"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
@@ -280,7 +280,7 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
-                () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
+                () -> assertTrue(prompt.contains("start a fresh session with capture_start"), prompt),
                 // Natural-language codegen must end in the replay-proving generator, never the
                 // generate-only draft tool, so the returned locators are validated live.
                 () -> assertTrue(prompt.contains("capture_generate_replay"), prompt),
@@ -357,7 +357,7 @@ class AssistantCommandTest {
                 () -> assertTrue(agentPrompt.contains("current open class only"), agentPrompt),
                 () -> assertEquals("autobot_provider_chat", cloud.toolName()),
                 () -> assertTrue(cloudPrompt.contains("Use only the currently open file"), cloudPrompt),
-                () -> assertTrue(cloudPrompt.contains("start a fresh session with capture_start_codegen"), cloudPrompt),
+                () -> assertTrue(cloudPrompt.contains("start a fresh session with capture_start"), cloudPrompt),
                 () -> assertTrue(cloudPrompt.contains("Do not publish locators as verified"), cloudPrompt));
     }
 
@@ -378,7 +378,7 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
                 () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
                 () -> assertTrue(prompt.contains("Never substitute a different URL, domain, or example page"), prompt),
-                () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
+                () -> assertTrue(prompt.contains("start a fresh session with capture_start"), prompt),
                 () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("Do not publish locators as verified"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
@@ -400,7 +400,7 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
                 () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
-                () -> assertTrue(prompt.contains("element_type, element_click, or natural_act"), prompt),
+                () -> assertTrue(prompt.contains("element_type, element_click"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
     }
 

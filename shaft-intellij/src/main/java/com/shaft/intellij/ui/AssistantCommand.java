@@ -91,8 +91,8 @@ final class AssistantCommand {
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
-                    Never start an interactive user-driven recording (capture_start, playwright_record_start, mobile_record_start): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
-                    A scripted capture_start_codegen session that you drive and capture_stop within this same turn is allowed.
+                    Never start an interactive user-driven recording (capture_start, which dispatches to whichever engine -- WebDriver, Playwright, or mobile -- is active): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
+                    A scripted capture_start session (its optional nested codegenOptions carries the full Playwright-codegen-compatible request) that you drive and capture_stop within this same turn is allowed.
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
@@ -106,10 +106,10 @@ final class AssistantCommand {
                     - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
                     - Reuse existing tests, page objects, locator fields, and action methods first.
                     - If the user provided a recording JSON path, generate from it with capture_generate_replay (replay true, useAi false); it re-executes the recording headless, compiles the generated test, and proves every locator live. No active capture session is required and none should be demanded.
-                    - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
-                    - Choose the recording surface that matches the description: capture_start_codegen for a WebDriver browser flow, or the mobile_record_start / mobile_tap / mobile_type / mobile_record_stop sequence for a native or hybrid mobile flow.
-                    - If the user asks for an API/HTTP test (SHAFT.API / RestActions) rather than a UI flow, record with capture_api_start (networkOptions capturing request/response bodies), browse the flow live, call capture_api_stop, then capture_api_generate (style SCENARIO by default) to return SHAFT.API code; do not force capture_start_codegen's UI-locator tools onto an API-only request.
-                    - If capture_generate_replay (or its mobile/Playwright equivalents) reports a broken or unhealed locator, call healer_run_failed_test (or playwright_healer_run_failed_test) to self-heal it before returning code, instead of returning a known-broken locator.
+                    - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start, perform the described actions live (element_type, element_click), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
+                    - Choose the engine that matches the description before starting: driver_initialize with engine=web (default), engine=playwright, engine=mobile_native, or engine=mobile_web; capture_start/capture_stop/capture_generate_replay then dispatch to whichever engine is active, and mobile actions use the same element_click/element_type tools as web.
+                    - If the user asks for an API/HTTP test (SHAFT.API / RestActions) rather than a UI flow, record with capture_api_start (networkOptions capturing request/response bodies), browse the flow live, call capture_api_stop, then capture_api_generate (style SCENARIO by default) to return SHAFT.API code; do not force capture_start's UI-locator tools onto an API-only request.
+                    - If capture_generate_replay reports a broken or unhealed locator, call healer_run_failed_test (optional backend=playwright param for a Playwright flow) to self-heal it before returning code, instead of returning a known-broken locator.
                     - MUST follow the Page Object Model: one Page Object Model class per described flow, holding all locators and action methods, matching this project's existing package/module layout and SHAFT syntax; do not put driver.element()/locator calls directly in a @Test method body -- extract them into a page class. Keep the returned code minimal and project-structure-compliant; do not repeat this guidance text back to the user or paste unrelated boilerplate.
                     - Write in SHAFT's fluent design and action chaining style: chain calls on the same element/actions object (for example driver.element().click(locator).type(otherLocator, "value")) instead of a separate statement per action; only break the chain when the next step needs a different receiver.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
@@ -127,7 +127,7 @@ final class AssistantCommand {
             """
                     Live browser verification was explicitly requested:
                     - Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
-                    - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it.
+                    - Verify each selected locator by performing the actual action with shaft-mcp element_type or element_click before returning it.
                     """.stripIndent().trim();
     private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
             List.of("/help", "/mcp-help", "/shaft-help"),
@@ -913,10 +913,10 @@ final class AssistantCommand {
             return Invocation.tool("browser_navigate_forward", new JsonObject());
         }
         if (commandIs(action, "maximize")) {
-            return Invocation.tool("browser_maximize_window", new JsonObject());
+            return Invocation.tool("browser_set_window_size", windowSizeMode("MAXIMIZE"));
         }
         if (commandIs(action, "fullscreen")) {
-            return Invocation.tool("browser_fullscreen_window", new JsonObject());
+            return Invocation.tool("browser_set_window_size", windowSizeMode("FULLSCREEN"));
         }
         if (commandIs(action, "quit", "close", "stop")) {
             return Invocation.tool("driver_quit", new JsonObject());
@@ -925,12 +925,12 @@ final class AssistantCommand {
             return Invocation.tool("browser_set_window_size", windowSize(remainder));
         }
         if (commandIs(action, "clearcookies")) {
-            return Invocation.tool("browser_delete_all_cookies", new JsonObject());
+            return Invocation.tool("browser_delete_cookies", new JsonObject());
         }
         if (commandIs(action, "deletecookie")) {
             return remainder.isBlank()
                     ? Invocation.local("Provide a cookie name, for example `/browser delete cookie sessionId`.")
-                    : Invocation.tool("browser_delete_cookie", cookieName(remainder));
+                    : Invocation.tool("browser_delete_cookies", cookieName(remainder));
         }
         if (commandIs(action, "aria", "ariasnapshot")) {
             return Invocation.tool("browser_aria_snapshot", ariaSnapshotWholePage());
@@ -1049,7 +1049,19 @@ final class AssistantCommand {
 
     private static JsonObject cookieName(String rest) {
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("cookieName", firstTokenOrDefault(rest, ""));
+        arguments.addProperty("name", firstTokenOrDefault(rest, ""));
+        return arguments;
+    }
+
+    /**
+     * Builds browser_set_window_size's optional {@code mode} argument for the maximize/fullscreen
+     * shortcuts (design doc Decision 2: those absorbed browser_maximize_window/browser_fullscreen_window).
+     */
+    private static JsonObject windowSizeMode(String mode) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("width", 0);
+        arguments.addProperty("height", 0);
+        arguments.addProperty("mode", mode);
         return arguments;
     }
 
@@ -1129,52 +1141,49 @@ final class AssistantCommand {
                 return Invocation.local("Provide a URL for Playwright browser navigation.");
             }
             return Invocation.sequence(List.of(
-                    new ToolCall("playwright_initialize", playwrightInitialize()),
-                    new ToolCall("playwright_browser_navigate", targetUrl("targetUrl", targetUrl))));
+                    new ToolCall("driver_initialize", playwrightInitialize()),
+                    new ToolCall("browser_navigate", targetUrl("targetUrl", targetUrl))));
         }
         if (commandIs(action, "screenshot", "shot", "capture")) {
-            return Invocation.tool("playwright_browser_take_screenshot",
+            return Invocation.tool("browser_take_screenshot",
                     screenshot(firstTokenOrDefault(remainder, "target/shaft-playwright/screenshot.png")));
         }
         if (commandIs(action, "dom", "source", "tree")) {
             JsonObject arguments = new JsonObject();
             arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
-            return Invocation.tool("playwright_browser_get_page_dom", arguments);
+            return Invocation.tool("browser_get_page_dom", arguments);
         }
         if (commandIs(action, "title")) {
-            return Invocation.tool("playwright_browser_get_title", new JsonObject());
+            return Invocation.tool("browser_get_title", new JsonObject());
         }
         if (commandIs(action, "url")) {
-            return Invocation.tool("playwright_browser_get_current_url", new JsonObject());
+            return Invocation.tool("browser_get_current_url", new JsonObject());
         }
         if (commandIs(action, "quit", "close", "stop")) {
-            return Invocation.tool("playwright_quit", new JsonObject());
+            return Invocation.tool("driver_quit", new JsonObject());
         }
         if (commandIs(action, "refresh", "reload")) {
-            return Invocation.tool("playwright_browser_refresh", new JsonObject());
+            return Invocation.tool("browser_refresh", new JsonObject());
         }
         if (commandIs(action, "back")) {
-            return Invocation.tool("playwright_browser_navigate_back", new JsonObject());
+            return Invocation.tool("browser_navigate_back", new JsonObject());
         }
         if (commandIs(action, "forward")) {
-            return Invocation.tool("playwright_browser_navigate_forward", new JsonObject());
+            return Invocation.tool("browser_navigate_forward", new JsonObject());
         }
         if (commandIs(action, "size", "resize", "windowsize")) {
-            return Invocation.tool("playwright_browser_set_window_size", windowSize(remainder));
+            return Invocation.tool("browser_set_window_size", windowSize(remainder));
         }
-        if (commandIs(action, "newtab")) {
-            return Invocation.tool("playwright_browser_new_window", newWindow(remainder, "TAB"));
-        }
-        if (commandIs(action, "newwindow")) {
-            return Invocation.tool("playwright_browser_new_window", newWindow(remainder, "WINDOW"));
+        if (commandIs(action, "newtab") || commandIs(action, "newwindow")) {
+            return Invocation.tool("browser_navigate", newWindow(remainder));
         }
         return Invocation.local("Unknown Playwright browser command. Use `/browser playwright open <url>`.");
     }
 
-    private static JsonObject newWindow(String rest, String windowType) {
+    private static JsonObject newWindow(String rest) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("targetUrl", text(rest));
-        arguments.addProperty("windowType", windowType);
+        arguments.addProperty("newWindow", true);
         return arguments;
     }
 
@@ -1192,8 +1201,20 @@ final class AssistantCommand {
 
     private static JsonObject playwrightInitialize() {
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("browser", "chrome");
-        arguments.addProperty("headless", false);
+        arguments.addProperty("targetBrowser", "CHROME");
+        arguments.addProperty("engine", "PLAYWRIGHT");
+        return arguments;
+    }
+
+    /**
+     * Builds driver_initialize's request for a mobile engine (design doc amendment A9):
+     * {@code mobileOptions} carries the union of the former mobile_initialize_native/
+     * mobile_initialize_web_emulation flat parameters as a nested object.
+     */
+    private static JsonObject driverInitializeMobile(String engine, JsonObject mobileOptions) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("engine", engine);
+        arguments.add("mobileOptions", mobileOptions);
         return arguments;
     }
 
@@ -1205,10 +1226,10 @@ final class AssistantCommand {
             return Invocation.tool("mobile_toolchain_status", platform(commandIs(action, "status", "doctor", "toolchain", "check") ? remainder : trimmed));
         }
         if (commandIs(action, "native", "app", "init", "initialize")) {
-            return Invocation.tool("mobile_initialize_native", mobileNative(remainder));
+            return Invocation.tool("driver_initialize", driverInitializeMobile("MOBILE_NATIVE", mobileNative(remainder)));
         }
         if (commandIs(action, "web", "emulation", "emulate")) {
-            return Invocation.tool("mobile_initialize_web_emulation", mobileWeb(remainder));
+            return Invocation.tool("driver_initialize", driverInitializeMobile("MOBILE_WEB", mobileWeb(remainder)));
         }
         if (commandIs(action, "tree", "source", "dom", "accessibility", "inspect")) {
             JsonObject arguments = new JsonObject();
@@ -1236,7 +1257,7 @@ final class AssistantCommand {
             return Invocation.tool("mobile_switch_context", arguments);
         }
         if (commandIs(action, "screenshot", "shot", "capture")) {
-            return Invocation.tool("mobile_take_screenshot",
+            return Invocation.tool("browser_take_screenshot",
                     mobileScreenshot(firstTokenOrDefault(remainder, "target/shaft-mobile/screenshot.png")));
         }
         if (commandIs(action, "record", "recording")) {
@@ -1353,19 +1374,19 @@ final class AssistantCommand {
         String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
         String remainder = afterFirstWord(trimmed);
         if (trimmed.isBlank() || commandIs(action, "start", "begin", "record")) {
-            return Invocation.tool("mobile_record_start",
+            return Invocation.tool("capture_start",
                     mobileRecordingStart(firstJsonLikePath(trimmed).isBlank()
                             ? DEFAULT_MOBILE_RECORDING_PATH
                             : firstJsonLikePath(trimmed)));
         }
         if (commandIs(action, "status")) {
-            return Invocation.tool("mobile_record_status", new JsonObject());
+            return Invocation.tool("capture_status", new JsonObject());
         }
         if (commandIs(action, "stop", "finish", "end")) {
-            return Invocation.tool("mobile_record_stop", discard(remainder));
+            return Invocation.tool("capture_stop", discard(remainder));
         }
         if (commandIs(action, "inspector", "inspect", "appium")) {
-            return Invocation.tool("mobile_inspector_record_prepare", mobileInspectorRecordPrepare(remainder));
+            return Invocation.tool("mobile_inspector_record_start", mobileInspectorRecordPrepare(remainder));
         }
         if (commandIs(action, "inspector-status")) {
             return Invocation.tool("mobile_inspector_record_status", new JsonObject());
@@ -1378,8 +1399,7 @@ final class AssistantCommand {
     private static JsonObject mobileRecordingStart(String outputPath) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputPath", outputPath);
-        arguments.addProperty("mode", "default");
-        arguments.addProperty("includeSensitiveValues", false);
+        arguments.addProperty("sessionGoal", "default");
         return arguments;
     }
 
@@ -1405,22 +1425,45 @@ final class AssistantCommand {
         arguments.addProperty("androidRamMb", 2048);
         arguments.addProperty("androidCores", 2);
         arguments.addProperty("provisionAndroidEmulator", false);
+        arguments.addProperty("openInspector", false);
         return arguments;
     }
 
     private static Invocation mobileCodegen(String rest) {
-        return Invocation.tool("mobile_recording_code_blocks", mobileRecordingPath(rest));
+        return Invocation.tool("capture_code_blocks", mobileCodeBlocks(rest));
     }
 
     private static Invocation mobileReplay(String rest) {
-        return Invocation.tool("mobile_replay_recording", mobileRecordingPath(rest));
+        return Invocation.tool("capture_generate_replay", mobileGenerateReplay(rest));
     }
 
-    private static JsonObject mobileRecordingPath(String rest) {
+    private static JsonObject mobileCodeBlocks(String rest) {
         JsonObject arguments = new JsonObject();
         String path = firstJsonLikePath(rest);
-        arguments.addProperty("recordingPath", path.isBlank() ? DEFAULT_MOBILE_RECORDING_PATH : path);
+        arguments.addProperty("sessionPath", path.isBlank() ? DEFAULT_MOBILE_RECORDING_PATH : path);
+        arguments.addProperty("outputDirectory", ".");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "RecordedFlowTest");
+        arguments.addProperty("overwrite", false);
         arguments.addProperty("driverVariableName", "driver");
+        arguments.addProperty("backend", "mobile");
+        return arguments;
+    }
+
+    private static JsonObject mobileGenerateReplay(String rest) {
+        JsonObject arguments = new JsonObject();
+        String path = firstJsonLikePath(rest);
+        arguments.addProperty("sessionPath", path.isBlank() ? DEFAULT_MOBILE_RECORDING_PATH : path);
+        arguments.addProperty("outputDirectory", ".");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "RecordedFlowTest");
+        arguments.addProperty("overwrite", false);
+        arguments.addProperty("replay", true);
+        arguments.addProperty("useAi", false);
+        arguments.addProperty("allowLocalAi", false);
+        arguments.addProperty("allowRemoteAi", false);
+        arguments.addProperty("driverVariableName", "driver");
+        arguments.addProperty("backend", "mobile");
         return arguments;
     }
 
@@ -1433,19 +1476,18 @@ final class AssistantCommand {
         String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
         String remainder = afterFirstWord(trimmed);
         if (commandIs(action, "fix", "suggest", "recommend", "repair")) {
-            return Invocation.tool(playwright ? "playwright_doctor_suggest_fix" : "doctor_suggest_fix",
-                    doctorSuggestFix(firstTokenOrDefault(remainder, DEFAULT_DOCTOR_REPORT_PATH), workingDirectory));
+            return Invocation.tool("doctor_suggest_fix",
+                    doctorSuggestFix(firstTokenOrDefault(remainder, DEFAULT_DOCTOR_REPORT_PATH), workingDirectory, playwright));
         }
         if (commandIs(action, "trace", "traces")) {
             return Invocation.tool("doctor_analyze_trace",
                     doctorTrace(firstTokenOrDefault(remainder, "target/shaft-traces"), playwright ? "playwright" : "webdriver"));
         }
         String allurePath = trimmed.isBlank() ? "" : firstTokenOrDefault(trimmed, "");
-        return Invocation.tool(playwright ? "playwright_doctor_analyze_failed_allure" : "doctor_analyze_failed_allure",
-                triage(workingDirectory, allurePath));
+        return Invocation.tool("doctor_analyze_failed_allure", triage(workingDirectory, allurePath, playwright));
     }
 
-    private static JsonObject doctorSuggestFix(String reportPath, String workingDirectory) {
+    private static JsonObject doctorSuggestFix(String reportPath, String workingDirectory, boolean playwright) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("jsonReportPath", reportPath);
         arguments.addProperty("repositoryRoot", workingDirectory == null ? "" : workingDirectory);
@@ -1454,6 +1496,9 @@ final class AssistantCommand {
         arguments.addProperty("allowLocalAi", false);
         arguments.addProperty("allowRemoteAi", false);
         arguments.addProperty("driverVariableName", "driver");
+        if (playwright) {
+            arguments.addProperty("backend", "playwright");
+        }
         return arguments;
     }
 
@@ -1495,11 +1540,8 @@ final class AssistantCommand {
             "shaft_project_upgrade",
             "verify_run_focused",
             "healer_run_failed_test",
-            "playwright_healer_run_failed_test",
             "doctor_analyze_failed_allure",
-            "playwright_doctor_analyze_failed_allure",
             "doctor_suggest_fix",
-            "playwright_doctor_suggest_fix",
             "doctor_analyze_trace");
 
     /**
@@ -1663,8 +1705,15 @@ final class AssistantCommand {
 
     private static Invocation record(String rest) {
         boolean playwright = rest.toLowerCase(Locale.ROOT).contains("playwright");
-        return Invocation.tool(playwright ? "playwright_record_start" : "capture_start",
-                playwright ? playwrightRecordStart() : captureStart(rest));
+        if (playwright) {
+            // capture_start dispatches on whichever engine is active (design doc amendment A3), so
+            // the Playwright engine must be started first or capture_start would launch its own
+            // WEB CDP browser instead of recording the Playwright session.
+            return Invocation.sequence(List.of(
+                    new ToolCall("driver_initialize", playwrightInitialize()),
+                    new ToolCall("capture_start", playwrightRecordStart())));
+        }
+        return Invocation.tool("capture_start", captureStart(rest));
     }
 
     /**
@@ -1679,19 +1728,20 @@ final class AssistantCommand {
 
     /**
      * Starts RecordApiMobileAction's no-browser API/network-traffic recording (issue #3738) via
-     * {@code mobile_api_record_start}, the loopback MITM proxy that captures native mobile API
-     * traffic without launching a browser. Mirrors the argument shape RecordApiMobileAction's
+     * {@code capture_api_start}'s mobile loopback MITM proxy dispatch (an explicit mobilePlatform
+     * reaches it without a live Appium/WebDriver session, same as the former
+     * {@code mobile_api_record_start} tool). Mirrors the argument shape RecordApiMobileAction's
      * Advanced-UI path builds directly: platform, plus blank deviceLabel/outputPath left for the
      * user to fill in via the API Recording tab.
      */
     private static Invocation recordApiMobile(String text) {
-        return Invocation.tool("mobile_api_record_start", mobileApiRecordStart(text));
+        return Invocation.tool("capture_api_start", mobileApiRecordStart(text));
     }
 
     private static JsonObject mobileApiRecordStart(String text) {
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("platform", platformName(mobileApiRecordingPlatform(text)));
-        arguments.addProperty("deviceLabel", "");
+        arguments.addProperty("mobilePlatform", platformName(mobileApiRecordingPlatform(text)));
+        arguments.addProperty("mobileDeviceLabel", "");
         arguments.addProperty("outputPath", "");
         return arguments;
     }
@@ -1748,9 +1798,9 @@ final class AssistantCommand {
             return reviewRecording(text);
         }
         if (isStopRecording(text)) {
-            return text.toLowerCase(Locale.ROOT).contains("playwright")
-                    ? Invocation.tool("playwright_record_stop", stopRecording())
-                    : Invocation.tool("capture_stop", stopRecording());
+            // capture_stop dispatches on whichever engine is active (design doc amendment A3), so a
+            // single unconditional call correctly reaches the Playwright recorder too.
+            return Invocation.tool("capture_stop", stopRecording());
         }
         if (isDiscardRecording(text)) {
             return Invocation.tool("capture_stop", stopRecording(true));
@@ -1775,18 +1825,24 @@ final class AssistantCommand {
         String recordingPath = firstJsonLikePath(text);
         String lower = text.toLowerCase(Locale.ROOT);
         if (lower.contains("playwright") || recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
-            return Invocation.tool("playwright_recording_code_blocks", playwrightCodeReview(recordingPath));
+            return Invocation.tool("capture_code_blocks", playwrightCodeReview(recordingPath));
         }
         return Invocation.tool("capture_code_blocks", captureCodeReview(recordingPath));
     }
 
     private static Invocation reRecord(String text) {
         boolean playwright = text.toLowerCase(Locale.ROOT).contains("playwright");
-        return Invocation.sequence(List.of(
-                new ToolCall(playwright ? "playwright_record_stop" : "capture_stop", stopRecording(true)),
-                new ToolCall(playwright ? "playwright_record_start" : "capture_start",
-                        playwright ? playwrightRecordStart() : captureStart(text))
-        ));
+        // capture_start/capture_stop dispatch on whichever engine is active (design doc amendment
+        // A3); the Playwright engine still needs to be (re-)started first, same as record(String).
+        List<ToolCall> calls = new ArrayList<>();
+        calls.add(new ToolCall("capture_stop", stopRecording(true)));
+        if (playwright) {
+            calls.add(new ToolCall("driver_initialize", playwrightInitialize()));
+            calls.add(new ToolCall("capture_start", playwrightRecordStart()));
+        } else {
+            calls.add(new ToolCall("capture_start", captureStart(text)));
+        }
+        return Invocation.sequence(calls);
     }
 
     /**
@@ -2160,6 +2216,10 @@ final class AssistantCommand {
     }
 
     private static JsonObject triage(String workingDirectory, String allurePath) {
+        return triage(workingDirectory, allurePath, false);
+    }
+
+    private static JsonObject triage(String workingDirectory, String allurePath, boolean playwright) {
         JsonObject arguments = new JsonObject();
         // An empty path list makes the MCP server analyze the most recent populated
         // allure-results directory in the workspace, so "diagnose my last run" needs no path.
@@ -2179,6 +2239,9 @@ final class AssistantCommand {
         arguments.addProperty("allowLocalAi", false);
         arguments.addProperty("allowRemoteAi", false);
         arguments.addProperty("driverVariableName", "driver");
+        if (playwright) {
+            arguments.addProperty("backend", "playwright");
+        }
         return arguments;
     }
 
@@ -2191,21 +2254,20 @@ final class AssistantCommand {
         if (lower.contains("mobile") || lower.contains("appium")) {
             // Replay proves the recorded locators against the active mobile session before the code
             // blocks are returned; the server rejects redacted recordings with a clear error.
-            return Invocation.tool("mobile_replay_recording", mobileRecordingPath(recordingPath));
+            return Invocation.tool("capture_generate_replay", generateReplayFromRecording(recordingPath, "mobile"));
         }
         if (lower.contains("playwright") || recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
-            // Playwright recorder sessions use their own recording schema (recordingPath), which
-            // the Capture-session replay tools cannot consume; replay through the Playwright-native
-            // replay tool (after initializing its driver) so returned locators are proven live.
+            // capture_generate_replay's Playwright dispatch needs an active Playwright session to
+            // replay against, so the engine is (re-)initialized first.
             return Invocation.sequence(List.of(
-                    new ToolCall("playwright_initialize", playwrightInitialize()),
-                    new ToolCall("playwright_replay_recording", generatePlaywrightCodeFromRecording(recordingPath))));
+                    new ToolCall("driver_initialize", playwrightInitialize()),
+                    new ToolCall("capture_generate_replay", generateReplayFromRecording(recordingPath, "playwright"))));
         }
         // Explicit /codegen re-executes the recording (issue #3409): the generated test is
         // compiled and replayed headless so the returned code blocks are verified against the
         // live flow, not just statically generated. The automatic post-stop review keeps the
         // faster generate-only tool.
-        return Invocation.tool("capture_generate_replay", generateReplayFromRecording(recordingPath));
+        return Invocation.tool("capture_generate_replay", generateReplayFromRecording(recordingPath, null));
     }
 
     private static JsonObject captureStart(String rest) {
@@ -2233,12 +2295,16 @@ final class AssistantCommand {
     }
 
     static JsonObject playwrightCodeReview(String recordingPath) {
-        return generatePlaywrightCodeFromRecording(
+        JsonObject arguments = captureCodeReview(
                 recordingPath == null || recordingPath.isBlank() ? DEFAULT_PLAYWRIGHT_RECORDING_PATH : recordingPath);
+        arguments.addProperty("backend", "playwright");
+        return arguments;
     }
 
     static Invocation stopPlaywrightRecording() {
-        return Invocation.tool("playwright_record_stop", stopRecording());
+        // capture_stop dispatches on whichever engine is active (design doc amendment A3), so a
+        // single unconditional call correctly reaches the Playwright recorder too.
+        return Invocation.tool("capture_stop", stopRecording());
     }
 
     /**
@@ -2400,8 +2466,7 @@ final class AssistantCommand {
     private static JsonObject playwrightRecordStart() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputPath", DEFAULT_PLAYWRIGHT_RECORDING_PATH);
-        arguments.addProperty("mode", "default");
-        arguments.addProperty("includeSensitiveValues", false);
+        arguments.addProperty("sessionGoal", "default");
         return arguments;
     }
 
@@ -2419,16 +2484,20 @@ final class AssistantCommand {
     }
 
     /**
-     * Arguments for the generate-compile-replay codegen tools. Replay re-executes the generated
-     * test headless (enforced server-side) against the recorded flow; AI enrichment stays off
-     * unless the user explicitly opts in elsewhere.
+     * Arguments for capture_generate_replay. Replay re-executes the generated test headless
+     * (enforced server-side) against the recorded flow; AI enrichment stays off unless the user
+     * explicitly opts in elsewhere. {@code backend} selects web (default, when null/blank) |
+     * playwright | mobile, matching whichever engine actually produced the recording.
      */
-    private static JsonObject generateReplayFromRecording(String recordingPath) {
+    private static JsonObject generateReplayFromRecording(String recordingPath, String backend) {
         JsonObject arguments = generateCaptureCodeFromRecording(recordingPath);
         arguments.addProperty("replay", true);
         arguments.addProperty("useAi", false);
         arguments.addProperty("allowLocalAi", false);
         arguments.addProperty("allowRemoteAi", false);
+        if (backend != null && !backend.isBlank()) {
+            arguments.addProperty("backend", backend);
+        }
         return arguments;
     }
 
@@ -2469,13 +2538,6 @@ final class AssistantCommand {
                 %s
                 ```
                 """.formatted(clip(reviewMarkdown, 12_000), clip(rawCodegenResult, 24_000)).strip();
-    }
-
-    private static JsonObject generatePlaywrightCodeFromRecording(String recordingPath) {
-        JsonObject arguments = new JsonObject();
-        arguments.addProperty("recordingPath", recordingPath);
-        arguments.addProperty("driverVariableName", "driver");
-        return arguments;
     }
 
     private static JsonArray commandArray(String value) {

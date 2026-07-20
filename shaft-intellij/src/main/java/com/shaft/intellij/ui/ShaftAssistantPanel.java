@@ -1505,14 +1505,14 @@ final class ShaftAssistantPanel extends JPanel {
      */
     static String toolRunNarration(String toolName) {
         return switch (toolName == null ? "" : toolName) {
-            case "capture_generate_replay", "playwright_capture_generate_replay" -> """
+            case "capture_generate_replay" -> """
                     **Generating your test now.** SHAFT is doing three things, in order:
                     1. Reading the recording and generating a Java TestNG class from it,
                     2. Compiling that class against SHAFT to prove it is valid Java,
                     3. Replaying the compiled test in a real browser to prove it works — so a browser window may open (it starts on `about:blank` before the test navigates).
 
                     _This usually takes a minute or two. A step-by-step report and the generated code will appear here when it finishes._""";
-            case "capture_code_blocks", "playwright_recording_code_blocks" -> """
+            case "capture_code_blocks" -> """
                     **Generating review code from your recording.** SHAFT converts the recorded steps into a Java TestNG class without executing it — no browser will open for this step.
 
                     _The generated code will appear here for your review in a few seconds._""";
@@ -1910,7 +1910,6 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean showCaptureStopDiagnosticIfPending(
             String toolName, boolean success, String markdown, String output) {
         boolean isCaptureStopTool = "capture_stop".equals(toolName)
-                || "playwright_record_stop".equals(toolName)
                 || "capture_api_stop".equals(toolName);
         if (!success || !generateCaptureReviewAfterStop || !isCaptureStopTool) {
             return false;
@@ -1964,15 +1963,13 @@ final class ShaftAssistantPanel extends JPanel {
                 ? "**SHAFT Assistant (" + toolName + " OK)**\n\n" + body
                 : AssistantMarkdown.toolFailureMarkdown(toolName, body), output);
         appendTerminalAgentMilestone(success ? "Completed" : "Failed");
-        if (success && ("capture_start".equals(toolName) || "playwright_record_start".equals(toolName)
-                || "mobile_record_start".equals(toolName) || "capture_api_start".equals(toolName))) {
+        if (success && ("capture_start".equals(toolName) || "capture_api_start".equals(toolName))) {
             // Feeds the shared readiness strip's recording badge (issue #3500 A4). capture_api_start
             // (issue #3726) shares CaptureManager's single-session lock with capture_start, so it is
             // the same kind of active recording from the badge's point of view.
             ShaftRecordingActivity.started(recordingKey);
         }
-        if (success && ("capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName)
-                || "mobile_record_stop".equals(toolName) || "capture_api_stop".equals(toolName))) {
+        if (success && ("capture_stop".equals(toolName) || "capture_api_stop".equals(toolName))) {
             ShaftRecordingActivity.stopped(recordingKey);
         }
         if (success && "capture_start".equals(toolName)) {
@@ -3519,18 +3516,9 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewGenerationRunning = false;
             return;
         }
-        if ("playwright_record_start".equals(invocation.toolName())) {
-            activeRecordingBackend = RecordingBackend.PLAYWRIGHT;
-            activePlaywrightRecordingPath = string(
-                    invocation.arguments(), "outputPath", AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH);
-            clearPendingCaptureReview();
-            generateCaptureReviewAfterStop = false;
-            captureReviewGenerationRunning = false;
-            return;
-        }
         if ("capture_api_start".equals(invocation.toolName())) {
             // Issue #3739: capture_api_start has no start-time output path (it arrives only in the
-            // capture_api_stop result), and -- like playwright_record_start -- it never schedules
+            // capture_api_stop result), and unlike capture_start, it never schedules
             // capture_start's WebDriver-specific startup diagnostic.
             activeRecordingBackend = RecordingBackend.API;
             activeApiRecordingPath = "";
@@ -3539,12 +3527,10 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewGenerationRunning = false;
             return;
         }
-        if (("capture_stop".equals(invocation.toolName()) || "playwright_record_stop".equals(invocation.toolName())
+        if (("capture_stop".equals(invocation.toolName())
                 || "capture_api_stop".equals(invocation.toolName()))
                 && AssistantCommand.isStopRecording(promptText)) {
-            if ("playwright_record_stop".equals(invocation.toolName())) {
-                activeRecordingBackend = RecordingBackend.PLAYWRIGHT;
-            } else if ("capture_api_stop".equals(invocation.toolName())) {
+            if ("capture_api_stop".equals(invocation.toolName())) {
                 activeRecordingBackend = RecordingBackend.API;
             }
             stopCaptureStartDiagnostic();
@@ -3578,7 +3564,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         boolean playwright = backend == RecordingBackend.PLAYWRIGHT;
         return AssistantCommand.Invocation.tool(
-                playwright ? "playwright_recording_code_blocks" : "capture_code_blocks",
+                "capture_code_blocks",
                 playwright
                         ? AssistantCommand.playwrightCodeReview(activePlaywrightRecordingPath)
                         : AssistantCommand.captureCodeReview(activeCaptureRecordingPath));
@@ -3586,9 +3572,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static boolean isRecordingCodeReviewTool(String toolName) {
         return "capture_code_blocks".equals(toolName)
-                || "playwright_recording_code_blocks".equals(toolName)
                 || "capture_generate_replay".equals(toolName)
-                || "playwright_capture_generate_replay".equals(toolName)
                 || "capture_api_generate".equals(toolName);
     }
 
