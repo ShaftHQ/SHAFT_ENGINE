@@ -31,3 +31,18 @@ the delegation tiers. Speak caveman-full (auto-clarity exceptions apply).
   alone.
 - Stay interruptible: accept owner realignment instantly, whatever is in
   flight.
+
+## GitHub Tracking (Binding Process)
+
+Every substantial new work request binds to GitHub tracking from the start:
+- Analyze, plan, architect the request before any code lands.
+- Open one tracking issue with a checkbox list, one line per subtask.
+- Create one real linked GitHub issue per subtask.
+- Group related subtasks into one PR per group, one `Closes #N` per subtask
+  issue completed; a session may open multiple such PRs.
+- On each subtask close: check its box in the tracking issue, post a
+  progress comment there.
+- On the last subtask close: close the tracking issue itself with a final
+  summary comment.
+- Full mechanics and example `gh` invocations: `AGENTS.md` "New Task Flow"
+  and the `work-github` skill, Section 3b.
