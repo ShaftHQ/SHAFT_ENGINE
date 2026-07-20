@@ -37,10 +37,8 @@ public class CheckpointAndReportingTest {
         }
     }
 
-    private void resetCheckpointCounter() throws Exception {
-        ((List<?>) CHECKPOINTS_FIELD.get(null)).clear();
-        ((AtomicInteger) PASSED_FIELD.get(null)).set(0);
-        ((AtomicInteger) FAILED_FIELD.get(null)).set(0);
+    private void resetCheckpointCounter() {
+        CheckpointCounter.resetForTesting();
     }
 
     private int getCheckpointsSize() throws Exception {

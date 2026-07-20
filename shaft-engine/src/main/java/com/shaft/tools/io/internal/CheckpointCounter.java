@@ -86,6 +86,27 @@ public class CheckpointCounter {
     }
 
     /**
+     * Testing-support hook only &mdash; <strong>not for production use</strong>. Resets the
+     * process-wide, static checkpoint accumulation back to its initial empty/zero state: it clears
+     * the {@link #checkpoints} list, zeroes the {@link #passedCheckpoints}/{@link #failedCheckpoints}
+     * counters, and resets the monotonic {@link #checkpointSequence} id source so the next captured
+     * checkpoint restarts at id {@code 1}.
+     *
+     * <p>Because this static state is shared by every test in the same forked JVM (any SHAFT
+     * Validation/Verification records a checkpoint via {@code ValidationsHelper}), tests that must
+     * isolate themselves from checkpoints left behind by earlier-run tests call this between methods.
+     * It exists as a single, {@code public} entry point so those tests no longer each reflect into
+     * these private fields to clear them (issue #3846); it is {@code public} rather than
+     * package-private because consumer tests live outside this package.
+     */
+    public static void resetForTesting() {
+        checkpoints.clear();
+        passedCheckpoints.set(0);
+        failedCheckpoints.set(0);
+        checkpointSequence.set(0);
+    }
+
+    /**
      * Resolves the current test class from the per-thread report context, best-effort. Identity
      * lookup must never prevent a checkpoint from being recorded, so any failure yields {@code ""}.
      *
