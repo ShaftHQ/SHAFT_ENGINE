@@ -238,9 +238,11 @@ class GuidedWorkflowPanelTest {
 
     @Test
     void stepEditingButtonsWireCorrectToolNameAndArgumentsPerBackend() {
-        // Issue #3639: Delete/Move Up/Move Down must resolve to the exact same 3-way backend branch
-        // (playwright_/mobile_/none) that record_start/stop/status already uses, and re-render the
-        // list from whatever status fixture is fed in -- no separate client-side step store.
+        // Issue #3639/#3866: Delete/Move Up/Move Down must resolve to the unconditional
+        // capture_step_delete/capture_step_reorder tools (CaptureService#stepDelete/stepReorder), which
+        // already dispatch on the MCP session's active engine server-side -- the panel no longer picks a
+        // playwright_/mobile_ prefix itself. The list must still re-render from whatever status fixture
+        // is fed in -- no separate client-side step store.
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
@@ -273,13 +275,13 @@ class GuidedWorkflowPanelTest {
         delete.doClick();
         CapturedInvocation playwrightDelete = last(invocations);
         assertAll(
-                () -> assertEquals("playwright_step_delete", playwrightDelete.toolName()),
+                () -> assertEquals("capture_step_delete", playwrightDelete.toolName()),
                 () -> assertEquals("pw-step-1", playwrightDelete.arguments().get("stepId").getAsString()));
 
         moveUp.doClick();
         CapturedInvocation playwrightMoveUp = last(invocations);
         assertAll(
-                () -> assertEquals("playwright_step_reorder", playwrightMoveUp.toolName()),
+                () -> assertEquals("capture_step_reorder", playwrightMoveUp.toolName()),
                 () -> assertEquals("pw-step-1", playwrightMoveUp.arguments().get("stepId").getAsString()),
                 () -> assertEquals("up", playwrightMoveUp.arguments().get("direction").getAsString()));
 
@@ -288,7 +290,8 @@ class GuidedWorkflowPanelTest {
         assertEquals("down", playwrightMoveDown.arguments().get("direction").getAsString());
 
         // Switching to Mobile and feeding a fresh status fixture proves the list re-renders as a pure
-        // projection of the latest poll, and the mobile_ prefix is used instead of playwright_.
+        // projection of the latest poll, and the SAME unconditional tool names are used -- there is no
+        // mobile_ prefix to switch to.
         select(backend, "Mobile (web emulation)");
         panel.renderStepsFromStatus(recordedStepsStatus("mobile-step-1"));
         assertEquals(1, stepList.getModel().getSize());
@@ -297,22 +300,23 @@ class GuidedWorkflowPanelTest {
         delete.doClick();
         CapturedInvocation mobileDelete = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_step_delete", mobileDelete.toolName()),
+                () -> assertEquals("capture_step_delete", mobileDelete.toolName()),
                 () -> assertEquals("mobile-step-1", mobileDelete.arguments().get("stepId").getAsString()));
 
         moveUp.doClick();
         CapturedInvocation mobileMoveUp = last(invocations);
         assertAll(
-                () -> assertEquals("mobile_step_reorder", mobileMoveUp.toolName()),
+                () -> assertEquals("capture_step_reorder", mobileMoveUp.toolName()),
                 () -> assertEquals("mobile-step-1", mobileMoveUp.arguments().get("stepId").getAsString()),
                 () -> assertEquals("up", mobileMoveUp.arguments().get("direction").getAsString()));
     }
 
     @Test
     void stepEditingIsDisabledForWebDriverBackendWithNoStepDeleteTool() {
-        // Critical scope boundary (issue #3639): there is no capture_step_delete/capture_step_reorder
-        // tool, so the WebDriver backend must never let these buttons fire, even if a row is present
-        // and selected in the list.
+        // Critical scope boundary (issue #3639): capture_step_delete/capture_step_reorder throw an
+        // actionable error for the WEB CDP engine (CaptureService#noStepEditorFor) since a capture_start
+        // WebDriver recording has no step editor, so the WebDriver backend must never let these buttons
+        // fire, even if a row is present and selected in the list.
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
