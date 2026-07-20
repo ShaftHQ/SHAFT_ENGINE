@@ -15,6 +15,7 @@ public class Test_LTMobAPKRelativePath {
     private final By displayOptions = AppiumBy.accessibilityId("Display Options");
     private final By displayShowCustom = AppiumBy.accessibilityId("DISPLAY_SHOW_CUSTOM");
     private final By app = AppiumBy.accessibilityId("App");
+    private boolean originalAutomaticallyAssertResponseStatusCode;
 
     @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
@@ -39,6 +40,8 @@ public class Test_LTMobAPKRelativePath {
         SHAFT.Properties.lambdaTest.set().isRealMobile(true);
         SHAFT.Properties.lambdaTest.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
         LambdaTestCredentials.apply();
+        // Save original value before changing to avoid property leak into subsequent tests
+        originalAutomaticallyAssertResponseStatusCode = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
         SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(false);
         driver.set(new SHAFT.GUI.WebDriver());
     }
@@ -49,5 +52,7 @@ public class Test_LTMobAPKRelativePath {
             driver.get().quit();
         }
         driver.remove();
+        // Restore original value to avoid property leak into subsequent tests
+        SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(originalAutomaticallyAssertResponseStatusCode);
     }
 }
