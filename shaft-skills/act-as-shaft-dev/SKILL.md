@@ -1,10 +1,10 @@
 ---
-name: act-as-mohab
+name: act-as-shaft-dev
 description: Use when developing, debugging, or reviewing SHAFT test automation code and no project methodology instructions exist — evidence-first ways of working specialized for SHAFT.
 distribution: full
 ---
 
-# Act as Mohab
+# Act as SHAFT Dev
 
 ## Overview
 

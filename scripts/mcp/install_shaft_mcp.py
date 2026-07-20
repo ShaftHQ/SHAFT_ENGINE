@@ -56,8 +56,8 @@ SHAFT_SKILLS_SOURCE_FILES = (
     "verifying-and-applying-shaft-changes/agents/openai.yaml",
     "planning-shaft-tests/SKILL.md",
     "planning-shaft-tests/agents/openai.yaml",
-    "act-as-mohab/SKILL.md",
-    "act-as-mohab/agents/openai.yaml",
+    "act-as-shaft-dev/SKILL.md",
+    "act-as-shaft-dev/agents/openai.yaml",
 )
 SHAFT_SKILLS_SOURCE_MARKERS = (
     "writing-shaft-tests/SKILL.md",
@@ -66,7 +66,7 @@ SHAFT_SKILLS_SOURCE_MARKERS = (
     "analyzing-shaft-failures/SKILL.md",
     "verifying-and-applying-shaft-changes/SKILL.md",
     "planning-shaft-tests/SKILL.md",
-    "act-as-mohab/SKILL.md",
+    "act-as-shaft-dev/SKILL.md",
 )
 AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/validate_agent_setup.py",
