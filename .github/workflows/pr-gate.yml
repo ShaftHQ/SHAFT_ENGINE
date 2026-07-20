@@ -46,6 +46,7 @@ jobs:
       cli: ${{ steps.filter.outputs.cli }}
       capture: ${{ steps.filter.outputs.capture }}
       templates: ${{ steps.filter.outputs.templates }}
+      javacore: ${{ steps.filter.outputs.javacore }}
       infra: ${{ steps.filter.outputs.infra }}
     steps:
       - name: Checkout Code
@@ -90,6 +91,17 @@ jobs:
               - 'shaft-skills/**'
               - 'shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java'
               - 'shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java'
+            # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
+            # its downstream Pilot-family modules. shaft-capture/shaft-cli/shaft-intellij
+            # already have dedicated legs above and are intentionally not repeated here.
+            javacore:
+              - 'shaft-engine/**'
+              - 'shaft-pilot-core/**'
+              - 'shaft-doctor/**'
+              - 'shaft-ai/**'
+              - 'shaft-heal/**'
+              - 'shaft-mcp/**'
+              - 'pom.xml'
             infra:
               - '.github/workflows/pr-gate.yml'
 
@@ -235,6 +247,79 @@ jobs:
           -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
           -Dgpg.skip
 
+  # Path-conditioned unit-test leg (issue #3849): shaft-engine and the Java
+  # modules downstream of it reached main with zero PR-time test execution --
+  # their tests only ran in the nightly E2E/Pilot-release workflows. Runs one
+  # matrix job per module rather than N copy-pasted legs. Every module here
+  # gets its dependencies installed first (mirrors capture-e2e's install-step
+  # pattern above) because pr-gate has no earlier install step for this set.
+  #
+  # shaft-pilot-core/shaft-doctor/shaft-ai/shaft-heal/shaft-mcp run their full
+  # `mvn test` suite unfiltered -- the same invocation shaft-pilot-release.yml
+  # already runs on every release-relevant PR and calls "deterministic" (no
+  # live browser/grid/device; the one opt-in browser suite, shaft-capture's,
+  # stays gated behind -DincludeCaptureBrowserE2E and is not part of this set).
+  #
+  # shaft-engine cannot reuse that unfiltered pattern: outside its own
+  # `testPackage.unitTests` package it also has nightly-only live-browser
+  # suites (e.g. CoverageTests) that need a real driver session. This leg
+  # scopes to that package, minus RestValidationsBuilderUnitTest, which calls
+  # the public jsonplaceholder.typicode.com API and is a third-party-uptime
+  # flake risk unrelated to this repo's own correctness.
+  unit-tests:
+    name: Unit Tests (${{ matrix.module }})
+    needs: changes
+    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [ shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp ]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+          cache: 'maven'
+      - name: Install ${{ matrix.module }} prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl ${{ matrix.module }}
+          -am install -DskipTests '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Run shaft-engine unit tests
+        if: matrix.module == 'shaft-engine'
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine test
+          '-Dtest=testPackage/unitTests/*, !RestValidationsBuilderUnitTest'
+          -Dsurefire.failIfNoSpecifiedTests=false
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Verify shaft-engine unit test results
+        # shaft-engine's testng Surefire profile sets testFailureIgnore=true
+        # (so JaCoCo can still report after a failure) -- `mvn test` therefore
+        # exits 0 even when tests genuinely fail. Every other module in this
+        # matrix has no such override, so only shaft-engine needs this check.
+        if: matrix.module == 'shaft-engine'
+        run: |
+          python3 -c "
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse('shaft-engine/target/surefire-reports/testng-results.xml').getroot()
+          failed = int(root.get('failed', '0'))
+          total = int(root.get('total', '0'))
+          print(f'shaft-engine unit tests: total={total} failed={failed}')
+          sys.exit(1 if failed else 0)
+          "
+      - name: Run ${{ matrix.module }} tests
+        if: matrix.module != 'shaft-engine'
+        run: >-
+          mvn --batch-mode
+          -pl ${{ matrix.module }} test
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+
   template-coupling:
     name: Template Coupling Gate
     needs: changes
@@ -291,6 +376,7 @@ jobs:
       - intellij-build
       - cli
       - capture-e2e
+      - unit-tests
       - template-coupling
       - dependency-review
     if: always()
@@ -304,6 +390,7 @@ jobs:
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
           CLI_RESULT: ${{ needs.cli.result }}
           CAPTURE_RESULT: ${{ needs.capture-e2e.result }}
+          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
@@ -318,6 +405,7 @@ jobs:
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
             echo "| capture-e2e | ${CAPTURE_RESULT} |"
+            echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -328,7 +416,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${TEMPLATES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
