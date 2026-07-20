@@ -7,6 +7,7 @@ import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
@@ -23,6 +24,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -282,6 +284,78 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
     private static void assertHasScreenshotAttachment(List<List<Object>> attachments, String scenario) {
         boolean hasScreenshot = attachments.stream().anyMatch(a -> a.size() > 1 && "Screenshot".equals(a.get(1)));
         Assert.assertTrue(hasScreenshot, "Expected screenshot attachment for scenario: " + scenario);
+    }
+
+    @Test(description = "reportValidationState must not add the default element screenshot when the caller "
+            + "already populated non-empty attachments and did not request skipDefaultScreenshot. This is "
+            + "the real path taken by validateElementAriaSnapshot, which always passes non-empty attachments "
+            + "(Expected/Actual aria YAML) with skipDefaultScreenshot left at its default (false) — a "
+            + "combination none of the other reportValidationState tests exercise (they either pass an empty "
+            + "attachments list, or set skipDefaultScreenshot=true).")
+    public void reportValidationStateSkipsDefaultScreenshotWhenAttachmentsAlreadyPresent() throws Exception {
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.SOFT_ASSERT);
+        WebDriver driver = mock(WebDriver.class);
+        By locator = By.id("aria");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+
+        List<List<Object>> preAttached = new ArrayList<>();
+        preAttached.add(List.of("Expected Aria Snapshot", "sample.yaml", "expectedYaml"));
+
+        Method reportValidationState = ValidationsHelper.class.getDeclaredMethod("reportValidationState",
+                boolean.class, Object.class, Object.class, WebDriver.class, By.class, List.class, boolean.class, boolean.class);
+        reportValidationState.setAccessible(true);
+
+        try (MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
+             MockedConstruction<ScreenshotManager> screenshotManagerMocked = Mockito.mockConstruction(ScreenshotManager.class)) {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+
+            reportValidationState.invoke(helper, true, "expected", "actual", driver, locator, preAttached, false, false);
+
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            List<List<Object>> attachments = attachmentsCaptor.getValue();
+            Assert.assertTrue(attachments.stream().noneMatch(a -> a.size() > 1 && "Screenshot".equals(a.get(1))),
+                    "No default screenshot should be added when attachments were already non-empty.");
+            Assert.assertTrue(screenshotManagerMocked.constructed().isEmpty(),
+                    "ScreenshotManager must not even be constructed when the default screenshot is skipped.");
+            Assert.assertTrue(attachments.stream().anyMatch(a -> a.size() > 1 && "sample.yaml".equals(a.get(1))),
+                    "The pre-populated attachment must be preserved.");
+        }
+    }
+
+    @Test(description = "reportValidationState should record FlakeProfiler evidence-capture timings for the "
+            + "page-snapshot capture and the report-attachment step when flake profiling is enabled (opt-in, "
+            + "not covered elsewhere in this batch), and must label a Blink-format page snapshot as "
+            + "\"page snapshot\" (as opposed to the \"page HTML\" label used for raw <html> markup).")
+    public void reportValidationStateRecordsFlakeProfilerTimingsAndBlinkSnapshotLabel() throws Exception {
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.SOFT_ASSERT);
+        WebDriver driver = mock(WebDriver.class);
+        By locator = By.id("blink");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Always");
+        SHAFT.Properties.reporting.set().flakeProfilerEnabled(true);
+
+        Method reportValidationState = ValidationsHelper.class.getDeclaredMethod("reportValidationState",
+                boolean.class, Object.class, Object.class, WebDriver.class, By.class, List.class, boolean.class, boolean.class);
+        reportValidationState.setAccessible(true);
+
+        try (MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
+             MockedConstruction<ScreenshotManager> screenshotManagerMocked = Mockito.mockConstruction(ScreenshotManager.class,
+                     (mock, context) -> when(mock.takeScreenshot(any(), any(), anyString(), any(Boolean.class)))
+                             .thenReturn(List.of("Verify", "Screenshot", "bytes")));
+             MockedConstruction<BrowserActionsHelper> browserActionsHelperMocked = Mockito.mockConstruction(BrowserActionsHelper.class,
+                     (mock, context) -> when(mock.capturePageSnapshot(any())).thenReturn("From: <Saved by Blink> sample"))) {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+
+            reportValidationState.invoke(helper, true, "expected", "actual", driver, locator, new ArrayList<>(), false, false);
+
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            List<List<Object>> attachments = attachmentsCaptor.getValue();
+            Assert.assertTrue(attachments.stream().anyMatch(a -> a.size() > 1 && "page snapshot".equals(a.get(1))),
+                    "A Blink-format snapshot must be labeled \"page snapshot\".");
+        } finally {
+            FlakeProfiler.reset();
+        }
     }
 
     @Test(description = "Covers private utility methods used by validation reporting")

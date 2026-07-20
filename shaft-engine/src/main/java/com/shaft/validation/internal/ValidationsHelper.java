@@ -1064,113 +1064,179 @@ public class ValidationsHelper {
         //initialize attachments object if no attachments were already prepared
         attachments = attachments == null ? new ArrayList<>() : attachments;
 
-        // prepare WebDriver attachments
+        prepareEvidenceAttachments(validationState, expected, actual, driver, locator, skipDefaultScreenshot,
+                richEvidenceAlreadyAttached, attachments);
+        attachEvidenceCardIfNeeded(richEvidenceAlreadyAttached, validationState, expected, actual, attachments);
+        attachEvidenceWithProfiling(attachments);
+
+        // determine checkpoint type
+        CheckpointType checkpointType = determineCheckpointType();
+        String checkpointMessage = this.validationCategoryString + ": expected \"" + expected + "\", actual \"" + actual + "\"";
+        // handle reporting & failure based on validation category
+        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"", Level.DEBUG);
+        routeValidationOutcome(validationState, expected, actual, locator, attachments, traceEvent, checkpointType, checkpointMessage);
+    }
+
+    /**
+     * Prepares the reportable evidence attachments, mutating {@code attachments} in place. When a
+     * WebDriver is present the driver-derived evidence (screenshot/page-snapshot) is always
+     * considered; {@code richEvidenceAlreadyAttached} only gates the plain testData attachments
+     * prepared below when no driver is available.
+     */
+    private void prepareEvidenceAttachments(boolean validationState, Object expected, Object actual, WebDriver driver,
+                                            By locator, boolean skipDefaultScreenshot, boolean richEvidenceAlreadyAttached,
+                                            List<List<Object>> attachments) {
         if (driver != null) {
-            // prepare screenshot with element highlighting
-            if (!skipDefaultScreenshot && attachments.isEmpty())
-                attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
-            // prepare page snapshot mhtml/html — property-gated (issue reported 2026-07-18): default
-            // assertion evidence is a screenshot and nothing else, so "never" must suppress the
-            // page-source attachment even on a failing validation. Previously the failure branch
-            // (!validationState) bypassed the property entirely, attaching page source on every
-            // failure regardless of the configured value.
-            var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
-            boolean shouldCapturePageSourceSnapshot = switch (whenToTakePageSourceSnapshot) {
-                case "never" -> false;
-                case "always", "validationpointsonly" -> true;
-                // "failuresonly" (and any legacy/unrecognized value) preserves the prior opt-in
-                // behavior: capture on failure only.
-                default -> !validationState;
-            };
-            if (shouldCapturePageSourceSnapshot) {
-                var logMessage = "";
-                long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
-                var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
-                if (profilerStart != 0L) {
-                    FlakeProfiler.recordEvidenceCapture("page snapshot", this.validationCategoryString,
-                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
-                }
-                if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
-                    logMessage = "page snapshot";
-                } else if (pageSnapshot.startsWith("<html")) {
-                    logMessage = "page HTML";
-                }
-                List<Object> pageSourceAttachment = Arrays.asList(this.validationCategoryString, logMessage, pageSnapshot);
-                attachments.add(pageSourceAttachment);
-            }
+            prepareWebDriverAttachments(driver, locator, validationState, skipDefaultScreenshot, attachments);
         } else if (!richEvidenceAlreadyAttached) {
-            // prepare testData attachments; always attach expected/actual so every checkpoint carries its evidence
-            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
-                    String.valueOf(expected));
-            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
-                    String.valueOf(actual));
-            attachments.add(expectedValueAttachment);
-            attachments.add(actualValueAttachment);
-            ReportManager.logDiscrete("Expected and Actual values are attached.");
+            prepareTestDataAttachments(expected, actual, attachments);
         }
-        // Single primary assertion-evidence card (issue #3502 A+B): one HTML block carrying the
-        // redacted expected/actual plus a diff, placed first so it headlines the Allure step. The
-        // existing Expected/Actual text attachments stay (dual-write) so consumers that scrape
-        // those names keep working. Skipped when the caller already attached authoritative rich
-        // comparison evidence elsewhere (e.g. a Playwright visual-diff image) — issue #3804: the
-        // card would otherwise redundantly restate a boolean/opaque result.
-        if (!richEvidenceAlreadyAttached) {
-            String evidenceCard = AssertionEvidenceReporter.renderCard(
-                    this.validationCategoryString, validationState, expected, actual);
-            if (!evidenceCard.isBlank()) {
-                attachments.add(0, Arrays.asList("Assertion evidence", "assertion-evidence.html", evidenceCard));
-            }
+    }
+
+    /**
+     * Prepares the WebDriver-derived evidence: the default element-highlighted screenshot (unless
+     * skipped, or attachments are already populated) plus the page snapshot/HTML capture.
+     */
+    private void prepareWebDriverAttachments(WebDriver driver, By locator, boolean validationState,
+                                             boolean skipDefaultScreenshot, List<List<Object>> attachments) {
+        // prepare screenshot with element highlighting
+        if (!skipDefaultScreenshot && attachments.isEmpty())
+            attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
+        capturePageSourceSnapshotIfNeeded(driver, validationState, attachments);
+    }
+
+    // prepare page snapshot mhtml/html — property-gated (issue reported 2026-07-18): default
+    // assertion evidence is a screenshot and nothing else, so "never" must suppress the
+    // page-source attachment even on a failing validation. Previously the failure branch
+    // (!validationState) bypassed the property entirely, attaching page source on every
+    // failure regardless of the configured value.
+    private static boolean shouldCapturePageSourceSnapshot(boolean validationState) {
+        var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();
+        return switch (whenToTakePageSourceSnapshot) {
+            case "never" -> false;
+            case "always", "validationpointsonly" -> true;
+            // "failuresonly" (and any legacy/unrecognized value) preserves the prior opt-in
+            // behavior: capture on failure only.
+            default -> !validationState;
+        };
+    }
+
+    private void capturePageSourceSnapshotIfNeeded(WebDriver driver, boolean validationState, List<List<Object>> attachments) {
+        if (!shouldCapturePageSourceSnapshot(validationState)) {
+            return;
         }
-        // add attachments
+        var logMessage = "";
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
+        if (profilerStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("page snapshot", this.validationCategoryString,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+        }
+        if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+            logMessage = "page snapshot";
+        } else if (pageSnapshot.startsWith("<html")) {
+            logMessage = "page HTML";
+        }
+        List<Object> pageSourceAttachment = Arrays.asList(this.validationCategoryString, logMessage, pageSnapshot);
+        attachments.add(pageSourceAttachment);
+    }
+
+    // prepare testData attachments; always attach expected/actual so every checkpoint carries its evidence
+    private void prepareTestDataAttachments(Object expected, Object actual, List<List<Object>> attachments) {
+        List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+                String.valueOf(expected));
+        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+                String.valueOf(actual));
+        attachments.add(expectedValueAttachment);
+        attachments.add(actualValueAttachment);
+        ReportManager.logDiscrete("Expected and Actual values are attached.");
+    }
+
+    // Single primary assertion-evidence card (issue #3502 A+B): one HTML block carrying the
+    // redacted expected/actual plus a diff, placed first so it headlines the Allure step. The
+    // existing Expected/Actual text attachments stay (dual-write) so consumers that scrape
+    // those names keep working. Skipped when the caller already attached authoritative rich
+    // comparison evidence elsewhere (e.g. a Playwright visual-diff image) — issue #3804: the
+    // card would otherwise redundantly restate a boolean/opaque result.
+    private void attachEvidenceCardIfNeeded(boolean richEvidenceAlreadyAttached, boolean validationState,
+                                            Object expected, Object actual, List<List<Object>> attachments) {
+        if (richEvidenceAlreadyAttached) {
+            return;
+        }
+        String evidenceCard = AssertionEvidenceReporter.renderCard(
+                this.validationCategoryString, validationState, expected, actual);
+        if (!evidenceCard.isBlank()) {
+            attachments.add(0, Arrays.asList("Assertion evidence", "assertion-evidence.html", evidenceCard));
+        }
+    }
+
+    // add attachments, profiling the report-attachment step when flake profiling is enabled
+    private void attachEvidenceWithProfiling(List<List<Object>> attachments) {
         long profilerAttachmentStart = !attachments.isEmpty() && FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
         ReportManagerHelper.attach(attachments);
         if (profilerAttachmentStart != 0L) {
             FlakeProfiler.recordEvidenceCapture("report attachment", this.validationCategoryString,
                     TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
         }
-        // determine checkpoint type
-        CheckpointType checkpointType = this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)
-                ? CheckpointType.ASSERTION : CheckpointType.VERIFICATION;
-        String checkpointMessage = this.validationCategoryString + ": expected \"" + expected + "\", actual \"" + actual + "\"";
-        // handle reporting & failure based on validation category
-        ReportManager.logDiscrete("Expected \"" + expected + "\", and actual \"" + actual + "\"", Level.DEBUG);
-        if (!validationState) {
-            String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
-            // Format failure message using CustomSoftAssert for enhanced stack trace reporting
-            AssertionError assertionError = new AssertionError(failureMessage);
-            // Automatically extract package pattern from stack trace
-            String enhancedFailureMessage = formatAssertionErrorWithAutoDetectedPackage(assertionError);
-            // Use enhanced message if available, otherwise fall back to original
-            String finalFailureMessage = (enhancedFailureMessage != null) ? enhancedFailureMessage : failureMessage;
+    }
 
-            CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
-            TraceEventRecorder.finish(traceEvent, "failed",
-                    this.validationCategoryString.replace("erify", "erificat") + "ion failed",
-                    assertionError, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
-            if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
-                ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                // single timed outcome step spanning the real validation duration, then fail hard
-                ReportManagerHelper.writeStepToReport(finalFailureMessage, Level.ERROR, Status.FAILED, this.validationStartTime);
-                throw new AssertionError(finalFailureMessage);
-            } else {
-                // soft assert: accumulate first so the running failure count is accurate, then
-                // report the outcome step tagged with its running position, so soft failures are
-                // easy to count at a glance and are visibly distinct from a hard assertion failure
-                ValidationsHelper.recordVerificationFailure(failureMessage);
-                ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                int softFailureNumber = verificationFailuresList.get().size();
-                ReportManagerHelper.writeStepToReport("Soft failure #" + softFailureNumber + " — " + finalFailureMessage,
-                        Level.ERROR, Status.FAILED, this.validationStartTime);
-            }
+    private CheckpointType determineCheckpointType() {
+        return this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)
+                ? CheckpointType.ASSERTION : CheckpointType.VERIFICATION;
+    }
+
+    private void routeValidationOutcome(boolean validationState, Object expected, Object actual, By locator,
+                                        List<List<Object>> attachments, TraceEventRecorder.Event traceEvent,
+                                        CheckpointType checkpointType, String checkpointMessage) {
+        if (!validationState) {
+            handleValidationFailure(expected, actual, locator, attachments, traceEvent, checkpointType, checkpointMessage);
         } else {
-            CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);
-            ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
-            ReportManagerHelper.writeStepToReport(this.validationCategoryString.replace("erify", "erificat") + "ion passed",
-                    Level.INFO, Status.PASSED, this.validationStartTime);
-            TraceEventRecorder.finish(traceEvent, "passed",
-                    this.validationCategoryString.replace("erify", "erificat") + "ion passed",
-                    null, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
+            handleValidationSuccess(expected, actual, locator, attachments, traceEvent, checkpointType, checkpointMessage);
         }
+    }
+
+    private void handleValidationFailure(Object expected, Object actual, By locator, List<List<Object>> attachments,
+                                         TraceEventRecorder.Event traceEvent, CheckpointType checkpointType,
+                                         String checkpointMessage) {
+        String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
+        // Format failure message using CustomSoftAssert for enhanced stack trace reporting
+        AssertionError assertionError = new AssertionError(failureMessage);
+        // Automatically extract package pattern from stack trace
+        String enhancedFailureMessage = formatAssertionErrorWithAutoDetectedPackage(assertionError);
+        // Use enhanced message if available, otherwise fall back to original
+        String finalFailureMessage = (enhancedFailureMessage != null) ? enhancedFailureMessage : failureMessage;
+
+        CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
+        TraceEventRecorder.finish(traceEvent, "failed",
+                this.validationCategoryString.replace("erify", "erificat") + "ion failed",
+                assertionError, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
+        if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
+            ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
+            // single timed outcome step spanning the real validation duration, then fail hard
+            ReportManagerHelper.writeStepToReport(finalFailureMessage, Level.ERROR, Status.FAILED, this.validationStartTime);
+            throw new AssertionError(finalFailureMessage);
+        } else {
+            // soft assert: accumulate first so the running failure count is accurate, then
+            // report the outcome step tagged with its running position, so soft failures are
+            // easy to count at a glance and are visibly distinct from a hard assertion failure
+            ValidationsHelper.recordVerificationFailure(failureMessage);
+            ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
+            int softFailureNumber = verificationFailuresList.get().size();
+            ReportManagerHelper.writeStepToReport("Soft failure #" + softFailureNumber + " — " + finalFailureMessage,
+                    Level.ERROR, Status.FAILED, this.validationStartTime);
+        }
+    }
+
+    private void handleValidationSuccess(Object expected, Object actual, By locator, List<List<Object>> attachments,
+                                         TraceEventRecorder.Event traceEvent, CheckpointType checkpointType,
+                                         String checkpointMessage) {
+        CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);
+        ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
+        ReportManagerHelper.writeStepToReport(this.validationCategoryString.replace("erify", "erificat") + "ion passed",
+                Level.INFO, Status.PASSED, this.validationStartTime);
+        TraceEventRecorder.finish(traceEvent, "passed",
+                this.validationCategoryString.replace("erify", "erificat") + "ion passed",
+                null, traceMetadata(checkpointType, locator, expected, actual), summarizeAttachments(attachments));
     }
 
     private static Map<String, String> traceMetadata(CheckpointType checkpointType, By locator,
