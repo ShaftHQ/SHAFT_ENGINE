@@ -404,3 +404,5 @@
 {"actor":"agent","event":"memory.created","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-07-20T03:48:27+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.sikulix-2-0-5-native-manifest-is-stale-versus-openpnp-opencv-4-9-0-0","timestamp":"2026-07-20T03:48:27+03:00"}
 {"actor":"agent","event":"memory.marked_stale","id":"constraint.paid-agent-work-audit-gated","reason":"refresh-agent-instructions.yml (the paid Codex refresh workflow this constraint gated) was deleted in Phase 3 of issue #3814; the constraint's evidence file no longer exists.","timestamp":"2026-07-20T07:30:05+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.completablefuture-supplyasync-wraps-cancellationexception-in-completionexception","timestamp":"2026-07-20T08:53:12+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.shaftassistantpanel-soft-cancel-renders-failed-not-cancelled-issue-3768","timestamp":"2026-07-20T08:53:12+03:00"}
