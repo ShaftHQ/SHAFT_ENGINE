@@ -205,11 +205,14 @@ runs:
                 ALLURE_FAILURE_SOURCE="${{ inputs.module-directory }}/allure-report"
               fi
               if [ -n "$ALLURE_FAILURE_SOURCE" ]; then
+                # tee instead of a bare redirect so the failure list also lands in the
+                # raw job log, where gh run view --log and log-download forensics can
+                # see it -- previously it was visible only in the step summary (#3807)
                 {
                   echo ""
                   echo "### ❌ Failed and broken test methods"
                   python3 scripts/ci/extract_allure_failures.py "$ALLURE_FAILURE_SOURCE" || true
-                } >> "$GITHUB_STEP_SUMMARY"
+                } | tee -a "$GITHUB_STEP_SUMMARY"
               fi
             fi
             echo "::error::Allure report shows $FAILED failed and $BROKEN broken test(s) out of $TOTAL total. Check the Allure report artifact for details."
