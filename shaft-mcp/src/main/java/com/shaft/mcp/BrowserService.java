@@ -209,21 +209,6 @@ public class BrowserService {
     }
 
     /**
-     * Maximizes the browser window.
-     */
-    @Tool(name = "browser_maximize_window", description = "maximizes the browser window")
-    public void maximizeWindow() {
-        try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().maximizeWindow();
-            logger.info("Browser window maximized.");
-        } catch (Exception e) {
-            logger.error("Failed to maximize browser window.", e);
-            throw e;
-        }
-    }
-
-    /**
      * Sets the browser window size, or maximizes/fullscreens it, dispatching to whichever engine is
      * currently active.
      *
@@ -263,52 +248,15 @@ public class BrowserService {
     }
 
     /**
-     * Sets the browser window to fullscreen mode.
-     */
-    @Tool(name = "browser_fullscreen_window", description = "sets the browser window to fullscreen mode")
-    public void fullscreenWindow() {
-        try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().fullScreenWindow();
-            logger.info("Browser window set to fullscreen mode.");
-        } catch (Exception e) {
-            logger.error("Failed to set browser window to fullscreen mode.", e);
-            throw e;
-        }
-    }
-
-    /**
-     * Deletes all cookies in the current browser session, dispatching to whichever engine is
-     * currently active. Delegates to the same unified {@code browser_delete_cookies}-shaped logic as
-     * {@link #deleteCookie}.
-     */
-    @Tool(name = "browser_delete_all_cookies", description = "deletes all cookies; dispatches to the active engine")
-    public void deleteAllCookies() {
-        deleteCookiesUnified(null);
-    }
-
-    /**
-     * Deletes a specific cookie by name in the current browser session, dispatching to whichever
-     * engine is currently active. Delegates to the same unified {@code browser_delete_cookies}-shaped
-     * logic as {@link #deleteAllCookies}.
+     * Deletes a cookie by name, or every cookie when {@code name} is omitted, dispatching to
+     * whichever engine is currently active. Absorbs the former {@code browser_delete_cookie} and
+     * {@code browser_delete_all_cookies} tools (design doc Decision 2).
      *
-     * @param cookieName The name of the cookie to delete.
+     * @param name cookie name; blank or omitted deletes every cookie
      */
-    @Tool(name = "browser_delete_cookie", description = "deletes a specific cookie by name; dispatches to the "
-            + "active engine")
-    public void deleteCookie(String cookieName) {
-        deleteCookiesUnified(cookieName);
-    }
-
-    /**
-     * Unified {@code browser_delete_cookies}-shaped logic (design doc Decision 2): deletes a single
-     * cookie by name, or every cookie when {@code name} is blank. Both {@link #deleteCookie} and
-     * {@link #deleteAllCookies} delegate here so the tool names stay registered until commit 4 while
-     * gaining engine dispatch now.
-     *
-     * @param name cookie name; blank or null deletes every cookie
-     */
-    private void deleteCookiesUnified(String name) {
+    @Tool(name = "browser_delete_cookies", description = "deletes a cookie by name, or every cookie when name is "
+            + "omitted; dispatches to the active engine; absorbs browser_delete_cookie/browser_delete_all_cookies")
+    public void deleteCookies(@ToolParam(required = false) String name) {
         try {
             BrowserActionsContract browser = activeBrowser();
             if (name == null || name.isBlank()) {
@@ -581,10 +529,10 @@ public class BrowserService {
     @Tool(name = "browser_network_requests",
             description = "lists the active browser session's observed network transactions (method, URL, "
                     + "status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that "
-                    + "single transaction, absorbing browser_network_request (call browser_network_request with "
-                    + "the same id for full header/body detail); requires the DevTools-based network trace "
-                    + "capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork); not "
-                    + "supported on the Playwright engine")
+                    + "single transaction and populates its full detail (headers and a truncated, redacted "
+                    + "response body preview), absorbing the former browser_network_request tool; requires the "
+                    + "DevTools-based network trace capture that is on by default (shaft.trace.enabled and "
+                    + "shaft.trace.includeNetwork); not supported on the Playwright engine")
     public McpNetworkTransactionList networkRequests(String urlFilter, int limit, @ToolParam(required = false) Integer id) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             throw new UnsupportedOperationException("browser_network_requests is not supported on the Playwright "
@@ -594,20 +542,27 @@ public class BrowserService {
         try {
             getDriver();
             String filter = text(urlFilter);
-            List<McpNetworkTransaction> matched = BrowserObservabilityRecorder.snapshot().stream()
+            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> snapshot = BrowserObservabilityRecorder.snapshot();
+            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> matchedEntries = snapshot.stream()
                     .filter(entry -> filter.isBlank() || entry.url().contains(filter))
+                    .filter(entry -> id == null || entry.id() == id)
+                    .toList();
+            List<McpNetworkTransaction> matched = matchedEntries.stream()
                     .map(BrowserService::toTransaction)
-                    .filter(transaction -> id == null || transaction.id() == id)
                     .toList();
             int effectiveLimit = limit <= 0 ? DEFAULT_NETWORK_TRANSACTION_LIMIT : Math.min(limit, MAX_NETWORK_TRANSACTION_LIMIT);
             boolean truncated = matched.size() > effectiveLimit;
             List<McpNetworkTransaction> page = truncated ? matched.subList(0, effectiveLimit) : matched;
-            logger.info("Network transactions listed (total: {}, returned: {}, truncated: {}).",
-                    matched.size(), page.size(), truncated);
+            McpNetworkTransactionDetail detail = id != null && matchedEntries.size() == 1
+                    ? toTransactionDetail(matchedEntries.get(0))
+                    : null;
+            logger.info("Network transactions listed (total: {}, returned: {}, truncated: {}, detail: {}).",
+                    matched.size(), page.size(), truncated, detail != null);
             return new McpNetworkTransactionList(page, matched.size(), truncated,
                     page.isEmpty()
                             ? List.of("No network transactions observed for this session yet.")
-                            : List.of());
+                            : List.of(),
+                    detail);
         } catch (Exception e) {
             logger.error("Failed to list network transactions.", e);
             throw e;
@@ -623,37 +578,6 @@ public class BrowserService {
      */
     public McpNetworkTransactionList networkRequests(String urlFilter, int limit) {
         return networkRequests(urlFilter, limit, null);
-    }
-
-    /**
-     * Returns one observed network transaction's detail, including headers and a truncated body
-     * preview as recorded by trace capture. Full, untruncated request/response bodies are only
-     * available from a {@code capture_start}/{@code capture_start_codegen} session started with
-     * {@code saveHarContent=full}.
-     *
-     * @param id 1-based transaction id from {@link #networkRequests(String, int)}
-     * @return the transaction detail
-     */
-    @Tool(name = "browser_network_request",
-            description = "returns one observed network transaction's detail (headers and a truncated, "
-                    + "redacted response body preview) by the 1-based id from browser_network_requests; full "
-                    + "request/response bodies require a capture_start/capture_start_codegen session with "
-                    + "saveHarContent=full")
-    public McpNetworkTransactionDetail networkRequest(int id) {
-        try {
-            getDriver();
-            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> snapshot = BrowserObservabilityRecorder.snapshot();
-            BrowserObservabilityRecorder.NetworkSnapshotEntry entry = snapshot.stream()
-                    .filter(candidate -> candidate.id() == id)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("No network transaction with id " + id
-                            + "; browser_network_requests currently reports " + snapshot.size() + " transaction(s)."));
-            logger.info("Network transaction detail retrieved (id: {}).", id);
-            return toTransactionDetail(entry);
-        } catch (Exception e) {
-            logger.error("Failed to retrieve network transaction detail.", e);
-            throw e;
-        }
     }
 
     /**

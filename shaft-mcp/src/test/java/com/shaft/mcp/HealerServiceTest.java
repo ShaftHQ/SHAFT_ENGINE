@@ -24,10 +24,10 @@ class HealerServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.runFailedTest(repository.toString(), List.of("cmd", "/c", "mvn test"),
-                        "", 1, false, false, List.of(), false, false, false, false, "driver"));
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
         assertThrows(IllegalArgumentException.class,
                 () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-Dtest=A;B"),
-                        "", 1, false, false, List.of(), false, false, false, false, "driver"));
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
     }
 
     @Test
@@ -46,7 +46,7 @@ class HealerServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(McpHealerRunResult.Status.PASSED, result.status());
         assertTrue(result.attempts().getFirst().passed());
@@ -71,7 +71,7 @@ class HealerServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());
         assertEquals(CauseCategory.LOCATOR, result.analysis().primaryCause());
@@ -85,7 +85,7 @@ class HealerServiceTest {
         Path repository = fakeRepository(tempDir);
 
         McpHealerRunResult result = service(
-                tempDir, 1, "failed", "NoSuchElementException: missing login").runFailedPlaywrightTest(
+                tempDir, 1, "failed", "NoSuchElementException: missing login").runFailedTest(
                 repository.toString(),
                 List.of("mvn", "test", "-Dtest=LoginTest"),
                 tempDir.resolve("target/healer").toString(),
@@ -97,7 +97,7 @@ class HealerServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", "playwright");
 
         String checklist = result.codeBlocks().stream()
                 .filter(block -> block.id().equals("playwright-replay-evidence-checklist"))
@@ -128,7 +128,7 @@ class HealerServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(McpHealerRunResult.Status.GUARDRAIL_STOPPED, result.status());
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("No populated Allure")));
@@ -155,7 +155,7 @@ class HealerServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(McpHealerRunResult.Status.GUARDRAIL_STOPPED, result.status());
         assertTrue(result.attempts().isEmpty());
@@ -179,7 +179,7 @@ class HealerServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(5, result.attempts().size());
         assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());

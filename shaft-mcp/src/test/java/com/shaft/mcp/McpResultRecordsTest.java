@@ -49,16 +49,10 @@ class McpResultRecordsTest {
     }
 
     @Test
-    void browserAndNaturalResultsKeepBoundedValues() {
-        McpNaturalActionResult natural = new McpNaturalActionResult(-1, -2, 120, " pilot ", false, " web ", "ai-fallback");
+    void browserResultsKeepBoundedValues() {
         McpPageDomSnapshot dom = new McpPageDomSnapshot("url", "title", "<html/>", 7, false, List.of());
         McpScreenshotResult screenshot = new McpScreenshotResult("image/png", 4, "abcd", "out.png", List.of());
 
-        assertEquals(0, natural.intentLength());
-        assertEquals(0, natural.argumentCount());
-        assertEquals(100, natural.minimumTrustPercentage());
-        assertEquals("pilot", natural.planner());
-        assertEquals("web", natural.allowedActions());
         assertEquals("<html/>", dom.dom());
         assertEquals("image/png", screenshot.mediaType());
     }

@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -45,6 +46,7 @@ public class MobileService {
     private static final Logger logger = LoggerFactory.getLogger(MobileService.class);
     private static final int DEFAULT_SOURCE_CHARACTER_LIMIT = 200_000;
     private static final String DEFAULT_APPIUM_SERVER = "http://127.0.0.1:4723";
+    private static final int DEFAULT_SWIPE_COORDINATE_DURATION_MILLIS = 100;
 
     private final EngineService engineService;
     private final McpMobileRecordingService recorder;
@@ -105,10 +107,29 @@ public class MobileService {
         this.workspacePolicy = workspacePolicy;
         this.inspectorRecorder = inspectorRecorder;
         this.apiCaptureController = apiCaptureController;
+        registerMobileInitBridge();
     }
 
     /**
-     * Starts a local browser in Chrome/Edge mobile emulation mode.
+     * Registers this instance as {@link EngineService}'s mobile-init bridge so {@code driver_initialize}
+     * can dispatch {@code engine=MOBILE_NATIVE}/{@code MOBILE_WEB} requests here without EngineService
+     * holding a direct {@link MobileService} field (design doc amendment A9; mirrors
+     * {@link EngineService#registerCaptureDriverBridge}).
+     */
+    private void registerMobileInitBridge() {
+        EngineService.registerMobileInitBridge((engine, options) -> {
+            if (engine == ActiveEngine.MOBILE_NATIVE) {
+                options.initializeNative(this);
+            } else {
+                options.initializeWebEmulation(this);
+            }
+        });
+    }
+
+    /**
+     * Starts a local browser in Chrome/Edge mobile emulation mode. Not an MCP tool since commit 4
+     * (design doc Decision 2/amendment A9): reached only through {@code driver_initialize}'s
+     * {@code engine=MOBILE_WEB} + {@code mobileOptions} dispatch now.
      *
      * @param targetUrl initial URL; blank leaves the browser on its startup page
      * @param browser browser name, defaults to CHROME
@@ -120,9 +141,7 @@ public class MobileService {
      * @param headless whether the emulated browser should run headlessly
      * @return session result and copy-paste setup block
      */
-    @Tool(name = "mobile_initialize_web_emulation",
-            description = "starts Chrome or Edge mobile web emulation using SHAFT browser setup")
-    public McpMobileSessionResult initializeWebEmulation(
+    McpMobileSessionResult initializeWebEmulation(
             String targetUrl,
             String browser,
             String deviceName,
@@ -166,7 +185,9 @@ public class MobileService {
     }
 
     /**
-     * Starts an Appium native Android or iOS session through SHAFT driver setup.
+     * Starts an Appium native Android or iOS session through SHAFT driver setup. Not an MCP tool
+     * since commit 4 (design doc Decision 2/amendment A9): reached only through
+     * {@code driver_initialize}'s {@code engine=MOBILE_NATIVE} + {@code mobileOptions} dispatch now.
      *
      * @param platformName Android or iOS
      * @param deviceName emulator, simulator, or real device name
@@ -180,9 +201,7 @@ public class MobileService {
      * @param bundleId optional iOS bundle identifier for installed apps
      * @return session result and copy-paste setup block
      */
-    @Tool(name = "mobile_initialize_native",
-            description = "starts a real Android or iOS native Appium session using SHAFT driver setup")
-    public McpMobileSessionResult initializeNative(
+    McpMobileSessionResult initializeNative(
             String platformName,
             String deviceName,
             String appiumServerUrl,
@@ -235,8 +254,6 @@ public class MobileService {
      * @param includeSensitiveValues whether typed values should be stored for exact replay
      * @return recorder status
      */
-    @Tool(name = "mobile_record_start",
-            description = "starts recording MCP mobile actions to a workspace JSON file")
     public McpMobileRecordingStatus recordStart(String outputPath, String mode, boolean includeSensitiveValues) {
         return recorder.start(outputPath, mode, includeSensitiveValues);
     }
@@ -246,8 +263,6 @@ public class MobileService {
      *
      * @return recorder status
      */
-    @Tool(name = "mobile_record_status",
-            description = "returns the active MCP mobile recording status")
     public McpMobileRecordingStatus recordStatus() {
         return recorder.status();
     }
@@ -258,8 +273,6 @@ public class MobileService {
      * @param discard whether to delete the recording output
      * @return final recorder status
      */
-    @Tool(name = "mobile_record_stop",
-            description = "stops MCP mobile recording and optionally discards the JSON file")
     public McpMobileRecordingStatus recordStop(boolean discard) {
         return recorder.stop(discard);
     }
@@ -270,8 +283,6 @@ public class MobileService {
      * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
      * @return updated recorder status
      */
-    @Tool(name = "mobile_step_delete",
-            description = "deletes a recorded mobile step by its stable stepId and renumbers the remaining steps")
     public McpMobileRecordingStatus stepDelete(String stepId) {
         return recorder.deleteStep(stepId);
     }
@@ -283,8 +294,6 @@ public class MobileService {
      * @param direction "up" or "down"
      * @return updated recorder status
      */
-    @Tool(name = "mobile_step_reorder",
-            description = "moves a recorded mobile step up or down by its stable stepId (direction: up|down)")
     public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
         return recorder.reorderStep(stepId, direction);
     }
@@ -303,8 +312,6 @@ public class MobileService {
      *         certificate PEM to install as a trusted CA on the device before HTTPS traffic can be
      *         captured
      */
-    @Tool(name = "mobile_api_record_start",
-            description = "starts a loopback MITM proxy that captures native mobile API traffic to a workspace JSON capture session")
     public MobileApiCaptureStatus mobileApiRecordStart(String platform, String deviceLabel, String outputPath) {
         Path output = outputPath == null || outputPath.isBlank()
                 ? workspacePolicy.output(
@@ -320,8 +327,6 @@ public class MobileService {
      * @return capture status, including the CA certificate PEM to install on the device and any
      *         non-sensitive warnings (pairing limitations, transactions that could not be recorded)
      */
-    @Tool(name = "mobile_api_record_status",
-            description = "returns the active mobile API capture status, including the CA certificate to install on the device")
     public MobileApiCaptureStatus mobileApiRecordStatus() {
         return apiCaptureController.status();
     }
@@ -332,8 +337,6 @@ public class MobileService {
      * @param discard whether to mark the session incomplete instead of completed
      * @return final capture status
      */
-    @Tool(name = "mobile_api_record_stop",
-            description = "stops mobile API capture, finalizing or discarding the JSON capture session")
     public MobileApiCaptureStatus mobileApiRecordStop(boolean discard) {
         return apiCaptureController.stop(discard);
     }
@@ -344,8 +347,6 @@ public class MobileService {
      *
      * @return ordered, body-free network transaction summaries; empty when no session is active
      */
-    @Tool(name = "mobile_api_record_transactions",
-            description = "returns the mobile API transactions captured so far without bodies or sensitive headers, for a live pure-API session view")
     public List<NetworkTransaction> mobileApiRecordTransactions() {
         return apiCaptureController.transactions();
     }
@@ -385,9 +386,7 @@ public class MobileService {
      * @param provisionAndroidEmulator whether to propose creating a fresh Android emulator when needed
      * @return confirmation-ready recording plan
      */
-    @Tool(name = "mobile_inspector_record_prepare",
-            description = "prepares a wrapped Appium Inspector mobile recording plan with device and dependency details")
-    public McpMobileInspectorPlan inspectorRecordPrepare(
+    McpMobileInspectorPlan inspectorRecordPrepare(
             String platformName,
             String outputPath,
             boolean includeSensitiveValues,
@@ -413,44 +412,84 @@ public class MobileService {
     }
 
     /**
-     * Starts a previously prepared wrapped Appium Inspector recording session.
+     * Prepares and starts a wrapped Appium Inspector recording session in one call, auto-running the
+     * former {@code mobile_inspector_record_prepare} step (design doc Decision 2) so the caller no
+     * longer juggles a separate confirmation token round trip. The device/toolchain readiness check
+     * ({@link McpMobileInspectorPlan#readyToStart()}) still runs and still fails the call with the
+     * same actionable message when the device or toolchain is not ready.
      *
-     * @param confirmationToken token returned by mobile_inspector_record_prepare
-     * @param selectedAndroidAvdName optional cached Android AVD override
+     * @param platformName Android or iOS
+     * @param outputPath workspace-contained recording JSON output path
+     * @param includeSensitiveValues whether typed values should be stored for exact replay
+     * @param app optional app path or remote app URL
+     * @param appPackage optional Android app package
+     * @param appActivity optional Android app activity
+     * @param bundleId optional iOS bundle identifier
+     * @param udid optional device UDID
+     * @param deviceName optional device or simulator name
+     * @param platformVersion optional mobile OS version
+     * @param selectedAndroidAvdName cached Android AVD name to start when no real device is connected
+     * @param androidApiLevel Android API level for new emulator proposal; non-positive uses SHAFT default
+     * @param androidDeviceProfile Android device profile for new emulator proposal
+     * @param androidImageTag Android image tag for new emulator proposal
+     * @param androidAbi Android emulator image ABI
+     * @param androidRamMb Android emulator RAM in MB
+     * @param androidCores Android emulator CPU cores
+     * @param provisionAndroidEmulator whether to propose creating a fresh Android emulator when needed
      * @param openInspector whether to open the wrapped Inspector URL in the user's browser
      * @return active recording status and Inspector URL
      */
     @Tool(name = "mobile_inspector_record_start",
-            description = "starts a confirmed wrapped Appium Inspector recording session")
+            description = "prepares and starts a wrapped Appium Inspector recording session in one call, "
+                    + "absorbing mobile_inspector_record_prepare")
     public McpMobileInspectorRecordingStatus inspectorRecordStart(
-            String confirmationToken,
+            String platformName,
+            String outputPath,
+            boolean includeSensitiveValues,
+            String app,
+            String appPackage,
+            String appActivity,
+            String bundleId,
+            String udid,
+            String deviceName,
+            String platformVersion,
             String selectedAndroidAvdName,
+            int androidApiLevel,
+            String androidDeviceProfile,
+            String androidImageTag,
+            String androidAbi,
+            int androidRamMb,
+            int androidCores,
+            boolean provisionAndroidEmulator,
             boolean openInspector) {
-        return inspectorRecorder.start(confirmationToken, selectedAndroidAvdName, openInspector);
+        McpMobileInspectorPlan plan = inspectorRecordPrepare(platformName, outputPath, includeSensitiveValues, app,
+                appPackage, appActivity, bundleId, udid, deviceName, platformVersion, selectedAndroidAvdName,
+                androidApiLevel, androidDeviceProfile, androidImageTag, androidAbi, androidRamMb, androidCores,
+                provisionAndroidEmulator);
+        return inspectorRecorder.start(plan.confirmationToken(), selectedAndroidAvdName, openInspector);
     }
 
     /**
-     * Returns wrapped Appium Inspector recording status.
+     * Returns wrapped Appium Inspector recording status, or performs a control action first when
+     * {@code action} is supplied, absorbing the former {@code mobile_inspector_record_control} tool
+     * (design doc Decision 2).
      *
-     * @return current Inspector recording status
+     * @param action blank for a plain status read, or pause|resume|checkpoint|stop|discard to control
+     *               the recording first
+     * @param checkpointName optional checkpoint name; only used when action is "checkpoint"
+     * @return current (or post-control) Inspector recording status
      */
     @Tool(name = "mobile_inspector_record_status",
-            description = "returns the wrapped Appium Inspector recording status")
-    public McpMobileInspectorRecordingStatus inspectorRecordStatus() {
+            description = "returns the wrapped Appium Inspector recording status; optional action "
+                    + "(pause|resume|checkpoint|stop|discard) performs that control first, absorbing "
+                    + "mobile_inspector_record_control")
+    public McpMobileInspectorRecordingStatus inspectorRecordStatus(
+            @ToolParam(required = false) String action,
+            @ToolParam(required = false) String checkpointName) {
+        if (action != null && !action.isBlank()) {
+            return inspectorRecorder.control(action, checkpointName);
+        }
         return inspectorRecorder.status();
-    }
-
-    /**
-     * Controls a wrapped Appium Inspector recording.
-     *
-     * @param action status, pause, resume, checkpoint, stop, or discard
-     * @param checkpointName optional checkpoint name
-     * @return updated recording status
-     */
-    @Tool(name = "mobile_inspector_record_control",
-            description = "pauses, resumes, checkpoints, stops, or discards a wrapped Appium Inspector recording")
-    public McpMobileInspectorRecordingStatus inspectorRecordControl(String action, String checkpointName) {
-        return inspectorRecorder.control(action, checkpointName);
     }
 
     /**
@@ -472,8 +511,6 @@ public class MobileService {
      * @param driverVariableName driver variable name to use in generated snippets
      * @return replay code blocks
      */
-    @Tool(name = "mobile_recording_code_blocks",
-            description = "generates reusable copy-paste SHAFT mobile replay code blocks")
     public McpMobileReplayResult recordingCodeBlocks(String recordingPath, String driverVariableName) {
         return recorder.codeBlocks(recordingPath, driverVariableName);
     }
@@ -487,8 +524,6 @@ public class MobileService {
      * @param insertAfter method name or textual anchor to insert after
      * @return replay code blocks plus target insertion snippets
      */
-    @Tool(name = "mobile_record_at_target_code_blocks",
-            description = "generates focused mobile recording snippets for insertion at an existing Java source anchor")
     public McpMobileReplayResult recordAtTargetCodeBlocks(
             String recordingPath,
             String driverVariableName,
@@ -507,8 +542,6 @@ public class MobileService {
      * @param driverVariableName driver variable name to use in generated snippets
      * @return replay result and replay code blocks
      */
-    @Tool(name = "mobile_replay_recording",
-            description = "replays an MCP mobile recording against the active SHAFT mobile driver")
     public McpMobileReplayResult replayRecording(String recordingPath, String driverVariableName) {
         McpMobileRecording recording = recorder.readRecording(recordingPath);
         int replayed = 0;
@@ -580,133 +613,12 @@ public class MobileService {
     }
 
     /**
-     * Performs a trust-gated natural-language touch action on the current mobile accessibility tree.
-     *
-     * @param intent semantic instruction describing the action (e.g., "tap button labeled OK")
-     * @param accessibleName accessible name/label to resolve deterministically from the tree
-     * @param aiFallbackEnabled optional AI fallback flag; when false, fails deterministic resolution
-     * @return mobile action result with matched locator strategy and value
-     */
-    @Tool(name = "mobile_natural_act",
-            description = "performs a trust-gated natural-language touch action by resolving the intent against the mobile accessibility tree")
-    public McpMobileNaturalActionResult naturalAct(
-            String intent,
-            String accessibleName,
-            Boolean aiFallbackEnabled) {
-        try {
-            return resolveNaturalAct(intent, accessibleName, aiFallbackEnabled);
-        } catch (RuntimeException exception) {
-            logger.error("Mobile natural action failed", exception);
-            throw exception;
-        }
-    }
-
-    private McpMobileNaturalActionResult resolveNaturalAct(
-            String intent, String accessibleName, Boolean aiFallbackEnabled) {
-        String safeIntent = safeTrim(intent);
-        String safeAccessibleName = safeTrim(accessibleName);
-        boolean fallbackEnabled = resolveFallbackEnabled(aiFallbackEnabled);
-
-        if (safeIntent.isBlank()) {
-            return blankIntentResult(safeIntent);
-        }
-        if (safeAccessibleName.isBlank()) {
-            return blankAccessibleNameResult(safeIntent, fallbackEnabled);
-        }
-        return resolveAgainstAccessibilityTree(safeIntent, safeAccessibleName, fallbackEnabled);
-    }
-
-    private static String safeTrim(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private static boolean resolveFallbackEnabled(Boolean aiFallbackEnabled) {
-        return aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
-    }
-
-    private McpMobileNaturalActionResult resolveAgainstAccessibilityTree(
-            String safeIntent, String safeAccessibleName, boolean fallbackEnabled) {
-        String source = getDriver().getDriver().getPageSource();
-        if (isBlank(source)) {
-            return emptySourceResult(safeIntent);
-        }
-
-        var suggesterOpt = McpAppiumLocatorSuggester.parse(source);
-        if (suggesterOpt.isEmpty()) {
-            return unparsableTreeResult(safeIntent, fallbackEnabled);
-        }
-
-        var locatorOpt = suggesterOpt.get().locatorByAccessibleName(safeAccessibleName);
-        if (locatorOpt.isEmpty()) {
-            return unresolvedLocatorResult(safeIntent, safeAccessibleName, fallbackEnabled);
-        }
-
-        return resolvedLocatorResult(safeIntent, safeAccessibleName, locatorOpt.get());
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
-
-    private McpMobileNaturalActionResult blankIntentResult(String safeIntent) {
-        logger.info("Mobile natural action failed (intent: blank)");
-        return new McpMobileNaturalActionResult(safeIntent, "", "", false,
-                List.of("Intent is blank; cannot resolve a semantic action."));
-    }
-
-    private McpMobileNaturalActionResult blankAccessibleNameResult(String safeIntent, boolean fallbackEnabled) {
-        List<String> warnings = fallbackEnabled
-                ? List.of("accessibleName is blank; deterministic resolution skipped.")
-                : List.of("accessibleName is blank and AI fallback is disabled.");
-        logger.info("Mobile natural action skipped deterministic resolution (accessibleName: blank, aiFallback: {})", fallbackEnabled);
-        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
-    }
-
-    private McpMobileNaturalActionResult emptySourceResult(String safeIntent) {
-        logger.info("Mobile natural action failed (source: empty)");
-        return new McpMobileNaturalActionResult(safeIntent, "", "", false,
-                List.of("Accessibility tree is empty; cannot resolve semantic action."));
-    }
-
-    private McpMobileNaturalActionResult unparsableTreeResult(String safeIntent, boolean fallbackEnabled) {
-        List<String> warnings = fallbackEnabled
-                ? List.of("Accessibility tree could not be parsed; deterministic resolution skipped.")
-                : List.of("Accessibility tree could not be parsed and AI fallback is disabled.");
-        logger.info("Mobile natural action skipped deterministic resolution (parse failed, aiFallback: {})", fallbackEnabled);
-        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
-    }
-
-    private McpMobileNaturalActionResult unresolvedLocatorResult(
-            String safeIntent, String safeAccessibleName, boolean fallbackEnabled) {
-        List<String> warnings = fallbackEnabled
-                ? List.of("No deterministic locator matched the accessible name; AI fallback available.")
-                : List.of("No deterministic locator matched the accessible name and AI fallback is disabled.");
-        logger.info("Mobile natural action could not resolve deterministically (accessibleName: {}, aiFallback: {})",
-                safeAccessibleName, fallbackEnabled);
-        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
-    }
-
-    private McpMobileNaturalActionResult resolvedLocatorResult(
-            String safeIntent, String safeAccessibleName, McpAppiumLocatorSuggester.LocatorSuggestion suggestion) {
-        logger.info("Mobile natural action resolved deterministically (intent length: {}, accessibleName length: {}, strategy: {})",
-                safeIntent.length(), safeAccessibleName.length(), suggestion.strategy().name());
-        return new McpMobileNaturalActionResult(
-                safeIntent,
-                suggestion.strategy().name(),
-                suggestion.value(),
-                true,
-                List.of());
-    }
-
-    /**
      * Takes a PNG screenshot of the current mobile device viewport.
      *
      * @param outputPath optional workspace-relative or workspace-contained output file path
      * @param includeBase64 whether to include screenshot bytes as base64 in the response
      * @return screenshot metadata and optional base64 payload
      */
-    @Tool(name = "mobile_take_screenshot",
-            description = "takes a PNG screenshot of the current mobile device viewport")
     public McpScreenshotResult takeScreenshot(String outputPath, boolean includeBase64) {
         WebDriver seleniumDriver = getDriver().getDriver();
         if (!(seleniumDriver instanceof TakesScreenshot takesScreenshot)) {
@@ -753,7 +665,6 @@ public class MobileService {
     /**
      * Taps an element by locator.
      */
-    @Tool(name = "mobile_tap", description = "taps a mobile element using SHAFT touch actions")
     public McpMobileActionResult tap(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("tap", locatorStrategy, locatorValue,
                 locator -> getDriver().touch().tap(locator),
@@ -764,7 +675,6 @@ public class MobileService {
     /**
      * Double taps an element by locator.
      */
-    @Tool(name = "mobile_double_tap", description = "double taps a mobile element using SHAFT touch actions")
     public McpMobileActionResult doubleTap(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("doubleTap", locatorStrategy, locatorValue,
                 locator -> getDriver().touch().doubleTap(locator),
@@ -775,7 +685,6 @@ public class MobileService {
     /**
      * Long taps an element by locator.
      */
-    @Tool(name = "mobile_long_tap", description = "long taps a mobile element using SHAFT touch actions")
     public McpMobileActionResult longTap(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("longTap", locatorStrategy, locatorValue,
                 locator -> getDriver().touch().longTap(locator),
@@ -808,7 +717,6 @@ public class MobileService {
      * fields (password, token, and similar locators) or matching secret-value patterns are
      * redacted from the recording, so ordinary inputs such as search boxes stay replayable.
      */
-    @Tool(name = "mobile_type", description = "types a value into a mobile element; sensitive fields are redacted per field")
     public McpMobileActionResult type(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
         return typeInternal(locatorStrategy, locatorValue, textValue, false);
     }
@@ -861,7 +769,6 @@ public class MobileService {
     /**
      * Clears a mobile element.
      */
-    @Tool(name = "mobile_clear", description = "clears a mobile element")
     public McpMobileActionResult clear(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("clear", locatorStrategy, locatorValue,
                 locator -> getDriver().element().clear(locator),
@@ -870,9 +777,68 @@ public class MobileService {
     }
 
     /**
+     * Unified mobile swipe gesture (design doc Decision 2): absorbs {@code mobile_swipe_by_offset},
+     * {@code mobile_swipe_coordinates}, {@code mobile_swipe_element_into_view}, and
+     * {@code mobile_swipe_text_into_view} into a single tool, selecting the underlying gesture from
+     * whichever optional params are supplied -- checked most-specific-first: {@code text} (swipe to
+     * text), then a locator with {@code offsetX}/{@code offsetY} (swipe by offset), then a locator
+     * alone (swipe element into view), then raw {@code startX}/{@code startY}/{@code endX}/{@code endY}
+     * coordinates (last-resort escape hatch, same as {@code mobile_tap_coordinates}).
+     *
+     * @param locatorStrategy locator strategy; used with locatorValue for by-offset/element-into-view
+     * @param locatorValue locator value; used with locatorStrategy for by-offset/element-into-view
+     * @param direction swipe direction for element-into-view; blank defaults to DOWN
+     * @param text target text for Android UiScrollable text-into-view
+     * @param movement scroll axis for text-into-view; blank defaults to VERTICAL
+     * @param offsetX horizontal offset; requires a locator and offsetY
+     * @param offsetY vertical offset; requires a locator and offsetX
+     * @param startX coordinate swipe start x; requires startY/endX/endY and no locator/text
+     * @param startY coordinate swipe start y
+     * @param endX coordinate swipe end x
+     * @param endY coordinate swipe end y
+     * @return recorded action metadata
+     */
+    @Tool(name = "mobile_swipe", description = "swipes on the mobile screen; dispatches on whichever optional "
+            + "params are supplied -- text (swipe to text) | locator+offsetX/offsetY (swipe by offset) | "
+            + "locator alone (swipe element into view, optional direction) | startX/startY/endX/endY "
+            + "(coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/"
+            + "mobile_swipe_element_into_view/mobile_swipe_text_into_view")
+    public McpMobileActionResult swipe(
+            @ToolParam(required = false) locatorStrategy locatorStrategy,
+            @ToolParam(required = false) String locatorValue,
+            @ToolParam(required = false) String direction,
+            @ToolParam(required = false) String text,
+            @ToolParam(required = false) String movement,
+            @ToolParam(required = false) Integer offsetX,
+            @ToolParam(required = false) Integer offsetY,
+            @ToolParam(required = false) Integer startX,
+            @ToolParam(required = false) Integer startY,
+            @ToolParam(required = false) Integer endX,
+            @ToolParam(required = false) Integer endY) {
+        boolean hasLocator = locatorValue != null && !locatorValue.isBlank();
+        boolean hasText = text != null && !text.isBlank();
+        boolean hasOffset = offsetX != null && offsetY != null;
+        boolean hasCoordinates = startX != null && startY != null && endX != null && endY != null;
+
+        if (hasText) {
+            return swipeTextIntoView(text, movement);
+        }
+        if (hasLocator && hasOffset) {
+            return swipeByOffset(locatorStrategy, locatorValue, offsetX, offsetY);
+        }
+        if (hasLocator) {
+            return swipeElementIntoView(locatorStrategy, locatorValue, direction);
+        }
+        if (hasCoordinates) {
+            return swipeCoordinates(startX, startY, endX, endY, DEFAULT_SWIPE_COORDINATE_DURATION_MILLIS);
+        }
+        throw new IllegalArgumentException("mobile_swipe requires one of: text, a locator "
+                + "(optionally with offsetX/offsetY), or startX/startY/endX/endY coordinates.");
+    }
+
+    /**
      * Swipes one element by an offset.
      */
-    @Tool(name = "mobile_swipe_by_offset", description = "swipes a mobile element by x/y offset")
     public McpMobileActionResult swipeByOffset(
             locatorStrategy locatorStrategy,
             String locatorValue,
@@ -893,8 +859,6 @@ public class MobileService {
     /**
      * Swipes until a target element is visible.
      */
-    @Tool(name = "mobile_swipe_element_into_view",
-            description = "swipes the mobile screen until the target element is visible")
     public McpMobileActionResult swipeElementIntoView(
             locatorStrategy locatorStrategy,
             String locatorValue,
@@ -916,8 +880,6 @@ public class MobileService {
     /**
      * Swipes to Android text through UiScrollable.
      */
-    @Tool(name = "mobile_swipe_text_into_view",
-            description = "swipes to text using SHAFT Android UiScrollable support")
     public McpMobileActionResult swipeTextIntoView(String targetText, String movement) {
         TouchActions.SwipeMovement swipeMovement = enumValue(TouchActions.SwipeMovement.class, movement,
                 TouchActions.SwipeMovement.VERTICAL);
@@ -949,8 +911,6 @@ public class MobileService {
     /**
      * Last-resort fallback that swipes between screen coordinates using W3C touch actions.
      */
-    @Tool(name = "mobile_swipe_coordinates",
-            description = "fallback-only: swipes viewport coordinates only after locator-based mobile_swipe_by_offset cannot be used")
     public McpMobileActionResult swipeCoordinates(int startX, int startY, int endX, int endY, int durationMillis) {
         performSwipeCoordinates(startX, startY, endX, endY, durationMillis);
         String code = swipeCoordinatesCode(startX, startY, endX, endY, durationMillis);

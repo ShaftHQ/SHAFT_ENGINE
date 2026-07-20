@@ -54,7 +54,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "GoldenSessionTest",
                     false,
-                    "browser");
+                    "browser", null);
         } finally {
             service.close();
         }
@@ -103,7 +103,7 @@ class CaptureServiceTest {
                     false,
                     target.toString(),
                     "replayCheckout",
-                    "browser");
+                    "browser", null);
         } finally {
             service.close();
         }
@@ -132,13 +132,14 @@ class CaptureServiceTest {
         CaptureService service = service();
         McpCaptureReplayResult result;
         try {
-            result = service.playwrightCodeBlocks(
+            result = service.codeBlocks(
                     session.toString(),
                     temp.resolve("generated-playwright").toString(),
                     "generated.capture",
                     "PlaywrightGoldenSessionTest",
                     false,
-                    "page");
+                    "page",
+                    "playwright");
         } finally {
             service.close();
         }
@@ -167,7 +168,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "ReviewWarningTest",
                     false,
-                    "driver");
+                    "driver", null);
         } finally {
             service.close();
         }
@@ -272,7 +273,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "EvidenceSessionTest",
                     false,
-                    "driver");
+                    "driver", null);
             Path screenshot = temp.resolve("screenshots/capture.png");
             Files.createDirectories(screenshot.getParent());
             Files.writeString(screenshot, "png");
@@ -334,7 +335,7 @@ class CaptureServiceTest {
                             "generated.capture",
                             "OutsideTest",
                             false,
-                            "driver"));
+                            "driver", null));
         } finally {
             service.close();
         }
@@ -520,7 +521,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "DefaultSessionTest",
                     false,
-                    "browser");
+                    "browser", null);
         } finally {
             service.close();
         }
@@ -542,7 +543,7 @@ class CaptureServiceTest {
         try {
             failure = assertThrows(IllegalArgumentException.class,
                     () -> service.codeBlocks("", temp.resolve("generated-none").toString(),
-                            "generated.capture", "NoRecordingTest", false, "browser"));
+                            "generated.capture", "NoRecordingTest", false, "browser", null));
         } finally {
             service.close();
         }
@@ -566,7 +567,7 @@ class CaptureServiceTest {
                     null,           // packageName - should default to tests.generated
                     null,           // className - should default to RecordedFlowTest
                     null,
-                    null);          // driverVariableName - should default to driver
+                    null, null);          // driverVariableName - should default to driver
         } finally {
             service.close();
         }
@@ -600,7 +601,7 @@ class CaptureServiceTest {
                     "",             // packageName - blank should default to tests.generated
                     "  ",           // className - blank should default to RecordedFlowTest
                     null,
-                    "");            // driverVariableName - blank should default to driver
+                    "", null);            // driverVariableName - blank should default to driver
         } finally {
             service.close();
         }

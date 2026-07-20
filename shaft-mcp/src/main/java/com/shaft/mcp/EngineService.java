@@ -150,6 +150,20 @@ public class EngineService {
     }
 
     /**
+     * Bridge to {@link MobileService}'s native/web-emulation initializers, registered by
+     * {@link MobileService} itself. {@code driver_initialize} routes {@code engine=MOBILE_NATIVE}/
+     * {@code MOBILE_WEB} requests through this static functional bridge -- mirroring
+     * {@link #captureDriverBridge} -- instead of holding a direct {@link MobileService} field, since
+     * {@link MobileService} already depends on {@link EngineService} and a direct field would form a
+     * constructor-injection cycle (design doc amendment A9).
+     */
+    private static volatile java.util.function.BiConsumer<ActiveEngine, McpMobileInitOptions> mobileInitBridge;
+
+    static void registerMobileInitBridge(java.util.function.BiConsumer<ActiveEngine, McpMobileInitOptions> bridge) {
+        mobileInitBridge = bridge;
+    }
+
+    /**
      * Finds a web element using the specified locator strategy and value.
      *
      * @param locatorStrategy The strategy to locate the element (e.g., ID, XPATH, CSSSELECTOR).
@@ -178,17 +192,32 @@ public class EngineService {
      * @param targetBrowser The type of browser to initialize (e.g., CHROME, FIREFOX).
      * @param engine which engine to start; blank/omitted defaults to {@link ActiveEngine#WEB}.
      *               {@link ActiveEngine#PLAYWRIGHT} starts a SHAFT Playwright session instead of a
-     *               WebDriver session. {@link ActiveEngine#MOBILE_NATIVE} and
-     *               {@link ActiveEngine#MOBILE_WEB} are not yet supported here -- use
-     *               {@code mobile_initialize_native} / {@code mobile_initialize_web_emulation}.
+     *               WebDriver session. {@link ActiveEngine#MOBILE_NATIVE}/{@link ActiveEngine#MOBILE_WEB}
+     *               start an Appium native or Chrome/Edge mobile-emulation session using
+     *               {@code mobileOptions} (design doc amendment A9).
+     * @param mobileOptions optional nested request carrying the union of the former
+     *                      {@code mobile_initialize_native}/{@code mobile_initialize_web_emulation}
+     *                      parameters; only read when {@code engine} is a mobile engine; unset fields
+     *                      resolve from {@code SHAFT.Properties} exactly as those tools did
      */
-    @Tool(name = "driver_initialize", description = "launches browser; optional engine selects web (default) "
-            + "| playwright -- mobile engines still use mobile_initialize_native/mobile_initialize_web_emulation")
-    public void initializeDriver(BrowserType targetBrowser, @ToolParam(required = false) ActiveEngine engine) {
+    @Tool(name = "driver_initialize", description = "launches browser, Playwright, or a mobile session; optional "
+            + "engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, "
+            + "optional nested mobileOptions carries native/web-emulation parameters, absorbing "
+            + "mobile_initialize_native/mobile_initialize_web_emulation")
+    public void initializeDriver(
+            BrowserType targetBrowser,
+            @ToolParam(required = false) ActiveEngine engine,
+            @ToolParam(required = false) McpMobileInitOptions mobileOptions) {
         ActiveEngine resolvedEngine = engine == null ? ActiveEngine.WEB : engine;
         if (resolvedEngine == ActiveEngine.MOBILE_NATIVE || resolvedEngine == ActiveEngine.MOBILE_WEB) {
-            throw new IllegalArgumentException("driver_initialize does not yet support engine=" + resolvedEngine
-                    + "; use mobile_initialize_native or mobile_initialize_web_emulation instead.");
+            java.util.function.BiConsumer<ActiveEngine, McpMobileInitOptions> bridge = mobileInitBridge;
+            if (bridge == null) {
+                throw new IllegalStateException("driver_initialize cannot start a mobile session: no MobileService "
+                        + "bridge is registered (this indicates the shaft-mcp Spring context did not construct a "
+                        + "MobileService bean).");
+            }
+            bridge.accept(resolvedEngine, mobileOptions == null ? McpMobileInitOptions.EMPTY : mobileOptions);
+            return;
         }
         if (resolvedEngine == ActiveEngine.PLAYWRIGHT) {
             playwrightService.initialize(targetBrowser == null ? null : targetBrowser.name(),
@@ -211,7 +240,7 @@ public class EngineService {
      * @param targetBrowser The type of browser to initialize (e.g., CHROME, FIREFOX).
      */
     public void initializeDriver(BrowserType targetBrowser) {
-        initializeDriver(targetBrowser, null);
+        initializeDriver(targetBrowser, null, null);
     }
 
     void initializeConfiguredDriver(String sessionName) {

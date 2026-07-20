@@ -203,4 +203,137 @@ class CaptureServiceDispatchTest {
                 () -> service.stepReorder("m1", "up"));
         assertTrue(failure.getMessage().contains("NONE"), failure.getMessage());
     }
+
+    @Test
+    void startAcceptsOptionalCodegenOptionsAbsorbingCaptureStartCodegen() throws Exception {
+        // capture_start_codegen's 28-field CaptureCodegenStartRequest becomes an optional nested
+        // param on capture_start itself (design doc Decision 2): passing it selects the same
+        // Playwright-codegen-shaped WEB launch capture_start_codegen used to provide directly.
+        Path outside = Files.createTempFile("outside-capture-codegen-options", ".json");
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        CaptureService service = service(playwrightService, mobileService);
+        EngineService.setActiveEngine(ActiveEngine.WEB);
+        CaptureService.CaptureCodegenStartRequest options = new CaptureService.CaptureCodegenStartRequest();
+        options.targetUrl = "https://example.test";
+        options.outputPath = outside.toString();
+        options.headless = true;
+
+        // The workspace-boundary check on outputPath fires before any browser launch (same guard
+        // proven for the flat-args path in startDispatchesToWebCdpManagedBrowserWhenWebOrNoEngineIsActive),
+        // so this proves the nested codegenOptions object actually reached startWithOptions.
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service.start(null, null, null, null, "", options));
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void codeBlocksDispatchesToMobileRecorderWhenMobileEngineIsActiveOrBackendIsExplicitlyMobile() {
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        McpMobileReplayResult mobileBlocks = new McpMobileReplayResult(
+                Path.of("recording.json"), true, 0, List.of(), List.of());
+        when(mobileService.recordingCodeBlocks("recording.json", "driver")).thenReturn(mobileBlocks);
+        CaptureService service = service(playwrightService, mobileService);
+
+        EngineService.setActiveEngine(ActiveEngine.MOBILE_NATIVE);
+        McpCaptureReplayResult inferred = service.codeBlocks("recording.json", null, null, null, null, "driver", null);
+        verify(mobileService).recordingCodeBlocks("recording.json", "driver");
+        assertTrue(inferred.successful());
+
+        EngineService.setActiveEngine(ActiveEngine.WEB);
+        service.codeBlocks("recording.json", null, null, null, null, "driver", "mobile");
+        verify(mobileService, org.mockito.Mockito.times(2)).recordingCodeBlocks("recording.json", "driver");
+    }
+
+    @Test
+    void recordAtTargetCodeBlocksDispatchesToMobileRecorderWhenMobileEngineIsActive() {
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        McpMobileReplayResult mobileBlocks = new McpMobileReplayResult(
+                Path.of("recording.json"), true, 0, List.of(), List.of());
+        when(mobileService.recordAtTargetCodeBlocks("recording.json", "driver", "target.java", "anchor"))
+                .thenReturn(mobileBlocks);
+        CaptureService service = service(playwrightService, mobileService);
+        EngineService.setActiveEngine(ActiveEngine.MOBILE_WEB);
+
+        McpCaptureReplayResult result = service.recordAtTargetCodeBlocks(
+                "recording.json", null, null, null, null, "target.java", "anchor", "driver", null);
+
+        verify(mobileService).recordAtTargetCodeBlocks("recording.json", "driver", "target.java", "anchor");
+        assertTrue(result.successful());
+    }
+
+    @Test
+    void codeBlocksDispatchesToPlaywrightsOwnLiveRecorderWhenTheSessionFileIsStepRecordingFormat() throws Exception {
+        // capture_start on the Playwright engine writes via playwrightService.recordStart, whose JSON
+        // shape is the step-recorder format (top-level "actions"), never a Capture-JSON session (top-
+        // level "events") -- capture_code_blocks/capture_generate_replay must sniff the session file
+        // instead of assuming backend=playwright always means "render a Capture session as Playwright
+        // code" (design doc Decision 2/3: "backend inferred from the session file / ActiveEngine").
+        Path stepRecording = temp.resolve("playwright-step-recording.json");
+        Files.writeString(stepRecording, "{\"schemaVersion\":1,\"mode\":\"playwright\",\"actions\":[]}");
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        McpMobileReplayResult stepBlocks = new McpMobileReplayResult(
+                stepRecording, true, 0, List.of(), List.of());
+        when(playwrightService.recordingCodeBlocks(stepRecording.toString(), "driver")).thenReturn(stepBlocks);
+        CaptureService service = service(playwrightService, mobileService);
+
+        McpCaptureReplayResult result = service.codeBlocks(
+                stepRecording.toString(), null, null, null, null, "driver", "playwright");
+
+        verify(playwrightService).recordingCodeBlocks(stepRecording.toString(), "driver");
+        assertTrue(result.successful());
+    }
+
+    @Test
+    void apiStartStatusStopDispatchToMobileApiCaptureWhenMobileEngineIsActive() {
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        MobileApiCaptureStatus mobileStartStatus = new MobileApiCaptureStatus(
+                true, "session-1", 8080, "", 0, List.of());
+        MobileApiCaptureStatus mobileStatus = new MobileApiCaptureStatus(
+                true, "session-1", 8080, "", 3, List.of());
+        MobileApiCaptureStatus mobileStopStatus = new MobileApiCaptureStatus(
+                false, "session-1", 0, "", 3, List.of());
+        when(mobileService.mobileApiRecordStart("Android", "pixel", "recordings/api.json"))
+                .thenReturn(mobileStartStatus);
+        when(mobileService.mobileApiRecordStatus()).thenReturn(mobileStatus);
+        when(mobileService.mobileApiRecordStop(false)).thenReturn(mobileStopStatus);
+        CaptureService service = service(playwrightService, mobileService);
+        EngineService.setActiveEngine(ActiveEngine.MOBILE_NATIVE);
+
+        McpCaptureApiUnionStatus started = service.apiStart(
+                null, null, null, null, "recordings/api.json", "Android", "pixel");
+        McpCaptureApiUnionStatus status = service.apiStatus();
+        McpCaptureApiUnionStatus stopped = service.apiStop(false);
+
+        assertEquals(ActiveEngine.MOBILE_NATIVE, started.engine());
+        assertEquals(mobileStartStatus, started.mobileStatus());
+        assertNull(started.webStatus());
+        assertEquals(mobileStatus, status.mobileStatus());
+        assertEquals(mobileStopStatus, stopped.mobileStatus());
+        verify(mobileService).mobileApiRecordStart("Android", "pixel", "recordings/api.json");
+        verify(mobileService).mobileApiRecordStatus();
+        verify(mobileService).mobileApiRecordStop(false);
+    }
+
+    @Test
+    void generateReplayDispatchesToMobileReplayWhenMobileEngineIsActive() {
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        MobileService mobileService = mock(MobileService.class);
+        McpMobileReplayResult mobileReplay = new McpMobileReplayResult(
+                Path.of("recording.json"), true, 3, List.of(), List.of());
+        when(mobileService.replayRecording("recording.json", "driver")).thenReturn(mobileReplay);
+        CaptureService service = service(playwrightService, mobileService);
+        EngineService.setActiveEngine(ActiveEngine.MOBILE_NATIVE);
+
+        McpCaptureReplayResult result = service.generateReplay(
+                "recording.json", null, null, null, false, true, false, false, false, "driver", null, null, null);
+
+        verify(mobileService).replayRecording("recording.json", "driver");
+        assertTrue(result.successful());
+    }
 }

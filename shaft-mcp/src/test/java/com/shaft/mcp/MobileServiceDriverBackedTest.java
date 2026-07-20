@@ -58,8 +58,10 @@ class MobileServiceDriverBackedTest {
         McpMobileInspectorPlan plan = service.inspectorRecordPrepare(
                 "Android", "recordings/native.json", true,
                 "", "", "", "", "", "", "", "", 0, "", "", "", 0, 0, false);
-        McpMobileInspectorRecordingStatus status = service.inspectorRecordStatus();
-        McpMobileInspectorRecordingStatus control = service.inspectorRecordControl("status", "");
+        // mobile_inspector_record_status absorbs mobile_inspector_record_control via an optional
+        // action param (design doc Decision 2): a blank action just returns status.
+        McpMobileInspectorRecordingStatus status = service.inspectorRecordStatus(null, null);
+        McpMobileInspectorRecordingStatus control = service.inspectorRecordStatus("status", "");
         McpMobileInspectorRecordingStatus stopped = service.inspectorRecordStop(false);
 
         assertFalse(toolchain.platformName().isBlank());
@@ -67,8 +69,15 @@ class MobileServiceDriverBackedTest {
         assertFalse(status.active());
         assertFalse(control.active());
         assertFalse(stopped.active());
-        assertThrows(IllegalArgumentException.class,
-                () -> service.inspectorRecordStart("unknown-token", "", false));
+        // mobile_inspector_record_start now auto-runs prepare (absorbing mobile_inspector_record_prepare,
+        // design doc Decision 2): with no real Appium toolchain, the auto-prepared plan is never
+        // ready-to-start, so it fails deterministically with an actionable message instead of the old
+        // "unknown confirmation token" shape.
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> service.inspectorRecordStart(
+                        "Android", "recordings/native.json", true,
+                        "", "", "", "", "", "", "", "", 0, "", "", "", 0, 0, false, false));
+        assertTrue(failure.getMessage().contains("not ready to start"), failure.getMessage());
     }
 
     @Test
@@ -248,34 +257,6 @@ class MobileServiceDriverBackedTest {
                     () -> service.swipeElementIntoView(locatorStrategy.ACCESSIBILITY_ID, "target", "down"));
             assertThrows(RuntimeException.class,
                     () -> service.swipeTextIntoView("Find me", "vertical"));
-        }
-    }
-
-    @Test
-    void naturalActReportsFallbackAvailableWhenAccessibleNameIsBlankAndFallbackEnabled() {
-        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp));
-
-        McpMobileNaturalActionResult result = service.naturalAct("tap the button", "", true);
-
-        assertFalse(result.success());
-        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("deterministic resolution skipped")));
-    }
-
-    @Test
-    void naturalActSkipsDeterministicResolutionWhenTheAccessibilityTreeCannotBeParsed() {
-        WebDriver seleniumDriver = mock(WebDriver.class);
-        when(seleniumDriver.getPageSource()).thenReturn("not xml at all, just plain garbage text");
-        SHAFT.GUI.WebDriver shaftDriver = mockShaftDriver(seleniumDriver, mock(TouchActions.class), mock(Actions.class));
-        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp));
-
-        try (MockedStatic<EngineService> m = mockStatic(EngineService.class)) {
-            m.when(EngineService::getDriver).thenReturn(shaftDriver);
-
-            McpMobileNaturalActionResult result = service.naturalAct("tap the button", "loginButton", false);
-
-            assertFalse(result.success());
-            assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("could not be parsed")
-                    && warning.contains("disabled")));
         }
     }
 }

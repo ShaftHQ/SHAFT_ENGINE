@@ -47,7 +47,14 @@ public class ShaftMcpApplication {
 	}
 
     /**
-     * Registers the ShaftService tool callbacks.
+     * Registers the ShaftService tool callbacks. {@link PlaywrightService} and
+     * {@link NaturalActionService}'s former {@code natural_act}/{@code mobile_natural_act} tools are
+     * deliberately absent: since commit 4 of the tool architecture sweep (design doc Decision 2),
+     * every {@code playwright_*} tool is absorbed into the unified {@code element_*}/{@code browser_*}/
+     * {@code capture_*}/{@code doctor_*}/{@code healer_*} tools (PlaywrightService is still a Spring
+     * bean, injected directly by those services as a dispatch target -- it registers zero
+     * {@code @Tool} methods of its own), and the two intent-based "smart act" tools were deleted
+     * outright per an explicit owner mandate (no deprecation shim, no re-export).
      * @param engineService the ShaftService instance
      * @return a list of ToolCallback instances
      */
@@ -56,8 +63,6 @@ public class ShaftMcpApplication {
             EngineService engineService,
             BrowserService browserService,
             ElementService elementService,
-            PlaywrightService playwrightService,
-            NaturalActionService naturalActionService,
             MobileService mobileService,
             CaptureService captureService,
             DoctorService doctorService,
@@ -72,8 +77,6 @@ public class ShaftMcpApplication {
         var engineServiceList = List.of(ToolCallbacks.from(engineService));
         var browserServiceList = List.of(ToolCallbacks.from(browserService));
         var elementServiceList = List.of(ToolCallbacks.from(elementService));
-        var playwrightServiceList = List.of(ToolCallbacks.from(playwrightService));
-        var naturalActionServiceList = List.of(ToolCallbacks.from(naturalActionService));
         var mobileServiceList = List.of(ToolCallbacks.from(mobileService));
         var captureServiceList = List.of(ToolCallbacks.from(captureService));
         var doctorServiceList = List.of(ToolCallbacks.from(doctorService));
@@ -90,8 +93,6 @@ public class ShaftMcpApplication {
         serviceList.addAll(engineServiceList);
         serviceList.addAll(browserServiceList);
         serviceList.addAll(elementServiceList);
-        serviceList.addAll(playwrightServiceList);
-        serviceList.addAll(naturalActionServiceList);
         serviceList.addAll(mobileServiceList);
         serviceList.addAll(captureServiceList);
         serviceList.addAll(doctorServiceList);

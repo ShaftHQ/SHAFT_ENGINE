@@ -17,6 +17,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,7 +147,7 @@ class BrowserServiceDispatchTest {
     }
 
     @Test
-    void deleteCookieAndDeleteAllCookiesDelegateToUnifiedLogicAndDispatchToWebAndPlaywright() {
+    void deleteCookiesUnifiesNamedAndAllCookieDeletionAndDispatchesToWebAndPlaywright() {
         BrowserActions webBrowser = mock(BrowserActions.class);
         SHAFT.GUI.WebDriver shaftDriver = mock(SHAFT.GUI.WebDriver.class);
         when(shaftDriver.browser()).thenReturn(webBrowser);
@@ -154,8 +156,8 @@ class BrowserServiceDispatchTest {
         try (MockedStatic<EngineService> mocked = mockStatic(EngineService.class, CALLS_REAL_METHODS)) {
             mocked.when(EngineService::getDriver).thenReturn(shaftDriver);
 
-            webService.deleteCookie("sid");
-            webService.deleteAllCookies();
+            webService.deleteCookies("sid");
+            webService.deleteCookies(null);
 
             verify(webBrowser).deleteCookie("sid");
             verify(webBrowser).deleteAllCookies();
@@ -167,8 +169,8 @@ class BrowserServiceDispatchTest {
         BrowserService pwService = new BrowserService(McpWorkspacePolicy.of(temp), playwrightService);
         EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);
 
-        pwService.deleteCookie("sid");
-        pwService.deleteAllCookies();
+        pwService.deleteCookies("sid");
+        pwService.deleteCookies(null);
 
         verify(pwBrowser).deleteCookie("sid");
         verify(pwBrowser).deleteAllCookies();
@@ -363,6 +365,10 @@ class BrowserServiceDispatchTest {
             McpNetworkTransactionList narrowed = webService.networkRequests("", 50, firstId);
             assertEquals(1, narrowed.transactions().size());
             assertEquals(firstId, narrowed.transactions().get(0).id());
+            assertNotNull(narrowed.detail(),
+                    "requesting a single id must absorb browser_network_request's full detail (Decision 2)");
+            assertEquals(firstId, narrowed.detail().id());
+            assertNull(all.detail(), "listing without an id must not populate detail");
         }
 
         EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);

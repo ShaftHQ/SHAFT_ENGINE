@@ -137,7 +137,10 @@ public class CaptureService {
                     + "it is active, element_* tools drive the recorded browser directly (no driver_initialize "
                     + "needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver "
                     + "(targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, "
-                    + "or is used as the recorder's mode label on PLAYWRIGHT/mobile)")
+                    + "or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested "
+                    + "codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args "
+                    + "with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, "
+                    + "etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only")
     public McpCaptureUnionStatus start(
             @ToolParam(required = false, description = "initial http, https, or file URL; blank opens an empty browser; WEB/NONE only")
             String targetUrl,
@@ -148,7 +151,12 @@ public class CaptureService {
             @ToolParam(required = false, description = "whether to launch without a visible window; blank/omitted defaults to headless per repo policy; WEB/NONE only")
             Boolean headless,
             @ToolParam(required = false, description = "optional user intent for the journey; drives generated test class and method names on WEB, or the recorder's mode label on PLAYWRIGHT/mobile")
-            String sessionGoal) {
+            String sessionGoal,
+            @ToolParam(required = false, description = "full Playwright-codegen-compatible request (viewport, "
+                    + "geolocation, HAR, proxy, API capture, etc.); when supplied, its own fields replace "
+                    + "targetUrl/browser/outputPath/headless/sessionGoal entirely; WEB/NONE only, absorbs "
+                    + "capture_start_codegen")
+            CaptureCodegenStartRequest codegenOptions) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
             case PLAYWRIGHT -> new McpCaptureUnionStatus(engine, null,
@@ -156,28 +164,44 @@ public class CaptureService {
             case MOBILE_NATIVE, MOBILE_WEB -> new McpCaptureUnionStatus(engine, null, null,
                     mobileService.recordStart(outputPath, sessionGoal, false));
             case WEB, NONE -> {
-                CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
-                request.targetUrl = targetUrl;
-                request.browser = browser;
-                request.outputPath = outputPath;
-                request.headless = resolveHeadless(headless);
-                request.sessionGoal = sessionGoal;
+                CaptureCodegenStartRequest request = codegenOptions != null ? codegenOptions : new CaptureCodegenStartRequest();
+                if (codegenOptions == null) {
+                    request.targetUrl = targetUrl;
+                    request.browser = browser;
+                    request.outputPath = outputPath;
+                    request.headless = resolveHeadless(headless);
+                    request.sessionGoal = sessionGoal;
+                }
                 yield new McpCaptureUnionStatus(ActiveEngine.WEB, startWithOptions(request), null, null);
             }
         };
     }
 
     /**
-     * Launches a fresh SHAFT-managed browser with Playwright-codegen-shaped options.
+     * Java-caller convenience overload defaulting {@code codegenOptions} to unset; not an MCP tool.
+     *
+     * @param targetUrl initial http, https, or file URL
+     * @param browser Chrome or Edge
+     * @param outputPath recording/capture JSON path
+     * @param headless whether to launch without a visible window
+     * @param sessionGoal optional user intent for the journey
+     * @return safe recorder status for the active engine
+     */
+    public McpCaptureUnionStatus start(String targetUrl, String browser, String outputPath, Boolean headless,
+            String sessionGoal) {
+        return start(targetUrl, browser, outputPath, headless, sessionGoal, null);
+    }
+
+    /**
+     * Launches a fresh SHAFT-managed browser with Playwright-codegen-shaped options. Not an MCP tool
+     * since commit 4 (design doc Decision 2): reached only through {@code capture_start}'s optional
+     * {@code codegenOptions} nested request now (also still used internally by {@code capture_api_start}
+     * on the WEB engine).
      *
      * @param request structured codegen recording request
      * @return safe recorder status
      */
-    @Tool(name = "capture_start_codegen",
-            description = "starts SHAFT Capture with Playwright-codegen-compatible options; while it is "
-                    + "active, element_* and natural_act tools drive the recorded browser directly, so an "
-                    + "agent can perform the described actions, capture_stop, then generate code")
-    public CaptureStatus startWithOptions(CaptureCodegenStartRequest request) {
+    CaptureStatus startWithOptions(CaptureCodegenStartRequest request) {
         CaptureCodegenStartRequest options = request == null ? new CaptureCodegenStartRequest() : request;
         // Team recorder policy (issue #3425 C4): a checked-in .shaft/recorder-policy.json wins
         // over per-request settings so every recording in this workspace behaves consistently,
@@ -476,19 +500,29 @@ public class CaptureService {
      * @return safe recorder status with network transaction count
      */
     @Tool(name = "capture_api_start",
-            description = "starts SHAFT Capture with API network recording enabled")
-    public CaptureStatus apiStart(
+            description = "starts SHAFT Capture with API network recording enabled; dispatches to the mobile "
+                    + "loopback MITM proxy when a mobile engine is active, absorbing mobile_api_record_start "
+                    + "(outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and ignored on WEB)")
+    public McpCaptureApiUnionStatus apiStart(
             String targetUrl,
             String browser,
             Boolean headless,
-            NetworkCaptureOptions networkOptions) {
+            NetworkCaptureOptions networkOptions,
+            @ToolParam(required = false) String outputPath,
+            @ToolParam(required = false) String mobilePlatform,
+            @ToolParam(required = false) String mobileDeviceLabel) {
+        ActiveEngine engine = EngineService.activeEngine();
+        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+            return new McpCaptureApiUnionStatus(engine, null,
+                    mobileService.mobileApiRecordStart(mobilePlatform, mobileDeviceLabel, outputPath));
+        }
         CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
         request.targetUrl = targetUrl;
         request.browser = browser;
         request.headless = resolveHeadless(headless);
         request.apiCapture = true;
         request.networkOptions = networkOptions == null ? new NetworkCaptureOptions() : networkOptions;
-        return startWithOptions(request);
+        return new McpCaptureApiUnionStatus(ActiveEngine.WEB, startWithOptions(request), null);
     }
 
     /**
@@ -508,9 +542,14 @@ public class CaptureService {
      * @return current recorder status including network metrics
      */
     @Tool(name = "capture_api_status",
-            description = "returns SHAFT Capture session status including network transaction count and recent endpoints")
-    public CaptureStatus apiStatus() {
-        return manager.status();
+            description = "returns SHAFT Capture session status including network transaction count and recent "
+                    + "endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active")
+    public McpCaptureApiUnionStatus apiStatus() {
+        ActiveEngine engine = EngineService.activeEngine();
+        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+            return new McpCaptureApiUnionStatus(engine, null, mobileService.mobileApiRecordStatus());
+        }
+        return new McpCaptureApiUnionStatus(ActiveEngine.WEB, manager.status(), null);
     }
 
     /**
@@ -520,9 +559,14 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_api_stop",
-            description = "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop")
-    public CaptureStatus apiStop(boolean discard) {
-        return manager.stop(discard);
+            description = "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; "
+                    + "dispatches to the mobile loopback MITM proxy when a mobile engine is active")
+    public McpCaptureApiUnionStatus apiStop(boolean discard) {
+        ActiveEngine engine = EngineService.activeEngine();
+        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+            return new McpCaptureApiUnionStatus(engine, null, mobileService.mobileApiRecordStop(discard));
+        }
+        return new McpCaptureApiUnionStatus(ActiveEngine.WEB, manager.stop(discard), null);
     }
 
     /**
@@ -533,10 +577,16 @@ public class CaptureService {
      * @return ordered, bounded list of transaction summaries without sensitive data
      */
     @Tool(name = "capture_api_transactions",
-            description = "returns captured network transactions without bodies or sensitive headers; supports filtering asset noise")
+            description = "returns captured network transactions without bodies or sensitive headers; supports "
+                    + "filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions "
+                    + "when a mobile engine is active (includeAssets/excludePattern are WEB-only there)")
     public List<NetworkTransaction> apiTransactions(
             boolean includeAssets,
             String excludePattern) {
+        ActiveEngine engine = EngineService.activeEngine();
+        if (engine == ActiveEngine.MOBILE_NATIVE || engine == ActiveEngine.MOBILE_WEB) {
+            return mobileService.mobileApiRecordTransactions();
+        }
         NetworkCaptureOptions filter = new NetworkCaptureOptions();
         filter.excludeAssets = !includeAssets;
         filter.excludePattern = excludePattern == null ? "" : excludePattern;
@@ -843,7 +893,7 @@ public class CaptureService {
             boolean allowRemoteAi,
             String driverVariableName) {
         return generateReplay(sessionPath, outputDirectory, packageName, className, overwrite, replay, useAi,
-                allowLocalAi, allowRemoteAi, driverVariableName, null, null);
+                allowLocalAi, allowRemoteAi, driverVariableName, null, null, null);
     }
 
     /**
@@ -869,7 +919,10 @@ public class CaptureService {
      */
     @McpTool(name = "capture_generate_replay",
             description = "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a "
-                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
+                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session "
+                    + "required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to "
+                    + "the active engine (absorbs playwright_capture_generate_replay/playwright_replay_recording/"
+                    + "mobile_replay_recording)")
     public McpCaptureReplayResult generateReplay(
             // @McpTool-annotated methods register through Spring AI's separate annotation-scanning MCP
             // path (McpJsonSchemaGenerator), which does not honor @ToolParam -- confirmed empirically:
@@ -886,8 +939,23 @@ public class CaptureService {
             boolean allowLocalAi,
             boolean allowRemoteAi,
             String driverVariableName,
+            @McpToolParam(required = false, description = "codegen target: web (default) | playwright | mobile; "
+                    + "blank infers from the active engine")
+            String backend,
             @McpProgressToken String progressToken,
             McpSyncServerExchange exchange) {
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
+        CodegenTarget target = resolveCodegenTarget(backend, resolveSessionPath(sessionPath));
+        if (target == CodegenTarget.MOBILE) {
+            return replay
+                    ? fromMobileResult(mobileService.replayRecording(sessionPath, resolvedDriverVariableName))
+                    : fromMobileResult(mobileService.recordingCodeBlocks(sessionPath, resolvedDriverVariableName));
+        }
+        if (target == CodegenTarget.PLAYWRIGHT_STEP_RECORDING) {
+            return replay
+                    ? fromMobileResult(playwrightService.replayRecording(sessionPath, resolvedDriverVariableName))
+                    : fromMobileResult(playwrightService.recordingCodeBlocks(sessionPath, resolvedDriverVariableName));
+        }
         CaptureGenerationResult result = generateInternal(
                 sessionPath,
                 outputDirectory,
@@ -900,9 +968,9 @@ public class CaptureService {
                 false,
                 allowLocalAi,
                 allowRemoteAi,
-                CodegenBackend.WEBDRIVER,
+                target == CodegenTarget.PLAYWRIGHT ? CodegenBackend.PLAYWRIGHT : CodegenBackend.WEBDRIVER,
                 progressReporter(progressToken, exchange));
-        return replayResult(result, driverVariableName);
+        return replayResult(result, resolvedDriverVariableName);
     }
 
     /**
@@ -926,55 +994,6 @@ public class CaptureService {
     }
 
     /**
-     * Generates, compiles, and optionally replays a SHAFT Playwright TestNG test from a Capture session.
-     *
-     * @param sessionPath persisted Capture JSON path inside the MCP workspace; blank uses the most
-     *                     recently modified recording under this workspace's {@code recordings/}
-     * @param outputDirectory generated project root inside the MCP workspace
-     * @param packageName generated Java package
-     * @param className optional generated class name
-     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
-     * @param replay whether to execute the generated test
-     * @param useAi whether to request optional AI enrichment preview
-     * @param allowLocalAi explicit approval for local inference
-     * @param allowRemoteAi explicit approval for remote inference
-     * @param driverVariableName Java driver variable name used in extracted snippets
-     * @return generation report plus copy-paste code blocks
-     */
-    @Tool(name = "playwright_capture_generate_replay",
-            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks "
-                    + "from a persisted recording JSON (sessionPath); no active capture session required")
-    @SuppressWarnings("PMD.ExcessiveParameterList")
-    public McpCaptureReplayResult generatePlaywrightReplay(
-            @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
-                    + "blank uses the most recently modified recording under recordings/")
-            String sessionPath,
-            String outputDirectory,
-            String packageName,
-            String className,
-            boolean overwrite,
-            boolean replay,
-            boolean useAi,
-            boolean allowLocalAi,
-            boolean allowRemoteAi,
-            String driverVariableName) {
-        CaptureGenerationResult result = generateInternal(
-                sessionPath,
-                outputDirectory,
-                packageName,
-                className,
-                overwrite,
-                replay,
-                useAi,
-                false,
-                false,
-                allowLocalAi,
-                allowRemoteAi,
-                CodegenBackend.PLAYWRIGHT);
-        return replayResult(result, driverVariableName);
-    }
-
-    /**
      * Generates deterministic copy-paste code blocks from a persisted Capture session without replaying.
      *
      * @param sessionPath persisted Capture JSON path inside the MCP workspace; blank uses the most
@@ -988,7 +1007,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_code_blocks",
             description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion from a "
-                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
+                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session "
+                    + "required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to "
+                    + "the active engine (absorbs playwright_capture_code_blocks/mobile_recording_code_blocks)")
     public McpCaptureReplayResult codeBlocks(
             @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
                     + "blank uses the most recently modified recording under recordings/")
@@ -1007,10 +1028,20 @@ public class CaptureService {
             Boolean overwrite,
             @ToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
                     + "defaults to driver")
-            String driverVariableName) {
+            String driverVariableName,
+            @ToolParam(required = false, description = "codegen target: web (default) | playwright | mobile; "
+                    + "blank infers from the active engine")
+            String backend) {
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
+        CodegenTarget target = resolveCodegenTarget(backend, resolveSessionPath(sessionPath));
+        if (target == CodegenTarget.MOBILE) {
+            return fromMobileResult(mobileService.recordingCodeBlocks(sessionPath, resolvedDriverVariableName));
+        }
+        if (target == CodegenTarget.PLAYWRIGHT_STEP_RECORDING) {
+            return fromMobileResult(playwrightService.recordingCodeBlocks(sessionPath, resolvedDriverVariableName));
+        }
         String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
         String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
-        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
         boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
 
         CaptureGenerationResult result = generateInternal(
@@ -1025,7 +1056,7 @@ public class CaptureService {
                 false,
                 false,
                 false,
-                CodegenBackend.WEBDRIVER);
+                target == CodegenTarget.PLAYWRIGHT ? CodegenBackend.PLAYWRIGHT : CodegenBackend.WEBDRIVER);
         return replayResult(result, resolvedDriverVariableName);
     }
 
@@ -1043,7 +1074,9 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "capture_record_at_target_code_blocks",
-            description = "generates focused Capture snippets for insertion at an existing Java source anchor")
+            description = "generates focused Capture snippets for insertion at an existing Java source anchor; "
+                    + "optional backend (web|playwright|mobile) selects the codegen target, defaulting to the "
+                    + "active engine (absorbs playwright_record_at_target_code_blocks/mobile_record_at_target_code_blocks)")
     public McpCaptureReplayResult recordAtTargetCodeBlocks(
             @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
                     + "blank uses the most recently modified recording under recordings/")
@@ -1064,10 +1097,22 @@ public class CaptureService {
             String insertAfter,
             @ToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
                     + "defaults to driver")
-            String driverVariableName) {
+            String driverVariableName,
+            @ToolParam(required = false, description = "codegen target: web (default) | playwright | mobile; "
+                    + "blank infers from the active engine")
+            String backend) {
+        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
+        CodegenTarget target = resolveCodegenTarget(backend, resolveSessionPath(sessionPath));
+        if (target == CodegenTarget.MOBILE) {
+            return fromMobileResult(mobileService.recordAtTargetCodeBlocks(
+                    sessionPath, resolvedDriverVariableName, targetSourcePath, insertAfter));
+        }
+        if (target == CodegenTarget.PLAYWRIGHT_STEP_RECORDING) {
+            return fromMobileResult(playwrightService.recordAtTargetCodeBlocks(
+                    sessionPath, resolvedDriverVariableName, targetSourcePath, insertAfter));
+        }
         String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
         String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
-        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "driver");
         boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
 
         CaptureGenerationResult result = generateInternal(
@@ -1082,66 +1127,12 @@ public class CaptureService {
                 false,
                 false,
                 false,
-                CodegenBackend.WEBDRIVER);
+                target == CodegenTarget.PLAYWRIGHT ? CodegenBackend.PLAYWRIGHT : CodegenBackend.WEBDRIVER);
         return replayResult(
                 result,
                 resolvedDriverVariableName,
                 workspacePolicy.existing(targetSourcePath, "Capture target source path"),
                 insertAfter);
-    }
-
-    /**
-     * Generates deterministic copy-paste SHAFT Playwright code blocks from a persisted Capture session.
-     *
-     * @param sessionPath persisted Capture JSON path inside the MCP workspace
-     * @param outputDirectory generated project root inside the MCP workspace
-     * @param packageName generated Java package
-     * @param className optional generated class name
-     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
-     * @param driverVariableName Java driver variable name used in extracted snippets
-     * @return generated snippets and report
-     */
-    @Tool(name = "playwright_capture_code_blocks",
-            description = "generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion from "
-                    + "a persisted recording JSON (sessionPath); no active capture session required")
-    public McpCaptureReplayResult playwrightCodeBlocks(
-            @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
-                    + "blank uses the most recently modified recording under recordings/")
-            String sessionPath,
-            @ToolParam(required = false, description = "generated project root inside the MCP workspace; "
-                    + "defaults to generated-tests under the workspace")
-            String outputDirectory,
-            @ToolParam(required = false, description = "Java package for the generated class; "
-                    + "defaults to tests.generated")
-            String packageName,
-            @ToolParam(required = false, description = "Java class name for the generated class; "
-                    + "defaults to RecordedFlowTest")
-            String className,
-            @ToolParam(required = false, description = "overwrite an existing generated file; "
-                    + "defaults to false")
-            Boolean overwrite,
-            @ToolParam(required = false, description = "JavaScript page variable name used in extracted snippets; "
-                    + "defaults to page")
-            String driverVariableName) {
-        String resolvedPackageName = defaultIfBlank(packageName, "tests.generated");
-        String resolvedClassName = defaultIfBlank(className, "RecordedFlowTest");
-        String resolvedDriverVariableName = defaultIfBlank(driverVariableName, "page");
-        boolean resolvedOverwrite = Boolean.TRUE.equals(overwrite);
-
-        CaptureGenerationResult result = generateInternal(
-                sessionPath,
-                outputDirectory,
-                resolvedPackageName,
-                resolvedClassName,
-                resolvedOverwrite,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                CodegenBackend.PLAYWRIGHT);
-        return replayResult(result, resolvedDriverVariableName);
     }
 
     /**
@@ -1294,6 +1285,93 @@ public class CaptureService {
      */
     private static String defaultIfBlank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    /**
+     * Codegen target for the unified {@code capture_generate_replay}/{@code capture_code_blocks}/
+     * {@code capture_record_at_target_code_blocks} tools (design doc Decision 2 absorption of the
+     * former {@code playwright_*}/{@code mobile_*} codegen twins). {@code PLAYWRIGHT_STEP_RECORDING}
+     * is a distinct target from {@code PLAYWRIGHT}: a live {@code capture_start} call on the
+     * Playwright engine writes through {@link PlaywrightService}'s own step recorder (the same
+     * {@code actions}-array JSON shape {@link MobileService} uses), never a Capture-JSON
+     * ({@code events}-array) session -- so a bare backend="playwright" request must still route to
+     * the correct one for whichever file it is actually pointed at.
+     */
+    private enum CodegenTarget { WEB, PLAYWRIGHT, PLAYWRIGHT_STEP_RECORDING, MOBILE }
+
+    /**
+     * Resolves which engine's codegen path a capture codegen tool should use: an explicit
+     * {@code backend} override always wins, otherwise it is inferred from {@link EngineService}'s
+     * active engine so a bare call reaches whichever session actually produced the recording. When
+     * the resolved target is Playwright, the session file itself is sniffed to tell apart a
+     * live-recorded step JSON from a Capture-JSON session rendered as Playwright code.
+     *
+     * @param backend explicit override ("web"/"playwright"/"mobile"), or blank to infer
+     * @param sessionPath the (already-resolved, may be blank) session file path to sniff for PLAYWRIGHT
+     * @return the resolved codegen target
+     */
+    private CodegenTarget resolveCodegenTarget(String backend, String sessionPath) {
+        CodegenTarget requested;
+        if (backend != null && !backend.isBlank()) {
+            requested = switch (backend.trim().toUpperCase(Locale.ROOT)) {
+                case "PLAYWRIGHT" -> CodegenTarget.PLAYWRIGHT;
+                case "MOBILE" -> CodegenTarget.MOBILE;
+                default -> CodegenTarget.WEB;
+            };
+        } else {
+            requested = switch (EngineService.activeEngine()) {
+                case PLAYWRIGHT -> CodegenTarget.PLAYWRIGHT;
+                case MOBILE_NATIVE, MOBILE_WEB -> CodegenTarget.MOBILE;
+                case WEB, NONE -> CodegenTarget.WEB;
+            };
+        }
+        return requested == CodegenTarget.PLAYWRIGHT && looksLikeStepRecording(sessionPath)
+                ? CodegenTarget.PLAYWRIGHT_STEP_RECORDING
+                : requested;
+    }
+
+    /**
+     * Sniffs whether a session file is a live step recording ({@link PlaywrightService}'s or
+     * {@link MobileService}'s own JSON, top-level {@code actions} array) rather than a Capture-JSON
+     * session (top-level {@code events} array). Cheap substring check, not a full parse: both shapes
+     * are always written pretty-printed by their respective Jackson writers, so the discriminating
+     * key reliably appears near the top of the file either way.
+     *
+     * @param sessionPath session file path; blank/unreadable safely resolves to false (Capture-JSON)
+     * @return true when the file looks like a step recording
+     */
+    private boolean looksLikeStepRecording(String sessionPath) {
+        if (sessionPath == null || sessionPath.isBlank()) {
+            return false;
+        }
+        try {
+            Path resolved = workspacePolicy.existing(sessionPath, "Capture session path");
+            String content = Files.readString(resolved);
+            return content.contains("\"actions\"") && !content.contains("\"events\"");
+        } catch (RuntimeException | IOException ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Adapts a mobile recorder's replay/codegen result into the shared {@link McpCaptureReplayResult}
+     * shape so {@code capture_generate_replay}/{@code capture_code_blocks}/
+     * {@code capture_record_at_target_code_blocks} can return a single result type regardless of
+     * which engine produced the recording.
+     *
+     * @param mobile mobile recorder result
+     * @return the equivalent capture replay result
+     */
+    private static McpCaptureReplayResult fromMobileResult(McpMobileReplayResult mobile) {
+        return new McpCaptureReplayResult(
+                mobile.sourcePath(),
+                mobile.testDataPath(),
+                mobile.reportPath(),
+                mobile.reviewPath(),
+                mobile.successful(),
+                mobile.codeBlocks(),
+                mobile.report(),
+                mobile.warnings());
     }
 
     /**

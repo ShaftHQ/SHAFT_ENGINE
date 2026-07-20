@@ -66,7 +66,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, analysis.diagnosis().primaryCause());
         assertEquals(McpAnalysisReport.Status.DETERMINISTIC, analysis.status());
@@ -115,7 +115,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, analysis.diagnosis().primaryCause());
         assertEquals(McpAnalysisReport.Status.DETERMINISTIC, analysis.status());
@@ -140,7 +140,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, analysis.diagnosis().primaryCause());
         assertEquals(McpAnalysisReport.Status.DETERMINISTIC, analysis.status());
@@ -162,7 +162,7 @@ class DoctorServiceTest {
                         false,
                         false,
                         false,
-                        "driver"));
+                        "driver", null));
 
         assertTrue(failure.getMessage().contains("No Allure results were found in this workspace"));
         assertTrue(failure.getMessage().contains("SHAFT reporting enabled"));
@@ -201,7 +201,7 @@ class DoctorServiceTest {
                 true,
                 false,
                 true,
-                "driver");
+                "driver", null);
 
         assertEquals(CauseCategory.LOCATOR, analysis.diagnosis().primaryCause());
         assertEquals(AiResponseStatus.SUCCESS, analysis.providerFallback().status());
@@ -236,7 +236,7 @@ class DoctorServiceTest {
                 true,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertTrue(analysis.codeBlocks().stream()
                 .anyMatch(block -> block.id().equals("agent-doctor-advisory")
@@ -258,7 +258,7 @@ class DoctorServiceTest {
                         "message", "NoSuchElementException: unable to locate element: By.cssSelector: #login-button",
                         "trace", "trace"))), StandardCharsets.UTF_8);
 
-        var analysis = service(temp).analyzeFailedPlaywrightAllure(
+        var analysis = service(temp).analyzeFailedAllure(
                 List.of(input.toString()),
                 List.of(),
                 temp.resolve("playwright-doctor-output").toString(),
@@ -270,7 +270,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", "playwright");
 
         String checklist = blockCode(analysis, "playwright-replay-evidence-checklist");
         String evidenceId = analysis.diagnosis().findings().stream()
@@ -297,7 +297,7 @@ class DoctorServiceTest {
                         "message", "NoSuchElementException: unable to locate element: By.cssSelector: #login-button",
                         "trace", "trace"))), StandardCharsets.UTF_8);
 
-        var firstPass = service(temp).analyzeFailedPlaywrightAllure(
+        var firstPass = service(temp).analyzeFailedAllure(
                 List.of(input.toString()),
                 List.of(),
                 temp.resolve("playwright-suggest-output").toString(),
@@ -309,16 +309,16 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", "playwright");
 
-        var rebuilt = service(temp).suggestPlaywrightFix(
+        var rebuilt = service(temp).suggestFix(
                 firstPass.jsonReportPath(),
                 "",
                 List.of(),
                 false,
                 false,
                 false,
-                "driver");
+                "driver", "playwright");
 
         assertEquals(CauseCategory.LOCATOR, rebuilt.diagnosis().primaryCause());
         assertEquals(McpAnalysisReport.Status.DETERMINISTIC, rebuilt.status());
@@ -354,7 +354,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         var rebuilt = service(temp).suggestFix(
                 firstPass.jsonReportPath(),
@@ -363,7 +363,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, rebuilt.diagnosis().primaryCause());
         assertTrue(rebuilt.codeBlocks().stream().anyMatch(block -> block.kind() == McpCodeBlock.Kind.WAIT));
@@ -460,7 +460,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         var proposal = new DoctorService().proposeFix(
                 temp.toString(),
@@ -508,7 +508,7 @@ class DoctorServiceTest {
                 false,
                 false,
                 false,
-                "driver");
+                "driver", null);
 
         String output = analysis.codeBlocks().stream()
                 .map(block -> block.title() + "\n" + block.code() + "\n" + block.placement())
@@ -553,7 +553,7 @@ class DoctorServiceTest {
                         false,
                         false,
                         false,
-                        "driver"));
+                        "driver", null));
 
         assertTrue(failure.getMessage().contains("workspace"));
     }
@@ -571,7 +571,7 @@ class DoctorServiceTest {
                         false,
                         false,
                         false,
-                        "driver"));
+                        "driver", null));
 
         assertTrue(failure.getMessage().contains("Doctor report could not be read"));
     }

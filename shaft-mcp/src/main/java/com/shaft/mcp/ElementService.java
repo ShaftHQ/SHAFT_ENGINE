@@ -144,42 +144,6 @@ public class ElementService {
     }
 
     /**
-     * Clicks an element using JavaScript.
-     *
-     * @param locatorStrategy locator strategy
-     * @param locatorValue locator value
-     */
-    @Tool(name = "element_click_js", description = "clicks an element using JavaScript")
-    public void clickUsingJavaScript(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, "javascript-click",
-                locator -> getDriver().element().clickUsingJavascript(locator));
-    }
-
-    /**
-     * Double-clicks an element.
-     *
-     * @param locatorStrategy locator strategy
-     * @param locatorValue locator value
-     */
-    @Tool(name = "element_double_click", description = "double clicks an element")
-    public void doubleClick(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, "double-click",
-                locator -> getDriver().element().doubleClick(locator));
-    }
-
-    /**
-     * Clicks and holds an element.
-     *
-     * @param locatorStrategy locator strategy
-     * @param locatorValue locator value
-     */
-    @Tool(name = "element_click_and_hold", description = "clicks and holds an element")
-    public void clickAndHold(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, "click-and-hold",
-                locator -> getDriver().element().clickAndHold(locator));
-    }
-
-    /**
      * Types text into an element, dispatching to whichever engine is currently active and routing
      * through that engine's recording wrapper when a mobile or Playwright recording is active.
      *
@@ -240,22 +204,6 @@ public class ElementService {
     }
 
     /**
-     * Appends text to an element.
-     *
-     * @param locatorStrategy locator strategy
-     * @param locatorValue locator value
-     * @param textValue text values
-     */
-    @Tool(name = "element_append_text", description = "appends text to an element")
-    public void appendText(locatorStrategy locatorStrategy, String locatorValue, CharSequence... textValue) {
-        withLocator(locatorStrategy, locatorValue, "append-text", locator -> {
-            getDriver().element().typeAppend(locator, textValue);
-            logger.info("Appended text to element (value count: {}, total length: {})",
-                    textValue == null ? 0 : textValue.length, totalLength(textValue));
-        });
-    }
-
-    /**
      * Types text using SHAFT semantic locator behavior for direct Java callers.
      * Not exposed as an MCP tool because semantic names and typed values may contain sensitive application text.
      *
@@ -282,21 +230,6 @@ public class ElementService {
     @Deprecated(forRemoval = false)
     public void typeUsingAI(String elementName, CharSequence... textValue) {
         typeSemantic(elementName, textValue);
-    }
-
-    /**
-     * Sets an element value using JavaScript.
-     *
-     * @param locatorStrategy locator strategy
-     * @param locatorValue locator value
-     * @param textValue value
-     */
-    @Tool(name = "element_set_value_js", description = "sets value to an element using JavaScript")
-    public void setValueUsingJavaScript(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
-        withLocator(locatorStrategy, locatorValue, "javascript-set-value", locator -> {
-            getDriver().element().setValueUsingJavaScript(locator, textValue);
-            logger.info("Set element value with JavaScript (value length: {})", safeLength(textValue));
-        });
     }
 
     /**
@@ -331,7 +264,7 @@ public class ElementService {
      * @param filePath local file path
      * @return the active engine and, when a Playwright recording is active, the recorded step's code block
      */
-    @Tool(name = "element_drop_file_to_upload", description = "drops file to an element to upload; dispatches to "
+    @Tool(name = "element_upload_file", description = "drops file to an element to upload; dispatches to "
             + "the active engine and records the step when a Playwright recording is active")
     public ElementActionResult dropFileToUpload(locatorStrategy locatorStrategy, String locatorValue, String filePath) {
         ActiveEngine engine = EngineService.activeEngine();
@@ -427,22 +360,6 @@ public class ElementService {
 
     private static void webDragAndDropByOffset(
             locatorStrategy locatorStrategy, String locatorValue, int xOffset, int yOffset) {
-        withLocator(locatorStrategy, locatorValue, "drag-and-drop-by-offset", locator -> {
-            getDriver().element().dragAndDropByOffset(locator, xOffset, yOffset);
-            logger.info("Offset drag completed (x: {}, y: {})", xOffset, yOffset);
-        });
-    }
-
-    /**
-     * Drags an element by an offset.
-     *
-     * @param locatorStrategy locator strategy
-     * @param locatorValue locator value
-     * @param xOffset horizontal offset
-     * @param yOffset vertical offset
-     */
-    @Tool(name = "element_drag_and_drop_by_offset", description = "drags and drops an element by offset")
-    public void dragAndDropByOffset(locatorStrategy locatorStrategy, String locatorValue, int xOffset, int yOffset) {
         withLocator(locatorStrategy, locatorValue, "drag-and-drop-by-offset", locator -> {
             getDriver().element().dragAndDropByOffset(locator, xOffset, yOffset);
             logger.info("Offset drag completed (x: {}, y: {})", xOffset, yOffset);
