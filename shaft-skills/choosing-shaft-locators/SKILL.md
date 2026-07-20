@@ -58,6 +58,66 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 <tool>` (`../references/shaft-cli-commands.md`) when installed, else
 `shaft-mcp:<tool>`.
 
+## Example calls
+
+`browser_open_intent` — request:
+
+```json
+{
+  "targetUrl": "https://demo.example.com/checkout",
+  "userIntent": "click the Checkout button",
+  "maxCharacters": 4000,
+  "maxElements": 20
+}
+```
+
+response (truncated bounded-DOM map, real keys from `BrowserService.orientPage`):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "currentUrl": "https://demo.example.com/checkout",
+  "title": "Checkout",
+  "userIntent": "click the Checkout button",
+  "dom": "<button data-testid=\"checkout-submit\">Checkout</button> ...",
+  "characterCount": 812,
+  "truncated": false,
+  "elements": [
+    {"tag": "button", "text": "Checkout", "attributes": {"data-testid": "checkout-submit"}}
+  ],
+  "nextTools": ["capture_pick_locator", "element_click"],
+  "warnings": []
+}
+```
+
+`shaft_guide_search` — request:
+
+```json
+{"query": "Smart Locators inputField clickableField", "maxResults": 2}
+```
+
+response (`McpGuideSearchResult`, truncated):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "query": "Smart Locators inputField clickableField",
+  "sourceIndexUrl": "https://shafthq.github.io/docs/search-index.json",
+  "matches": [
+    {
+      "title": "Smart Locators",
+      "section": "inputField / clickableField",
+      "url": "https://shafthq.github.io/docs/reference/actions/GUI/didYouKnow/Smart_Locators",
+      "score": 0.88,
+      "excerpt": "SHAFT.GUI.Locator.inputField(\"Email\") matches by label, placeholder, or name.",
+      "codeBlocks": ["By email = SHAFT.GUI.Locator.inputField(\"Email\");"]
+    }
+  ],
+  "guidanceRules": ["Stop at the first locator rung that uniquely matches."],
+  "warnings": []
+}
+```
+
 ## Official Guide Routes
 
 - Locator strategy: `https://shafthq.github.io/docs/testing/web#locator-strategy`

@@ -37,6 +37,35 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 <tool>` (`../references/shaft-cli-commands.md`) when installed, else
 `shaft-mcp:<tool>`.
 
+## Example calls
+
+`test_plan_explore` — request (requires an active browser session from
+`driver_initialize` first; `maxDepth`/`maxPages` must stay within the
+Integration Rules bounds):
+
+```json
+{
+  "targetUrl": "https://demo.example.com",
+  "goal": "guest checkout",
+  "maxDepth": 2,
+  "maxPages": 20
+}
+```
+
+response (`McpTestPlanExploreResult`):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "pagesVisited": 14,
+  "plansWritten": [
+    "specs/guest-checkout-add-to-cart.md",
+    "specs/guest-checkout-payment.md"
+  ],
+  "warnings": ["1 page skipped: response status 404."]
+}
+```
+
 ## Official Guide Routes
 
 - Agentic overview: `https://shafthq.github.io/docs/agentic/overview`

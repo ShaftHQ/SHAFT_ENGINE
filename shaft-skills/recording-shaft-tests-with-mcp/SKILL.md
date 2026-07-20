@@ -62,6 +62,47 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 <tool>` (`../references/shaft-cli-commands.md`) when installed, else
 `shaft-mcp:<tool>`.
 
+## Example calls
+
+`capture_start` — request (all params optional; WEB is the default engine):
+
+```json
+{
+  "targetUrl": "https://demo.example.com/checkout",
+  "browser": "chrome",
+  "outputPath": "",
+  "headless": true,
+  "sessionGoal": "guest checkout flow"
+}
+```
+
+response (`McpCaptureUnionStatus` wrapping a WEB `CaptureStatus`, truncated):
+
+```json
+{
+  "engine": "WEB",
+  "webStatus": {
+    "state": "ACTIVE",
+    "sessionId": "capture-20260720-141200",
+    "browser": "CHROME",
+    "currentUrl": "https://demo.example.com/checkout",
+    "eventCount": 0,
+    "readiness": "READY",
+    "warnings": [],
+    "outputPath": "recordings/capture-20260720-141200.json",
+    "aiEnabled": false,
+    "pendingSignalCount": 0
+  },
+  "playwrightStatus": null,
+  "mobileStatus": null
+}
+```
+
+`capture_status` — request: `{}` (no params). Response has the same
+`McpCaptureUnionStatus` shape as above, read at any point during the active
+recording (`eventCount`/`pendingSignalCount` reflect actions performed since
+`capture_start`).
+
 ## Official Guide Routes
 
 - Capture: `https://shafthq.github.io/docs/agentic/capture`

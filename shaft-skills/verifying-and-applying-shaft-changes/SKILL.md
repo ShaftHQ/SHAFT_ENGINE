@@ -59,6 +59,54 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 <tool>` (`../references/shaft-cli-commands.md`) when installed, else
 `shaft-mcp:<tool>`.
 
+## Example calls
+
+`shaft_coding_partner_diff` — request:
+
+```json
+{
+  "repositoryPath": "C:/projects/demo-shaft",
+  "targetSourcePath": "src/test/java/pages/LoginPage.java",
+  "codeBlocks": ["public void loginAs(String user, String pass) { ... }"],
+  "insertionAnchor": "class LoginPage"
+}
+```
+
+response (`McpCodingPartnerDiff`, truncated):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "targetSourcePath": "src/test/java/pages/LoginPage.java",
+  "insertionAnchor": "class LoginPage",
+  "targetExists": true,
+  "insertedLineCount": 3,
+  "unifiedDiff": "--- a/src/test/java/pages/LoginPage.java\n+++ b/src/test/java/pages/LoginPage.java\n@@ -12,6 +12,9 @@\n class LoginPage {\n+    public void loginAs(String user, String pass) { ... }\n",
+  "warnings": []
+}
+```
+
+`test_code_guardrails_check` — request:
+
+```json
+{"language": "java", "code": "Thread.sleep(2000);\ndriver.findElement(By.id(\"x\")).click();"}
+```
+
+response (`McpCodeGuardrailResult`):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "language": "java",
+  "passed": false,
+  "violations": [
+    {"kind": "THREAD_SLEEP", "severity": "ERROR", "message": "Use SHAFT waits instead of Thread.sleep.", "line": 1, "snippet": "Thread.sleep(2000);"},
+    {"kind": "RAW_FIND_ELEMENT", "severity": "ERROR", "message": "Use driver.element() instead of raw findElement.", "line": 2, "snippet": "driver.findElement(By.id(\"x\")).click();"}
+  ],
+  "warnings": []
+}
+```
+
 ## Official Guide Routes
 
 - MCP: `https://shafthq.github.io/docs/agentic/mcp`

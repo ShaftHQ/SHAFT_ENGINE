@@ -78,6 +78,67 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 <tool>` (`../references/shaft-cli-commands.md`) when installed, else
 `shaft-mcp:<tool>`.
 
+## Example calls
+
+`shaft_guide_search` — request:
+
+```json
+{"query": "assertThat browser title contains", "maxResults": 2}
+```
+
+response (`McpGuideSearchResult`, truncated):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "query": "assertThat browser title contains",
+  "sourceIndexUrl": "https://shafthq.github.io/docs/search-index.json",
+  "matches": [
+    {
+      "title": "Element Validations",
+      "section": "Browser Assertions",
+      "url": "https://shafthq.github.io/docs/reference/actions/GUI/Element_Validations",
+      "score": 0.91,
+      "excerpt": "driver.assertThat().browser().title().contains(\"Dashboard\");",
+      "codeBlocks": ["driver.assertThat().browser().title().contains(\"Dashboard\");"]
+    }
+  ],
+  "guidanceRules": ["Use SHAFT assertion builders, not TestNG/JUnit asserts."],
+  "warnings": []
+}
+```
+
+`shaft_coding_partner_plan` — request:
+
+```json
+{
+  "repositoryPath": "C:/projects/demo-shaft",
+  "intent": "add a sign-in test reusing LoginPage",
+  "backend": "web",
+  "currentSourcePath": "src/test/java/tests/LoginTest.java",
+  "selectedText": "",
+  "artifactPaths": [],
+  "maxResults": 5
+}
+```
+
+response (`McpCodingPartnerPlan`, truncated):
+
+```json
+{
+  "schemaVersion": "1.2",
+  "workingSetSummary": "Found LoginPage with emailInput/passwordInput/signInButton locators.",
+  "backend": "WebDriver",
+  "reuseMatches": [{"path": "src/test/java/pages/LoginPage.java", "match": "loginAs(String,String)"}],
+  "recommendedTargetSourcePath": "src/test/java/tests/LoginTest.java",
+  "recommendedInsertionAnchor": "class LoginTest",
+  "missingCodeItems": ["userCanSignIn() test method"],
+  "suggestedMcpCalls": ["shaft_coding_partner_diff", "test_code_guardrails_check"],
+  "verificationCommand": "mvn -q -pl . test-compile",
+  "warnings": []
+}
+```
+
 ## Official Guide Routes
 
 Use `shaft-mcp:shaft_guide_search` first, then fall back to these public pages when MCP is unavailable:
