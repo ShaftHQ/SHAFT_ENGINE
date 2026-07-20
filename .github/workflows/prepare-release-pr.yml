@@ -59,18 +59,9 @@ jobs:
         if: steps.prepare.outputs.changes == 'true'
         run: python3 scripts/ci/check_maven_release_version.py
 
-      # Keep this list identical to the "Validate release contracts" batch in
-      # shaft-pilot-release.yml; a validator missing here creates release PRs
-      # that cannot pass their own release-candidate gate.
       - name: Validate Release Metadata
         if: steps.prepare.outputs.changes == 'true'
-        run: |
-          python3 scripts/ci/validate_reactor_versions.py
-          python3 scripts/ci/validate_modular_documentation.py
-          python3 scripts/ci/validate_documentation_boundaries.py
-          python3 scripts/ci/validate_maven_publication.py
-          python3 scripts/ci/validate_shaft_mcp_configuration.py
-          python3 scripts/ci/validate_shaft_pilot_release.py
+        uses: ./.github/actions/release-contract-validators
 
       - name: Create Pull Request
         if: steps.prepare.outputs.changes == 'true'

@@ -85,10 +85,11 @@ jobs:
       - name: Verify MCP Allure results
         run: test -n "$(find shaft-mcp/allure-results -name '*-result.json' -type f -print -quit)"
       - name: Package and smoke transports
-        run: |
-          mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip
-          mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
-          python3 scripts/ci/validate_shaft_mcp_transports.py
+        uses: ./.github/actions/mcp-jar-build
+        with:
+          install-args: -pl shaft-mcp -am install
+      - name: Validate shaft-mcp transports
+        run: python3 scripts/ci/validate_shaft_mcp_transports.py
       - name: Build and smoke container
         uses: ./.github/actions/mcp-container-smoke
         with:

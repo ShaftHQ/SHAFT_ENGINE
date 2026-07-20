@@ -231,11 +231,17 @@ def validate_static(root: Path = ROOT) -> list[str]:
         encoding="utf-8"
     )
     intellij_command = "gradle -p shaft-intellij check buildPlugin verifyPlugin"
+    intellij_verify_action = root / ".github/actions/intellij-verify/action.yml"
+    if not intellij_verify_action.is_file() or intellij_command not in intellij_verify_action.read_text(
+        encoding="utf-8"
+    ):
+        errors.append("intellij-verify composite action must verify the IntelliJ plugin release candidate")
+    intellij_verify_reference = "./.github/actions/intellij-verify"
     for workflow_name, workflow_content in (
         ("mavenCentral_cd.yml", workflow),
         ("shaft-pilot-release.yml", pilot_release_workflow),
     ):
-        if intellij_command not in workflow_content:
+        if intellij_verify_reference not in workflow_content:
             errors.append(f"{workflow_name} must verify the IntelliJ plugin release candidate")
     required_steps = (
         "Verify IntelliJ plugin release candidate",
