@@ -22,10 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Test(singleThreaded = true)
 public class AllureManagerCoverageUnitTest {
@@ -609,19 +607,12 @@ public class AllureManagerCoverageUnitTest {
      * theme-colors-only patch, making the outcome depend on execution order within the fork rather
      * than on this test's own setup. Mirrors the reflection pattern {@code CheckpointAndReportingTest}
      * and {@code PlaywrightActionsE2ETestBase} already use to reach the same private fields.
+     *
+     * <p>Delegates to {@link CheckpointCounter#resetForTesting()} (issue #3846) so the reset logic
+     * lives in one testing-support hook instead of being duplicated as field reflection here.
      */
-    private static void resetCheckpointCounterState() throws Exception {
-        Field checkpointsField = CheckpointCounter.class.getDeclaredField("checkpoints");
-        checkpointsField.setAccessible(true);
-        ((List<?>) checkpointsField.get(null)).clear();
-
-        Field passedField = CheckpointCounter.class.getDeclaredField("passedCheckpoints");
-        passedField.setAccessible(true);
-        ((AtomicInteger) passedField.get(null)).set(0);
-
-        Field failedField = CheckpointCounter.class.getDeclaredField("failedCheckpoints");
-        failedField.setAccessible(true);
-        ((AtomicInteger) failedField.get(null)).set(0);
+    private static void resetCheckpointCounterState() {
+        CheckpointCounter.resetForTesting();
     }
 
     private static String quote(String value) {

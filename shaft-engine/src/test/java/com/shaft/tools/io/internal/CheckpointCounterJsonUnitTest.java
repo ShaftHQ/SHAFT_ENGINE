@@ -179,6 +179,28 @@ public class CheckpointCounterJsonUnitTest {
         Assert.assertTrue(html.contains("<table>"), html);
     }
 
+    @Test(description = "resetForTesting() clears cumulative totals and restarts the id sequence (#3846)")
+    public void resetForTestingClearsStateAndRestartsSequence() {
+        // Accumulate some process-wide state first.
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "reset-marker-pass", CheckpointStatus.PASS);
+        CheckpointCounter.increment(CheckpointType.VERIFICATION, "reset-marker-fail", CheckpointStatus.FAIL);
+
+        CheckpointCounter.resetForTesting();
+
+        // Every accumulated total must be back to zero and the checkpoint list emptied.
+        JsonObject afterReset = JsonParser.parseString(CheckpointCounter.checkpointsJson()).getAsJsonObject();
+        Assert.assertEquals(afterReset.get("total").getAsInt(), 0, "total must reset to zero");
+        Assert.assertEquals(afterReset.get("passed").getAsInt(), 0, "passed must reset to zero");
+        Assert.assertEquals(afterReset.get("failed").getAsInt(), 0, "failed must reset to zero");
+        Assert.assertTrue(afterReset.getAsJsonArray("checkpoints").isEmpty(), "checkpoint rows must be cleared");
+
+        // The next checkpoint restarts the id sequence from 1 (checkpointSequence was reset too).
+        String firstAfterReset = "reset-marker-first-after-reset";
+        CheckpointCounter.increment(CheckpointType.ASSERTION, firstAfterReset, CheckpointStatus.PASS);
+        Assert.assertEquals(idForMessage(CheckpointCounter.checkpointsJson(), firstAfterReset), 1,
+                "checkpointSequence must restart so the first post-reset id is 1");
+    }
+
     private static int countOccurrences(String haystack, String needle) {
         int count = 0;
         for (int i = haystack.indexOf(needle); i >= 0; i = haystack.indexOf(needle, i + needle.length())) {
