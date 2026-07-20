@@ -103,9 +103,13 @@ public class DriverFactoryHelper {
     private static final Object LOCAL_DRIVER_INITIALIZATION_LOCK = new Object();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
-    private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp()); // seconds
+    // appiumServerInitializationTimeout (backed by timeoutForRemoteServerToBeUp) and
+    // remoteServerInstanceCreationTimeout used to be cached in `static final` fields here, seeded once at
+    // class-load time, so a runtime SHAFT.Properties.timeouts.set().timeoutForRemoteServerToBeUp(...) /
+    // .remoteServerInstanceCreationTimeout(...) override had no effect (issue #3826). Both are now read
+    // live at each use site instead -- see the local variables of the same name in
+    // attemptRemoteServerPing(), attemptRemoteServerConnection(), and setRemoteDriverInstance().
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
-    private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
     private static final long localDriverInitializationRetryDelayMs = TimeUnit.SECONDS.toMillis(1);
     private static final long localDriverBiDiTimeoutGraceMs = TimeUnit.SECONDS.toMillis(5);
@@ -419,6 +423,9 @@ public class DriverFactoryHelper {
 
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static int attemptRemoteServerPing() {
+        // Read live (not cached in a static field, issue #3826) so
+        // SHAFT.Properties.timeouts.set().timeoutForRemoteServerToBeUp(...) actually takes effect.
+        long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp());
         boolean serverReady = false;
         var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(getTargetHubUrl()));
         var statusCode = 500;
@@ -519,10 +526,10 @@ public class DriverFactoryHelper {
     }
 
     private static ClientConfig createRemoteWebDriverClientConfig(URL targetExecutionUrl) {
-        // Read live (not cached in a static field like remoteServerInstanceCreationTimeout above) so the
-        // SHAFT.Properties.timeouts.set().remoteServerConnectionAttemptTimeout(...) override -- and the
-        // decoupling from remoteServerInstanceCreationTimeout itself (issue #3811) -- actually take
-        // effect: that property bounds only the overall retry budget; this bounds a single HTTP
+        // Read live (not cached in a static field, same as remoteServerInstanceCreationTimeout since issue
+        // #3826) so the SHAFT.Properties.timeouts.set().remoteServerConnectionAttemptTimeout(...) override
+        // -- and the decoupling from remoteServerInstanceCreationTimeout itself (issue #3811) -- actually
+        // take effect: that property bounds only the overall retry budget; this bounds a single HTTP
         // connect/read attempt so a hung/unreachable grid fails one attempt fast instead of silently
         // consuming the whole retry budget.
         var timeout = Duration.ofSeconds(SHAFT.Properties.timeouts.remoteServerConnectionAttemptTimeout());
@@ -560,6 +567,9 @@ public class DriverFactoryHelper {
 
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
+        // Read live (not cached in a static field, issue #3826) so
+        // SHAFT.Properties.timeouts.set().remoteServerInstanceCreationTimeout(...) actually takes effect.
+        long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout());
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
@@ -1135,6 +1145,9 @@ public class DriverFactoryHelper {
     private void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
+            // Read live (not cached in a static field, issue #3826) so
+            // SHAFT.Properties.timeouts.set().timeoutForRemoteServerToBeUp(...) actually takes effect.
+            long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.timeoutForRemoteServerToBeUp());
             ReportManager.logDiscrete("Waiting up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minute(s) for the remote server to become ready.");
             var remoteReadinessStart = System.currentTimeMillis();
             try {
@@ -1161,6 +1174,9 @@ public class DriverFactoryHelper {
         }
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
+        // Read live (not cached in a static field, issue #3826) so
+        // SHAFT.Properties.timeouts.set().remoteServerInstanceCreationTimeout(...) actually takes effect.
+        long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout());
         ReportManager.logDiscrete("Creating the remote WebDriver session. Timeout: " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minute(s).");
         var remoteCreationStart = System.currentTimeMillis();
         var preflightPermit = RemoteGridPreflight.SessionPermit.noop();
