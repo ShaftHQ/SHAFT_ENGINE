@@ -81,6 +81,22 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- shaft-capture (and, through it, shaft-engine's dependency tree) pulls in signed
+                                 jars (e.g. mssql-jdbc, conscrypt-openjdk-uber). Their per-entry signature
+                                 digests no longer match once merged into the fat jar, so the JVM refuses to
+                                 load it ("Invalid signature file digest for Manifest main attributes"); strip
+                                 the signature files rather than the (unusable, post-merge) signatures. -->
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/*.EC</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
