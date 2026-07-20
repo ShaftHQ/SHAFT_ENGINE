@@ -329,8 +329,9 @@ public class HealerService {
 
     private static String replayGuidance(CodegenBackend backend) {
         return backend == CodegenBackend.PLAYWRIGHT
-                ? "Use the SHAFT MCP playwright_* DOM, screenshot, element, and replay tools when more UI evidence is needed."
-                : "Use the existing SHAFT MCP browser, DOM, screenshot, element, and natural action tools to replay"
+                ? "Use the SHAFT MCP browser_*/element_*/capture_generate_replay tools (they dispatch to the "
+                + "active Playwright engine) when more UI evidence is needed."
+                : "Use the existing SHAFT MCP browser, DOM, screenshot, and element tools to replay"
                 + " the failing Selenium/WebDriver flow when more UI evidence is needed.";
     }
 

@@ -621,10 +621,10 @@ final class McpDoctorRemediationService {
                 List.of(),
                 """
                         Playwright replay evidence checklist:
-                        1. Use playwright_replay_recording for any retained recording that covers the failed step.
-                        2. Use playwright_browser_get_page_dom to capture the current DOM before changing the locator.
-                        3. Use playwright_browser_take_screenshot to capture visible state at the same point.
-                        4. Use playwright_element_is_displayed and playwright_element_is_enabled on the failed locator before retrying the action.
+                        1. Use capture_generate_replay (backend=playwright) for any retained recording that covers the failed step.
+                        2. Use browser_get_page_dom to capture the current DOM before changing the locator (dispatches to the active Playwright engine).
+                        3. Use browser_take_screenshot to capture visible state at the same point (dispatches to the active Playwright engine).
+                        4. Use element_is_displayed and element_is_enabled on the failed locator before retrying the action (dispatches to the active Playwright engine).
                         5. Compare replay evidence to the cited Doctor evidence and make only the smallest supported locator, wait, assertion, or data change.
 
                         %s

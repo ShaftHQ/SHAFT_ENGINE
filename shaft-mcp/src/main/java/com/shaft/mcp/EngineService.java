@@ -119,7 +119,7 @@ public class EngineService {
             }
             logger.error("No active browser session found. Please initialize a browser session first.");
             throw new IllegalStateException("No active browser session. Start one with driver_initialize, "
-                    + "or start a capture session (capture_start_codegen) whose recorded browser these "
+                    + "or start a capture session (capture_start) whose recorded browser these "
                     + "element tools can drive directly.");
         }
         return driver;
@@ -127,9 +127,9 @@ public class EngineService {
 
     /**
      * Bridge to the active SHAFT Capture session's browser, registered by {@link CaptureService}.
-     * With it, element and natural_act tools drive the recorded browser when no driver_initialize
-     * session exists — the agent-performed codegen flow (capture_start_codegen, perform actions,
-     * capture_stop, generate) documented in the tool guidance (issue #3429).
+     * With it, element tools drive the recorded browser when no driver_initialize session exists —
+     * the agent-performed codegen flow (capture_start, perform actions, capture_stop, generate)
+     * documented in the tool guidance (issue #3429).
      */
     private static volatile java.util.function.Supplier<SHAFT.GUI.WebDriver> captureDriverBridge;
 

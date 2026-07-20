@@ -367,8 +367,8 @@ public class BrowserService {
      * @return page DOM snapshot and browser context metadata
      */
     @Tool(name = "browser_get_page_dom",
-            description = "returns bounded current-page DOM for locator inspection before element_* or "
-                    + "natural_act; dispatches to the active engine")
+            description = "returns bounded current-page DOM for locator inspection before element_*; "
+                    + "dispatches to the active engine")
     public McpPageDomSnapshot getPageDom(int maxCharacters) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             return playwrightService.getPageDom(maxCharacters);
@@ -1119,7 +1119,6 @@ public class BrowserService {
                 || intent.contains("open") || intent.contains("select")) {
             tools.add("element_click");
         }
-        tools.add("natural_act");
         tools.add("capture_start");
         tools.add("capture_code_blocks");
         tools.add("test_code_guardrails_check");

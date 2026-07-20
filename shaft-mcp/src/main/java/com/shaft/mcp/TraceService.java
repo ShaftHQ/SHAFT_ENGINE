@@ -498,7 +498,7 @@ public class TraceService {
         recommendations.add("Use trace_read on the returned tracePath for full bounded evidence.");
         recommendations.add("Use doctor_analyze_trace for deterministic remediation guidance.");
         if (!action.locator().isBlank()) {
-            recommendations.add("Inspect the current DOM before changing locator: browser_get_page_dom or playwright_browser_get_page_dom.");
+            recommendations.add("Inspect the current DOM before changing locator: browser_get_page_dom (dispatches to the active engine).");
         }
         String combined = (exceptionType + " " + exceptionMessage).toLowerCase(Locale.ROOT);
         if (combined.contains("timeout") || combined.contains("clickable") || combined.contains("interactable")) {

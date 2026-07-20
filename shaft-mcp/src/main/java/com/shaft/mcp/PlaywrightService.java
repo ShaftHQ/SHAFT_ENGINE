@@ -703,7 +703,8 @@ public class PlaywrightService {
             warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
         }
         if (recorded == null) {
-            warnings.add("Ignored: recording is not active — call playwright_record_start to capture this step.");
+            warnings.add("Ignored: recording is not active — call capture_start (with the Playwright engine "
+                    + "active) to capture this step.");
         } else {
             warnings.addAll(recorded.warnings());
         }

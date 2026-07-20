@@ -186,7 +186,6 @@ class McpServiceHelperTest {
         @SuppressWarnings("unchecked")
         List<String> nextTools = (List<String>) result.get("nextTools");
         assertTrue(nextTools.contains("element_click"));
-        assertTrue(nextTools.contains("natural_act"));
     }
 
     @Test

@@ -475,7 +475,7 @@ class CaptureServiceTest {
 
         assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
         assertTrue(status.warnings().stream().anyMatch(warning ->
-                warning.contains("capture_start_codegen")
+                warning.contains("capture_start")
                         && warning.contains("perform the described actions")));
     }
 

@@ -65,17 +65,19 @@ public class TestAutomationService {
                     + " under src/main/java.",
             "Place executable TestNG scenarios under src/test/java and reuse the main-package API or page objects.",
             "For GUI work, use Page Object Model plus fluent SHAFT actions by default.",
-            "Use WebDriver MCP tools by default; use playwright_* tools when the project or user asks for SHAFT Playwright.",
+            "Use driver_initialize with engine=web (default) or engine=playwright when the project or user asks"
+                    + " for SHAFT Playwright; element_*/browser_*/capture_* tools dispatch to whichever engine is active.",
             "When web code generation names a site, product, or environment without an explicit URL, ask the user"
                     + " to confirm the exact target URL; do not infer canonical URLs.",
             "After driver_initialize, call browser_open_intent when the prompt includes a confirmed URL and desired action;"
-                    + " use returned capture-ranked locator candidates before element_* or natural_act.",
-            "Before returning web login, form, or navigation code, perform the actual action with element_type,"
-                    + " element_click, or natural_act and only publish locators that worked.",
+                    + " use returned capture-ranked locator candidates before element_*.",
+            "Before returning web login, form, or navigation code, perform the actual action with element_type or"
+                    + " element_click and only publish locators that worked.",
             "When the user provides a recording JSON path, generate code directly from it with capture_code_blocks or"
                     + " capture_generate_replay; no active capture session is required and none should be demanded.",
             "When the user describes a scenario in plain language with no recording, do not stall: start a fresh"
-                    + " session with capture_start_codegen, perform the described actions against it, call"
+                    + " session with capture_start (its optional codegenOptions carries the full Playwright-codegen-"
+                    + "compatible request), perform the described actions against it, call"
                     + " capture_stop, then generate code from the persisted recording.",
             "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits."
                     + " When the user names no report path, call doctor_analyze_failed_allure with empty"
@@ -414,7 +416,7 @@ public class TestAutomationService {
                         "Use SHAFT MCP to inspect this page and write maintainable web UI tests.",
                         t("shaft_guide_search", "driver_initialize", "browser_open_intent", "browser_navigate",
                                 "browser_get_page_dom", "browser_take_screenshot", "element_type", "element_click",
-                                "natural_act", "test_code_guardrails_check"),
+                                "test_code_guardrails_check"),
                         t("Ask the user to confirm the exact target URL when the prompt names a site without one",
                                 "Call browser_open_intent when the prompt includes a confirmed URL and action intent",
                                 "Inspect DOM and screenshot", "Perform the actual requested action with the selected locator",
@@ -429,14 +431,14 @@ public class TestAutomationService {
                         a("web", "gui", "locator", "capture"),
                         "Open this URL, perform the requested action, and generate SHAFT code from the flow.",
                         t("shaft_guide_search", "driver_initialize", "browser_open_intent", "element_click",
-                                "element_type", "natural_act", "capture_start", "capture_status", "capture_stop",
+                                "element_type", "capture_start", "capture_status", "capture_stop",
                                 "capture_code_blocks", "test_code_guardrails_check"),
                         t("Search official guide patterns for the requested action",
                                 "Ask the user to confirm the exact target URL when the prompt names a site without one",
                                 "Initialize the WebDriver session",
                                 "Call browser_open_intent with targetUrl and userIntent",
                                 "Use the returned capture-ranked locator candidates or SHAFT locator code",
-                                "Perform the actual action with element_type, element_click, or natural_act"
+                                "Perform the actual action with element_type or element_click"
                                         + " to prove the selected locator works",
                                 "Start capture before user-performed actions when code generation is requested"),
                         t("Page objects under src/main/java/<basePackage>/pages; reviewed generated snippets under"
@@ -449,9 +451,9 @@ public class TestAutomationService {
                                 + " evidence")),
                 s("web-playwright-pom-fluent-test", "Create web GUI tests with SHAFT Playwright", a("web", "gui", "playwright"),
                         "Use SHAFT Playwright MCP tools to inspect this page and write maintainable UI tests.",
-                        t("shaft_guide_search", "playwright_initialize", "playwright_browser_navigate",
-                                "playwright_browser_get_page_dom", "playwright_browser_take_screenshot",
-                                "playwright_element_click", "playwright_element_type", "test_code_guardrails_check"),
+                        t("shaft_guide_search", "driver_initialize", "browser_navigate",
+                                "browser_get_page_dom", "browser_take_screenshot",
+                                "element_click", "element_type", "test_code_guardrails_check"),
                         t("Inspect DOM and screenshot with Playwright", "Create or extend page objects",
                                 "Use SHAFT.GUI.Playwright actions and assertions in tests"),
                         t("Page objects under src/main/java/<basePackage>/pages; tests under src/test/java"),
@@ -478,9 +480,9 @@ public class TestAutomationService {
                         t("Replay-derived test compiles and passes, with no duplicate generic test class")),
                 s("web-playwright-record-replay", "Record and replay SHAFT Playwright actions", a("web", "gui", "capture", "playwright"),
                         "Record this Playwright journey and turn it into reusable SHAFT Playwright test code.",
-                        t("playwright_initialize", "playwright_record_start", "playwright_record_stop",
-                                "playwright_recording_code_blocks", "playwright_replay_recording",
-                                "playwright_capture_code_blocks", "test_code_guardrails_check"),
+                        t("driver_initialize", "capture_start", "capture_stop",
+                                "capture_code_blocks", "capture_generate_replay",
+                                "test_code_guardrails_check"),
                         t("Record actions through MCP Playwright tools", "Generate Playwright replay snippets",
                                 "Move stable locators/actions into page objects instead of pasting a raw class"),
                         t("Recording JSON remains an artifact; reusable code enters page/test classes"),
@@ -491,7 +493,7 @@ public class TestAutomationService {
                         a("web", "gui", "capture", "playwright", "cli"),
                         "Use Playwright CLI or Playwright MCP to explore this flow, then generate SHAFT code.",
                         t("shaft_guide_search", "capture_codegen_features", "shaft_coding_partner_plan",
-                                "capture_start_codegen", "playwright_capture_code_blocks",
+                                "capture_start", "capture_code_blocks",
                                 "test_code_guardrails_check"),
                         t("Use official playwright-cli for token-efficient open, goto, click, type, snapshot,"
                                         + " screenshot, network, storage, console, tracing, or video exploration"
@@ -518,7 +520,7 @@ public class TestAutomationService {
                         t("Visual/accessibility evidence is attached to the relevant report")),
                 s("mobile-web-emulation", "Run mobile web emulation checks", a("mobile", "web", "gui"),
                         "Test this responsive flow with SHAFT mobile web emulation.",
-                        t("mobile_initialize_web_emulation", "mobile_take_screenshot", "mobile_get_contexts",
+                        t("driver_initialize", "browser_take_screenshot", "mobile_get_contexts",
                                 "test_code_guardrails_check"),
                         t("Initialize mobile web emulation", "Inspect viewport", "Write reusable page object flow"),
                         t("Reuse web page objects when behavior matches desktop"),
@@ -526,8 +528,8 @@ public class TestAutomationService {
                         t("Mobile web scenario passes in headless-compatible validation")),
                 s("mobile-native-appium", "Create native Appium SHAFT tests", a("mobile", "gui"),
                         "Inspect this native app screen and write SHAFT Appium tests.",
-                        t("mobile_initialize_native", "mobile_get_accessibility_tree", "mobile_take_screenshot",
-                                "mobile_tap", "mobile_type", "test_code_guardrails_check"),
+                        t("driver_initialize", "mobile_get_accessibility_tree", "browser_take_screenshot",
+                                "element_click", "element_type", "test_code_guardrails_check"),
                         t("Inspect contexts and accessibility tree", "Prefer accessibility ids and stable Appium locators",
                                 "Create mobile page objects and TestNG tests"),
                         t("Mobile page objects under src/main/java; tests under src/test/java"),
@@ -535,9 +537,9 @@ public class TestAutomationService {
                         t("Native mobile test compiles; real-device/cloud run is reported if unavailable")),
                 s("mobile-record-replay", "Record and replay mobile actions", a("mobile", "capture"),
                         "Record this mobile journey and turn it into reusable SHAFT test code.",
-                        t("mobile_record_start", "mobile_record_stop", "mobile_recording_code_blocks",
-                                "mobile_record_at_target_code_blocks",
-                                "mobile_replay_recording", "test_code_guardrails_check"),
+                        t("capture_start", "capture_stop", "capture_code_blocks",
+                                "capture_record_at_target_code_blocks",
+                                "capture_generate_replay", "test_code_guardrails_check"),
                         t("Record actions through MCP mobile tools", "Generate locator inventory and Page Object blocks",
                                 "Move actions into existing mobile page methods"),
                         t("Recording JSON remains an artifact; reusable code enters page/test classes"),
@@ -560,9 +562,7 @@ public class TestAutomationService {
                         t("DB test uses test data and reports query assertions")),
                 s("failure-doctor-analysis", "Analyze failed SHAFT, Selenium, or Playwright tests", a("doctor", "failure"),
                         "Analyze these Allure results and tell me the first actionable failure.",
-                        t("doctor_analyze_failed_allure", "doctor_suggest_fix",
-                                "playwright_doctor_analyze_failed_allure", "playwright_doctor_suggest_fix",
-                                "shaft_guide_search"),
+                        t("doctor_analyze_failed_allure", "doctor_suggest_fix", "shaft_guide_search"),
                         t("Analyze Allure evidence", "Separate product defect, test defect, and infrastructure",
                                 "Return review-only code blocks when applicable"),
                         t("No source edit unless the calling agent applies a reviewed fix"),
@@ -583,9 +583,7 @@ public class TestAutomationService {
                         t("Agent reports failed action, locator, exception, source context, and the next MCP tool or code-change category")),
                 s("failure-healer-loop", "Run guarded healer loop", a("doctor", "healer", "failure"),
                         "Rerun this failing Selenium or Playwright test and propose a safe fix.",
-                        t("healer_run_failed_test", "playwright_healer_run_failed_test",
-                                "doctor_analyze_failed_allure", "playwright_doctor_analyze_failed_allure",
-                                "test_code_guardrails_check"),
+                        t("healer_run_failed_test", "doctor_analyze_failed_allure", "test_code_guardrails_check"),
                         t("Run allowed headless Maven command", "Analyze fresh evidence", "Propose review-only fix"),
                         t("Agent applies only approved source edits"),
                         t("No publish/deploy goals; no worktree escape paths"),

@@ -11,9 +11,9 @@ import com.shaft.capture.runtime.CaptureStatus;
  * other engine session is active) is SHAFT's own CDP-managed-browser Capture session, reported via
  * {@code webStatus}. {@link ActiveEngine#PLAYWRIGHT} and {@link ActiveEngine#MOBILE_NATIVE}/
  * {@link ActiveEngine#MOBILE_WEB} both report the shared {@link McpMobileRecordingStatus} recorder
- * status (the same DTO {@code playwright_record_status}/{@code mobile_record_status} already
- * return) for whichever engine session is active, via {@code playwrightStatus}/{@code mobileStatus}
- * respectively.
+ * status (the same DTO {@link PlaywrightService}'s/{@link MobileService}'s own package-private
+ * recorders return) for whichever engine session is active, via {@code playwrightStatus}/
+ * {@code mobileStatus} respectively.
  *
  * @param engine the recording family this status describes
  * @param webStatus populated when {@code engine} is {@link ActiveEngine#WEB}; {@code null} otherwise

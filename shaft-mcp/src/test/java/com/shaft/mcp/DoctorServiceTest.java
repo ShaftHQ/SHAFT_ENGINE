@@ -738,11 +738,11 @@ class DoctorServiceTest {
     }
 
     private static void assertPlaywrightReplayTools(String text) {
-        assertTrue(text.contains("playwright_browser_get_page_dom"), text);
-        assertTrue(text.contains("playwright_browser_take_screenshot"), text);
-        assertTrue(text.contains("playwright_element_is_displayed"), text);
-        assertTrue(text.contains("playwright_element_is_enabled"), text);
-        assertTrue(text.contains("playwright_replay_recording"), text);
+        assertTrue(text.contains("browser_get_page_dom"), text);
+        assertTrue(text.contains("browser_take_screenshot"), text);
+        assertTrue(text.contains("element_is_displayed"), text);
+        assertTrue(text.contains("element_is_enabled"), text);
+        assertTrue(text.contains("capture_generate_replay"), text);
     }
 
     private static final class DoctorSnippetProvider implements AiProvider {

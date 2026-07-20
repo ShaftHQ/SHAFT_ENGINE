@@ -71,8 +71,8 @@ public class CaptureService {
     public CaptureService() {
         this(new CaptureManager(), McpWorkspacePolicy.current(), new McpCaptureCodeBlockService(),
                 new PlaywrightService(), new MobileService(new EngineService()));
-        // Only a fully-default-wired instance registers: element_*/natural_act tools fall back to
-        // driving the active capture session's browser when no driver_initialize session exists.
+        // Only a fully-default-wired instance registers: element_* tools fall back to driving the
+        // active capture session's browser when no driver_initialize session exists.
         // Package-private test constructors below intentionally skip this so throwaway per-test
         // CaptureManager instances never leak into this shared static bridge.
         registerCaptureDriverBridge();
@@ -119,8 +119,9 @@ public class CaptureService {
      * amendment A3): a WEB session (or no active session) always launches a fresh SHAFT-managed
      * browser via its own CDP capture, regardless of what else is active; a PLAYWRIGHT or mobile
      * (MOBILE_NATIVE/MOBILE_WEB) session instead records actions performed on that already-active
-     * driver, delegating to that engine's own recorder start ({@code playwright_record_start}/
-     * {@code mobile_record_start}).
+     * driver, delegating to that engine's own recorder start (package-private
+     * {@link PlaywrightService#recordStart}/{@link MobileService#recordStart}, no longer separate
+     * tool names since commit 4).
      *
      * @param targetUrl initial http, https, or file URL; WEB/NONE only
      * @param browser Chrome or Edge; blank selects Chrome; WEB/NONE only
@@ -362,7 +363,7 @@ public class CaptureService {
         if (recent.isEmpty()) {
             guidance.append(" No recordings were found under ").append(workspacePolicy.root().resolve("recordings"))
                     .append(". If the user described a scenario instead of providing a recording, start a fresh "
-                            + "session with capture_start_codegen, perform the described actions, call capture_stop, "
+                            + "session with capture_start, perform the described actions, call capture_stop, "
                             + "then generate code from the persisted outputPath.");
         } else {
             guidance.append(" Recent recordings in this workspace: ").append(String.join(", ", recent));
@@ -436,20 +437,19 @@ public class CaptureService {
     }
 
     /**
-     * Deletes a recorded step by its stable stepId from the active Playwright or mobile recording
-     * (mirrors {@code mobile_step_delete}/{@code playwright_step_delete}), dispatching on the MCP
-     * session's active engine. A WEB CDP {@code capture_start} session has no step editor for this
-     * (design doc amendment A3): {@link McpRecordingStepEditor} only understands the mobile/Playwright
-     * JSON recording format, so this returns an actionable error naming the active engine instead.
+     * Deletes a recorded step by its stable stepId from the active Playwright or mobile recording,
+     * dispatching on the MCP session's active engine. A WEB CDP {@code capture_start} session has no
+     * step editor for this (design doc amendment A3): {@link McpRecordingStepEditor} only understands
+     * the mobile/Playwright JSON recording format, so this returns an actionable error naming the
+     * active engine instead.
      *
      * @param stepId stable step id (e.g. "m2"), as surfaced in recorder status
      * @return updated recorder status for the active engine
      */
     @Tool(name = "capture_step_delete",
             description = "deletes a recorded step by its stable stepId from the active Playwright or mobile "
-                    + "recording (mirrors mobile_step_delete/playwright_step_delete); returns an actionable "
-                    + "error naming the active engine for a WEB CDP capture_start session, whose recording "
-                    + "format has no step editor")
+                    + "recording; returns an actionable error naming the active engine for a WEB CDP "
+                    + "capture_start session, whose recording format has no step editor")
     public McpMobileRecordingStatus stepDelete(String stepId) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -461,9 +461,8 @@ public class CaptureService {
 
     /**
      * Moves a recorded step up or down by its stable stepId within the active Playwright or mobile
-     * recording (mirrors {@code mobile_step_reorder}/{@code playwright_step_reorder}), dispatching on
-     * the MCP session's active engine; see {@link #stepDelete(String)} for why a WEB CDP session
-     * returns an actionable error instead.
+     * recording, dispatching on the MCP session's active engine; see {@link #stepDelete(String)} for
+     * why a WEB CDP session returns an actionable error instead.
      *
      * @param stepId stable step id (e.g. "m2"), as surfaced in recorder status
      * @param direction "up" or "down"
@@ -471,9 +470,8 @@ public class CaptureService {
      */
     @Tool(name = "capture_step_reorder",
             description = "moves a recorded step up or down by its stable stepId (direction: up|down) within "
-                    + "the active Playwright or mobile recording (mirrors mobile_step_reorder/"
-                    + "playwright_step_reorder); returns an actionable error naming the active engine for a "
-                    + "WEB CDP capture_start session, whose recording format has no step editor")
+                    + "the active Playwright or mobile recording; returns an actionable error naming the "
+                    + "active engine for a WEB CDP capture_start session, whose recording format has no step editor")
     public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -486,7 +484,7 @@ public class CaptureService {
     private static UnsupportedOperationException noStepEditorFor(ActiveEngine engine, String toolName) {
         return new UnsupportedOperationException(toolName + " is not supported for the active engine (" + engine
                 + "): a WEB CDP capture_start recording has no step editor for this JSON format. Start a "
-                + "Playwright or mobile recording (playwright_record_start/mobile_record_start) to edit steps.");
+                + "capture_start recording with a Playwright or mobile engine active to edit steps.");
     }
 
     /**

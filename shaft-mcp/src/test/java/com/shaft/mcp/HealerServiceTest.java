@@ -105,11 +105,11 @@ class HealerServiceTest {
                 .map(McpCodeBlock::code)
                 .orElse("");
         assertTrue(checklist.contains("Failed locator: unavailable in retained Doctor evidence"), checklist);
-        assertTrue(checklist.contains("playwright_browser_get_page_dom"), checklist);
-        assertTrue(checklist.contains("playwright_browser_take_screenshot"), checklist);
-        assertTrue(checklist.contains("playwright_element_is_displayed"), checklist);
-        assertTrue(checklist.contains("playwright_element_is_enabled"), checklist);
-        assertTrue(checklist.contains("playwright_replay_recording"), checklist);
+        assertTrue(checklist.contains("browser_get_page_dom"), checklist);
+        assertTrue(checklist.contains("browser_take_screenshot"), checklist);
+        assertTrue(checklist.contains("element_is_displayed"), checklist);
+        assertTrue(checklist.contains("element_is_enabled"), checklist);
+        assertTrue(checklist.contains("capture_generate_replay"), checklist);
     }
 
     @Test

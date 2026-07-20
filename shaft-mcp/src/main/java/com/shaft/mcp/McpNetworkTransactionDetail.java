@@ -3,11 +3,13 @@ package com.shaft.mcp;
 import java.util.Map;
 
 /**
- * One observed network transaction's detail returned by {@code browser_network_request}, including
- * headers and a truncated, redacted response body preview as recorded by trace capture.
+ * One observed network transaction's detail returned by {@code browser_network_requests} when called
+ * with an {@code id}, including headers and a truncated, redacted response body preview as recorded
+ * by trace capture.
  *
  * <p>Full, untruncated request/response bodies are not available from this tool; they require a
- * {@code capture_start}/{@code capture_start_codegen} session started with {@code saveHarContent=full}.
+ * {@code capture_start} session (optionally with its nested {@code codegenOptions}) started with
+ * {@code saveHarContent=full}.
  *
  * @param id                1-based transaction id
  * @param method            HTTP method

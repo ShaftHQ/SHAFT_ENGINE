@@ -8,12 +8,18 @@ package com.shaft.mcp;
 public enum ActiveEngine {
     /** No session initialized yet. */
     NONE,
-    /** A plain Selenium/CDP web browser session, initialized by {@code driver_initialize}. */
+    /** A plain Selenium/CDP web browser session, initialized by {@code driver_initialize} (default engine). */
     WEB,
-    /** An Appium native (Android/iOS) session, initialized by {@code mobile_initialize_native}. */
+    /**
+     * An Appium native (Android/iOS) session, initialized by {@code driver_initialize} with
+     * {@code engine=mobile_native} and an optional nested {@code mobileOptions} request.
+     */
     MOBILE_NATIVE,
-    /** A Chrome/Edge mobile web emulation session, initialized by {@code mobile_initialize_web_emulation}. */
+    /**
+     * A Chrome/Edge mobile web emulation session, initialized by {@code driver_initialize} with
+     * {@code engine=mobile_web} and an optional nested {@code mobileOptions} request.
+     */
     MOBILE_WEB,
-    /** A SHAFT Playwright session, initialized by {@code playwright_initialize}. */
+    /** A SHAFT Playwright session, initialized by {@code driver_initialize} with {@code engine=playwright}. */
     PLAYWRIGHT
 }

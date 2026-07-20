@@ -900,7 +900,7 @@ public class MobileService {
      * Last-resort fallback that taps screen coordinates using W3C touch actions.
      */
     @Tool(name = "mobile_tap_coordinates",
-            description = "fallback-only: taps viewport coordinates only after locator-based mobile_tap cannot be used")
+            description = "fallback-only: taps viewport coordinates only after locator-based element_click cannot be used")
     public McpMobileActionResult tapCoordinates(int x, int y) {
         performTapCoordinates(x, y);
         String code = tapCoordinatesCode(x, y);
@@ -1049,7 +1049,8 @@ public class MobileService {
                 redactedJavaCode,
                 sensitive);
         List<String> warnings = actionWarnings(action, locatorStrategy, recorded,
-                "Ignored: recording is not active — call mobile_record_start to capture this step.");
+                "Ignored: recording is not active — call capture_start (with a mobile engine active) to "
+                        + "capture this step.");
         return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
                 warnings);
     }
