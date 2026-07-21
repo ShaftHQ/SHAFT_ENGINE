@@ -2070,7 +2070,7 @@ final class ShaftAssistantPanel extends JPanel {
             setStatus(terminalStep);
             return;
         }
-        showAgentToolResult(streamToken, currentStream, success, result, error, captureIntegrationRun);
+        showAgentToolResult(streamToken, currentStream, success, result, error, captureIntegrationRun, partialOutput);
     }
 
     private boolean handleKilledOrStaleAgentStream(int streamToken) {
@@ -2107,12 +2107,12 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showAgentToolResult(
             int streamToken, boolean currentStream, boolean success, ShaftMcpToolResult result, Throwable error) {
-        showAgentToolResult(streamToken, currentStream, success, result, error, false);
+        showAgentToolResult(streamToken, currentStream, success, result, error, false, "");
     }
 
     private void showAgentToolResult(
             int streamToken, boolean currentStream, boolean success, ShaftMcpToolResult result, Throwable error,
-            boolean captureIntegrationRun) {
+            boolean captureIntegrationRun, String verboseStreamedBuffer) {
         String output = resolveOutput(result, error, "No response returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (!output.isBlank() && !rejectedGeneratedJava) {
@@ -2153,6 +2153,19 @@ final class ShaftAssistantPanel extends JPanel {
         // code narrative already carries its own headline, so it is left alone.
         if (!success && !rejectedGeneratedJava) {
             response = AssistantMarkdown.localAgentFailureMarkdown(response);
+        }
+        // Issue #3976: finishLocalAgentResponse used to always replace the streaming bubble with this
+        // polished answer, discarding the accumulated raw buffer regardless of Verbose state -- so a
+        // compacted/pointer-text milestone line (e.g. RAW_STRUCTURED_OUTPUT_NOTICE) streamed last
+        // became a dead end once the run completed normally, with no more streaming bubble left to
+        // re-render once Verbose was toggled on. verboseStreamedBuffer is already gated on Verbose's
+        // CURRENT state by the caller (mirrors showAgentCancelled/stopLocalAgentStreaming's own
+        // "respect live Verbose state at finalization time" reasoning), so it is appended here --
+        // unless it's already represented in the polished answer -- instead of unconditionally
+        // discarding it.
+        if (!verboseStreamedBuffer.isBlank() && !response.contains(verboseStreamedBuffer)) {
+            response = response + "\n\n**Verbose — raw streamed output**\n\n"
+                    + formatLocalAgentStreamingResponse(verboseStreamedBuffer);
         }
         // A genuine CLI failure gets KIND_ERROR; a rejected-generated-code narrative already carries
         // its own headline and is a guardrail outcome, not an error, so it stays the default kind.
