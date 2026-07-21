@@ -63,9 +63,34 @@ final class AssistantLocalAgentRunner {
             "This CLI has no structured live stream; its raw output is shown as-is below until it completes.";
     private static final Pattern MODEL_LINE_PATTERN = Pattern.compile("(claude-[a-z0-9.-]+|gpt-[a-z0-9.-]+|o[0-9][a-z0-9.-]*)",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * Invisible prefix tagging a line delivered to the live output consumer as genuinely raw, non-JSON
+     * CLI stdout (a banner/warning outside the structured NDJSON contract, see {@link
+     * StructuredStreamParser#accept}) as opposed to a SHAFT-translated milestone line ("Calling tool
+     * ...", "Thinking: ...", ...). Both travel through the same {@code Consumer<String>}, so
+     * ShaftAssistantPanel needs this tag to tell them apart without guessing from content: issue #3918
+     * gates non-verbose mode's compact milestone bubbles to translated content only, while Verbose mode
+     * must still see the raw line unchanged (the marker is stripped before any display). Never sent for
+     * buffered-default (Copilot) or custom-command output -- see {@link #hasStructuredStream}.
+     */
+    static final String RAW_STDOUT_MARKER = "\u0000raw-stdout\u0000";
 
     private AssistantLocalAgentRunner() {
         throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Whether {@code arguments} launches a command whose live stream can ever contain a SHAFT-
+     * translated milestone line -- true only for Claude Code/Codex default commands, which get a
+     * {@link StructuredStreamParser} (see {@link #structuredStreamParser}); false for Copilot's default
+     * command (buffered, zero translation -- see {@link #effectiveConsumer}) and for any custom
+     * command (forwarded raw and unwrapped). Issue #3918: ShaftAssistantPanel uses this once per run to
+     * decide whether its non-verbose compact milestone bubbles have anything legitimate to show, since
+     * a buffered/custom run's entire live stream is raw CLI passthrough with no SHAFT authorship at
+     * all.
+     */
+    static boolean hasStructuredStream(JsonObject arguments) {
+        return defaultCommand(arguments) && !"COPILOT_CLI".equals(normalize(string(arguments, "client", "CODEX")));
     }
 
     static boolean supports(AssistantCommand.Invocation invocation) {
@@ -730,8 +755,10 @@ final class AssistantLocalAgentRunner {
             JsonObject event = parseObject(trimmed);
             if (event == null) {
                 // Non-JSON output (banners, warnings) is not part of the structured contract but is
-                // still useful progress information, so it passes through unchanged.
-                outputConsumer.accept(line);
+                // still useful progress information, so it passes through unchanged (content-wise) --
+                // tagged with RAW_STDOUT_MARKER (issue #3918) so ShaftAssistantPanel can withhold it
+                // from non-verbose mode's compact milestone bubbles without guessing from content.
+                outputConsumer.accept(RAW_STDOUT_MARKER + line);
                 return;
             }
             String humanReadableLine = format == Format.CLAUDE ? describeClaudeEvent(event) : describeCodexEvent(event);

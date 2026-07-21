@@ -3761,6 +3761,97 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantKilledRunAfterVerboseToggledOffMidStreamDoesNotDumpRawBuffer() throws Exception {
+        // Issue #3918: stopLocalAgentStreaming used to key its "show the raw partial buffer?" decision
+        // off the sticky localAgentBubbleRendersContent flag (true forever once Verbose rendered
+        // anything this run), so a user who saw raw content while Verbose was on, then flipped it back
+        // off before killing, still got the entire raw buffer dumped -- unformatted content leaking
+        // into a non-verbose transcript. The decision must key off Verbose's CURRENT state at kill
+        // time instead, mirroring how a normal completion's terminal replace already behaves (see
+        // assistantVerboseToggleOffMidStreamLeavesNoStaleStreamingBubble).
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        AtomicBoolean killed = new AtomicBoolean();
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(),
+                () -> {
+                },
+                () -> killed.set(true));
+        verbose.setSelected(true);
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 301);
+        appendLocalAgentOutput(panel, 301, "raw content shown while verbose was on");
+        verbose.setSelected(false);
+
+        cancelOrKillCurrent(panel);
+        cancelOrKillCurrent(panel);
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(killed.get()),
+                () -> assertTrue(markdown.contains("Killed"), markdown),
+                () -> assertFalse(markdown.contains("raw content shown while verbose was on"),
+                        "Verbose was off at kill time, so the raw partial buffer must not be dumped: "
+                                + markdown));
+    }
+
+    @Test
+    void assistantNonVerboseBufferedOrCustomRunSuppressesRawLinesFromMilestoneBubbles() throws Exception {
+        // Issue #3918: a buffered/custom-command local-agent run (Copilot's default command, or any
+        // hand-typed custom command) has zero SHAFT-translated milestone content -- its entire live
+        // stream is raw CLI passthrough (AssistantLocalAgentRunner's effectiveConsumer). Non-verbose
+        // mode must show none of it as a compact milestone bubble; the data still reaches Verbose mode
+        // via the raw streaming bubble/final answer, unchanged.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        appendStreamingLocalAgentBubble(panel, 401);
+        setField(panel, "activeLocalAgentStreamHasStructuredMilestones", false);
+
+        appendLocalAgentOutput(panel, 401,
+                "This CLI has no structured live stream; its raw output is shown as-is below until it completes.");
+        appendLocalAgentOutput(panel, 401, "copilot line one");
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertFalse(markdown.contains("copilot line one"),
+                        "A buffered/custom-command run's raw output must stay Verbose-only: " + markdown),
+                () -> assertFalse(markdown.contains("no structured live stream"), markdown));
+    }
+
+    @Test
+    void assistantNonVerboseModeSuppressesRawNonJsonBannerPassthroughFromMilestoneBubbles() throws Exception {
+        // Issue #3918: StructuredStreamParser.accept forwards non-JSON stdout (CLI banners/warnings)
+        // marked with AssistantLocalAgentRunner.RAW_STDOUT_MARKER so it reaches the live output
+        // consumer (Verbose must never hide information) without being mistaken for a translated
+        // milestone line. Non-verbose mode must not render it as a compact milestone bubble.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        appendStreamingLocalAgentBubble(panel, 402);
+
+        appendLocalAgentOutput(panel, 402,
+                AssistantLocalAgentRunner.RAW_STDOUT_MARKER + "2026-07-08 INFO some internal CLI banner");
+
+        String markdown = transcriptMarkdown(panel);
+        assertFalse(markdown.contains("internal CLI banner"),
+                "Raw non-JSON CLI stdout must stay Verbose-only, not become a milestone bubble: " + markdown);
+    }
+
+    @Test
+    void assistantVerboseModeStripsTheRawPassthroughMarkerBeforeDisplay() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+        appendStreamingLocalAgentBubble(panel, 403);
+
+        appendLocalAgentOutput(panel, 403, AssistantLocalAgentRunner.RAW_STDOUT_MARKER + "internal CLI banner text");
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("internal CLI banner text"), markdown),
+                () -> assertFalse(markdown.contains(AssistantLocalAgentRunner.RAW_STDOUT_MARKER),
+                        "The internal raw-passthrough marker must never leak into the UI: " + markdown));
+    }
+
+    @Test
     void assistantDoesNotPersistRawResponsePayloads() throws Exception {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
 

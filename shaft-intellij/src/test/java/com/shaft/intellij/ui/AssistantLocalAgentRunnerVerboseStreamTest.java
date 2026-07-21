@@ -41,6 +41,42 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     }
 
     @Test
+    void nonJsonStdoutLinesCarryTheRawPassthroughMarkerSoNonVerboseModeCanSuppressThem() throws Exception {
+        // Issue #3918: ShaftAssistantPanel's compact non-verbose milestone bubble must not surface
+        // genuinely raw, untranslated CLI stdout (banners/warnings) -- only its own synthesized
+        // milestone lines (Calling tool..., Thinking:...). Since both travel through the same
+        // Consumer<String>, the non-JSON branch tags its line with RAW_STDOUT_MARKER so the panel can
+        // tell the two apart without content-sniffing; a translated line never carries this marker.
+        List<String> lines = run(claudeInvocation(),
+                "2026-07-08 INFO some internal CLI banner\n"
+                        + claudeAssistantTextEvent("hello") + "\n"
+                        + claudeResultEvent("hello") + "\n");
+
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith(AssistantLocalAgentRunner.RAW_STDOUT_MARKER)
+                        && line.contains("internal CLI banner")),
+                "The raw banner line must carry the raw-passthrough marker: " + lines);
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith(AssistantLocalAgentRunner.RAW_STDOUT_MARKER)
+                        && line.contains("hello")),
+                "A translated/assistant-text line must never carry the raw-passthrough marker: " + lines);
+    }
+
+    @Test
+    void hasStructuredStreamIsTrueOnlyForClaudeAndCodexDefaultCommands() {
+        assertAll(
+                () -> assertTrue(AssistantLocalAgentRunner.hasStructuredStream(claudeInvocation().arguments()),
+                        "Claude Code's default command streams stream-json and gets a structured parser"),
+                () -> assertTrue(AssistantLocalAgentRunner.hasStructuredStream(codexInvocation().arguments()),
+                        "Codex's default command streams --json and gets a structured parser"),
+                () -> assertFalse(AssistantLocalAgentRunner.hasStructuredStream(copilotInvocation().arguments()),
+                        "Copilot has no structured stream flag -- its default command is buffered raw output"),
+                () -> assertFalse(AssistantLocalAgentRunner.hasStructuredStream(
+                                AssistantCommand.fromPrompt(
+                                                "Explain this failure", "CODEX", "ASK", ".", "my-custom-cli --flag", false)
+                                        .arguments()),
+                        "A hand-typed custom command is forwarded raw, unwrapped, regardless of client"));
+    }
+
+    @Test
     void claudeThinkingBlocksAreShownWithALabelEvenWhenAloneInAnEvent() throws Exception {
         String thinkingOnlyEvent = "{\"type\":\"assistant\",\"message\":{\"content\":"
                 + "[{\"type\":\"thinking\",\"thinking\":\"reasoning about the user's code\"}]}}";
