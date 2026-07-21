@@ -48,7 +48,7 @@ public final class PropertyFileManager {
         if (app != null && !app.isEmpty() && !isRemoteAppUrl(app)) {
             if (app.startsWith("src\\") || app.startsWith("src/")) {
                 appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
-            } else if (!new File(app).isAbsolute()) {
+            } else if (!isAbsoluteAppPath(app)) {
                 appiumDesiredCapabilities.put("mobile_app",
                         new File(System.getProperty("user.dir"), app).getAbsolutePath());
             }
@@ -106,6 +106,20 @@ public final class PropertyFileManager {
     private static boolean isRemoteAppUrl(String app) {
         return app.startsWith("bs://") || app.startsWith("lt://")
                 || app.startsWith("http://") || app.startsWith("https://");
+    }
+
+    private static final java.util.regex.Pattern WINDOWS_ABSOLUTE_PATH = java.util.regex.Pattern.compile("^[A-Za-z]:[\\\\/].*");
+
+    /**
+     * Returns {@code true} when {@code app} is already an absolute path, recognizing Windows-style
+     * (drive letter, e.g. {@code C:\...}) and Unix-style (leading {@code /}) absolute paths regardless
+     * of the host OS the JVM is running on. {@link File#isAbsolute()} alone is host-OS-specific: a
+     * Windows drive-letter path is reported as relative on a Linux JVM (and vice versa for a
+     * Unix-rooted path on a Windows JVM), which would otherwise cause an already-absolute path meant
+     * for a different-OS Appium target to be mangled by prepending {@code user.dir}.
+     */
+    private static boolean isAbsoluteAppPath(String app) {
+        return WINDOWS_ABSOLUTE_PATH.matcher(app).matches() || app.startsWith("/") || new File(app).isAbsolute();
     }
 
     private static void collectMobileProperties(java.util.Properties source, Map<String, String> target) {
