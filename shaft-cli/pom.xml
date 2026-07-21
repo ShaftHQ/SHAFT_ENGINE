@@ -14,6 +14,12 @@
     <packaging>jar</packaging>
     <name>shaft-cli</name>
     <description>Command-line client over the shaft-mcp capability set (MCP client with a CLI surface).</description>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
 
     <properties>
         <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>

@@ -82,7 +82,7 @@ def validate_jar_contents(artifact: str, classifier: str | None, jar: Path) -> l
         ):
             continue
         for forbidden in FORBIDDEN_ENTRY_PARTS:
-            if forbidden in name or name.startswith(forbidden):
+            if name.startswith(forbidden):
                 errors.append(f"{jar.name} contains forbidden entry: {name}")
                 break
         if name.endswith(FORBIDDEN_ENTRY_SUFFIXES) and not name.startswith("META-INF/maven/"):
@@ -170,6 +170,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
         for field in ("m:name", "m:description"):
             if not _text(pom, field):
                 errors.append(f"{artifact} is missing {field.removeprefix('m:')}")
+        if _text(pom, "m:licenses/m:license/m:name") != "MIT License":
+            errors.append(f"{artifact} is missing explicit MIT License metadata")
         if packaging == "jar":
             plugins = {
                 _text(plugin, "m:artifactId")

@@ -3,3 +3,32 @@
 # Healenium migrates or Jackson 2.x patched artifacts are available.
 allow-ghsas:
   - GHSA-5jmj-h7xm-6q6v
+
+# #3902: every io.github.shafthq reactor module carries an explicit MIT
+# <licenses> block (pom.xml:11-16 and each module pom), but the Dependency
+# Review action can't resolve a license for our own unpublished-release-version
+# inter-module dependencies via ClearlyDefined, so it flags them as "could not
+# detect a license". Exempt each own-group artifact explicitly: purl matching
+# in this action ignores the version segment entirely (actions/dependency-review-action
+# src/purl.ts purlsMatch compares only type+namespace+name), and there is no
+# namespace-wildcard form for allow-dependencies-licenses (only deny-groups
+# supports namespace-only purls, and only for denying) -- so each artifact must
+# be listed by name rather than as a single io.github.shafthq wildcard.
+allow-dependencies-licenses:
+  - pkg:maven/io.github.shafthq/shaft-parent
+  - pkg:maven/io.github.shafthq/shaft-engine
+  - pkg:maven/io.github.shafthq/shaft-pilot-core
+  - pkg:maven/io.github.shafthq/shaft-capture
+  - pkg:maven/io.github.shafthq/shaft-capture-proxy
+  - pkg:maven/io.github.shafthq/shaft-doctor
+  - pkg:maven/io.github.shafthq/shaft-ai
+  - pkg:maven/io.github.shafthq/shaft-heal
+  - pkg:maven/io.github.shafthq/shaft-mcp
+  - pkg:maven/io.github.shafthq/shaft-cli
+  - pkg:maven/io.github.shafthq/shaft-browserstack
+  - pkg:maven/io.github.shafthq/shaft-video
+  - pkg:maven/io.github.shafthq/shaft-visual
+  - pkg:maven/io.github.shafthq/shaft-sikulix
+  - pkg:maven/io.github.shafthq/report-aggregate
+  - pkg:maven/io.github.shafthq/shaft-bom
+  - pkg:maven/io.github.shafthq/SHAFT_ENGINE

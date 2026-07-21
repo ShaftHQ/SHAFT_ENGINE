@@ -97,6 +97,19 @@ class MavenPublicationValidationTest(unittest.TestCase):
             self.assertIn(sbom, names)
             self.assertIn(f"{sbom}.asc", names)
 
+    def test_rejects_missing_license_metadata(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_contract(root)
+            pom = root / "shaft-engine" / "pom.xml"
+            document = ET.parse(pom)
+            licenses = document.getroot().find("m:licenses", MODULE.NS)
+            self.assertIsNotNone(licenses)
+            document.getroot().remove(licenses)
+            document.write(pom, encoding="utf-8", xml_declaration=True)
+            self.assertTrue(any("MIT License" in error and "shaft-engine" in error
+                                for error in MODULE.validate_publication(root)))
+
     def test_rejects_forbidden_source_jar_content(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -108,6 +121,24 @@ class MavenPublicationValidationTest(unittest.TestCase):
                 archive.writestr("C:/workspace/target/reports/apidocs/index.html", "<html></html>")
             self.assertTrue(any("absolute path" in error or "forbidden entry" in error
                                 for error in MODULE.validate_publication(root, True)))
+
+    def test_accepts_shaded_third_party_paths_with_forbidden_substrings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            jar_path = Path(temp_dir) / "sample.jar"
+            with zipfile.ZipFile(jar_path, "w") as archive:
+                archive.writestr("org/openqa/selenium/devtools/v148/target/Target.class", b"")
+                archive.writestr("io/appium/java_client/driverscripts/ScriptOptions.class", b"")
+                archive.writestr("groovyjarjarantlr4/v4/codegen/target/CodeGenerator.class", b"")
+            self.assertEqual(MODULE.validate_jar_contents("shaft-cli", None, jar_path), [])
+
+    def test_rejects_root_level_forbidden_entries(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            jar_path = Path(temp_dir) / "sample.jar"
+            with zipfile.ZipFile(jar_path, "w") as archive:
+                archive.writestr("target/classes/Foo.class", b"")
+                archive.writestr("scripts/ci/x.py", b"")
+            errors = MODULE.validate_jar_contents("shaft-cli", None, jar_path)
+            self.assertEqual(len(errors), 2)
 
     @staticmethod
     def _create_outputs(root, include_signatures=False):
