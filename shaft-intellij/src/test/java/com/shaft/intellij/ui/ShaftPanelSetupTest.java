@@ -3054,6 +3054,34 @@ class ShaftPanelSetupTest {
         assertEquals(ShaftAssistantChatState.KIND_ASSISTANT_TEXT, lastMessageKind(panel));
     }
 
+    /**
+     * Issue #3968 follow-up (hostile review finding): a user-initiated Cancel/Kill of a running
+     * local-agent CLI is the same kind of event {@link #showTerminalSequenceResult}'s cancelled
+     * branch already treats as {@code KIND_TOOL_EVENT} for the MCP-tool-sequence path -- an aborted
+     * operation, not a genuine failure. {@code showAgentCancelled} must apply the same reasoning
+     * instead of leaving the cancellation bubble at the role-inferred default.
+     */
+    @Test
+    void localAgentCancelledRendersWithTheToolEventKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 13);
+        showAgentResult(panel, 13, null, new CancellationException("cancelled"));
+
+        assertEquals(ShaftAssistantChatState.KIND_TOOL_EVENT, lastMessageKind(panel));
+    }
+
+    @Test
+    void localAgentKilledRendersWithTheToolEventKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 14);
+        setField(panel, "killRequested", true);
+        showAgentResult(panel, 14, null, new CancellationException("killed"));
+
+        assertEquals(ShaftAssistantChatState.KIND_TOOL_EVENT, lastMessageKind(panel));
+    }
+
     @Test
     void assistantLocalAgentCompletedWithoutUsageMetadataStatesTokenUsageNotAvailable() throws Exception {
         // Issue #3703: silence must never stand in for "no data" -- the user must be able to tell

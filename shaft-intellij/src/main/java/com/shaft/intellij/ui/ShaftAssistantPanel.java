@@ -2217,7 +2217,9 @@ final class ShaftAssistantPanel extends JPanel {
         String canceledResponse = partialOutput == null || partialOutput.isBlank()
                 ? "_" + label + "._"
                 : formatLocalAgentStreamingResponse(partialOutput) + "\n\n_" + label + "._ (partial output above)";
-        showAgentResponse(streamToken, currentStream, canceledResponse, "");
+        // A user-initiated Cancel/Kill is a tool-event outcome, not a genuine failure -- mirrors
+        // showTerminalSequenceResult's cancelled branch for the MCP-tool-sequence path.
+        showAgentResponse(streamToken, currentStream, canceledResponse, "", ShaftAssistantChatState.KIND_TOOL_EVENT);
     }
 
     private void showAgentResponse(int streamToken, boolean currentStream, String response, String output) {
