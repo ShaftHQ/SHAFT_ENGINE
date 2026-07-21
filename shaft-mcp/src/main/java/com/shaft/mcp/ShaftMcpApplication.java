@@ -48,7 +48,7 @@ public class ShaftMcpApplication {
 
     /**
      * Registers the ShaftService tool callbacks. {@link PlaywrightService} and
-     * {@link NaturalActionService}'s former {@code natural_act}/{@code mobile_natural_act} tools are
+     * {@code NaturalActionService}'s former {@code natural_act}/{@code mobile_natural_act} tools are
      * deliberately absent: since commit 4 of the tool architecture sweep (design doc Decision 2),
      * every {@code playwright_*} tool is absorbed into the unified {@code element_*}/{@code browser_*}/
      * {@code capture_*}/{@code doctor_*}/{@code healer_*} tools (PlaywrightService is still a Spring
