@@ -197,6 +197,8 @@ jobs:
           distribution: 'zulu'
           check-latest: true
           cache: 'maven'
+      - name: Install shaft-cli reactor dependencies
+        run: mvn --batch-mode -pl shaft-cli -am -DskipTests install -q '-DheadlessExecution=true' '-Dgpg.skip' '-Dcyclonedx.skip'
       - name: Test shaft-cli
         run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true'
       - name: Package shaft-cli and run the binary

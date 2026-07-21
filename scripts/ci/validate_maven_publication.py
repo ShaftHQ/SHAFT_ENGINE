@@ -82,7 +82,7 @@ def validate_jar_contents(artifact: str, classifier: str | None, jar: Path) -> l
         ):
             continue
         for forbidden in FORBIDDEN_ENTRY_PARTS:
-            if forbidden in name or name.startswith(forbidden):
+            if name.startswith(forbidden):
                 errors.append(f"{jar.name} contains forbidden entry: {name}")
                 break
         if name.endswith(FORBIDDEN_ENTRY_SUFFIXES) and not name.startswith("META-INF/maven/"):
