@@ -326,3 +326,25 @@ jobs:
             --header 'Content-type: application/json' \
             --data @/tmp/slack_release_payload.json \
             "$SLACK_WEBHOOK_URL"
+
+  notify_release_failure:
+    name: Notify on release failure
+    needs: [ check_release_needed, build_release_and_deliver, verify_public_shaft_mcp_installer, announce_release ]
+    # Runs regardless of upstream outcome so a failure anywhere in the pipeline is caught.
+    # Most pushes to main land between releases with nothing new to deliver (see top-of-file
+    # comment): build_release_and_deliver/verify_public_shaft_mcp_installer/announce_release
+    # are then cleanly 'skipped', not failed - the outcome expression below must not alert on that.
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: File or recover the release failure tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'release-failure:maven-central-cd'
