@@ -443,4 +443,33 @@ class ShaftMcpApplicationTests {
         assertEquals(List.of("NONE", "WEB", "MOBILE_NATIVE", "MOBILE_WEB", "PLAYWRIGHT"), allowed,
                 "driver_initialize's engine enum wire values: " + schema);
     }
+
+    /**
+     * Issue #3908 live-repro finding: {@code McpMobileInitOptions}'s javadoc says "Every field is
+     * optional" and every field is genuinely optional at the Java level (all boxed/nullable, each
+     * defaulted internally by {@code MobileService#initializeWebEmulation}/{@code #initializeNative}),
+     * but the live-served schema marked all 9 native-only fields required -- confirmed live by 3/3
+     * "Guided Workflows Live E2E" workflow_dispatch runs (29808732349, 29808737368, 29808742128)
+     * failing {@code mobileRecorderRecordsEmulatedActionsAndGeneratesShaftCode} with "JSON schema
+     * validation errors: [/mobileOptions: required property 'app' not found, ...]" the moment a
+     * MOBILE_WEB caller (which never sends the native-only fields) reached real schema validation --
+     * masked until #3906 fixed the plugin's flat-vs-nested shape bug that failed validation earlier
+     * for an unrelated reason. {@code McpMobileInitOptions} is the only record type used as a nested
+     * {@code @ToolParam} request object anywhere in shaft-mcp; the sibling pattern
+     * ({@code CaptureCodegenStartRequest}) is a plain mutable class, which Spring AI's schema
+     * generator treats as all-optional by default -- records don't get that default.
+     */
+    @Test
+    void driverInitializeMobileOptionsSchemaHasNoRequiredFieldsSoAnyEngineCanOmitTheOthers() throws Exception {
+        JsonNode schema = toolInputSchema("driver_initialize");
+        JsonNode mobileOptionsRequired = schema.path("properties").path("mobileOptions").path("required");
+
+        List<String> requiredNames = new java.util.ArrayList<>();
+        mobileOptionsRequired.forEach(node -> requiredNames.add(node.asText()));
+
+        assertTrue(requiredNames.isEmpty(),
+                "mobileOptions schema still requires: " + requiredNames
+                        + " -- a MOBILE_WEB caller that never sends native-only fields (or vice versa) "
+                        + "must still pass schema validation: " + schema);
+    }
 }
