@@ -46,7 +46,28 @@ Stateless tools (guide search, doctor analysis) need no session.
 ## Discovery
 
 `shaft-cli tools [--json]` lists every tool with its description at runtime —
-prefer the cached `shaft-mcp-tools.md` to save tokens.
+prefer the cached `shaft-mcp-tools.md` to save tokens. `shaft-cli tools --cached
+[--json]` instead reads a bundled offline snapshot with no MCP server involved
+at all (not even a one-shot child process) — the fastest discovery path when
+you don't need live server state. The snapshot is a stop-gap assembled from
+the frozen 89-tool catalog (`mcp-tool-manifest.json` +
+`shaft-mcp-tools.md`); it will move onto the canonical `tool-index.json`
+generated for #3868 once that lands, so treat it as "recent", not
+"authoritative live state".
+
+## Codegen (deterministic, no MCP session)
+
+`shaft-cli codegen [--session <path>] [any `CaptureCli generate` flag]`
+generates SHAFT test code directly from a capture recording file — no MCP
+server, no session, no `--stdio-ok` (Decision 6: single-session actions like
+codegen prefer the deterministic CLI path over MCP). `--session` defaults to
+the newest `*.json` file under `./recordings` when omitted, mirroring
+`capture_generate_replay`'s zero-arg default, so a bare `shaft-cli codegen`
+works right after a `capture start`/`capture stop` pair. Every other
+`CaptureCli generate` flag (`--backend webdriver|playwright`, `--output-dir`,
+`--package`, `--class-name`, `--overwrite`, `--replay`, ...) passes through
+unchanged; exit code 2 means no `--session` was given and none could be
+inferred.
 
 ## Curated aliases
 
@@ -54,6 +75,6 @@ Shortcuts over `call`, same options:
 
 - `shaft-cli browser navigate|screenshot|dom|url` (session required)
 - `shaft-cli element click|type|hover` (session required)
-- `shaft-cli capture start|stop|status|code` (session required)
+- `shaft-cli capture start|stop|status|code|step-delete|step-reorder` (session required)
 - `shaft-cli guide search` (stateless)
 - `shaft-cli doctor analyze|suggest` (stateless)

@@ -4,7 +4,7 @@ package com.shaft.mcp;
  * One observed network transaction summary returned by {@code browser_network_requests}, without
  * headers or bodies.
  *
- * @param id             1-based transaction id, usable with {@code browser_network_request}
+ * @param id             1-based transaction id, usable with {@code browser_network_requests}' id param
  * @param method         HTTP method
  * @param url            request URL
  * @param status         HTTP response status code, or {@code 0} when the exchange failed

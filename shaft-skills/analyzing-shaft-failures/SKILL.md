@@ -47,6 +47,59 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 <tool>` (`../references/shaft-cli-commands.md`) when installed, else
 `shaft-mcp:<tool>`.
 
+## Example calls
+
+`doctor_analyze_failed_allure` — request (empty `allureResultPaths` analyzes
+the newest evidence found in the workspace):
+
+```json
+{
+  "allureResultPaths": [],
+  "historicalBundlePaths": [],
+  "outputDirectory": "",
+  "includeScreenshots": true,
+  "includePageSnapshots": false,
+  "minimumAllureResults": 1
+}
+```
+
+response (`McpAnalysisReport`, truncated):
+
+```json
+{
+  "schemaVersion": "1.0",
+  "status": "DETERMINISTIC",
+  "bundleId": "doctor-20260720-141530",
+  "primaryCause": "LOCATOR",
+  "confidence": "HIGH",
+  "summary": "NoSuchElementException on signInButton after a DOM structure change.",
+  "actions": [{"kind": "REVIEW_LOCATOR", "description": "signInButton locator no longer matches."}],
+  "codeBlocks": ["By signInButton = SHAFT.GUI.Locator.clickableField(\"Sign in\");"],
+  "bundlePath": "target/shaft-doctor/doctor-20260720-141530",
+  "jsonReportPath": "target/shaft-doctor/doctor-20260720-141530/report.json",
+  "markdownReportPath": "target/shaft-doctor/doctor-20260720-141530/report.md",
+  "warnings": []
+}
+```
+
+`doctor_suggest_fix` — request (same report, backend defaults to `web`):
+
+```json
+{
+  "jsonReportPath": "target/shaft-doctor/doctor-20260720-141530/report.json",
+  "repositoryRoot": "C:/projects/demo-shaft",
+  "allowedSourcePaths": ["src/test/java/pages/LoginPage.java"],
+  "useAi": false,
+  "allowLocalAi": false,
+  "allowRemoteAi": false,
+  "driverVariableName": "driver",
+  "backend": "web"
+}
+```
+
+Response is the same `McpAnalysisReport` shape, with `codeBlocks` holding the
+proposed remediation snippet — review it before it is applied anywhere.
+
 ## Official Guide Routes
 
 - Doctor: `https://shafthq.github.io/docs/agentic/doctor`

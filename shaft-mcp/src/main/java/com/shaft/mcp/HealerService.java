@@ -6,6 +6,7 @@ import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.internal.DoctorRedactor;
 import com.shaft.doctor.model.CauseCategory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -73,7 +74,9 @@ public class HealerService {
      */
     @Tool(name = "healer_run_failed_test",
             description = "reruns a failing SHAFT/Selenium test, analyzes fresh Allure evidence,"
-                    + " and returns review-only fixes plus agent replay guidance")
+                    + " and returns review-only fixes plus agent replay guidance; optional backend "
+                    + "(web|playwright, defaults to web) selects the generated snippets' engine, "
+                    + "absorbing playwright_healer_run_failed_test")
     public McpHealerRunResult runFailedTest(
             String repositoryRoot,
             List<String> testCommand,
@@ -86,7 +89,8 @@ public class HealerService {
             boolean useConfiguredAi,
             boolean allowLocalAi,
             boolean allowRemoteAi,
-            String driverVariableName) {
+            String driverVariableName,
+            @ToolParam(required = false) String backend) {
         return runFailedTestInternal(
                 repositoryRoot,
                 testCommand,
@@ -100,57 +104,7 @@ public class HealerService {
                 allowLocalAi,
                 allowRemoteAi,
                 driverVariableName,
-                CodegenBackend.WEBDRIVER);
-    }
-
-    /**
-     * Reruns a failing SHAFT Playwright test and returns evidence-backed repair suggestions.
-     *
-     * @param repositoryRoot Git/Maven project root inside the MCP workspace
-     * @param testCommand tokenized Maven command for the failing test
-     * @param outputDirectory healer and Doctor output directory inside the MCP workspace
-     * @param maxAttempts maximum rerun attempts, clamped to 1..5
-     * @param includeScreenshots explicit approval to retain screenshot evidence
-     * @param includePageSnapshots explicit approval to retain page-source evidence
-     * @param allowedSourcePaths optional repository-relative source paths approved for provider evidence
-     * @param networkValidationApproved whether Maven may run without offline mode
-     * @param useConfiguredAi whether to request configured SHAFT provider snippets in addition to agent handoff
-     * @param allowLocalAi explicit local provider consent when configured AI is requested
-     * @param allowRemoteAi explicit remote provider consent when configured AI is requested
-     * @param driverVariableName Java driver variable name used in snippets
-     * @return guarded rerun attempts plus review-only remediation
-     */
-    @Tool(name = "playwright_healer_run_failed_test",
-            description = "reruns a failing SHAFT Playwright test, analyzes fresh Allure evidence,"
-                    + " and returns review-only fixes plus agent replay guidance")
-    @SuppressWarnings("PMD.ExcessiveParameterList")
-    public McpHealerRunResult runFailedPlaywrightTest(
-            String repositoryRoot,
-            List<String> testCommand,
-            String outputDirectory,
-            int maxAttempts,
-            boolean includeScreenshots,
-            boolean includePageSnapshots,
-            List<String> allowedSourcePaths,
-            boolean networkValidationApproved,
-            boolean useConfiguredAi,
-            boolean allowLocalAi,
-            boolean allowRemoteAi,
-            String driverVariableName) {
-        return runFailedTestInternal(
-                repositoryRoot,
-                testCommand,
-                outputDirectory,
-                maxAttempts,
-                includeScreenshots,
-                includePageSnapshots,
-                allowedSourcePaths,
-                networkValidationApproved,
-                useConfiguredAi,
-                allowLocalAi,
-                allowRemoteAi,
-                driverVariableName,
-                CodegenBackend.PLAYWRIGHT);
+                DoctorService.isPlaywrightBackend(backend) ? CodegenBackend.PLAYWRIGHT : CodegenBackend.WEBDRIVER);
     }
 
     @SuppressWarnings({"PMD.ExcessiveParameterList", "PMD.NPathComplexity"})
@@ -250,21 +204,6 @@ public class HealerService {
             CodegenBackend backend) {
         DoctorService doctor = new DoctorService(workspacePolicy, new McpDoctorRemediationService());
         List<String> paths = changed.stream().map(file -> file.path().toString()).toList();
-        if (backend == CodegenBackend.PLAYWRIGHT) {
-            return doctor.analyzeFailedPlaywrightAllure(
-                    paths,
-                    List.of(),
-                    output.toString(),
-                    includeScreenshots,
-                    includePageSnapshots,
-                    1,
-                    repository.toString(),
-                    allowedSourcePaths,
-                    useConfiguredAi,
-                    allowLocalAi,
-                    allowRemoteAi,
-                    driverVariableName);
-        }
         return doctor.analyzeFailedAllure(
                 paths,
                 List.of(),
@@ -277,7 +216,8 @@ public class HealerService {
                 useConfiguredAi,
                 allowLocalAi,
                 allowRemoteAi,
-                driverVariableName);
+                driverVariableName,
+                backend == CodegenBackend.PLAYWRIGHT ? "playwright" : null);
     }
 
     private static McpHealerRunResult result(
@@ -389,8 +329,9 @@ public class HealerService {
 
     private static String replayGuidance(CodegenBackend backend) {
         return backend == CodegenBackend.PLAYWRIGHT
-                ? "Use the SHAFT MCP playwright_* DOM, screenshot, element, and replay tools when more UI evidence is needed."
-                : "Use the existing SHAFT MCP browser, DOM, screenshot, element, and natural action tools to replay"
+                ? "Use the SHAFT MCP browser_*/element_*/capture_generate_replay tools (they dispatch to the "
+                + "active Playwright engine) when more UI evidence is needed."
+                : "Use the existing SHAFT MCP browser, DOM, screenshot, and element tools to replay"
                 + " the failing Selenium/WebDriver flow when more UI evidence is needed.";
     }
 

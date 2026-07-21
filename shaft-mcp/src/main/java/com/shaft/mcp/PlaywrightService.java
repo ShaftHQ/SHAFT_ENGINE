@@ -48,12 +48,39 @@ public class PlaywrightService {
     }
 
     /**
+     * Returns the active Playwright session's browser-level actions as the shared
+     * {@link com.shaft.gui.driver.BrowserActionsContract}, so {@link BrowserService}'s unified
+     * {@code browser_*} tools can dispatch to Playwright and web/mobile through the same contract
+     * calls (navigate, refresh, back/forward, window sizing, cookies, accessibility, network mocking).
+     *
+     * @return the active Playwright session's browser actions
+     */
+    com.shaft.gui.driver.BrowserActionsContract browserActions() {
+        return getDriver().browser();
+    }
+
+    /**
+     * Captures an aria snapshot on the active Playwright session. Package-private engine-dispatch
+     * seam used by {@link BrowserService#ariaSnapshot}; not an MCP tool because no new tool names may
+     * be introduced in this commit (the existing {@code browser_aria_snapshot} tool covers this
+     * dispatch).
+     *
+     * @param locatorStrategy locator strategy; leave unset together with locatorValue to snapshot the whole page
+     * @param locatorValue locator value; leave blank to snapshot the whole page
+     * @return the aria snapshot serialized as YAML
+     */
+    String ariaSnapshot(locatorStrategy locatorStrategy, String locatorValue) {
+        boolean wholePage = locatorStrategy == null || locatorValue == null || locatorValue.isBlank();
+        By locator = wholePage ? By.tagName("html") : getLocator(locatorStrategy, locatorValue);
+        return getDriver().element().ariaSnapshot(locator);
+    }
+
+    /**
      * Initializes a SHAFT Playwright browser session.
      *
      * @param browser chromium, chrome, firefox, webkit, or safari; blank uses SHAFT defaults
      * @param headless whether to launch headlessly
      */
-    @Tool(name = "playwright_initialize", description = "launches a SHAFT Playwright browser")
     public void initialize(String browser, boolean headless) {
         EngineService.ensureEngineInitialized();
         SHAFT.Properties.web.set().headlessExecution(headless);
@@ -62,6 +89,7 @@ public class PlaywrightService {
         }
         quit();
         driver = new SHAFT.GUI.Playwright();
+        EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);
         logger.info("Playwright driver initialized (browser length: {}, headless: {})",
                 browser == null ? 0 : browser.length(), headless);
     }
@@ -69,12 +97,33 @@ public class PlaywrightService {
     /**
      * Quits the active SHAFT Playwright session.
      */
-    @Tool(name = "playwright_quit", description = "closes the active SHAFT Playwright browser")
     public void quit() {
         if (driver != null) {
             driver.quit();
             driver = null;
         }
+        EngineService.setActiveEngine(ActiveEngine.NONE);
+    }
+
+    /**
+     * Dispatches a unified {@code element_click} call to the Playwright click implementation for
+     * the requested {@link ClickMode}. Package-private engine-dispatch seam used by
+     * {@link ElementService}; reuses the existing {@code @Tool} methods so recording behavior stays
+     * identical to calling {@code playwright_element_click}/{@code playwright_element_double_click}
+     * directly.
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @param mode requested click gesture
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dispatchClick(locatorStrategy locatorStrategy, String locatorValue, ClickMode mode) {
+        return switch (mode) {
+            case DOUBLE -> doubleClick(locatorStrategy, locatorValue);
+            case LONG -> throw new IllegalArgumentException(
+                    "element_click mode=LONG is not supported for the Playwright engine (activeEngine=PLAYWRIGHT)");
+            case SINGLE -> click(locatorStrategy, locatorValue);
+        };
     }
 
     /**
@@ -85,8 +134,6 @@ public class PlaywrightService {
      * @param includeSensitiveValues whether typed values may be persisted
      * @return recorder status
      */
-    @Tool(name = "playwright_record_start",
-            description = "starts recording MCP Playwright actions to a workspace JSON file")
     public McpMobileRecordingStatus recordStart(String outputPath, String mode, boolean includeSensitiveValues) {
         return recorder.start(outputPath, mode, includeSensitiveValues);
     }
@@ -96,7 +143,6 @@ public class PlaywrightService {
      *
      * @return recorder status
      */
-    @Tool(name = "playwright_record_status", description = "returns the active MCP Playwright recording status")
     public McpMobileRecordingStatus recordStatus() {
         return recorder.status();
     }
@@ -107,8 +153,6 @@ public class PlaywrightService {
      * @param discard whether to delete the recording output
      * @return final recorder status
      */
-    @Tool(name = "playwright_record_stop",
-            description = "stops MCP Playwright recording and optionally discards the JSON file")
     public McpMobileRecordingStatus recordStop(boolean discard) {
         return recorder.stop(discard);
     }
@@ -119,8 +163,6 @@ public class PlaywrightService {
      * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
      * @return updated recorder status
      */
-    @Tool(name = "playwright_step_delete",
-            description = "deletes a recorded Playwright step by its stable stepId and renumbers the remaining steps")
     public McpMobileRecordingStatus stepDelete(String stepId) {
         return recorder.deleteStep(stepId);
     }
@@ -132,8 +174,6 @@ public class PlaywrightService {
      * @param direction "up" or "down"
      * @return updated recorder status
      */
-    @Tool(name = "playwright_step_reorder",
-            description = "moves a recorded Playwright step up or down by its stable stepId (direction: up|down)")
     public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
         return recorder.reorderStep(stepId, direction);
     }
@@ -145,8 +185,6 @@ public class PlaywrightService {
      * @param driverVariableName driver variable name to use in generated snippets
      * @return replay code blocks
      */
-    @Tool(name = "playwright_recording_code_blocks",
-            description = "generates reusable copy-paste SHAFT Playwright replay code blocks")
     public McpMobileReplayResult recordingCodeBlocks(String recordingPath, String driverVariableName) {
         return recorder.codeBlocks(recordingPath, driverVariableName);
     }
@@ -160,8 +198,6 @@ public class PlaywrightService {
      * @param insertAfter method name or textual anchor to insert after
      * @return replay code blocks plus target insertion snippets
      */
-    @Tool(name = "playwright_record_at_target_code_blocks",
-            description = "generates focused Playwright recording snippets for insertion at an existing Java source anchor")
     public McpMobileReplayResult recordAtTargetCodeBlocks(
             String recordingPath,
             String driverVariableName,
@@ -180,8 +216,6 @@ public class PlaywrightService {
      * @param driverVariableName driver variable name to use in generated snippets
      * @return replay result
      */
-    @Tool(name = "playwright_replay_recording",
-            description = "replays an MCP Playwright recording against the active SHAFT Playwright driver")
     public McpMobileReplayResult replayRecording(String recordingPath, String driverVariableName) {
         McpMobileRecording recording = recorder.readRecording(recordingPath);
         int replayed = 0;
@@ -213,7 +247,6 @@ public class PlaywrightService {
      * @param targetUrl target URL
      * @return recorded action metadata
      */
-    @Tool(name = "playwright_browser_navigate", description = "navigates the SHAFT Playwright page to a URL")
     public McpMobileActionResult navigate(String targetUrl) {
         getDriver().browser().navigateToURL(targetUrl);
         return record("navigate", null, "", Map.of("url", text(targetUrl)),
@@ -225,7 +258,6 @@ public class PlaywrightService {
      *
      * @return recorded action metadata
      */
-    @Tool(name = "playwright_browser_refresh", description = "refreshes the SHAFT Playwright page")
     public McpMobileActionResult refresh() {
         getDriver().browser().refreshCurrentPage();
         return record("refresh", null, "", Map.of(),
@@ -237,7 +269,6 @@ public class PlaywrightService {
      *
      * @return recorded action metadata
      */
-    @Tool(name = "playwright_browser_navigate_back", description = "navigates the SHAFT Playwright page back")
     public McpMobileActionResult navigateBack() {
         getDriver().browser().navigateBack();
         return record("navigate_back", null, "", Map.of(),
@@ -249,7 +280,6 @@ public class PlaywrightService {
      *
      * @return recorded action metadata
      */
-    @Tool(name = "playwright_browser_navigate_forward", description = "navigates the SHAFT Playwright page forward")
     public McpMobileActionResult navigateForward() {
         getDriver().browser().navigateForward();
         return record("navigate_forward", null, "", Map.of(),
@@ -263,7 +293,6 @@ public class PlaywrightService {
      * @param height viewport height
      * @return recorded action metadata
      */
-    @Tool(name = "playwright_browser_set_window_size", description = "sets the SHAFT Playwright viewport size")
     public McpMobileActionResult setWindowSize(int width, int height) {
         getDriver().browser().setWindowSize(width, height);
         return record("set_window_size", null, "", Map.of(
@@ -279,7 +308,6 @@ public class PlaywrightService {
      * @param windowType TAB or WINDOW
      * @return recorded action metadata
      */
-    @Tool(name = "playwright_browser_new_window", description = "opens a new SHAFT Playwright tab or window")
     public McpMobileActionResult newWindow(String targetUrl, String windowType) {
         boolean openWindow = "WINDOW".equalsIgnoreCase(windowType);
         String url = targetUrl == null || targetUrl.isBlank() ? "about:blank" : targetUrl;
@@ -299,7 +327,6 @@ public class PlaywrightService {
      *
      * @return current URL
      */
-    @Tool(name = "playwright_browser_get_current_url", description = "gets current SHAFT Playwright page URL")
     public String getCurrentUrl() {
         return getDriver().browser().getCurrentURL();
     }
@@ -309,7 +336,6 @@ public class PlaywrightService {
      *
      * @return page title
      */
-    @Tool(name = "playwright_browser_get_title", description = "gets current SHAFT Playwright page title")
     public String getTitle() {
         return getDriver().browser().getCurrentWindowTitle();
     }
@@ -320,8 +346,6 @@ public class PlaywrightService {
      * @param maxCharacters maximum DOM characters to return
      * @return page DOM snapshot
      */
-    @Tool(name = "playwright_browser_get_page_dom",
-            description = "gets the current SHAFT Playwright page DOM for browser automation inspection")
     public McpPageDomSnapshot getPageDom(int maxCharacters) {
         Page page = getDriver().getDriver();
         int limit = maxCharacters <= 0 ? DEFAULT_DOM_CHARACTER_LIMIT : maxCharacters;
@@ -345,8 +369,6 @@ public class PlaywrightService {
      * @param includeBase64 whether to include base64 bytes in the response
      * @return screenshot metadata
      */
-    @Tool(name = "playwright_browser_take_screenshot",
-            description = "takes a PNG screenshot of the current SHAFT Playwright page")
     public McpScreenshotResult takeScreenshot(String outputPath, boolean includeBase64) {
         byte[] png = getDriver().getDriver().screenshot(new Page.ScreenshotOptions());
         Path writtenPath = writeScreenshot(outputPath, png);
@@ -368,9 +390,6 @@ public class PlaywrightService {
      * @param filePath workspace-relative or workspace-contained output file path
      * @return the absolute path the storage state was written to
      */
-    @Tool(name = "playwright_browser_storage_state_save",
-            description = "saves the active SHAFT Playwright session's cookies, localStorage, and sessionStorage "
-                    + "to a JSON file")
     public String saveStorageState(String filePath) {
         SHAFT.GUI.Playwright driver = getDriver();
         Path resolved = workspacePolicy.output(filePath, "Storage state output path");
@@ -389,9 +408,6 @@ public class PlaywrightService {
      * @param filePath workspace-contained source JSON file path
      * @return a short confirmation including the resolved path and restored cookie count
      */
-    @Tool(name = "playwright_browser_storage_state_load",
-            description = "loads cookies, localStorage, and sessionStorage from a JSON file into the active "
-                    + "SHAFT Playwright session; navigate to the target origin first")
     public String loadStorageState(String filePath) {
         SHAFT.GUI.Playwright driver = getDriver();
         Path resolved = workspacePolicy.existing(filePath, "Storage state input path");
@@ -405,7 +421,6 @@ public class PlaywrightService {
     /**
      * Clicks a Playwright element.
      */
-    @Tool(name = "playwright_element_click", description = "clicks an element using SHAFT Playwright")
     public McpMobileActionResult click(locatorStrategy locatorStrategy, String locatorValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().click(locator));
         return recordLocator("click", locatorStrategy, locatorValue,
@@ -415,7 +430,6 @@ public class PlaywrightService {
     /**
      * Clicks a Playwright element using JavaScript.
      */
-    @Tool(name = "playwright_element_click_js", description = "clicks an element using JavaScript in SHAFT Playwright")
     public McpMobileActionResult clickUsingJavaScript(locatorStrategy locatorStrategy, String locatorValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clickUsingJavascript(locator));
         return recordLocator("click_js", locatorStrategy, locatorValue,
@@ -425,7 +439,6 @@ public class PlaywrightService {
     /**
      * Double-clicks a Playwright element.
      */
-    @Tool(name = "playwright_element_double_click", description = "double-clicks an element using SHAFT Playwright")
     public McpMobileActionResult doubleClick(locatorStrategy locatorStrategy, String locatorValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().doubleClick(locator));
         return recordLocator("double_click", locatorStrategy, locatorValue,
@@ -435,7 +448,6 @@ public class PlaywrightService {
     /**
      * Hovers over a Playwright element.
      */
-    @Tool(name = "playwright_element_hover", description = "hovers over an element using SHAFT Playwright")
     public McpMobileActionResult hover(locatorStrategy locatorStrategy, String locatorValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().hover(locator));
         return recordLocator("hover", locatorStrategy, locatorValue,
@@ -445,7 +457,6 @@ public class PlaywrightService {
     /**
      * Types into a Playwright element.
      */
-    @Tool(name = "playwright_element_type", description = "types value into an element using SHAFT Playwright")
     public McpMobileActionResult type(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().type(locator, textValue));
         String code = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
@@ -459,8 +470,6 @@ public class PlaywrightService {
     /**
      * Appends text to a Playwright element.
      */
-    @Tool(name = "playwright_element_append_text",
-            description = "appends text to an element using SHAFT Playwright")
     public McpMobileActionResult appendText(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeAppend(locator, textValue));
         String code = "driver.element().typeAppend(" + locatorCode(locatorStrategy, locatorValue)
@@ -474,8 +483,6 @@ public class PlaywrightService {
     /**
      * Sets an element value using JavaScript.
      */
-    @Tool(name = "playwright_element_set_value_js",
-            description = "sets an element value using JavaScript in SHAFT Playwright")
     public McpMobileActionResult setValueUsingJavaScript(
             locatorStrategy locatorStrategy,
             String locatorValue,
@@ -492,7 +499,6 @@ public class PlaywrightService {
     /**
      * Clears a Playwright element.
      */
-    @Tool(name = "playwright_element_clear", description = "clears an element using SHAFT Playwright")
     public McpMobileActionResult clear(locatorStrategy locatorStrategy, String locatorValue) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clear(locator));
         return recordLocator("clear", locatorStrategy, locatorValue,
@@ -502,8 +508,6 @@ public class PlaywrightService {
     /**
      * Uploads a file through a Playwright file input.
      */
-    @Tool(name = "playwright_element_upload_file",
-            description = "uploads a file through an element using SHAFT Playwright")
     public McpMobileActionResult uploadFile(locatorStrategy locatorStrategy, String locatorValue, String filePath) {
         withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeFileLocationForUpload(locator, filePath));
         String code = "driver.element().typeFileLocationForUpload(" + locatorCode(locatorStrategy, locatorValue)
@@ -515,8 +519,6 @@ public class PlaywrightService {
     /**
      * Drags one Playwright element to another.
      */
-    @Tool(name = "playwright_element_drag_and_drop",
-            description = "drags and drops an element using SHAFT Playwright")
     public McpMobileActionResult dragAndDrop(
             locatorStrategy sourceLocatorStrategy,
             String sourceLocatorValue,
@@ -536,8 +538,6 @@ public class PlaywrightService {
     /**
      * Checks Playwright element visibility.
      */
-    @Tool(name = "playwright_element_is_displayed",
-            description = "checks whether a SHAFT Playwright element is visible")
     public boolean isDisplayed(locatorStrategy locatorStrategy, String locatorValue) {
         return locator(locatorStrategy, locatorValue).isVisible();
     }
@@ -545,10 +545,44 @@ public class PlaywrightService {
     /**
      * Checks Playwright element enabled state.
      */
-    @Tool(name = "playwright_element_is_enabled",
-            description = "checks whether a SHAFT Playwright element is enabled")
     public boolean isEnabled(locatorStrategy locatorStrategy, String locatorValue) {
         return locator(locatorStrategy, locatorValue).isEnabled();
+    }
+
+    /**
+     * Checks whether a Playwright element (for example a checkbox or radio button) is selected, via
+     * the raw Playwright {@code Locator.isChecked()} (design doc amendment A8). Package-private
+     * engine-dispatch seam used by {@link ElementService#isSelected}; not an MCP tool because no new
+     * tool names may be introduced in this commit (the old {@code element_is_selected} tool name
+     * already covers this dispatch).
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @return true when the element is checked/selected
+     */
+    boolean isSelected(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).isChecked();
+    }
+
+    /**
+     * Drags an element by an offset using SHAFT Playwright. Package-private engine-dispatch seam used
+     * by {@link ElementService#dragAndDrop} when {@code offsetX}/{@code offsetY} are supplied instead
+     * of a target locator; reuses the same recording path as the other Playwright element tools.
+     *
+     * @param locatorStrategy source locator strategy
+     * @param locatorValue source locator value
+     * @param xOffset horizontal offset
+     * @param yOffset vertical offset
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dragAndDropByOffset(locatorStrategy locatorStrategy, String locatorValue, int xOffset, int yOffset) {
+        By locator = getLocator(locatorStrategy, locatorValue);
+        getDriver().element().dragAndDropByOffset(locator, xOffset, yOffset);
+        String code = "driver.element().dragAndDropByOffset(" + locatorCode(locatorStrategy, locatorValue)
+                + ", " + xOffset + ", " + yOffset + ");";
+        return record("drag_and_drop_by_offset", locatorStrategy, locatorValue, Map.of(
+                        "xOffset", String.valueOf(xOffset), "yOffset", String.valueOf(yOffset)),
+                code, false);
     }
 
     private SHAFT.GUI.Playwright getDriver() {
@@ -669,7 +703,8 @@ public class PlaywrightService {
             warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
         }
         if (recorded == null) {
-            warnings.add("Ignored: recording is not active — call playwright_record_start to capture this step.");
+            warnings.add("Ignored: recording is not active — call capture_start (with the Playwright engine "
+                    + "active) to capture this step.");
         } else {
             warnings.addAll(recorded.warnings());
         }

@@ -80,6 +80,9 @@ jobs:
               - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
               - 'tests/scripts/test_mcp_tool_catalog_sync.py'
               - 'shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json'
+              - 'shaft-mcp/src/main/resources/META-INF/shaft-mcp/**'
+              - 'tests/scripts/test_generate_tool_index.py'
+              - 'tests/scripts/test_validate_tool_index_examples.py'
               - 'shaft-cli/src/main/java/com/shaft/commandline/command/**'
             cli:
               - 'shaft-cli/**'
@@ -147,7 +150,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Run unittest for installer script
-        run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog tests.scripts.test_mcp_tool_catalog_sync -v
+        run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog tests.scripts.test_mcp_tool_catalog_sync tests.scripts.test_generate_tool_index tests.scripts.test_validate_tool_index_examples -v
       - name: Validate installer contract
         run: python scripts/ci/validate_installer_contract.py
       - name: Verify installer release

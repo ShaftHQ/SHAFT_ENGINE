@@ -69,6 +69,8 @@ class ShaftMcpApplicationTests {
 
         Set<String> expected = expectedTools();
         assertEquals(expected, toolNames);
+        assertEquals(89, toolNames.size(), "the tool architecture sweep's frozen catalog is exactly 89 tools "
+                + "(design doc Decision 2); update the manifest fixture deliberately, never this literal");
         assertTrue(toolNames.contains("doctor_analyze_failed_allure"));
         assertTrue(toolNames.contains("trace_latest"));
         assertTrue(toolNames.contains("trace_read"));
@@ -80,27 +82,22 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("browser_get_page_dom"));
         assertTrue(toolNames.contains("browser_open_intent"));
         assertTrue(toolNames.contains("browser_take_screenshot"));
-        assertTrue(toolNames.contains("playwright_initialize"));
-        assertTrue(toolNames.contains("playwright_browser_get_page_dom"));
-        assertTrue(toolNames.contains("playwright_element_click"));
-        assertFalse(toolNames.contains("playwright_element_click_semantic"));
-        assertFalse(toolNames.contains("playwright_element_type_semantic"));
-        assertTrue(toolNames.contains("playwright_recording_code_blocks"));
-        assertTrue(toolNames.contains("playwright_capture_code_blocks"));
-        assertTrue(toolNames.contains("playwright_doctor_analyze_failed_allure"));
-        assertTrue(toolNames.contains("playwright_healer_run_failed_test"));
-        assertTrue(toolNames.contains("mobile_initialize_web_emulation"));
-        assertTrue(toolNames.contains("mobile_initialize_native"));
+        assertTrue(toolNames.contains("driver_initialize"));
+        assertTrue(toolNames.contains("driver_quit"));
+        assertTrue(toolNames.contains("element_click"));
+        assertTrue(toolNames.contains("element_type"));
+        assertTrue(toolNames.contains("element_upload_file"));
+        assertTrue(toolNames.contains("browser_delete_cookies"));
+        assertTrue(toolNames.contains("mobile_swipe"));
         assertTrue(toolNames.contains("mobile_get_contexts"));
         assertTrue(toolNames.contains("mobile_get_accessibility_tree"));
-        assertTrue(toolNames.contains("mobile_take_screenshot"));
-        assertTrue(toolNames.contains("mobile_tap"));
-        assertTrue(toolNames.contains("mobile_type"));
-        assertTrue(toolNames.contains("mobile_record_start"));
-        assertTrue(toolNames.contains("mobile_recording_code_blocks"));
-        assertTrue(toolNames.contains("mobile_record_at_target_code_blocks"));
-        assertTrue(toolNames.contains("mobile_replay_recording"));
-        assertTrue(toolNames.contains("natural_act"));
+        assertTrue(toolNames.contains("mobile_inspector_record_start"));
+        assertTrue(toolNames.contains("mobile_inspector_record_status"));
+        assertTrue(toolNames.contains("mobile_inspector_record_stop"));
+        assertTrue(toolNames.contains("capture_api_start"));
+        assertTrue(toolNames.contains("capture_api_status"));
+        assertTrue(toolNames.contains("capture_api_stop"));
+        assertTrue(toolNames.contains("capture_api_transactions"));
         assertTrue(toolNames.contains("shaft_guide_search"));
         assertTrue(toolNames.contains("shaft_project_create"));
         assertTrue(toolNames.contains("shaft_project_upgrade"));
@@ -117,6 +114,53 @@ class ShaftMcpApplicationTests {
         assertFalse(toolNames.contains("element_click_semantic"));
         assertFalse(toolNames.contains("element_type_semantic"));
         assertFalse(toolNames.contains("element_click_ai"));
+
+        // Deleted outright (owner mandate, no re-export) -- design doc Decision 2 "Deleted outright".
+        assertFalse(toolNames.contains("natural_act"));
+        assertFalse(toolNames.contains("mobile_natural_act"));
+        // Absorbed into unified element_*/browser_*/capture_*/doctor_*/healer_*/mobile_swipe tools --
+        // no playwright_*-prefixed tool survives, and no per-engine or JS/append click/type variant does.
+        assertTrue(toolNames.stream().noneMatch(name -> name.startsWith("playwright_")),
+                "no playwright_-prefixed tool may survive (design doc Decision 2): " + toolNames);
+        assertFalse(toolNames.contains("element_click_js"));
+        assertFalse(toolNames.contains("element_double_click"));
+        assertFalse(toolNames.contains("element_click_and_hold"));
+        assertFalse(toolNames.contains("element_append_text"));
+        assertFalse(toolNames.contains("element_set_value_js"));
+        assertFalse(toolNames.contains("element_drag_and_drop_by_offset"));
+        assertFalse(toolNames.contains("element_drop_file_to_upload"));
+        assertFalse(toolNames.contains("browser_maximize_window"));
+        assertFalse(toolNames.contains("browser_fullscreen_window"));
+        assertFalse(toolNames.contains("browser_delete_cookie"));
+        assertFalse(toolNames.contains("browser_delete_all_cookies"));
+        assertFalse(toolNames.contains("browser_network_request"));
+        assertFalse(toolNames.contains("capture_start_codegen"));
+        assertFalse(toolNames.contains("mobile_initialize_native"));
+        assertFalse(toolNames.contains("mobile_initialize_web_emulation"));
+        assertFalse(toolNames.contains("mobile_tap"));
+        assertFalse(toolNames.contains("mobile_double_tap"));
+        assertFalse(toolNames.contains("mobile_long_tap"));
+        assertFalse(toolNames.contains("mobile_type"));
+        assertFalse(toolNames.contains("mobile_clear"));
+        assertFalse(toolNames.contains("mobile_take_screenshot"));
+        assertFalse(toolNames.contains("mobile_swipe_by_offset"));
+        assertFalse(toolNames.contains("mobile_swipe_coordinates"));
+        assertFalse(toolNames.contains("mobile_swipe_element_into_view"));
+        assertFalse(toolNames.contains("mobile_swipe_text_into_view"));
+        assertFalse(toolNames.contains("mobile_record_start"));
+        assertFalse(toolNames.contains("mobile_record_status"));
+        assertFalse(toolNames.contains("mobile_record_stop"));
+        assertFalse(toolNames.contains("mobile_step_delete"));
+        assertFalse(toolNames.contains("mobile_step_reorder"));
+        assertFalse(toolNames.contains("mobile_recording_code_blocks"));
+        assertFalse(toolNames.contains("mobile_record_at_target_code_blocks"));
+        assertFalse(toolNames.contains("mobile_replay_recording"));
+        assertFalse(toolNames.contains("mobile_api_record_start"));
+        assertFalse(toolNames.contains("mobile_api_record_status"));
+        assertFalse(toolNames.contains("mobile_api_record_stop"));
+        assertFalse(toolNames.contains("mobile_api_record_transactions"));
+        assertFalse(toolNames.contains("mobile_inspector_record_prepare"));
+        assertFalse(toolNames.contains("mobile_inspector_record_control"));
     }
 
     @Test
@@ -278,8 +322,8 @@ class ShaftMcpApplicationTests {
     void codegenToolsSessionPathIsNotRequiredSoOmittingItDefersToTheLatestRecording() throws Exception {
         assertFalse(sessionPathRequired(toolInputSchema("capture_code_blocks")),
                 "capture_code_blocks still requires sessionPath");
-        assertFalse(sessionPathRequired(toolInputSchema("playwright_capture_generate_replay")),
-                "playwright_capture_generate_replay still requires sessionPath");
+        assertFalse(sessionPathRequired(toolInputSchema("capture_record_at_target_code_blocks")),
+                "capture_record_at_target_code_blocks still requires sessionPath");
 
         McpSchema.Tool captureGenerateReplay = annotationScannedToolSpecs().stream()
                 .filter(spec -> spec.tool().name().equals("capture_generate_replay"))

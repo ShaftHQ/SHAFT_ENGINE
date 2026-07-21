@@ -19,16 +19,20 @@ import java.util.concurrent.Callable;
  * Curated capture shortcuts. Pure alias over {@code call}; requires a live session.
  */
 @Command(mixinStandardHelpOptions = true,
-        name = "capture", description = "Capture shortcuts: start | stop | status | code.")
+        name = "capture",
+        description = "Capture shortcuts: start | stop | status | code | step-delete | step-reorder.")
 public final class CaptureCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.of(
             "start", "capture_start",
             "stop", "capture_stop",
             "status", "capture_status",
-            "code", "capture_code_blocks");
+            "code", "capture_code_blocks",
+            "step-delete", "capture_step_delete",
+            "step-reorder", "capture_step_reorder");
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "start | stop | status | code")
+    @Parameters(index = "0", paramLabel = "ACTION",
+            description = "start | stop | status | code | step-delete | step-reorder")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value", description = "Arguments as key=value pairs.")

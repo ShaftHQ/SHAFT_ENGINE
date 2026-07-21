@@ -186,7 +186,6 @@ class McpServiceHelperTest {
         @SuppressWarnings("unchecked")
         List<String> nextTools = (List<String>) result.get("nextTools");
         assertTrue(nextTools.contains("element_click"));
-        assertTrue(nextTools.contains("natural_act"));
     }
 
     @Test
@@ -206,49 +205,6 @@ class McpServiceHelperTest {
                 "totalLength",
                 new Class<?>[] {CharSequence[].class},
                 (Object) new CharSequence[] {"one", null, "two"}));
-    }
-
-    @Test
-    void naturalActionSettingsApplyBoundedOverridesAndRestorePreviousValues() throws Exception {
-        SHAFT.Properties.naturalActions.set()
-                .enabled(false)
-                .minimumTrustPercentage(25)
-                .planner("deterministic")
-                .aiFallbackEnabled(false)
-                .allowedActions("browser");
-        Class<?> settings = Class.forName("com.shaft.mcp.NaturalActionService$NaturalActionSettings");
-        Object previous = invokeStatic(settings, "current", new Class<?>[] {});
-        Object overridden = invoke(
-                previous,
-                "withOverrides",
-                new Class<?>[] {Integer.class, String.class, Boolean.class, String.class},
-                150,
-                " auto ",
-                true,
-                " element ");
-
-        invoke(overridden, "applyEnabled", new Class<?>[] {});
-        assertTrue(SHAFT.Properties.naturalActions.enabled());
-        assertEquals(100, SHAFT.Properties.naturalActions.minimumTrustPercentage());
-        assertEquals("auto", SHAFT.Properties.naturalActions.planner());
-        assertTrue(SHAFT.Properties.naturalActions.aiFallbackEnabled());
-        assertEquals("element", SHAFT.Properties.naturalActions.allowedActions());
-
-        invoke(previous, "apply", new Class<?>[] {});
-        assertFalse(SHAFT.Properties.naturalActions.enabled());
-        assertEquals(25, SHAFT.Properties.naturalActions.minimumTrustPercentage());
-        assertEquals("deterministic", SHAFT.Properties.naturalActions.planner());
-        assertEquals("fallback", invokeStatic(
-                settings,
-                "textOrDefault",
-                new Class<?>[] {String.class, String.class},
-                " ",
-                "fallback"));
-        assertEquals(0, invokeStatic(
-                NaturalActionService.class,
-                "safeLength",
-                new Class<?>[] {String.class},
-                new Object[] {null}));
     }
 
     @Test

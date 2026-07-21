@@ -25,6 +25,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -76,7 +77,8 @@ public class DoctorService {
             description = "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; "
                     + "accepts allure-results directories, individual *-result.json files, or a SHAFT single-file "
                     + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
-                    + "evidence found in the workspace")
+                    + "evidence found in the workspace; optional backend (web|playwright, defaults to web) selects "
+                    + "the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure")
     public McpAnalysisReport analyzeFailedAllure(
             List<String> allureResultPaths,
             List<String> historicalBundlePaths,
@@ -89,7 +91,8 @@ public class DoctorService {
             boolean useAi,
             boolean allowLocalAi,
             boolean allowRemoteAi,
-            String driverVariableName) {
+            String driverVariableName,
+            @ToolParam(required = false) String backend) {
         Path repository = repositoryRoot == null || repositoryRoot.isBlank()
                 ? null
                 : workspacePolicy.existing(repositoryRoot, "Repository root");
@@ -110,13 +113,33 @@ public class DoctorService {
                 DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
                 true);
         DoctorAnalysisResult result = new DoctorAnalyzer().analyze(request);
-        return remediationService.build(
-                result,
-                repository,
-                sourceAllowlist,
-                useAi,
-                approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
-                driverVariableName);
+        return isPlaywrightBackend(backend)
+                ? remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName,
+                        CodegenBackend.PLAYWRIGHT)
+                : remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName);
+    }
+
+    /**
+     * Resolves whether a codegen backend override string requests the Playwright engine (design doc
+     * Decision 2 absorption of the {@code playwright_doctor_*}/{@code playwright_healer_*} twins).
+     *
+     * @param backend explicit override ("web"/"playwright"), or blank for the web default
+     * @return true when the caller requested the Playwright engine
+     */
+    static boolean isPlaywrightBackend(String backend) {
+        return backend != null && backend.trim().equalsIgnoreCase("playwright");
     }
 
     /**
@@ -138,72 +161,6 @@ public class DoctorService {
     }
 
     /**
-     * Analyzes failed Allure evidence and returns Playwright remediation snippets.
-     *
-     * @param allureResultPaths Allure result directories or files inside the MCP workspace
-     * @param historicalBundlePaths optional older Doctor bundles inside the MCP workspace
-     * @param outputDirectory output directory inside the MCP workspace
-     * @param includeScreenshots explicit approval to retain local screenshot evidence
-     * @param includePageSnapshots explicit approval to retain local page-snapshot evidence
-     * @param minimumAllureResults minimum populated Allure result count
-     * @param repositoryRoot optional repository root inside the MCP workspace
-     * @param allowedSourcePaths optional repository-relative source paths approved for AI SOURCE evidence
-     * @param useAi whether to request optional provider snippet fallback
-     * @param allowLocalAi local provider consent for this request
-     * @param allowRemoteAi remote provider consent for this request
-     * @param driverVariableName Java driver variable name used in snippets
-     * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
-     */
-    @Tool(name = "playwright_doctor_analyze_failed_allure",
-            description = "analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; "
-                    + "accepts allure-results directories, individual *-result.json files, or a SHAFT single-file "
-                    + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
-                    + "evidence found in the workspace")
-    @SuppressWarnings("PMD.ExcessiveParameterList")
-    public McpAnalysisReport analyzeFailedPlaywrightAllure(
-            List<String> allureResultPaths,
-            List<String> historicalBundlePaths,
-            String outputDirectory,
-            boolean includeScreenshots,
-            boolean includePageSnapshots,
-            int minimumAllureResults,
-            String repositoryRoot,
-            List<String> allowedSourcePaths,
-            boolean useAi,
-            boolean allowLocalAi,
-            boolean allowRemoteAi,
-            String driverVariableName) {
-        Path repository = repositoryRoot == null || repositoryRoot.isBlank()
-                ? null
-                : workspacePolicy.existing(repositoryRoot, "Repository root");
-        List<String> sourceAllowlist = repository == null
-                ? List.of()
-                : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
-        DoctorAnalysisRequest request = new DoctorAnalysisRequest(
-                effectiveAllureResultPaths(allureResultPaths),
-                workspacePolicy.existingList(historicalBundlePaths, "Historical Doctor bundle path"),
-                List.of(workspacePolicy.root()),
-                outputDirectory == null || outputDirectory.isBlank()
-                        ? workspacePolicy.output("target/shaft-doctor", "Doctor output directory")
-                        : workspacePolicy.output(outputDirectory, "Doctor output directory"),
-                includeScreenshots,
-                includePageSnapshots,
-                minimumAllureResults <= 0 ? 1 : minimumAllureResults,
-                DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
-                true);
-        DoctorAnalysisResult result = new DoctorAnalyzer().analyze(request);
-        return remediationService.build(
-                result,
-                repository,
-                sourceAllowlist,
-                useAi,
-                approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
-                driverVariableName,
-                CodegenBackend.PLAYWRIGHT);
-    }
-
-    /**
      * Rebuilds MCP remediation actions and code blocks from an existing Doctor JSON report.
      *
      * @param jsonReportPath Doctor JSON report path inside the MCP workspace
@@ -213,10 +170,13 @@ public class DoctorService {
      * @param allowLocalAi local provider consent for this request
      * @param allowRemoteAi remote provider consent for this request
      * @param driverVariableName Java driver variable name used in snippets
+     * @param backend optional codegen target ("web" default | "playwright"); absorbs playwright_doctor_suggest_fix
      * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
      */
     @Tool(name = "doctor_suggest_fix",
-            description = "returns copy-paste remediation code blocks from an existing SHAFT Doctor report")
+            description = "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; "
+                    + "optional backend (web|playwright, defaults to web) selects the generated snippets' engine, "
+                    + "absorbing playwright_doctor_suggest_fix")
     public McpAnalysisReport suggestFix(
             String jsonReportPath,
             String repositoryRoot,
@@ -224,7 +184,8 @@ public class DoctorService {
             boolean useAi,
             boolean allowLocalAi,
             boolean allowRemoteAi,
-            String driverVariableName) {
+            String driverVariableName,
+            @ToolParam(required = false) String backend) {
         Path report = workspacePolicy.existing(jsonReportPath, "Doctor JSON report");
         Path repository = repositoryRoot == null || repositoryRoot.isBlank()
                 ? null
@@ -233,53 +194,22 @@ public class DoctorService {
                 ? List.of()
                 : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
         DoctorAnalysisResult result = readReport(report);
-        return remediationService.build(
-                result,
-                repository,
-                sourceAllowlist,
-                useAi,
-                approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
-                driverVariableName);
-    }
-
-    /**
-     * Rebuilds Playwright remediation actions and code blocks from an existing Doctor JSON report.
-     *
-     * @param jsonReportPath Doctor JSON report path inside the MCP workspace
-     * @param repositoryRoot optional repository root inside the MCP workspace
-     * @param allowedSourcePaths optional repository-relative source paths approved for AI SOURCE evidence
-     * @param useAi whether to request optional provider snippet fallback
-     * @param allowLocalAi local provider consent for this request
-     * @param allowRemoteAi remote provider consent for this request
-     * @param driverVariableName Java driver variable name used in snippets
-     * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
-     */
-    @Tool(name = "playwright_doctor_suggest_fix",
-            description = "returns SHAFT Playwright remediation code blocks from an existing Doctor report")
-    public McpAnalysisReport suggestPlaywrightFix(
-            String jsonReportPath,
-            String repositoryRoot,
-            List<String> allowedSourcePaths,
-            boolean useAi,
-            boolean allowLocalAi,
-            boolean allowRemoteAi,
-            String driverVariableName) {
-        Path report = workspacePolicy.existing(jsonReportPath, "Doctor JSON report");
-        Path repository = repositoryRoot == null || repositoryRoot.isBlank()
-                ? null
-                : workspacePolicy.existing(repositoryRoot, "Repository root");
-        List<String> sourceAllowlist = repository == null
-                ? List.of()
-                : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
-        DoctorAnalysisResult result = readReport(report);
-        return remediationService.build(
-                result,
-                repository,
-                sourceAllowlist,
-                useAi,
-                approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
-                driverVariableName,
-                CodegenBackend.PLAYWRIGHT);
+        return isPlaywrightBackend(backend)
+                ? remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName,
+                        CodegenBackend.PLAYWRIGHT)
+                : remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName);
     }
 
     /**

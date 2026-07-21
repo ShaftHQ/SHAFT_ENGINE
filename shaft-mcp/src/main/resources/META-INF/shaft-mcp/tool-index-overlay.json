@@ -1,0 +1,522 @@
+{
+  "schemaVersion": "1.0",
+  "tools": {
+    "autobot_local_agent_clients": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "autobot_local_agent_run": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "autobot_provider_chat": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "autobot_provider_status": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "browser_accessibility_audit": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_aria_snapshot": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_delete_cookies": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_get_current_url": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "browser_get_page_dom": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_get_title": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "browser_navigate": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_navigate_back": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_navigate_forward": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_network_requests": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_open_intent": {
+      "example": {
+        "request": {
+          "maxCharacters": 4000,
+          "maxElements": 20,
+          "targetUrl": "https://demo.example.com/checkout",
+          "userIntent": "click the Checkout button"
+        },
+        "response": "truncated bounded-DOM map (see shaft-skills/choosing-shaft-locators/SKILL.md Example calls)"
+      },
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_refresh": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_route": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_set_window_size": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_storage_state_load": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_storage_state_save": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_take_screenshot": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_unroute": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_api_generate": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_api_response_leaves": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_api_start": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_api_status": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_api_stop": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_api_transactions": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_backend_comparison": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_checkpoint": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_code_blocks": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_codegen_features": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_evidence_pack": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_generate_replay": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_pick_locator": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_record_at_target_code_blocks": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_set_mode": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_start": {
+      "example": {
+        "request": {
+          "browser": "chrome",
+          "headless": true,
+          "outputPath": "",
+          "sessionGoal": "guest checkout flow",
+          "targetUrl": "https://demo.example.com/checkout"
+        },
+        "response": "McpCaptureUnionStatus wrapping a WEB CaptureStatus (see shaft-skills/recording-shaft-tests-with-mcp/SKILL.md, truncated)"
+      },
+      "intentKeywords": [
+        "start recording",
+        "start a recording",
+        "start recorder",
+        "start capture",
+        "start browser recording",
+        "start a browser recording",
+        "start webdriver recording",
+        "start a webdriver recording",
+        "record my browser actions"
+      ],
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_status": {
+      "example": {
+        "request": {},
+        "response": "McpCaptureUnionStatus, same shape as capture_start's response"
+      },
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_step_delete": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_step_reorder": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_stop": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_target_candidates": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_analyze_failed_allure": {
+      "example": {
+        "request": {
+          "allureResultPaths": [],
+          "historicalBundlePaths": [],
+          "includePageSnapshots": false,
+          "includeScreenshots": true,
+          "minimumAllureResults": 1,
+          "outputDirectory": ""
+        },
+        "response": "McpAnalysisReport (see shaft-skills/analyzing-shaft-failures/SKILL.md Example calls, truncated)"
+      },
+      "intentKeywords": [
+        "run doctor",
+        "analyze allure",
+        "analyse allure",
+        "diagnose my last run",
+        "diagnose the last run",
+        "diagnose the latest run",
+        "analyze the latest report",
+        "analyze latest report",
+        "why did my test fail",
+        "why did my tests fail"
+      ],
+      "mutation": true,
+      "sensitive": false
+    },
+    "doctor_analyze_trace": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_propose_healed_locator": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_suggest_fix": {
+      "example": {
+        "request": {
+          "allowLocalAi": false,
+          "allowRemoteAi": false,
+          "allowedSourcePaths": [
+            "src/test/java/pages/LoginPage.java"
+          ],
+          "backend": "web",
+          "driverVariableName": "driver",
+          "jsonReportPath": "target/shaft-doctor/doctor-20260720-141530/report.json",
+          "repositoryRoot": "C:/projects/demo-shaft",
+          "useAi": false
+        },
+        "response": "McpAnalysisReport with codeBlocks holding the proposed remediation snippet"
+      },
+      "mutation": false,
+      "sensitive": false
+    },
+    "driver_initialize": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "driver_quit": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_clear": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_click": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_drag_and_drop": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_hover": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_is_displayed": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "element_is_enabled": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "element_is_selected": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "element_type": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "element_upload_file": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "generate_test_report": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "healer_run_failed_test": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "mobile_activate_app": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_background_app": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_get_accessibility_tree": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "mobile_get_contexts": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "mobile_hide_keyboard": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_inspector_record_start": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_inspector_record_status": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "mobile_inspector_record_stop": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_keyboard_key": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_rotate": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_swipe": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_switch_context": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "mobile_tap_coordinates": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_toolchain_status": {
+      "intentKeywords": [
+        "toolchain",
+        "appium",
+        "adb",
+        "sdk"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "report_merge_shards": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "shaft_coding_partner_diff": {
+      "example": {
+        "request": {
+          "codeBlocks": [
+            "public void loginAs(String user, String pass) { ... }"
+          ],
+          "insertionAnchor": "class LoginPage",
+          "repositoryPath": "C:/projects/demo-shaft",
+          "targetSourcePath": "src/test/java/pages/LoginPage.java"
+        },
+        "response": "McpCodingPartnerDiff (see shaft-skills/verifying-and-applying-shaft-changes/SKILL.md, truncated)"
+      },
+      "mutation": false,
+      "sensitive": false
+    },
+    "shaft_coding_partner_plan": {
+      "example": {
+        "request": {
+          "artifactPaths": [],
+          "backend": "web",
+          "currentSourcePath": "src/test/java/tests/LoginTest.java",
+          "intent": "add a sign-in test reusing LoginPage",
+          "maxResults": 5,
+          "repositoryPath": "C:/projects/demo-shaft",
+          "selectedText": ""
+        },
+        "response": "McpCodingPartnerPlan (see shaft-skills/writing-shaft-tests/SKILL.md Example calls, truncated)"
+      },
+      "intentKeywords": [
+        "plan coding partner work for",
+        "plan partner work for",
+        "coding partner plan for",
+        "partner plan for",
+        "find reuse for"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "shaft_guide_search": {
+      "example": {
+        "request": {
+          "maxResults": 2,
+          "query": "Smart Locators inputField clickableField"
+        },
+        "response": "McpGuideSearchResult (see shaft-skills/choosing-shaft-locators/SKILL.md Example calls, truncated)"
+      },
+      "intentKeywords": [
+        "search shaft docs",
+        "search the shaft docs",
+        "search shaft guide",
+        "search the shaft guide",
+        "find shaft docs",
+        "find shaft guide",
+        "guide me on",
+        "docs for"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "shaft_project_create": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "shaft_project_init_agents": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "shaft_project_upgrade": {
+      "intentKeywords": [
+        "preview shaft upgrade",
+        "preview upgrade",
+        "dry run shaft upgrade",
+        "upgrade shaft project",
+        "upgrade this shaft project"
+      ],
+      "mutation": true,
+      "sensitive": true
+    },
+    "test_automation_scenarios": {
+      "intentKeywords": [
+        "find scenarios",
+        "find automation scenarios",
+        "show scenarios",
+        "automation scenarios for",
+        "scenario ideas for"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "test_code_guardrails_check": {
+      "example": {
+        "request": {
+          "code": "Thread.sleep(2000);\ndriver.findElement(By.id(\"x\")).click();",
+          "language": "java"
+        },
+        "response": "McpCodeGuardrailResult (see shaft-skills/verifying-and-applying-shaft-changes/SKILL.md)"
+      },
+      "intentKeywords": [
+        "check generated java code",
+        "check this java code",
+        "run guardrails",
+        "guardrails check"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "test_plan_explore": {
+      "example": {
+        "request": {
+          "goal": "guest checkout",
+          "maxDepth": 2,
+          "maxPages": 20,
+          "targetUrl": "https://demo.example.com"
+        },
+        "response": "McpTestPlanExploreResult (see shaft-skills/planning-shaft-tests/SKILL.md Example calls)"
+      },
+      "mutation": true,
+      "sensitive": true
+    },
+    "trace_latest": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "trace_open_viewer": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "trace_read": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "trace_summarize": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "verify_run_focused": {
+      "mutation": true,
+      "sensitive": true
+    }
+  }
+}

@@ -38,19 +38,7 @@
       "deprecated": false
     },
     {
-      "name": "browser_delete_all_cookies",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "browser_delete_cookie",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "browser_fullscreen_window",
+      "name": "browser_delete_cookies",
       "mutation": true,
       "sensitive": false,
       "deprecated": false
@@ -74,12 +62,6 @@
       "deprecated": false
     },
     {
-      "name": "browser_maximize_window",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
       "name": "browser_navigate",
       "mutation": true,
       "sensitive": false,
@@ -95,12 +77,6 @@
       "name": "browser_navigate_forward",
       "mutation": true,
       "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "browser_network_request",
-      "mutation": false,
-      "sensitive": true,
       "deprecated": false
     },
     {
@@ -265,14 +241,20 @@
       ]
     },
     {
-      "name": "capture_start_codegen",
+      "name": "capture_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_step_delete",
       "mutation": true,
       "sensitive": false,
       "deprecated": false
     },
     {
-      "name": "capture_status",
-      "mutation": false,
+      "name": "capture_step_reorder",
+      "mutation": true,
       "sensitive": false,
       "deprecated": false
     },
@@ -337,12 +319,6 @@
       "deprecated": false
     },
     {
-      "name": "element_append_text",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
       "name": "element_clear",
       "mutation": true,
       "sensitive": false,
@@ -355,39 +331,9 @@
       "deprecated": false
     },
     {
-      "name": "element_click_and_hold",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "element_click_js",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "element_double_click",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
       "name": "element_drag_and_drop",
       "mutation": true,
       "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "element_drag_and_drop_by_offset",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "element_drop_file_to_upload",
-      "mutation": true,
-      "sensitive": true,
       "deprecated": false
     },
     {
@@ -415,13 +361,13 @@
       "deprecated": false
     },
     {
-      "name": "element_set_value_js",
+      "name": "element_type",
       "mutation": true,
       "sensitive": true,
       "deprecated": false
     },
     {
-      "name": "element_type",
+      "name": "element_upload_file",
       "mutation": true,
       "sensitive": true,
       "deprecated": false
@@ -445,43 +391,7 @@
       "deprecated": false
     },
     {
-      "name": "mobile_api_record_start",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_api_record_status",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_api_record_stop",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_api_record_transactions",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
       "name": "mobile_background_app",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_clear",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_double_tap",
       "mutation": true,
       "sensitive": false,
       "deprecated": false
@@ -501,30 +411,6 @@
     {
       "name": "mobile_hide_keyboard",
       "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_initialize_native",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_initialize_web_emulation",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_inspector_record_control",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_inspector_record_prepare",
-      "mutation": false,
       "sensitive": false,
       "deprecated": false
     },
@@ -553,104 +439,13 @@
       "deprecated": false
     },
     {
-      "name": "mobile_long_tap",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_natural_act",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_record_at_target_code_blocks",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_record_start",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false,
-      "intentKeywords": [
-        "start mobile recording",
-        "start app recording"
-      ]
-    },
-    {
-      "name": "mobile_record_status",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_record_stop",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false,
-      "intentKeywords": [
-        "stop mobile recording",
-        "stop app recording"
-      ]
-    },
-    {
-      "name": "mobile_step_delete",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_step_reorder",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_recording_code_blocks",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false,
-      "intentKeywords": [
-        "generate mobile code",
-        "generate appium code",
-        "create mobile code"
-      ]
-    },
-    {
-      "name": "mobile_replay_recording",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
       "name": "mobile_rotate",
       "mutation": true,
       "sensitive": false,
       "deprecated": false
     },
     {
-      "name": "mobile_swipe_by_offset",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_swipe_coordinates",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_swipe_element_into_view",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_swipe_text_into_view",
+      "name": "mobile_swipe",
       "mutation": true,
       "sensitive": false,
       "deprecated": false
@@ -659,18 +454,6 @@
       "name": "mobile_switch_context",
       "mutation": true,
       "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_take_screenshot",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "mobile_tap",
-      "mutation": true,
-      "sensitive": false,
       "deprecated": false
     },
     {
@@ -690,252 +473,6 @@
         "adb",
         "sdk"
       ]
-    },
-    {
-      "name": "mobile_type",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "natural_act",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_get_current_url",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_get_page_dom",
-      "mutation": false,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_get_title",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_navigate",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_navigate_back",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_navigate_forward",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_new_window",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_refresh",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_set_window_size",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_storage_state_load",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_storage_state_save",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_browser_take_screenshot",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_capture_code_blocks",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_capture_generate_replay",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_doctor_analyze_failed_allure",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_doctor_suggest_fix",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_append_text",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_clear",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_click",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_click_js",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_double_click",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_drag_and_drop",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_hover",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_is_displayed",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_is_enabled",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_set_value_js",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_type",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_element_upload_file",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_healer_run_failed_test",
-      "mutation": true,
-      "sensitive": true,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_initialize",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_quit",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_record_at_target_code_blocks",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_record_start",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_record_status",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_record_stop",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_recording_code_blocks",
-      "mutation": false,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_replay_recording",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_step_delete",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
-    },
-    {
-      "name": "playwright_step_reorder",
-      "mutation": true,
-      "sensitive": false,
-      "deprecated": false
     },
     {
       "name": "report_merge_shards",

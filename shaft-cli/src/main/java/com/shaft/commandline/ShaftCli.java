@@ -3,6 +3,7 @@ package com.shaft.commandline;
 import com.shaft.commandline.command.BrowserCommand;
 import com.shaft.commandline.command.CallCommand;
 import com.shaft.commandline.command.CaptureCommand;
+import com.shaft.commandline.command.CodegenCommand;
 import com.shaft.commandline.command.DoctorCommand;
 import com.shaft.commandline.command.ElementCommand;
 import com.shaft.commandline.command.GuideCommand;
@@ -32,6 +33,7 @@ import java.nio.charset.StandardCharsets;
                 BrowserCommand.class,
                 ElementCommand.class,
                 CaptureCommand.class,
+                CodegenCommand.class,
                 GuideCommand.class,
                 DoctorCommand.class,
                 CommandLine.HelpCommand.class})

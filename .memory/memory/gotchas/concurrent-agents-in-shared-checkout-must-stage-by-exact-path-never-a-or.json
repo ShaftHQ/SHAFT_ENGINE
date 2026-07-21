@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/concurrent-agents-in-shared-checkout-must-stage-by-exact-path-never-a-or.md",
+  "content_hash": "sha256:17a0ef93e3dbf5ca83624b15b906fb3b8cfadc4147182730d9062528d59b91f8",
+  "created_at": "2026-07-21T02:15:44+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.concurrent-agents-in-shared-checkout-must-stage-by-exact-path-never-a-or",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Persist concurrent-agent git contamination risk from ChaosEngine/tool-architecture-sweep session"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "agent-workflow",
+    "concurrent-agents",
+    "staging",
+    "worktree"
+  ],
+  "title": "Concurrent agents in shared checkout must stage by exact path, never -A or .",
+  "type": "gotcha",
+  "updated_at": "2026-07-21T02:15:44+03:00"
+}

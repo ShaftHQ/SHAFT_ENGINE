@@ -41,11 +41,10 @@ import java.util.Set;
  * a background thread, and the {@link JBTable} model is only ever mutated on the EDT. Polling
  * stops on panel disposal or when the Stop button ends the session.
  *
- * <p>Backs both the browser-based recorder ({@link CaptureMode#WEB}, polling
- * {@code capture_api_transactions}/{@code capture_api_stop}) and the no-browser mobile API proxy
- * ({@link CaptureMode#PURE_API}, polling {@code mobile_api_record_transactions}/
- * {@code mobile_api_record_stop}) -- issue #3530 A2. {@code capture_api_generate} is shared by
- * both: it is already session-path-agnostic, taking only the persisted session JSON path.
+ * <p>Backs both the browser-based recorder ({@link CaptureMode#WEB}) and the no-browser mobile API
+ * proxy ({@link CaptureMode#PURE_API}) -- both poll {@code capture_api_transactions}/
+ * {@code capture_api_stop} (issue #3530 A2). {@code capture_api_generate} is shared by both: it is
+ * already session-path-agnostic, taking only the persisted session JSON path.
  *
  * <p>Stop/Generate/Pin Fields/Copy CA Certificate keep visible text (unlike every other day-to-day
  * panel, which is icon-only via {@code ShaftIconButtons.apply}) and carry Alt-reachable mnemonics
@@ -64,7 +63,7 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
      */
     public enum CaptureMode {
         WEB("capture_api_transactions", "capture_api_stop"),
-        PURE_API("mobile_api_record_transactions", "mobile_api_record_stop");
+        PURE_API("capture_api_transactions", "capture_api_stop");
 
         private final String transactionsTool;
         private final String stopTool;
@@ -241,8 +240,8 @@ public final class ApiRecordingSessionPanel extends JPanel implements Disposable
     }
 
     /**
-     * Populates the pure-API pairing panel once {@code mobile_api_record_start} (or a later
-     * {@code mobile_api_record_status} poll) returns the proxy port, CA certificate, and any
+     * Populates the pure-API pairing panel once {@code capture_api_start} (or a later
+     * {@code capture_api_status} poll) returns the proxy port, CA certificate, and any
      * pairing warnings. A no-op for a {@link CaptureMode#WEB} panel.
      *
      * @param proxyPort loopback port the MITM proxy is listening on

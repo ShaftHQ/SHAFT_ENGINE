@@ -1,4 +1,0 @@
-interface:
-  display_name: "Act as Mohab: SHAFT Test-Code Methodology"
-  short_description: "Evidence-first ways of working for developing SHAFT test automation code"
-  default_prompt: "Use $act-as-mohab as the working methodology while developing, debugging, or reviewing SHAFT test automation code."

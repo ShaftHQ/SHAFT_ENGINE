@@ -164,7 +164,7 @@ class CodingPartnerServiceTest {
         assertAll(
                 () -> assertEquals("Mobile", plan.backend()),
                 () -> assertTrue(plan.suggestedMcpCalls().contains("mobile_get_accessibility_tree")),
-                () -> assertTrue(plan.suggestedMcpCalls().contains("mobile_record_at_target_code_blocks")),
+                () -> assertTrue(plan.suggestedMcpCalls().contains("capture_record_at_target_code_blocks")),
                 () -> assertTrue(plan.stepPlan().stream()
                         .allMatch(step -> "mobile_get_accessibility_tree".equals(step.proofTool()))));
     }

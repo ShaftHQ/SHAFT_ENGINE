@@ -72,7 +72,7 @@ record ToolTemplate(
             }
         }
 
-        if (name.contains("browser") || name.startsWith("playwright_") || name.contains("playwright_")) {
+        if (name.contains("browser")) {
             contexts.add("browser");
             if (name.contains("take_screenshot") || name.contains("get_page_dom")
                     || name.contains("open_intent") || name.contains("open_locator")

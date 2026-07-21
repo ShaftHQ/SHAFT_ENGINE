@@ -9,6 +9,7 @@ import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.model.PageContext;
 import com.shaft.capture.network.CaptureNetworkRecorder;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.gui.internal.locator.Role;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.validation.accessibility.AccessibilityHelper;
@@ -26,6 +27,8 @@ import org.openqa.selenium.remote.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -63,30 +66,81 @@ public class BrowserService {
     private static final AtomicInteger ROUTE_SEQUENCE = new AtomicInteger();
 
     private final McpWorkspacePolicy workspacePolicy;
+    private final PlaywrightService playwrightService;
 
     public BrowserService() {
-        this(McpWorkspacePolicy.current());
+        this(McpWorkspacePolicy.current(), new PlaywrightService());
     }
 
     BrowserService(McpWorkspacePolicy workspacePolicy) {
-        this.workspacePolicy = workspacePolicy;
+        this(workspacePolicy, new PlaywrightService());
     }
 
     /**
-     * Navigates the browser to the specified URL.
+     * Spring-visible constructor: {@link McpWorkspacePolicy} is not itself a Spring bean (it is a
+     * package-private static-factory value type), so only {@link PlaywrightService} is autowired
+     * here; {@code workspacePolicy} defaults the same way the public no-arg constructor does.
+     *
+     * @param playwrightService the shared Playwright MCP service bean
+     */
+    @Autowired
+    BrowserService(PlaywrightService playwrightService) {
+        this(McpWorkspacePolicy.current(), playwrightService);
+    }
+
+    BrowserService(McpWorkspacePolicy workspacePolicy, PlaywrightService playwrightService) {
+        this.workspacePolicy = workspacePolicy;
+        this.playwrightService = playwrightService;
+    }
+
+    /**
+     * Returns the active engine's browser-level actions through the shared
+     * {@link BrowserActionsContract}: the active Playwright session's browser actions when
+     * {@code ActiveEngine.PLAYWRIGHT} is active, or the WebDriver-backed session's browser actions
+     * for web and mobile (which share the same underlying driver) otherwise.
+     *
+     * @return the active engine's browser actions
+     */
+    private BrowserActionsContract activeBrowser() {
+        return EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT
+                ? playwrightService.browserActions()
+                : getDriver().browser();
+    }
+
+    /**
+     * Navigates the browser to the specified URL, dispatching to whichever engine is currently
+     * active.
      *
      * @param targetUrl The URL to navigate to.
+     * @param newWindow when true, opens the URL in a new window instead of navigating the current
+     *                  one (absorbs {@code playwright_browser_new_window}'s window-opening behavior
+     *                  on the Playwright engine); blank/omitted defaults to false
      */
-    @Tool(name = "browser_navigate", description = "opens a URL in the active SHAFT WebDriver browser session")
-    public void navigate(String targetUrl) {
+    @Tool(name = "browser_navigate", description = "opens a URL in the active engine's browser session; optional "
+            + "newWindow (default false) opens the URL in a new window instead of navigating the current one, "
+            + "absorbing playwright_browser_new_window's window-opening behavior on the Playwright engine")
+    public void navigate(String targetUrl, @ToolParam(required = false) Boolean newWindow) {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().navigateToURL(targetUrl);
+            BrowserActionsContract browser = activeBrowser();
+            if (Boolean.TRUE.equals(newWindow)) {
+                browser.openNewWindow(targetUrl);
+            } else {
+                browser.navigateToURL(targetUrl);
+            }
             logger.info("Navigated to URL (value redacted)");
         } catch (Exception e) {
             logger.error("Failed to navigate to URL (value redacted)", e);
             throw e;
         }
+    }
+
+    /**
+     * Java-caller convenience overload defaulting {@code newWindow} to false; not an MCP tool.
+     *
+     * @param targetUrl The URL to navigate to.
+     */
+    public void navigate(String targetUrl) {
+        navigate(targetUrl, null);
     }
 
     /**
@@ -109,13 +163,12 @@ public class BrowserService {
     }
 
     /**
-     * Refreshes the current page in the browser.
+     * Refreshes the current page in the browser, dispatching to whichever engine is currently active.
      */
-    @Tool(name = "browser_refresh", description = "refreshes the current page")
+    @Tool(name = "browser_refresh", description = "refreshes the current page; dispatches to the active engine")
     public void refreshPage() {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().refreshCurrentPage();
+            activeBrowser().refreshCurrentPage();
             logger.info("Page refreshed successfully.");
         } catch (Exception e) {
             logger.error("Failed to refresh the page.", e);
@@ -124,13 +177,14 @@ public class BrowserService {
     }
 
     /**
-     * Navigates back to the previous page in the browser's history.
+     * Navigates back to the previous page in the browser's history, dispatching to whichever engine
+     * is currently active.
      */
-    @Tool(name = "browser_navigate_back", description = "navigates back to the previous page")
+    @Tool(name = "browser_navigate_back", description = "navigates back to the previous page; dispatches to the "
+            + "active engine")
     public void navigateBack() {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().navigateBack();
+            activeBrowser().navigateBack();
             logger.info("Navigated back to the previous page.");
         } catch (Exception e) {
             logger.error("Failed to navigate back.", e);
@@ -139,13 +193,14 @@ public class BrowserService {
     }
 
     /**
-     * Navigates forward to the next page in the browser's history.
+     * Navigates forward to the next page in the browser's history, dispatching to whichever engine is
+     * currently active.
      */
-    @Tool(name = "browser_navigate_forward", description = "navigates forward to the next page")
+    @Tool(name = "browser_navigate_forward", description = "navigates forward to the next page; dispatches to "
+            + "the active engine")
     public void navigateForward() {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().navigateForward();
+            activeBrowser().navigateForward();
             logger.info("Navigated forward to the next page.");
         } catch (Exception e) {
             logger.error("Failed to navigate forward.", e);
@@ -154,81 +209,65 @@ public class BrowserService {
     }
 
     /**
-     * Maximizes the browser window.
+     * Sets the browser window size, or maximizes/fullscreens it, dispatching to whichever engine is
+     * currently active.
+     *
+     * @param width  The desired width of the browser window; used only when mode is custom.
+     * @param height The desired height of the browser window; used only when mode is custom.
+     * @param mode   custom (default, uses width/height) | maximize | fullscreen, absorbing
+     *               {@code browser_maximize_window}/{@code browser_fullscreen_window}
      */
-    @Tool(name = "browser_maximize_window", description = "maximizes the browser window")
-    public void maximizeWindow() {
+    @Tool(name = "browser_set_window_size", description = "sets the browser window to a specific size; optional "
+            + "mode selects custom (default, uses width/height) | maximize | fullscreen, absorbing "
+            + "browser_maximize_window/browser_fullscreen_window; dispatches to the active engine")
+    public void setWindowSize(int width, int height, @ToolParam(required = false) WindowSizeMode mode) {
+        WindowSizeMode resolvedMode = mode == null ? WindowSizeMode.CUSTOM : mode;
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().maximizeWindow();
-            logger.info("Browser window maximized.");
+            BrowserActionsContract browser = activeBrowser();
+            switch (resolvedMode) {
+                case MAXIMIZE -> browser.maximizeWindow();
+                case FULLSCREEN -> browser.fullScreenWindow();
+                case CUSTOM -> browser.setWindowSize(width, height);
+            }
+            logger.info("Browser window sized (mode: {}, {}x{}).", resolvedMode, width, height);
         } catch (Exception e) {
-            logger.error("Failed to maximize browser window.", e);
+            logger.error("Failed to set browser window size to {}x{} (mode: {}).", width, height, resolvedMode, e);
             throw e;
         }
     }
 
     /**
-     * Sets the browser window to a specific size.
+     * Java-caller convenience overload defaulting {@code mode} to {@link WindowSizeMode#CUSTOM}; not
+     * an MCP tool.
      *
      * @param width  The desired width of the browser window.
      * @param height The desired height of the browser window.
      */
-    @Tool(name = "browser_set_window_size", description = "sets the browser window to a specific size")
     public void setWindowSize(int width, int height) {
-        try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().setWindowSize(width, height);
-            logger.info("Browser window size set to {}x{}.", width, height);
-        } catch (Exception e) {
-            logger.error("Failed to set browser window size to {}x{}.", width, height, e);
-            throw e;
-        }
+        setWindowSize(width, height, null);
     }
 
     /**
-     * Sets the browser window to fullscreen mode.
-     */
-    @Tool(name = "browser_fullscreen_window", description = "sets the browser window to fullscreen mode")
-    public void fullscreenWindow() {
-        try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().fullScreenWindow();
-            logger.info("Browser window set to fullscreen mode.");
-        } catch (Exception e) {
-            logger.error("Failed to set browser window to fullscreen mode.", e);
-            throw e;
-        }
-    }
-
-    /**
-     * Deletes all cookies in the current browser session.
-     */
-    @Tool(name = "browser_delete_all_cookies", description = "deletes all cookies")
-    public void deleteAllCookies() {
-        try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().deleteAllCookies();
-            logger.info("All cookies deleted.");
-        } catch (Exception e) {
-            logger.error("Failed to delete all cookies.", e);
-            throw e;
-        }
-    }
-
-    /**
-     * Deletes a specific cookie by name in the current browser session.
+     * Deletes a cookie by name, or every cookie when {@code name} is omitted, dispatching to
+     * whichever engine is currently active. Absorbs the former {@code browser_delete_cookie} and
+     * {@code browser_delete_all_cookies} tools (design doc Decision 2).
      *
-     * @param cookieName The name of the cookie to delete.
+     * @param name cookie name; blank or omitted deletes every cookie
      */
-    @Tool(name = "browser_delete_cookie", description = "deletes a specific cookie by name")
-    public void deleteCookie(String cookieName) {
+    @Tool(name = "browser_delete_cookies", description = "deletes a cookie by name, or every cookie when name is "
+            + "omitted; dispatches to the active engine; absorbs browser_delete_cookie/browser_delete_all_cookies")
+    public void deleteCookies(@ToolParam(required = false) String name) {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().deleteCookie(cookieName);
-            logger.info("Cookie deleted (name length: {})", cookieName == null ? 0 : cookieName.length());
+            BrowserActionsContract browser = activeBrowser();
+            if (name == null || name.isBlank()) {
+                browser.deleteAllCookies();
+                logger.info("All cookies deleted.");
+            } else {
+                browser.deleteCookie(name);
+                logger.info("Cookie deleted (name length: {})", name.length());
+            }
         } catch (Exception e) {
-            logger.error("Failed to delete cookie (name redacted)", e);
+            logger.error("Failed to delete cookie(s) (name redacted)", e);
             throw e;
         }
     }
@@ -291,11 +330,10 @@ public class BrowserService {
      *
      * @return The current URL as a string.
      */
-    @Tool(name = "browser_get_current_url", description = "gets current URL")
+    @Tool(name = "browser_get_current_url", description = "gets current URL; dispatches to the active engine")
     public String getCurrentUrl() {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            String currentUrl = driver.browser().getCurrentURL();
+            String currentUrl = activeBrowser().getCurrentURL();
             logger.info("Current URL retrieved (value redacted)");
             return currentUrl;
         } catch (Exception e) {
@@ -305,15 +343,15 @@ public class BrowserService {
     }
 
     /**
-     * Retrieves the title of the current page in the browser.
+     * Retrieves the title of the current page in the browser, dispatching to whichever engine is
+     * currently active.
      *
      * @return The page title as a string.
      */
-    @Tool(name = "browser_get_title", description = "gets current page title")
+    @Tool(name = "browser_get_title", description = "gets current page title; dispatches to the active engine")
     public String getTitle() {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            String title = driver.browser().getCurrentWindowTitle();
+            String title = activeBrowser().getCurrentWindowTitle();
             logger.info("Page title retrieved (length: {})", title == null ? 0 : title.length());
             return title;
         } catch (Exception e) {
@@ -329,8 +367,12 @@ public class BrowserService {
      * @return page DOM snapshot and browser context metadata
      */
     @Tool(name = "browser_get_page_dom",
-            description = "returns bounded current-page DOM for locator inspection before element_* or natural_act")
+            description = "returns bounded current-page DOM for locator inspection before element_*; "
+                    + "dispatches to the active engine")
     public McpPageDomSnapshot getPageDom(int maxCharacters) {
+        if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
+            return playwrightService.getPageDom(maxCharacters);
+        }
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             WebDriver seleniumDriver = driver.getDriver();
@@ -364,18 +406,19 @@ public class BrowserService {
      * @return JSON-shaped DOM orientation and locator candidates
      */
     @Tool(name = "browser_open_intent",
-            description = "opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user intent")
+            description = "opens a URL and returns bounded DOM plus capture-ranked locator candidates for the "
+                    + "user intent; dispatches to the active engine")
     public Map<String, Object> openForIntent(
             String targetUrl,
             String userIntent,
             int maxCharacters,
             int maxElements) {
-        navigate(targetUrl);
-        WebDriver seleniumDriver = getDriver().getDriver();
+        BrowserActionsContract browser = activeBrowser();
+        browser.navigateToURL(targetUrl);
         return orientPage(
-                seleniumDriver.getCurrentUrl(),
-                seleniumDriver.getTitle(),
-                seleniumDriver.getPageSource(),
+                browser.getCurrentURL(),
+                browser.getCurrentWindowTitle(),
+                browser.getPageSource(),
                 userIntent,
                 maxCharacters,
                 maxElements);
@@ -388,8 +431,12 @@ public class BrowserService {
      * @param includeBase64 whether to include the PNG bytes as base64 in the response
      * @return screenshot metadata and optional base64 payload
      */
-    @Tool(name = "browser_take_screenshot", description = "takes a PNG screenshot of the current browser viewport")
+    @Tool(name = "browser_take_screenshot", description = "takes a PNG screenshot of the current browser "
+            + "viewport; dispatches to the active engine (web, mobile, or Playwright)")
     public McpScreenshotResult takeScreenshot(String outputPath, boolean includeBase64) {
+        if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
+            return playwrightService.takeScreenshot(outputPath, includeBase64);
+        }
         try {
             SHAFT.GUI.WebDriver shaftDriver = getDriver();
             WebDriver seleniumDriver = shaftDriver.getDriver();
@@ -420,8 +467,12 @@ public class BrowserService {
      * @return the absolute path the storage state was written to
      */
     @Tool(name = "browser_storage_state_save",
-            description = "saves the active browser session's cookies, localStorage, and sessionStorage to a JSON file")
+            description = "saves the active browser session's cookies, localStorage, and sessionStorage to a "
+                    + "JSON file; dispatches to the active engine")
     public String saveStorageState(String filePath) {
+        if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
+            return playwrightService.saveStorageState(filePath);
+        }
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             Path resolved = workspacePolicy.output(filePath, "Storage state output path");
@@ -446,8 +497,11 @@ public class BrowserService {
      */
     @Tool(name = "browser_storage_state_load",
             description = "loads cookies, localStorage, and sessionStorage from a JSON file into the active "
-                    + "browser session; navigate to the target origin first")
+                    + "browser session; navigate to the target origin first; dispatches to the active engine")
     public String loadStorageState(String filePath) {
+        if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
+            return playwrightService.loadStorageState(filePath);
+        }
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             Path resolved = workspacePolicy.existing(filePath, "Storage state input path");
@@ -474,25 +528,41 @@ public class BrowserService {
      */
     @Tool(name = "browser_network_requests",
             description = "lists the active browser session's observed network transactions (method, URL, "
-                    + "status, mimeType, sizes, timestamp; never bodies); requires the DevTools-based network "
-                    + "trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork)")
-    public McpNetworkTransactionList networkRequests(String urlFilter, int limit) {
+                    + "status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that "
+                    + "single transaction and populates its full detail (headers and a truncated, redacted "
+                    + "response body preview), absorbing the former browser_network_request tool; requires the "
+                    + "DevTools-based network trace capture that is on by default (shaft.trace.enabled and "
+                    + "shaft.trace.includeNetwork); not supported on the Playwright engine")
+    public McpNetworkTransactionList networkRequests(String urlFilter, int limit, @ToolParam(required = false) Integer id) {
+        if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
+            throw new UnsupportedOperationException("browser_network_requests is not supported on the Playwright "
+                    + "engine (activeEngine=PLAYWRIGHT); Playwright network traffic is not captured by "
+                    + "BrowserObservabilityRecorder.");
+        }
         try {
             getDriver();
             String filter = text(urlFilter);
-            List<McpNetworkTransaction> matched = BrowserObservabilityRecorder.snapshot().stream()
+            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> snapshot = BrowserObservabilityRecorder.snapshot();
+            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> matchedEntries = snapshot.stream()
                     .filter(entry -> filter.isBlank() || entry.url().contains(filter))
+                    .filter(entry -> id == null || entry.id() == id)
+                    .toList();
+            List<McpNetworkTransaction> matched = matchedEntries.stream()
                     .map(BrowserService::toTransaction)
                     .toList();
             int effectiveLimit = limit <= 0 ? DEFAULT_NETWORK_TRANSACTION_LIMIT : Math.min(limit, MAX_NETWORK_TRANSACTION_LIMIT);
             boolean truncated = matched.size() > effectiveLimit;
             List<McpNetworkTransaction> page = truncated ? matched.subList(0, effectiveLimit) : matched;
-            logger.info("Network transactions listed (total: {}, returned: {}, truncated: {}).",
-                    matched.size(), page.size(), truncated);
+            McpNetworkTransactionDetail detail = id != null && matchedEntries.size() == 1
+                    ? toTransactionDetail(matchedEntries.get(0))
+                    : null;
+            logger.info("Network transactions listed (total: {}, returned: {}, truncated: {}, detail: {}).",
+                    matched.size(), page.size(), truncated, detail != null);
             return new McpNetworkTransactionList(page, matched.size(), truncated,
                     page.isEmpty()
                             ? List.of("No network transactions observed for this session yet.")
-                            : List.of());
+                            : List.of(),
+                    detail);
         } catch (Exception e) {
             logger.error("Failed to list network transactions.", e);
             throw e;
@@ -500,34 +570,14 @@ public class BrowserService {
     }
 
     /**
-     * Returns one observed network transaction's detail, including headers and a truncated body
-     * preview as recorded by trace capture. Full, untruncated request/response bodies are only
-     * available from a {@code capture_start}/{@code capture_start_codegen} session started with
-     * {@code saveHarContent=full}.
+     * Java-caller convenience overload defaulting {@code id} to unset; not an MCP tool.
      *
-     * @param id 1-based transaction id from {@link #networkRequests(String, int)}
-     * @return the transaction detail
+     * @param urlFilter optional substring the transaction URL must contain
+     * @param limit     maximum transactions to return; non-positive selects the default of 50
+     * @return matching transactions in observed order, newest last
      */
-    @Tool(name = "browser_network_request",
-            description = "returns one observed network transaction's detail (headers and a truncated, "
-                    + "redacted response body preview) by the 1-based id from browser_network_requests; full "
-                    + "request/response bodies require a capture_start/capture_start_codegen session with "
-                    + "saveHarContent=full")
-    public McpNetworkTransactionDetail networkRequest(int id) {
-        try {
-            getDriver();
-            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> snapshot = BrowserObservabilityRecorder.snapshot();
-            BrowserObservabilityRecorder.NetworkSnapshotEntry entry = snapshot.stream()
-                    .filter(candidate -> candidate.id() == id)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("No network transaction with id " + id
-                            + "; browser_network_requests currently reports " + snapshot.size() + " transaction(s)."));
-            logger.info("Network transaction detail retrieved (id: {}).", id);
-            return toTransactionDetail(entry);
-        } catch (Exception e) {
-            logger.error("Failed to retrieve network transaction detail.", e);
-            throw e;
-        }
+    public McpNetworkTransactionList networkRequests(String urlFilter, int limit) {
+        return networkRequests(urlFilter, limit, null);
     }
 
     /**
@@ -552,10 +602,10 @@ public class BrowserService {
     public String route(String method, String urlGlob, String url, int responseStatus, String responseBody,
                          Map<String, String> responseHeaders) {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
+            BrowserActionsContract browser = activeBrowser();
             Predicate<HttpRequest> predicate = routePredicate(method, urlGlob, url);
             HttpResponse response = buildMockResponse(responseStatus, responseBody, responseHeaders);
-            driver.browser().mock(predicate, response);
+            browser.mock(predicate, response);
             String routeId = "route-" + ROUTE_SEQUENCE.incrementAndGet();
             logger.info("Browser mock route registered (id: {}, status: {}).", routeId, response.getStatus());
             return routeId;
@@ -581,8 +631,7 @@ public class BrowserService {
                     + "support removing a single rule yet")
     public String unroute(String routeId) {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
-            driver.browser().clearNetworkInterceptors();
+            activeBrowser().clearNetworkInterceptors();
             logger.info("Browser mock routes cleared (requested id length: {}).",
                     routeId == null ? 0 : routeId.length());
             return text(routeId).isBlank()
@@ -606,8 +655,11 @@ public class BrowserService {
      */
     @Tool(name = "browser_aria_snapshot",
             description = "captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one "
-                    + "element when a locator is supplied")
+                    + "element when a locator is supplied; dispatches to the active engine")
     public String ariaSnapshot(locatorStrategy locatorStrategy, String locatorValue) {
+        if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
+            return playwrightService.ariaSnapshot(locatorStrategy, locatorValue);
+        }
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
             boolean wholePage = locatorStrategy == null || locatorValue == null || locatorValue.isBlank();
@@ -633,10 +685,11 @@ public class BrowserService {
      */
     @Tool(name = "browser_accessibility_audit",
             description = "runs a non-asserting axe-core WCAG accessibility audit on the current page and "
-                    + "returns the violations found; never fails the call when violations exist")
+                    + "returns the violations found; never fails the call when violations exist; dispatches to "
+                    + "the active engine")
     public McpAccessibilityAuditResult accessibilityAudit(String... wcagTags) {
         try {
-            SHAFT.GUI.WebDriver driver = getDriver();
+            BrowserActionsContract browser = activeBrowser();
             AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig();
             List<String> tags = wcagTags == null || wcagTags.length == 0
                     ? List.copyOf(config.getTags())
@@ -645,7 +698,7 @@ public class BrowserService {
                 config.setTags(Arrays.asList(wcagTags));
             }
             AccessibilityHelper.AccessibilityResult result =
-                    driver.browser().accessibility().analyzeAndReturn("mcp-accessibility-audit", config, false);
+                    browser.accessibility().analyzeAndReturn("mcp-accessibility-audit", config, false);
             List<McpAccessibilityViolation> violations = result.getViolations().stream()
                     .map(BrowserService::toAccessibilityViolation)
                     .toList();
@@ -1066,7 +1119,6 @@ public class BrowserService {
                 || intent.contains("open") || intent.contains("select")) {
             tools.add("element_click");
         }
-        tools.add("natural_act");
         tools.add("capture_start");
         tools.add("capture_code_blocks");
         tools.add("test_code_guardrails_check");

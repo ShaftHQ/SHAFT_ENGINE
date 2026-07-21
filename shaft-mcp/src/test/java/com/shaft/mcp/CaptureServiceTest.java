@@ -11,6 +11,7 @@ import com.shaft.capture.model.PageContext;
 import com.shaft.capture.model.RedactionSummary;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStatus;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -30,6 +31,14 @@ class CaptureServiceTest {
     @TempDir
     Path temp;
 
+    // capture_status/capture_stop dispatch on EngineService's static ActiveEngine (design doc
+    // amendment A3); reset it after every test so a leftover engine from another test class never
+    // diverts these WEB-focused tests to the Playwright/mobile branch.
+    @AfterEach
+    void resetActiveEngine() {
+        EngineService.setActiveEngine(null);
+    }
+
     @Test
     void codeBlocksToolGeneratesReusableReplaySnippetsInsideWorkspace() throws Exception {
         Path session = temp.resolve("capture.json");
@@ -45,7 +54,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "GoldenSessionTest",
                     false,
-                    "browser");
+                    "browser", null);
         } finally {
             service.close();
         }
@@ -94,7 +103,7 @@ class CaptureServiceTest {
                     false,
                     target.toString(),
                     "replayCheckout",
-                    "browser");
+                    "browser", null);
         } finally {
             service.close();
         }
@@ -123,13 +132,14 @@ class CaptureServiceTest {
         CaptureService service = service();
         McpCaptureReplayResult result;
         try {
-            result = service.playwrightCodeBlocks(
+            result = service.codeBlocks(
                     session.toString(),
                     temp.resolve("generated-playwright").toString(),
                     "generated.capture",
                     "PlaywrightGoldenSessionTest",
                     false,
-                    "page");
+                    "page",
+                    "playwright");
         } finally {
             service.close();
         }
@@ -158,7 +168,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "ReviewWarningTest",
                     false,
-                    "driver");
+                    "driver", null);
         } finally {
             service.close();
         }
@@ -263,7 +273,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "EvidenceSessionTest",
                     false,
-                    "driver");
+                    "driver", null);
             Path screenshot = temp.resolve("screenshots/capture.png");
             Files.createDirectories(screenshot.getParent());
             Files.writeString(screenshot, "png");
@@ -303,8 +313,8 @@ class CaptureServiceTest {
     void statusAndStopReturnIdleCaptureStateWhenNoSessionIsActive() {
         CaptureService service = service();
         try {
-            assertEquals(CaptureStatus.State.NOT_RUNNING, service.status().state());
-            assertEquals(CaptureStatus.State.NOT_RUNNING, service.stop(false).state());
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.status().webStatus().state());
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.stop(false).webStatus().state());
         } finally {
             service.close();
         }
@@ -325,7 +335,7 @@ class CaptureServiceTest {
                             "generated.capture",
                             "OutsideTest",
                             false,
-                            "driver"));
+                            "driver", null));
         } finally {
             service.close();
         }
@@ -442,7 +452,7 @@ class CaptureServiceTest {
         CaptureService service = service();
         CaptureStatus status;
         try {
-            status = service.status();
+            status = service.status().webStatus();
         } finally {
             service.close();
         }
@@ -458,14 +468,14 @@ class CaptureServiceTest {
         CaptureService service = service();
         CaptureStatus status;
         try {
-            status = service.status();
+            status = service.status().webStatus();
         } finally {
             service.close();
         }
 
         assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
         assertTrue(status.warnings().stream().anyMatch(warning ->
-                warning.contains("capture_start_codegen")
+                warning.contains("capture_start")
                         && warning.contains("perform the described actions")));
     }
 
@@ -511,7 +521,7 @@ class CaptureServiceTest {
                     "generated.capture",
                     "DefaultSessionTest",
                     false,
-                    "browser");
+                    "browser", null);
         } finally {
             service.close();
         }
@@ -524,6 +534,34 @@ class CaptureServiceTest {
     }
 
     @Test
+    void generateReplayRunsEndToEndWithZeroArgsAfterACaptureStartStopChain() throws Exception {
+        // Design doc Decision 3's param-defaults acceptance bar: the codegen chain must run with
+        // zero args end-to-end (capture_start -> capture_stop -> capture_generate_replay). This
+        // simulates the capture_start/capture_stop half by placing a persisted recording exactly
+        // where a real WEB CDP session would have written it, then proves capture_generate_replay
+        // needs neither an explicit sessionPath nor an explicit backend: sessionPath resolves to the
+        // most recently modified recording under recordings/ (the same lookup capture_code_blocks
+        // and status() use), and backend resolves to WEB from the (default, unset) active engine.
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Files.copy(repositoryRoot().resolve(
+                        "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"),
+                recordings.resolve("capture-latest.json"));
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.generateReplay(
+                    null, null, null, null, false, false, false, false, false, null, null, null, null);
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(),
+                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+    }
+
+    @Test
     void codeBlocksToolStillRaisesAClearErrorWhenSessionPathIsBlankAndNoRecordingsExist() {
         // The fallback must not silently swallow the "nothing to generate from" case: with no
         // recordings/ directory at all, McpWorkspacePolicy's existing "is required" error still
@@ -533,7 +571,7 @@ class CaptureServiceTest {
         try {
             failure = assertThrows(IllegalArgumentException.class,
                     () -> service.codeBlocks("", temp.resolve("generated-none").toString(),
-                            "generated.capture", "NoRecordingTest", false, "browser"));
+                            "generated.capture", "NoRecordingTest", false, "browser", null));
         } finally {
             service.close();
         }
@@ -557,7 +595,7 @@ class CaptureServiceTest {
                     null,           // packageName - should default to tests.generated
                     null,           // className - should default to RecordedFlowTest
                     null,
-                    null);          // driverVariableName - should default to driver
+                    null, null);          // driverVariableName - should default to driver
         } finally {
             service.close();
         }
@@ -591,7 +629,7 @@ class CaptureServiceTest {
                     "",             // packageName - blank should default to tests.generated
                     "  ",           // className - blank should default to RecordedFlowTest
                     null,
-                    "");            // driverVariableName - blank should default to driver
+                    "", null);            // driverVariableName - blank should default to driver
         } finally {
             service.close();
         }

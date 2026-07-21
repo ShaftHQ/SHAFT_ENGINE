@@ -31,11 +31,11 @@ class McpNoDriverServiceTest {
         assertNoDriver(service::refreshPage);
         assertNoDriver(service::navigateBack);
         assertNoDriver(service::navigateForward);
-        assertNoDriver(service::maximizeWindow);
         assertNoDriver(() -> service.setWindowSize(800, 600));
-        assertNoDriver(service::fullscreenWindow);
-        assertNoDriver(service::deleteAllCookies);
-        assertNoDriver(() -> service.deleteCookie("sid"));
+        assertNoDriver(() -> service.setWindowSize(0, 0, WindowSizeMode.MAXIMIZE));
+        assertNoDriver(() -> service.setWindowSize(0, 0, WindowSizeMode.FULLSCREEN));
+        assertNoDriver(() -> service.deleteCookies(null));
+        assertNoDriver(() -> service.deleteCookies("sid"));
         assertNoDriver(() -> service.addCookie("sid", "value"));
         assertNoDriver(() -> service.getCookie("sid"));
         assertNoDriver(service::getAllCookies);
@@ -50,7 +50,7 @@ class McpNoDriverServiceTest {
         assertNoDriver(() -> service.saveStorageState("state.json"));
         assertNoDriver(() -> service.loadStorageState("state.json"));
         assertNoDriver(() -> service.networkRequests("", 50));
-        assertNoDriver(() -> service.networkRequest(1));
+        assertNoDriver(() -> service.networkRequests("", 50, 1));
         assertNoDriver(() -> service.route("GET", "**/api/**", null, 200, "{}", null));
         assertNoDriver(() -> service.unroute(null));
     }
@@ -63,18 +63,16 @@ class McpNoDriverServiceTest {
         assertNoDriver(() -> service.click(locatorStrategy.ID, "submit"));
         assertNoDriver(() -> service.clickSemantic("Submit"));
         assertNoDriver(() -> service.clickUsingAI("Submit"));
-        assertNoDriver(() -> service.clickUsingJavaScript(locatorStrategy.ID, "submit"));
-        assertNoDriver(() -> service.doubleClick(locatorStrategy.ID, "submit"));
-        assertNoDriver(() -> service.clickAndHold(locatorStrategy.ID, "submit"));
+        assertNoDriver(() -> service.click(locatorStrategy.ID, "submit", ClickMode.DOUBLE));
+        assertNoDriver(() -> service.click(locatorStrategy.ID, "submit", ClickMode.LONG));
         assertNoDriver(() -> service.type(locatorStrategy.ID, "name", "value"));
-        assertNoDriver(() -> service.appendText(locatorStrategy.ID, "name", "value"));
+        assertNoDriver(() -> service.type(locatorStrategy.ID, "name", "value", true, null));
         assertNoDriver(() -> service.typeSemantic("Name", "value"));
         assertNoDriver(() -> service.typeUsingAI("Name", "value"));
-        assertNoDriver(() -> service.setValueUsingJavaScript(locatorStrategy.ID, "name", "value"));
         assertNoDriver(() -> service.clear(locatorStrategy.ID, "name"));
         assertNoDriver(() -> service.dropFileToUpload(locatorStrategy.ID, "upload", "file.txt"));
         assertNoDriver(() -> service.dragAndDrop(locatorStrategy.ID, "source", locatorStrategy.ID, "target"));
-        assertNoDriver(() -> service.dragAndDropByOffset(locatorStrategy.ID, "source", 1, 2));
+        assertNoDriver(() -> service.dragAndDrop(locatorStrategy.ID, "source", null, null, 1, 2));
         assertNoDriver(() -> service.getText(locatorStrategy.ID, "message"));
         assertNoDriver(() -> service.getDomAttribute(locatorStrategy.ID, "message", "data-id"));
         assertNoDriver(() -> service.getDomProperty(locatorStrategy.ID, "message", "value"));
@@ -95,11 +93,9 @@ class McpNoDriverServiceTest {
     }
 
     @Test
-    void mobileAndNaturalToolsShouldFailWhenNoDriverSessionExists() {
+    void mobileToolsShouldFailWhenNoDriverSessionExists() {
         MobileService mobile = new MobileService(engineService, McpWorkspacePolicy.of(temp));
-        NaturalActionService natural = new NaturalActionService();
 
-        assertNoDriver(() -> natural.act("click submit", List.of(), 50, "deterministic", false, "element"));
         assertNoDriver(() -> mobile.getContexts(10));
         assertNoDriver(() -> mobile.getAccessibilityTree(10));
         assertNoDriver(() -> mobile.takeScreenshot("mobile.png", false));

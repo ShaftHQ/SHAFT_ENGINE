@@ -1,10 +1,10 @@
 ---
-name: act-as-mohab
-description: Use when developing, debugging, or reviewing SHAFT test automation code and no project methodology instructions exist — evidence-first ways of working specialized for SHAFT.
+name: act-as-shaft-dev
+description: Load first, always, before any other SHAFT skill or tool call — evidence-first methodology for SHAFT test automation plus the router that sends the agent to exactly one matching specialist skill, the right MCP/CLI tool, and nothing else.
 distribution: full
 ---
 
-# Act as Mohab
+# Act as SHAFT Dev
 
 ## Overview
 
@@ -13,6 +13,80 @@ automation code, meant for projects that have no AGENTS.md/CLAUDE.md of their
 own. It is not a checklist to skim — it is discipline about the gap between
 believing a test works and knowing it works, specialized for SHAFT's fluent
 API, config-driven behavior, and Allure evidence trail.
+
+This is the mandatory first-loaded skill for any SHAFT-agentic task. Load it
+before touching a SHAFT project, then use the Routing section below to load
+exactly ONE matching specialist skill — never guess a tool name, and never
+load every skill "just in case"; that defeats the token-efficiency point of
+having separate skills at all.
+
+## Routing
+
+Match the task shape to one row, load that skill, then use the tool family it
+names. Every specialist skill's own `## Example calls` section shows the
+exact request/response shape for its tools — load the skill, not just the
+table row.
+
+| Task shape | Load this skill | Tool family (MCP names) / CLI |
+| --- | --- | --- |
+| Write, review, or repair a SHAFT test, page object, API/mobile/CLI/DB test, assertion, wait, or TestNG/JUnit/Cucumber scenario | `writing-shaft-tests` | `shaft_guide_search`, `shaft_coding_partner_plan`, `test_code_guardrails_check`, `verify_run_focused` |
+| Choose, refactor, repair, or generate a web/mobile locator (smart locator, ARIA, XPath/CSS replacement, codegen element ID) | `choosing-shaft-locators` | `browser_open_intent`, `browser_get_page_dom`, `mobile_get_accessibility_tree`, `shaft_guide_search` |
+| Record a browser, Playwright, mobile, Appium Inspector, or user-performed flow into test code | `recording-shaft-tests-with-mcp` | `capture_start`, `capture_status`, `capture_checkpoint`, `capture_stop`, `capture_code_blocks`, `playwright_record_*`, `mobile_record_*` |
+| Plan test coverage: explore an app, generate flow specs, prepare automation scenarios before recording | `planning-shaft-tests` | `test_plan_explore`, `capture_start_codegen`, `capture_api_start` |
+| Analyze an Allure result, Doctor report, trace, healer output, or flaky failure | `analyzing-shaft-failures` | `doctor_analyze_failed_allure`, `doctor_suggest_fix`, `trace_summarize`, `healer_run_failed_test` — CLI-first: `shaft-cli doctor analyze\|suggest` |
+| Preview, apply, guardrail-check, or verify generated SHAFT Java before/after inserting it into a repo | `verifying-and-applying-shaft-changes` | `shaft_coding_partner_diff`, `test_code_guardrails_check`, `verify_run_focused` |
+| Build or improve retrieval-augmented / semantic-search / vector-DB-backed functionality — e.g. making `shaft_guide_search` do real semantic retrieval instead of keyword scoring, or building a retrieval-augmented knowledge base of past locator-healing patterns for `doctor_propose_healed_locator`/`doctor_suggest_fix`, or grounding `autobot_provider_chat`/`autobot_local_agent_run` chat context in prior sessions | `rag-implementation` (general-purpose, not SHAFT-specific — installed separately, see `~/.claude/skills/rag-implementation/SKILL.md`) for chunking/embedding/retrieval-strategy methodology, alongside the SHAFT skill above that owns the tool being improved | n/a — methodology only; do not re-architect these tools without a separate, explicitly-scoped task |
+
+### CLI vs MCP: which to reach for
+
+- **Single-session, deterministic, one-shot actions** — codegen from a
+  recording, Doctor analysis of an existing report, shard/report merge,
+  project create/upgrade — prefer `shaft-cli` over MCP. A plain shell command
+  costs fewer agent tokens than an MCP schema load, and these actions need no
+  live session state.
+- **Interactive, session-based, or exploratory work** — driving a live
+  browser or mobile session, capturing a recording step by step, IDE-plugin
+  integration — use the MCP tools directly (`shaft-mcp:<tool>` or
+  `mcp__shaft-mcp__<tool>` depending on client). State (driver, capture
+  session) only survives inside one MCP session or one `shaft-cli session
+  start` daemon; a one-shot `shaft-cli call` spawns a fresh child process per
+  command and loses state between calls.
+- Today `shaft-cli` ships stateless `guide search` and `doctor analyze|suggest`
+  aliases plus session-scoped `browser`/`element`/`capture` aliases and a
+  passthrough `shaft-cli call <TOOL>` for every tool name; a dedicated
+  `shaft-cli codegen` subcommand delegating to the deterministic
+  `CaptureCli generate` engine is landing in a parallel subtask (per the
+  design's CLI-first decision) — until it ships, drive codegen through
+  `capture_generate_replay`/`capture_code_blocks` (MCP) or `shaft-cli call
+  capture_generate_replay sessionPath=...`.
+
+### Direct command names — don't guess
+
+Full exact tool names, param schemas, and CLI commands live in generated
+artifacts, never invented from memory:
+
+- `shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json` — the
+  canonical, schema-rich catalog: every tool's name, owning service,
+  description, full param list (name/type/required/default/description),
+  curated `intentKeywords`/`slashAlias`/`cliCommand`, and a recorded
+  `example` request/response where one exists. Java-dumped from the live
+  Spring-registered `ToolCallback`/`@McpTool` schemas
+  (`tool-index-mechanical.json`) and merged with the hand-curated overlay
+  (`tool-index-overlay.json`) by `scripts/mcp/generate_tool_index.py`; a
+  drift gate (`ToolIndexMechanicalDumpTest`) fails CI if it skews from the
+  live tool set. Prefer this file whenever a param schema, default, or
+  intent keyword is needed, not just a name.
+- `../references/shaft-mcp-tools.md` — every MCP tool name and description
+  only (no param schemas), regenerated from the shaft-mcp `@Tool`/`@McpTool`
+  annotations by `scripts/mcp/generate_shaft_skills_tool_catalog.py`. Kept
+  as a lighter-weight quick-name lookup alongside the JSON index above, not
+  a stale duplicate of it — both are generated and CI-gated independently.
+- `../references/shaft-cli-commands.md` — every `shaft-cli` command, alias,
+  and exit code.
+
+Each specialist skill repeats the two-file pointer in its own "Tool Catalog"
+section so an agent that loaded only that skill still finds the exact names
+without loading the router again.
 
 ## The Prime Directive: Evidence Over Inference
 

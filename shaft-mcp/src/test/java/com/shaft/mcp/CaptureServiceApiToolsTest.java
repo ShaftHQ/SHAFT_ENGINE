@@ -107,8 +107,8 @@ class CaptureServiceApiToolsTest {
 
         assertNotNull(service);
         // Verify tools exist by checking they don't throw on idle status
-        CaptureStatus status = service.apiStatus();
-        assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
+        McpCaptureApiUnionStatus status = service.apiStatus();
+        assertEquals(CaptureStatus.State.NOT_RUNNING, status.webStatus().state());
 
         List<NetworkTransaction> transactions = service.apiTransactions(false, "");
         assertTrue(transactions.isEmpty());
@@ -132,7 +132,7 @@ class CaptureServiceApiToolsTest {
                     true));
 
             IllegalStateException failure = assertThrows(IllegalStateException.class,
-                    () -> service.apiStart("https://example.test", "chrome", true, new NetworkCaptureOptions()));
+                    () -> service.apiStart("https://example.test", "chrome", true, new NetworkCaptureOptions(), null, null, null));
 
             assertTrue(failure.getMessage().contains("already active"),
                     "capture_api_start must reject a second concurrent session the same way capture_start does");
@@ -165,11 +165,11 @@ class CaptureServiceApiToolsTest {
                 new McpCaptureCodeBlockService());
         try {
             IllegalArgumentException unspecified = assertThrows(IllegalArgumentException.class,
-                    () -> service.apiStart("ftp://example.test", "chrome", null, null));
+                    () -> service.apiStart("ftp://example.test", "chrome", null, null, null, null, null));
             assertTrue(unspecified.getMessage().contains("target URL"));
 
             IllegalArgumentException explicit = assertThrows(IllegalArgumentException.class,
-                    () -> service.apiStart("ftp://example.test", "chrome", false, new NetworkCaptureOptions()));
+                    () -> service.apiStart("ftp://example.test", "chrome", false, new NetworkCaptureOptions(), null, null, null));
             assertTrue(explicit.getMessage().contains("target URL"));
         } finally {
             service.close();

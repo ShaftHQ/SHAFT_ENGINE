@@ -15,7 +15,7 @@ import java.util.List;
  *
  * @param readiness Ready/Risky/Blocked verdict rolled up from step warnings; never {@code null}
  * @param steps per-step summaries (stable stepId, sequence, action, risk) an agent can target with
- *         {@code mobile_step_delete}/{@code mobile_step_reorder}; empty when inactive
+ *         {@code capture_step_delete}/{@code capture_step_reorder}; empty when inactive
  */
 public record McpMobileRecordingStatus(
         boolean active,

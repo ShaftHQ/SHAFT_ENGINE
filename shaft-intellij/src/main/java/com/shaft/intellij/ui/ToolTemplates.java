@@ -38,19 +38,6 @@ final class ToolTemplates {
                         }
                         """),
                 template("Recording Status", "capture_status", "{}"),
-                template("Start Playwright Recording", "playwright_record_start",
-                        """
-                        {
-                          "outputPath": "recordings/playwright-recording.json",
-                          "mode": "default",
-                          "includeSensitiveValues": false
-                        }
-                        """,
-                        "Starts a Playwright recorder session with workspace output.",
-                        true),
-                template("Playwright Recording Status", "playwright_record_status", "{}",
-                        "Checks the active Playwright recorder status.",
-                        true),
                 template("Checkpoint", "capture_checkpoint",
                         """
                         {
@@ -64,14 +51,6 @@ final class ToolTemplates {
                           "discard": false
                         }
                         """),
-                template("Stop Playwright Recording", "playwright_record_stop",
-                        """
-                        {
-                          "discard": false
-                        }
-                        """,
-                        "Stops Playwright recording and optionally discards the recording file.",
-                        true),
                 template("Generate Code Blocks", "capture_code_blocks",
                         """
                         {
@@ -92,16 +71,7 @@ final class ToolTemplates {
                         """,
                         "Finds Java test and page-object anchors for record-at-target insertion.",
                         false),
-                template("Generate Playwright Recording Code Blocks", "playwright_recording_code_blocks",
-                        """
-                        {
-                          "recordingPath": "recordings/playwright-recording.json",
-                          "driverVariableName": "driver"
-                        }
-                        """,
-                        "Generates copy-paste SHAFT Playwright code from a recorder file.",
-                        false),
-                template("Generate Playwright Capture Code Blocks", "playwright_capture_code_blocks",
+                template("Generate Playwright Code Blocks", "capture_code_blocks",
                         """
                         {
                           "sessionPath": "recordings/playwright-recording.json",
@@ -109,10 +79,12 @@ final class ToolTemplates {
                           "packageName": "tests.generated",
                           "className": "RecordedFlowTest",
                           "overwrite": false,
-                          "driverVariableName": "driver"
+                          "driverVariableName": "driver",
+                          "backend": "playwright"
                         }
                         """,
-                        "Generates Playwright-friendly code blocks from a Playwright Capture session.",
+                        "Generates Playwright-friendly code blocks from a Playwright recording or Capture session"
+                                + " (sniffs the session file; backend=playwright covers both).",
                         false),
                 template("Record Into Java Target", "capture_record_at_target_code_blocks",
                         """
@@ -172,7 +144,7 @@ final class ToolTemplates {
                           "driverVariableName": "driver"
                         }
                         """),
-                template("Generate And Replay Playwright", "playwright_capture_generate_replay",
+                template("Generate And Replay Playwright", "capture_generate_replay",
                         """
                         {
                           "sessionPath": "recordings/playwright-recording.json",
@@ -184,25 +156,30 @@ final class ToolTemplates {
                           "useAi": false,
                           "allowLocalAi": false,
                           "allowRemoteAi": false,
-                          "driverVariableName": "driver"
+                          "driverVariableName": "driver",
+                          "backend": "playwright"
                         }
                         """,
                         "Generates Playwright tests from a recording session. Set replay=true only after review.",
                         true),
-                template("Replay Playwright Recording", "playwright_replay_recording",
+                template("Replay Mobile Recording", "capture_generate_replay",
                         """
                         {
-                          "recordingPath": "recordings/playwright-recording.json",
-                          "driverVariableName": "driver"
+                          "sessionPath": "recordings/mobile-recording.json",
+                          "outputDirectory": ".",
+                          "packageName": "tests.generated",
+                          "className": "RecordedFlowTest",
+                          "overwrite": false,
+                          "replay": true,
+                          "useAi": false,
+                          "allowLocalAi": false,
+                          "allowRemoteAi": false,
+                          "driverVariableName": "driver",
+                          "backend": "mobile"
                         }
-                        """),
-                template("Replay Mobile Recording", "mobile_replay_recording",
-                        """
-                        {
-                          "recordingPath": "recordings/mobile-recording.json",
-                          "driverVariableName": "driver"
-                        }
-                        """));
+                        """,
+                        "Replays a mobile recording against the active SHAFT mobile driver.",
+                        true));
     }
 
     static List<ToolTemplate> doctor() {
@@ -339,7 +316,7 @@ final class ToolTemplates {
                         """,
                         "Captures a viewport screenshot before risky manual actions.",
                         true),
-                template("Prepare Mobile Inspector Recording", "mobile_inspector_record_prepare",
+                template("Start Mobile Inspector Recording", "mobile_inspector_record_start",
                         """
                         {
                           "platformName": "Android",
@@ -359,9 +336,12 @@ final class ToolTemplates {
                           "androidAbi": "x86_64",
                           "androidRamMb": 2048,
                           "androidCores": 2,
-                          "provisionAndroidEmulator": false
+                          "provisionAndroidEmulator": false,
+                          "openInspector": false
                         }
-                        """),
+                        """,
+                        "Prepares and starts a wrapped Appium Inspector recording session in one call.",
+                        true),
                 template("Inspector Status", "mobile_inspector_record_status", "{}"),
                 template("Get Accessibility Tree", "mobile_get_accessibility_tree",
                         """
@@ -387,31 +367,15 @@ final class ToolTemplates {
                         """,
                         "Switches native, hybrid, or mobile web Appium context.",
                         true),
-                template("Take Mobile Screenshot", "mobile_take_screenshot",
+                template("Take Mobile Screenshot", "browser_take_screenshot",
                         """
                         {
                           "outputPath": "target/shaft-mobile/screenshot.png",
                           "includeBase64": false
                         }
                         """,
-                        "Writes mobile screenshot evidence without inline base64 by default.",
-                        true),
-                template("Playwright Get Page DOM", "playwright_browser_get_page_dom",
-                        """
-                        {
-                          "maxCharacters": 12000
-                        }
-                        """,
-                        "Returns Playwright DOM with bounded size for locator discovery.",
-                        false),
-                template("Playwright Take Screenshot", "playwright_browser_take_screenshot",
-                        """
-                        {
-                          "outputPath": "target/shaft-playwright/screenshot.png",
-                          "includeBase64": false
-                        }
-                        """,
-                        "Captures a Playwright viewport screenshot and writes evidence into workspace files.",
+                        "Writes mobile screenshot evidence without inline base64 by default"
+                                + " (dispatches to the active mobile engine).",
                         true));
     }
 

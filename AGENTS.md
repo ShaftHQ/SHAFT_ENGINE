@@ -10,7 +10,7 @@ Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure
 
 ## New Task Flow
 
-At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin/main`; reuse session -- sub-tasks are commits, unless file-dependent (merge first, branch+PR/issue). Before PR sync default, resolve conflicts, rerun checks; commit, push, 1 PR/session, `Closes #N`.
+At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin/main`; reuse session -- sub-tasks are commits, unless file-dependent (merge first, branch+PR/issue). Before PR sync default, resolve conflicts, rerun checks; commit, push, tracker+subtasks (work-github 3b).
 
 ## Working Rules
 

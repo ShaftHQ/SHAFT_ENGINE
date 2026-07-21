@@ -1,0 +1,630 @@
+{
+  "schemaVersion": "1.0-shaft-cli-snapshot",
+  "note": "Stop-gap cache for `shaft-cli tools --cached` (tracker #3866 T3/#3869). Assembled from shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json (names/mutation/sensitive/deprecated) and shaft-skills/references/shaft-mcp-tools.md (descriptions), both already regenerated to the frozen 89-tool catalog. Replace with a build-time copy of the canonical shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json once T2/#3868 lands it -- this file is not that canonical index and will not auto-update.",
+  "totalTools": 89,
+  "tools": [
+    {
+      "name": "autobot_local_agent_clients",
+      "description": "lists local SHAFT Autobot CLI clients that do not require SHAFT cloud API keys",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_local_agent_run",
+      "description": "routes Ask, Plan, or approved Agent requests to Codex, Claude Code, or Copilot CLI",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_provider_chat",
+      "description": "routes Ask or Plan requests to configured SHAFT cloud providers without source mutation",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_provider_status",
+      "description": "reports the configured SHAFT cloud provider, model, API-key presence (never the value), and structured-output support for the IntelliJ readiness view",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_accessibility_audit",
+      "description": "runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the violations found; never fails the call when violations exist; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_aria_snapshot",
+      "description": "captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one element when a locator is supplied; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_delete_cookies",
+      "description": "deletes a cookie by name, or every cookie when name is omitted; dispatches to the active engine; absorbs browser_delete_cookie/browser_delete_all_cookies",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_get_current_url",
+      "description": "gets current URL; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_get_page_dom",
+      "description": "returns bounded current-page DOM for locator inspection before element_*; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_get_title",
+      "description": "gets current page title; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_navigate",
+      "description": "opens a URL in the active engine's browser session; optional newWindow (default false) opens the URL in a new window instead of navigating the current one, absorbing playwright_browser_new_window's window-opening behavior on the Playwright engine",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_navigate_back",
+      "description": "navigates back to the previous page; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_navigate_forward",
+      "description": "navigates forward to the next page; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_network_requests",
+      "description": "lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that single transaction and populates its full detail (headers and a truncated, redacted response body preview), absorbing the former browser_network_request tool; requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork); not supported on the Playwright engine",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_open_intent",
+      "description": "opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user intent; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_refresh",
+      "description": "refreshes the current page; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_route",
+      "description": "registers a mock network route on the active browser session, matching by optional HTTP method and a URL glob (Playwright-style * and ?) or an exact URL, and returning the given status/body/headers instead of the real network response; returns a route id for reference (individual removal is not supported -- browser_unroute always clears every route)",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_set_window_size",
+      "description": "sets the browser window to a specific size; optional mode selects custom (default, uses width/height) | maximize | fullscreen, absorbing browser_maximize_window/browser_fullscreen_window; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_storage_state_load",
+      "description": "loads cookies, localStorage, and sessionStorage from a JSON file into the active browser session; navigate to the target origin first; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_storage_state_save",
+      "description": "saves the active browser session's cookies, localStorage, and sessionStorage to a JSON file; dispatches to the active engine",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_take_screenshot",
+      "description": "takes a PNG screenshot of the current browser viewport; dispatches to the active engine (web, mobile, or Playwright)",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_unroute",
+      "description": "clears registered browser mock routes for the active session; routeId is accepted for reference but every route is cleared because SHAFT's network interceptor does not support removing a single rule yet",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_generate",
+      "description": "generates, compiles, and returns copy-paste SHAFT.API code blocks from recorded API transactions",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_response_leaves",
+      "description": "returns classified response-body leaves (stable/volatile/sensitive) per transaction for a recorded session without generating any test source, for a pin-this-path picker; sensitive values are redacted",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_start",
+      "description": "starts SHAFT Capture with API network recording enabled; dispatches to the mobile loopback MITM proxy when a mobile engine is active OR mobilePlatform is explicitly given (the mobile proxy never requires a live Appium/WebDriver session), absorbing mobile_api_record_start (outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and ignored on WEB)",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_status",
+      "description": "returns SHAFT Capture session status including network transaction count and recent endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a standalone mobile API session (started with no active engine) is already running",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_stop",
+      "description": "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a standalone mobile API session (started with no active engine) is already running",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_transactions",
+      "description": "returns captured network transactions without bodies or sensitive headers; supports filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions when a mobile engine is active, or when a standalone mobile API session is already running (includeAssets/excludePattern are WEB-only there)",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_backend_comparison",
+      "description": "compares WebDriver and Playwright Capture code-block outputs without editing source",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_checkpoint",
+      "description": "records a USER_MARKER, ASSERTION, PAGE_TRANSITION, RECOVERY, FLOW_START, or FLOW_END checkpoint",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_code_blocks",
+      "description": "generates a Java full-class snippet plus agent guidance for repo-aware insertion from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_capture_code_blocks/mobile_recording_code_blocks)",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_codegen_features",
+      "description": "returns Playwright codegen features and how SHAFT Capture/MCP maps each feature",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_evidence_pack",
+      "description": "returns a local manifest of Capture source, report, review UI, screenshots, and checks",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_generate_replay",
+      "description": "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_capture_generate_replay/playwright_replay_recording/mobile_replay_recording)",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_pick_locator",
+      "description": "ranks caller-supplied locator candidates for a picked element and returns a copy-paste SHAFT.GUI.Locator snippet",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_record_at_target_code_blocks",
+      "description": "generates focused Capture snippets for insertion at an existing Java source anchor; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_record_at_target_code_blocks/mobile_record_at_target_code_blocks)",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_set_mode",
+      "description": "reads or toggles the active recorder's live authoring mode: record (default) or inspect",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_start",
+      "description": "starts a recording, dispatching to the active engine: WEB (or no active session) always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while it is active, element_* tools drive the recorded browser directly (no driver_initialize needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver (targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_status",
+      "description": "returns recorder status for the active engine: WEB (or no active session) returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status (when no session is active the warnings list persisted recordings that can be turned into code without a live session); PLAYWRIGHT/mobile return that engine's own recorder status; the union's engine field names which is populated",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_step_delete",
+      "description": "deletes a recorded step by its stable stepId from the active Playwright or mobile recording; returns an actionable error naming the active engine for a WEB CDP capture_start session, whose recording format has no step editor",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_step_reorder",
+      "description": "moves a recorded step up or down by its stable stepId (direction: up|down) within the active Playwright or mobile recording; returns an actionable error naming the active engine for a WEB CDP capture_start session, whose recording format has no step editor",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_stop",
+      "description": "stops the active recording for the active engine; after WEB reaches COMPLETED, show outputPath and generate replay-proven code by passing it as sessionPath to capture_generate_replay (or capture_code_blocks for a faster, unproven draft); the union's engine field names which recorder was stopped",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_target_candidates",
+      "description": "suggests existing Java Page Object or test targets for Capture record-at-target insertion",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_analyze_failed_allure",
+      "description": "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_analyze_trace",
+      "description": "analyzes a persisted SHAFT trace and returns deterministic Doctor remediation guidance",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_propose_healed_locator",
+      "description": "maps a verified SHAFT Heal report to one reviewable locator patch without editing source or publishing",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_suggest_fix",
+      "description": "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; optional backend (web|playwright, defaults to web) selects the generated snippets' engine, absorbing playwright_doctor_suggest_fix",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "driver_initialize",
+      "description": "launches browser, Playwright, or a mobile session; optional engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, optional nested mobileOptions carries native/web-emulation parameters, absorbing mobile_initialize_native/mobile_initialize_web_emulation",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "driver_quit",
+      "description": "closes whichever engine session (web, mobile, or Playwright) is currently active",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_clear",
+      "description": "clears text from an element; dispatches to the active engine and records the step when a mobile or Playwright recording is active",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_click",
+      "description": "clicks an element; optional mode selects single (default) | double | long; dispatches to the active engine and records the step when a mobile or Playwright recording is active",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_drag_and_drop",
+      "description": "drags and drops an element from source to a target locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine and records the step when a Playwright recording is active",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_hover",
+      "description": "hovers over an element; dispatches to the active engine and records the step when a Playwright recording is active",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_is_displayed",
+      "description": "checks if an element is displayed; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_is_enabled",
+      "description": "checks if an element is enabled; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_is_selected",
+      "description": "checks if an element is selected; dispatches to the active engine",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_type",
+      "description": "types text into an element; optional append (default false) appends instead of clearing first, optional clear (default true; false behaves like append=true) controls whether the field is cleared before typing; dispatches to the active engine and records the step when a mobile or Playwright recording is active",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "element_upload_file",
+      "description": "drops file to an element to upload; dispatches to the active engine and records the step when a Playwright recording is active",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "generate_test_report",
+      "description": "generates a test report for the current session",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "healer_run_failed_test",
+      "description": "reruns a failing SHAFT/Selenium test, analyzes fresh Allure evidence, and returns review-only fixes plus agent replay guidance; optional backend (web|playwright, defaults to web) selects the generated snippets' engine, absorbing playwright_healer_run_failed_test",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_activate_app",
+      "description": "activates an installed app by Android package or iOS bundle id",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_background_app",
+      "description": "sends the active mobile app to the background",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_get_accessibility_tree",
+      "description": "gets the current Appium native accessibility XML tree or mobile web source",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_get_contexts",
+      "description": "gets Appium contexts plus current native XML or web DOM source",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_hide_keyboard",
+      "description": "hides the native mobile keyboard",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_inspector_record_start",
+      "description": "prepares and starts a wrapped Appium Inspector recording session in one call, absorbing mobile_inspector_record_prepare",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_inspector_record_status",
+      "description": "returns the wrapped Appium Inspector recording status; optional action (pause|resume|checkpoint|stop|discard) performs that control first, absorbing mobile_inspector_record_control",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_inspector_record_stop",
+      "description": "stops a wrapped Appium Inspector recording and returns generated replay code",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_keyboard_key",
+      "description": "sends a native keyboard action such as DONE, SEARCH, GO, NEXT, or SEND",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_rotate",
+      "description": "rotates the mobile device to PORTRAIT or LANDSCAPE",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_swipe",
+      "description": "swipes on the mobile screen; dispatches on whichever optional params are supplied -- text (swipe to text) | locator+offsetX/offsetY (swipe by offset) | locator alone (swipe element into view, optional direction) | startX/startY/endX/endY (coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/mobile_swipe_element_into_view/mobile_swipe_text_into_view",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_switch_context",
+      "description": "switches Appium context, for example NATIVE_APP or WEBVIEW_*",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_tap_coordinates",
+      "description": "fallback-only: taps viewport coordinates only after locator-based element_click cannot be used",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_toolchain_status",
+      "description": "checks local Appium, Inspector, adb, emulator, and SDK tooling status with repair diagnostics",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_merge_shards",
+      "description": "merges N per-shard Allure/trace/doctor-intelligence blobs into one Allure result set plus a flaky-clustering speedboard HTML",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_coding_partner_diff",
+      "description": "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an existing Java target at a chosen method or textual anchor; never writes files",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_coding_partner_plan",
+      "description": "plans a repository-aware SHAFT IntelliJ coding-partner workflow using current source, selected text, existing page objects/tests, capture evidence, and verification guidance",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_guide_search",
+      "description": "searches the live official SHAFT user guide before writing SHAFT tests, page objects, locators, API, GUI, CLI, mobile, troubleshooting, or best-practice code",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_project_create",
+      "description": "creates a new SHAFT Maven project from the same examples and rules used by the guide generator",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_project_init_agents",
+      "description": "scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file into an existing test repo for a coding-agent loop (claude, codex, opencode, vscode), without overwriting files that already exist unless overwrite=true",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_project_upgrade",
+      "description": "runs the existing SHAFT modular project upgrader script against the current Java project",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "test_automation_scenarios",
+      "description": "returns SHAFT MCP usage scenarios, agent actions, design patterns, guardrails, and completion criteria for API, GUI, mobile, capture, Doctor, Heal, reporting, and CI work",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "test_code_guardrails_check",
+      "description": "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators, raw driver calls, headed setup, direct system properties, and obvious secrets",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "test_plan_explore",
+      "description": "crawls the active SHAFT browser session breadth-first from a URL, discovering forms, primary navigation actions, and same-origin links, and writes one deterministic Markdown test plan per discovered flow into specs/ (no AI calls)",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "trace_latest",
+      "description": "returns recent persisted SHAFT trace indexes from target/shaft-traces",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "trace_open_viewer",
+      "description": "resolves (extracting from the trace ZIP if needed) the offline SHAFT Trace Report HTML viewer for a persisted trace",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "trace_read",
+      "description": "returns redacted SHAFT trace JSON from a trace path with explicit output bounds",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "trace_summarize",
+      "description": "returns a deterministic summary of a persisted SHAFT trace without AI",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "verify_run_focused",
+      "description": "runs a guarded, tokenized Maven verification command (compile, test-compile, test, verify, package) headlessly inside the MCP workspace and returns a bounded pass/fail summary; release and deploy goals are rejected",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    }
+  ]
+}

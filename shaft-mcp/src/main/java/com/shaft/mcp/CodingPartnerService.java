@@ -322,13 +322,14 @@ public class CodingPartnerService {
         if ("Playwright".equals(backend)) {
             actions.add(action(
                     "Inspect current Playwright page DOM",
-                    "playwright_browser_get_page_dom",
+                    "browser_get_page_dom",
                     arguments("maxCharacters", 200_000),
                     true,
-                    "Use Playwright's current page snapshot before choosing locators."));
+                    "Use Playwright's current page snapshot before choosing locators (dispatches to the active"
+                            + " Playwright engine)."));
             actions.add(action(
                     "Generate Playwright capture code blocks",
-                    "playwright_capture_code_blocks",
+                    "capture_code_blocks",
                     playwrightCodeArguments(recommended),
                     true,
                     "Requires a completed recording path before code generation."));
@@ -341,7 +342,7 @@ public class CodingPartnerService {
                     "Prefer Appium accessibility IDs and resource IDs before coordinate fallback."));
             actions.add(action(
                     "Generate mobile target code blocks",
-                    "mobile_record_at_target_code_blocks",
+                    "capture_record_at_target_code_blocks",
                     mobileCodeArguments(recommended, recommendedSourcePath, recommendedAnchor),
                     true,
                     "Requires a completed mobile recording path before code generation."));
@@ -439,7 +440,7 @@ public class CodingPartnerService {
     private static String proofTool(String backend, String instruction) {
         String lower = text(instruction).toLowerCase(Locale.ROOT);
         if ("Playwright".equals(backend)) {
-            return "playwright_browser_get_page_dom";
+            return "browser_get_page_dom";
         }
         if ("Mobile".equals(backend)) {
             return "mobile_get_accessibility_tree";
@@ -535,7 +536,8 @@ public class CodingPartnerService {
                 "packageName", "tests.generated",
                 "className", "RecordedFlowTest",
                 "overwrite", false,
-                "driverVariableName", recommended == null ? "driver" : recommended.driverVariableName());
+                "driverVariableName", recommended == null ? "driver" : recommended.driverVariableName(),
+                "backend", "playwright");
     }
 
     private static Map<String, Object> mobileCodeArguments(
@@ -543,10 +545,11 @@ public class CodingPartnerService {
             String recommendedSourcePath,
             String recommendedAnchor) {
         return arguments(
-                "recordingPath", "",
+                "sessionPath", "",
                 "driverVariableName", recommended == null ? "driver" : recommended.driverVariableName(),
                 "targetSourcePath", text(recommendedSourcePath),
-                "insertAfter", text(recommendedAnchor));
+                "insertAfter", text(recommendedAnchor),
+                "backend", "mobile");
     }
 
     private static Map<String, Object> arguments(Object... entries) {

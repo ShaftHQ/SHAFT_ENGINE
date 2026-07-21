@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * The agent-performed codegen flow (capture_start_codegen, perform the described actions,
- * capture_stop, generate) requires element tools to drive the recorded browser: without the
- * bridge every element_* call failed with "No active browser session" during an active capture
- * session (issue #3429).
+ * The agent-performed codegen flow (capture_start, perform the described actions, capture_stop,
+ * generate) requires element tools to drive the recorded browser: without the bridge every
+ * element_* call failed with "No active browser session" during an active capture session
+ * (issue #3429).
  */
 class EngineServiceCaptureBridgeTest {
     @AfterEach
@@ -36,7 +36,7 @@ class EngineServiceCaptureBridgeTest {
         IllegalStateException failure = assertThrows(IllegalStateException.class, EngineService::getDriver);
 
         assertTrue(failure.getMessage().contains("driver_initialize"), failure.getMessage());
-        assertTrue(failure.getMessage().contains("capture_start_codegen"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("capture_start"), failure.getMessage());
     }
 
     @Test
