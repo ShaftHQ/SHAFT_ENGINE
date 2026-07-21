@@ -5688,7 +5688,12 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals("capture_start", playwright.toolName()),
                 () -> assertTrue(playwright.arguments().has("outputPath")),
-                () -> assertTrue(playwright.arguments().has("includeSensitiveValues")),
+                // Issue #3912: mode/includeSensitiveValues are stale pre-#3881 capture_start
+                // arguments (absorbed into sessionGoal / dropped) -- the live-served schema rejects
+                // them outright, and this assertion previously encoded the stale contract.
+                () -> assertTrue(playwright.arguments().has("sessionGoal")),
+                () -> assertFalse(playwright.arguments().has("mode")),
+                () -> assertFalse(playwright.arguments().has("includeSensitiveValues")),
                 () -> assertFalse(playwright.arguments().has("targetUrl")));
     }
 
