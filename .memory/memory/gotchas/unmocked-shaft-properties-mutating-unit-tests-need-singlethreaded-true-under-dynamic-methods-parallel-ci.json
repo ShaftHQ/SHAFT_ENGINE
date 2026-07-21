@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci.md",
+  "content_hash": "sha256:4edc710d1a3ff81a68f7ac8e0fb1e59ba35e1b284b0124ed6e88066069a66099",
+  "created_at": "2026-07-21T16:34:05+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "E2E stabilization tracker #3926 S3: Firefox grid session instability"
+  },
+  "status": "active",
+  "tags": [
+    "testng",
+    "parallel",
+    "single-threaded",
+    "shaft-properties",
+    "lambdatest",
+    "grid",
+    "flaky-test"
+  ],
+  "title": "Unmocked SHAFT.Properties-mutating unit tests need singleThreaded=true under DYNAMIC/METHODS parallel CI",
+  "type": "gotcha",
+  "updated_at": "2026-07-21T16:34:05+03:00"
+}
