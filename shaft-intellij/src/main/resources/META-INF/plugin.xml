@@ -62,6 +62,23 @@
                     description="Open the SHAFT tool window"
                     icon="/icons/shaftToolWindow.svg"
                     iconDark="/icons/shaftToolWindow_dark.svg"/>
+            <!-- Additive, opt-in raw-CLI terminal entry points (issue #3959): a real interactive
+                 PTY session running the official agent CLI, alongside the guided Assistant chat,
+                 never a replacement of it. Reuse ShaftTerminalCommands's reflection-based Terminal
+                 plugin detection, so these degrade gracefully (a notification instead of a crash)
+                 when that optional plugin is missing or disabled. -->
+            <action id="Shaft.OpenClaudeCodeTerminal"
+                    class="com.shaft.intellij.actions.OpenClaudeCodeTerminalAction"
+                    text="Open Claude Code Terminal"
+                    description="Open a real interactive terminal running the Claude Code CLI (advanced, alongside the guided Assistant chat)"
+                    icon="/icons/actions/view.svg"
+                    iconDark="/icons/actions/view_dark.svg"/>
+            <action id="Shaft.OpenCodexTerminal"
+                    class="com.shaft.intellij.actions.OpenCodexTerminalAction"
+                    text="Open Codex Terminal"
+                    description="Open a real interactive terminal running the Codex CLI (advanced, alongside the guided Assistant chat)"
+                    icon="/icons/actions/view.svg"
+                    iconDark="/icons/actions/view_dark.svg"/>
         </group>
     </actions>
 </idea-plugin>
