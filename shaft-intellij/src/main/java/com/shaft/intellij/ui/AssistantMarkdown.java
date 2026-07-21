@@ -156,6 +156,35 @@ final class AssistantMarkdown {
     }
 
     /**
+     * Unwraps a {@code capture_status}/{@code capture_api_status} union response ({@code
+     * McpCaptureUnionStatus}/{@code McpCaptureApiUnionStatus}, design doc amendment A3, landed by
+     * #3881) down to whichever of {@code webStatus}/{@code playwrightStatus}/{@code mobileStatus}
+     * the active engine populated -- mirrors {@code GuidedWorkflowLiveE2ETest}'s {@code
+     * webStatus()}/{@code mobileStatus()} helpers, which confirmed this wire shape against a live
+     * server (issue #3949): {@code state}/{@code active}/{@code actionCount}/{@code outputPath} live
+     * on that nested section, not at the union's top level. The union guarantees exactly one section
+     * is populated, so returning the first populated section is equivalent to dispatching on the
+     * union's {@code engine} field. A payload with none of these keys (already unwrapped, or a
+     * non-union shape) is returned unchanged. Shared by {@code GuidedWorkflowPanel} and {@code
+     * ShaftAssistantPanel} -- both poll the same union-shaped capture status tools (issue #3955).
+     *
+     * @param status the raw parsed tool output, or null
+     * @return the unwrapped engine-specific status section, or {@code status} itself when it has no
+     *         union section to unwrap
+     */
+    static JsonObject unwrapCaptureStatus(JsonObject status) {
+        if (status == null) {
+            return null;
+        }
+        for (String section : new String[]{"webStatus", "playwrightStatus", "mobileStatus"}) {
+            if (status.has(section) && status.get(section).isJsonObject()) {
+                return status.getAsJsonObject(section);
+            }
+        }
+        return status;
+    }
+
+    /**
      * Unwraps an MCP {@code content[].text} envelope down to the tool's own JSON result and returns
      * it as a JSON array, for tools whose return type serializes as a bare array (for example a
      * {@code List<...>}) rather than an object -- {@link #jsonObjectFromMcpOutput} always returns
