@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EngineServiceRuntimePathTest {
@@ -95,5 +96,21 @@ class EngineServiceRuntimePathTest {
                 System.getProperty("servicesFolderPath"));
         assertTrue(Files.isDirectory(absoluteResults));
         assertTrue(Files.isDirectory(absoluteServices));
+    }
+
+    @Test
+    void configureRuntimePathsWrapsIoExceptionWhenAPathPropertyCollidesWithARegularFile() throws Exception {
+        Path runtimeRoot = temp.resolve("runtime-root");
+        // "downloads" must resolve to a directory, but a same-named regular file already occupies
+        // that path -- Files.createDirectories() then fails with FileAlreadyExistsException, which
+        // configureRuntimePaths wraps into an IllegalStateException naming the offending property.
+        Files.createDirectories(runtimeRoot);
+        Files.writeString(runtimeRoot.resolve("downloads"), "not a directory");
+        System.setProperty("downloadsFolderPath", "downloads");
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> EngineService.configureRuntimePaths(runtimeRoot));
+
+        assertTrue(failure.getMessage().contains("downloadsFolderPath"), failure.getMessage());
     }
 }

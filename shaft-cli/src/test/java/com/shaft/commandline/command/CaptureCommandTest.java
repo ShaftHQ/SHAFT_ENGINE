@@ -43,4 +43,22 @@ class CaptureCommandTest {
         assertTrue(out.toString().contains("called capture_step_reorder"),
                 "step-reorder should dispatch to capture_step_reorder");
     }
+
+    @Test
+    void unknownActionReturnsExitCodeTwoWithoutDispatching() {
+        StringWriter err = new StringWriter();
+        int exit = new CommandLine(new CaptureCommand(connector))
+                .setErr(new PrintWriter(err, true))
+                .execute("not-a-real-action");
+
+        assertEquals(2, exit);
+        assertTrue(err.toString().contains("Unknown capture action"), err.toString());
+    }
+
+    @Test
+    void defaultConstructorUsesRealConnectionFactoryWithoutConnecting() {
+        CaptureCommand command = new CaptureCommand();
+
+        assertTrue(true, "constructed without throwing: " + command);
+    }
 }

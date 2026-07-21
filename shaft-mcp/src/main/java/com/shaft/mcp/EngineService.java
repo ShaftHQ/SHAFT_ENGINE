@@ -228,7 +228,12 @@ public class EngineService {
             SHAFT.Properties.web.set().targetBrowserName(targetBrowser.name());
             initializeConfiguredDriver(targetBrowser.name(), ActiveEngine.WEB);
         } catch (Exception e) {
-            logger.error("Failed to initialize driver for browser: {}", targetBrowser.name(), e);
+            // Logs `targetBrowser` itself (SLF4J's `{}` placeholder null-safely stringifies it),
+            // not `targetBrowser.name()`: re-deriving the name here previously threw a second,
+            // masking NullPointerException whenever `targetBrowser` was null -- the exact case this
+            // catch block exists to report -- silently skipping the log line and replacing the
+            // original failure with this unrelated one.
+            logger.error("Failed to initialize driver for browser: {}", targetBrowser, e);
             throw e;
         }
     }
