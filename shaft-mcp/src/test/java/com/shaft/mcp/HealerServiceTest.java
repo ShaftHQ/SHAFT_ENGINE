@@ -238,6 +238,330 @@ class HealerServiceTest {
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("timed out")));
     }
 
+    @Test
+    void rejectsRepositoryRootAsFile(@TempDir Path tempDir) throws Exception {
+        Path file = Files.createFile(tempDir.resolve("fake-repo"));
+        HealerService service = service();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(file.toString(), List.of("mvn", "test"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void usesDefaultOutputDirectoryWhenBlank(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        HealerService service = service(tempDir, 1, "failed", "TimeoutException: still waiting");
+
+        McpHealerRunResult result = service.runFailedTest(repository.toString(), List.of("mvn", "test"),
+                "", 1, false, false, List.of(), false, false, false, false, "driver", null);
+
+        Path expectedReport = tempDir.toRealPath().resolve("target/shaft-healer/attempt-1/doctor-report.json");
+        assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());
+        assertEquals(expectedReport.toString(), result.analysis().jsonReportPath());
+    }
+
+    @Test
+    void usesDefaultOutputDirectoryWhenNull(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        HealerService service = service(tempDir, 1, "failed", "TimeoutException: still waiting");
+
+        McpHealerRunResult result = service.runFailedTest(repository.toString(), List.of("mvn", "test"),
+                null, 1, false, false, List.of(), false, false, false, false, "driver", null);
+
+        Path expectedReport = tempDir.toRealPath().resolve("target/shaft-healer/attempt-1/doctor-report.json");
+        assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());
+        assertEquals(expectedReport.toString(), result.analysis().jsonReportPath());
+    }
+
+    @Test
+    void verifyFocusedUsesWorkspaceRootWhenBlank(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
+                (command, directory, timeout) -> new HealerService.ProcessResult(0, false, "ok"));
+
+        McpVerificationResult result = service.verifyFocused("", List.of("mvn", "test-compile"), false);
+
+        assertEquals("PASSED", result.status());
+    }
+
+    @Test
+    void verifyFocusedUsesWorkspaceRootWhenNull(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
+                (command, directory, timeout) -> new HealerService.ProcessResult(0, false, "ok"));
+
+        McpVerificationResult result = service.verifyFocused(null, List.of("mvn", "test-compile"), false);
+
+        assertEquals("PASSED", result.status());
+    }
+
+    @Test
+    void rejectsEmptyCommand() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of(),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsNullCommand() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), null,
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsNonMavenExecutable() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("gradle", "test"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsAbsolutePathMavenExecutable() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        // Absolute Maven paths (not wrapper) are rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("/usr/bin/mvn", "test"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsLongArguments() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+        String longArg = "x".repeat(2001);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", longArg),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsNullArgumentInCommand() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        // Null in command list causes NPE in validationCommand when accessing string methods
+        assertThrows(Exception.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", null),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsBlankArgument() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "   "),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsMavenFileSettingsOption() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-s", "settings.xml"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsMavenGlobalSettingsOption() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-gs", "settings.xml"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsMavenToolchainsOption() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-t", "toolchains.xml"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsMavenExtensionClassPathOption() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-Dmaven.ext.class.path=/ext"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsMavenMultiModuleProjectDirectoryOption() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-Dmaven.multiModuleProjectDirectory=/root"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsReleaseProfile() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-Prelease"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsDeployGoal() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "deploy"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsReleaseGoal() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "release:perform"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsScmGoal() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "scm:commit"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsVersionsGoal() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "versions:set"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsHeadlessExecutionNotTrue() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-DheadlessExecution=false"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsUnknownMavenGoal() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "unknown:goal"),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void rejectsParentTraversalInProjectSelection() throws Exception {
+        HealerService service = service();
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.runFailedTest(repository.toString(), List.of("mvn", "test", "-pl", ".."),
+                        "", 1, false, false, List.of(), false, false, false, false, "driver", null));
+    }
+
+    @Test
+    void acceptsProfileArgumentValue(@TempDir Path tempDir) throws Exception {
+        // "-p" takes a profile-name value (previousOptionTakesValue); "myprofile" must NOT be
+        // rejected as an unknown/unallowlisted Maven goal just because it doesn't start with "-".
+        // Uses a real SHAFT-project fixture (not a bare directory) so command/path validation is
+        // the only thing under test -- a bare directory would short-circuit at the earlier
+        // non-SHAFT-project guardrail (a normal GUARDRAIL_STOPPED result, not a validation failure).
+        Path repository = fakeRepository(tempDir);
+        java.util.concurrent.atomic.AtomicReference<List<String>> capturedCommand = new java.util.concurrent.atomic.AtomicReference<>();
+        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
+                (command, directory, timeout) -> {
+                    capturedCommand.set(command);
+                    return new HealerService.ProcessResult(0, false, "no allure evidence");
+                });
+
+        McpHealerRunResult result = service.runFailedTest(
+                repository.toString(), List.of("mvn", "test", "-p", "myprofile"),
+                tempDir.resolve("target/healer").toString(),
+                1, false, false, List.of(), false, false, false, false, "driver", null);
+
+        assertEquals(McpHealerRunResult.Status.GUARDRAIL_STOPPED, result.status());
+        assertTrue(capturedCommand.get().contains("-p"), capturedCommand.get().toString());
+        assertTrue(capturedCommand.get().contains("myprofile"), capturedCommand.get().toString());
+    }
+
+    @Test
+    void addsMissingHeadlessExecutionForTestGoals(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        var capturedCommand = new Object() { List<String> cmd; };
+        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
+                (command, directory, timeout) -> {
+                    capturedCommand.cmd = command;
+                    writeAllure(directory, "passed", "");
+                    return new HealerService.ProcessResult(0, false, "");
+                });
+
+        service.runFailedTest(repository.toString(), List.of("mvn", "test"),
+                tempDir.resolve("target/healer").toString(), 1, false, false, List.of(),
+                false, false, false, false, "driver", null);
+
+        assertTrue(capturedCommand.cmd.contains("-DheadlessExecution=true"),
+                "Headless flag should be added for test goal");
+    }
+
+    @Test
+    void addsOfflineModeWhenNetworkNotApproved(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        var capturedCommand = new Object() { List<String> cmd; };
+        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
+                (command, directory, timeout) -> {
+                    capturedCommand.cmd = command;
+                    writeAllure(directory, "passed", "");
+                    return new HealerService.ProcessResult(0, false, "");
+                });
+
+        service.runFailedTest(repository.toString(), List.of("mvn", "test"),
+                tempDir.resolve("target/healer").toString(), 1, false, false, List.of(),
+                false, false, false, false, "driver", null);
+
+        assertTrue(capturedCommand.cmd.contains("--offline"),
+                "Offline flag should be added when network not approved");
+    }
+
     private HealerService service() {
         return new HealerService(McpWorkspacePolicy.of(temp));
     }

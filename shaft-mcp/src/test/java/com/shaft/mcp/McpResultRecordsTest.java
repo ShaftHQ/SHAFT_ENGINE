@@ -99,6 +99,24 @@ class McpResultRecordsTest {
     }
 
     @Test
+    void captureUnionStatusNormalizesNullEngineToWebButKeepsExplicitEngine() {
+        McpCaptureUnionStatus defaulted = new McpCaptureUnionStatus(null, null, null, null);
+        McpCaptureUnionStatus explicit = new McpCaptureUnionStatus(ActiveEngine.PLAYWRIGHT, null, null, null);
+
+        assertEquals(ActiveEngine.WEB, defaulted.engine());
+        assertEquals(ActiveEngine.PLAYWRIGHT, explicit.engine());
+    }
+
+    @Test
+    void captureApiUnionStatusNormalizesNullEngineToWebButKeepsExplicitEngine() {
+        McpCaptureApiUnionStatus defaulted = new McpCaptureApiUnionStatus(null, null, null);
+        McpCaptureApiUnionStatus explicit = new McpCaptureApiUnionStatus(ActiveEngine.MOBILE_NATIVE, null, null);
+
+        assertEquals(ActiveEngine.WEB, defaulted.engine());
+        assertEquals(ActiveEngine.MOBILE_NATIVE, explicit.engine());
+    }
+
+    @Test
     void workspacePolicyResolvesOutputsListsAndSourceAllowlist() throws Exception {
         Path root = Files.createDirectories(temp.resolve("workspace"));
         Path repository = Files.createDirectories(root.resolve("repo"));

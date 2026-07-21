@@ -229,6 +229,47 @@ class ShaftMcpApplicationTests {
         assertTrue(argsFileContent.contains(com.shaft.capture.cli.CaptureCli.class.getName()));
     }
 
+    /**
+     * When the current process was itself launched with {@code -jar some.jar}, the relaunch prefix
+     * reuses that exact jar instead of falling through to the classpath-based branches -- this is
+     * the branch a real {@code -jar}-launched JVM (a packaged shaft-mcp release) takes, which
+     * {@link #captureLaunchPrefixBuildsRunnableCaptureCommand} cannot reliably exercise since
+     * {@code ProcessHandle.info().arguments()} often comes back empty on this OS/JDK.
+     */
+    @Test
+    void captureLaunchPrefixReusesTheDashJarArgumentWhenThisProcessWasJarLaunched() throws Exception {
+        Method method = ShaftMcpApplication.class.getDeclaredMethod(
+                "captureLaunchPrefix", String[].class, String.class);
+        method.setAccessible(true);
+
+        String[] processArguments = {"-Xmx512m", "-jar", "shaft-mcp-launcher.jar", "--server"};
+
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) method.invoke(null, processArguments, "ignored-classpath.jar");
+
+        assertEquals(List.of(prefix.get(0), "-jar", "shaft-mcp-launcher.jar", "capture"), prefix);
+    }
+
+    /**
+     * When this JVM's own classpath is a single {@code .jar} file (the shape Surefire's
+     * manifest-only booter jar can also produce), the relaunch prefix reuses that jar directly
+     * instead of falling through to the {@code @argfile} branch.
+     */
+    @Test
+    void captureLaunchPrefixReusesASingleJarClasspathEntry(@org.junit.jupiter.api.io.TempDir Path tempDir)
+            throws Exception {
+        Method method = ShaftMcpApplication.class.getDeclaredMethod(
+                "captureLaunchPrefix", String[].class, String.class);
+        method.setAccessible(true);
+
+        Path jar = Files.createFile(tempDir.resolve("single-entry.jar"));
+
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) method.invoke(null, new String[0], jar.toString());
+
+        assertEquals(List.of(prefix.get(0), "-jar", jar.toString(), "capture"), prefix);
+    }
+
     @Test
     void absoluteClassPathNormalizesRelativeEntries() throws Exception {
         Method method = ShaftMcpApplication.class.getDeclaredMethod("absoluteClassPath", String.class);

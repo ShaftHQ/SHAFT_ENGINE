@@ -73,6 +73,28 @@ class McpDoctorRemediationServiceTest {
         assertTrue(blocks.stream().noneMatch(block -> block.id().startsWith("fix-prompt-")), blocks.toString());
     }
 
+    @Test
+    void twoArgDeterministicBlocksOverloadDefaultsToWebdriverBackend() {
+        Diagnosis diagnosis = diagnosis(List.of(rankedCause(CauseCategory.LOCATOR, 88, "Locator fix prompt body.")));
+
+        List<McpCodeBlock> viaTwoArgOverload = service.deterministicBlocks(diagnosis, "driver");
+        List<McpCodeBlock> viaExplicitWebdriver =
+                service.deterministicBlocks(diagnosis, "driver", CodegenBackend.WEBDRIVER);
+
+        assertEquals(viaExplicitWebdriver, viaTwoArgOverload);
+    }
+
+    @Test
+    void nullBackendDefaultsToWebdriverInTheThreeArgOverload() {
+        Diagnosis diagnosis = diagnosis(List.of(rankedCause(CauseCategory.LOCATOR, 88, "Locator fix prompt body.")));
+
+        List<McpCodeBlock> viaNullBackend = service.deterministicBlocks(diagnosis, "driver", null);
+        List<McpCodeBlock> viaExplicitWebdriver =
+                service.deterministicBlocks(diagnosis, "driver", CodegenBackend.WEBDRIVER);
+
+        assertEquals(viaExplicitWebdriver, viaNullBackend);
+    }
+
     private static RankedCause rankedCause(CauseCategory category, int trust, String fixPrompt) {
         return new RankedCause(
                 category,
