@@ -472,8 +472,23 @@ final class AssistantCommand {
         if (fromIndex.isEmpty()) {
             return builtin;
         }
-        Set<String> merged = new LinkedHashSet<>(builtin);
-        merged.addAll(fromIndex);
+        // Dedup on the trimmed value, not the raw string: several builtin phrases carry a
+        // deliberate trailing space as a word-boundary marker for matchesWholeWordPrefix/
+        // startsWithAny (for example "find reuse for "), and the curated overlay carries the same
+        // phrase WITHOUT it. A raw-string LinkedHashSet dedup let both survive as distinct entries,
+        // and the boundary-less overlay copy then matched unrelated text via plain String.startsWith
+        // (PR #3882 review: "find reuse format issues in this class" misrouted to
+        // shaft_coding_partner_plan). The builtin, with its boundary semantics, always wins.
+        List<String> merged = new ArrayList<>(builtin);
+        Set<String> trimmedSeen = new LinkedHashSet<>();
+        for (String keyword : builtin) {
+            trimmedSeen.add(keyword.trim());
+        }
+        for (String candidate : fromIndex) {
+            if (trimmedSeen.add(candidate.trim())) {
+                merged.add(candidate);
+            }
+        }
         return List.copyOf(merged);
     }
 
@@ -2128,7 +2143,14 @@ final class AssistantCommand {
         if (!normalized.startsWith("record ")) {
             return false;
         }
-        return containsAny(normalized, keywordsFor("capture_start", INTENT_KEYWORDS.get("capture_start")));
+        // Deliberately the raw builtin list here, NOT keywordsFor's index-merged one: the curated
+        // overlay for capture_start adds bare phrases ("start recording", "start a recording",
+        // "start recorder", "start capture") that isStartRecording/isRecordScenarioIntent already
+        // match deterministically as whole standalone commands. Feeding them into this containsAny
+        // check would let a "record ..." prompt that merely *contains* one of those phrases later on
+        // newly match (PR #3882 review), a reachable behavior change this drift-proofing merge must
+        // not introduce.
+        return containsAny(normalized, INTENT_KEYWORDS.get("capture_start"));
     }
 
     /**
