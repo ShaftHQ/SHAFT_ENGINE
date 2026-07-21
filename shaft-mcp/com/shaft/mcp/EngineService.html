@@ -179,7 +179,8 @@ Java callers and tests that construct this class without Spring.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="driver_initialize",
       description="launches browser, Playwright, or a mobile session; optional engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, optional nested mobileOptions carries native/web-emulation parameters, absorbing mobile_initialize_native/mobile_initialize_web_emulation")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">initializeDriver</span><wbr><span class="parameters">(<a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser,
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">initializeDriver</span><wbr><span class="parameters">(@ToolParam(required=false,description="browser to launch on the WEB engine; blank/omitted defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE engines resolve their own default independently")
+ <a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser,
  @ToolParam(required=false)
  <a href="ActiveEngine.html" title="enum class in com.shaft.mcp">ActiveEngine</a>&nbsp;engine,
  @ToolParam(required=false)
