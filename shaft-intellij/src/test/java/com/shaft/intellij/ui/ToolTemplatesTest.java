@@ -186,7 +186,7 @@ class ToolTemplatesTest {
                       "contexts": ["browser", "browser-action"]
                     },
                     {
-                      "name": "mobile_tap",
+                      "name": "element_click",
                       "description": "Tap an element in a mobile app",
                       "context": "mobile,mobile-element-touch-action"
                     },
@@ -206,7 +206,7 @@ class ToolTemplatesTest {
 
         assertEquals(Set.of("all", "browser", "browser-action"), indexed.get("browser_take_screenshot").contextTypes());
         assertEquals(Set.of("all", "mobile", "mobile-element-touch-action"),
-                indexed.get("mobile_tap").contextTypes());
+                indexed.get("element_click").contextTypes());
         assertEquals(Set.of("all", "assistant", "diagnostics"), indexed.get("assist_only_tool").contextTypes());
     }
 
