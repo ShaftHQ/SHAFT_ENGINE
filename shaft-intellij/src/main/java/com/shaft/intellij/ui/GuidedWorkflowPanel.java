@@ -786,16 +786,19 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
 
     private JsonObject codeBlocksArguments() {
         JsonObject arguments = new JsonObject();
-        if (mobile() || playwright()) {
-            arguments.addProperty("recordingPath", sessionPath.getText().trim());
-            arguments.addProperty("driverVariableName", "driver");
-        } else {
-            arguments.addProperty("sessionPath", sessionPath.getText().trim());
-            arguments.addProperty("outputDirectory", ".");
-            arguments.addProperty("packageName", "tests.generated");
-            arguments.addProperty("className", "GeneratedShaftTest");
-            arguments.addProperty("overwrite", false);
-            arguments.addProperty("driverVariableName", "driver");
+        arguments.addProperty("sessionPath", sessionPath.getText().trim());
+        arguments.addProperty("outputDirectory", ".");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "GeneratedShaftTest");
+        arguments.addProperty("overwrite", false);
+        arguments.addProperty("driverVariableName", "driver");
+        // Issue #3916: the unified capture_code_blocks tool (post-#3881) has no recordingPath
+        // argument and rejects unknown properties -- mobile/Playwright must pass sessionPath plus
+        // an explicit backend rather than the retired flat recordingPath shape.
+        if (mobile()) {
+            arguments.addProperty("backend", "mobile");
+        } else if (playwright()) {
+            arguments.addProperty("backend", "playwright");
         }
         return arguments;
     }
