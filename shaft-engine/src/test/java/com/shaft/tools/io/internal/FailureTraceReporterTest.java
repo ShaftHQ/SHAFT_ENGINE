@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipFile;
 
+@Test(singleThreaded = true)
 public class FailureTraceReporterTest {
 
     @Test(description = "Failure mode should attach trace artifacts only for failed tests")

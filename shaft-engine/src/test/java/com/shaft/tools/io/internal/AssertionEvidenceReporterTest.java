@@ -200,8 +200,7 @@ public class AssertionEvidenceReporterTest {
 
         String html = AssertionEvidenceReporter.renderAccessibilityCard(false, baselineYaml, actualYaml);
 
-        Path outputFile = Path.of(System.getProperty("shaft.accessibilityEvidence.sampleOutput",
-                "C:\\Users\\Mohab\\AppData\\Local\\Temp\\claude\\C--Users-Mohab-IdeaProjects-SHAFT-ENGINE\\a0966654-661a-46d0-8c81-75ecf6570c15\\scratchpad\\accessibility-card-sample.html"));
+        Path outputFile = sampleOutputPath("shaft.accessibilityEvidence.sampleOutput", "accessibility-card-sample.html");
         Files.createDirectories(outputFile.getParent());
         Files.writeString(outputFile, html, StandardCharsets.UTF_8);
 
@@ -241,8 +240,7 @@ public class AssertionEvidenceReporterTest {
     public void writeSampleVisualCardForManualReview() throws Exception {
         String html = AssertionEvidenceReporter.renderVisualCard(false, 4821L, 500, 0.0231d, 0.01d);
 
-        Path outputFile = Path.of(System.getProperty("shaft.visualEvidence.sampleOutput",
-                "C:\\Users\\Mohab\\AppData\\Local\\Temp\\claude\\C--Users-Mohab-IdeaProjects-SHAFT-ENGINE\\a0966654-661a-46d0-8c81-75ecf6570c15\\scratchpad\\visual-card-sample.html"));
+        Path outputFile = sampleOutputPath("shaft.visualEvidence.sampleOutput", "visual-card-sample.html");
         Files.createDirectories(outputFile.getParent());
         Files.writeString(outputFile, html, StandardCharsets.UTF_8);
 
@@ -258,8 +256,7 @@ public class AssertionEvidenceReporterTest {
 
         String html = AssertionEvidenceReporter.renderCard("Assert", false, expectedJson, actualJson);
 
-        Path outputFile = Path.of(System.getProperty("shaft.assertionEvidence.sampleOutput",
-                "C:\\Users\\Mohab\\AppData\\Local\\Temp\\claude\\C--Users-Mohab-IdeaProjects-SHAFT-ENGINE\\f31b7827-7767-4eff-9dfa-7c3f79d2df84\\scratchpad\\assertion-card-sample.html"));
+        Path outputFile = sampleOutputPath("shaft.assertionEvidence.sampleOutput", "assertion-card-sample.html");
         Files.createDirectories(outputFile.getParent());
         Files.writeString(outputFile, html, StandardCharsets.UTF_8);
 
@@ -267,5 +264,16 @@ public class AssertionEvidenceReporterTest {
         Assert.assertTrue(html.contains("FAILED"), html);
         Assert.assertTrue(html.contains(">JSON<"), html);
         Assert.assertFalse(html.contains("abcdef123456"), html);
+    }
+
+    /**
+     * Default sample-output location is the JVM temp directory so these manual-review fixtures
+     * are portable across OSes (never a hardcoded developer-machine path). Overridable per-run
+     * via the given system property, e.g. for pointing a manual review at a specific folder.
+     */
+    private static Path sampleOutputPath(String systemProperty, String fileName) {
+        Path defaultPath = Path.of(System.getProperty("java.io.tmpdir"), "shaft-evidence-samples", fileName);
+        String override = System.getProperty(systemProperty);
+        return override != null ? Path.of(override) : defaultPath;
     }
 }

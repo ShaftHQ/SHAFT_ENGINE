@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
  * the {@code matchesScreenshot()} baseline auto-create-on-first-run, {@code -Dshaft.updateSnapshots} lifecycle,
  * and the per-browser/OS baseline naming scheme with legacy fallback.
  */
+@Test(singleThreaded = true)
 public class ImageProcessingActionsScreenshotBaselineUnitTest {
     private static final FileActions FILE_ACTIONS = FileActions.getInstance(true);
     private static final Path TEMP_ROOT = Path.of("target", "temp", "imageProcessingActionsScreenshotBaselineUnitTest");
