@@ -427,3 +427,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-mcp-external-e2e-tests-silently-skip-without-dincludemcpbrowsere2e-true","timestamp":"2026-07-21T08:35:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.worktree-isolated-agents-can-be-reclaimed-mid-task-while-still-actively-working-with-no-committed-diff","timestamp":"2026-07-21T15:20:32+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci","timestamp":"2026-07-21T16:34:05+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-keeps-two-separate-message-object-graphs-transcript-vs-chatstate-extend-both-or-they-silently-desync","timestamp":"2026-07-21T21:45:19+03:00"}
