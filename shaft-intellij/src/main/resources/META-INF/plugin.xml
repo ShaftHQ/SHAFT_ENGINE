@@ -79,6 +79,12 @@
                     description="Open a real interactive terminal running the Codex CLI (advanced, alongside the guided Assistant chat)"
                     icon="/icons/actions/view.svg"
                     iconDark="/icons/actions/view_dark.svg"/>
+            <action id="Shaft.OpenCopilotCliTerminal"
+                    class="com.shaft.intellij.actions.OpenCopilotCliTerminalAction"
+                    text="Open Copilot CLI Terminal"
+                    description="Open a real interactive terminal running the GitHub Copilot CLI (advanced, alongside the guided Assistant chat)"
+                    icon="/icons/actions/view.svg"
+                    iconDark="/icons/actions/view_dark.svg"/>
         </group>
     </actions>
 </idea-plugin>

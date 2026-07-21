@@ -10,9 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins that the two new raw-CLI terminal actions (issue #3959) are registered in the
- * {@code Shaft.ToolsMenu} group next to {@code Shaft.OpenToolWindow}, mirroring {@code
- * ShaftIconAssetsTest#pluginDescriptorRegistersSvgIconsAndRestartRequirement}'s plain-text
+ * Pins that the raw-CLI terminal actions (issue #3959, plus the Copilot CLI follow-up #3963) are
+ * registered in the {@code Shaft.ToolsMenu} group next to {@code Shaft.OpenToolWindow}, mirroring
+ * {@code ShaftIconAssetsTest#pluginDescriptorRegistersSvgIconsAndRestartRequirement}'s plain-text
  * descriptor assertions -- no live IDE bootstrap needed. Also pins that no new {@code
  * bundledPlugin(...)} Terminal dependency was introduced in {@code build.gradle.kts}: this
  * feature must stay on the same optional/reflection discipline {@code ShaftTerminalCommands}
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class CliTerminalActionsRegistrationTest {
     @Test
-    void pluginDescriptorRegistersBothCliTerminalActionsInTheToolsMenuGroup() throws IOException {
+    void pluginDescriptorRegistersAllCliTerminalActionsInTheToolsMenuGroup() throws IOException {
         String descriptor = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
 
         assertTrue(descriptor.contains("id=\"Shaft.ToolsMenu\""));
@@ -28,6 +28,8 @@ class CliTerminalActionsRegistrationTest {
                 "class=\"com.shaft.intellij.actions.OpenClaudeCodeTerminalAction\""));
         assertTrue(descriptor.contains(
                 "class=\"com.shaft.intellij.actions.OpenCodexTerminalAction\""));
+        assertTrue(descriptor.contains(
+                "class=\"com.shaft.intellij.actions.OpenCopilotCliTerminalAction\""));
     }
 
     @Test
