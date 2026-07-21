@@ -193,6 +193,14 @@ class AssistantCommandToolIndexRoutingTest {
                 || "autobot_provider_chat".equals(invocation.toolName()));
     }
 
+    // ---- Transcript-visible routing-decision labels (issue #3883(b)) ----
+
+    @Test
+    void explicitToolMentionTagsRoutedViaForTranscriptNarration() {
+        assertEquals("explicit tool mention", command("call element_click").routedVia());
+        assertEquals("explicit tool mention", command("browser_get_title").routedVia());
+    }
+
     // ---- Routing-accuracy suite (design doc Decision 5 last bullet): parameterized from the real
     // bundled index, not a hand-picked sample, across every surviving tool in the 89-tool catalog. ----
 

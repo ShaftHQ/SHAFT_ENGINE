@@ -653,6 +653,40 @@ class AssistantCommandRoutingTest {
     }
 
     @Test
+    void rawMcpCommandResolvesACuratedSlashAliasToItsCanonicalToolName() {
+        // Issue #3883(a): /mcp click resolves through the curated slashAlias overlay to
+        // element_click, same as typing the full tool name would.
+        AssistantCommand.Invocation aliased = command("/mcp click {\"locatorStrategy\":\"ID\",\"locatorValue\":\"go\"}");
+        AssistantCommand.Invocation aliasedNoArgs = command("/mcp init");
+        AssistantCommand.Invocation unaliased = command("/mcp element_hover");
+
+        assertAll(
+                () -> assertEquals("element_click", aliased.toolName()),
+                () -> assertEquals("go", aliased.arguments().get("locatorValue").getAsString()),
+                () -> assertEquals("slash alias: click", aliased.routedVia()),
+                () -> assertEquals("driver_initialize", aliasedNoArgs.toolName()),
+                () -> assertEquals("slash alias: init", aliasedNoArgs.routedVia()),
+                () -> assertEquals("element_hover", unaliased.toolName()),
+                () -> assertEquals("slash command", unaliased.routedVia(),
+                        "a plain tool name (no curated alias) is tagged with the generic slash-command label"));
+    }
+
+    // ---- Transcript-visible routing-decision labels (issue #3883(b)) ----
+
+    @Test
+    void slashCommandsTagRoutedViaAsSlashCommand() {
+        assertEquals("slash command", command("/guide locators").routedVia());
+        assertEquals("slash command", command("/doctor target/allure-results").routedVia());
+    }
+
+    @Test
+    void directIntentTagsRoutedViaWithTheMatchedIntentNameAndItsWeight() {
+        // isDoctorIntent -> WEIGHT_DOCTOR (30), a real NATURAL_INTENTS entry.
+        assertEquals("intent: doctor (weight 30)",
+                command("run doctor on target/allure-results").routedVia());
+    }
+
+    @Test
     void partnerCommandRoutesRepositoryIntentToCodingPartnerPlan() {
         AssistantCommand.Invocation slash = command(
                 "/partner Log in with valid credentials then verify account menu",

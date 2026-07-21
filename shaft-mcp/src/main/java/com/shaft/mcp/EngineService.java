@@ -205,6 +205,9 @@ public class EngineService {
             + "optional nested mobileOptions carries native/web-emulation parameters, absorbing "
             + "mobile_initialize_native/mobile_initialize_web_emulation")
     public void initializeDriver(
+            @ToolParam(required = false, description = "browser to launch on the WEB engine; blank/omitted "
+                    + "defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE "
+                    + "engines resolve their own default independently")
             BrowserType targetBrowser,
             @ToolParam(required = false) ActiveEngine engine,
             @ToolParam(required = false) McpMobileInitOptions mobileOptions) {
@@ -225,8 +228,7 @@ public class EngineService {
             return;
         }
         try {
-            SHAFT.Properties.web.set().targetBrowserName(targetBrowser.name());
-            initializeConfiguredDriver(targetBrowser.name(), ActiveEngine.WEB);
+            initializeConfiguredDriver(resolveBrowserName(targetBrowser), ActiveEngine.WEB);
         } catch (Exception e) {
             // Logs `targetBrowser` itself (SLF4J's `{}` placeholder null-safely stringifies it),
             // not `targetBrowser.name()`: re-deriving the name here previously threw a second,
@@ -236,6 +238,25 @@ public class EngineService {
             logger.error("Failed to initialize driver for browser: {}", targetBrowser, e);
             throw e;
         }
+    }
+
+    /**
+     * Resolves the WEB-engine browser name to launch. An explicit {@code targetBrowser} always wins
+     * and is written into {@code SHAFT.Properties.web}'s {@code targetBrowserName} so downstream
+     * engine bootstrap reads the same value; an omitted (null) {@code targetBrowser} defers entirely
+     * to the already-configured {@code targetBrowserName} property (design doc Decision 3: optional
+     * only because a deterministic default -- {@code @DefaultValue("chrome")} -- exists) instead of
+     * overwriting it.
+     *
+     * @param targetBrowser the requested browser, or {@code null} to use the configured default
+     * @return the browser name to launch
+     */
+    static String resolveBrowserName(BrowserType targetBrowser) {
+        if (targetBrowser == null) {
+            return SHAFT.Properties.web.targetBrowserName();
+        }
+        SHAFT.Properties.web.set().targetBrowserName(targetBrowser.name());
+        return targetBrowser.name();
     }
 
     /**

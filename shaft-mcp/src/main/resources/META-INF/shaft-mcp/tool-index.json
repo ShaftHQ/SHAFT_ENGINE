@@ -255,7 +255,7 @@
       "mutation": false,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "url",
       "cliCommand": null,
       "example": null
     },
@@ -287,7 +287,7 @@
       "mutation": false,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "title",
       "cliCommand": null,
       "example": {
         "request": {},
@@ -317,7 +317,7 @@
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "nav",
       "cliCommand": null,
       "example": {
         "request": {
@@ -597,7 +597,7 @@
       "mutation": true,
       "sensitive": true,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "screenshot",
       "cliCommand": null,
       "example": null
     },
@@ -1343,7 +1343,7 @@
         "start a webdriver recording",
         "record my browser actions"
       ],
-      "slashAlias": null,
+      "slashAlias": "start",
       "cliCommand": null,
       "example": {
         "request": {
@@ -1363,7 +1363,7 @@
       "mutation": false,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "status",
       "cliCommand": null,
       "example": {
         "request": {},
@@ -1433,7 +1433,7 @@
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "stop",
       "cliCommand": null,
       "example": {
         "request": {
@@ -1779,15 +1779,15 @@
         {
           "name": "targetBrowser",
           "type": "string",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "browser to launch on the WEB engine; blank/omitted defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE engines resolve their own default independently"
         }
       ],
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "init",
       "cliCommand": null,
       "example": {
         "request": {
@@ -1810,7 +1810,7 @@
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "quit",
       "cliCommand": null,
       "example": {
         "request": {},
@@ -1840,7 +1840,7 @@
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "clear",
       "cliCommand": null,
       "example": null
     },
@@ -1874,7 +1874,7 @@
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "click",
       "cliCommand": null,
       "example": {
         "request": {
@@ -2091,7 +2091,7 @@
       "mutation": true,
       "sensitive": true,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "type",
       "cliCommand": null,
       "example": {
         "request": {
@@ -2144,7 +2144,7 @@
       "mutation": true,
       "sensitive": false,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "report",
       "cliCommand": null,
       "example": null
     },
@@ -2248,7 +2248,7 @@
       "mutation": true,
       "sensitive": true,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "heal",
       "cliCommand": null,
       "example": {
         "request": {
@@ -3331,7 +3331,7 @@
       "mutation": true,
       "sensitive": true,
       "intentKeywords": [],
-      "slashAlias": null,
+      "slashAlias": "explore",
       "cliCommand": null,
       "example": {
         "request": {

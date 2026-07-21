@@ -3,10 +3,12 @@ package com.shaft.intellij.mcp;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -62,5 +64,40 @@ class ToolCatalogIndexTest {
         // Most of the 89-tool catalog has no curated intentKeywords overlay entries yet (only 8/89
         // are curated as of #3868/#3869) -- must degrade to an empty list, never null or an exception.
         assertEquals(List.of(), ToolCatalogIndex.intentKeywords("element_click"));
+    }
+
+    /**
+     * Covers issue #3883(a): {@code slashAlias}-driven {@code /mcp} autocomplete. The curated
+     * subset (tool-index-overlay.json) added by this task -- a real, observable sample, not a
+     * synthetic fixture.
+     */
+    @Test
+    void slashAliasesMapsCuratedAliasesToTheirCanonicalToolNames() {
+        Map<String, String> aliases = ToolCatalogIndex.slashAliases();
+
+        assertEquals("driver_initialize", aliases.get("init"));
+        assertEquals("driver_quit", aliases.get("quit"));
+        assertEquals("browser_navigate", aliases.get("nav"));
+        assertEquals("browser_take_screenshot", aliases.get("screenshot"));
+        assertEquals("capture_start", aliases.get("start"));
+        assertEquals("capture_stop", aliases.get("stop"));
+        assertEquals("element_click", aliases.get("click"));
+        assertEquals("element_type", aliases.get("type"));
+        assertEquals("generate_test_report", aliases.get("report"));
+        assertEquals("healer_run_failed_test", aliases.get("heal"));
+        assertEquals("test_plan_explore", aliases.get("explore"));
+        assertEquals(15, aliases.size(), aliases.toString());
+    }
+
+    @Test
+    void slashAliasesOmitsToolsWithNoCuratedAliasYet() {
+        // element_hover has no curated slashAlias overlay entry -- its tool name must never appear
+        // as a slashAliases() value.
+        assertFalse(ToolCatalogIndex.slashAliases().containsValue("element_hover"));
+    }
+
+    @Test
+    void toolNameForAliasReturnsNullForAnUnknownAlias() {
+        assertNull(ToolCatalogIndex.slashAliases().get("not_a_real_alias_xyz"));
     }
 }

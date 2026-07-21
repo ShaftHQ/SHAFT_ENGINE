@@ -423,3 +423,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit","timestamp":"2026-07-21T06:13:44+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all","timestamp":"2026-07-21T06:13:44+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-cli-pom-argline-clobbers-root-jacoco-prepare-agent-mvn-pl-shaft-cli-test-silently-produces-no-jacoco-exec","timestamp":"2026-07-21T06:13:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.generated-test-scaffolding-is-ignore-everywhere-shaft-engine-jar-ships-the-service-registrations","timestamp":"2026-07-21T07:37:49+03:00"}

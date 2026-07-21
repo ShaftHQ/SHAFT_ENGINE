@@ -40,8 +40,6 @@ public final class McpAppiumLocatorSuggester {
     };
     private static final List<String> XPATH_ATTRIBUTES = List.of(
             "name", "content-desc", "id", "resource-id", "accessibility-id", "label", "text", "value");
-    private static final List<String> ACCESSIBLE_NAME_ATTRIBUTES = List.of(
-            "name", "content-desc", "text", "label", "resource-id");
 
     private final Document document;
 
@@ -79,26 +77,6 @@ public final class McpAppiumLocatorSuggester {
                 .filter(element -> bounds(element).map(rectangle -> rectangle.contains(x, y)).orElse(false))
                 .min(Comparator.comparingInt(element -> bounds(element).map(Rectangle::area).orElse(Integer.MAX_VALUE)))
                 .flatMap(this::bestLocator);
-    }
-
-    public Optional<LocatorSuggestion> locatorByAccessibleName(String accessibleName) {
-        if (accessibleName == null || accessibleName.isBlank()) {
-            return Optional.empty();
-        }
-        String targetName = accessibleName.trim();
-        return elements().stream()
-                .filter(element -> matchesAccessibleName(element, targetName))
-                .findFirst()
-                .flatMap(this::bestLocator);
-    }
-
-    private boolean matchesAccessibleName(Element element, String targetName) {
-        return ACCESSIBLE_NAME_ATTRIBUTES.stream().anyMatch(name -> matchesAttribute(element, name, targetName));
-    }
-
-    private boolean matchesAttribute(Element element, String attributeName, String targetName) {
-        String value = attribute(element, attributeName);
-        return !value.isBlank() && value.equalsIgnoreCase(targetName);
     }
 
     private Optional<LocatorSuggestion> bestLocator(Element element) {

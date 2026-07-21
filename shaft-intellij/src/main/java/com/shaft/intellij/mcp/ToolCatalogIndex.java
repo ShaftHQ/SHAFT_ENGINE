@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -56,6 +57,16 @@ public final class ToolCatalogIndex {
     }
 
     /**
+     * @return every curated {@code slashAlias} (lower-cased) mapped to its canonical tool name
+     *     (issue #3883(a)), or an empty map when the resource is missing/unreadable or no tool
+     *     carries a curated alias yet. A tool with no {@code slashAlias} overlay entry contributes
+     *     no mapping.
+     */
+    public static Map<String, String> slashAliases() {
+        return Holder.SLASH_ALIASES;
+    }
+
+    /**
      * Initialization-on-demand holder: the JSON resource is read only when a caller first touches
      * {@link #toolNames()} or {@link #intentKeywords(String)}, not when {@link ToolCatalogIndex}
      * itself is loaded.
@@ -63,16 +74,19 @@ public final class ToolCatalogIndex {
     private static final class Holder {
         private static final Set<String> TOOL_NAMES;
         private static final Map<String, List<String>> INTENT_KEYWORDS;
+        private static final Map<String, String> SLASH_ALIASES;
 
         static {
             Set<String> names = new LinkedHashSet<>();
             Map<String, List<String>> keywords = new LinkedHashMap<>();
-            parse(names, keywords);
+            Map<String, String> aliases = new LinkedHashMap<>();
+            parse(names, keywords, aliases);
             TOOL_NAMES = Collections.unmodifiableSet(names);
             INTENT_KEYWORDS = Collections.unmodifiableMap(keywords);
+            SLASH_ALIASES = Collections.unmodifiableMap(aliases);
         }
 
-        private static void parse(Set<String> names, Map<String, List<String>> keywords) {
+        private static void parse(Set<String> names, Map<String, List<String>> keywords, Map<String, String> aliases) {
             try (InputStream stream = ToolCatalogIndex.class.getResourceAsStream(RESOURCE_PATH)) {
                 if (stream == null) {
                     return;
@@ -100,6 +114,13 @@ public final class ToolCatalogIndex {
                     String name = nameElement.getAsString();
                     names.add(name);
                     keywords.put(name, stringArray(tool.get("intentKeywords")));
+                    JsonElement aliasElement = tool.get("slashAlias");
+                    if (aliasElement != null && aliasElement.isJsonPrimitive()) {
+                        String alias = aliasElement.getAsString();
+                        if (alias != null && !alias.isBlank()) {
+                            aliases.put(alias.toLowerCase(Locale.ROOT), name);
+                        }
+                    }
                 }
             } catch (IOException | RuntimeException ignored) {
                 // Best-effort catalog only: AssistantCommand's built-in keyword lists remain the

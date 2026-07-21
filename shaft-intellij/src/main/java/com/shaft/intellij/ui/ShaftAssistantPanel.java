@@ -29,6 +29,7 @@ import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpProgress;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.mcp.ShaftPluginExecutor;
+import com.shaft.intellij.mcp.ToolCatalogIndex;
 import com.shaft.intellij.notifications.ShaftNotifier;
 import com.shaft.intellij.settings.ShaftCredentialService;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -82,6 +83,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -1193,7 +1195,12 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String filter = text.substring(contextTriggerOffset + 1, Math.min(caret, text.length()));
-        if (filter.chars().anyMatch(Character::isWhitespace)) {
+        // The /mcp (or /tool, /call) tool-name argument is its own suggestion mode (issue #3883(a)):
+        // while it's in play, a space inside the filter is expected (it separates the command word
+        // from the partial tool token) and must not dismiss the popup the way any other '/' filter's
+        // whitespace does.
+        if ((contextPopupTrigger != '/' || mcpToolArgumentFilter(filter) == null)
+                && filter.chars().anyMatch(Character::isWhitespace)) {
             hideContextPopup();
             return;
         }
@@ -1201,11 +1208,65 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     List<ContextSuggestion> filteredContextSuggestions(char trigger, String filter) {
+        if (trigger == '/') {
+            String toolArgumentFilter = mcpToolArgumentFilter(filter);
+            if (toolArgumentFilter != null) {
+                return mcpToolArgumentSuggestions(toolArgumentFilter);
+            }
+        }
         String needle = (trigger + filter).toLowerCase(Locale.ROOT);
         return contextSuggestionsForTest(trigger).stream()
                 .filter(suggestion -> suggestion.matchText().toLowerCase(Locale.ROOT).contains(needle)
                         || suggestion.matchText().toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT)))
                 .toList();
+    }
+
+    /**
+     * Command words whose first argument is an MCP tool name (issue #3883(a)): {@code /mcp}'s own
+     * two aliases from {@link AssistantCommand} ({@code /tool}, {@code /call}), matched here without
+     * the leading slash since {@code filter} never carries one.
+     */
+    private static final Set<String> MCP_TOOL_ARGUMENT_COMMAND_WORDS = Set.of("mcp", "tool", "call");
+
+    /**
+     * Returns the partial tool-name token typed so far, when {@code filter} (the text typed after
+     * the {@code /} trigger) is still positioned in an {@code /mcp}-family command's first argument
+     * (one of {@link #MCP_TOOL_ARGUMENT_COMMAND_WORDS}, a single space, then zero or more non-space
+     * characters) -- or {@code null} when it is not (no command word yet, an unrelated command, or
+     * the user has typed past the first argument into a second one).
+     */
+    private static String mcpToolArgumentFilter(String filter) {
+        int space = filter.indexOf(' ');
+        if (space < 0 || !MCP_TOOL_ARGUMENT_COMMAND_WORDS.contains(filter.substring(0, space).toLowerCase(Locale.ROOT))) {
+            return null;
+        }
+        String rest = filter.substring(space + 1);
+        return rest.chars().anyMatch(Character::isWhitespace) ? null : rest;
+    }
+
+    /**
+     * Tool-name and curated-slashAlias suggestion rows for the {@code /mcp} argument position,
+     * filtered by whatever prefix the user has typed so far (issue #3883(a)). An alias row shows its
+     * canonical tool name as the description and, like every row here, inserts the canonical
+     * {@code /mcp <toolName> } form -- selecting a suggestion always completes to the canonical
+     * command regardless of which of {@code /mcp}/{@code /tool}/{@code /call} the user started with.
+     */
+    private static List<ContextSuggestion> mcpToolArgumentSuggestions(String filter) {
+        String needle = filter.toLowerCase(Locale.ROOT);
+        List<ContextSuggestion> suggestions = new ArrayList<>();
+        ToolCatalogIndex.slashAliases().entrySet().stream()
+                .filter(entry -> needle.isEmpty() || entry.getKey().contains(needle))
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> suggestions.add(new ContextSuggestion(
+                        "<html><b>" + entry.getKey() + "</b> — " + entry.getValue() + "</html>",
+                        "/mcp " + entry.getValue() + " ",
+                        entry.getKey())));
+        ToolCatalogIndex.toolNames().stream()
+                .filter(toolName -> needle.isEmpty() || toolName.toLowerCase(Locale.ROOT).contains(needle))
+                .sorted()
+                .forEach(toolName -> suggestions.add(new ContextSuggestion(
+                        toolName, "/mcp " + toolName + " ", toolName)));
+        return suggestions;
     }
 
     private void insertContextSuggestion(char trigger, ContextSuggestion suggestion) {
@@ -1467,7 +1528,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void startMcpInvocation(AssistantCommand.Invocation invocation) {
         if (invocation.isSequence()) {
-            appendAgentMilestone("Tool selected: sequence");
+            appendAgentMilestone("Tool selected: sequence" + routedViaSuffix(invocation));
             startToolSequence(invocation.toolCalls());
             return;
         }
@@ -1476,8 +1537,19 @@ final class ShaftAssistantPanel extends JPanel {
                 () -> showDeniedToolResult(invocation.toolName()));
     }
 
+    /**
+     * Renders {@link AssistantCommand.Invocation#routedVia()} as a concise transcript suffix on the
+     * "Tool selected" milestone (issue #3883(b)), e.g. {@code " — routed via intent: open page
+     * (weight 55)"} -- so the user can see why a tool was picked without switching on Verbose mode.
+     * Empty when the invocation carries no routing-origin label.
+     */
+    private static String routedViaSuffix(AssistantCommand.Invocation invocation) {
+        String routedVia = invocation.routedVia();
+        return routedVia == null || routedVia.isBlank() ? "" : " — routed via " + routedVia;
+    }
+
     private void dispatchApprovedTool(AssistantCommand.Invocation invocation) {
-        appendAgentMilestone("Tool selected: " + invocation.toolName());
+        appendAgentMilestone("Tool selected: " + invocation.toolName() + routedViaSuffix(invocation));
         appendAgentMilestone("Running");
         // The sticky capture-review strip is keyed off captureReviewGenerationRunning, which the
         // record -> stop -> generate flow sets in startCaptureCodeReview(). A direct invocation of
