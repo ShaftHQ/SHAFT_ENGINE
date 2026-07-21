@@ -425,3 +425,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-cli-pom-argline-clobbers-root-jacoco-prepare-agent-mvn-pl-shaft-cli-test-silently-produces-no-jacoco-exec","timestamp":"2026-07-21T06:13:44+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.generated-test-scaffolding-is-ignore-everywhere-shaft-engine-jar-ships-the-service-registrations","timestamp":"2026-07-21T07:37:49+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-mcp-external-e2e-tests-silently-skip-without-dincludemcpbrowsere2e-true","timestamp":"2026-07-21T08:35:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.worktree-isolated-agents-can-be-reclaimed-mid-task-while-still-actively-working-with-no-committed-diff","timestamp":"2026-07-21T15:20:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci","timestamp":"2026-07-21T16:34:05+03:00"}
