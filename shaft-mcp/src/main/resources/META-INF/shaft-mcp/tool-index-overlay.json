@@ -42,7 +42,8 @@
     },
     "browser_get_current_url": {
       "mutation": false,
-      "sensitive": false
+      "sensitive": false,
+      "slashAlias": "url"
     },
     "browser_get_page_dom": {
       "mutation": false,
@@ -51,6 +52,7 @@
     "browser_get_title": {
       "mutation": false,
       "sensitive": false,
+      "slashAlias": "title",
       "example": {
         "request": {},
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
@@ -59,6 +61,7 @@
     "browser_navigate": {
       "mutation": true,
       "sensitive": false,
+      "slashAlias": "nav",
       "example": {
         "request": {
           "targetUrl": "https://demo.example.com/checkout"
@@ -113,7 +116,8 @@
     },
     "browser_take_screenshot": {
       "mutation": true,
-      "sensitive": true
+      "sensitive": true,
+      "slashAlias": "screenshot"
     },
     "browser_unroute": {
       "mutation": true,
@@ -224,7 +228,8 @@
         "record my browser actions"
       ],
       "mutation": true,
-      "sensitive": false
+      "sensitive": false,
+      "slashAlias": "start"
     },
     "capture_status": {
       "example": {
@@ -232,7 +237,8 @@
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       },
       "mutation": false,
-      "sensitive": false
+      "sensitive": false,
+      "slashAlias": "status"
     },
     "capture_step_delete": {
       "mutation": true,
@@ -245,6 +251,7 @@
     "capture_stop": {
       "mutation": true,
       "sensitive": false,
+      "slashAlias": "stop",
       "example": {
         "request": {
           "discard": true
@@ -318,6 +325,7 @@
     "driver_initialize": {
       "mutation": true,
       "sensitive": false,
+      "slashAlias": "init",
       "example": {
         "request": {
           "targetBrowser": "CHROME",
@@ -334,6 +342,7 @@
     "driver_quit": {
       "mutation": true,
       "sensitive": false,
+      "slashAlias": "quit",
       "example": {
         "request": {},
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
@@ -341,11 +350,13 @@
     },
     "element_clear": {
       "mutation": true,
-      "sensitive": false
+      "sensitive": false,
+      "slashAlias": "clear"
     },
     "element_click": {
       "mutation": true,
       "sensitive": false,
+      "slashAlias": "click",
       "example": {
         "request": {
           "locatorStrategy": "ID",
@@ -377,6 +388,7 @@
     "element_type": {
       "mutation": true,
       "sensitive": true,
+      "slashAlias": "type",
       "example": {
         "request": {
           "locatorStrategy": "ID",
@@ -392,11 +404,13 @@
     },
     "generate_test_report": {
       "mutation": true,
-      "sensitive": false
+      "sensitive": false,
+      "slashAlias": "report"
     },
     "healer_run_failed_test": {
       "mutation": true,
       "sensitive": true,
+      "slashAlias": "heal",
       "example": {
         "request": {
           "repositoryRoot": ".",
@@ -660,7 +674,8 @@
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       },
       "mutation": true,
-      "sensitive": true
+      "sensitive": true,
+      "slashAlias": "explore"
     },
     "trace_latest": {
       "mutation": false,

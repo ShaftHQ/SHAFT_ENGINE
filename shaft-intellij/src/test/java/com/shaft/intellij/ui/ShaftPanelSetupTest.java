@@ -4171,6 +4171,66 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(none.isEmpty(), none.toString()));
     }
 
+    // ---- /mcp autocomplete on the tool-name argument (issue #3883(a)) ----
+
+    @Test
+    void mcpToolArgumentSuggestionsOfferToolNamesAndCuratedAliasesFilteredByTypedPrefix() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        List<ShaftAssistantPanel.ContextSuggestion> clickFilter =
+                panel.filteredContextSuggestions('/', "mcp cl");
+        List<ShaftAssistantPanel.ContextSuggestion> toolFilter =
+                panel.filteredContextSuggestions('/', "tool cl");
+        List<ShaftAssistantPanel.ContextSuggestion> callFilter =
+                panel.filteredContextSuggestions('/', "call cl");
+        List<ShaftAssistantPanel.ContextSuggestion> noMatch =
+                panel.filteredContextSuggestions('/', "mcp zzz_not_a_real_tool");
+
+        assertAll(
+                // "click" is the curated slashAlias for element_click; its row shows the canonical
+                // tool name as a description and inserts the canonical "/mcp element_click " form.
+                () -> assertTrue(clickFilter.stream().anyMatch(s -> "click".equals(s.matchText())
+                                && "/mcp element_click ".equals(s.insertion())
+                                && s.label().contains("element_click")),
+                        clickFilter.toString()),
+                // A plain tool-name match ("element_clear" contains "cl") is also offered, inserting
+                // itself.
+                () -> assertTrue(clickFilter.stream().anyMatch(s -> "element_clear".equals(s.matchText())
+                                && "/mcp element_clear ".equals(s.insertion())),
+                        clickFilter.toString()),
+                () -> assertEquals(clickFilter, toolFilter, "/tool must offer the same suggestions as /mcp"),
+                () -> assertEquals(clickFilter, callFilter, "/call must offer the same suggestions as /mcp"),
+                () -> assertTrue(noMatch.isEmpty(), noMatch.toString()));
+    }
+
+    @Test
+    void mcpToolArgumentSuggestionsShowEveryToolAndAliasWhenNoPrefixIsTypedYet() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        List<ShaftAssistantPanel.ContextSuggestion> all = panel.filteredContextSuggestions('/', "mcp ");
+
+        assertAll(
+                () -> assertTrue(all.stream().anyMatch(s -> "init".equals(s.matchText())), all.toString()),
+                () -> assertTrue(all.stream().anyMatch(s -> "driver_quit".equals(s.matchText())), all.toString()),
+                () -> assertTrue(all.size() >= com.shaft.intellij.mcp.ToolCatalogIndex.toolNames().size(),
+                        "must include at least every tool name (plus curated aliases)"));
+    }
+
+    @Test
+    void mcpToolArgumentSuggestionsStopOnceASecondArgumentTokenStarts() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        // Once the user has moved past the first argument (a second space), this is no longer the
+        // tool-name position -- the generic '/' suggestion list (filtered on the whole string) takes
+        // over instead, same as before this task.
+        List<ShaftAssistantPanel.ContextSuggestion> pastFirstArgument =
+                panel.filteredContextSuggestions('/', "mcp element_click {}");
+
+        assertTrue(pastFirstArgument.stream().noneMatch(s -> "element_click".equals(s.matchText())
+                        && "/mcp element_click ".equals(s.insertion())),
+                "must not still be in tool-argument suggestion mode: " + pastFirstArgument);
+    }
+
     @Test
     void assistantPromptCtrlClickSendsPrompt() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
@@ -5778,6 +5838,67 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(thrown.getCause() instanceof NullPointerException,
                         "approve-all should skip the prompt and reach the real dispatch immediately"),
                 () -> assertNull(transcriptWidget(panel), "approve-all must never render an approval prompt"));
+    }
+
+    // ---- Transcript-visible routing-decision labels (issue #3883(b)) ----
+
+    @Test
+    void toolSelectedMilestoneNarratesTheRoutedViaLabelWhenTheInvocationCarriesOne() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        clearFirstRunWelcome(panel);
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool("capture_start", new JsonObject())
+                .routedVia("intent: browser recording (weight 60)");
+
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+
+        assertThrows(InvocationTargetException.class, () -> startMcpInvocation.invoke(panel, invocation));
+
+        assertTrue(transcriptMarkdown(panel).contains(
+                        "Tool selected: capture_start — routed via intent: browser recording (weight 60)"),
+                transcriptMarkdown(panel));
+    }
+
+    @Test
+    void toolSelectedMilestoneOmitsTheSuffixWhenTheInvocationCarriesNoRoutedViaLabel() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        clearFirstRunWelcome(panel);
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool("capture_start", new JsonObject());
+
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+
+        assertThrows(InvocationTargetException.class, () -> startMcpInvocation.invoke(panel, invocation));
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(panel).contains("Tool selected: capture_start"),
+                        transcriptMarkdown(panel)),
+                () -> assertFalse(transcriptMarkdown(panel).contains("routed via"), transcriptMarkdown(panel)));
+    }
+
+    @Test
+    void toolSelectedMilestoneNarratesTheRoutedViaLabelForASequenceInvocation() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        clearFirstRunWelcome(panel);
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.sequence(List.of(
+                        new AssistantCommand.ToolCall("driver_initialize", new JsonObject()),
+                        new AssistantCommand.ToolCall("browser_open_intent", new JsonObject())))
+                .routedVia("intent: browser control (weight 55)");
+
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+
+        assertThrows(InvocationTargetException.class, () -> startMcpInvocation.invoke(panel, invocation));
+
+        assertTrue(transcriptMarkdown(panel).contains(
+                        "Tool selected: sequence — routed via intent: browser control (weight 55)"),
+                transcriptMarkdown(panel));
     }
 
     @Test

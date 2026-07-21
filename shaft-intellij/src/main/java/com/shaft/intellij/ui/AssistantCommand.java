@@ -290,39 +290,39 @@ final class AssistantCommand {
     private static final int WEIGHT_MOBILE_CODEGEN = 40;
     private static final int WEIGHT_DOCTOR = 30;
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
-            new NaturalIntent(WEIGHT_COMMAND_HELP, AssistantCommand::isCommandHelpIntent,
+            new NaturalIntent("command help", WEIGHT_COMMAND_HELP, AssistantCommand::isCommandHelpIntent,
                     (text, workingDirectory) -> Invocation.local(commandHelp(false))),
-            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isCodingPartnerIntent,
+            new NaturalIntent("coding partner", WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isCodingPartnerIntent,
                     (text, workingDirectory) -> Invocation.tool(
                             "shaft_coding_partner_plan",
                             codingPartnerPlan(naturalCodingPartnerIntent(text), workingDirectory))),
-            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isGuideSearchIntent,
+            new NaturalIntent("guide search", WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isGuideSearchIntent,
                     (text, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(naturalQuery(text)))),
-            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isScenarioSearchIntent,
+            new NaturalIntent("scenario search", WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isScenarioSearchIntent,
                     (text, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(naturalQuery(text)))),
-            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isGuardrailsCheckIntent,
+            new NaturalIntent("guardrails check", WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isGuardrailsCheckIntent,
                     (text, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)))),
-            new NaturalIntent(WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isProjectCreateIntent,
+            new NaturalIntent("project create", WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isProjectCreateIntent,
                     (text, workingDirectory) -> projectCreateReview(naturalProjectName(text))),
-            new NaturalIntent(WEIGHT_PROJECT_UPGRADE, AssistantCommand::isProjectUpgradeIntent,
+            new NaturalIntent("project upgrade", WEIGHT_PROJECT_UPGRADE, AssistantCommand::isProjectUpgradeIntent,
                     (text, workingDirectory) -> Invocation.tool("shaft_project_upgrade", projectUpgrade(naturalProjectRoot(text, workingDirectory)))),
-            new NaturalIntent(WEIGHT_TOPIC_CONTROL, AssistantCommand::isBrowserControlIntent,
+            new NaturalIntent("browser control", WEIGHT_TOPIC_CONTROL, AssistantCommand::isBrowserControlIntent,
                     (text, workingDirectory) -> browser(text)),
-            new NaturalIntent(WEIGHT_API_RECORDING, AssistantCommand::isApiRecordingIntent,
+            new NaturalIntent("api recording", WEIGHT_API_RECORDING, AssistantCommand::isApiRecordingIntent,
                     (text, workingDirectory) -> recordApi(text)),
-            new NaturalIntent(WEIGHT_MOBILE_API_RECORDING, AssistantCommand::isMobileApiRecordingIntent,
+            new NaturalIntent("mobile api recording", WEIGHT_MOBILE_API_RECORDING, AssistantCommand::isMobileApiRecordingIntent,
                     (text, workingDirectory) -> recordApiMobile(text)),
-            new NaturalIntent(WEIGHT_BROWSER_RECORDING, AssistantCommand::isBrowserRecordingIntent,
+            new NaturalIntent("browser recording", WEIGHT_BROWSER_RECORDING, AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
-            new NaturalIntent(WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStartIntent,
+            new NaturalIntent("mobile recording start", WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStartIntent,
                     (text, workingDirectory) -> mobileRecord("start " + firstJsonLikePath(text))),
-            new NaturalIntent(WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStopIntent,
+            new NaturalIntent("mobile recording stop", WEIGHT_MOBILE_RECORDING, AssistantCommand::isMobileRecordingStopIntent,
                     (text, workingDirectory) -> mobileRecord("stop")),
-            new NaturalIntent(WEIGHT_TOPIC_CONTROL, AssistantCommand::isMobileControlIntent,
+            new NaturalIntent("mobile control", WEIGHT_TOPIC_CONTROL, AssistantCommand::isMobileControlIntent,
                     (text, workingDirectory) -> mobile(naturalMobileCommand(text))),
-            new NaturalIntent(WEIGHT_MOBILE_CODEGEN, AssistantCommand::isMobileCodegenIntent,
+            new NaturalIntent("mobile codegen", WEIGHT_MOBILE_CODEGEN, AssistantCommand::isMobileCodegenIntent,
                     (text, workingDirectory) -> mobileCodegen(firstJsonLikePath(text))),
-            new NaturalIntent(WEIGHT_DOCTOR, AssistantCommand::isDoctorIntent,
+            new NaturalIntent("doctor", WEIGHT_DOCTOR, AssistantCommand::isDoctorIntent,
                     (text, workingDirectory) -> {
                         String path = firstPathLike(text);
                         return doctor(path.isBlank() ? "" : path, workingDirectory);
@@ -729,7 +729,7 @@ final class AssistantCommand {
             text = upgradeAgentPrompt(projectRoot);
             upgradeAgentRequest = true;
         } else if (text.startsWith("/")) {
-            return slash(text, workingDirectory, openFileContext);
+            return slash(text, workingDirectory, openFileContext).withDefaultRoutedVia("slash command");
         }
         if (!liveCodegenRequest && !upgradeAgentRequest) {
             // Deterministic-first routing (design doc Decision 5, issue #3870/#3866 T4 goal 3-4): an
@@ -741,7 +741,7 @@ final class AssistantCommand {
             // this check.
             String explicitTool = matchedExplicitToolName(text);
             if (explicitTool != null) {
-                return explicitToolMention(text);
+                return explicitToolMention(text).routedVia("explicit tool mention");
             }
         }
         boolean codeGenerationRequest = !upgradeAgentRequest && isCodeGenerationRequest(text);
@@ -1742,24 +1742,37 @@ final class AssistantCommand {
         return arguments;
     }
 
+    /**
+     * Resolves {@code /mcp <toolName|slashAlias> [json]}. A leading token that matches a curated
+     * {@link ToolCatalogIndex#slashAliases()} entry (issue #3883(a), e.g. {@code /mcp click})
+     * resolves to its canonical tool name and tags the resulting invocation {@code "slash alias:
+     * <alias>"} for transcript narration (issue #3883(b)); any other token is passed straight
+     * through as an exact tool name, unchanged from before this task.
+     */
     private static Invocation rawMcp(String rest) {
-        String toolName = firstWord(rest);
-        if (toolName.isBlank()) {
+        String requestedToken = firstWord(rest);
+        if (requestedToken.isBlank()) {
             return Invocation.local("Use `/mcp <toolName> [json]`.");
         }
+        String alias = requestedToken.toLowerCase(Locale.ROOT);
+        String aliasedToolName = ToolCatalogIndex.slashAliases().get(alias);
+        String toolName = aliasedToolName != null ? aliasedToolName : requestedToken;
         String rawJson = afterFirstWord(rest);
+        Invocation invocation;
         if (rawJson.isBlank()) {
-            return Invocation.tool(toolName, new JsonObject());
-        }
-        try {
-            JsonElement parsed = JsonParser.parseString(rawJson);
-            if (!parsed.isJsonObject()) {
-                return Invocation.local("Raw MCP arguments must be a JSON object.");
+            invocation = Invocation.tool(toolName, new JsonObject());
+        } else {
+            try {
+                JsonElement parsed = JsonParser.parseString(rawJson);
+                if (!parsed.isJsonObject()) {
+                    return Invocation.local("Raw MCP arguments must be a JSON object.");
+                }
+                invocation = Invocation.tool(toolName, parsed.getAsJsonObject());
+            } catch (JsonParseException exception) {
+                return Invocation.local("Raw MCP arguments are not valid JSON: " + exception.getMessage());
             }
-            return Invocation.tool(toolName, parsed.getAsJsonObject());
-        } catch (JsonParseException exception) {
-            return Invocation.local("Raw MCP arguments are not valid JSON: " + exception.getMessage());
         }
+        return aliasedToolName != null ? invocation.routedVia("slash alias: " + alias) : invocation;
     }
 
     private static Invocation record(String rest) {
@@ -1983,7 +1996,11 @@ final class AssistantCommand {
                 best = intent;
             }
         }
-        return best == null ? null : best.invoke(text, workingDirectory);
+        if (best == null) {
+            return null;
+        }
+        return best.invoke(text, workingDirectory)
+                .withDefaultRoutedVia("intent: " + best.name() + " (weight " + best.weight() + ")");
     }
 
 
@@ -3153,7 +3170,7 @@ final class AssistantCommand {
         Invocation build(String command, String rest, String workingDirectory);
     }
 
-    private record NaturalIntent(int weight, NaturalIntentMatcher matcher, NaturalIntentBuilder builder) {
+    private record NaturalIntent(String name, int weight, NaturalIntentMatcher matcher, NaturalIntentBuilder builder) {
         boolean matches(String text) {
             return matcher.matches(text);
         }
@@ -3173,23 +3190,43 @@ final class AssistantCommand {
         Invocation build(String text, String workingDirectory);
     }
 
-    record Invocation(List<ToolCall> toolCalls, String localResponse) {
+    record Invocation(List<ToolCall> toolCalls, String localResponse, String routedVia) {
         private static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
         private static final String PROVIDER_CHAT_TOOL = "autobot_provider_chat";
 
         static Invocation tool(String toolName, JsonObject arguments) {
-            return new Invocation(List.of(new ToolCall(toolName, arguments == null ? new JsonObject() : arguments)), null);
+            return new Invocation(List.of(new ToolCall(toolName, arguments == null ? new JsonObject() : arguments)), null, null);
         }
 
         static Invocation sequence(List<ToolCall> toolCalls) {
             if (toolCalls == null || toolCalls.isEmpty()) {
                 return local("No MCP tools were selected.");
             }
-            return new Invocation(List.copyOf(toolCalls), null);
+            return new Invocation(List.copyOf(toolCalls), null, null);
         }
 
         static Invocation local(String response) {
-            return new Invocation(List.of(), response);
+            return new Invocation(List.of(), response, null);
+        }
+
+        /**
+         * Returns a copy tagged with a routing-origin label (issue #3883(b)), rendered as a
+         * transcript-visible suffix on the "Tool selected" milestone bubble so the user can see why
+         * a given tool was picked (an explicit mention, a scored natural-language intent, a slash
+         * command, or a curated slash alias) without turning on Verbose mode.
+         */
+        Invocation routedVia(String via) {
+            return new Invocation(toolCalls, localResponse, via);
+        }
+
+        /**
+         * Tags {@code via} only when no gate has labeled this invocation yet -- lets an inner gate
+         * (e.g. {@code rawMcp}'s slash-alias resolution, tagged "slash alias: &lt;alias&gt;") keep its
+         * more specific label instead of being overwritten by its enclosing gate's generic one (the
+         * plain "slash command" tag every {@code /...} command gets by default).
+         */
+        Invocation withDefaultRoutedVia(String via) {
+            return routedVia == null ? routedVia(via) : this;
         }
 
         boolean isLocal() {
