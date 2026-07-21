@@ -59,6 +59,9 @@ class CaptureCommandTest {
     void defaultConstructorUsesRealConnectionFactoryWithoutConnecting() {
         CaptureCommand command = new CaptureCommand();
 
-        assertTrue(true, "constructed without throwing: " + command);
+        CommandLine.Model.CommandSpec spec = new CommandLine(command).getCommandSpec();
+        assertEquals("capture", spec.name());
+        assertEquals(2, spec.positionalParameters().size());
+        assertEquals("ACTION", spec.positionalParameters().get(0).paramLabel());
     }
 }

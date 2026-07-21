@@ -34,7 +34,10 @@ class ToolsCommandTest {
         // (the one Picocli uses) doesn't blow up before any command actually runs.
         ToolsCommand command = new ToolsCommand();
 
-        assertTrue(true, "constructed without throwing: " + command);
+        CommandLine.Model.CommandSpec spec = new CommandLine(command).getCommandSpec();
+        assertEquals("tools", spec.name());
+        assertTrue(spec.findOption("--json") != null, "must declare --json");
+        assertTrue(spec.findOption("--cached") != null, "must declare --cached");
     }
 
     @Test

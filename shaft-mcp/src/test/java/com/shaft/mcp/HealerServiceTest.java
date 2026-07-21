@@ -251,33 +251,27 @@ class HealerServiceTest {
     @Test
     void usesDefaultOutputDirectoryWhenBlank(@TempDir Path tempDir) throws Exception {
         Path repository = fakeRepository(tempDir);
-        var capturedCommand = new Object() { List<String> cmd; };
-        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
-                (command, directory, timeout) -> {
-                    capturedCommand.cmd = command;
-                    writeAllure(directory, "passed", "");
-                    return new HealerService.ProcessResult(0, false, "");
-                });
+        HealerService service = service(tempDir, 1, "failed", "TimeoutException: still waiting");
 
-        service.runFailedTest(repository.toString(), List.of("mvn", "test"),
+        McpHealerRunResult result = service.runFailedTest(repository.toString(), List.of("mvn", "test"),
                 "", 1, false, false, List.of(), false, false, false, false, "driver", null);
-        // Assertion: the test passed (verifying blank outputDirectory was handled)
+
+        Path expectedReport = tempDir.toRealPath().resolve("target/shaft-healer/attempt-1/doctor-report.json");
+        assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());
+        assertEquals(expectedReport.toString(), result.analysis().jsonReportPath());
     }
 
     @Test
     void usesDefaultOutputDirectoryWhenNull(@TempDir Path tempDir) throws Exception {
         Path repository = fakeRepository(tempDir);
-        var capturedCommand = new Object() { List<String> cmd; };
-        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
-                (command, directory, timeout) -> {
-                    capturedCommand.cmd = command;
-                    writeAllure(directory, "passed", "");
-                    return new HealerService.ProcessResult(0, false, "");
-                });
+        HealerService service = service(tempDir, 1, "failed", "TimeoutException: still waiting");
 
-        service.runFailedTest(repository.toString(), List.of("mvn", "test"),
+        McpHealerRunResult result = service.runFailedTest(repository.toString(), List.of("mvn", "test"),
                 null, 1, false, false, List.of(), false, false, false, false, "driver", null);
-        // Assertion: the test passed (verifying null outputDirectory was handled)
+
+        Path expectedReport = tempDir.toRealPath().resolve("target/shaft-healer/attempt-1/doctor-report.json");
+        assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());
+        assertEquals(expectedReport.toString(), result.analysis().jsonReportPath());
     }
 
     @Test

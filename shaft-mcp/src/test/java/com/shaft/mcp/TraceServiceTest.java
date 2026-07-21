@@ -493,7 +493,11 @@ class TraceServiceTest {
         var analysis = service(temp).doctorAnalyzeTrace(relative(temp, index), "webdriver");
 
         assertFalse(analysis.diagnosis().summary().isBlank(), "Diagnosis summary should be populated");
-        assertTrue(analysis.primaryCause() != null, "Should return a detected cause category");
+        // The fixture's locator value ("custom-locator") itself contains the substring "locator",
+        // which TraceService#cause matches before it ever inspects the TimeoutException, so the
+        // deterministic cause is LOCATOR rather than TIMING_SYNCHRONIZATION.
+        assertEquals(CauseCategory.LOCATOR, analysis.primaryCause(),
+                "custom-locator's locator value should deterministically classify as LOCATOR");
     }
 
     @Test

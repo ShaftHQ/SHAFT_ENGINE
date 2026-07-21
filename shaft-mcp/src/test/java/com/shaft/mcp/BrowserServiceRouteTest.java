@@ -93,7 +93,9 @@ class BrowserServiceRouteTest {
         HttpResponse response = BrowserService.buildMockResponse(200, "body", null);
 
         assertEquals(200, response.getStatus());
-        assertTrue(response.getStatus() > 0);
+        assertFalse(response.getHeaderNames().iterator().hasNext(),
+                "no headers should be set when responseHeaders is null");
+        assertNull(response.getHeader("X-Test"));
     }
 
     @Test

@@ -104,7 +104,7 @@ class BrowserServiceWebEngineTest {
     @Test
     void getAllCookiesReturnsStringRepresentation() {
         BrowserActions webBrowser = mock(BrowserActions.class);
-        Set<Cookie> cookies = Set.of(mock(Cookie.class), mock(Cookie.class));
+        Set<Cookie> cookies = Set.of(new Cookie("sid", "abc123"), new Cookie("theme", "dark"));
         when(webBrowser.getAllCookies()).thenReturn(cookies);
         SHAFT.GUI.WebDriver shaftDriver = mock(SHAFT.GUI.WebDriver.class);
         when(shaftDriver.browser()).thenReturn(webBrowser);
@@ -116,8 +116,8 @@ class BrowserServiceWebEngineTest {
 
             String allCookies = service.getAllCookies();
 
-            assertNotNull(allCookies);
-            assertTrue(allCookies.length() > 0);
+            assertTrue(allCookies.contains("sid=abc123"), allCookies);
+            assertTrue(allCookies.contains("theme=dark"), allCookies);
         }
     }
 
