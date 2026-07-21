@@ -643,10 +643,12 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         String statusTool = "capture_status";
         JsonObject arguments;
         if (playwrightBackend) {
+            // capture_start's flat mode/includeSensitiveValues parameters were absorbed into
+            // sessionGoal (design doc amendment A3, #3881); includeSensitiveValues is no longer a
+            // tool argument at all (CaptureService always passes false for it on PLAYWRIGHT/mobile).
             arguments = new JsonObject();
             arguments.addProperty("outputPath", sessionPath.getText().trim());
-            arguments.addProperty("mode", "default");
-            arguments.addProperty("includeSensitiveValues", false);
+            arguments.addProperty("sessionGoal", intent.getText().trim());
         } else {
             arguments = webdriverCaptureStartArguments();
         }
@@ -683,10 +685,12 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private JsonObject mobileRecordStartArguments() {
+        // See the matching comment in startRecording(): mode/includeSensitiveValues are stale
+        // pre-#3881 capture_start arguments; sessionGoal replaces mode, and includeSensitiveValues
+        // is no longer an exposed tool argument.
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputPath", sessionPath.getText().trim());
-        arguments.addProperty("mode", "default");
-        arguments.addProperty("includeSensitiveValues", false);
+        arguments.addProperty("sessionGoal", intent.getText().trim());
         return arguments;
     }
 
