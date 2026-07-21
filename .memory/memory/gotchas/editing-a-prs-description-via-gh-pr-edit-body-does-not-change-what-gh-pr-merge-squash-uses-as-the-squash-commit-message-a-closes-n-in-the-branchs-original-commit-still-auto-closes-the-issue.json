@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/editing-a-prs-description-via-gh-pr-edit-body-does-not-change-what-gh-pr-merge-squash-uses-as-the-squash-commit-message-a-closes-n-in-the-branchs-original-commit-still-auto-closes-the-issue.md",
+  "content_hash": "sha256:d71a443b8e40d0908f54bb5179e8effccfdd828cd16543e8d1dd733811580d3f",
+  "created_at": "2026-07-21T22:15:37+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.editing-a-prs-description-via-gh-pr-edit-body-does-not-change-what-gh-pr-merge-squash-uses-as-the-squash-commit-message-a-closes-n-in-the-branchs-original-commit-still-auto-closes-the-issue",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "orchestrator: prevent premature issue auto-close on squash-merge"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "process",
+    "gh-cli",
+    "squash-merge",
+    "issue-tracking",
+    "gotcha"
+  ],
+  "title": "Editing a PR's description via gh pr edit --body does NOT change what gh pr merge --squash uses as the squash commit message -- a Closes #N in the branch's original commit still auto-closes the issue",
+  "type": "gotcha",
+  "updated_at": "2026-07-21T22:15:37+03:00"
+}
