@@ -259,6 +259,32 @@ final class AssistantLocalAgentRunner {
     }
 
     /**
+     * Starts a local agent invocation with a real interactive-approval callback and an explicit
+     * {@code verbose} flag (see {@link #startWithOptionalCompact(AssistantCommand.Invocation, boolean,
+     * Consumer)} for the compact preamble behavior, unchanged here, and {@link #start(
+     * AssistantCommand.Invocation, Consumer, ProcessLauncher, boolean,
+     * LocalAgentApprovalBridge.ApprovalRequestHandler, ApprovalBridgeLauncher, boolean)} for what
+     * {@code verbose} gates). {@link ShaftAssistantPanel} calls this overload -- not the 4-arg one
+     * above, which always defaults to {@code verbose=true} -- so its live Verbose checkbox state
+     * actually reaches the CLI's raw-stderr folding decision (issue #3965).
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            boolean verbose) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess, true, approvalHandler,
+                LocalAgentApprovalBridge::start, verbose);
+    }
+
+    /**
      * Package-private overload used by tests to drive a stub process for both the compact preamble
      * and the main invocation, and to assert their relative ordering.
      */
