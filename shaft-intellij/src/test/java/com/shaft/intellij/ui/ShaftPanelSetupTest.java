@@ -4020,6 +4020,53 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantVerboseFinalizationKeepsRawStreamedBufferReachableAfterNormalCompletion() throws Exception {
+        // Issue #3976: finishLocalAgentResponse always replaced the streaming bubble with the
+        // polished final answer on normal completion, discarding the accumulated localAgentOutput
+        // raw buffer regardless of Verbose state. Concretely: a compacted/pointer-text milestone
+        // line (e.g. the RAW_STRUCTURED_OUTPUT_NOTICE issue #3920 added) streamed last before the
+        // run completed normally became a dead end -- no more streaming bubble left to re-render
+        // once Verbose was toggled on, because finalization already replaced it. Mirrors
+        // stopLocalAgentStreaming's Verbose-gated raw-buffer rendering (issue #3918/#3961) applied
+        // to the normal-completion path.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+
+        appendStreamingLocalAgentBubble(panel, 801);
+        appendLocalAgentOutput(panel, 801, "{\"type\":\"raw_structured_line\",\"value\":42}");
+
+        showAgentResult(panel, 801, ShaftMcpToolResult.success("final answer"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("final answer"), markdown),
+                () -> assertTrue(markdown.contains("raw_structured_line"),
+                        "With Verbose on, the raw streamed buffer must still be reachable after a "
+                                + "normal completion, not silently discarded: " + markdown));
+    }
+
+    @Test
+    void assistantNonVerboseFinalizationShowsOnlyThePolishedAnswerNoRawBufferLeakage() throws Exception {
+        // Companion pin for the fix above (issue #3976): with Verbose OFF throughout, a normal
+        // completion must keep showing only the polished final answer -- the raw streamed buffer
+        // must not leak into the transcript.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 802);
+        appendLocalAgentOutput(panel, 802, "{\"type\":\"raw_structured_line\",\"value\":42}");
+
+        showAgentResult(panel, 802, ShaftMcpToolResult.success("final answer"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("final answer"), markdown),
+                () -> assertFalse(markdown.contains("raw_structured_line"),
+                        "Verbose is off, so the raw streamed buffer must not leak into the transcript: "
+                                + markdown));
+    }
+
+    @Test
     void assistantNonVerboseRunShowsNoPlaceholderBubbleWhileRunning() throws Exception {
         // Issue #3919: the "_Running local assistant..._" placeholder bubble is gone -- progress
         // while a run is in flight is the toolbar spinner/status label's job alone, not a transcript
