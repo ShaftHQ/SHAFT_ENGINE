@@ -260,7 +260,14 @@ jobs:
   # suites (e.g. CoverageTests) that need a real driver session. This leg
   # scopes to that package, minus RestValidationsBuilderUnitTest, which calls
   # the public jsonplaceholder.typicode.com API and is a third-party-uptime
-  # flake risk unrelated to this repo's own correctness.
+  # flake risk unrelated to this repo's own correctness, plus the explicit
+  # com.shaft.**.internal unit-test classes moved here from e2eTests.yml's
+  # browser-matrix jobs (issue #3935): these are Mockito-mocked and need no
+  # real driver/grid, but previously rode along in the Firefox/Chrome/Edge
+  # grid jobs because those jobs' test scope was an unfiltered "everything
+  # except a short blocklist" selector. Verified individually (no real
+  # WebDriver construction, no Docker/BrowserStack/network touchpoints)
+  # before moving; e2eTests.yml now excludes them from GLOBAL_TESTING_SCOPE.
   unit-tests:
     name: Unit Tests (${{ matrix.module }})
     needs: changes
@@ -290,7 +297,7 @@ jobs:
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
-          '-Dtest=testPackage/unitTests/*, !RestValidationsBuilderUnitTest'
+          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, !RestValidationsBuilderUnitTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Verify shaft-engine unit test results
