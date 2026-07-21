@@ -88,44 +88,80 @@ public final class ToolCatalogIndex {
 
         private static void parse(Set<String> names, Map<String, List<String>> keywords, Map<String, String> aliases) {
             try (InputStream stream = ToolCatalogIndex.class.getResourceAsStream(RESOURCE_PATH)) {
-                if (stream == null) {
+                JsonArray tools = resolveToolsArray(stream);
+                if (tools == null) {
                     return;
                 }
-                JsonElement root;
-                try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                    root = JsonParser.parseReader(reader);
-                }
-                if (!root.isJsonObject()) {
-                    return;
-                }
-                JsonElement tools = root.getAsJsonObject().get("tools");
-                if (tools == null || !tools.isJsonArray()) {
-                    return;
-                }
-                for (JsonElement element : tools.getAsJsonArray()) {
-                    if (!element.isJsonObject()) {
-                        continue;
-                    }
-                    JsonObject tool = element.getAsJsonObject();
-                    JsonElement nameElement = tool.get("name");
-                    if (nameElement == null || !nameElement.isJsonPrimitive()) {
-                        continue;
-                    }
-                    String name = nameElement.getAsString();
-                    names.add(name);
-                    keywords.put(name, stringArray(tool.get("intentKeywords")));
-                    JsonElement aliasElement = tool.get("slashAlias");
-                    if (aliasElement != null && aliasElement.isJsonPrimitive()) {
-                        String alias = aliasElement.getAsString();
-                        if (alias != null && !alias.isBlank()) {
-                            aliases.put(alias.toLowerCase(Locale.ROOT), name);
-                        }
-                    }
+                for (JsonElement element : tools) {
+                    parseTool(element, names, keywords, aliases);
                 }
             } catch (IOException | RuntimeException ignored) {
                 // Best-effort catalog only: AssistantCommand's built-in keyword lists remain the
                 // fallback source of truth when the bundled resource is missing/malformed.
             }
+        }
+
+        /**
+         * Resolves the top-level {@code tools} JSON array out of the resource stream, or {@code null}
+         * when the stream is absent or the document doesn't have the expected shape (not an object, or
+         * no JSON-array {@code tools} member).
+         */
+        private static JsonArray resolveToolsArray(InputStream stream) throws IOException {
+            if (stream == null) {
+                return null;
+            }
+            JsonElement root;
+            try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                root = JsonParser.parseReader(reader);
+            }
+            if (!root.isJsonObject()) {
+                return null;
+            }
+            JsonElement tools = root.getAsJsonObject().get("tools");
+            if (tools == null || !tools.isJsonArray()) {
+                return null;
+            }
+            return tools.getAsJsonArray();
+        }
+
+        /**
+         * Parses one entry of the {@code tools} array into {@code names}/{@code keywords}/
+         * {@code aliases}, silently skipping entries that aren't a JSON object or have no usable
+         * {@code name} member.
+         */
+        private static void parseTool(JsonElement element, Set<String> names, Map<String, List<String>> keywords,
+                                       Map<String, String> aliases) {
+            if (!element.isJsonObject()) {
+                return;
+            }
+            JsonObject tool = element.getAsJsonObject();
+            JsonElement nameElement = tool.get("name");
+            if (nameElement == null || !nameElement.isJsonPrimitive()) {
+                return;
+            }
+            String name = nameElement.getAsString();
+            names.add(name);
+            keywords.put(name, stringArray(tool.get("intentKeywords")));
+            String alias = curatedSlashAlias(tool);
+            if (alias != null) {
+                aliases.put(alias, name);
+            }
+        }
+
+        /**
+         * @return the tool's curated {@code slashAlias}, lower-cased, or {@code null} when the tool has
+         *     no curated (non-blank, string-typed) alias entry
+         */
+        private static String curatedSlashAlias(JsonObject tool) {
+            JsonElement aliasElement = tool.get("slashAlias");
+            if (aliasElement == null || !aliasElement.isJsonPrimitive()) {
+                return null;
+            }
+            String alias = aliasElement.getAsString();
+            if (alias == null || alias.isBlank()) {
+                return null;
+            }
+            return alias.toLowerCase(Locale.ROOT);
         }
 
         private static List<String> stringArray(JsonElement element) {
