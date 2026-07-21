@@ -886,6 +886,9 @@ public final class CaptureGenerator {
         if (needsByImport(targets, fallbackReplay)) {
             line(source, "import org.openqa.selenium.By;");
         }
+        if (needsRoleImport(targets)) {
+            line(source, "import com.shaft.gui.internal.locator.Role;");
+        }
         line(source, "import org.testng.annotations.AfterMethod;");
         line(source, "import org.testng.annotations.BeforeMethod;");
         line(source, "import org.testng.annotations.Test;");
@@ -1315,6 +1318,17 @@ public final class CaptureGenerator {
 
     private static boolean needsByImport(List<TargetPlan> targets, boolean fallbackReplay) {
         return fallbackReplay || targets.stream().anyMatch(CaptureGenerator::usesNativeBy);
+    }
+
+    /**
+     * True when {@link #semanticLocator} will render at least one {@code Role.<NAME>} literal
+     * (issue #3905): mirrors the exact condition under which {@code semanticLocator} takes its ROLE
+     * branch, so the emitted {@code import com.shaft.gui.internal.locator.Role;} appears if and only
+     * if the generated source actually references {@link Role}.
+     */
+    private static boolean needsRoleImport(List<TargetPlan> targets) {
+        return targets.stream().anyMatch(plan -> plan.selection().selected().candidate().strategy()
+                == LocatorCandidate.LocatorStrategy.ROLE && ariaRole(plan.target().role()) != null);
     }
 
     private static boolean usesNativeBy(TargetPlan plan) {
