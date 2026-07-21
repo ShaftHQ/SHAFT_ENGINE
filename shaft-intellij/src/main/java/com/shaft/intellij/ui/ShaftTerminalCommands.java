@@ -37,10 +37,11 @@ final class ShaftTerminalCommands {
 
     /**
      * Same as {@link #openWithPreparedCommand(Project, String, String, String)}, but {@code
-     * onOutcome} is invoked exactly once, off the EDT, once the async pre-type has genuinely
-     * finished: {@code true} only on a real {@code TtyConnector.write()} success, {@code false} when
-     * retries were exhausted or the write threw (issue #3551 — the boolean return here only means
-     * "typing was scheduled", not "the command was typed").
+     * onOutcome} is invoked exactly once, on the EDT (its real caller is a {@code javax.swing.Timer}
+     * listener, which the Swing contract guarantees runs on the EDT), once the async pre-type has
+     * genuinely finished: {@code true} only on a real {@code TtyConnector.write()} success, {@code
+     * false} when retries were exhausted or the write threw (issue #3551 — the boolean return here
+     * only means "typing was scheduled", not "the command was typed").
      */
     static boolean openWithPreparedCommand(Project project, String workingDirectory, String tabName, String command,
                                             Consumer<Boolean> onOutcome) {

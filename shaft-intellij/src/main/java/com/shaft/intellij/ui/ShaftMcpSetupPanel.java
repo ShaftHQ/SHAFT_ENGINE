@@ -101,9 +101,10 @@ final class ShaftMcpSetupPanel extends JPanel {
      * Opens a terminal tab (name, command) with the command pre-typed; injectable for tests.
      * Returns whether the terminal actually opened (the pre-type was scheduled) — that alone does
      * not mean the command was actually typed, since the pre-type is async and can still fail after
-     * the widget opens (issue #3551). {@code onOutcome} fires exactly once, off the EDT boundary of
-     * the caller's choosing, with the real outcome once it is known; callers that don't need it may
-     * pass a no-op consumer.
+     * the widget opens (issue #3551). {@code onOutcome} fires exactly once, on the EDT (the real
+     * implementation's caller is a {@code javax.swing.Timer} listener, which the Swing contract
+     * guarantees runs on the EDT), with the real outcome once it is known; callers that don't need
+     * it may pass a no-op consumer.
      */
     @FunctionalInterface
     interface TerminalOpener {
