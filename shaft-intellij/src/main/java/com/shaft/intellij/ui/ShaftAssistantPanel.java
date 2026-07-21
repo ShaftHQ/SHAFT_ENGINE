@@ -236,7 +236,6 @@ final class ShaftAssistantPanel extends JPanel {
      * shadow. -1 while no local-agent stream is active. */
     private int localAgentStreamPlaceholderMessageIndex = -1;
     private StringBuilder localAgentOutput;
-    private boolean localAgentBubbleRendersContent;
     /** Issue #3918: false for a buffered/custom-command local-agent run (Copilot's default command, or
      * any hand-typed custom command) -- such a run's entire live stream is raw CLI passthrough with no
      * SHAFT-translated milestone content, so non-verbose mode must render none of it as a compact
@@ -2023,7 +2022,11 @@ final class ShaftAssistantPanel extends JPanel {
         // Cancel (as opposed to Kill, which finalizes synchronously in stopLocalAgentStreaming) reaches
         // this method asynchronously once the future completes, and the partial output the user already
         // saw would otherwise be silently discarded by showAgentCancelled's hardcoded "_Cancelled._".
-        boolean hadPartialOutput = localAgentBubbleRendersContent && localAgentOutput != null && !localAgentOutput.isEmpty();
+        // Issue #3920 fold-in (mirrors the #3918/PR#3958 Kill-path fix in stopLocalAgentStreaming):
+        // gated on Verbose's CURRENT state, not localAgentBubbleRendersContent -- a sticky flag that
+        // stays true for the rest of the run once Verbose has rendered anything even if the user flips
+        // it back off before cancelling, which used to dump the raw buffer into a non-verbose transcript.
+        boolean hadPartialOutput = verboseLocalAgentOutput() && localAgentOutput != null && !localAgentOutput.isEmpty();
         String partialOutput = hadPartialOutput ? localAgentOutput.toString() : "";
         localAgentOutput = null;
         if (currentStream) {
@@ -2214,7 +2217,6 @@ final class ShaftAssistantPanel extends JPanel {
     private void appendStreamingLocalAgentBubble(int streamToken) {
         activeLocalAgentStreamToken = streamToken;
         localAgentOutput = new StringBuilder();
-        localAgentBubbleRendersContent = false;
         localAgentStreamPlaceholderMessageIndex = -1;
         // Permissive default: the real production call site overrides this right after, once the
         // invocation is known (issue #3918); callers that start a stream without one (tests) keep
@@ -2242,7 +2244,6 @@ final class ShaftAssistantPanel extends JPanel {
         }
         localAgentOutput.append(content == null ? "" : content);
         if (verboseLocalAgentOutput()) {
-            localAgentBubbleRendersContent = true;
             replaceLocalAgentStreamPlaceholder(
                     "assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()), false);
         } else if (activeLocalAgentStreamHasStructuredMilestones && !rawPassthrough) {
@@ -2260,6 +2261,10 @@ final class ShaftAssistantPanel extends JPanel {
     // action -- unlike Bash/Read/Edit/... or any mcp__-prefixed SHAFT tool, which do represent real
     // progress and must keep surfacing. Kept small and named on purpose (#3672); extend only for a
     // confirmed report of another internal meta-tool leaking into the visible milestone bubbles.
+    // Policy (issue #3920): this only filters the *compact non-verbose* milestone bubble below --
+    // appendLocalAgentOutput's Verbose branch renders the raw accumulated stream unfiltered, so a
+    // suppressed tool call is gated behind Verbose, never truly gone, satisfying the "formatted,
+    // behind a disclosure, or behind Verbose" contract without adding noise to the common case.
     private static final Set<String> NON_ACTIONABLE_META_TOOL_NAMES = Set.of("ToolSearch");
 
     /**
@@ -2267,17 +2272,19 @@ final class ShaftAssistantPanel extends JPanel {
      * runs (issue #3695; this fed a separately-scrollable "Run timeline" list before that removal).
      * Raw NDJSON lines (an unmapped Claude/Codex structured-stream event with no human-readable
      * translation, see {@code AssistantLocalAgentRunner}'s {@code StructuredStreamParser#accept})
-     * always start with {@code {}; skipping those keeps this method's visibility contract identical
-     * to Verbose mode's pre-#3546 raw-content boundary (#3545: raw stdout stays invisible unless the
-     * user opts into Verbose) while still giving a signal of progress for everything else — translated
-     * milestones ("Calling tool X...", "Thinking: ...") and plain-prose/banner lines. Sub-lines that
-     * name a {@link #NON_ACTIONABLE_META_TOOL_NAMES} tool call are dropped first (#3672: internal
-     * harness meta-tool calls like ToolSearch were leaking into the visible milestone bubbles). A
-     * "Tool result (X): .../Tool failed (X): ..." sub-line whose content is long enough to look like
-     * a raw dump rather than a short status is compacted by {@link #compactIfRawToolResult}, closing
-     * a gap where non-JSON raw tool output (a Bash stdout dump, a file's full contents) still leaked
-     * through as-is even with Verbose off, contradicting the "only human readable messages" contract
-     * this method exists to enforce.
+     * always start with {@code {}; those never render verbatim here (Verbose mode's pre-#3546
+     * raw-content boundary stays intact: #3545, raw stdout stays invisible unless the user opts into
+     * Verbose) but a {@link #RAW_STRUCTURED_OUTPUT_NOTICE} milestone surfaces in their place instead of
+     * silently showing nothing (issue #3920: a JSON-only line that never streams again while Verbose is
+     * on -- e.g. it was the run's last line before a normal completion -- used to vanish with zero
+     * trace, not merely "hidden until Verbose"). Sub-lines that name a {@link
+     * #NON_ACTIONABLE_META_TOOL_NAMES} tool call are dropped first (#3672: internal harness meta-tool
+     * calls like ToolSearch were leaking into the visible milestone bubbles). A "Tool result (X): .../
+     * Tool failed (X): ..." sub-line whose content is long enough to look like a raw dump rather than a
+     * short status is compacted by {@link #compactIfRawToolResult}, closing a gap where non-JSON raw
+     * tool output (a Bash stdout dump, a file's full contents) still leaked through as-is even with
+     * Verbose off, contradicting the "only human readable messages" contract this method exists to
+     * enforce.
      */
     private void addCompactLocalAgentMilestone(String line) {
         if (line == null) {
@@ -2294,11 +2301,21 @@ final class ShaftAssistantPanel extends JPanel {
             filtered.append(compactIfRawToolResult(subLine));
         }
         String trimmed = filtered.toString().strip();
-        if (trimmed.isEmpty() || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        if (trimmed.isEmpty()) {
+            return;
+        }
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            appendAgentMilestone(RAW_STRUCTURED_OUTPUT_NOTICE);
             return;
         }
         appendAgentMilestone(trimmed);
     }
+
+    // Issue #3920: shown in place of a raw, unmapped NDJSON milestone line (never rendered verbatim
+    // in non-verbose mode) so its content is still discoverable instead of vanishing with no trace --
+    // the full line remains reachable by enabling Verbose, matching compactIfRawToolResult's pointer.
+    private static final String RAW_STRUCTURED_OUTPUT_NOTICE =
+            "_Raw structured output received — enable Verbose to see it._";
 
     private static final Pattern TOOL_RESULT_PREFIX =
             Pattern.compile("^(Tool (?:result|failed) \\([^)]*\\)): (.*)$");
