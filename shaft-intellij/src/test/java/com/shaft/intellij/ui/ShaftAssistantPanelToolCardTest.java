@@ -4,6 +4,7 @@ import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -81,5 +82,34 @@ class ShaftAssistantPanelToolCardTest {
         assertAll(
                 () -> assertTrue(markdown.contains("couldn't finish"), markdown),
                 () -> assertTrue(markdown.contains("Trace path could not be read."), markdown));
+    }
+
+    /**
+     * Issue #3968: {@link ShaftAssistantPanel#runToolAndRenderCard} now threads an explicit kind
+     * through to the transcript instead of always defaulting to {@code assistant-text} -- a genuine
+     * tool failure (thrown error, or a tool-level {@code success() == false} result) must render as
+     * {@code KIND_ERROR}; a successful diagnostic card renders as {@code KIND_TOOL_EVENT}.
+     */
+    @Test
+    void toolCardKindIsErrorWhenTheMcpCallThrows() {
+        assertEquals(ShaftAssistantChatState.KIND_ERROR,
+                ShaftAssistantPanel.toolCardKind(null, new IllegalStateException("boom")));
+    }
+
+    @Test
+    void toolCardKindIsErrorOnAToolLevelFailureResultWithoutAThrownException() {
+        assertEquals(ShaftAssistantChatState.KIND_ERROR,
+                ShaftAssistantPanel.toolCardKind(ShaftMcpToolResult.failure("Trace path could not be read."), null));
+    }
+
+    @Test
+    void toolCardKindIsErrorWhenNoResultAndNoErrorAreAvailable() {
+        assertEquals(ShaftAssistantChatState.KIND_ERROR, ShaftAssistantPanel.toolCardKind(null, null));
+    }
+
+    @Test
+    void toolCardKindIsToolEventOnASuccessfulResult() {
+        assertEquals(ShaftAssistantChatState.KIND_TOOL_EVENT,
+                ShaftAssistantPanel.toolCardKind(ShaftMcpToolResult.success("{}"), null));
     }
 }

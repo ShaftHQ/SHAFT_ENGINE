@@ -428,3 +428,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.worktree-isolated-agents-can-be-reclaimed-mid-task-while-still-actively-working-with-no-committed-diff","timestamp":"2026-07-21T15:20:32+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci","timestamp":"2026-07-21T16:34:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.editing-a-prs-description-via-gh-pr-edit-body-does-not-change-what-gh-pr-merge-squash-uses-as-the-squash-commit-message-a-closes-n-in-the-branchs-original-commit-still-auto-closes-the-issue","timestamp":"2026-07-21T22:15:37+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-keeps-two-separate-message-object-graphs-transcript-vs-chatstate-extend-both-or-they-silently-desync","timestamp":"2026-07-21T21:45:19+03:00"}

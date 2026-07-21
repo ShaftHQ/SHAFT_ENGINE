@@ -154,6 +154,79 @@ class AssistantTranscriptViewTest {
     }
 
     /**
+     * Issue #3968: the 4-arg {@code append} lets a caller that already knows it is producing a
+     * non-default kind (a tool-event, an error, a raw-verbose dump, a milestone) say so explicitly
+     * instead of relying on {@code append(role, message, rawEvidence)}'s always role-inferred kind.
+     */
+    @Test
+    void fourArgAppendWithExplicitKindOverridesTheRoleInferredDefault() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Tool call failed: timeout", "", ShaftAssistantChatState.KIND_ERROR);
+
+        Component row = findByClientProperty(view, AssistantTranscriptView.TRANSCRIPT_KIND_PROPERTY,
+                ShaftAssistantChatState.KIND_ERROR);
+
+        assertNotNull(row, "An explicit KIND_ERROR must be honored instead of the role-inferred default");
+    }
+
+    /**
+     * Issue #3968: {@code replaceLast} gained a 3-arg overload so a streamed bubble whose final
+     * content changes kind (for example a local-agent run that streamed as plain assistant text but
+     * terminates in failure) can be re-styled in place, not just re-worded.
+     */
+    @Test
+    void replaceLastWithExplicitKindChangesTheRenderedBubblesKindProperty() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Running...");
+
+        view.replaceLast("assistant", "Tool call failed: timeout", ShaftAssistantChatState.KIND_ERROR);
+
+        Component row = findByClientProperty(view, AssistantTranscriptView.TRANSCRIPT_KIND_PROPERTY,
+                ShaftAssistantChatState.KIND_ERROR);
+        assertNotNull(row, "replaceLast with an explicit kind must re-style the bubble, not just re-word it");
+    }
+
+    /**
+     * The 2-arg {@code replaceLast} (used by every pre-existing caller, and by the fast streamed-
+     * update path) must keep leaving {@code kind} untouched exactly as before this ticket -- a
+     * milestone bubble streamed via repeated 2-arg {@code replaceLast} calls must not silently
+     * decay back to the role-inferred default.
+     */
+    @Test
+    void twoArgReplaceLastPreservesThePriorKindUnchanged() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Tool selected: local assistant", "", ShaftAssistantChatState.KIND_MILESTONE);
+
+        view.replaceLast("assistant", "Tool selected: local assistant (updated)");
+
+        Component row = findByClientProperty(view, AssistantTranscriptView.TRANSCRIPT_KIND_PROPERTY,
+                ShaftAssistantChatState.KIND_MILESTONE);
+        assertNotNull(row, "A 2-arg replaceLast (no explicit kind) must never change an existing message's kind");
+    }
+
+    /**
+     * Issue #3968: {@code setMessages} restores a persisted session (on panel construction, and on
+     * every chat-tab switch) -- it must preserve each message's already-persisted {@code kind}
+     * instead of silently re-resolving it from role alone, or every explicitly-kinded message (an
+     * error, a milestone, ...) would visually decay back to the default the moment a session is
+     * reloaded or the user switches chat tabs and back.
+     */
+    @Test
+    void setMessagesPreservesEachMessagesExplicitKindInsteadOfReResolvingFromRoleAlone() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        ShaftAssistantChatState.Message errorMessage = new ShaftAssistantChatState.Message();
+        errorMessage.role = "assistant";
+        errorMessage.kind = ShaftAssistantChatState.KIND_ERROR;
+        errorMessage.markdown = "Tool call failed: timeout";
+
+        view.setMessages(List.of(errorMessage));
+
+        Component row = findByClientProperty(view, AssistantTranscriptView.TRANSCRIPT_KIND_PROPERTY,
+                ShaftAssistantChatState.KIND_ERROR);
+        assertNotNull(row, "setMessages must preserve a restored message's persisted KIND_ERROR");
+    }
+
+    /**
      * Issue #3628: streamed local-agent output calls {@code replaceLast} once per line against an
      * already-appended placeholder bubble. Before this ticket every call -- append or replaceLast --
      * rebuilt the entire transcript from scratch, which is O(n) per streamed line. Asserts the actual
