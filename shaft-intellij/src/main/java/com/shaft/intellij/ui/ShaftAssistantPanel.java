@@ -713,6 +713,29 @@ final class ShaftAssistantPanel extends JPanel {
         refreshChatSelector();
         showPendingAgentGuidanceOptimizationPrompt();
         updateControlVisibility();
+        warmToolsCache();
+    }
+
+    /**
+     * Warms {@code ShaftMcpInvocationService}'s shared {@code tools/list} cache on first chat-panel
+     * construction (issue #3870/#3866 T4 goal 3): every {@code startTool} dispatch in this class
+     * routes through that service's unknown-tool fail-fast + did-you-mean guard, but the guard only
+     * activates once {@code knownToolNames()} has been populated by a successful
+     * {@code startListTools()} call -- and, before this change, nothing in this class ever made one
+     * (only the separate {@link ShaftFeaturePanel}'s {@code autoPopulateCatalog} did, via the same
+     * shared per-project service instance). Mirrors that method exactly: best-effort and silent, so
+     * an unconfigured MCP command, a disconnected server, or a test double project must never break
+     * panel construction or block ordinary chat usability.
+     */
+    private void warmToolsCache() {
+        if (project == null || !mcpConfigured()) {
+            return;
+        }
+        try {
+            ShaftMcpInvocationService.getInstance(project).startListTools();
+        } catch (RuntimeException ignored) {
+            // Best-effort warm-up only.
+        }
     }
 
     JComponent preferredFocusComponent() {
