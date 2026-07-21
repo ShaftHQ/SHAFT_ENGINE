@@ -886,7 +886,7 @@ public class CaptureService {
      *
      * <p>Plain Java overload with no progress reporting, preserved for direct callers (for example,
      * white-box tests); the MCP-exposed tool is {@link #generateReplay(String, String, String, String,
-     * boolean, boolean, boolean, boolean, boolean, String, String, McpSyncServerExchange)}.
+     * boolean, boolean, boolean, boolean, boolean, String, String, String, McpSyncServerExchange)}.
      *
      * @param sessionPath persisted Capture JSON path inside the MCP workspace
      * @param outputDirectory generated project root inside the MCP workspace
