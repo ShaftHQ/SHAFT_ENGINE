@@ -57,27 +57,55 @@ the newest evidence found in the workspace):
   "allureResultPaths": [],
   "historicalBundlePaths": [],
   "outputDirectory": "",
-  "includeScreenshots": true,
+  "includeScreenshots": false,
   "includePageSnapshots": false,
-  "minimumAllureResults": 1
+  "minimumAllureResults": 1,
+  "repositoryRoot": "",
+  "allowedSourcePaths": [],
+  "useAi": false,
+  "allowLocalAi": false,
+  "allowRemoteAi": false,
+  "driverVariableName": "driver",
+  "backend": ""
 }
 ```
 
-response (`McpAnalysisReport`, truncated):
+response (`McpAnalysisReport`, recorded live and truncated — note the real
+shape: `actions[]` entries carry `title`/`action`/`status`, not `kind`/
+`description`, and `codeBlocks[]` are objects with `title`/`language`/`code`/
+`copyPasteReady`, not bare strings):
 
 ```json
 {
   "schemaVersion": "1.0",
   "status": "DETERMINISTIC",
-  "bundleId": "doctor-20260720-141530",
+  "bundleId": "bundle-21218384673999cd887b",
   "primaryCause": "LOCATOR",
   "confidence": "HIGH",
-  "summary": "NoSuchElementException on signInButton after a DOM structure change.",
-  "actions": [{"kind": "REVIEW_LOCATOR", "description": "signInButton locator no longer matches."}],
-  "codeBlocks": ["By signInButton = SHAFT.GUI.Locator.clickableField(\"Sign in\");"],
-  "bundlePath": "target/shaft-doctor/doctor-20260720-141530",
-  "jsonReportPath": "target/shaft-doctor/doctor-20260720-141530/report.json",
-  "markdownReportPath": "target/shaft-doctor/doctor-20260720-141530/report.md",
+  "summary": "Locator did not resolve an element.",
+  "actions": [
+    {
+      "id": "r-locator-not-found",
+      "title": "Locator did not resolve an element",
+      "category": "LOCATOR",
+      "action": "Inspect the cited locator against the failing page state and update it only after confirming the intended element.",
+      "codeBlockIds": ["locator-review-locator", "explicit-wait-locator", "fix-prompt-locator"],
+      "status": "SUGGESTED"
+    }
+  ],
+  "codeBlocks": [
+    {
+      "id": "locator-review-locator",
+      "title": "LOCATOR (trust 90%): Review and replace the failing locator",
+      "kind": "LOCATOR",
+      "language": "java",
+      "code": "// Replace the placeholder with evidence-backed attributes from the current page.\nprivate static final String TARGET_ELEMENT_TEXT = \"REPLACE_WITH_STABLE_VISIBLE_TEXT\";",
+      "copyPasteReady": false
+    }
+  ],
+  "bundlePath": "target/shaft-doctor/doctor-evidence.json",
+  "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+  "markdownReportPath": "target/shaft-doctor/doctor-report.md",
   "warnings": []
 }
 ```
@@ -86,19 +114,20 @@ response (`McpAnalysisReport`, truncated):
 
 ```json
 {
-  "jsonReportPath": "target/shaft-doctor/doctor-20260720-141530/report.json",
-  "repositoryRoot": "C:/projects/demo-shaft",
-  "allowedSourcePaths": ["src/test/java/pages/LoginPage.java"],
+  "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+  "repositoryRoot": "",
+  "allowedSourcePaths": [],
   "useAi": false,
   "allowLocalAi": false,
   "allowRemoteAi": false,
   "driverVariableName": "driver",
-  "backend": "web"
+  "backend": ""
 }
 ```
 
-Response is the same `McpAnalysisReport` shape, with `codeBlocks` holding the
-proposed remediation snippet — review it before it is applied anywhere.
+Response is the same `McpAnalysisReport` shape shown above, re-rendered from
+the same report path (recorded live: byte-for-byte the same analysis) —
+review `codeBlocks` before any of it is applied anywhere.
 
 ## Official Guide Routes
 

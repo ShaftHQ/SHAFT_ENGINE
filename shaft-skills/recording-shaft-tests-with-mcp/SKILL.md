@@ -69,29 +69,35 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 ```json
 {
   "targetUrl": "https://demo.example.com/checkout",
-  "browser": "chrome",
-  "outputPath": "",
+  "browser": "Chrome",
   "headless": true,
   "sessionGoal": "guest checkout flow"
 }
 ```
 
-response (`McpCaptureUnionStatus` wrapping a WEB `CaptureStatus`, truncated):
+response (`McpCaptureUnionStatus` wrapping a WEB `CaptureStatus`, recorded
+live and truncated — note `browser` comes back lowercase, and the real
+payload also carries `processId`/`startedAt`/`networkTransactionCount`/
+`lastEndpoints`, none of which the previous hand-written example showed):
 
 ```json
 {
   "engine": "WEB",
   "webStatus": {
     "state": "ACTIVE",
-    "sessionId": "capture-20260720-141200",
-    "browser": "CHROME",
+    "sessionId": "ba2eb05e-8832-4c09-84bb-fc388bddb9f8",
+    "browser": "chrome",
     "currentUrl": "https://demo.example.com/checkout",
-    "eventCount": 0,
+    "eventCount": 1,
     "readiness": "READY",
     "warnings": [],
-    "outputPath": "recordings/capture-20260720-141200.json",
+    "outputPath": "recordings/capture-20260721-021006.json",
     "aiEnabled": false,
-    "pendingSignalCount": 0
+    "processId": 23832,
+    "startedAt": "2026-07-21T02:10:06.757591100Z",
+    "networkTransactionCount": 0,
+    "lastEndpoints": [],
+    "pendingSignalCount": 2
   },
   "playwrightStatus": null,
   "mobileStatus": null
@@ -101,7 +107,9 @@ response (`McpCaptureUnionStatus` wrapping a WEB `CaptureStatus`, truncated):
 `capture_status` — request: `{}` (no params). Response has the same
 `McpCaptureUnionStatus` shape as above, read at any point during the active
 recording (`eventCount`/`pendingSignalCount` reflect actions performed since
-`capture_start`).
+`capture_start`; `readiness` flips to `RISKY` with a `warnings[]` entry once
+SHAFT detects a step with no later recorded verification, e.g. a navigation
+or form submission never followed by an assertion).
 
 ## Official Guide Routes
 

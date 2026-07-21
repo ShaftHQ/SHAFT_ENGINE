@@ -72,7 +72,10 @@ covers client prefixes and batched schema loading). Prefer `shaft-cli call
 }
 ```
 
-response (`McpCodingPartnerDiff`, truncated):
+response (`McpCodingPartnerDiff`, field names/shape confirmed live -- field
+names and `targetExists` are accurate; `warnings[]` is never empty in
+practice, it always carries the preview-only disclaimer plus, for a
+not-yet-existing target, a "would create a new file" note):
 
 ```json
 {
@@ -82,11 +85,11 @@ response (`McpCodingPartnerDiff`, truncated):
   "targetExists": true,
   "insertedLineCount": 3,
   "unifiedDiff": "--- a/src/test/java/pages/LoginPage.java\n+++ b/src/test/java/pages/LoginPage.java\n@@ -12,6 +12,9 @@\n class LoginPage {\n+    public void loginAs(String user, String pass) { ... }\n",
-  "warnings": []
+  "warnings": ["Diff is preview-only; apply changes in IntelliJ under explicit user approval."]
 }
 ```
 
-`test_code_guardrails_check` — request:
+`test_code_guardrails_check` — request (illustrative failing-code case):
 
 ```json
 {"language": "java", "code": "Thread.sleep(2000);\ndriver.findElement(By.id(\"x\")).click();"}
@@ -103,9 +106,13 @@ response (`McpCodeGuardrailResult`):
     {"kind": "THREAD_SLEEP", "severity": "ERROR", "message": "Use SHAFT waits instead of Thread.sleep.", "line": 1, "snippet": "Thread.sleep(2000);"},
     {"kind": "RAW_FIND_ELEMENT", "severity": "ERROR", "message": "Use driver.element() instead of raw findElement.", "line": 2, "snippet": "driver.findElement(By.id(\"x\")).click();"}
   ],
-  "warnings": []
+  "warnings": ["Lexical guardrail check only; compile/runtime validation is still required."]
 }
 ```
+
+Recorded live for the passing case (`{"language":"java","code":"driver.element().click(SHAFT.GUI.Locator.id(\"login\"));"}`):
+`passed: true`, `violations: []`, and the SAME `warnings[]` disclaimer above
+-- it is present even when everything passes.
 
 ## Official Guide Routes
 
