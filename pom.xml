@@ -50,7 +50,15 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
+        <!-- -Xmx: macos-latest GitHub-hosted runners have only 7GB RAM (vs 16GB on windows-latest/
+             ubuntu-latest), so the JVM's ergonomic default heap (unset otherwise) is smaller there,
+             and the single reused surefire fork (reuseForks=true) that runs the whole module's tests
+             sequentially under the JaCoCo agent accumulates garbage until it exceeds that smaller
+             ceiling, crashing with OutOfMemoryError: Java heap space (#3930). 1024m gives generous,
+             empirically verified headroom: locally reproduced a clean heap-space OOM at -Xmx80m, and
+             confirmed -Xmx128m comfortably clears 300+ sequential tests in the same fork, while
+             leaving about 6GB of the 7GB macOS runner for the browser and OS. -->
+        <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -Xmx1024m</surefireArgLine>
         <mockito.version>5.23.0</mockito.version>
         <mockitoAgentArgLine>-javaagent:"${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</mockitoAgentArgLine>
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
