@@ -3887,7 +3887,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (error != null || result == null || !result.success()) {
             return;
         }
-        JsonObject statusJson = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        JsonObject statusJson = AssistantMarkdown.unwrapCaptureStatus(
+                AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
         if (statusJson == null || activeCaptureState(string(statusJson, "state", ""))) {
             return;
         }

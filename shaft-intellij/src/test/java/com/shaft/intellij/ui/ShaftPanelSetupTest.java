@@ -2754,6 +2754,48 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void captureStartDiagnosticUnwrapsTheActiveEngineSectionFromTheUnionResponse() throws Exception {
+        // Issue #3955 (mirrors #3949 in GuidedWorkflowPanel, fixed by #3954): capture_status/
+        // capture_api_status return a union (McpCaptureUnionStatus/McpCaptureApiUnionStatus, design
+        // doc amendment A3, landed by #3881) with the real recorder status nested under webStatus/
+        // playwrightStatus/mobileStatus, not at the union's top level. showCaptureStartDiagnostic must
+        // unwrap the matching section before reading state/outputPath, or the diagnostic always reads
+        // them as absent/default from the union's top level.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        String startOutput = mcpText("""
+                {
+                  "state": "ACTIVE",
+                  "outputPath": "recordings/intellij-capture-1.json",
+                  "processId": 111
+                }
+                """);
+        String statusOutput = mcpText("""
+                {
+                  "engine": "WEB",
+                  "webStatus": {
+                    "state": "NOT_RUNNING",
+                    "outputPath": "recordings/intellij-capture-1.json",
+                    "processId": 222,
+                    "warnings": ["The recorder process is no longer reachable."]
+                  },
+                  "playwrightStatus": null,
+                  "mobileStatus": null
+                }
+                """);
+
+        showCaptureStartDiagnostic(panel, "recordings/intellij-capture-1.json", startOutput,
+                ShaftMcpToolResult.success(statusOutput));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Capture diagnostic")),
+                () -> assertTrue(markdown.contains("State: `NOT_RUNNING`")),
+                () -> assertTrue(markdown.contains("Recorder process: `111`")),
+                () -> assertTrue(markdown.contains("Output: `recordings/intellij-capture-1.json`")),
+                () -> assertTrue(markdown.contains("The recorder process is no longer reachable.")));
+    }
+
+    @Test
     void cancelledCaptureCodegenReviewDoesNotArmLaterApprovalFlow() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         setField(panel, "captureReviewGenerationRunning", true);
