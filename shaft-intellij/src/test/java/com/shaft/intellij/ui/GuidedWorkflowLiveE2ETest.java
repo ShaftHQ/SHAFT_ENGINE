@@ -1,11 +1,14 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.intellij.mcp.LiveMcpTestHarness;
 import com.shaft.intellij.mcp.ShaftCommandLine;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -19,6 +22,8 @@ import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Container;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -134,6 +139,191 @@ class GuidedWorkflowLiveE2ETest {
             assertTrue(code.toLowerCase(Locale.ROOT).contains("tap"), code);
 
             mcp.invoke(new Invocation("driver_quit", new JsonObject()), TOOL_TIMEOUT);
+        }
+    }
+
+    /**
+     * API-recording chain (issue #3933): {@code capture_api_start} -> {@code capture_api_status}
+     * -> {@code capture_api_stop} (kept, not discarded) -> {@code capture_api_generate}, proving
+     * the record-through-codegen path {@code ShaftAssistantPanelLiveCaptureToolE2ETest
+     * #captureServiceRunsAnApiRecordingChainThroughTheRealChatPanel} deliberately does not: that
+     * test always passes {@code discard:true} to keep its coverage a fast smoke check, so the
+     * API-network recording is thrown away and codegen is never exercised.
+     *
+     * <p>{@link GuidedWorkflowPanel} has no backend/button for API recording at all (only
+     * WebDriver/Playwright/Mobile -- {@code capture_api_*} never appears anywhere in that class),
+     * so unlike the two tests above this one drives the tool chain directly through raw {@link
+     * Invocation}s, the same fallback the mobile test above already uses for
+     * {@code element_type}/{@code element_click}/{@code driver_quit}, none of which map to a panel
+     * control either. This is a real gap in the guided workflow UI, reported separately.
+     *
+     * <p>{@code capture_api_start} on the WEB engine (CaptureService#apiStart, shaft-mcp)
+     * ignores its {@code outputPath} argument entirely -- only the mobile MITM-proxy branch reads
+     * it -- so the persisted session path is read back from the returned {@code webStatus
+     * .outputPath} instead of being chosen up front.
+     *
+     * <p>Code generation deliberately does not use {@code capture_code_blocks} the way the web/
+     * mobile scenarios above do: that tool's {@code backend} parameter only recognizes
+     * {@code web}/{@code playwright}/{@code mobile} (CaptureService#resolveCodegenTarget) and
+     * silently falls back to the {@code WEB} target for anything else, including {@code "api"} --
+     * it would misread the API-network recording as a WebDriver UI capture rather than reject it.
+     * The real API codegen entry point is the dedicated {@code capture_api_generate} tool
+     * (CaptureService#generateApi), which renders a compiling {@code SHAFT.API} class via {@link
+     * com.shaft.capture.generate.api.ApiTestRenderer}.
+     */
+    @Test
+    @Timeout(600)
+    void apiRecorderCapturesNetworkTrafficAndGeneratesShaftApiCode() throws Exception {
+        LiveContext context = LiveContext.assumeConfigured();
+        context.deleteWorkspacePaths("generated-api-live");
+        HttpServer fixtureServer = apiFixtureServer();
+        try {
+            String targetUrl = "http://" + fixtureServer.getAddress().getHostString() + ":"
+                    + fixtureServer.getAddress().getPort() + "/";
+
+            try (LiveMcp mcp = context.connect()) {
+                JsonObject startStatus = webStatus(mcp.invoke(apiStart(targetUrl), SESSION_START_TIMEOUT));
+                assertEquals("ACTIVE", startStatus.get("state").getAsString(), startStatus.toString());
+                String outputPath = startStatus.get("outputPath").getAsString();
+                assertFalse(outputPath.isBlank(), "capture_api_start should report the persisted session path");
+
+                JsonObject status = awaitNetworkTransactions(mcp, 2, Duration.ofSeconds(90));
+                assertTrue(status.get("networkTransactionCount").getAsInt() >= 2, status.toString());
+
+                JsonObject stoppedStatus = webStatus(mcp.invoke(apiStop(false), TOOL_TIMEOUT));
+                assertEquals("COMPLETED", stoppedStatus.get("state").getAsString(), stoppedStatus.toString());
+                assertTrue(Files.exists(Path.of(outputPath)), "API capture session JSON missing: " + outputPath);
+
+                JsonObject generated = mcp.invoke(apiGenerate(outputPath), TOOL_TIMEOUT);
+                String code = generated.toString();
+                assertTrue(generated.get("successful").getAsBoolean(), code);
+                assertTrue(code.contains("new SHAFT.API("), code);
+                assertTrue(code.contains("setTargetStatusCode(200)"), code);
+                assertTrue(code.contains("assertThatResponse().matchesSchema("), code);
+                assertTrue(code.contains("requiredEnvironment("),
+                        "Recorded Authorization header should be redacted behind a required-environment "
+                                + "lookup, never a literal: " + code);
+                assertFalse(code.contains(SECRET_CANARY),
+                        "Generated code blocks must not leak the recorded Authorization header: " + code);
+
+                Path source = context.workspacePath(
+                        "generated-api-live/src/test/java/tests/generated/GeneratedApiCaptureTest.java");
+                Path testDataDirectory = context.workspacePath(
+                        "generated-api-live/src/test/resources/test-data/api-capture");
+                assertTrue(Files.exists(source), "Generated API source missing: " + source);
+                assertTrue(Files.isDirectory(testDataDirectory), "Generated API schema directory missing: "
+                        + testDataDirectory);
+                String sourceText = Files.readString(source, StandardCharsets.UTF_8);
+                assertFalse(sourceText.contains(SECRET_CANARY),
+                        "Generated source must not leak the recorded Authorization header");
+                try (var schemaFiles = Files.list(testDataDirectory)) {
+                    for (Path schemaFile : schemaFiles.toList()) {
+                        assertFalse(Files.readString(schemaFile, StandardCharsets.UTF_8).contains(SECRET_CANARY),
+                                "Generated schema artifact must not leak the recorded Authorization header: "
+                                        + schemaFile);
+                    }
+                }
+            }
+        } finally {
+            fixtureServer.stop(0);
+        }
+    }
+
+    private static Invocation apiStart(String targetUrl) {
+        JsonObject networkOptions = new JsonObject();
+        networkOptions.addProperty("enabled", true);
+        networkOptions.addProperty("captureRequestBodies", false);
+        networkOptions.addProperty("captureResponseBodies", true);
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", targetUrl);
+        arguments.addProperty("browser", "Chrome");
+        arguments.addProperty("headless", true);
+        arguments.add("networkOptions", networkOptions);
+        return new Invocation("capture_api_start", arguments);
+    }
+
+    private static Invocation apiStop(boolean discard) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("discard", discard);
+        return new Invocation("capture_api_stop", arguments);
+    }
+
+    private static Invocation apiGenerate(String sessionPath) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", sessionPath);
+        arguments.addProperty("outputDirectory", "generated-api-live");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "GeneratedApiCaptureTest");
+        arguments.addProperty("style", "SCENARIO");
+        arguments.addProperty("validationDepth", "SCHEMA");
+        arguments.addProperty("overwrite", true);
+        arguments.addProperty("replay", false);
+        arguments.addProperty("openApiSpecPath", "");
+        arguments.add("excludedTransactionIds", new JsonArray());
+        arguments.add("pinnedJsonPaths", new JsonArray());
+        return new Invocation("capture_api_generate", arguments);
+    }
+
+    private static JsonObject awaitNetworkTransactions(LiveMcp mcp, int minimumTransactions, Duration limit)
+            throws Exception {
+        long deadline = System.nanoTime() + limit.toNanos();
+        JsonObject status = new JsonObject();
+        while (System.nanoTime() < deadline) {
+            status = webStatus(mcp.invoke(new Invocation("capture_api_status", new JsonObject()), TOOL_TIMEOUT));
+            if (status.has("networkTransactionCount") && status.get("networkTransactionCount").getAsInt()
+                    >= minimumTransactions) {
+                return status;
+            }
+            Thread.sleep(2000);
+        }
+        return status;
+    }
+
+    /**
+     * Local HTTP fixture (mirrors {@code ManagedCaptureRecorderBrowserTest#localFixture} in
+     * shaft-capture, the repo's established pattern for driving real network traffic through a
+     * Capture recording): two JSON API endpoints plus a page that {@code fetch()}es both with an
+     * {@code Authorization} header carrying {@link #SECRET_CANARY}, so the recorded transactions
+     * exercise the header-redaction path {@code SecretHeaderReplacer} applies at record time. A
+     * bundled {@code file:} page cannot stand in for this: only XHR/FETCH requests with a real
+     * response are renderable by {@code ApiCaptureGenerator}, and a same-origin server avoids CORS.
+     */
+    private static HttpServer apiFixtureServer() throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
+        server.createContext("/", exchange -> respond(exchange, "text/html; charset=utf-8", apiFixturePage()));
+        server.createContext("/api/session", exchange -> respond(exchange, "application/json",
+                "{\"status\":\"ok\",\"userId\":42}"));
+        server.createContext("/api/profile", exchange -> respond(exchange, "application/json",
+                "{\"role\":\"admin\",\"userId\":42}"));
+        server.setExecutor(null);
+        server.start();
+        return server;
+    }
+
+    private static String apiFixturePage() {
+        return """
+                <!doctype html>
+                <html lang="en"><head><meta charset="utf-8"><title>SHAFT Live API Fixture</title></head>
+                <body>
+                <h1>SHAFT Live API Fixture</h1>
+                <script>
+                  setTimeout(function () {
+                    var authorized = {headers: {Authorization: "Bearer %s"}};
+                    fetch("/api/session", authorized)
+                      .then(function () { return fetch("/api/profile", authorized); })
+                      .then(function () { document.title = "SHAFT Live API Fixture - done"; });
+                  }, 1500);
+                </script>
+                </body></html>
+                """.formatted(SECRET_CANARY);
+    }
+
+    private static void respond(HttpExchange exchange, String contentType, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", contentType);
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (exchange) {
+            exchange.getResponseBody().write(bytes);
         }
     }
 
