@@ -123,6 +123,37 @@ class AssistantTranscriptViewTest {
     }
 
     /**
+     * Issue #3921: {@code append()} has no explicit-kind parameter, so every bubble's {@link
+     * ShaftAssistantChatState.Message#kind} is role-inferred via {@link
+     * ShaftAssistantChatState#resolveKind} and exposed on the rendered row via {@link
+     * AssistantTranscriptView#TRANSCRIPT_KIND_PROPERTY} -- proving {@code fallbackMessage} actually
+     * reads the message model's kind (not just role) at the styling seam.
+     */
+    @Test
+    void appendedUserMessageRowCarriesTheUserKindProperty() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("user", "hello there");
+
+        Component row = findByClientProperty(view, AssistantTranscriptView.TRANSCRIPT_KIND_PROPERTY,
+                ShaftAssistantChatState.KIND_USER);
+
+        assertNotNull(row, "A user-role bubble's row must carry the KIND_USER transcript-kind property");
+    }
+
+    @Test
+    void appendedAssistantMessageRowCarriesTheAssistantTextKindProperty() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "hi, how can I help?");
+
+        Component row = findByClientProperty(view, AssistantTranscriptView.TRANSCRIPT_KIND_PROPERTY,
+                ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+
+        assertNotNull(row,
+                "A non-user-role bubble's row must carry the KIND_ASSISTANT_TEXT transcript-kind property "
+                        + "by default");
+    }
+
+    /**
      * Issue #3628: streamed local-agent output calls {@code replaceLast} once per line against an
      * already-appended placeholder bubble. Before this ticket every call -- append or replaceLast --
      * rebuilt the entire transcript from scratch, which is O(n) per streamed line. Asserts the actual
@@ -575,6 +606,22 @@ class AssistantTranscriptViewTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 Component found = findByAccessibleName(child, accessibleName);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Component findByClientProperty(Component component, String propertyKey, Object expectedValue) {
+        if (component instanceof javax.swing.JComponent jComponent
+                && expectedValue.equals(jComponent.getClientProperty(propertyKey))) {
+            return component;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                Component found = findByClientProperty(child, propertyKey, expectedValue);
                 if (found != null) {
                     return found;
                 }
