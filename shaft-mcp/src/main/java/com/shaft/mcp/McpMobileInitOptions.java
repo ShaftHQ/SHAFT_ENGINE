@@ -1,5 +1,7 @@
 package com.shaft.mcp;
 
+import org.springframework.ai.tool.annotation.ToolParam;
+
 /**
  * Optional nested mobile-session request object accepted by {@code driver_initialize} when
  * {@code engine} selects {@link ActiveEngine#MOBILE_NATIVE} or {@link ActiveEngine#MOBILE_WEB}
@@ -29,23 +31,23 @@ package com.shaft.mcp;
  * @param bundleId        native only: optional iOS bundle identifier for installed apps
  */
 public record McpMobileInitOptions(
-        String targetUrl,
-        String browser,
-        String deviceName,
-        Integer width,
-        Integer height,
-        Double pixelRatio,
-        String userAgent,
-        Boolean headless,
-        String platformName,
-        String appiumServerUrl,
-        String automationName,
-        String platformVersion,
-        String udid,
-        String app,
-        String appPackage,
-        String appActivity,
-        String bundleId) {
+        @ToolParam(required = false) String targetUrl,
+        @ToolParam(required = false) String browser,
+        @ToolParam(required = false) String deviceName,
+        @ToolParam(required = false) Integer width,
+        @ToolParam(required = false) Integer height,
+        @ToolParam(required = false) Double pixelRatio,
+        @ToolParam(required = false) String userAgent,
+        @ToolParam(required = false) Boolean headless,
+        @ToolParam(required = false) String platformName,
+        @ToolParam(required = false) String appiumServerUrl,
+        @ToolParam(required = false) String automationName,
+        @ToolParam(required = false) String platformVersion,
+        @ToolParam(required = false) String udid,
+        @ToolParam(required = false) String app,
+        @ToolParam(required = false) String appPackage,
+        @ToolParam(required = false) String appActivity,
+        @ToolParam(required = false) String bundleId) {
 
     /** Every field unset; equivalent to omitting {@code mobileOptions} entirely. */
     static final McpMobileInitOptions EMPTY = new McpMobileInitOptions(
