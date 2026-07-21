@@ -775,19 +775,11 @@ final class AssistantLocalAgentRunner {
      * stderr are each read on their own thread via {@link #readAsync}, so access to the mutable
      * terminal-event fields is synchronized.
      */
-    private static final class StructuredStreamParser {
+    static final class StructuredStreamParser {
         enum Format { CLAUDE, CODEX }
 
-        /**
-         * Sentinel returned by the describe methods for events that ARE fully consumed elsewhere
-         * (terminal result/usage events that become the final answer) and therefore must be neither
-         * described nor passed through raw. Distinct from {@code null}, which means "no
-         * human-readable mapping exists" and triggers the raw as-is passthrough in
-         * {@link #accept}.
-         */
-        private static final String CONSUMED = "";
-
         private final Format format;
+        private final StreamEventMapper mapper;
         private final Map<String, String> toolNamesByUseId = new HashMap<>();
         private final LinkedHashSet<String> filesTouched = new LinkedHashSet<>();
         private final Map<String, Integer> permissionDenialsByTool = new LinkedHashMap<>();
@@ -797,8 +789,8 @@ final class AssistantLocalAgentRunner {
         // A short, human-readable reason captured from a non-success terminal event (Claude's error
         // subtype, Codex's turn.failed detail), used to explain a failure whose answer text is empty.
         private String terminalDetail;
-        // The plan text from a Claude Code ExitPlanMode tool_use call (see the "tool_use" branch of
-        // describeClaudeEvent), if any. Carried through composeOutput's trailing metadata line so
+        // The plan text from a Claude Code ExitPlanMode tool_use call (see ClaudeStreamEventMapper's
+        // tool_use handling), if any. Carried through composeOutput's trailing metadata line so
         // ShaftAssistantPanel can recover it via parsePlanProposal and render the terminal "Plan
         // proposed" card (issue #3680), without changing the ShaftMcpToolResult contract.
         private String planProposal;
@@ -811,6 +803,7 @@ final class AssistantLocalAgentRunner {
 
         StructuredStreamParser(Format format) {
             this.format = format;
+            this.mapper = format == Format.CLAUDE ? new ClaudeStreamEventMapper(this) : new CodexStreamEventMapper(this);
         }
 
         synchronized void accept(String line, Consumer<String> outputConsumer) {
@@ -818,7 +811,7 @@ final class AssistantLocalAgentRunner {
             if (trimmed.isEmpty()) {
                 return;
             }
-            JsonObject event = parseObject(trimmed);
+            JsonObject event = StreamJson.parseObject(trimmed);
             if (event == null) {
                 // Non-JSON output (banners, warnings) is not part of the structured contract but is
                 // still useful progress information, so it passes through unchanged (content-wise) --
@@ -827,15 +820,18 @@ final class AssistantLocalAgentRunner {
                 outputConsumer.accept(RAW_STDOUT_MARKER + line);
                 return;
             }
-            String humanReadableLine = format == Format.CLAUDE ? describeClaudeEvent(event) : describeCodexEvent(event);
-            if (humanReadableLine == null) {
+            MapResult result = mapper.map(event);
+            if (result instanceof MapResult.Rendered rendered) {
+                outputConsumer.accept(rendered.text());
+            } else if (result instanceof MapResult.Unknown) {
                 // No human-readable mapping for this event: share it as-is (raw JSON) so Verbose
                 // mode never hides information the CLI sent. Non-verbose runs only ever show the
                 // parsed final answer, so this raw line is invisible unless the user opted in.
                 outputConsumer.accept(line);
-            } else if (!CONSUMED.equals(humanReadableLine)) {
-                outputConsumer.accept(humanReadableLine);
             }
+            // MapResult.Consumed: fully absorbed into parser state by the mapper (a terminal
+            // result/turn event that becomes the final answer), so it is neither shown nor passed
+            // through raw.
         }
 
         synchronized boolean hasTerminalEvent() {
@@ -903,8 +899,8 @@ final class AssistantLocalAgentRunner {
 
         private JsonObject usageHolder() {
             JsonObject usage = new JsonObject();
-            usage.addProperty("input_tokens", orZero(inputTokens));
-            usage.addProperty("output_tokens", orZero(outputTokens));
+            usage.addProperty("input_tokens", StreamJson.orZero(inputTokens));
+            usage.addProperty("output_tokens", StreamJson.orZero(outputTokens));
             JsonObject usageHolder = new JsonObject();
             usageHolder.add("usage", usage);
             if (planProposal != null && !planProposal.isBlank()) {
@@ -972,484 +968,75 @@ final class AssistantLocalAgentRunner {
             return !filesTouched.isEmpty();
         }
 
+        // -- Package-private accumulator API used by StreamEventMapper implementations --------
+
         /**
-         * Describes an "assistant" event as one or more human-readable lines (joined with newlines),
-         * covering every recognized block in the message rather than stopping at the first match: an
-         * extended-thinking block followed by a tool call and some text all become separate lines, so
-         * Verbose mode shows the CLI's full train of thought instead of only a fragment of it.
+         * Remembers a {@code tool_use} block's id -> name mapping (Claude stream-json correlates a
+         * later {@code tool_result} back to the call that produced it via this id, see {@link
+         * ClaudeStreamEventMapper}).
          */
-        private String describeClaudeEvent(JsonObject event) {
-            String type = stringField(event, "type");
-            if ("assistant".equals(type)) {
-                JsonObject message = objectField(event, "message");
-                JsonElement content = message == null ? null : message.get("content");
-                if (content != null && content.isJsonArray()) {
-                    List<String> lines = new ArrayList<>();
-                    for (JsonElement blockElement : content.getAsJsonArray()) {
-                        if (!blockElement.isJsonObject()) {
-                            continue;
-                        }
-                        JsonObject block = blockElement.getAsJsonObject();
-                        String blockType = stringField(block, "type");
-                        if ("thinking".equals(blockType)) {
-                            String thinking = stringField(block, "thinking");
-                            if (thinking != null && !thinking.isBlank()) {
-                                lines.add("Thinking: " + thinking);
-                            }
-                        } else if ("redacted_thinking".equals(blockType)) {
-                            lines.add("Thinking: (redacted by Claude for safety)");
-                        } else if ("tool_use".equals(blockType)) {
-                            String toolName = stringField(block, "name");
-                            String toolUseId = stringField(block, "id");
-                            if (toolUseId != null && toolName != null) {
-                                toolNamesByUseId.put(toolUseId, toolName);
-                            }
-                            recordFileMutation(toolName, objectField(block, "input"));
-                            String plan = "ExitPlanMode".equals(toolName)
-                                    ? stringField(objectField(block, "input"), "plan")
-                                    : null;
-                            if (plan != null && !plan.isBlank()) {
-                                // Claude Code's own built-in "propose this plan, ask to proceed" tool sends
-                                // its proposal in a "plan" input key that toolInputSummary does not
-                                // recognize (issue #3680): without this branch it would fall through to the
-                                // generic bare "Calling tool ExitPlanMode..." line below, hiding the one
-                                // piece of information -- the plan itself -- the user actually needs.
-                                planProposal = plan;
-                                lines.add("**Plan proposed:**\n\n" + plan);
-                            } else {
-                                String label = toolName == null ? "(unknown)" : toolName;
-                                String summary = toolInputSummary(objectField(block, "input"));
-                                lines.add(summary == null
-                                        ? "Calling tool " + label + "..."
-                                        : "Calling tool " + label + " (" + summary + ")...");
-                            }
-                        } else if ("text".equals(blockType)) {
-                            String text = stringField(block, "text");
-                            if (text != null && !text.isBlank()) {
-                                lines.add(text);
-                            }
-                        }
-                    }
-                    return lines.isEmpty() ? null : String.join("\n", lines);
-                }
-                return null;
-            }
-            if ("user".equals(type)) {
-                return describeClaudeToolResults(event);
-            }
-            if ("system".equals(type)) {
-                return describeClaudeSystemEvent(event);
-            }
-            if ("result".equals(type)) {
-                String resultText = stringField(event, "result");
-                answer = resultText == null ? "" : resultText;
-                answer = captureStructuredQuestion(answer);
-                JsonObject usage = objectField(event, "usage");
-                inputTokens = intField(usage, "input_tokens");
-                outputTokens = intField(usage, "output_tokens");
-                recordPermissionDenials(event.get("permission_denials"));
-                String subtype = stringField(event, "subtype");
-                if (booleanField(event, "is_error") || (subtype != null && subtype.startsWith("error"))) {
-                    terminalDetail = humanizeSubtype(subtype);
-                }
-                // Fully consumed: this event becomes the final answer, so it is mapped, not hidden.
-                return CONSUMED;
-            }
-            return null;
+        void rememberToolName(String toolUseId, String toolName) {
+            toolNamesByUseId.put(toolUseId, toolName);
+        }
+
+        /** Looks up a previously remembered tool name by its {@code tool_use_id}, or {@code null}. */
+        String toolNameFor(String toolUseId) {
+            return toolNamesByUseId.get(toolUseId);
+        }
+
+        /** Records that {@code path} was created or edited, for the final activity-summary footer. */
+        void recordFileTouched(String path) {
+            filesTouched.add(path);
         }
 
         /**
-         * Describes a Claude {@code system} event (session lifecycle/control-plane notices, distinct
-         * from the assistant/user/result conversation events above). Official subtypes per the
-         * documented stream-json schema: {@code init}, {@code api_retry}, {@code plugin_install},
-         * {@code hook_started}/{@code hook_progress}/{@code hook_response}, and {@code
-         * compact_boundary}. Only the two most user-visible subtypes get a compact rendering here
-         * (issue #3922); the rest fall through to {@code null} -- raw-JSON passthrough in Verbose mode,
-         * same as any other unrecognized event, so nothing is silently hidden even though it isn't
-         * translated yet.
+         * Records one failed/denied tool call for {@code toolName} in the shared per-tool bucket
+         * both Claude's {@code permission_denials} array and Codex's completed-item failure/decline
+         * detection feed into (see {@link #activitySummary()}).
          */
-        private static String describeClaudeSystemEvent(JsonObject event) {
-            String subtype = stringField(event, "subtype");
-            if ("init".equals(subtype)) {
-                List<String> parts = new ArrayList<>();
-                String model = stringField(event, "model");
-                String sessionId = stringField(event, "session_id");
-                if (model != null && !model.isBlank()) {
-                    parts.add("model " + model);
-                }
-                if (sessionId != null && !sessionId.isBlank()) {
-                    parts.add("session " + sessionId);
-                }
-                return parts.isEmpty() ? "Session started." : "Session started (" + String.join(", ", parts) + ").";
-            }
-            if ("compact_boundary".equals(subtype)) {
-                return "Conversation history was compacted to save context.";
-            }
-            return null;
+        void recordToolFailure(String toolName) {
+            permissionDenialsByTool.merge(toolName, 1, Integer::sum);
+        }
+
+        /** Stashes a Claude Code {@code ExitPlanMode} plan proposal (issue #3680). */
+        void setPlanProposal(String plan) {
+            this.planProposal = plan;
         }
 
         /**
-         * Remembers the target path of a file-mutating built-in tool call (Claude's Write/Edit
-         * family) so the final bubble can list what was actually created or edited.
+         * Sets the terminal answer text, running it through {@link #captureStructuredQuestion} so the
+         * structured-question protocol (issue #3719) is detected and stripped at the moment the raw
+         * text is captured, before {@link #activitySummary()}/{@link #usageHolder()} append their own
+         * trailing content.
          */
-        private void recordFileMutation(String toolName, JsonObject input) {
-            if (toolName == null || input == null) {
-                return;
-            }
-            if (!"Write".equals(toolName) && !"Edit".equals(toolName)
-                    && !"MultiEdit".equals(toolName) && !"NotebookEdit".equals(toolName)) {
-                return;
-            }
-            String path = firstNonBlank(stringField(input, "file_path"), stringField(input, "path"));
-            if (path != null) {
-                filesTouched.add(path);
-            }
+        void setAnswer(String rawAnswer) {
+            this.answer = captureStructuredQuestion(rawAnswer);
         }
 
-        /**
-         * Aggregates the terminal event's {@code permission_denials} array (Claude stream-json)
-         * into per-tool counts for the activity footer.
-         */
-        private void recordPermissionDenials(JsonElement denials) {
-            if (denials == null || !denials.isJsonArray()) {
-                return;
-            }
-            for (JsonElement element : denials.getAsJsonArray()) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                String toolName = stringField(element.getAsJsonObject(), "tool_name");
-                if (toolName != null && !toolName.isBlank()) {
-                    permissionDenialsByTool.merge(toolName, 1, Integer::sum);
-                }
-            }
+        /** Overwrites the captured usage token counts. */
+        void setUsage(Integer inputTokens, Integer outputTokens) {
+            this.inputTokens = inputTokens;
+            this.outputTokens = outputTokens;
         }
 
-        /**
-         * Remembers the file(s) touched by a completed Codex {@code file_change} item (Codex's
-         * {@code --json} counterpart to Claude's Write/Edit tool calls) so the final bubble can list
-         * what was actually created or edited. Codex's {@code file_change} item reports a real
-         * {@code status} ("completed" when the patch was applied, "failed" when it was not), so unlike
-         * {@link #recordFileMutation}'s request-time guess, this only credits paths whose patch
-         * actually succeeded; a failed patch is instead counted as a failed/denied tool call via
-         * {@link #recordCodexToolFailure} so it never claims a file was edited when it was not.
-         */
-        private void recordCodexFileMutation(JsonObject item) {
-            JsonElement changes = item == null ? null : item.get("changes");
-            if (changes == null || !changes.isJsonArray()) {
-                return;
-            }
-            if ("failed".equals(stringField(item, "status"))) {
-                permissionDenialsByTool.merge("file_change", 1, Integer::sum);
-                return;
-            }
-            for (JsonElement element : changes.getAsJsonArray()) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                String path = stringField(element.getAsJsonObject(), "path");
-                if (path != null && !path.isBlank()) {
-                    filesTouched.add(path);
-                }
-            }
+        /** Stashes a short human-readable reason for a non-success terminal event. */
+        void setTerminalDetail(String detail) {
+            this.terminalDetail = detail;
         }
 
-        /**
-         * Aggregates a completed Codex tool item's failure into the same per-tool bucket Claude's
-         * {@code permission_denials} array populates, using the completed item's {@code status}
-         * field (including {@code "failed"} and {@code "declined"} -- {@code CommandExecutionStatus}
-         * per {@code exec_events.rs} -- the latter being Codex's approval/sandbox-rejection outcome,
-         * which carries neither a non-zero exit code nor an error object of its own), a non-zero
-         * {@code exit_code} (shell commands), or a present {@code error} object (MCP tool calls) as
-         * the failure signal. Codex's {@code --json} schema has no field that distinguishes a
-         * sandbox/approval denial from an ordinary execution failure (see issue #3679), so both are
-         * merged here; {@link #activitySummary()} labels this bucket "Failed or denied tool calls" for
-         * Codex runs rather than reusing Claude's more precise "Denied tool calls" wording, so the
-         * footer never overclaims what the CLI's own output can actually prove.
-         */
-        private void recordCodexToolFailure(String toolName, JsonObject item) {
-            if (toolName == null || toolName.isBlank() || item == null) {
-                return;
-            }
-            Integer exitCode = intField(item, "exit_code");
-            String status = stringField(item, "status");
-            boolean failed = "failed".equals(status)
-                    || "declined".equals(status)
-                    || (exitCode != null && exitCode != 0)
-                    || objectField(item, "error") != null;
-            if (failed) {
-                permissionDenialsByTool.merge(toolName, 1, Integer::sum);
-            }
+        /** The input token count captured so far, or {@code null} if none has been seen yet. */
+        Integer currentInputTokens() {
+            return inputTokens;
         }
 
-        /**
-         * Describes a "user" event's {@code tool_result} blocks (Claude's stream-json protocol
-         * delivers a completed tool call's outcome as a synthetic user-role message, not as part of
-         * the assistant event that requested it) as one line per result, correlated back to the
-         * requesting call's tool name via {@link #toolNamesByUseId}. Without this, Verbose mode shows
-         * "Calling tool X..." and then nothing — the exact "generic thinking, not what it's actually
-         * doing" gap the Verbose toggle exists to close.
-         */
-        private String describeClaudeToolResults(JsonObject event) {
-            JsonObject message = objectField(event, "message");
-            JsonElement content = message == null ? null : message.get("content");
-            if (content == null || !content.isJsonArray()) {
-                return null;
-            }
-            List<String> lines = new ArrayList<>();
-            for (JsonElement blockElement : content.getAsJsonArray()) {
-                if (!blockElement.isJsonObject()) {
-                    continue;
-                }
-                JsonObject block = blockElement.getAsJsonObject();
-                if (!"tool_result".equals(stringField(block, "type"))) {
-                    continue;
-                }
-                String toolName = toolNamesByUseId.get(stringField(block, "tool_use_id"));
-                String label = toolName == null ? "tool" : toolName;
-                String text = toolResultText(block.get("content"));
-                String summary = text == null || text.isBlank() ? "(no output)" : text.strip();
-                lines.add((booleanField(block, "is_error") ? "Tool failed (" : "Tool result (") + label + "): " + summary);
-            }
-            return lines.isEmpty() ? null : String.join("\n", lines);
+        /** The output token count captured so far, or {@code null} if none has been seen yet. */
+        Integer currentOutputTokens() {
+            return outputTokens;
         }
 
-        private String describeCodexEvent(JsonObject event) {
-            String type = stringField(event, "type");
-            if ("item.completed".equals(type) || "item.updated".equals(type)) {
-                return describeCodexItemEvent(type, event);
-            }
-            if ("thread.started".equals(type)) {
-                // ThreadStartedEvent per exec_events.rs carries only { thread_id }; a compact fixed
-                // notice is enough to mark the session boundary without overclaiming detail.
-                return "Codex session started.";
-            }
-            if ("turn.started".equals(type)) {
-                // TurnStartedEvent per exec_events.rs is field-free ({}).
-                return "Codex turn started.";
-            }
-            if ("turn.completed".equals(type) || "turn.failed".equals(type)) {
-                JsonObject usage = objectField(event, "usage");
-                inputTokens = firstNonNull(intField(usage, "input_tokens"), inputTokens);
-                outputTokens = firstNonNull(intField(usage, "output_tokens"), outputTokens);
-                if ("turn.completed".equals(type)) {
-                    String lastAgentMessage = stringField(event, "last_agent_message");
-                    answer = lastAgentMessage != null ? lastAgentMessage : (answer == null ? "" : answer);
-                    answer = captureStructuredQuestion(answer);
-                } else {
-                    JsonObject error = objectField(event, "error");
-                    terminalDetail = firstNonBlank(stringField(event, "error"),
-                            stringField(error, "message"), stringField(error, "type"));
-                }
-                // Fully consumed: this event becomes the final answer/usage, so it is mapped, not hidden.
-                return CONSUMED;
-            }
-            if ("error".equals(type)) {
-                // ThreadEvent::Error per exec_events.rs -- a FATAL top-level error, distinct from
-                // turn.failed's nested error above. Feeds terminalDetail so a run that dies here gets a
-                // real reason in failureOutput() instead of the generic "exited with code N" fallback.
-                String message = stringField(event, "message");
-                if (message != null && !message.isBlank()) {
-                    terminalDetail = message;
-                    return "Error: " + message;
-                }
-                return null;
-            }
-            return null;
-        }
-
-        /**
-         * Describes an {@code item.completed}/{@code item.updated} event's {@code item.type}. Real
-         * Codex {@code --json} item variants per {@code codex-rs/exec/src/exec_events.rs}'s {@code
-         * ThreadItemDetails} enum: {@code agent_message}, {@code reasoning}, {@code command_execution},
-         * {@code file_change}, {@code mcp_tool_call}, {@code collab_tool_call}, {@code web_search},
-         * {@code todo_list}, {@code error}. Note there is no {@code "tool_call"} variant -- an earlier
-         * revision of this switch matched it under a stale assumption, but it never appears in live
-         * Codex output (issue #3922); only the three real tool-call-shaped variants are handled below.
-         */
-        private String describeCodexItemEvent(String type, JsonObject event) {
-            JsonObject item = objectField(event, "item");
-            String itemType = stringField(item, "type");
-            if ("reasoning".equals(itemType)) {
-                String reasoning = firstNonBlank(stringField(item, "text"), stringField(item, "summary"));
-                return reasoning == null ? null : "Reasoning: " + reasoning;
-            }
-            if ("command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)
-                    || "collab_tool_call".equals(itemType)) {
-                String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
-                String label = toolName == null ? "(unknown)" : toolName;
-                String summary = toolInputSummary(item);
-                List<String> lines = new ArrayList<>();
-                lines.add(summary == null || summary.equals(label)
-                        ? "Calling tool " + label + "..."
-                        : "Calling tool " + label + " (" + summary + ")...");
-                if ("item.completed".equals(type)) {
-                    recordCodexToolFailure(label, item);
-                    String output = firstNonBlank(
-                            stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
-                    if (output != null && !output.isBlank()) {
-                        Integer exitCode = intField(item, "exit_code");
-                        String outputSummary = output.strip();
-                        lines.add(exitCode != null && exitCode != 0
-                                ? "Tool failed (" + label + ", exit " + exitCode + "): " + outputSummary
-                                : "Tool result (" + label + "): " + outputSummary);
-                    }
-                }
-                return String.join("\n", lines);
-            }
-            if ("file_change".equals(itemType)) {
-                if ("item.completed".equals(type)) {
-                    recordCodexFileMutation(item);
-                }
-                return null;
-            }
-            if ("agent_message".equals(itemType)) {
-                String text = stringField(item, "text");
-                return text != null && !text.isBlank() ? text : null;
-            }
-            if ("web_search".equals(itemType)) {
-                String query = stringField(item, "query");
-                return query != null && !query.isBlank() ? "Web search: " + query : null;
-            }
-            if ("todo_list".equals(itemType)) {
-                return describeCodexTodoList(item);
-            }
-            if ("error".equals(itemType)) {
-                // ErrorItem per exec_events.rs -- item-level, non-fatal (e.g. "command output
-                // truncated"), distinct from the top-level ThreadEvent::Error handled above.
-                String message = stringField(item, "message");
-                return message != null && !message.isBlank() ? "Error: " + message : null;
-            }
-            return null;
-        }
-
-        /**
-         * Renders a completed Codex {@code todo_list} item ({@code items: [{ text, completed }] }) as
-         * a Markdown checklist, one line per entry.
-         */
-        private static String describeCodexTodoList(JsonObject item) {
-            JsonElement itemsElement = item == null ? null : item.get("items");
-            if (itemsElement == null || !itemsElement.isJsonArray()) {
-                return null;
-            }
-            List<String> lines = new ArrayList<>();
-            lines.add("Todo list:");
-            for (JsonElement element : itemsElement.getAsJsonArray()) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject todo = element.getAsJsonObject();
-                String text = stringField(todo, "text");
-                if (text == null || text.isBlank()) {
-                    continue;
-                }
-                lines.add((booleanField(todo, "completed") ? "- [x] " : "- [ ] ") + text);
-            }
-            return lines.size() <= 1 ? null : String.join("\n", lines);
-        }
-
-        private static String firstNonBlank(String... candidates) {
-            for (String candidate : candidates) {
-                if (candidate != null && !candidate.isBlank()) {
-                    return candidate;
-                }
-            }
-            return null;
-        }
-
-        /**
-         * Turns a machine error subtype (e.g. {@code error_max_turns}) into a short prose reason
-         * (e.g. {@code max turns}) for the failure headline.
-         */
-        private static String humanizeSubtype(String subtype) {
-            if (subtype == null || subtype.isBlank()) {
-                return "the run failed";
-            }
-            String cleaned = subtype.replace("error_", "").replace('_', ' ').trim();
-            return cleaned.isBlank() ? "the run failed" : cleaned;
-        }
-
-        private static Integer firstNonNull(Integer preferred, Integer fallback) {
-            return preferred != null ? preferred : fallback;
-        }
-
-        private static JsonObject parseObject(String candidate) {
-            if (!candidate.startsWith("{")) {
-                return null;
-            }
-            try {
-                JsonElement parsed = JsonParser.parseString(candidate);
-                return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
-            } catch (JsonParseException exception) {
-                return null;
-            }
-        }
-
-        private static String stringField(JsonObject object, String key) {
-            JsonElement value = object == null ? null : object.get(key);
-            return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()
-                    ? value.getAsString()
-                    : null;
-        }
-
-        private static JsonObject objectField(JsonObject object, String key) {
-            JsonElement value = object == null ? null : object.get(key);
-            return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
-        }
-
-        private static boolean booleanField(JsonObject object, String key) {
-            JsonElement value = object == null ? null : object.get(key);
-            return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()
-                    && value.getAsBoolean();
-        }
-
-        /**
-         * Picks the first present, non-blank value among the input keys most likely to tell the user
-         * what a tool call is actually doing (the command run, the file touched, the pattern searched
-         * for, ...), collapsed to a single line (but not otherwise truncated -- the user asked to see
-         * full messages). Returns {@code null} when none of the known keys are present rather than
-         * guessing at unfamiliar tool schemas.
-         */
-        private static String toolInputSummary(JsonObject input) {
-            if (input == null) {
-                return null;
-            }
-            for (String key : List.of(
-                    "command", "file_path", "path", "pattern", "url", "query", "description", "prompt")) {
-                String value = stringField(input, key);
-                if (value != null && !value.isBlank()) {
-                    return value.strip().replaceAll("\\s+", " ");
-                }
-            }
-            return null;
-        }
-
-        /**
-         * Extracts the human-readable text of a {@code tool_result} block's {@code content}, which per
-         * Claude's stream-json protocol is either a plain string or an array of content blocks (text
-         * blocks are joined; non-text blocks such as images are skipped since they have nothing to
-         * show in a text transcript).
-         */
-        private static String toolResultText(JsonElement content) {
-            if (content == null || content.isJsonNull()) {
-                return null;
-            }
-            if (content.isJsonPrimitive() && content.getAsJsonPrimitive().isString()) {
-                return content.getAsString();
-            }
-            if (content.isJsonArray()) {
-                List<String> parts = new ArrayList<>();
-                for (JsonElement element : content.getAsJsonArray()) {
-                    if (element.isJsonObject()) {
-                        String text = stringField(element.getAsJsonObject(), "text");
-                        if (text != null && !text.isBlank()) {
-                            parts.add(text);
-                        }
-                    }
-                }
-                return parts.isEmpty() ? null : String.join("\n", parts);
-            }
-            return null;
+        /** The terminal answer text captured so far, or {@code null} if none has been seen yet. */
+        String currentAnswer() {
+            return answer;
         }
     }
 
@@ -1862,12 +1449,12 @@ final class AssistantLocalAgentRunner {
 
     private static TokenUsage usageFromHolder(JsonObject usageHolder) {
         JsonObject usage = resolveUsageObject(usageHolder);
-        Integer inputTokens = intField(usage, "input_tokens");
-        Integer outputTokens = intField(usage, "output_tokens");
+        Integer inputTokens = StreamJson.intField(usage, "input_tokens");
+        Integer outputTokens = StreamJson.intField(usage, "output_tokens");
         if (inputTokens == null && outputTokens == null) {
             return null;
         }
-        return TokenUsage.reported(orZero(inputTokens), orZero(outputTokens));
+        return TokenUsage.reported(StreamJson.orZero(inputTokens), StreamJson.orZero(outputTokens));
     }
 
     /**
@@ -2033,22 +1620,6 @@ final class AssistantLocalAgentRunner {
             return usage.getAsJsonObject();
         }
         return usageHolder;
-    }
-
-    private static int orZero(Integer value) {
-        return value == null ? 0 : value;
-    }
-
-    private static Integer intField(JsonObject object, String key) {
-        JsonElement value = object == null ? null : object.get(key);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
-            return null;
-        }
-        try {
-            return value.getAsInt();
-        } catch (RuntimeException exception) {
-            return null;
-        }
     }
 
     private static JsonObject extractJsonObject(String text) {
