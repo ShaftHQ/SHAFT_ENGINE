@@ -845,10 +845,9 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <centralBaseUrl>https://central.sonatype.com</centralBaseUrl>
-                    <tokenAuth>true</tokenAuth>
                     <autoPublish>true</autoPublish>
                     <waitUntil>published</waitUntil>
-                    <waitMaxTime>3600</waitMaxTime> <!-- one hour -->
+                    <waitMaxTime>7200</waitMaxTime> <!-- two hours -->
                 </configuration>
             </plugin>
             <plugin>
