@@ -11,7 +11,10 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "autobot_local_agent_run",
@@ -169,7 +172,13 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "provider": "anthropic",
+          "model": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "browser_accessibility_audit",
@@ -280,7 +289,10 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "browser_navigate",
@@ -307,7 +319,12 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "targetUrl": "https://demo.example.com/checkout"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "browser_navigate_back",
@@ -781,7 +798,19 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "targetUrl": "https://demo.example.com/checkout",
+          "browser": "Chrome",
+          "headless": true,
+          "networkOptions": {
+            "enabled": true,
+            "captureRequestBodies": false,
+            "captureResponseBodies": false
+          }
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "capture_api_status",
@@ -793,7 +822,10 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "capture_api_stop",
@@ -813,7 +845,12 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "discard": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "capture_api_transactions",
@@ -1310,13 +1347,12 @@
       "cliCommand": null,
       "example": {
         "request": {
-          "browser": "chrome",
+          "targetUrl": "https://demo.example.com/checkout",
+          "browser": "Chrome",
           "headless": true,
-          "outputPath": "",
-          "sessionGoal": "guest checkout flow",
-          "targetUrl": "https://demo.example.com/checkout"
+          "sessionGoal": "live e2e smoke"
         },
-        "response": "McpCaptureUnionStatus wrapping a WEB CaptureStatus (see shaft-skills/recording-shaft-tests-with-mcp/SKILL.md, truncated)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -1331,7 +1367,7 @@
       "cliCommand": null,
       "example": {
         "request": {},
-        "response": "McpCaptureUnionStatus, same shape as capture_start's response"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -1399,7 +1435,12 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "discard": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "capture_target_candidates",
@@ -1545,12 +1586,19 @@
         "request": {
           "allureResultPaths": [],
           "historicalBundlePaths": [],
+          "outputDirectory": "",
+          "includeScreenshots": false,
           "includePageSnapshots": false,
-          "includeScreenshots": true,
           "minimumAllureResults": 1,
-          "outputDirectory": ""
+          "repositoryRoot": "",
+          "allowedSourcePaths": [],
+          "useAi": false,
+          "allowLocalAi": false,
+          "allowRemoteAi": false,
+          "driverVariableName": "driver",
+          "backend": ""
         },
-        "response": "McpAnalysisReport (see shaft-skills/analyzing-shaft-failures/SKILL.md Example calls, truncated)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -1697,18 +1745,16 @@
       "cliCommand": null,
       "example": {
         "request": {
+          "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+          "repositoryRoot": "",
+          "allowedSourcePaths": [],
+          "useAi": false,
           "allowLocalAi": false,
           "allowRemoteAi": false,
-          "allowedSourcePaths": [
-            "src/test/java/pages/LoginPage.java"
-          ],
-          "backend": "web",
           "driverVariableName": "driver",
-          "jsonReportPath": "target/shaft-doctor/doctor-20260720-141530/report.json",
-          "repositoryRoot": "C:/projects/demo-shaft",
-          "useAi": false
+          "backend": ""
         },
-        "response": "McpAnalysisReport with codeBlocks holding the proposed remediation snippet"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -1743,7 +1789,18 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "targetBrowser": "CHROME",
+          "engine": "MOBILE_WEB",
+          "mobileOptions": {
+            "targetUrl": "https://demo.example.com/checkout",
+            "browser": "CHROME",
+            "headless": true
+          }
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "driver_quit",
@@ -1755,7 +1812,10 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "element_clear",
@@ -1816,7 +1876,13 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "locatorStrategy": "ID",
+          "locatorValue": "go"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "element_drag_and_drop",
@@ -2027,7 +2093,14 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "locatorStrategy": "ID",
+          "locatorValue": "username",
+          "text": "shaft-live-e2e"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "element_upload_file",
@@ -2177,7 +2250,27 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "repositoryRoot": ".",
+          "testCommand": [
+            "mvn.cmd",
+            "test"
+          ],
+          "outputDirectory": "",
+          "maxAttempts": 1,
+          "includeScreenshots": false,
+          "includePageSnapshots": false,
+          "allowedSourcePaths": [],
+          "networkValidationApproved": false,
+          "useConfiguredAi": false,
+          "allowLocalAi": false,
+          "allowRemoteAi": false,
+          "driverVariableName": "driver",
+          "backend": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "mobile_activate_app",
@@ -2257,7 +2350,12 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "maxCharacters": 0
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "mobile_hide_keyboard",
@@ -2664,7 +2762,12 @@
       ],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "platformName": "Android"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "report_merge_shards",
@@ -2734,14 +2837,14 @@
       "cliCommand": null,
       "example": {
         "request": {
+          "repositoryPath": ".",
+          "targetSourcePath": "src/test/java/tests/LiveE2EDemoTest.java",
           "codeBlocks": [
-            "public void loginAs(String user, String pass) { ... }"
+            "System.out.println(\"hi\");"
           ],
-          "insertionAnchor": "class LoginPage",
-          "repositoryPath": "C:/projects/demo-shaft",
-          "targetSourcePath": "src/test/java/pages/LoginPage.java"
+          "insertionAnchor": ""
         },
-        "response": "McpCodingPartnerDiff (see shaft-skills/verifying-and-applying-shaft-changes/SKILL.md, truncated)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -2812,15 +2915,15 @@
       "cliCommand": null,
       "example": {
         "request": {
+          "repositoryPath": ".",
+          "intent": "add a login test",
+          "backend": "",
+          "currentSourcePath": "",
+          "selectedText": "",
           "artifactPaths": [],
-          "backend": "web",
-          "currentSourcePath": "src/test/java/tests/LoginTest.java",
-          "intent": "add a sign-in test reusing LoginPage",
-          "maxResults": 5,
-          "repositoryPath": "C:/projects/demo-shaft",
-          "selectedText": ""
+          "maxResults": 5
         },
-        "response": "McpCodingPartnerPlan (see shaft-skills/writing-shaft-tests/SKILL.md Example calls, truncated)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -2859,10 +2962,10 @@
       "cliCommand": null,
       "example": {
         "request": {
-          "maxResults": 2,
-          "query": "Smart Locators inputField clickableField"
+          "query": "page object model",
+          "maxResults": 3
         },
-        "response": "McpGuideSearchResult (see shaft-skills/choosing-shaft-locators/SKILL.md Example calls, truncated)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -2953,7 +3056,22 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "outputDirectory": "live-e2e-demo-project",
+          "runner": "TestNG",
+          "platform": "web",
+          "groupId": "",
+          "artifactId": "",
+          "version": "",
+          "shaftVersion": "1.0.0",
+          "optionalModules": [],
+          "includeGithubActions": false,
+          "includeDependabot": false,
+          "overwrite": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "shaft_project_init_agents",
@@ -2987,7 +3105,14 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "loop": "claude",
+          "targetDirectory": "live-e2e-demo-project",
+          "overwrite": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "shaft_project_upgrade",
@@ -3069,7 +3194,20 @@
       ],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "projectRoot": "live-e2e-demo-project",
+          "upgradeType": "basic",
+          "dryRun": true,
+          "approve": false,
+          "shaftVersion": "",
+          "compileCommand": "",
+          "compileTimeout": 0,
+          "skipBaselineCompile": true,
+          "allowAiRepair": false
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "test_automation_scenarios",
@@ -3109,7 +3247,14 @@
       ],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "area": "web",
+          "intent": "login",
+          "maxResults": 5
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "test_code_guardrails_check",
@@ -3143,10 +3288,10 @@
       "cliCommand": null,
       "example": {
         "request": {
-          "code": "Thread.sleep(2000);\ndriver.findElement(By.id(\"x\")).click();",
-          "language": "java"
+          "language": "java",
+          "code": "driver.element().click(SHAFT.GUI.Locator.id(\"login\"));"
         },
-        "response": "McpCodeGuardrailResult (see shaft-skills/verifying-and-applying-shaft-changes/SKILL.md)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -3190,12 +3335,12 @@
       "cliCommand": null,
       "example": {
         "request": {
-          "goal": "guest checkout",
-          "maxDepth": 2,
-          "maxPages": 20,
-          "targetUrl": "https://demo.example.com"
+          "targetUrl": "https://example.com/",
+          "goal": "smoke",
+          "maxDepth": 1,
+          "maxPages": 1
         },
-        "response": "McpTestPlanExploreResult (see shaft-skills/planning-shaft-tests/SKILL.md Example calls)"
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
     {
@@ -3216,7 +3361,12 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "maxResults": 5
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     },
     {
       "name": "trace_open_viewer",
@@ -3317,7 +3467,18 @@
       "intentKeywords": [],
       "slashAlias": null,
       "cliCommand": null,
-      "example": null
+      "example": {
+        "request": {
+          "repositoryRoot": "",
+          "command": [
+            "mvn.cmd",
+            "-q",
+            "compile"
+          ],
+          "networkValidationApproved": false
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
     }
   ]
 }

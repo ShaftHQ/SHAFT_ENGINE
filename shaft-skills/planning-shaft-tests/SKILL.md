@@ -52,15 +52,16 @@ Integration Rules bounds):
 }
 ```
 
-response (`McpTestPlanExploreResult`):
+response (`McpTestPlanExploreResult`, recorded live -- field names/shape
+confirmed accurate):
 
 ```json
 {
   "schemaVersion": "1.0",
   "pagesVisited": 14,
   "plansWritten": [
-    "specs/guest-checkout-add-to-cart.md",
-    "specs/guest-checkout-payment.md"
+    "specs/01-guest-checkout-add-to-cart.md",
+    "specs/02-guest-checkout-payment.md"
   ],
   "warnings": ["1 page skipped: response status 404."]
 }

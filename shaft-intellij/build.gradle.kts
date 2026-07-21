@@ -160,6 +160,7 @@ tasks {
         systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
         systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
         systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))
+        systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", "false"))
         systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))
         systemProperty("shaft.intellij.workspaceRoot", System.getProperty("shaft.intellij.workspaceRoot", ".."))
         systemProperty("shaft.intellij.mcp.applicationDataRoot",
