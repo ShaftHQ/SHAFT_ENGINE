@@ -545,15 +545,22 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private JsonObject mobileWebEmulation() {
+        // driver_initialize absorbed mobile_initialize_web_emulation (design doc amendment A9):
+        // these fields now nest under mobileOptions, and engine must select MOBILE_WEB explicitly
+        // (issue #3899 -- the flat top-level shape this used to send fails schema validation).
+        JsonObject mobileOptions = new JsonObject();
+        mobileOptions.addProperty("targetUrl", targetUrl.getText().trim());
+        mobileOptions.addProperty("browser", (String) recorderBrowser.getSelectedItem());
+        mobileOptions.addProperty("deviceName", "Pixel 5");
+        mobileOptions.addProperty("width", 0);
+        mobileOptions.addProperty("height", 0);
+        mobileOptions.addProperty("pixelRatio", 0);
+        mobileOptions.addProperty("userAgent", "");
+        mobileOptions.addProperty("headless", headlessBrowser.isSelected());
+
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("targetUrl", targetUrl.getText().trim());
-        arguments.addProperty("browser", (String) recorderBrowser.getSelectedItem());
-        arguments.addProperty("deviceName", "Pixel 5");
-        arguments.addProperty("width", 0);
-        arguments.addProperty("height", 0);
-        arguments.addProperty("pixelRatio", 0);
-        arguments.addProperty("userAgent", "");
-        arguments.addProperty("headless", headlessBrowser.isSelected());
+        arguments.addProperty("engine", "MOBILE_WEB");
+        arguments.add("mobileOptions", mobileOptions);
         return arguments;
     }
 
