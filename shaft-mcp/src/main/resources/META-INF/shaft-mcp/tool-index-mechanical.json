@@ -997,8 +997,8 @@
     }, {
       "name" : "targetBrowser",
       "type" : "string",
-      "required" : true,
-      "description" : null
+      "required" : false,
+      "description" : "browser to launch on the WEB engine; blank/omitted defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE engines resolve their own default independently"
     } ]
   }, {
     "name" : "driver_quit",

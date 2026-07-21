@@ -1779,9 +1779,9 @@
         {
           "name": "targetBrowser",
           "type": "string",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "browser to launch on the WEB engine; blank/omitted defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE engines resolve their own default independently"
         }
       ],
       "mutation": true,

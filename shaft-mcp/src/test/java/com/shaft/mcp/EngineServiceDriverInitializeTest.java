@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.driver.SHAFT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +22,7 @@ class EngineServiceDriverInitializeTest {
     @AfterEach
     void resetActiveEngine() {
         EngineService.setActiveEngine(null);
+        SHAFT.Properties.clearForCurrentThread();
     }
 
     @Test
@@ -43,39 +45,33 @@ class EngineServiceDriverInitializeTest {
         verify(playwrightService).initialize(null, com.shaft.driver.SHAFT.Properties.web.headlessExecution());
     }
 
-    @Test
-    void initializeDriverThrowsAndLogsWhenTargetBrowserIsNullForTheDefaultWebEngine() {
-        EngineService engineService = new EngineService();
-
-        // engine omitted (null) defaults to WEB; a null targetBrowser fails fast on
-        // `targetBrowser.name()` before any real driver is touched, exercising the catch-log-rethrow
-        // branch without launching a browser.
-        assertThrows(NullPointerException.class, () -> engineService.initializeDriver(null, null, null));
-    }
-
     /**
-     * Regression for a masking bug found while writing the test above: the catch block's own
-     * diagnostic log line re-evaluated {@code targetBrowser.name()} on the very value already known
-     * to be null, throwing a second NPE from inside the {@code catch} that silently replaced
-     * whatever the try block actually failed with and skipped the log line entirely. The fix logs
-     * {@code targetBrowser} directly (SLF4J's {@code {}} placeholder null-safely stringifies it)
-     * instead of re-deriving its name.
+     * design doc Decision 2/3: {@code targetBrowser} has a deterministic default
+     * ({@code SHAFT.Properties.web.targetBrowserName()}, {@code @DefaultValue("chrome")}), so it must
+     * be optional rather than required. This is exercised against the {@code resolveBrowserName}
+     * seam directly -- not through {@code initializeDriver} -- because a null {@code targetBrowser}
+     * on the WEB engine no longer fails fast: it now resolves to the configured property and
+     * proceeds to a real {@code SHAFT.GUI.WebDriver()} launch, which is out of scope for a unit test
+     * (see the class Javadoc).
      */
     @Test
-    void initializeDriverPropagatesTheOriginalFailureInsteadOfAMaskingNpeFromItsOwnLogging() {
-        EngineService engineService = new EngineService();
+    void resolveBrowserNameDefersToTheConfiguredPropertyWhenTargetBrowserIsOmitted() {
+        SHAFT.Properties.web.set().targetBrowserName("firefox");
 
-        NullPointerException failure = assertThrows(NullPointerException.class,
-                () -> engineService.initializeDriver(null, null, null));
+        String resolved = EngineService.resolveBrowserName(null);
 
-        StackTraceElement topFrame = failure.getStackTrace()[0];
-        assertEquals("com.shaft.mcp.EngineService", topFrame.getClassName());
-        assertEquals("initializeDriver", topFrame.getMethodName());
-        // The masking bug always surfaced at the catch block's own logger.error call; asserting the
-        // failure is NOT attributed there proves it's the original try-block failure propagating.
-        org.junit.jupiter.api.Assertions.assertNotEquals(231, topFrame.getLineNumber(),
-                "exception must propagate from the try block, not get replaced by the catch block's "
-                        + "own logging re-dereferencing the already-null targetBrowser: " + failure);
+        assertEquals("firefox", resolved);
+        // Proves the omitted case is a read-only default lookup, not a hardcoded "chrome" fallback,
+        // and that it does NOT overwrite an already-configured non-default preference.
+        assertEquals("firefox", SHAFT.Properties.web.targetBrowserName());
+    }
+
+    @Test
+    void resolveBrowserNameSetsThePropertyAndReturnsItsNameWhenTargetBrowserIsProvided() {
+        String resolved = EngineService.resolveBrowserName(BrowserType.EDGE);
+
+        assertEquals("EDGE", resolved);
+        assertEquals("EDGE", SHAFT.Properties.web.targetBrowserName());
     }
 
     @Test
