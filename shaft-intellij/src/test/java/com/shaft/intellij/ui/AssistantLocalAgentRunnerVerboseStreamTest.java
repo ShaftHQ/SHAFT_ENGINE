@@ -559,11 +559,95 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
                 "Raw native NDJSON must never leak into the failure output: " + output);
     }
 
+    /**
+     * Issue #3965 (4th of 4 raw-output-leaks-in-non-verbose-mode paths from #3918, deferred by PR
+     * #3958): {@code failureOutput}'s stderr fence must only reach the compact terminal answer when
+     * Verbose is on. Verbose mode still gets exactly what
+     * {@code failedStructuredRunWithoutTerminalEventNeverLeaksRawNdjson} above pins; a non-verbose
+     * run must not see the raw stderr text baked into its answer bubble.
+     */
+    @Test
+    void failedStructuredRunWithoutTerminalEventWithholdsStderrFromTheCompactAnswerWhenVerboseIsOff()
+            throws Exception {
+        String nativeNoise = "{\"type\":\"system\",\"subtype\":\"thinking_tokens\",\"tokens\":42}\n";
+
+        ShaftMcpToolResult result = failingRun(claudeInvocation(), nativeNoise,
+                "chrome exited: session not created", 1, false);
+
+        assertFalse(result.success(), "A non-zero exit must fail the run: " + result.output());
+        assertFalse(result.output().contains("chrome exited: session not created"),
+                "Verbose off must withhold stderr from the compact failure answer: " + result.output());
+        assertTrue(result.output().contains("exited with code 1"),
+                "The plain-language exit reason must still explain the failure: " + result.output());
+    }
+
+    @Test
+    void failedStructuredRunWithoutTerminalEventStillSurfacesStderrWhenVerboseIsOn() throws Exception {
+        String nativeNoise = "{\"type\":\"system\",\"subtype\":\"thinking_tokens\",\"tokens\":42}\n";
+
+        ShaftMcpToolResult result = failingRun(claudeInvocation(), nativeNoise,
+                "chrome exited: session not created", 1, true);
+
+        assertFalse(result.success(), "A non-zero exit must fail the run: " + result.output());
+        assertTrue(result.output().contains("chrome exited: session not created"),
+                "Verbose on must still surface stderr in the failure answer: " + result.output());
+    }
+
+    /**
+     * Same gating, buffered/custom-command path (Copilot's default command or any hand-typed custom
+     * command has no {@link StructuredStreamParser}, so the failure answer is composed by {@link
+     * AssistantLocalAgentRunner#agentOutput} instead of {@code failureOutput}).
+     */
+    @Test
+    void failedBufferedCommandWithholdsStderrFromTheCompactAnswerWhenVerboseIsOff() throws Exception {
+        ShaftMcpToolResult result = failingRun(customCommandInvocation(), "", "permission denied", 1, false);
+
+        assertFalse(result.success(), "A non-zero exit must fail the run: " + result.output());
+        assertFalse(result.output().contains("permission denied"),
+                "Verbose off must withhold stderr from the compact failure answer: " + result.output());
+    }
+
+    @Test
+    void failedBufferedCommandStillSurfacesStderrWhenVerboseIsOn() throws Exception {
+        ShaftMcpToolResult result = failingRun(customCommandInvocation(), "", "permission denied", 1, true);
+
+        assertFalse(result.success(), "A non-zero exit must fail the run: " + result.output());
+        assertTrue(result.output().contains("permission denied"),
+                "Verbose on must still surface stderr in the failure answer: " + result.output());
+    }
+
+    /**
+     * Direct unit coverage for {@link AssistantLocalAgentRunner#agentOutput}'s new verbose
+     * parameter, alongside {@code AssistantCommandTest}'s existing pin of its unconditional
+     * (verbose) 4-arg overload.
+     */
+    @Test
+    void agentOutputWithholdsStderrWhenVerboseIsOffAndSurfacesItWhenVerboseIsOn() {
+        assertAll(
+                () -> assertEquals("partial",
+                        AssistantLocalAgentRunner.agentOutput(false, "partial", "error", "", false)),
+                () -> assertEquals("partial\n\nerror",
+                        AssistantLocalAgentRunner.agentOutput(false, "partial", "error", "", true)),
+                () -> assertEquals("",
+                        AssistantLocalAgentRunner.agentOutput(true, "", "warning", "", false)),
+                () -> assertEquals("warning",
+                        AssistantLocalAgentRunner.agentOutput(true, "", "warning", "", true)));
+    }
+
     private static ShaftMcpToolResult failingRun(
             AssistantCommand.Invocation invocation, String stdout, String stderr, int exitCode) throws Exception {
         StubProcess process = new StubProcess(stdout, stderr, exitCode);
         ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
                 invocation, line -> { }, (command, workingDirectory, environment) -> process, false);
+        return running.future().get(5, TimeUnit.SECONDS);
+    }
+
+    private static ShaftMcpToolResult failingRun(
+            AssistantCommand.Invocation invocation, String stdout, String stderr, int exitCode, boolean verbose)
+            throws Exception {
+        StubProcess process = new StubProcess(stdout, stderr, exitCode);
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, line -> { }, (command, workingDirectory, environment) -> process, false, verbose);
         return running.future().get(5, TimeUnit.SECONDS);
     }
 
@@ -668,6 +752,10 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
     private static AssistantCommand.Invocation codexInvocation() {
         return AssistantCommand.fromPrompt("Explain this failure", "CODEX", "ASK", ".", "", false);
+    }
+
+    private static AssistantCommand.Invocation customCommandInvocation() {
+        return AssistantCommand.fromPrompt("Explain this failure", "CODEX", "ASK", ".", "stub-agent --print", false);
     }
 
     /**

@@ -134,6 +134,20 @@ final class AssistantLocalAgentRunner {
     }
 
     /**
+     * Package-private overload used by tests to drive the {@code verbose} parameter (see {@link
+     * #agentOutput(boolean, String, String, String, boolean)}) directly without an approval handler.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            boolean verbose) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, null,
+                LocalAgentApprovalBridge::start, verbose);
+    }
+
+    /**
      * Package-private overload used by {@link com.shaft.intellij.ui.ShaftAssistantPanel} to supply a
      * real interactive-approval callback. Tests that don't exercise the approval bridge should keep
      * using the shorter overloads above rather than passing a handler.
@@ -150,7 +164,11 @@ final class AssistantLocalAgentRunner {
 
     /**
      * Package-private overload used by tests to drive a fake {@link ApprovalBridgeLauncher} instead
-     * of spawning a real HTTP server, so bridge-wiring tests stay fast and deterministic.
+     * of spawning a real HTTP server, so bridge-wiring tests stay fast and deterministic. Defaults
+     * {@code verbose} to {@code true} (today's unconditional behavior, unchanged) -- see {@link
+     * #start(AssistantCommand.Invocation, Consumer, ProcessLauncher, boolean,
+     * LocalAgentApprovalBridge.ApprovalRequestHandler, ApprovalBridgeLauncher, boolean)} for the
+     * verbose-aware entry point.
      */
     static ShaftMcpInvocation start(
             AssistantCommand.Invocation invocation,
@@ -159,12 +177,31 @@ final class AssistantLocalAgentRunner {
             boolean requireCommandAvailable,
             LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
             ApprovalBridgeLauncher bridgeLauncher) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                bridgeLauncher, true);
+    }
+
+    /**
+     * Canonical overload: every shorter {@code start} overload above ultimately delegates here.
+     * {@code verbose} gates whether {@link #run} folds raw stderr into the compact terminal answer
+     * on a buffered/failed run (issue #3965) -- {@code true} preserves the CLI's raw stderr in that
+     * answer exactly as before, {@code false} withholds it (the content remains reachable via the
+     * live {@code outputConsumer} stream, which this parameter never affects).
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
                 arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable, approvalHandler, bridgeLauncher),
+                requireCommandAvailable, approvalHandler, bridgeLauncher, verbose),
                 ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
@@ -464,7 +501,7 @@ final class AssistantLocalAgentRunner {
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable) {
         return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable, null, LocalAgentApprovalBridge::start);
+                requireCommandAvailable, null, LocalAgentApprovalBridge::start, true);
     }
 
     private static ShaftMcpToolResult run(
@@ -475,7 +512,8 @@ final class AssistantLocalAgentRunner {
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable,
             LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
-            ApprovalBridgeLauncher bridgeLauncher) {
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose) {
         Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
         LocalAgentApprovalBridge.ApprovalRequestHandler narratingApprovalHandler =
                 narrateApproval(approvalHandler, outputConsumer);
@@ -543,7 +581,7 @@ final class AssistantLocalAgentRunner {
                 if (!awaitProcessWithApprovalExtension(process, timeout, bridge)) {
                     process.destroyForcibly();
                     return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
-                            "Timed out after " + timeout.toSeconds() + " seconds."));
+                            "Timed out after " + timeout.toSeconds() + " seconds.", verbose));
                 }
                 if (cancellationRequested.get()) {
                     closeQuietly(stdoutStream);
@@ -559,16 +597,18 @@ final class AssistantLocalAgentRunner {
                 if (success) {
                     output = streamParser != null && streamParser.hasTerminalEvent()
                             ? streamParser.finalOutput()
-                            : agentOutput(true, rawStdout, rawStderr, "");
+                            : agentOutput(true, rawStdout, rawStderr, "", verbose);
                 } else if (streamParser != null) {
                     // A structured (stream-json / --json) CLI writes machine NDJSON to stdout, so on a
                     // failed run the raw stream must never reach the transcript verbatim -- rerun/codegen
                     // failures used to dump lines like {"type":"system","subtype":"thinking_tokens",...}.
                     // Render the parser's cleaned answer, or a plain-language reason plus stderr when the
-                    // CLI died before emitting a terminal event.
-                    output = streamParser.failureOutput(process.exitValue(), rawStderr);
+                    // CLI died before emitting a terminal event -- gated on live Verbose state (issue
+                    // #3965) exactly like agentOutput below, since that stderr is already surfaced live
+                    // through outputConsumer while the run is in progress.
+                    output = streamParser.failureOutput(process.exitValue(), rawStderr, verbose);
                 } else {
-                    output = agentOutput(false, rawStdout, rawStderr, "");
+                    output = agentOutput(false, rawStdout, rawStderr, "", verbose);
                 }
                 return success
                         ? ShaftMcpToolResult.success(output)
@@ -783,11 +823,14 @@ final class AssistantLocalAgentRunner {
         /**
          * Cleaned output for a failed structured run. Prefers the terminal answer text; when the CLI
          * died before returning one, synthesizes a plain-language reason (from {@link #terminalDetail}
-         * or the exit code) and appends stderr. Never returns the raw NDJSON stdout, so native stream
-         * events such as {@code {"type":"system","subtype":"thinking_tokens",...}} can no longer leak
-         * verbatim into the transcript.
+         * or the exit code) and, when {@code verbose} is {@code true}, appends stderr as a fenced block.
+         * Never returns the raw NDJSON stdout, so native stream events such as
+         * {@code {"type":"system","subtype":"thinking_tokens",...}} can no longer leak verbatim into
+         * the transcript. Issue #3965: a non-verbose run withholds the stderr fence from this compact
+         * answer -- it never needed to duplicate it here, since the same raw stderr already reached the
+         * live {@code outputConsumer} stream (Verbose-gated there, at the panel) while the process ran.
          */
-        synchronized String failureOutput(int exitCode, String stderr) {
+        synchronized String failureOutput(int exitCode, String stderr, boolean verbose) {
             String core = answer == null ? "" : answer.strip();
             if (core.isBlank()) {
                 core = terminalDetail != null && !terminalDetail.isBlank()
@@ -795,7 +838,7 @@ final class AssistantLocalAgentRunner {
                         : "The local assistant exited with code " + exitCode + " before returning an answer.";
             }
             String stderrText = stderr == null ? "" : stderr.strip();
-            if (!stderrText.isBlank()) {
+            if (verbose && !stderrText.isBlank()) {
                 core = core + "\n\n```\n" + stderrText + "\n```";
             }
             return composeOutput(core);
@@ -2045,7 +2088,26 @@ final class AssistantLocalAgentRunner {
         return configured.isBlank() ? Path.of(".") : Path.of(configured);
     }
 
+    /**
+     * Unconditional overload retained for callers with no live Verbose context of their own (for
+     * example {@link #runCompactPreamble}, whose result never reaches the interactive transcript's
+     * live stream) -- always folds {@code stderr} in, matching the behavior of every caller before
+     * issue #3965. See {@link #agentOutput(boolean, String, String, String, boolean)} for the
+     * verbose-gated version {@link #run} uses for the compact terminal answer.
+     */
     static String agentOutput(boolean success, String stdout, String stderr, String fallback) {
+        return agentOutput(success, stdout, stderr, fallback, true);
+    }
+
+    /**
+     * Composes the buffered/non-structured fallback answer (used for Copilot's default command, any
+     * custom command, and a timed-out run) from the CLI's raw stdout/stderr. Issue #3965: {@code
+     * stderr} is folded into the compact terminal answer only when {@code verbose} is {@code true} --
+     * a non-verbose run withholds it here, but never loses it entirely, since the same raw stderr
+     * already reached the live {@code outputConsumer} stream (Verbose-gated there, at the panel) while
+     * the process was running.
+     */
+    static String agentOutput(boolean success, String stdout, String stderr, String fallback, boolean verbose) {
         if (success && stdout != null && !stdout.isBlank()) {
             return stdout.strip();
         }
@@ -2053,7 +2115,7 @@ final class AssistantLocalAgentRunner {
         if (stdout != null && !stdout.isBlank()) {
             sections.add(stdout.strip());
         }
-        if (stderr != null && !stderr.isBlank()) {
+        if (verbose && stderr != null && !stderr.isBlank()) {
             sections.add(stderr.strip());
         }
         if (sections.isEmpty() && fallback != null && !fallback.isBlank()) {
