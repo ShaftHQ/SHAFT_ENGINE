@@ -237,6 +237,14 @@ final class ShaftAssistantPanel extends JPanel {
     private int localAgentStreamPlaceholderMessageIndex = -1;
     private StringBuilder localAgentOutput;
     private boolean localAgentBubbleRendersContent;
+    /** Issue #3918: false for a buffered/custom-command local-agent run (Copilot's default command, or
+     * any hand-typed custom command) -- such a run's entire live stream is raw CLI passthrough with no
+     * SHAFT-translated milestone content, so non-verbose mode must render none of it as a compact
+     * milestone bubble (the data still reaches Verbose mode via the raw streaming bubble/final answer,
+     * unchanged). True (the permissive default) for a structured Claude/Codex run and for any caller
+     * that starts a stream without resolving this from a real invocation. See {@link
+     * AssistantLocalAgentRunner#hasStructuredStream}. */
+    private boolean activeLocalAgentStreamHasStructuredMilestones = true;
     // issue #3751 part 2, HIGH finding 2: readAsync's stdout/stderr reader threads used to invoke one
     // ApplicationManager#invokeLater per output line, flooding the EDT queue on a chatty CLI stream.
     // This coalesces per-run into throttled ~100ms batch flushes -- see the field's flush() call sites
@@ -1394,6 +1402,10 @@ final class ShaftAssistantPanel extends JPanel {
             appendAgentMilestone("Tool selected: local assistant");
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
+            // Issue #3918: resolved once per run, before any output arrives, so appendLocalAgentOutput
+            // knows whether this run's live stream can ever contain a translated milestone line.
+            activeLocalAgentStreamHasStructuredMilestones =
+                    AssistantLocalAgentRunner.hasStructuredStream(invocation.arguments());
             // readAsync calls its output consumer once per stdout/stderr line, from both reader
             // threads concurrently -- coalesce into throttled ~100ms batch flushes on the EDT instead
             // of one invokeLater per line (issue #3751 part 2, HIGH finding 2).
@@ -2204,6 +2216,10 @@ final class ShaftAssistantPanel extends JPanel {
         localAgentOutput = new StringBuilder();
         localAgentBubbleRendersContent = false;
         localAgentStreamPlaceholderMessageIndex = -1;
+        // Permissive default: the real production call site overrides this right after, once the
+        // invocation is known (issue #3918); callers that start a stream without one (tests) keep
+        // today's behavior.
+        activeLocalAgentStreamHasStructuredMilestones = true;
     }
 
     private int currentSessionMessageCount() {
@@ -2215,19 +2231,27 @@ final class ShaftAssistantPanel extends JPanel {
         if (streamToken != activeLocalAgentStreamToken || localAgentOutput == null) {
             return;
         }
+        // Issue #3918: a line tagged with RAW_STDOUT_MARKER is genuinely raw, untranslated CLI stdout
+        // (a banner/warning outside the structured NDJSON contract -- see StructuredStreamParser#accept)
+        // rather than a SHAFT-translated milestone. The marker is stripped before any use: it must
+        // never reach localAgentOutput (the Verbose/Killed raw-buffer source) or a transcript bubble.
+        boolean rawPassthrough = line != null && line.startsWith(AssistantLocalAgentRunner.RAW_STDOUT_MARKER);
+        String content = rawPassthrough ? line.substring(AssistantLocalAgentRunner.RAW_STDOUT_MARKER.length()) : line;
         if (localAgentOutput.length() > 0) {
             localAgentOutput.append("\n");
         }
-        localAgentOutput.append(line == null ? "" : line);
+        localAgentOutput.append(content == null ? "" : content);
         if (verboseLocalAgentOutput()) {
             localAgentBubbleRendersContent = true;
             replaceLocalAgentStreamPlaceholder(
                     "assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()), false);
-        } else {
+        } else if (activeLocalAgentStreamHasStructuredMilestones && !rawPassthrough) {
             // Verbose gates the full streaming bubble, but a non-verbose run must not look frozen
             // either (issue #3546): surface a compact milestone bubble in the transcript instead
-            // (issue #3695: this used to feed the now-removed "Run timeline" list).
-            addCompactLocalAgentMilestone(line);
+            // (issue #3695: this used to feed the now-removed "Run timeline" list). Issue #3918: a
+            // buffered/custom run (activeLocalAgentStreamHasStructuredMilestones false) or a raw,
+            // untranslated line has nothing formatted to show here -- stays Verbose-only.
+            addCompactLocalAgentMilestone(content);
         }
     }
 
@@ -2447,7 +2471,13 @@ final class ShaftAssistantPanel extends JPanel {
             // live content would be left frozen with no indication the run was killed, and a bubble
             // that never rendered anything would be left showing the bare "Running local assistant..."
             // header forever.
-            String finalized = localAgentBubbleRendersContent
+            // Issue #3918: the raw partial buffer is only shown when Verbose is ON right now, matching
+            // how a normal completion's terminal replace already behaves (see
+            // assistantVerboseToggleOffMidStreamLeavesNoStaleStreamingBubble) -- not
+            // localAgentBubbleRendersContent, a sticky flag that stays true for the rest of the run
+            // once Verbose has rendered anything even if the user flips it back off before killing,
+            // which used to dump the raw buffer into a non-verbose transcript.
+            String finalized = verboseLocalAgentOutput() && localAgentOutput != null && !localAgentOutput.isEmpty()
                     ? formatLocalAgentStreamingResponse(localAgentOutput.toString())
                             + "\n\n_Killed._ (partial output above)"
                     : "_Killed._";
