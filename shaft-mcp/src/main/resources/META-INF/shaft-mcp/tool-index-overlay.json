@@ -61,7 +61,7 @@
       "sensitive": false,
       "example": {
         "request": {
-          "targetUrl": "file:///C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/shaft-intellij/build/live-tool-e2e/fixtures/engine-element-browser.html"
+          "targetUrl": "https://demo.example.com/checkout"
         },
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
@@ -132,7 +132,7 @@
       "sensitive": false,
       "example": {
         "request": {
-          "targetUrl": "file:///C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/shaft-intellij/build/live-tool-e2e/fixtures/capture-api.html",
+          "targetUrl": "https://demo.example.com/checkout",
           "browser": "Chrome",
           "headless": true,
           "networkOptions": {
@@ -205,7 +205,7 @@
     "capture_start": {
       "example": {
         "request": {
-          "targetUrl": "file:///C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/shaft-intellij/build/live-tool-e2e/fixtures/capture-web.html",
+          "targetUrl": "https://demo.example.com/checkout",
           "browser": "Chrome",
           "headless": true,
           "sessionGoal": "live e2e smoke"
@@ -301,7 +301,7 @@
     "doctor_suggest_fix": {
       "example": {
         "request": {
-          "jsonReportPath": "C:\\Users\\Mohab\\IdeaProjects\\SHAFT_ENGINE\\shaft-intellij\\build\\live-tool-e2e\\target\\shaft-doctor\\doctor-report.json",
+          "jsonReportPath": "target/shaft-doctor/doctor-report.json",
           "repositoryRoot": "",
           "allowedSourcePaths": [],
           "useAi": false,
@@ -323,7 +323,7 @@
           "targetBrowser": "CHROME",
           "engine": "MOBILE_WEB",
           "mobileOptions": {
-            "targetUrl": "file:///C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/shaft-intellij/build/live-tool-e2e/fixtures/mobile.html",
+            "targetUrl": "https://demo.example.com/checkout",
             "browser": "CHROME",
             "headless": true
           }
