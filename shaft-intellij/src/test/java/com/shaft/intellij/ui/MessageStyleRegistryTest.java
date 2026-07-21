@@ -81,4 +81,64 @@ class MessageStyleRegistryTest {
                 () -> assertEquals(assistantText, MessageStyleRegistry.styleFor(null)),
                 () -> assertEquals(assistantText, MessageStyleRegistry.styleFor("bogus-kind")));
     }
+
+    /**
+     * Issue #3968: the original motivation for the whole kind model (owner directive: "ensure that
+     * we can dynamically style and parse the agent messages") -- {@code error} must be visually
+     * distinguishable from plain assistant text at a glance, on every channel {@link MessageStyle}
+     * exposes, not just one.
+     */
+    @Test
+    void errorStyleDiffersFromAssistantTextStyleOnBackgroundForegroundAndStroke() {
+        MessageStyleRegistry.MessageStyle error = MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_ERROR);
+        MessageStyleRegistry.MessageStyle assistantText =
+                MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+
+        assertAll(
+                () -> assertNotEquals(error.background(), assistantText.background(),
+                        "error must not share assistant-text's background"),
+                () -> assertNotEquals(error.foreground(), assistantText.foreground(),
+                        "error must not share assistant-text's foreground"),
+                () -> assertNotEquals(error.stroke(), assistantText.stroke(),
+                        "error must not share assistant-text's border color"));
+    }
+
+    /**
+     * Issue #3968 design decision: milestone bubbles are the highest-volume message kind in a run
+     * (every compact non-verbose progress line), so they get a restrained distinction -- a dimmer
+     * foreground signaling "ambient status" -- rather than a loud recolor that would compete with the
+     * assistant's actual answers for attention. Background and border stay shared with assistant-text
+     * on purpose (see {@link #nonUserKindsRenderWithABubbleStroke} for the still-bordered contract).
+     */
+    @Test
+    void milestoneStyleUsesADimmerForegroundThanAssistantTextButSharesItsBackgroundAndBorder() {
+        MessageStyleRegistry.MessageStyle milestone =
+                MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_MILESTONE);
+        MessageStyleRegistry.MessageStyle assistantText =
+                MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+
+        assertAll(
+                () -> assertNotEquals(milestone.foreground(), assistantText.foreground(),
+                        "milestone must read as visually distinct (dimmer) from a real assistant answer"),
+                () -> assertEquals(assistantText.background(), milestone.background()),
+                () -> assertEquals(assistantText.stroke(), milestone.stroke()));
+    }
+
+    /**
+     * Issue #3968 design decision: tool-event outcomes (e.g. "Approved `x`.") and raw-verbose dumps
+     * are intentionally left uniform with assistant-text -- tool-event lines are already short,
+     * self-explanatory confirmations, and raw-verbose content already visually sets itself apart via
+     * its own fenced-code-block markdown rendering, so an additional bubble-level color would be
+     * redundant chrome rather than a genuine readability aid.
+     */
+    @Test
+    void toolEventAndRawVerboseStylesAreUniformWithAssistantTextByDesign() {
+        MessageStyleRegistry.MessageStyle assistantText =
+                MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_ASSISTANT_TEXT);
+
+        assertAll(
+                () -> assertEquals(assistantText, MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_TOOL_EVENT)),
+                () -> assertEquals(assistantText,
+                        MessageStyleRegistry.styleFor(ShaftAssistantChatState.KIND_RAW_VERBOSE)));
+    }
 }

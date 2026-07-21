@@ -779,7 +779,7 @@ final class ShaftAssistantPanel extends JPanel {
         ShaftMcpInvocationService.getInstance(project).startTool(toolName, arguments).future()
                 .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                         () -> append("assistant", toolCardMarkdown(toolName, result, error),
-                                result == null ? "" : result.output())));
+                                result == null ? "" : result.output(), toolCardKind(result, error))));
     }
 
     /**
@@ -805,6 +805,17 @@ final class ShaftAssistantPanel extends JPanel {
         }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, result.output());
         return result.success() ? markdown : AssistantMarkdown.toolFailureMarkdown(toolName, markdown);
+    }
+
+    /**
+     * Companion to {@link #toolCardMarkdown}: the transcript kind for the same card (issue #3968).
+     * Mirrors that method's exact success/failure branching (a thrown error, a missing result, or a
+     * tool-level {@code success() == false} result are all failures) rather than re-deriving it, so
+     * the two can never disagree about whether a given card is an error.
+     */
+    static String toolCardKind(ShaftMcpToolResult result, Throwable error) {
+        boolean failed = error != null || result == null || !result.success();
+        return failed ? ShaftAssistantChatState.KIND_ERROR : ShaftAssistantChatState.KIND_TOOL_EVENT;
     }
 
     /** Package-private test accessor: current composer text. */
@@ -946,7 +957,7 @@ final class ShaftAssistantPanel extends JPanel {
         // through the same markdown pass everything else does, or JSON/code-shaped content (e.g. a
         // tool-result summary) renders as an unformatted blob instead of a proper fenced block.
         String markdown = AssistantMarkdown.normalizeMarkdown(step);
-        append("assistant", markdown, "");
+        append("assistant", markdown, "", ShaftAssistantChatState.KIND_MILESTONE);
     }
 
     List<ContextSuggestion> contextSuggestionsForTest(char trigger) {
@@ -955,6 +966,10 @@ final class ShaftAssistantPanel extends JPanel {
 
     void simulateAppendForTest(String role, String message, String rawResponse) {
         append(role, message, rawResponse);
+    }
+
+    void simulateAppendForTest(String role, String message, String rawResponse, String kind) {
+        append(role, message, rawResponse, kind);
     }
 
     /**
@@ -1504,7 +1519,7 @@ final class ShaftAssistantPanel extends JPanel {
             // request being sent — not only local agent CLI streams (issue #3426 B5).
             append("assistant", "**Verbose — exact tool request**\n\n```json\n"
                     + "{\"tool\": \"" + invocation.toolName() + "\", \"arguments\": "
-                    + invocation.arguments() + "}\n```", "");
+                    + invocation.arguments() + "}\n```", "", ShaftAssistantChatState.KIND_RAW_VERBOSE);
         }
         // #3513 A8: name the routed tool in a plain-language "Running: <tool> …" confirmation.
         setRunning(true, "Running: " + invocation.toolName() + " …");
@@ -1553,7 +1568,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showDeniedToolResult(String toolName) {
         setRunning(false, "Denied " + toolName);
-        showResponse("**SHAFT Assistant (" + toolName + " denied)**\n\nThe request was denied.", "");
+        showResponse("**SHAFT Assistant (" + toolName + " denied)**\n\nThe request was denied.", "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
     }
 
     private void startToolSequence(List<AssistantCommand.ToolCall> toolCalls) {
@@ -1592,7 +1608,8 @@ final class ShaftAssistantPanel extends JPanel {
                 .append("The request was denied.")
                 .append("\n\n");
         setRunning(false, "Denied " + toolCall.toolName());
-        showResponse("**SHAFT Assistant sequence denied**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
+        showResponse("**SHAFT Assistant sequence denied**\n\n" + sequenceMarkdown, sequenceRawOutput.toString(),
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
         clearSequenceState();
     }
 
@@ -1657,7 +1674,7 @@ final class ShaftAssistantPanel extends JPanel {
                 return;
             }
             approvalService().record(decision, toolName);
-            append("assistant", approvalOutcomeMessage(toolName, decision), "");
+            append("assistant", approvalOutcomeMessage(toolName, decision), "", ShaftAssistantChatState.KIND_TOOL_EVENT);
             onDecision.accept(decision);
         }));
     }
@@ -1722,7 +1739,7 @@ final class ShaftAssistantPanel extends JPanel {
                 .append("\n\n");
         setRunning(false, "Rejected generated code");
         showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
-                sequenceRawOutput.toString());
+                sequenceRawOutput.toString(), ShaftAssistantChatState.KIND_TOOL_EVENT);
         clearSequenceState();
     }
 
@@ -1750,8 +1767,11 @@ final class ShaftAssistantPanel extends JPanel {
         boolean killed = cancelled && killRequested;
         String terminalStep = cancelled ? (killed ? "Killed" : "Cancelled") : "Failed";
         setRunning(false, terminalStep);
+        // A user-initiated Cancel/Kill is a tool-event outcome, not a genuine failure; only the
+        // "Failed" branch (a real tool error) gets KIND_ERROR.
         showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
-                sequenceRawOutput.toString());
+                sequenceRawOutput.toString(),
+                cancelled ? ShaftAssistantChatState.KIND_TOOL_EVENT : ShaftAssistantChatState.KIND_ERROR);
         clearSequenceState();
     }
 
@@ -1896,7 +1916,8 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewGenerationRunning = false;
             clearPendingCaptureReview();
         }
-        showResponse("**SHAFT Assistant (" + toolName + " " + terminalStep.toLowerCase(Locale.ROOT) + ")**", "");
+        showResponse("**SHAFT Assistant (" + toolName + " " + terminalStep.toLowerCase(Locale.ROOT) + ")**", "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
         setStatus(terminalStep);
     }
 
@@ -1904,7 +1925,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
             captureReviewGenerationRunning = false;
         }
-        showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
+        showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "",
+                ShaftAssistantChatState.KIND_TOOL_EVENT);
         setStatus("Rejected generated code");
     }
 
@@ -1983,7 +2005,9 @@ final class ShaftAssistantPanel extends JPanel {
         // success header is unchanged.
         showResponse(success
                 ? "**SHAFT Assistant (" + toolName + " OK)**\n\n" + body
-                : AssistantMarkdown.toolFailureMarkdown(toolName, body), output);
+                : AssistantMarkdown.toolFailureMarkdown(toolName, body),
+                output,
+                success ? null : ShaftAssistantChatState.KIND_ERROR);
         if (success && ("capture_start".equals(toolName) || "capture_api_start".equals(toolName))) {
             // Feeds the shared readiness strip's recording badge (issue #3500 A4). capture_api_start
             // (issue #3726) shares CaptureManager's single-session lock with capture_start, so it is
@@ -2129,7 +2153,10 @@ final class ShaftAssistantPanel extends JPanel {
         if (!success && !rejectedGeneratedJava) {
             response = AssistantMarkdown.localAgentFailureMarkdown(response);
         }
-        showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
+        // A genuine CLI failure gets KIND_ERROR; a rejected-generated-code narrative already carries
+        // its own headline and is a guardrail outcome, not an error, so it stays the default kind.
+        String kind = !success && !rejectedGeneratedJava ? ShaftAssistantChatState.KIND_ERROR : null;
+        showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output, kind);
         if (hasPlanProposal) {
             showPlanProposalActions();
         }
@@ -2190,18 +2217,31 @@ final class ShaftAssistantPanel extends JPanel {
         String canceledResponse = partialOutput == null || partialOutput.isBlank()
                 ? "_" + label + "._"
                 : formatLocalAgentStreamingResponse(partialOutput) + "\n\n_" + label + "._ (partial output above)";
-        showAgentResponse(streamToken, currentStream, canceledResponse, "");
+        // A user-initiated Cancel/Kill is a tool-event outcome, not a genuine failure -- mirrors
+        // showTerminalSequenceResult's cancelled branch for the MCP-tool-sequence path.
+        showAgentResponse(streamToken, currentStream, canceledResponse, "", ShaftAssistantChatState.KIND_TOOL_EVENT);
     }
 
     private void showAgentResponse(int streamToken, boolean currentStream, String response, String output) {
+        showAgentResponse(streamToken, currentStream, response, output, null);
+    }
+
+    /**
+     * Same as {@link #showAgentResponse(int, boolean, String, String)}, plus an explicit {@code
+     * kind} (issue #3968) for a run whose final answer changes kind -- most notably a local-agent CLI
+     * failure, threaded through to whichever of the two terminal paths below actually applies. A
+     * blank/{@code null} kind behaves exactly like the 4-arg overload.
+     */
+    private void showAgentResponse(
+            int streamToken, boolean currentStream, String response, String output, String kind) {
         if (currentStream) {
-            finishLocalAgentResponse(streamToken, response, output);
+            finishLocalAgentResponse(streamToken, response, output, kind);
         } else {
             // Not showResponse(): that applies the generic withTokenUsage, which stays silent when no
             // usage metadata is found. Every local-agent terminal response -- this is the "stale/not
             // the active stream" branch, still a local-agent run -- must say so explicitly instead
             // (issue #3703), which withLocalAgentTokenUsage does.
-            persistAndAppendResponse(withLocalAgentTokenUsage(response, output), output);
+            persistAndAppendResponse(withLocalAgentTokenUsage(response, output), output, kind);
         }
     }
 
@@ -2372,12 +2412,22 @@ final class ShaftAssistantPanel extends JPanel {
      * both real bugs when this branched on the live checkbox instead.
      */
     private void finishLocalAgentResponse(int streamToken, String response, String rawResponse) {
+        finishLocalAgentResponse(streamToken, response, rawResponse, null);
+    }
+
+    /**
+     * Same as {@link #finishLocalAgentResponse(int, String, String)}, plus an explicit {@code kind}
+     * (issue #3968) for a run whose final answer changes kind -- most notably a local-agent CLI
+     * failure, which must land as {@link ShaftAssistantChatState#KIND_ERROR}. A blank/{@code null}
+     * kind behaves exactly like the 3-arg overload.
+     */
+    private void finishLocalAgentResponse(int streamToken, String response, String rawResponse, String kind) {
         if (streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1) {
             return;
         }
         String displayResponse = withLocalAgentTokenUsage(response, rawResponse);
         ResolvedQuestion resolved = resolveQuestion(displayResponse, rawResponse);
-        replaceLocalAgentStreamPlaceholder("assistant", resolved.toPersist(), true);
+        replaceLocalAgentStreamPlaceholder("assistant", resolved.toPersist(), true, kind);
         localAgentStreamPlaceholderMessageIndex = -1;
         lastResponse = resolved.toPersist();
         lastRawResponse = rawResponse == null ? "" : rawResponse;
@@ -2639,10 +2689,24 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showResponse(String response, String rawResponse) {
-        persistAndAppendResponse(withTokenUsage(response, rawResponse), rawResponse);
+        showResponse(response, rawResponse, null);
+    }
+
+    /**
+     * Same as {@link #showResponse(String, String)}, plus an explicit {@code kind} (issue #3968) for
+     * callers that already know the response is a non-default kind -- a genuine failure ({@code
+     * error}), or a denial/rejection/cancellation outcome ({@code tool-event}) -- instead of always
+     * relying on the role-inferred {@code assistant-text} default.
+     */
+    private void showResponse(String response, String rawResponse, String kind) {
+        persistAndAppendResponse(withTokenUsage(response, rawResponse), rawResponse, kind);
     }
 
     private void persistAndAppendResponse(String displayResponse, String rawResponse) {
+        persistAndAppendResponse(displayResponse, rawResponse, null);
+    }
+
+    private void persistAndAppendResponse(String displayResponse, String rawResponse, String kind) {
         ResolvedQuestion resolved = resolveQuestion(displayResponse, rawResponse);
         lastResponse = resolved.toPersist();
         lastRawResponse = rawResponse == null ? "" : rawResponse;
@@ -2650,7 +2714,7 @@ final class ShaftAssistantPanel extends JPanel {
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
         // append() clears any showing widget first, so a detected question's answer chips are only
         // shown AFTER the persisted append -- otherwise this call would immediately wipe them again.
-        append("assistant", resolved.toPersist(), rawResponse);
+        append("assistant", resolved.toPersist(), rawResponse, kind);
         if (resolved.question() != null) {
             showAssistantQuestionOptions(resolved.question());
         }
@@ -2714,6 +2778,16 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void append(String role, String text, String rawResponse) {
+        append(role, text, rawResponse, null);
+    }
+
+    /**
+     * Same as {@link #append(String, String, String)}, plus an explicit {@code kind} (issue #3968)
+     * for call sites that already know they are producing a non-default kind -- a tool-event, an
+     * error, a raw-verbose dump, a milestone -- instead of always relying on the role-inferred
+     * default. A blank/{@code null} kind behaves exactly like the 3-arg overload.
+     */
+    private void append(String role, String text, String rawResponse, String kind) {
         // Any real message (user or assistant) ends the first-run welcome (issue #3540): the
         // welcome is only ever valid on a genuinely empty transcript, and this always follows
         // showFirstRunWelcomeIfNeeded() showing it (or a no-op if never shown/already dismissed),
@@ -2721,8 +2795,8 @@ final class ShaftAssistantPanel extends JPanel {
         // called while an approval widget occupies the same slot (see showFirstRunWelcomeIfNeeded's
         // javadoc), so this never fights that widget for the slot.
         transcript.clearWidget();
-        transcript.append(role, text, rawResponse);
-        chatState.append(role, text, rawResponse);
+        transcript.append(role, text, rawResponse, kind);
+        chatState.append(role, text, rawResponse, kind);
         updateContextTruncationBoundary();
         refreshChatSelector();
         updateActionChrome();
@@ -4157,6 +4231,17 @@ final class ShaftAssistantPanel extends JPanel {
      *     never leave the bubble showing stale throttled-away content)
      */
     private void replaceLocalAgentStreamPlaceholder(String role, String message, boolean forceRender) {
+        replaceLocalAgentStreamPlaceholder(role, message, forceRender, null);
+    }
+
+    /**
+     * Same as {@link #replaceLocalAgentStreamPlaceholder(String, String, boolean)}, plus an explicit
+     * {@code kind} (issue #3968) for a run whose terminal content changes kind -- most notably a
+     * local-agent CLI failure, which must re-style the streamed placeholder bubble as {@link
+     * ShaftAssistantChatState#KIND_ERROR} in place, not just re-word it. A blank/{@code null} kind
+     * leaves the placeholder's existing kind untouched exactly like the 3-arg overload.
+     */
+    private void replaceLocalAgentStreamPlaceholder(String role, String message, boolean forceRender, String kind) {
         if (message == null || message.isBlank()) {
             return;
         }
@@ -4164,26 +4249,29 @@ final class ShaftAssistantPanel extends JPanel {
         if (active == null || active.messages == null
                 || localAgentStreamPlaceholderMessageIndex < 0
                 || localAgentStreamPlaceholderMessageIndex >= active.messages.size()) {
-            append(role, message, "");
+            append(role, message, "", kind);
             localAgentStreamPlaceholderMessageIndex = currentSessionMessageCount() - 1;
             return;
         }
         String normalizedRole = role == null || role.isBlank() ? "assistant" : role.trim().toLowerCase(Locale.ROOT);
         ShaftAssistantChatState.Message target = active.messages.get(localAgentStreamPlaceholderMessageIndex);
         target.role = normalizedRole;
+        if (kind != null && !kind.isBlank()) {
+            target.kind = ShaftAssistantChatState.resolveKind(kind, normalizedRole);
+        }
         target.markdown = message;
         if (localAgentStreamPlaceholderMessageIndex == active.messages.size() - 1) {
             // Common case: no milestone bubble was appended after the placeholder yet -- the fast,
             // incremental single-bubble update still applies.
-            transcript.replaceLast(normalizedRole, message);
+            transcript.replaceLast(normalizedRole, message, kind);
             if (forceRender) {
                 transcript.flushStreamedRender();
             }
         } else {
             // A milestone bubble now sits after the placeholder -- resync the whole transcript from
-            // the chat-state source of truth, so the placeholder's own bubble (not the trailing
-            // milestone bubble) is the one that visibly changes. Always a full, immediate render
-            // already, so forceRender needs no special handling here.
+            // the chat-state source of truth (target.kind above already updated), so the placeholder's
+            // own bubble (not the trailing milestone bubble) is the one that visibly changes. Always a
+            // full, immediate render already, so forceRender needs no special handling here.
             transcript.setMessages(active.messages);
         }
     }
