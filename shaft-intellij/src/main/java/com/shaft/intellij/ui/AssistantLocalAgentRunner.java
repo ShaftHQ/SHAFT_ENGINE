@@ -968,6 +968,9 @@ final class AssistantLocalAgentRunner {
             if ("user".equals(type)) {
                 return describeClaudeToolResults(event);
             }
+            if ("system".equals(type)) {
+                return describeClaudeSystemEvent(event);
+            }
             if ("result".equals(type)) {
                 String resultText = stringField(event, "result");
                 answer = resultText == null ? "" : resultText;
@@ -982,6 +985,36 @@ final class AssistantLocalAgentRunner {
                 }
                 // Fully consumed: this event becomes the final answer, so it is mapped, not hidden.
                 return CONSUMED;
+            }
+            return null;
+        }
+
+        /**
+         * Describes a Claude {@code system} event (session lifecycle/control-plane notices, distinct
+         * from the assistant/user/result conversation events above). Official subtypes per the
+         * documented stream-json schema: {@code init}, {@code api_retry}, {@code plugin_install},
+         * {@code hook_started}/{@code hook_progress}/{@code hook_response}, and {@code
+         * compact_boundary}. Only the two most user-visible subtypes get a compact rendering here
+         * (issue #3922); the rest fall through to {@code null} -- raw-JSON passthrough in Verbose mode,
+         * same as any other unrecognized event, so nothing is silently hidden even though it isn't
+         * translated yet.
+         */
+        private static String describeClaudeSystemEvent(JsonObject event) {
+            String subtype = stringField(event, "subtype");
+            if ("init".equals(subtype)) {
+                List<String> parts = new ArrayList<>();
+                String model = stringField(event, "model");
+                String sessionId = stringField(event, "session_id");
+                if (model != null && !model.isBlank()) {
+                    parts.add("model " + model);
+                }
+                if (sessionId != null && !sessionId.isBlank()) {
+                    parts.add("session " + sessionId);
+                }
+                return parts.isEmpty() ? "Session started." : "Session started (" + String.join(", ", parts) + ").";
+            }
+            if ("compact_boundary".equals(subtype)) {
+                return "Conversation history was compacted to save context.";
             }
             return null;
         }
@@ -1055,19 +1088,24 @@ final class AssistantLocalAgentRunner {
         /**
          * Aggregates a completed Codex tool item's failure into the same per-tool bucket Claude's
          * {@code permission_denials} array populates, using the completed item's {@code status}
-         * field, a non-zero {@code exit_code} (shell commands), or a present {@code error} object
-         * (MCP tool calls) as the failure signal. Codex's {@code --json} schema has no field that
-         * distinguishes a sandbox/approval denial from an ordinary execution failure (see issue
-         * #3679), so both are merged here; {@link #activitySummary()} labels this bucket "Failed or
-         * denied tool calls" for Codex runs rather than reusing Claude's more precise "Denied tool
-         * calls" wording, so the footer never overclaims what the CLI's own output can actually prove.
+         * field (including {@code "failed"} and {@code "declined"} -- {@code CommandExecutionStatus}
+         * per {@code exec_events.rs} -- the latter being Codex's approval/sandbox-rejection outcome,
+         * which carries neither a non-zero exit code nor an error object of its own), a non-zero
+         * {@code exit_code} (shell commands), or a present {@code error} object (MCP tool calls) as
+         * the failure signal. Codex's {@code --json} schema has no field that distinguishes a
+         * sandbox/approval denial from an ordinary execution failure (see issue #3679), so both are
+         * merged here; {@link #activitySummary()} labels this bucket "Failed or denied tool calls" for
+         * Codex runs rather than reusing Claude's more precise "Denied tool calls" wording, so the
+         * footer never overclaims what the CLI's own output can actually prove.
          */
         private void recordCodexToolFailure(String toolName, JsonObject item) {
             if (toolName == null || toolName.isBlank() || item == null) {
                 return;
             }
             Integer exitCode = intField(item, "exit_code");
-            boolean failed = "failed".equals(stringField(item, "status"))
+            String status = stringField(item, "status");
+            boolean failed = "failed".equals(status)
+                    || "declined".equals(status)
                     || (exitCode != null && exitCode != 0)
                     || objectField(item, "error") != null;
             if (failed) {
@@ -1110,47 +1148,16 @@ final class AssistantLocalAgentRunner {
         private String describeCodexEvent(JsonObject event) {
             String type = stringField(event, "type");
             if ("item.completed".equals(type) || "item.updated".equals(type)) {
-                JsonObject item = objectField(event, "item");
-                String itemType = stringField(item, "type");
-                if ("reasoning".equals(itemType)) {
-                    String reasoning = firstNonBlank(stringField(item, "text"), stringField(item, "summary"));
-                    return reasoning == null ? null : "Reasoning: " + reasoning;
-                }
-                if ("tool_call".equals(itemType) || "command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)) {
-                    String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
-                    String label = toolName == null ? "(unknown)" : toolName;
-                    String summary = toolInputSummary(item);
-                    List<String> lines = new ArrayList<>();
-                    lines.add(summary == null || summary.equals(label)
-                            ? "Calling tool " + label + "..."
-                            : "Calling tool " + label + " (" + summary + ")...");
-                    if ("item.completed".equals(type)) {
-                        recordCodexToolFailure(label, item);
-                        String output = firstNonBlank(
-                                stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
-                        if (output != null && !output.isBlank()) {
-                            Integer exitCode = intField(item, "exit_code");
-                            String outputSummary = output.strip();
-                            lines.add(exitCode != null && exitCode != 0
-                                    ? "Tool failed (" + label + ", exit " + exitCode + "): " + outputSummary
-                                    : "Tool result (" + label + "): " + outputSummary);
-                        }
-                    }
-                    return String.join("\n", lines);
-                }
-                if ("file_change".equals(itemType)) {
-                    if ("item.completed".equals(type)) {
-                        recordCodexFileMutation(item);
-                    }
-                    return null;
-                }
-                if ("agent_message".equals(itemType)) {
-                    String text = stringField(item, "text");
-                    if (text != null && !text.isBlank()) {
-                        return text;
-                    }
-                }
-                return null;
+                return describeCodexItemEvent(type, event);
+            }
+            if ("thread.started".equals(type)) {
+                // ThreadStartedEvent per exec_events.rs carries only { thread_id }; a compact fixed
+                // notice is enough to mark the session boundary without overclaiming detail.
+                return "Codex session started.";
+            }
+            if ("turn.started".equals(type)) {
+                // TurnStartedEvent per exec_events.rs is field-free ({}).
+                return "Codex turn started.";
             }
             if ("turn.completed".equals(type) || "turn.failed".equals(type)) {
                 JsonObject usage = objectField(event, "usage");
@@ -1168,7 +1175,108 @@ final class AssistantLocalAgentRunner {
                 // Fully consumed: this event becomes the final answer/usage, so it is mapped, not hidden.
                 return CONSUMED;
             }
+            if ("error".equals(type)) {
+                // ThreadEvent::Error per exec_events.rs -- a FATAL top-level error, distinct from
+                // turn.failed's nested error above. Feeds terminalDetail so a run that dies here gets a
+                // real reason in failureOutput() instead of the generic "exited with code N" fallback.
+                String message = stringField(event, "message");
+                if (message != null && !message.isBlank()) {
+                    terminalDetail = message;
+                    return "Error: " + message;
+                }
+                return null;
+            }
             return null;
+        }
+
+        /**
+         * Describes an {@code item.completed}/{@code item.updated} event's {@code item.type}. Real
+         * Codex {@code --json} item variants per {@code codex-rs/exec/src/exec_events.rs}'s {@code
+         * ThreadItemDetails} enum: {@code agent_message}, {@code reasoning}, {@code command_execution},
+         * {@code file_change}, {@code mcp_tool_call}, {@code collab_tool_call}, {@code web_search},
+         * {@code todo_list}, {@code error}. Note there is no {@code "tool_call"} variant -- an earlier
+         * revision of this switch matched it under a stale assumption, but it never appears in live
+         * Codex output (issue #3922); only the three real tool-call-shaped variants are handled below.
+         */
+        private String describeCodexItemEvent(String type, JsonObject event) {
+            JsonObject item = objectField(event, "item");
+            String itemType = stringField(item, "type");
+            if ("reasoning".equals(itemType)) {
+                String reasoning = firstNonBlank(stringField(item, "text"), stringField(item, "summary"));
+                return reasoning == null ? null : "Reasoning: " + reasoning;
+            }
+            if ("command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)
+                    || "collab_tool_call".equals(itemType)) {
+                String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
+                String label = toolName == null ? "(unknown)" : toolName;
+                String summary = toolInputSummary(item);
+                List<String> lines = new ArrayList<>();
+                lines.add(summary == null || summary.equals(label)
+                        ? "Calling tool " + label + "..."
+                        : "Calling tool " + label + " (" + summary + ")...");
+                if ("item.completed".equals(type)) {
+                    recordCodexToolFailure(label, item);
+                    String output = firstNonBlank(
+                            stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
+                    if (output != null && !output.isBlank()) {
+                        Integer exitCode = intField(item, "exit_code");
+                        String outputSummary = output.strip();
+                        lines.add(exitCode != null && exitCode != 0
+                                ? "Tool failed (" + label + ", exit " + exitCode + "): " + outputSummary
+                                : "Tool result (" + label + "): " + outputSummary);
+                    }
+                }
+                return String.join("\n", lines);
+            }
+            if ("file_change".equals(itemType)) {
+                if ("item.completed".equals(type)) {
+                    recordCodexFileMutation(item);
+                }
+                return null;
+            }
+            if ("agent_message".equals(itemType)) {
+                String text = stringField(item, "text");
+                return text != null && !text.isBlank() ? text : null;
+            }
+            if ("web_search".equals(itemType)) {
+                String query = stringField(item, "query");
+                return query != null && !query.isBlank() ? "Web search: " + query : null;
+            }
+            if ("todo_list".equals(itemType)) {
+                return describeCodexTodoList(item);
+            }
+            if ("error".equals(itemType)) {
+                // ErrorItem per exec_events.rs -- item-level, non-fatal (e.g. "command output
+                // truncated"), distinct from the top-level ThreadEvent::Error handled above.
+                String message = stringField(item, "message");
+                return message != null && !message.isBlank() ? "Error: " + message : null;
+            }
+            return null;
+        }
+
+        /**
+         * Renders a completed Codex {@code todo_list} item ({@code items: [{ text, completed }] }) as
+         * a Markdown checklist, one line per entry.
+         */
+        private static String describeCodexTodoList(JsonObject item) {
+            JsonElement itemsElement = item == null ? null : item.get("items");
+            if (itemsElement == null || !itemsElement.isJsonArray()) {
+                return null;
+            }
+            List<String> lines = new ArrayList<>();
+            lines.add("Todo list:");
+            for (JsonElement element : itemsElement.getAsJsonArray()) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject todo = element.getAsJsonObject();
+                String text = stringField(todo, "text");
+                if (text == null || text.isBlank()) {
+                    continue;
+                }
+                lines.add((booleanField(todo, "completed") ? "- [x] " : "- [ ] ") + text);
+            }
+            return lines.size() <= 1 ? null : String.join("\n", lines);
         }
 
         private static String firstNonBlank(String... candidates) {

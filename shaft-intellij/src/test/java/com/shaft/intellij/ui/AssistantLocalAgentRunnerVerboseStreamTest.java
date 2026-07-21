@@ -112,7 +112,9 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     void codexReasoningItemsAreShownWithALabelAlongsideToolCalls() throws Exception {
         String reasoningEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"reasoning\","
                 + "\"text\":\"deciding which file to inspect\"}}";
-        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"tool_call\",\"name\":\"shell\"}}";
+        // "command_execution" is the real Codex --json item variant (exec_events.rs); the stale
+        // "tool_call" variant this fixture used to use is covered separately below (issue #3922).
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"command\":\"shell\"}}";
         String turnCompleted = "{\"type\":\"turn.completed\",\"last_agent_message\":\"ok\","
                 + "\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}";
 
@@ -120,6 +122,103 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
         assertTrue(lines.contains("Reasoning: deciding which file to inspect"), lines.toString());
         assertTrue(lines.stream().anyMatch(line -> line.contains("Calling tool shell")), lines.toString());
+    }
+
+    @Test
+    void codexToolCallItemTypeIsNotARealVariantAndFallsBackToRawPassthrough() throws Exception {
+        // Issue #3922: the real Codex --json item variants are command_execution/mcp_tool_call (see
+        // codex-rs/exec/src/exec_events.rs); "tool_call" never appears in live Codex output and was a
+        // stale assumption that must not be treated as a known item type going forward.
+        String staleEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"tool_call\",\"name\":\"shell\"}}";
+
+        List<String> lines = run(codexInvocation(), staleEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains(staleEvent),
+                "An item.type Codex never actually emits must fall back to raw passthrough, not render as a tool call: "
+                        + lines);
+        assertTrue(lines.stream().noneMatch(line -> line.contains("Calling tool shell")), lines.toString());
+    }
+
+    @Test
+    void codexDeclinedCommandExecutionCountsAsAFailedOrDeniedToolCall() throws Exception {
+        // CommandExecutionStatus::Declined (an approval/sandbox rejection) carries no non-zero
+        // exit_code and no error object, so it must be recognized via status alone or a decline
+        // silently misses the "Failed or denied tool calls" footer built for exactly this (#3679).
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\","
+                + "\"name\":\"shell\",\"command\":\"rm -rf /\",\"status\":\"declined\"}}";
+
+        String output = finalOutput(codexInvocation(), toolEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(output.contains("Failed or denied tool calls: shell"), output);
+    }
+
+    @Test
+    void codexCollabToolCallItemsAreRenderedLikeOtherToolCalls() throws Exception {
+        String collabEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"collab_tool_call\","
+                + "\"name\":\"pair_review\",\"status\":\"completed\"}}";
+
+        List<String> lines = run(codexInvocation(), collabEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.stream().anyMatch(line -> line.contains("Calling tool pair_review")), lines.toString());
+    }
+
+    @Test
+    void codexWebSearchItemsAreShownWithTheQuery() throws Exception {
+        String webSearchEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"web_search\","
+                + "\"id\":\"ws-1\",\"query\":\"latest Selenium 4 release notes\"}}";
+
+        List<String> lines = run(codexInvocation(), webSearchEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Web search: latest Selenium 4 release notes"), lines.toString());
+    }
+
+    @Test
+    void codexTodoListItemsAreShownAsAChecklist() throws Exception {
+        String todoListEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"todo_list\",\"items\":["
+                + "{\"text\":\"Write failing test\",\"completed\":true},"
+                + "{\"text\":\"Implement fix\",\"completed\":false}]}}";
+
+        List<String> lines = run(codexInvocation(), todoListEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Todo list:\n- [x] Write failing test\n- [ ] Implement fix"), lines.toString());
+    }
+
+    @Test
+    void codexItemLevelErrorsAreShownWithoutFailingTheRun() throws Exception {
+        String itemError = "{\"type\":\"item.completed\",\"item\":{\"type\":\"error\","
+                + "\"message\":\"command output truncated\"}}";
+
+        List<String> lines = run(codexInvocation(), itemError + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Error: command output truncated"), lines.toString());
+    }
+
+    @Test
+    void codexThreadStartedAndTurnStartedEventsAreShownAsProgressLines() throws Exception {
+        String threadStarted = "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}";
+        String turnStarted = "{\"type\":\"turn.started\"}";
+
+        List<String> lines = run(codexInvocation(),
+                threadStarted + "\n" + turnStarted + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Codex session started."), lines.toString());
+        assertTrue(lines.contains("Codex turn started."), lines.toString());
+    }
+
+    @Test
+    void codexTopLevelErrorFeedsAPlainLanguageFailureReasonInsteadOfTheGenericExitCodeFallback() throws Exception {
+        // ThreadEvent::Error is Codex's fatal top-level error (distinct from turn.failed's nested
+        // error) and previously had no handling at all, so failureOutput fell back to the generic
+        // "exited with code N" message even when Codex sent an explicit reason.
+        String fatalError = "{\"type\":\"error\",\"message\":\"context length exceeded\"}";
+
+        ShaftMcpToolResult result = failingRun(codexInvocation(), fatalError + "\n", "", 1);
+
+        assertFalse(result.success(), result.output());
+        assertTrue(result.output().contains("context length exceeded"),
+                "The top-level error's message must drive the failure reason: " + result.output());
+        assertFalse(result.output().contains("exited with code 1"),
+                "A real reason must replace the generic exit-code fallback: " + result.output());
     }
 
     @Test
@@ -258,13 +357,37 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
     @Test
     void unmappedJsonEventsPassThroughRawSoVerboseModeNeverHidesInformation() throws Exception {
-        String systemInitEvent = "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc\"}";
+        // subtype "api_retry" has no rendering yet (deferred per issue #3922's scope call) -- still a
+        // valid example of a genuinely unmapped event, unlike "init"/"compact_boundary" below which
+        // now render compactly.
+        String apiRetryEvent = "{\"type\":\"system\",\"subtype\":\"api_retry\",\"attempt\":1}";
 
         List<String> lines = run(claudeInvocation(),
-                systemInitEvent + "\n" + claudeAssistantTextEvent("hi") + "\n" + claudeResultEvent("hi") + "\n");
+                apiRetryEvent + "\n" + claudeAssistantTextEvent("hi") + "\n" + claudeResultEvent("hi") + "\n");
 
-        assertTrue(lines.contains(systemInitEvent),
+        assertTrue(lines.contains(apiRetryEvent),
                 "Events with no human-readable mapping must be shared as-is (raw JSON): " + lines);
+    }
+
+    @Test
+    void claudeSystemInitEventShowsSessionAndModelInfo() throws Exception {
+        String systemInit = "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc123\","
+                + "\"model\":\"claude-sonnet-5\"}";
+
+        List<String> lines = run(claudeInvocation(),
+                systemInit + "\n" + claudeAssistantTextEvent("hi") + "\n" + claudeResultEvent("hi") + "\n");
+
+        assertTrue(lines.contains("Session started (model claude-sonnet-5, session abc123)."), lines.toString());
+    }
+
+    @Test
+    void claudeSystemCompactBoundaryEventShowsACompactionNotice() throws Exception {
+        String compactBoundary = "{\"type\":\"system\",\"subtype\":\"compact_boundary\"}";
+
+        List<String> lines = run(claudeInvocation(),
+                compactBoundary + "\n" + claudeAssistantTextEvent("hi") + "\n" + claudeResultEvent("hi") + "\n");
+
+        assertTrue(lines.contains("Conversation history was compacted to save context."), lines.toString());
     }
 
     @Test
@@ -280,11 +403,14 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
     @Test
     void unmappedCodexEventsPassThroughRaw() throws Exception {
-        String threadStarted = "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}";
+        // "item.started" in-flight status is explicitly deferred (issue #3922 scope) -- still a valid
+        // example of a genuinely unmapped event, unlike "thread.started"/"turn.started" below which
+        // now render as progress lines.
+        String itemStarted = "{\"type\":\"item.started\",\"item\":{\"type\":\"reasoning\",\"text\":\"x\"}}";
 
-        List<String> lines = run(codexInvocation(), threadStarted + "\n" + codexTurnCompletedEvent() + "\n");
+        List<String> lines = run(codexInvocation(), itemStarted + "\n" + codexTurnCompletedEvent() + "\n");
 
-        assertTrue(lines.contains(threadStarted), lines.toString());
+        assertTrue(lines.contains(itemStarted), lines.toString());
         assertTrue(lines.stream().noneMatch(line -> line.contains("turn.completed")),
                 "The terminal usage event is consumed, not echoed: " + lines);
     }
