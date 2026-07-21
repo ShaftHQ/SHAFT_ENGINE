@@ -53,6 +53,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     static final String BACKEND_WEBDRIVER = "WebDriver";
     static final String BACKEND_PLAYWRIGHT = "Playwright";
     static final String BACKEND_MOBILE = "Mobile (web emulation)";
+    static final String BACKEND_API = "API";
     private static final int STATUS_POLL_INTERVAL_MILLIS = 2_000;
     /** Stop idle polling after ~5 minutes if the prepared recording request is never run. */
     private static final int MAX_POLLS_BEFORE_ACTIVE = 150;
@@ -98,6 +99,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private boolean recorderSeenActive;
     private int pollsWithoutActivity;
     private String statusToolName = "";
+    // capture_api_start ignores its outputPath argument on the WEB engine and only reports the
+    // persisted session path back in its response (issue #3939); read via readApiOutputPath().
+    private String apiSessionPath = "";
 
     GuidedWorkflowPanel(Project project, ToolPrefill prefill) {
         this(project, prefill, resolveSettings());
@@ -110,7 +114,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         this.settings = settings == null ? new ShaftSettingsState.Settings() : settings;
         setBorder(JBUI.Borders.empty(8));
 
-        backend = new JComboBox<>(new String[]{BACKEND_WEBDRIVER, BACKEND_PLAYWRIGHT, BACKEND_MOBILE});
+        backend = new JComboBox<>(new String[]{BACKEND_WEBDRIVER, BACKEND_PLAYWRIGHT, BACKEND_MOBILE, BACKEND_API});
         backend.getAccessibleContext().setAccessibleName("Guided workflow backend");
         templateSelector = new JComboBox<>(WorkflowTemplate.values());
         templateSelector.setPrototypeDisplayValue(WorkflowTemplate.CREATE_NEW_SHAFT_PROJECT);
@@ -433,7 +437,16 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         recorderBrowser.setToolTipText(playwrightBackend
                 ? "The Playwright recorder start request does not take a browser parameter."
                 : "Browser used for the WebDriver capture recorder and the Mobile web-emulation session.");
-        sessionPath.setToolTipText(mobile()
+        // capture_api_start's WEB branch ignores its outputPath argument entirely -- the persisted
+        // session path is only known once the server reports it back on start (CaptureService#apiStart) --
+        // so unlike the other backends this field has nothing to send and is disabled rather than
+        // silently ignored.
+        boolean apiBackend = api();
+        sessionPath.setEnabled(!apiBackend);
+        sessionPath.setToolTipText(apiBackend
+                ? "Not used for API recording: capture_api_start ignores outputPath and reports the "
+                + "persisted session path back once the recording starts."
+                : mobile()
                 ? "Mobile recording JSON output path (capture_start outputPath)."
                 : playwrightBackend
                 ? "Playwright recording JSON output path (capture_start outputPath)."
@@ -634,6 +647,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private void startRecording() {
+        if (api()) {
+            startApiRecording();
+            return;
+        }
         if (mobile()) {
             startMobileRecording();
             return;
@@ -732,6 +749,71 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 }));
     }
 
+    /**
+     * Starts an API/network-traffic recording (issue #3939): {@code capture_api_start} launches its
+     * own SHAFT-managed browser on the WEB engine (CaptureService#apiStart), so this mirrors {@link
+     * #startRecording()}'s WebDriver branch rather than chaining a separate session like {@link
+     * #startMobileRecording()} does. The started recording's server-reported {@code outputPath} is
+     * captured for {@link #generateToolArguments()} since, unlike the other backends,
+     * {@code capture_api_start} ignores the Session path field entirely.
+     */
+    private void startApiRecording() {
+        String startTool = "capture_api_start";
+        JsonObject arguments = apiCaptureStartArguments();
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(startTool, arguments);
+            startStatusPolling("capture_api_status");
+            return;
+        }
+        setRecorderStatus("Starting the API recording...");
+        invocationService.startTool(startTool, arguments)
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("API recording failed to start: " + failureText(result, error));
+                        return;
+                    }
+                    apiSessionPath = readApiOutputPath(result);
+                    setRecorderStatus("API recording started. Interact with the browser, then press Stop recording.");
+                    startStatusPolling("capture_api_status");
+                }));
+    }
+
+    /**
+     * Arguments for {@code capture_api_start}'s WEB dispatch (CaptureService#apiStart), matching the
+     * proven-working shape {@code GuidedWorkflowLiveE2ETest#apiStart} sends: request/response body
+     * capture defaults to what {@code capture_api_generate}'s SCHEMA validation depth needs (response
+     * bodies to derive a schema from; request bodies are not rendered into the generated code).
+     */
+    private JsonObject apiCaptureStartArguments() {
+        JsonObject networkOptions = new JsonObject();
+        networkOptions.addProperty("enabled", true);
+        networkOptions.addProperty("captureRequestBodies", false);
+        networkOptions.addProperty("captureResponseBodies", true);
+
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", targetUrl.getText().trim());
+        arguments.addProperty("browser", (String) recorderBrowser.getSelectedItem());
+        arguments.addProperty("headless", headlessBrowser.isSelected());
+        arguments.add("networkOptions", networkOptions);
+        return arguments;
+    }
+
+    /**
+     * Unwraps {@code capture_api_start}'s {@code McpCaptureApiUnionStatus} response down to the
+     * WEB-engine {@code webStatus.outputPath} (mirrors {@code GuidedWorkflowLiveE2ETest#webStatus}):
+     * the persisted session path capture_api_generate needs, since capture_api_start never echoes
+     * back the (ignored) requested path.
+     */
+    private static String readApiOutputPath(ShaftMcpToolResult result) {
+        JsonObject raw = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        if (raw == null || !raw.has("webStatus") || !raw.get("webStatus").isJsonObject()) {
+            return "";
+        }
+        return jsonString(raw.getAsJsonObject("webStatus"), "outputPath");
+    }
+
     private void planPartnerWork() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("repositoryPath", ".");
@@ -754,7 +836,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void stopRecording() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("discard", false);
-        String stopTool = "capture_stop";
+        String stopTool = api() ? "capture_api_stop" : "capture_stop";
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
             prefill.prefill(stopTool, arguments);
@@ -773,7 +855,23 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     private void generateCode() {
-        prefill.prefill(codeBlocksToolName(), codeBlocksArguments());
+        prefill.prefill(generateToolName(), generateToolArguments());
+    }
+
+    /**
+     * Returns the codegen MCP tool for the selected backend, shared by "Review code", "Insert at
+     * caret", and "Create test class" so the three actions always generate from the same recording.
+     * API recording (issue #3939) uses the dedicated {@code capture_api_generate} tool rather than
+     * {@code capture_code_blocks}: that tool's {@code backend} parameter only recognizes
+     * web/playwright/mobile and would silently misread an API-network recording as a WebDriver UI
+     * capture (GuidedWorkflowLiveE2ETest#apiRecorderCapturesNetworkTrafficAndGeneratesShaftApiCode).
+     */
+    private String generateToolName() {
+        return api() ? "capture_api_generate" : codeBlocksToolName();
+    }
+
+    private JsonObject generateToolArguments() {
+        return api() ? apiGenerateArguments() : codeBlocksArguments();
     }
 
     /**
@@ -782,6 +880,29 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
      */
     private String codeBlocksToolName() {
         return "capture_code_blocks";
+    }
+
+    /**
+     * Arguments for {@code capture_api_generate} (CaptureService#generateApi), matching the
+     * proven-working shape {@code GuidedWorkflowLiveE2ETest#apiGenerate} sends. {@code sessionPath}
+     * prefers the path {@code capture_api_start} actually reported ({@link #apiSessionPath}) over the
+     * disabled Session path field, since capture_api_start ignores that field's value.
+     */
+    private JsonObject apiGenerateArguments() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath",
+                apiSessionPath.isBlank() ? sessionPath.getText().trim() : apiSessionPath);
+        arguments.addProperty("outputDirectory", ".");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "GeneratedApiCaptureTest");
+        arguments.addProperty("style", "SCENARIO");
+        arguments.addProperty("validationDepth", "SCHEMA");
+        arguments.addProperty("overwrite", false);
+        arguments.addProperty("replay", false);
+        arguments.addProperty("openApiSpecPath", "");
+        arguments.add("excludedTransactionIds", new JsonArray());
+        arguments.add("pinnedJsonPaths", new JsonArray());
+        return arguments;
     }
 
     private JsonObject codeBlocksArguments() {
@@ -820,7 +941,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void insertCodeAtCaret() {
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
-            prefill.prefill(codeBlocksToolName(), codeBlocksArguments());
+            prefill.prefill(generateToolName(), generateToolArguments());
             return;
         }
         if (selectedJavaEditor() == null) {
@@ -828,7 +949,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             return;
         }
         setRecorderStatus("Generating code to insert at caret...");
-        invocationService.startTool(codeBlocksToolName(), codeBlocksArguments())
+        invocationService.startTool(generateToolName(), generateToolArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> applyInsertAtCaret(result, error)));
     }
@@ -873,7 +994,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void createTestClassFromRecording() {
         ShaftMcpInvocationService invocationService = invocationService();
         if (invocationService == null) {
-            prefill.prefill(codeBlocksToolName(), codeBlocksArguments());
+            prefill.prefill(generateToolName(), generateToolArguments());
             return;
         }
         if (project == null || project.getBasePath() == null) {
@@ -881,7 +1002,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             return;
         }
         setRecorderStatus("Generating test class...");
-        invocationService.startTool(codeBlocksToolName(), codeBlocksArguments())
+        invocationService.startTool(generateToolName(), generateToolArguments())
                 .future()
                 .whenComplete((result, error) -> onEdt(() -> applyCreateTestClass(result, error)));
     }
@@ -1384,6 +1505,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
 
     private boolean mobile() {
         return BACKEND_MOBILE.equals(backend.getSelectedItem());
+    }
+
+    private boolean api() {
+        return BACKEND_API.equals(backend.getSelectedItem());
     }
 
     private String currentSourcePath() {

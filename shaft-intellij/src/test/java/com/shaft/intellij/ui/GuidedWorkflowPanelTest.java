@@ -195,6 +195,87 @@ class GuidedWorkflowPanelTest {
     }
 
     @Test
+    void apiRecorderButtonsWireCaptureApiToolsMirroringWebDriverAndMobile() {
+        // Issue #3939: GuidedWorkflowPanel had zero UI entry points for API recording even though
+        // capture_api_start/capture_api_status/capture_api_stop/capture_api_generate (CaptureService,
+        // shaft-mcp) already work and are proven by GuidedWorkflowLiveE2ETest
+        // #apiRecorderCapturesNetworkTrafficAndGeneratesShaftApiCode. Start/Stop/Review code must route
+        // to those tools for the new API backend, exactly like the existing backends route to
+        // capture_start/capture_stop/capture_code_blocks.
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        JButton start = findButton(panel, "Start recording");
+        JButton stop = findButton(panel, "Stop recording");
+        JButton review = findButton(panel, "Review code");
+        assertNotNull(backend);
+
+        select(backend, "API");
+        start.doClick();
+        CapturedInvocation apiStart = last(invocations);
+        JsonObject networkOptions = apiStart.arguments().getAsJsonObject("networkOptions");
+        assertAll(
+                () -> assertEquals("capture_api_start", apiStart.toolName()),
+                () -> assertFalse(apiStart.arguments().get("headless").getAsBoolean()),
+                () -> assertNotNull(networkOptions, "capture_api_start requires networkOptions: "
+                        + apiStart.arguments()),
+                () -> assertTrue(networkOptions.get("enabled").getAsBoolean()),
+                () -> assertTrue(networkOptions.get("captureResponseBodies").getAsBoolean()),
+                () -> assertFalse(networkOptions.get("captureRequestBodies").getAsBoolean()));
+
+        stop.doClick();
+        CapturedInvocation apiStop = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_api_stop", apiStop.toolName()),
+                () -> assertFalse(apiStop.arguments().get("discard").getAsBoolean()));
+
+        review.doClick();
+        CapturedInvocation apiGenerate = last(invocations);
+        assertAll(
+                // capture_code_blocks' backend parameter only recognizes web/playwright/mobile and would
+                // silently misread an API-network recording as a WebDriver UI capture (GuidedWorkflowLiveE2ETest
+                // javadoc); the dedicated capture_api_generate tool is the real API codegen entry point.
+                () -> assertEquals("capture_api_generate", apiGenerate.toolName()),
+                () -> assertEquals("recordings/intellij-capture.json",
+                        apiGenerate.arguments().get("sessionPath").getAsString()),
+                () -> assertFalse(apiGenerate.arguments().get("overwrite").getAsBoolean()),
+                () -> assertFalse(apiGenerate.arguments().get("replay").getAsBoolean()),
+                () -> assertTrue(apiGenerate.arguments().has("style")),
+                () -> assertTrue(apiGenerate.arguments().has("validationDepth")),
+                () -> assertTrue(apiGenerate.arguments().has("excludedTransactionIds")),
+                () -> assertTrue(apiGenerate.arguments().has("pinnedJsonPaths")));
+    }
+
+    @Test
+    void apiBackendEnablesTargetFieldsAndDisablesTheUnusedSessionPathField() {
+        // capture_api_start's WEB branch ignores its outputPath argument entirely (the session path
+        // is only known once the server reports it back), so unlike the other backends the Session
+        // path field has nothing to send for API recording and must be disabled rather than silently
+        // ignored.
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        expandAdvanced(panel);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
+        javax.swing.text.JTextComponent targetUrl =
+                findByAccessibleName(panel, "Target URL", javax.swing.text.JTextComponent.class);
+        JComboBox<?> recorderBrowser = findByAccessibleName(panel, "Recorder browser", JComboBox.class);
+        javax.swing.text.JTextComponent sessionPath =
+                findByAccessibleName(panel, "Session path", javax.swing.text.JTextComponent.class);
+        assertNotNull(backend);
+
+        select(backend, "API");
+        assertAll(
+                () -> assertTrue(targetUrl.isEnabled()),
+                () -> assertTrue(headless.isEnabled()),
+                () -> assertTrue(recorderBrowser.isEnabled()),
+                () -> assertFalse(sessionPath.isEnabled(),
+                        "capture_api_start ignores outputPath; the field has nothing to send"));
+    }
+
+    @Test
     void recorderBrowserPickerIsVisibleByDefaultAndDrivesBothStartToolArguments() {
         // Issue #3660: a real browser picker (not a hardcoded literal) replaces the old
         // "Chrome"/"CHROME" constants in both webdriverCaptureStartArguments() and
