@@ -12,6 +12,12 @@
     <packaging>pom</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Dependency management BOM for SHAFT consumer artifacts.</description>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
 
     <dependencyManagement>
         <dependencies>

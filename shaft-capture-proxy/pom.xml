@@ -18,6 +18,12 @@
         module so the MITM/Netty/Bouncy Castle dependencies stay off the classpath of consumers
         that never enable mobile API capture.
     </description>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
 
     <dependencies>
         <dependency>
