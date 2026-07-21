@@ -23,11 +23,11 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
 - Blockers in path: fix inline. Any other out-of-scope finding -- never drop or just chat it: interactive -> ask now-vs-issue; noninteractive -> `gh issue create` same session (search first, consolidate). Don't hunt for extras.
-- PR review: scan for deferred/out-of-scope/adjacent-finding language (yours or a delegate's) -- each needs a tracked issue before closing (search first, cross-link tracker).
+- PR review: scan for deferred/out-of-scope/adjacent-finding language (yours or a delegate's) -- track before closing per the rule above, cross-link the tracker.
 
 ## Windows/Codex Safety
 
-No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT prop, defaults `true` -- auto-opens browser; not Allure-3-CLI `allure.open`) + GUI-off Lighthouse `-D...=false`.
+No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `rundll32`, `os.startfile`, browsers/editors/installers. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: always `-Dallure.automaticallyOpen=false` (SHAFT prop, not Allure-3-CLI `allure.open`) + GUI-off Lighthouse `-D...=false`.
 
 ## Memory & Learning Loop
 

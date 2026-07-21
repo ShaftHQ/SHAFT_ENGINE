@@ -8,20 +8,18 @@ applyTo: "**/src/test/java/**/*.java"
   Use descriptive scenario-based test names.
 - Browser tests create a fresh driver per test and clean it in an always-run
   teardown. For `ThreadLocal` drivers, call both `quit()` and `remove()`.
-- Browser tests must run headlessly. Do not start a headed browser during
-  ordinary agent validation; inherently headed-only behavior requires explicit
-  user approval before execution.
-- Under TestNG method parallelism, ordinary instance fields are shared by
-  concurrent methods. Keep per-method paths, files, mocks, drivers, and mutable
-  setup in locals or `ThreadLocal`; cleanup must read and clear the same
-  thread-owned state.
-- `@Test(singleThreaded = true)` serializes one class only. Static services or
+- Browser tests run headlessly; headed-only behavior needs explicit user
+  approval before execution (see AGENTS.md).
+- Under TestNG method parallelism, instance fields are shared across
+  concurrent methods; keep per-method paths/files/mocks/drivers/mutable setup
+  in locals or `ThreadLocal`, and clear the same thread-owned state in
+  cleanup.
+- `@Test(singleThreaded = true)` serializes one class only; static services or
   SHAFT global properties shared across classes need an explicit cross-class
-  lock or prerequisites set inside each test, followed by always-run
-  restoration.
-- Use `Properties.clearForCurrentThread()` when tests set per-thread SHAFT
-  properties — except JVM-global `SHAFT.Properties.flags`: capture and
-  restore the original in `finally`/`@AfterMethod`.
+  lock or per-test prerequisites, plus always-run restoration.
+- Use `Properties.clearForCurrentThread()` for per-thread SHAFT properties,
+  except JVM-global `SHAFT.Properties.flags` — capture/restore the original
+  in `finally`/`@AfterMethod`.
 - Preserve the live `allure-results` directory and delete only its contents.
   Replacing the root can race with Allure writers on Windows.
 - Confirm result JSON files are populated before interpreting Allure status.
@@ -35,8 +33,8 @@ applyTo: "**/src/test/java/**/*.java"
   logic can be tested directly.
 - Mock external services when the contract is not under test. Disable status
   validation only when response status is intentionally outside the assertion.
-- For a bug fix, first prove the regression when practical, then run the focused
-  test after the fix. Repeat or parallelize runs only when needed to evaluate a
+- For a bug fix, prove the regression first when practical, then run the
+  focused test after the fix; repeat/parallelize runs only to evaluate a
   flaky or concurrency failure.
 - Reuse passing test evidence unless later edits affect the tested behavior or
   its dependencies.
