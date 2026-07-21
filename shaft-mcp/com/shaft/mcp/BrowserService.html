@@ -54,16 +54,15 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#navigate(java.lang.String,java.lang.Boolean)" tabindex="0">navigate(String, Boolean)</a></li>
 <li><a href="#navigate(java.lang.String)" tabindex="0">navigate(String)</a></li>
 <li><a href="#navigateWithBasicAuth(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">navigateWithBasicAuth(String, String, String, String)</a></li>
 <li><a href="#refreshPage()" tabindex="0">refreshPage()</a></li>
 <li><a href="#navigateBack()" tabindex="0">navigateBack()</a></li>
 <li><a href="#navigateForward()" tabindex="0">navigateForward()</a></li>
-<li><a href="#maximizeWindow()" tabindex="0">maximizeWindow()</a></li>
+<li><a href="#setWindowSize(int,int,com.shaft.mcp.WindowSizeMode)" tabindex="0">setWindowSize(int, int, WindowSizeMode)</a></li>
 <li><a href="#setWindowSize(int,int)" tabindex="0">setWindowSize(int, int)</a></li>
-<li><a href="#fullscreenWindow()" tabindex="0">fullscreenWindow()</a></li>
-<li><a href="#deleteAllCookies()" tabindex="0">deleteAllCookies()</a></li>
-<li><a href="#deleteCookie(java.lang.String)" tabindex="0">deleteCookie(String)</a></li>
+<li><a href="#deleteCookies(java.lang.String)" tabindex="0">deleteCookies(String)</a></li>
 <li><a href="#addCookie(java.lang.String,java.lang.String)" tabindex="0">addCookie(String, String)</a></li>
 <li><a href="#getCookie(java.lang.String)" tabindex="0">getCookie(String)</a></li>
 <li><a href="#getAllCookies()" tabindex="0">getAllCookies()</a></li>
@@ -74,8 +73,8 @@
 <li><a href="#takeScreenshot(java.lang.String,boolean)" tabindex="0">takeScreenshot(String, boolean)</a></li>
 <li><a href="#saveStorageState(java.lang.String)" tabindex="0">saveStorageState(String)</a></li>
 <li><a href="#loadStorageState(java.lang.String)" tabindex="0">loadStorageState(String)</a></li>
+<li><a href="#networkRequests(java.lang.String,int,java.lang.Integer)" tabindex="0">networkRequests(String, int, Integer)</a></li>
 <li><a href="#networkRequests(java.lang.String,int)" tabindex="0">networkRequests(String, int)</a></li>
-<li><a href="#networkRequest(int)" tabindex="0">networkRequest(int)</a></li>
 <li><a href="#route(java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.util.Map)" tabindex="0">route(String, String, String, int, String, Map)</a></li>
 <li><a href="#unroute(java.lang.String)" tabindex="0">unroute(String)</a></li>
 <li><a href="#ariaSnapshot(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">ariaSnapshot(locatorStrategy, String)</a></li>
@@ -146,19 +145,10 @@ violations found.</div>
 DSL) of the whole page or a single element for MCP browser automation inspection.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteAllCookies()" class="member-name-link">deleteAllCookies</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteCookies(java.lang.String)" class="member-name-link">deleteCookies</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Deletes all cookies in the current browser session.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteCookie(java.lang.String)" class="member-name-link">deleteCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Deletes a specific cookie by name in the current browser session.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#fullscreenWindow()" class="member-name-link">fullscreenWindow</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Sets the browser window to fullscreen mode.</div>
+<div class="block">Deletes a cookie by name, or every cookie when <code>name</code> is omitted, dispatching to
+whichever engine is currently active.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getAllCookies()" class="member-name-link">getAllCookies</a>()</code></div>
@@ -183,7 +173,8 @@ DSL) of the whole page or a single element for MCP browser automation inspection
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getTitle()" class="member-name-link">getTitle</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Retrieves the title of the current page in the browser.</div>
+<div class="block">Retrieves the title of the current page in the browser, dispatching to whichever engine is
+currently active.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#loadStorageState(java.lang.String)" class="member-name-link">loadStorageState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
@@ -192,24 +183,28 @@ DSL) of the whole page or a single element for MCP browser automation inspection
 browser session.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#maximizeWindow()" class="member-name-link">maximizeWindow</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigate(java.lang.String)" class="member-name-link">navigate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Maximizes the browser window.</div>
+<div class="block">Java-caller convenience overload defaulting <code>newWindow</code> to false; not an MCP tool.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigate(java.lang.String)" class="member-name-link">navigate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigate(java.lang.String,java.lang.Boolean)" class="member-name-link">navigate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;newWindow)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Navigates the browser to the specified URL.</div>
+<div class="block">Navigates the browser to the specified URL, dispatching to whichever engine is currently
+active.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateBack()" class="member-name-link">navigateBack</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Navigates back to the previous page in the browser's history.</div>
+<div class="block">Navigates back to the previous page in the browser's history, dispatching to whichever engine
+is currently active.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateForward()" class="member-name-link">navigateForward</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Navigates forward to the next page in the browser's history.</div>
+<div class="block">Navigates forward to the next page in the browser's history, dispatching to whichever engine is
+currently active.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateWithBasicAuth(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">navigateWithBasicAuth</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
@@ -219,15 +214,16 @@ browser session.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Navigates the browser to the specified URL using Basic Authentication.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpNetworkTransactionDetail.html" title="class in com.shaft.mcp">McpNetworkTransactionDetail</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkRequest(int)" class="member-name-link">networkRequest</a><wbr>(int&nbsp;id)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkRequests(java.lang.String,int)" class="member-name-link">networkRequests</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
+ int&nbsp;limit)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns one observed network transaction's detail, including headers and a truncated body
-preview as recorded by trace capture.</div>
+<div class="block">Java-caller convenience overload defaulting <code>id</code> to unset; not an MCP tool.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkRequests(java.lang.String,int)" class="member-name-link">networkRequests</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
- int&nbsp;limit)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkRequests(java.lang.String,int,java.lang.Integer)" class="member-name-link">networkRequests</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
+ int&nbsp;limit,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;id)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Lists the active browser session's observed network transactions without request/response
 bodies.</div>
@@ -243,7 +239,7 @@ bodies.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#refreshPage()" class="member-name-link">refreshPage</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Refreshes the current page in the browser.</div>
+<div class="block">Refreshes the current page in the browser, dispatching to whichever engine is currently active.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#route(java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.util.Map)" class="member-name-link">route</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;method,
@@ -267,17 +263,26 @@ JSON file.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
  int&nbsp;height)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Sets the browser window to a specific size.</div>
+<div class="block">Java-caller convenience overload defaulting <code>mode</code> to <a href="WindowSizeMode.html#CUSTOM"><code>WindowSizeMode.CUSTOM</code></a>; not
+an MCP tool.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#takeScreenshot(java.lang.String,boolean)" class="member-name-link">takeScreenshot</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
- boolean&nbsp;includeBase64)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int,com.shaft.mcp.WindowSizeMode)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
+ int&nbsp;height,
+ <a href="WindowSizeMode.html" title="enum class in com.shaft.mcp">WindowSizeMode</a>&nbsp;mode)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Sets the browser window size, or maximizes/fullscreens it, dispatching to whichever engine is
+currently active.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#takeScreenshot(java.lang.String,boolean)" class="member-name-link">takeScreenshot</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+ boolean&nbsp;includeBase64)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Takes a PNG screenshot of the current browser viewport for MCP browser automation inspection.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#unroute(java.lang.String)" class="member-name-link">unroute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;routeId)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#unroute(java.lang.String)" class="member-name-link">unroute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;routeId)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Clears registered browser mock routes for the active session.</div>
 </div>
 </div>
@@ -314,13 +319,32 @@ JSON file.</div>
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="navigate(java.lang.String)">
+<section class="detail" id="navigate(java.lang.String,java.lang.Boolean)">
 <h3>navigate</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_navigate",
-      description="opens a URL in the active SHAFT WebDriver browser session")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">navigate</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</span></div>
-<div class="block">Navigates the browser to the specified URL.</div>
+      description="opens a URL in the active engine's browser session; optional newWindow (default false) opens the URL in a new window instead of navigating the current one, absorbing playwright_browser_new_window's window-opening behavior on the Playwright engine")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">navigate</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;newWindow)</span></div>
+<div class="block">Navigates the browser to the specified URL, dispatching to whichever engine is currently
+active.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>targetUrl</code> - The URL to navigate to.</dd>
+<dd><code>newWindow</code> - when true, opens the URL in a new window instead of navigating the current
+                 one (absorbs <code>playwright_browser_new_window</code>'s window-opening behavior
+                 on the Playwright engine); blank/omitted defaults to false</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="navigate(java.lang.String)">
+<h3>navigate</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">navigate</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</span></div>
+<div class="block">Java-caller convenience overload defaulting <code>newWindow</code> to false; not an MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>targetUrl</code> - The URL to navigate to.</dd>
@@ -352,9 +376,9 @@ JSON file.</div>
 <h3>refreshPage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_refresh",
-      description="refreshes the current page")
+      description="refreshes the current page; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">refreshPage</span>()</div>
-<div class="block">Refreshes the current page in the browser.</div>
+<div class="block">Refreshes the current page in the browser, dispatching to whichever engine is currently active.</div>
 </div>
 </section>
 </li>
@@ -363,9 +387,10 @@ JSON file.</div>
 <h3>navigateBack</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_navigate_back",
-      description="navigates back to the previous page")
+      description="navigates back to the previous page; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">navigateBack</span>()</div>
-<div class="block">Navigates back to the previous page in the browser's history.</div>
+<div class="block">Navigates back to the previous page in the browser's history, dispatching to whichever engine
+is currently active.</div>
 </div>
 </section>
 </li>
@@ -374,20 +399,32 @@ JSON file.</div>
 <h3>navigateForward</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_navigate_forward",
-      description="navigates forward to the next page")
+      description="navigates forward to the next page; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">navigateForward</span>()</div>
-<div class="block">Navigates forward to the next page in the browser's history.</div>
+<div class="block">Navigates forward to the next page in the browser's history, dispatching to whichever engine is
+currently active.</div>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="maximizeWindow()">
-<h3>maximizeWindow</h3>
+<section class="detail" id="setWindowSize(int,int,com.shaft.mcp.WindowSizeMode)">
+<h3>setWindowSize</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="browser_maximize_window",
-      description="maximizes the browser window")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">maximizeWindow</span>()</div>
-<div class="block">Maximizes the browser window.</div>
+<div class="member-signature"><span class="annotations">@Tool(name="browser_set_window_size",
+      description="sets the browser window to a specific size; optional mode selects custom (default, uses width/height) | maximize | fullscreen, absorbing browser_maximize_window/browser_fullscreen_window; dispatches to the active engine")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setWindowSize</span><wbr><span class="parameters">(int&nbsp;width,
+ int&nbsp;height,
+ @ToolParam(required=false)
+ <a href="WindowSizeMode.html" title="enum class in com.shaft.mcp">WindowSizeMode</a>&nbsp;mode)</span></div>
+<div class="block">Sets the browser window size, or maximizes/fullscreens it, dispatching to whichever engine is
+currently active.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>width</code> - The desired width of the browser window; used only when mode is custom.</dd>
+<dd><code>height</code> - The desired height of the browser window; used only when mode is custom.</dd>
+<dd><code>mode</code> - custom (default, uses width/height) | maximize | fullscreen, absorbing
+              <code>browser_maximize_window</code>/<code>browser_fullscreen_window</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -395,11 +432,10 @@ JSON file.</div>
 <section class="detail" id="setWindowSize(int,int)">
 <h3>setWindowSize</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="browser_set_window_size",
-      description="sets the browser window to a specific size")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setWindowSize</span><wbr><span class="parameters">(int&nbsp;width,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setWindowSize</span><wbr><span class="parameters">(int&nbsp;width,
  int&nbsp;height)</span></div>
-<div class="block">Sets the browser window to a specific size.</div>
+<div class="block">Java-caller convenience overload defaulting <code>mode</code> to <a href="WindowSizeMode.html#CUSTOM"><code>WindowSizeMode.CUSTOM</code></a>; not
+an MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>width</code> - The desired width of the browser window.</dd>
@@ -409,38 +445,19 @@ JSON file.</div>
 </section>
 </li>
 <li>
-<section class="detail" id="fullscreenWindow()">
-<h3>fullscreenWindow</h3>
+<section class="detail" id="deleteCookies(java.lang.String)">
+<h3>deleteCookies</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="browser_fullscreen_window",
-      description="sets the browser window to fullscreen mode")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">fullscreenWindow</span>()</div>
-<div class="block">Sets the browser window to fullscreen mode.</div>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="deleteAllCookies()">
-<h3>deleteAllCookies</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="browser_delete_all_cookies",
-      description="deletes all cookies")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">deleteAllCookies</span>()</div>
-<div class="block">Deletes all cookies in the current browser session.</div>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="deleteCookie(java.lang.String)">
-<h3>deleteCookie</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="browser_delete_cookie",
-      description="deletes a specific cookie by name")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">deleteCookie</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</span></div>
-<div class="block">Deletes a specific cookie by name in the current browser session.</div>
+<div class="member-signature"><span class="annotations">@Tool(name="browser_delete_cookies",
+      description="deletes a cookie by name, or every cookie when name is omitted; dispatches to the active engine; absorbs browser_delete_cookie/browser_delete_all_cookies")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">deleteCookies</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Deletes a cookie by name, or every cookie when <code>name</code> is omitted, dispatching to
+whichever engine is currently active. Absorbs the former <code>browser_delete_cookie</code> and
+<code>browser_delete_all_cookies</code> tools (design doc Decision 2).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>cookieName</code> - The name of the cookie to delete.</dd>
+<dd><code>name</code> - cookie name; blank or omitted deletes every cookie</dd>
 </dl>
 </div>
 </section>
@@ -493,7 +510,7 @@ JSON file.</div>
 <h3>getCurrentUrl</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_get_current_url",
-      description="gets current URL")
+      description="gets current URL; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getCurrentUrl</span>()</div>
 <div class="block">Retrieves the current URL of the browser.</div>
 <dl class="notes">
@@ -508,9 +525,10 @@ JSON file.</div>
 <h3>getTitle</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_get_title",
-      description="gets current page title")
+      description="gets current page title; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getTitle</span>()</div>
-<div class="block">Retrieves the title of the current page in the browser.</div>
+<div class="block">Retrieves the title of the current page in the browser, dispatching to whichever engine is
+currently active.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>The page title as a string.</dd>
@@ -523,7 +541,7 @@ JSON file.</div>
 <h3>getPageDom</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_get_page_dom",
-      description="returns bounded current-page DOM for locator inspection before element_* or natural_act")
+      description="returns bounded current-page DOM for locator inspection before element_*; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpPageDomSnapshot.html" title="class in com.shaft.mcp">McpPageDomSnapshot</a></span>&nbsp;<span class="element-name">getPageDom</span><wbr><span class="parameters">(int&nbsp;maxCharacters)</span></div>
 <div class="block">Captures the current page DOM for MCP browser automation inspection.</div>
 <dl class="notes">
@@ -540,7 +558,7 @@ JSON file.</div>
 <h3>openForIntent</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_open_intent",
-      description="opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user intent")
+      description="opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user intent; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;</span>&nbsp;<span class="element-name">openForIntent</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;userIntent,
  int&nbsp;maxCharacters,
@@ -563,7 +581,7 @@ JSON file.</div>
 <h3>takeScreenshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_take_screenshot",
-      description="takes a PNG screenshot of the current browser viewport")
+      description="takes a PNG screenshot of the current browser viewport; dispatches to the active engine (web, mobile, or Playwright)")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></span>&nbsp;<span class="element-name">takeScreenshot</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  boolean&nbsp;includeBase64)</span></div>
 <div class="block">Takes a PNG screenshot of the current browser viewport for MCP browser automation inspection.</div>
@@ -582,7 +600,7 @@ JSON file.</div>
 <h3>saveStorageState</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_storage_state_save",
-      description="saves the active browser session's cookies, localStorage, and sessionStorage to a JSON file")
+      description="saves the active browser session's cookies, localStorage, and sessionStorage to a JSON file; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveStorageState</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</span></div>
 <div class="block">Saves the active browser session's cookies, <code>localStorage</code>, and <code>sessionStorage</code> to a
 JSON file.</div>
@@ -600,7 +618,7 @@ JSON file.</div>
 <h3>loadStorageState</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_storage_state_load",
-      description="loads cookies, localStorage, and sessionStorage from a JSON file into the active browser session; navigate to the target origin first")
+      description="loads cookies, localStorage, and sessionStorage from a JSON file into the active browser session; navigate to the target origin first; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">loadStorageState</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</span></div>
 <div class="block">Loads cookies, <code>localStorage</code>, and <code>sessionStorage</code> from a JSON file into the active
 browser session.
@@ -617,13 +635,15 @@ apply.</div>
 </section>
 </li>
 <li>
-<section class="detail" id="networkRequests(java.lang.String,int)">
+<section class="detail" id="networkRequests(java.lang.String,int,java.lang.Integer)">
 <h3>networkRequests</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_network_requests",
-      description="lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork)")
+      description="lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that single transaction and populates its full detail (headers and a truncated, redacted response body preview), absorbing the former browser_network_request tool; requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork); not supported on the Playwright engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></span>&nbsp;<span class="element-name">networkRequests</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
- int&nbsp;limit)</span></div>
+ int&nbsp;limit,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;id)</span></div>
 <div class="block">Lists the active browser session's observed network transactions without request/response
 bodies. Backed by <code>BrowserObservabilityRecorder</code>'s per-thread trace capture, which is
 active by default (<code>shaft.trace.enabled</code> and <code>shaft.trace.includeNetwork</code>) for any
@@ -639,21 +659,18 @@ DevTools-capable driver started with <code>driver_initialize</code>.</div>
 </section>
 </li>
 <li>
-<section class="detail" id="networkRequest(int)">
-<h3>networkRequest</h3>
+<section class="detail" id="networkRequests(java.lang.String,int)">
+<h3>networkRequests</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="browser_network_request",
-      description="returns one observed network transaction's detail (headers and a truncated, redacted response body preview) by the 1-based id from browser_network_requests; full request/response bodies require a capture_start/capture_start_codegen session with saveHarContent=full")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpNetworkTransactionDetail.html" title="class in com.shaft.mcp">McpNetworkTransactionDetail</a></span>&nbsp;<span class="element-name">networkRequest</span><wbr><span class="parameters">(int&nbsp;id)</span></div>
-<div class="block">Returns one observed network transaction's detail, including headers and a truncated body
-preview as recorded by trace capture. Full, untruncated request/response bodies are only
-available from a <code>capture_start</code>/<code>capture_start_codegen</code> session started with
-<code>saveHarContent=full</code>.</div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></span>&nbsp;<span class="element-name">networkRequests</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
+ int&nbsp;limit)</span></div>
+<div class="block">Java-caller convenience overload defaulting <code>id</code> to unset; not an MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>id</code> - 1-based transaction id from <a href="#networkRequests(java.lang.String,int)"><code>networkRequests(String, int)</code></a></dd>
+<dd><code>urlFilter</code> - optional substring the transaction URL must contain</dd>
+<dd><code>limit</code> - maximum transactions to return; non-positive selects the default of 50</dd>
 <dt>Returns:</dt>
-<dd>the transaction detail</dd>
+<dd>matching transactions in observed order, newest last</dd>
 </dl>
 </div>
 </section>
@@ -714,7 +731,7 @@ clearing every rule at once today, so <code>routeId</code> is accepted for symme
 <h3>ariaSnapshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_aria_snapshot",
-      description="captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one element when a locator is supplied")
+      description="captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one element when a locator is supplied; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">ariaSnapshot</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
 <div class="block">Captures an accessible-name-tree aria snapshot (SHAFT's YAML subset of Playwright's aria snapshot
@@ -735,7 +752,7 @@ DSL) of the whole page or a single element for MCP browser automation inspection
 <h3>accessibilityAudit</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_accessibility_audit",
-      description="runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the violations found; never fails the call when violations exist")
+      description="runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the violations found; never fails the call when violations exist; dispatches to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAccessibilityAuditResult.html" title="class in com.shaft.mcp">McpAccessibilityAuditResult</a></span>&nbsp;<span class="element-name">accessibilityAudit</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</span></div>
 <div class="block">Runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the
 violations found. Unlike <code>AccessibilityActions.assertIsAccessible</code>, this tool never fails

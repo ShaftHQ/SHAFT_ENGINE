@@ -105,11 +105,13 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">McpNetworkTransactionDetail</span>(int&nbsp;id, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;method, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url, int&nbsp;status, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mimeType, long&nbsp;durationMs, long&nbsp;requestSizeBytes, long&nbsp;responseSizeBytes, long&nbsp;timestamp, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureReason, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;requestHeaders, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;responseHeaders, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;bodyPreview)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
-<div class="block">One observed network transaction's detail returned by <code>browser_network_request</code>, including
-headers and a truncated, redacted response body preview as recorded by trace capture.
+<div class="block">One observed network transaction's detail returned by <code>browser_network_requests</code> when called
+with an <code>id</code>, including headers and a truncated, redacted response body preview as recorded
+by trace capture.
 
 <p>Full, untruncated request/response bodies are not available from this tool; they require a
-<code>capture_start</code>/<code>capture_start_codegen</code> session started with <code>saveHarContent=full</code>.</div>
+<code>capture_start</code> session (optionally with its nested <code>codegenOptions</code>) started with
+<code>saveHarContent=full</code>.</div>
 </div>
 </section>
 <section class="summary">

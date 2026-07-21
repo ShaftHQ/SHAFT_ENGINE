@@ -54,8 +54,6 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
-<li><a href="#initializeWebEmulation(java.lang.String,java.lang.String,java.lang.String,int,int,double,java.lang.String,boolean)" tabindex="0">initializeWebEmulation(String, String, String, int, int, double, String, boolean)</a></li>
-<li><a href="#initializeNative(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">initializeNative(String, String, String, String, String, String, String, String, String, String)</a></li>
 <li><a href="#recordStart(java.lang.String,java.lang.String,boolean)" tabindex="0">recordStart(String, String, boolean)</a></li>
 <li><a href="#recordStatus()" tabindex="0">recordStatus()</a></li>
 <li><a href="#recordStop(boolean)" tabindex="0">recordStop(boolean)</a></li>
@@ -66,17 +64,14 @@
 <li><a href="#mobileApiRecordStop(boolean)" tabindex="0">mobileApiRecordStop(boolean)</a></li>
 <li><a href="#mobileApiRecordTransactions()" tabindex="0">mobileApiRecordTransactions()</a></li>
 <li><a href="#toolchainStatus(java.lang.String)" tabindex="0">toolchainStatus(String)</a></li>
-<li><a href="#inspectorRecordPrepare(java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.lang.String,java.lang.String,int,int,boolean)" tabindex="0">inspectorRecordPrepare(String, String, boolean, String, String, String, String, String, String, String, String, int, String, String, String, int, int, boolean)</a></li>
-<li><a href="#inspectorRecordStart(java.lang.String,java.lang.String,boolean)" tabindex="0">inspectorRecordStart(String, String, boolean)</a></li>
-<li><a href="#inspectorRecordStatus()" tabindex="0">inspectorRecordStatus()</a></li>
-<li><a href="#inspectorRecordControl(java.lang.String,java.lang.String)" tabindex="0">inspectorRecordControl(String, String)</a></li>
+<li><a href="#inspectorRecordStart(java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.lang.String,java.lang.String,int,int,boolean,boolean)" tabindex="0">inspectorRecordStart(String, String, boolean, String, String, String, String, String, String, String, String, int, String, String, String, int, int, boolean, boolean)</a></li>
+<li><a href="#inspectorRecordStatus(java.lang.String,java.lang.String)" tabindex="0">inspectorRecordStatus(String, String)</a></li>
 <li><a href="#inspectorRecordStop(boolean)" tabindex="0">inspectorRecordStop(boolean)</a></li>
 <li><a href="#recordingCodeBlocks(java.lang.String,java.lang.String)" tabindex="0">recordingCodeBlocks(String, String)</a></li>
 <li><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" tabindex="0">recordAtTargetCodeBlocks(String, String, String, String)</a></li>
 <li><a href="#replayRecording(java.lang.String,java.lang.String)" tabindex="0">replayRecording(String, String)</a></li>
 <li><a href="#getContexts(int)" tabindex="0">getContexts(int)</a></li>
 <li><a href="#getAccessibilityTree(int)" tabindex="0">getAccessibilityTree(int)</a></li>
-<li><a href="#naturalAct(java.lang.String,java.lang.String,java.lang.Boolean)" tabindex="0">naturalAct(String, String, Boolean)</a></li>
 <li><a href="#takeScreenshot(java.lang.String,boolean)" tabindex="0">takeScreenshot(String, boolean)</a></li>
 <li><a href="#switchContext(java.lang.String)" tabindex="0">switchContext(String)</a></li>
 <li><a href="#tap(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">tap(locatorStrategy, String)</a></li>
@@ -84,6 +79,7 @@
 <li><a href="#longTap(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">longTap(locatorStrategy, String)</a></li>
 <li><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">type(locatorStrategy, String, String)</a></li>
 <li><a href="#clear(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">clear(locatorStrategy, String)</a></li>
+<li><a href="#swipe(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer)" tabindex="0">swipe(locatorStrategy, String, String, String, String, Integer, Integer, Integer, Integer, Integer, Integer)</a></li>
 <li><a href="#swipeByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)" tabindex="0">swipeByOffset(locatorStrategy, String, int, int)</a></li>
 <li><a href="#swipeElementIntoView(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">swipeElementIntoView(locatorStrategy, String, String)</a></li>
 <li><a href="#swipeTextIntoView(java.lang.String,java.lang.String)" tabindex="0">swipeTextIntoView(String, String)</a></li>
@@ -178,40 +174,8 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hides the native keyboard.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileSessionResult.html" title="class in com.shaft.mcp">McpMobileSessionResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeNative(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">initializeNative</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;appiumServerUrl,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;automationName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformVersion,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;udid,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;app,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;appPackage,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;appActivity,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;bundleId)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Starts an Appium native Android or iOS session through SHAFT driver setup.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileSessionResult.html" title="class in com.shaft.mcp">McpMobileSessionResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeWebEmulation(java.lang.String,java.lang.String,java.lang.String,int,int,double,java.lang.String,boolean)" class="member-name-link">initializeWebEmulation</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceName,
- int&nbsp;width,
- int&nbsp;height,
- double&nbsp;pixelRatio,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;userAgent,
- boolean&nbsp;headless)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Starts a local browser in Chrome/Edge mobile emulation mode.</div>
-</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordControl(java.lang.String,java.lang.String)" class="member-name-link">inspectorRecordControl</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;checkpointName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Controls a wrapped Appium Inspector recording.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileInspectorPlan.html" title="class in com.shaft.mcp">McpMobileInspectorPlan</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordPrepare(java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.lang.String,java.lang.String,int,int,boolean)" class="member-name-link">inspectorRecordPrepare</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformName,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordStart(java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.lang.String,java.lang.String,int,int,boolean,boolean)" class="member-name-link">inspectorRecordStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  boolean&nbsp;includeSensitiveValues,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;app,
@@ -228,21 +192,20 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;androidAbi,
  int&nbsp;androidRamMb,
  int&nbsp;androidCores,
- boolean&nbsp;provisionAndroidEmulator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Prepares a user-confirmable wrapped Appium Inspector recording session.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordStart(java.lang.String,java.lang.String,boolean)" class="member-name-link">inspectorRecordStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;confirmationToken,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selectedAndroidAvdName,
+ boolean&nbsp;provisionAndroidEmulator,
  boolean&nbsp;openInspector)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Starts a previously prepared wrapped Appium Inspector recording session.</div>
+<div class="block">Prepares and starts a wrapped Appium Inspector recording session in one call, auto-running the
+former <code>mobile_inspector_record_prepare</code> step (design doc Decision 2) so the caller no
+longer juggles a separate confirmation token round trip.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordStatus()" class="member-name-link">inspectorRecordStatus</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordStatus(java.lang.String,java.lang.String)" class="member-name-link">inspectorRecordStatus</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;checkpointName)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns wrapped Appium Inspector recording status.</div>
+<div class="block">Returns wrapped Appium Inspector recording status, or performs a control action first when
+<code>action</code> is supplied, absorbing the former <code>mobile_inspector_record_control</code> tool
+(design doc Decision 2).</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#inspectorRecordStop(boolean)" class="member-name-link">inspectorRecordStop</a><wbr>(boolean&nbsp;discard)</code></div>
@@ -284,65 +247,79 @@ capture session, independent of any Appium/WebDriver session.</div>
 <div class="block">Returns the mobile API transactions captured so far in the active session, without bodies or
 sensitive headers, so a pure-API session view can list rows live as they arrive.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileNaturalActionResult.html" title="class in com.shaft.mcp">McpMobileNaturalActionResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#naturalAct(java.lang.String,java.lang.String,java.lang.Boolean)" class="member-name-link">naturalAct</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;intent,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;aiFallbackEnabled)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Performs a trust-gated natural-language touch action on the current mobile accessibility tree.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">recordAtTargetCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">recordAtTargetCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetSourcePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;insertAfter)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates focused mobile recording snippets for insertion into an existing Page Object.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordingCodeBlocks(java.lang.String,java.lang.String)" class="member-name-link">recordingCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordingCodeBlocks(java.lang.String,java.lang.String)" class="member-name-link">recordingCodeBlocks</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Generates copy-paste replay code from a mobile recording.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordStart(java.lang.String,java.lang.String,boolean)" class="member-name-link">recordStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordStart(java.lang.String,java.lang.String,boolean)" class="member-name-link">recordStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode,
  boolean&nbsp;includeSensitiveValues)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts recording mobile actions performed through MCP mobile tools.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordStatus()" class="member-name-link">recordStatus</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordStatus()" class="member-name-link">recordStatus</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns mobile recording status.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordStop(boolean)" class="member-name-link">recordStop</a><wbr>(boolean&nbsp;discard)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recordStop(boolean)" class="member-name-link">recordStop</a><wbr>(boolean&nbsp;discard)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Stops mobile recording.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#replayRecording(java.lang.String,java.lang.String)" class="member-name-link">replayRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#replayRecording(java.lang.String,java.lang.String)" class="member-name-link">replayRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Replays a mobile recording against the active driver session.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rotate(java.lang.String)" class="member-name-link">rotate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;orientation)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rotate(java.lang.String)" class="member-name-link">rotate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;orientation)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Rotates an Appium device.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stepDelete(java.lang.String)" class="member-name-link">stepDelete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stepDelete(java.lang.String)" class="member-name-link">stepDelete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Deletes a recorded mobile step by its stable stepId, as surfaced in recorder status.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stepReorder(java.lang.String,java.lang.String)" class="member-name-link">stepReorder</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stepReorder(java.lang.String,java.lang.String)" class="member-name-link">stepReorder</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Moves a recorded mobile step up or down by its stable stepId, as surfaced in recorder status.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipe(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer)" class="member-name-link">swipe</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;movement,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetX,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetY,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;startX,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;startY,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;endX,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;endY)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Unified mobile swipe gesture (design doc Decision 2): absorbs <code>mobile_swipe_by_offset</code>,
+<code>mobile_swipe_coordinates</code>, <code>mobile_swipe_element_into_view</code>, and
+<code>mobile_swipe_text_into_view</code> into a single tool, selecting the underlying gesture from
+whichever optional params are supplied -- checked most-specific-first: <code>text</code> (swipe to
+text), then a locator with <code>offsetX</code>/<code>offsetY</code> (swipe by offset), then a locator
+alone (swipe element into view), then raw <code>startX</code>/<code>startY</code>/<code>endX</code>/<code>endY</code>
+coordinates (last-resort escape hatch, same as <code>mobile_tap_coordinates</code>).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)" class="member-name-link">swipeByOffset</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
@@ -444,78 +421,10 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="initializeWebEmulation(java.lang.String,java.lang.String,java.lang.String,int,int,double,java.lang.String,boolean)">
-<h3>initializeWebEmulation</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_initialize_web_emulation",
-      description="starts Chrome or Edge mobile web emulation using SHAFT browser setup")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileSessionResult.html" title="class in com.shaft.mcp">McpMobileSessionResult</a></span>&nbsp;<span class="element-name">initializeWebEmulation</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceName,
- int&nbsp;width,
- int&nbsp;height,
- double&nbsp;pixelRatio,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;userAgent,
- boolean&nbsp;headless)</span></div>
-<div class="block">Starts a local browser in Chrome/Edge mobile emulation mode.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>targetUrl</code> - initial URL; blank leaves the browser on its startup page</dd>
-<dd><code>browser</code> - browser name, defaults to CHROME</dd>
-<dd><code>deviceName</code> - Chrome/Edge emulated device name; blank defaults to Pixel 5</dd>
-<dd><code>width</code> - custom device width; requires height</dd>
-<dd><code>height</code> - custom device height; requires width</dd>
-<dd><code>pixelRatio</code> - custom device pixel ratio</dd>
-<dd><code>userAgent</code> - optional custom mobile user agent</dd>
-<dd><code>headless</code> - whether the emulated browser should run headlessly</dd>
-<dt>Returns:</dt>
-<dd>session result and copy-paste setup block</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="initializeNative(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
-<h3>initializeNative</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_initialize_native",
-      description="starts a real Android or iOS native Appium session using SHAFT driver setup")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileSessionResult.html" title="class in com.shaft.mcp">McpMobileSessionResult</a></span>&nbsp;<span class="element-name">initializeNative</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;appiumServerUrl,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;automationName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformVersion,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;udid,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;app,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;appPackage,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;appActivity,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;bundleId)</span></div>
-<div class="block">Starts an Appium native Android or iOS session through SHAFT driver setup.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>platformName</code> - Android or iOS</dd>
-<dd><code>deviceName</code> - emulator, simulator, or real device name</dd>
-<dd><code>appiumServerUrl</code> - Appium server URL; blank defaults to http://127.0.0.1:4723</dd>
-<dd><code>automationName</code> - Appium automation name; blank selects UiAutomator2 for Android and XCUITest for iOS</dd>
-<dd><code>platformVersion</code> - optional platform version</dd>
-<dd><code>udid</code> - optional device UDID</dd>
-<dd><code>app</code> - optional app path or remote app URL</dd>
-<dd><code>appPackage</code> - optional Android app package</dd>
-<dd><code>appActivity</code> - optional Android app activity</dd>
-<dd><code>bundleId</code> - optional iOS bundle identifier for installed apps</dd>
-<dt>Returns:</dt>
-<dd>session result and copy-paste setup block</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
 <section class="detail" id="recordStart(java.lang.String,java.lang.String,boolean)">
 <h3>recordStart</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_record_start",
-      description="starts recording MCP mobile actions to a workspace JSON file")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">recordStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">recordStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;mode,
  boolean&nbsp;includeSensitiveValues)</span></div>
 <div class="block">Starts recording mobile actions performed through MCP mobile tools.</div>
@@ -534,9 +443,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="recordStatus()">
 <h3>recordStatus</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_record_status",
-      description="returns the active MCP mobile recording status")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">recordStatus</span>()</div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">recordStatus</span>()</div>
 <div class="block">Returns mobile recording status.</div>
 <dl class="notes">
 <dt>Returns:</dt>
@@ -549,9 +456,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="recordStop(boolean)">
 <h3>recordStop</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_record_stop",
-      description="stops MCP mobile recording and optionally discards the JSON file")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">recordStop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">recordStop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
 <div class="block">Stops mobile recording.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -566,9 +471,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="stepDelete(java.lang.String)">
 <h3>stepDelete</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_step_delete",
-      description="deletes a recorded mobile step by its stable stepId and renumbers the remaining steps")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepDelete</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepDelete</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</span></div>
 <div class="block">Deletes a recorded mobile step by its stable stepId, as surfaced in recorder status.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -583,9 +486,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="stepReorder(java.lang.String,java.lang.String)">
 <h3>stepReorder</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_step_reorder",
-      description="moves a recorded mobile step up or down by its stable stepId (direction: up|down)")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepReorder</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepReorder</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction)</span></div>
 <div class="block">Moves a recorded mobile step up or down by its stable stepId, as surfaced in recorder status.</div>
 <dl class="notes">
@@ -602,9 +503,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="mobileApiRecordStart(java.lang.String,java.lang.String,java.lang.String)">
 <h3>mobileApiRecordStart</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_api_record_start",
-      description="starts a loopback MITM proxy that captures native mobile API traffic to a workspace JSON capture session")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MobileApiCaptureStatus.html" title="class in com.shaft.mcp">MobileApiCaptureStatus</a></span>&nbsp;<span class="element-name">mobileApiRecordStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platform,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MobileApiCaptureStatus.html" title="class in com.shaft.mcp">MobileApiCaptureStatus</a></span>&nbsp;<span class="element-name">mobileApiRecordStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platform,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceLabel,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath)</span></div>
 <div class="block">Starts a loopback MITM proxy that captures native mobile API traffic as a first-class
@@ -629,9 +528,7 @@ steps and known limitations (Android 7+ CA trust restrictions, certificate pinni
 <section class="detail" id="mobileApiRecordStatus()">
 <h3>mobileApiRecordStatus</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_api_record_status",
-      description="returns the active mobile API capture status, including the CA certificate to install on the device")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MobileApiCaptureStatus.html" title="class in com.shaft.mcp">MobileApiCaptureStatus</a></span>&nbsp;<span class="element-name">mobileApiRecordStatus</span>()</div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MobileApiCaptureStatus.html" title="class in com.shaft.mcp">MobileApiCaptureStatus</a></span>&nbsp;<span class="element-name">mobileApiRecordStatus</span>()</div>
 <div class="block">Returns the active mobile API capture status without changing state.</div>
 <dl class="notes">
 <dt>Returns:</dt>
@@ -645,9 +542,7 @@ steps and known limitations (Android 7+ CA trust restrictions, certificate pinni
 <section class="detail" id="mobileApiRecordStop(boolean)">
 <h3>mobileApiRecordStop</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_api_record_stop",
-      description="stops mobile API capture, finalizing or discarding the JSON capture session")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MobileApiCaptureStatus.html" title="class in com.shaft.mcp">MobileApiCaptureStatus</a></span>&nbsp;<span class="element-name">mobileApiRecordStop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MobileApiCaptureStatus.html" title="class in com.shaft.mcp">MobileApiCaptureStatus</a></span>&nbsp;<span class="element-name">mobileApiRecordStop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
 <div class="block">Stops mobile API capture, finalizing (or discarding) the persisted JSON capture session.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -662,9 +557,7 @@ steps and known limitations (Android 7+ CA trust restrictions, certificate pinni
 <section class="detail" id="mobileApiRecordTransactions()">
 <h3>mobileApiRecordTransactions</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_api_record_transactions",
-      description="returns the mobile API transactions captured so far without bodies or sensitive headers, for a live pure-API session view")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;com.shaft.capture.runtime.NetworkTransaction&gt;</span>&nbsp;<span class="element-name">mobileApiRecordTransactions</span>()</div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;com.shaft.capture.runtime.NetworkTransaction&gt;</span>&nbsp;<span class="element-name">mobileApiRecordTransactions</span>()</div>
 <div class="block">Returns the mobile API transactions captured so far in the active session, without bodies or
 sensitive headers, so a pure-API session view can list rows live as they arrive.</div>
 <dl class="notes">
@@ -692,12 +585,12 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 </section>
 </li>
 <li>
-<section class="detail" id="inspectorRecordPrepare(java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.lang.String,java.lang.String,int,int,boolean)">
-<h3>inspectorRecordPrepare</h3>
+<section class="detail" id="inspectorRecordStart(java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.lang.String,java.lang.String,int,int,boolean,boolean)">
+<h3>inspectorRecordStart</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_inspector_record_prepare",
-      description="prepares a wrapped Appium Inspector mobile recording plan with device and dependency details")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorPlan.html" title="class in com.shaft.mcp">McpMobileInspectorPlan</a></span>&nbsp;<span class="element-name">inspectorRecordPrepare</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformName,
+<div class="member-signature"><span class="annotations">@Tool(name="mobile_inspector_record_start",
+      description="prepares and starts a wrapped Appium Inspector recording session in one call, absorbing mobile_inspector_record_prepare")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></span>&nbsp;<span class="element-name">inspectorRecordStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;platformName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  boolean&nbsp;includeSensitiveValues,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;app,
@@ -714,8 +607,13 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;androidAbi,
  int&nbsp;androidRamMb,
  int&nbsp;androidCores,
- boolean&nbsp;provisionAndroidEmulator)</span></div>
-<div class="block">Prepares a user-confirmable wrapped Appium Inspector recording session.</div>
+ boolean&nbsp;provisionAndroidEmulator,
+ boolean&nbsp;openInspector)</span></div>
+<div class="block">Prepares and starts a wrapped Appium Inspector recording session in one call, auto-running the
+former <code>mobile_inspector_record_prepare</code> step (design doc Decision 2) so the caller no
+longer juggles a separate confirmation token round trip. The device/toolchain readiness check
+(<a href="McpMobileInspectorPlan.html#readyToStart()"><code>McpMobileInspectorPlan.readyToStart()</code></a>) still runs and still fails the call with the
+same actionable message when the device or toolchain is not ready.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>platformName</code> - Android or iOS</dd>
@@ -736,26 +634,6 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <dd><code>androidRamMb</code> - Android emulator RAM in MB</dd>
 <dd><code>androidCores</code> - Android emulator CPU cores</dd>
 <dd><code>provisionAndroidEmulator</code> - whether to propose creating a fresh Android emulator when needed</dd>
-<dt>Returns:</dt>
-<dd>confirmation-ready recording plan</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="inspectorRecordStart(java.lang.String,java.lang.String,boolean)">
-<h3>inspectorRecordStart</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_inspector_record_start",
-      description="starts a confirmed wrapped Appium Inspector recording session")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></span>&nbsp;<span class="element-name">inspectorRecordStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;confirmationToken,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selectedAndroidAvdName,
- boolean&nbsp;openInspector)</span></div>
-<div class="block">Starts a previously prepared wrapped Appium Inspector recording session.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>confirmationToken</code> - token returned by mobile_inspector_record_prepare</dd>
-<dd><code>selectedAndroidAvdName</code> - optional cached Android AVD override</dd>
 <dd><code>openInspector</code> - whether to open the wrapped Inspector URL in the user's browser</dd>
 <dt>Returns:</dt>
 <dd>active recording status and Inspector URL</dd>
@@ -764,35 +642,25 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 </section>
 </li>
 <li>
-<section class="detail" id="inspectorRecordStatus()">
+<section class="detail" id="inspectorRecordStatus(java.lang.String,java.lang.String)">
 <h3>inspectorRecordStatus</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="mobile_inspector_record_status",
-      description="returns the wrapped Appium Inspector recording status")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></span>&nbsp;<span class="element-name">inspectorRecordStatus</span>()</div>
-<div class="block">Returns wrapped Appium Inspector recording status.</div>
-<dl class="notes">
-<dt>Returns:</dt>
-<dd>current Inspector recording status</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="inspectorRecordControl(java.lang.String,java.lang.String)">
-<h3>inspectorRecordControl</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_inspector_record_control",
-      description="pauses, resumes, checkpoints, stops, or discards a wrapped Appium Inspector recording")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></span>&nbsp;<span class="element-name">inspectorRecordControl</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+      description="returns the wrapped Appium Inspector recording status; optional action (pause|resume|checkpoint|stop|discard) performs that control first, absorbing mobile_inspector_record_control")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></span>&nbsp;<span class="element-name">inspectorRecordStatus</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ @ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;checkpointName)</span></div>
-<div class="block">Controls a wrapped Appium Inspector recording.</div>
+<div class="block">Returns wrapped Appium Inspector recording status, or performs a control action first when
+<code>action</code> is supplied, absorbing the former <code>mobile_inspector_record_control</code> tool
+(design doc Decision 2).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>action</code> - status, pause, resume, checkpoint, stop, or discard</dd>
-<dd><code>checkpointName</code> - optional checkpoint name</dd>
+<dd><code>action</code> - blank for a plain status read, or pause|resume|checkpoint|stop|discard to control
+              the recording first</dd>
+<dd><code>checkpointName</code> - optional checkpoint name; only used when action is "checkpoint"</dd>
 <dt>Returns:</dt>
-<dd>updated recording status</dd>
+<dd>current (or post-control) Inspector recording status</dd>
 </dl>
 </div>
 </section>
@@ -818,9 +686,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="recordingCodeBlocks(java.lang.String,java.lang.String)">
 <h3>recordingCodeBlocks</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_recording_code_blocks",
-      description="generates reusable copy-paste SHAFT mobile replay code blocks")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></span>&nbsp;<span class="element-name">recordingCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></span>&nbsp;<span class="element-name">recordingCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
 <div class="block">Generates copy-paste replay code from a mobile recording.</div>
 <dl class="notes">
@@ -837,9 +703,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="recordAtTargetCodeBlocks(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">
 <h3>recordAtTargetCodeBlocks</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_record_at_target_code_blocks",
-      description="generates focused mobile recording snippets for insertion at an existing Java source anchor")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></span>&nbsp;<span class="element-name">recordAtTargetCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></span>&nbsp;<span class="element-name">recordAtTargetCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetSourcePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;insertAfter)</span></div>
@@ -860,9 +724,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="replayRecording(java.lang.String,java.lang.String)">
 <h3>replayRecording</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_replay_recording",
-      description="replays an MCP mobile recording against the active SHAFT mobile driver")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></span>&nbsp;<span class="element-name">replayRecording</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileReplayResult.html" title="class in com.shaft.mcp">McpMobileReplayResult</a></span>&nbsp;<span class="element-name">replayRecording</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;recordingPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
 <div class="block">Replays a mobile recording against the active driver session.</div>
 <dl class="notes">
@@ -910,33 +772,10 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 </section>
 </li>
 <li>
-<section class="detail" id="naturalAct(java.lang.String,java.lang.String,java.lang.Boolean)">
-<h3>naturalAct</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_natural_act",
-      description="performs a trust-gated natural-language touch action by resolving the intent against the mobile accessibility tree")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileNaturalActionResult.html" title="class in com.shaft.mcp">McpMobileNaturalActionResult</a></span>&nbsp;<span class="element-name">naturalAct</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;intent,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;aiFallbackEnabled)</span></div>
-<div class="block">Performs a trust-gated natural-language touch action on the current mobile accessibility tree.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>intent</code> - semantic instruction describing the action (e.g., "tap button labeled OK")</dd>
-<dd><code>accessibleName</code> - accessible name/label to resolve deterministically from the tree</dd>
-<dd><code>aiFallbackEnabled</code> - optional AI fallback flag; when false, fails deterministic resolution</dd>
-<dt>Returns:</dt>
-<dd>mobile action result with matched locator strategy and value</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
 <section class="detail" id="takeScreenshot(java.lang.String,boolean)">
 <h3>takeScreenshot</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_take_screenshot",
-      description="takes a PNG screenshot of the current mobile device viewport")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></span>&nbsp;<span class="element-name">takeScreenshot</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></span>&nbsp;<span class="element-name">takeScreenshot</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  boolean&nbsp;includeBase64)</span></div>
 <div class="block">Takes a PNG screenshot of the current mobile device viewport.</div>
 <dl class="notes">
@@ -970,9 +809,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="tap(com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>tap</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_tap",
-      description="taps a mobile element using SHAFT touch actions")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">tap</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">tap</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
 <div class="block">Taps an element by locator.</div>
 </div>
@@ -982,9 +819,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="doubleTap(com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>doubleTap</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_double_tap",
-      description="double taps a mobile element using SHAFT touch actions")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">doubleTap</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">doubleTap</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
 <div class="block">Double taps an element by locator.</div>
 </div>
@@ -994,9 +829,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="longTap(com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>longTap</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_long_tap",
-      description="long taps a mobile element using SHAFT touch actions")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">longTap</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">longTap</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
 <div class="block">Long taps an element by locator.</div>
 </div>
@@ -1006,9 +839,7 @@ sensitive headers, so a pure-API session view can list rows live as they arrive.
 <section class="detail" id="type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)">
 <h3>type</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_type",
-      description="types a value into a mobile element; sensitive fields are redacted per field")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;textValue)</span></div>
 <div class="block">Types text into a mobile element. The typed value is classified per field with the same
@@ -1022,11 +853,63 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <section class="detail" id="clear(com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>clear</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_clear",
-      description="clears a mobile element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">clear</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">clear</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
 <div class="block">Clears a mobile element.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="swipe(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer,java.lang.Integer)">
+<h3>swipe</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="mobile_swipe",
+      description="swipes on the mobile screen; dispatches on whichever optional params are supplied -- text (swipe to text) | locator+offsetX/offsetY (swipe by offset) | locator alone (swipe element into view, optional direction) | startX/startY/endX/endY (coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/mobile_swipe_element_into_view/mobile_swipe_text_into_view")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipe</span><wbr><span class="parameters">(@ToolParam(required=false)
+ <a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;movement,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetX,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetY,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;startX,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;startY,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;endX,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;endY)</span></div>
+<div class="block">Unified mobile swipe gesture (design doc Decision 2): absorbs <code>mobile_swipe_by_offset</code>,
+<code>mobile_swipe_coordinates</code>, <code>mobile_swipe_element_into_view</code>, and
+<code>mobile_swipe_text_into_view</code> into a single tool, selecting the underlying gesture from
+whichever optional params are supplied -- checked most-specific-first: <code>text</code> (swipe to
+text), then a locator with <code>offsetX</code>/<code>offsetY</code> (swipe by offset), then a locator
+alone (swipe element into view), then raw <code>startX</code>/<code>startY</code>/<code>endX</code>/<code>endY</code>
+coordinates (last-resort escape hatch, same as <code>mobile_tap_coordinates</code>).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>locatorStrategy</code> - locator strategy; used with locatorValue for by-offset/element-into-view</dd>
+<dd><code>locatorValue</code> - locator value; used with locatorStrategy for by-offset/element-into-view</dd>
+<dd><code>direction</code> - swipe direction for element-into-view; blank defaults to DOWN</dd>
+<dd><code>text</code> - target text for Android UiScrollable text-into-view</dd>
+<dd><code>movement</code> - scroll axis for text-into-view; blank defaults to VERTICAL</dd>
+<dd><code>offsetX</code> - horizontal offset; requires a locator and offsetY</dd>
+<dd><code>offsetY</code> - vertical offset; requires a locator and offsetX</dd>
+<dd><code>startX</code> - coordinate swipe start x; requires startY/endX/endY and no locator/text</dd>
+<dd><code>startY</code> - coordinate swipe start y</dd>
+<dd><code>endX</code> - coordinate swipe end x</dd>
+<dd><code>endY</code> - coordinate swipe end y</dd>
+<dt>Returns:</dt>
+<dd>recorded action metadata</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -1034,9 +917,7 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <section class="detail" id="swipeByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)">
 <h3>swipeByOffset</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_swipe_by_offset",
-      description="swipes a mobile element by x/y offset")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeByOffset</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeByOffset</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  int&nbsp;xOffset,
  int&nbsp;yOffset)</span></div>
@@ -1048,9 +929,7 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <section class="detail" id="swipeElementIntoView(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)">
 <h3>swipeElementIntoView</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_swipe_element_into_view",
-      description="swipes the mobile screen until the target element is visible")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeElementIntoView</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeElementIntoView</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction)</span></div>
 <div class="block">Swipes until a target element is visible.</div>
@@ -1061,9 +940,7 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <section class="detail" id="swipeTextIntoView(java.lang.String,java.lang.String)">
 <h3>swipeTextIntoView</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_swipe_text_into_view",
-      description="swipes to text using SHAFT Android UiScrollable support")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeTextIntoView</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeTextIntoView</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;movement)</span></div>
 <div class="block">Swipes to Android text through UiScrollable.</div>
 </div>
@@ -1074,7 +951,7 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <h3>tapCoordinates</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="mobile_tap_coordinates",
-      description="fallback-only: taps viewport coordinates only after locator-based mobile_tap cannot be used")
+      description="fallback-only: taps viewport coordinates only after locator-based element_click cannot be used")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">tapCoordinates</span><wbr><span class="parameters">(int&nbsp;x,
  int&nbsp;y)</span></div>
 <div class="block">Last-resort fallback that taps screen coordinates using W3C touch actions.</div>
@@ -1085,9 +962,7 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <section class="detail" id="swipeCoordinates(int,int,int,int,int)">
 <h3>swipeCoordinates</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="mobile_swipe_coordinates",
-      description="fallback-only: swipes viewport coordinates only after locator-based mobile_swipe_by_offset cannot be used")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeCoordinates</span><wbr><span class="parameters">(int&nbsp;startX,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipeCoordinates</span><wbr><span class="parameters">(int&nbsp;startX,
  int&nbsp;startY,
  int&nbsp;endX,
  int&nbsp;endY,

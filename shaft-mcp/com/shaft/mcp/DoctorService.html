@@ -54,10 +54,8 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
-<li><a href="#analyzeFailedAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" tabindex="0">analyzeFailedAllure(List, List, String, boolean, boolean, int, String, List, boolean, boolean, boolean, String)</a></li>
-<li><a href="#analyzeFailedPlaywrightAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" tabindex="0">analyzeFailedPlaywrightAllure(List, List, String, boolean, boolean, int, String, List, boolean, boolean, boolean, String)</a></li>
-<li><a href="#suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" tabindex="0">suggestFix(String, String, List, boolean, boolean, boolean, String)</a></li>
-<li><a href="#suggestPlaywrightFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" tabindex="0">suggestPlaywrightFix(String, String, List, boolean, boolean, boolean, String)</a></li>
+<li><a href="#analyzeFailedAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)" tabindex="0">analyzeFailedAllure(List, List, String, boolean, boolean, int, String, List, boolean, boolean, boolean, String, String)</a></li>
+<li><a href="#suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)" tabindex="0">suggestFix(String, String, List, boolean, boolean, boolean, String, String)</a></li>
 <li><a href="#analyze(java.util.List,java.util.List,java.util.List,java.lang.String,boolean,boolean,int)" tabindex="0">analyze(List, List, List, String, boolean, boolean, int)</a></li>
 <li><a href="#proposeFix(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,boolean,java.lang.String,boolean)" tabindex="0">proposeFix(String, String, String, String, String, List, List, List, boolean, String, boolean)</a></li>
 <li><a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">proposeHealedLocator(String, String, String, boolean, String)</a></li>
@@ -123,7 +121,7 @@
 <div class="block">Analyzes explicitly allowed local evidence and optionally appends a configured provider advisory.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#analyzeFailedAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" class="member-name-link">analyzeFailedAllure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#analyzeFailedAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)" class="member-name-link">analyzeFailedAllure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  boolean&nbsp;includeScreenshots,
@@ -134,28 +132,13 @@
  boolean&nbsp;useAi,
  boolean&nbsp;allowLocalAi,
  boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;backend)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Analyzes failed Allure evidence and returns deterministic remediation plus optional AI advisory snippets.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#analyzeFailedPlaywrightAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" class="member-name-link">analyzeFailedPlaywrightAllure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
- boolean&nbsp;includeScreenshots,
- boolean&nbsp;includePageSnapshots,
- int&nbsp;minimumAllureResults,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
- boolean&nbsp;useAi,
- boolean&nbsp;allowLocalAi,
- boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Analyzes failed Allure evidence and returns Playwright remediation snippets.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.DoctorRepairProposalResult</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeFix(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,boolean,java.lang.String,boolean)" class="member-name-link">proposeFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.DoctorRepairProposalResult</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeFix(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,boolean,java.lang.String,boolean)" class="member-name-link">proposeFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;baseSha,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;diagnosisPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;evidenceBundlePath,
@@ -166,49 +149,39 @@
  boolean&nbsp;networkValidationApproved,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  boolean&nbsp;useAi)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Creates a repair proposal in an isolated worktree without writing to GitHub.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.HealingLocatorProposal</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">proposeHealedLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.HealingLocatorProposal</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">proposeHealedLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healingReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourcePath,
  boolean&nbsp;sourcePatchConsent,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Creates a proposal-only locator patch from a verified SHAFT Heal report.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.RepairPublicationResult</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#publishDraftPr(java.lang.String,boolean,java.lang.String,boolean,java.lang.String,java.lang.String)" class="member-name-link">publishDraftPr</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;manifestPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.RepairPublicationResult</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#publishDraftPr(java.lang.String,boolean,java.lang.String,boolean,java.lang.String,java.lang.String)" class="member-name-link">publishDraftPr</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;manifestPath,
  boolean&nbsp;approved,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvalToken,
  boolean&nbsp;overrideFailedValidation,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;overrideRationale,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Publishes an approved proposal as a draft pull request only.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" class="member-name-link">suggestFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
- boolean&nbsp;useAi,
- boolean&nbsp;allowLocalAi,
- boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Rebuilds MCP remediation actions and code blocks from an existing Doctor JSON report.</div>
-</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#suggestPlaywrightFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)" class="member-name-link">suggestPlaywrightFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)" class="member-name-link">suggestFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
  boolean&nbsp;useAi,
  boolean&nbsp;allowLocalAi,
  boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</code></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;backend)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Rebuilds Playwright remediation actions and code blocks from an existing Doctor JSON report.</div>
+<div class="block">Rebuilds MCP remediation actions and code blocks from an existing Doctor JSON report.</div>
 </div>
 </div>
 </div>
@@ -245,11 +218,11 @@
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="analyzeFailedAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)">
+<section class="detail" id="analyzeFailedAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)">
 <h3>analyzeFailedAllure</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="doctor_analyze_failed_allure",
-      description="analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace")
+      description="analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">analyzeFailedAllure</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
@@ -261,7 +234,9 @@
  boolean&nbsp;useAi,
  boolean&nbsp;allowLocalAi,
  boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;backend)</span></div>
 <div class="block">Analyzes failed Allure evidence and returns deterministic remediation plus optional AI advisory snippets.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -284,57 +259,20 @@
 </section>
 </li>
 <li>
-<section class="detail" id="analyzeFailedPlaywrightAllure(java.util.List,java.util.List,java.lang.String,boolean,boolean,int,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)">
-<h3>analyzeFailedPlaywrightAllure</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="playwright_doctor_analyze_failed_allure",
-      description="analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">analyzeFailedPlaywrightAllure</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
- boolean&nbsp;includeScreenshots,
- boolean&nbsp;includePageSnapshots,
- int&nbsp;minimumAllureResults,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
- boolean&nbsp;useAi,
- boolean&nbsp;allowLocalAi,
- boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
-<div class="block">Analyzes failed Allure evidence and returns Playwright remediation snippets.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>allureResultPaths</code> - Allure result directories or files inside the MCP workspace</dd>
-<dd><code>historicalBundlePaths</code> - optional older Doctor bundles inside the MCP workspace</dd>
-<dd><code>outputDirectory</code> - output directory inside the MCP workspace</dd>
-<dd><code>includeScreenshots</code> - explicit approval to retain local screenshot evidence</dd>
-<dd><code>includePageSnapshots</code> - explicit approval to retain local page-snapshot evidence</dd>
-<dd><code>minimumAllureResults</code> - minimum populated Allure result count</dd>
-<dd><code>repositoryRoot</code> - optional repository root inside the MCP workspace</dd>
-<dd><code>allowedSourcePaths</code> - optional repository-relative source paths approved for AI SOURCE evidence</dd>
-<dd><code>useAi</code> - whether to request optional provider snippet fallback</dd>
-<dd><code>allowLocalAi</code> - local provider consent for this request</dd>
-<dd><code>allowRemoteAi</code> - remote provider consent for this request</dd>
-<dd><code>driverVariableName</code> - Java driver variable name used in snippets</dd>
-<dt>Returns:</dt>
-<dd>deterministic diagnosis, action records, code blocks, report paths, and provider metadata</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)">
+<section class="detail" id="suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)">
 <h3>suggestFix</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="doctor_suggest_fix",
-      description="returns copy-paste remediation code blocks from an existing SHAFT Doctor report")
+      description="returns copy-paste remediation code blocks from an existing SHAFT Doctor report; optional backend (web|playwright, defaults to web) selects the generated snippets' engine, absorbing playwright_doctor_suggest_fix")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">suggestFix</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
  boolean&nbsp;useAi,
  boolean&nbsp;allowLocalAi,
  boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;backend)</span></div>
 <div class="block">Rebuilds MCP remediation actions and code blocks from an existing Doctor JSON report.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -345,35 +283,7 @@
 <dd><code>allowLocalAi</code> - local provider consent for this request</dd>
 <dd><code>allowRemoteAi</code> - remote provider consent for this request</dd>
 <dd><code>driverVariableName</code> - Java driver variable name used in snippets</dd>
-<dt>Returns:</dt>
-<dd>deterministic diagnosis, action records, code blocks, report paths, and provider metadata</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="suggestPlaywrightFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String)">
-<h3>suggestPlaywrightFix</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="playwright_doctor_suggest_fix",
-      description="returns SHAFT Playwright remediation code blocks from an existing Doctor report")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">suggestPlaywrightFix</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
- boolean&nbsp;useAi,
- boolean&nbsp;allowLocalAi,
- boolean&nbsp;allowRemoteAi,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName)</span></div>
-<div class="block">Rebuilds Playwright remediation actions and code blocks from an existing Doctor JSON report.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>jsonReportPath</code> - Doctor JSON report path inside the MCP workspace</dd>
-<dd><code>repositoryRoot</code> - optional repository root inside the MCP workspace</dd>
-<dd><code>allowedSourcePaths</code> - optional repository-relative source paths approved for AI SOURCE evidence</dd>
-<dd><code>useAi</code> - whether to request optional provider snippet fallback</dd>
-<dd><code>allowLocalAi</code> - local provider consent for this request</dd>
-<dd><code>allowRemoteAi</code> - remote provider consent for this request</dd>
-<dd><code>driverVariableName</code> - Java driver variable name used in snippets</dd>
+<dd><code>backend</code> - optional codegen target ("web" default | "playwright"); absorbs playwright_doctor_suggest_fix</dd>
 <dt>Returns:</dt>
 <dd>deterministic diagnosis, action records, code blocks, report paths, and provider metadata</dd>
 </dl>

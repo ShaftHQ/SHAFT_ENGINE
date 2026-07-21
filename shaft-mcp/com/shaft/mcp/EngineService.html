@@ -54,6 +54,7 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#initializeDriver(com.shaft.mcp.BrowserType,com.shaft.mcp.ActiveEngine,com.shaft.mcp.McpMobileInitOptions)" tabindex="0">initializeDriver(BrowserType, ActiveEngine, McpMobileInitOptions)</a></li>
 <li><a href="#initializeDriver(com.shaft.mcp.BrowserType)" tabindex="0">initializeDriver(BrowserType)</a></li>
 <li><a href="#quitDriver()" tabindex="0">quitDriver()</a></li>
 <li><a href="#generateTestReport()" tabindex="0">generateTestReport()</a></li>
@@ -89,7 +90,10 @@
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">EngineService</a>()</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates the default engine service, wiring a default <a href="PlaywrightService.html" title="class in com.shaft.mcp"><code>PlaywrightService</code></a> for direct
+Java callers and tests that construct this class without Spring.</div>
+</div>
 </div>
 </section>
 </li>
@@ -117,12 +121,22 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(com.shaft.mcp.BrowserType)" class="member-name-link">initializeDriver</a><wbr>(<a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Initializes the WebDriver for the specified browser type.</div>
+<div class="block">Java-caller convenience overload defaulting <code>engine</code> to <a href="ActiveEngine.html#WEB"><code>ActiveEngine.WEB</code></a>; not
+an MCP tool.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#quitDriver()" class="member-name-link">quitDriver</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(com.shaft.mcp.BrowserType,com.shaft.mcp.ActiveEngine,com.shaft.mcp.McpMobileInitOptions)" class="member-name-link">initializeDriver</a><wbr>(<a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser,
+ <a href="ActiveEngine.html" title="enum class in com.shaft.mcp">ActiveEngine</a>&nbsp;engine,
+ <a href="McpMobileInitOptions.html" title="class in com.shaft.mcp">McpMobileInitOptions</a>&nbsp;mobileOptions)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Quits the WebDriver, closing all associated browser windows.</div>
+<div class="block">Initializes the WebDriver for the specified browser type, or another engine session when
+<code>engine</code> selects one.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#quitDriver()" class="member-name-link">quitDriver</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Quits whichever engine session is currently active (web, mobile, or Playwright), closing all
+associated browser windows.</div>
 </div>
 </div>
 </div>
@@ -146,6 +160,8 @@
 <h3>EngineService</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">EngineService</span>()</div>
+<div class="block">Creates the default engine service, wiring a default <a href="PlaywrightService.html" title="class in com.shaft.mcp"><code>PlaywrightService</code></a> for direct
+Java callers and tests that construct this class without Spring.</div>
 </div>
 </section>
 </li>
@@ -158,13 +174,41 @@
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="initializeDriver(com.shaft.mcp.BrowserType)">
+<section class="detail" id="initializeDriver(com.shaft.mcp.BrowserType,com.shaft.mcp.ActiveEngine,com.shaft.mcp.McpMobileInitOptions)">
 <h3>initializeDriver</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="driver_initialize",
-      description="launches browser")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">initializeDriver</span><wbr><span class="parameters">(<a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser)</span></div>
-<div class="block">Initializes the WebDriver for the specified browser type.</div>
+      description="launches browser, Playwright, or a mobile session; optional engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, optional nested mobileOptions carries native/web-emulation parameters, absorbing mobile_initialize_native/mobile_initialize_web_emulation")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">initializeDriver</span><wbr><span class="parameters">(<a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser,
+ @ToolParam(required=false)
+ <a href="ActiveEngine.html" title="enum class in com.shaft.mcp">ActiveEngine</a>&nbsp;engine,
+ @ToolParam(required=false)
+ <a href="McpMobileInitOptions.html" title="class in com.shaft.mcp">McpMobileInitOptions</a>&nbsp;mobileOptions)</span></div>
+<div class="block">Initializes the WebDriver for the specified browser type, or another engine session when
+<code>engine</code> selects one.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>targetBrowser</code> - The type of browser to initialize (e.g., CHROME, FIREFOX).</dd>
+<dd><code>engine</code> - which engine to start; blank/omitted defaults to <a href="ActiveEngine.html#WEB"><code>ActiveEngine.WEB</code></a>.
+              <a href="ActiveEngine.html#PLAYWRIGHT"><code>ActiveEngine.PLAYWRIGHT</code></a> starts a SHAFT Playwright session instead of a
+              WebDriver session. <a href="ActiveEngine.html#MOBILE_NATIVE"><code>ActiveEngine.MOBILE_NATIVE</code></a>/<a href="ActiveEngine.html#MOBILE_WEB"><code>ActiveEngine.MOBILE_WEB</code></a>
+              start an Appium native or Chrome/Edge mobile-emulation session using
+              <code>mobileOptions</code> (design doc amendment A9).</dd>
+<dd><code>mobileOptions</code> - optional nested request carrying the union of the former
+                     <code>mobile_initialize_native</code>/<code>mobile_initialize_web_emulation</code>
+                     parameters; only read when <code>engine</code> is a mobile engine; unset fields
+                     resolve from <code>SHAFT.Properties</code> exactly as those tools did</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="initializeDriver(com.shaft.mcp.BrowserType)">
+<h3>initializeDriver</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">initializeDriver</span><wbr><span class="parameters">(<a href="BrowserType.html" title="enum class in com.shaft.mcp">BrowserType</a>&nbsp;targetBrowser)</span></div>
+<div class="block">Java-caller convenience overload defaulting <code>engine</code> to <a href="ActiveEngine.html#WEB"><code>ActiveEngine.WEB</code></a>; not
+an MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>targetBrowser</code> - The type of browser to initialize (e.g., CHROME, FIREFOX).</dd>
@@ -177,9 +221,10 @@
 <h3>quitDriver</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="driver_quit",
-      description="closes browser")
+      description="closes whichever engine session (web, mobile, or Playwright) is currently active")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">quitDriver</span>()</div>
-<div class="block">Quits the WebDriver, closing all associated browser windows.</div>
+<div class="block">Quits whichever engine session is currently active (web, mobile, or Playwright), closing all
+associated browser windows.</div>
 </div>
 </section>
 </li>

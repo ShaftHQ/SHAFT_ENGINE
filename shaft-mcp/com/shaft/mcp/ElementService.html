@@ -55,21 +55,18 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#hover(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">hover(locatorStrategy, String)</a></li>
+<li><a href="#click(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.ClickMode)" tabindex="0">click(locatorStrategy, String, ClickMode)</a></li>
 <li><a href="#click(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">click(locatorStrategy, String)</a></li>
 <li><a href="#clickSemantic(java.lang.String)" tabindex="0">clickSemantic(String)</a></li>
 <li><a href="#clickUsingAI(java.lang.String)" tabindex="0">clickUsingAI(String)</a></li>
-<li><a href="#clickUsingJavaScript(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">clickUsingJavaScript(locatorStrategy, String)</a></li>
-<li><a href="#doubleClick(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">doubleClick(locatorStrategy, String)</a></li>
-<li><a href="#clickAndHold(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">clickAndHold(locatorStrategy, String)</a></li>
-<li><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.CharSequence...)" tabindex="0">type(locatorStrategy, String, CharSequence...)</a></li>
-<li><a href="#appendText(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.CharSequence...)" tabindex="0">appendText(locatorStrategy, String, CharSequence...)</a></li>
+<li><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.Boolean)" tabindex="0">type(locatorStrategy, String, String, Boolean, Boolean)</a></li>
+<li><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">type(locatorStrategy, String, String)</a></li>
 <li><a href="#typeSemantic(java.lang.String,java.lang.CharSequence...)" tabindex="0">typeSemantic(String, CharSequence...)</a></li>
 <li><a href="#typeUsingAI(java.lang.String,java.lang.CharSequence...)" tabindex="0">typeUsingAI(String, CharSequence...)</a></li>
-<li><a href="#setValueUsingJavaScript(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">setValueUsingJavaScript(locatorStrategy, String, String)</a></li>
 <li><a href="#clear(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">clear(locatorStrategy, String)</a></li>
 <li><a href="#dropFileToUpload(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">dropFileToUpload(locatorStrategy, String, String)</a></li>
+<li><a href="#dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.Integer,java.lang.Integer)" tabindex="0">dragAndDrop(locatorStrategy, String, locatorStrategy, String, Integer, Integer)</a></li>
 <li><a href="#dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">dragAndDrop(locatorStrategy, String, locatorStrategy, String)</a></li>
-<li><a href="#dragAndDropByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)" tabindex="0">dragAndDropByOffset(locatorStrategy, String, int, int)</a></li>
 <li><a href="#getText(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">getText(locatorStrategy, String)</a></li>
 <li><a href="#getDomAttribute(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">getDomAttribute(locatorStrategy, String, String)</a></li>
 <li><a href="#getDomProperty(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" tabindex="0">getDomProperty(locatorStrategy, String, String)</a></li>
@@ -109,7 +106,10 @@
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">ElementService</a>()</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates the default element service, wiring default Playwright/mobile services for direct
+Java callers and tests that construct this class without Spring.</div>
+</div>
 </div>
 </section>
 </li>
@@ -124,151 +124,144 @@
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#appendText(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.CharSequence...)" class="member-name-link">appendText</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clear(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">clear</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears an element, dispatching to whichever engine is currently active and routing through
+that engine's recording wrapper when a mobile or Playwright recording is active.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">click</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Java-caller convenience overload defaulting <code>mode</code> to <a href="ClickMode.html#SINGLE"><code>ClickMode.SINGLE</code></a>; not an
+MCP tool.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.ClickMode)" class="member-name-link">click</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;textValue)</code></div>
+ <a href="ClickMode.html" title="enum class in com.shaft.mcp">ClickMode</a>&nbsp;mode)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Appends text to an element.</div>
+<div class="block">Clicks an element, dispatching to whichever engine is currently active (web/mobile WebDriver
+or Playwright) and routing through that engine's recording wrapper when a mobile or Playwright
+recording is active.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clear(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">clear</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickSemantic(java.lang.String)" class="member-name-link">clickSemantic</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Clears an element.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">click</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Clicks an element.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickAndHold(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">clickAndHold</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Clicks and holds an element.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickSemantic(java.lang.String)" class="member-name-link">clickSemantic</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Clicks an element using SHAFT semantic locator behavior for direct Java callers.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#clickUsingAI(java.lang.String)" class="member-name-link">clickUsingAI</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#clickUsingAI(java.lang.String)" class="member-name-link">clickUsingAI</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span></div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickUsingJavaScript(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">clickUsingJavaScript</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Clicks an element using JavaScript.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doubleClick(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">doubleClick</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Double-clicks an element.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">dragAndDrop</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">dragAndDrop</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceLocatorValue,
  <a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;targetLocatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetLocatorValue)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Drags one element to another.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dragAndDropByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)" class="member-name-link">dragAndDropByOffset</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- int&nbsp;xOffset,
- int&nbsp;yOffset)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Drags an element by an offset.</div>
+<div class="block">Java-caller convenience overload for the element-to-element drag shape; not an MCP tool.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dropFileToUpload(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">dropFileToUpload</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.Integer,java.lang.Integer)" class="member-name-link">dragAndDrop</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceLocatorValue,
+ <a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;targetLocatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetLocatorValue,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetX,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetY)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Drags one element to another, or drags a source element by an offset when no target locator is
+given, dispatching to whichever engine is currently active.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dropFileToUpload(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">dropFileToUpload</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Drops a file onto an upload element.</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Drops a file onto an upload element, dispatching to whichever engine is currently active.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCssValue(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">getCssValue</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCssValue(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">getCssValue</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cssPropertyName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Gets a CSS value for direct Java callers.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDomAttribute(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">getDomAttribute</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDomAttribute(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">getDomAttribute</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domAttributeName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Gets a DOM attribute for direct Java callers.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDomProperty(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">getDomProperty</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDomProperty(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">getDomProperty</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domPropertyName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Gets a DOM property for direct Java callers.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getText(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">getText</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getText(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">getText</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Gets text for direct Java callers.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">hover</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Hovers over an element.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isDisplayed(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">isDisplayed</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">hover</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Checks whether an element is displayed.</div>
+<div class="block">Hovers over an element, dispatching to whichever engine is currently active.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEnabled(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">isEnabled</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementQueryResult.html" title="class in com.shaft.mcp">ElementQueryResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isDisplayed(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">isDisplayed</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Checks whether an element is enabled.</div>
+<div class="block">Checks whether an element is displayed, dispatching to whichever engine is currently active.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isSelected(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">isSelected</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementQueryResult.html" title="class in com.shaft.mcp">ElementQueryResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEnabled(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">isEnabled</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Checks whether an element is selected.</div>
+<div class="block">Checks whether an element is enabled, dispatching to whichever engine is currently active.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setValueUsingJavaScript(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">setValueUsingJavaScript</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementQueryResult.html" title="class in com.shaft.mcp">ElementQueryResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isSelected(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">isSelected</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Checks whether an element (for example a checkbox or radio button) is selected, dispatching to
+whichever engine is currently active.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)" class="member-name-link">type</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;textValue)</code></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Java-caller convenience overload defaulting <code>append</code>/<code>clear</code>; not an MCP tool.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.Boolean)" class="member-name-link">type</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;append,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;clear)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Sets an element value using JavaScript.</div>
+<div class="block">Types text into an element, dispatching to whichever engine is currently active and routing
+through that engine's recording wrapper when a mobile or Playwright recording is active.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeSemantic(java.lang.String,java.lang.CharSequence...)" class="member-name-link">typeSemantic</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;textValue)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Types text into an element.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeSemantic(java.lang.String,java.lang.CharSequence...)" class="member-name-link">typeSemantic</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;textValue)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Types text using SHAFT semantic locator behavior for direct Java callers.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#typeUsingAI(java.lang.String,java.lang.CharSequence...)" class="member-name-link">typeUsingAI</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#typeUsingAI(java.lang.String,java.lang.CharSequence...)" class="member-name-link">typeUsingAI</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;textValue)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span></div>
 </div>
 </div>
@@ -293,6 +286,8 @@
 <h3>ElementService</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">ElementService</span>()</div>
+<div class="block">Creates the default element service, wiring default Playwright/mobile services for direct
+Java callers and tests that construct this class without Spring.</div>
 </div>
 </section>
 </li>
@@ -309,14 +304,45 @@
 <h3>hover</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_hover",
-      description="hovers over an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">hover</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+      description="hovers over an element; dispatches to the active engine and records the step when a Playwright recording is active")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">hover</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Hovers over an element.</div>
+<div class="block">Hovers over an element, dispatching to whichever engine is currently active. Mobile engines
+(MOBILE_NATIVE/MOBILE_WEB) share the same WebDriver-backed session as WEB and use the same
+code path; only Playwright uses a distinct driver instance.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a Playwright recording is active, the recorded step's code block</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="click(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.ClickMode)">
+<h3>click</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="element_click",
+      description="clicks an element; optional mode selects single (default) | double | long; dispatches to the active engine and records the step when a mobile or Playwright recording is active")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
+ @ToolParam(required=false)
+ <a href="ClickMode.html" title="enum class in com.shaft.mcp">ClickMode</a>&nbsp;mode)</span></div>
+<div class="block">Clicks an element, dispatching to whichever engine is currently active (web/mobile WebDriver
+or Playwright) and routing through that engine's recording wrapper when a mobile or Playwright
+recording is active.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>locatorStrategy</code> - locator strategy</dd>
+<dd><code>locatorValue</code> - locator value</dd>
+<dd><code>mode</code> - click gesture; blank/omitted defaults to <a href="ClickMode.html#SINGLE"><code>ClickMode.SINGLE</code></a>. <a href="ClickMode.html#DOUBLE"><code>ClickMode.DOUBLE</code></a>
+            and <a href="ClickMode.html#LONG"><code>ClickMode.LONG</code></a> absorb the former element_double_click/element_click_and_hold/
+            mobile_double_tap/mobile_long_tap tools; <a href="ClickMode.html#LONG"><code>ClickMode.LONG</code></a> is not supported on the
+            Playwright engine.</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
@@ -325,15 +351,16 @@
 <section class="detail" id="click(com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>click</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_click",
-      description="clicks an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Clicks an element.</div>
+<div class="block">Java-caller convenience overload defaulting <code>mode</code> to <a href="ClickMode.html#SINGLE"><code>ClickMode.SINGLE</code></a>; not an
+MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
@@ -368,90 +395,49 @@ Not exposed as an MCP tool because semantic names may contain sensitive applicat
 </section>
 </li>
 <li>
-<section class="detail" id="clickUsingJavaScript(com.shaft.mcp.locatorStrategy,java.lang.String)">
-<h3>clickUsingJavaScript</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_click_js",
-      description="clicks an element using JavaScript")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clickUsingJavaScript</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Clicks an element using JavaScript.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>locatorStrategy</code> - locator strategy</dd>
-<dd><code>locatorValue</code> - locator value</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="doubleClick(com.shaft.mcp.locatorStrategy,java.lang.String)">
-<h3>doubleClick</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_double_click",
-      description="double clicks an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">doubleClick</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Double-clicks an element.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>locatorStrategy</code> - locator strategy</dd>
-<dd><code>locatorValue</code> - locator value</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="clickAndHold(com.shaft.mcp.locatorStrategy,java.lang.String)">
-<h3>clickAndHold</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_click_and_hold",
-      description="clicks and holds an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clickAndHold</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Clicks and holds an element.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>locatorStrategy</code> - locator strategy</dd>
-<dd><code>locatorValue</code> - locator value</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.CharSequence...)">
+<section class="detail" id="type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String,java.lang.Boolean,java.lang.Boolean)">
 <h3>type</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_type",
-      description="types value to an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+      description="types text into an element; optional append (default false) appends instead of clearing first, optional clear (default true; false behaves like append=true) controls whether the field is cleared before typing; dispatches to the active engine and records the step when a mobile or Playwright recording is active")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;textValue)</span></div>
-<div class="block">Types text into an element.</div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;append,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;clear)</span></div>
+<div class="block">Types text into an element, dispatching to whichever engine is currently active and routing
+through that engine's recording wrapper when a mobile or Playwright recording is active.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
-<dd><code>textValue</code> - text values</dd>
+<dd><code>text</code> - text to type</dd>
+<dd><code>append</code> - when true, appends instead of clearing first; blank/omitted defaults to false</dd>
+<dd><code>clear</code> - when false, types without clearing first (equivalent to <code>append=true</code>);
+             blank/omitted defaults to true</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="appendText(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.CharSequence...)">
-<h3>appendText</h3>
+<section class="detail" id="type(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)">
+<h3>type</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_append_text",
-      description="appends text to an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">appendText</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;textValue)</span></div>
-<div class="block">Appends text to an element.</div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+<div class="block">Java-caller convenience overload defaulting <code>append</code>/<code>clear</code>; not an MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
-<dd><code>textValue</code> - text values</dd>
+<dd><code>text</code> - text to type</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
@@ -490,37 +476,21 @@ Not exposed as an MCP tool because semantic names and typed values may contain s
 </section>
 </li>
 <li>
-<section class="detail" id="setValueUsingJavaScript(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)">
-<h3>setValueUsingJavaScript</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_set_value_js",
-      description="sets value to an element using JavaScript")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setValueUsingJavaScript</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;textValue)</span></div>
-<div class="block">Sets an element value using JavaScript.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>locatorStrategy</code> - locator strategy</dd>
-<dd><code>locatorValue</code> - locator value</dd>
-<dd><code>textValue</code> - value</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
 <section class="detail" id="clear(com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>clear</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_clear",
-      description="clears text from an element")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clear</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+      description="clears text from an element; dispatches to the active engine and records the step when a mobile or Playwright recording is active")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">clear</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Clears an element.</div>
+<div class="block">Clears an element, dispatching to whichever engine is currently active and routing through
+that engine's recording wrapper when a mobile or Playwright recording is active.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
@@ -529,17 +499,56 @@ Not exposed as an MCP tool because semantic names and typed values may contain s
 <section class="detail" id="dropFileToUpload(com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.String)">
 <h3>dropFileToUpload</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_drop_file_to_upload",
-      description="drops file to an element to upload")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">dropFileToUpload</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+<div class="member-signature"><span class="annotations">@Tool(name="element_upload_file",
+      description="drops file to an element to upload; dispatches to the active engine and records the step when a Playwright recording is active")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">dropFileToUpload</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</span></div>
-<div class="block">Drops a file onto an upload element.</div>
+<div class="block">Drops a file onto an upload element, dispatching to whichever engine is currently active.
+Mobile engines (MOBILE_NATIVE/MOBILE_WEB) share the same WebDriver-backed session as WEB and
+use the same code path; only Playwright uses a distinct driver instance.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
 <dd><code>filePath</code> - local file path</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a Playwright recording is active, the recorded step's code block</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String,java.lang.Integer,java.lang.Integer)">
+<h3>dragAndDrop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="element_drag_and_drop",
+      description="drags and drops an element from source to a target locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine and records the step when a Playwright recording is active")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">dragAndDrop</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceLocatorValue,
+ @ToolParam(required=false)
+ <a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;targetLocatorStrategy,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetLocatorValue,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetX,
+ @ToolParam(required=false)
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;offsetY)</span></div>
+<div class="block">Drags one element to another, or drags a source element by an offset when no target locator is
+given, dispatching to whichever engine is currently active. Mobile engines (MOBILE_NATIVE/
+MOBILE_WEB) share the same WebDriver-backed session as WEB and use the same code path; only
+Playwright uses a distinct driver instance.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>sourceLocatorStrategy</code> - source locator strategy</dd>
+<dd><code>sourceLocatorValue</code> - source locator value</dd>
+<dd><code>targetLocatorStrategy</code> - target locator strategy; omit together with targetLocatorValue to
+                             use offsetX/offsetY instead</dd>
+<dd><code>targetLocatorValue</code> - target locator value; omit to use offsetX/offsetY instead</dd>
+<dd><code>offsetX</code> - horizontal offset from the source element; used only when no target locator is given</dd>
+<dd><code>offsetY</code> - vertical offset from the source element; used only when no target locator is given</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
@@ -548,40 +557,19 @@ Not exposed as an MCP tool because semantic names and typed values may contain s
 <section class="detail" id="dragAndDrop(com.shaft.mcp.locatorStrategy,java.lang.String,com.shaft.mcp.locatorStrategy,java.lang.String)">
 <h3>dragAndDrop</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_drag_and_drop",
-      description="drags and drops an element from source to target")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">dragAndDrop</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">dragAndDrop</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceLocatorValue,
  <a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;targetLocatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetLocatorValue)</span></div>
-<div class="block">Drags one element to another.</div>
+<div class="block">Java-caller convenience overload for the element-to-element drag shape; not an MCP tool.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>sourceLocatorStrategy</code> - source locator strategy</dd>
 <dd><code>sourceLocatorValue</code> - source locator value</dd>
 <dd><code>targetLocatorStrategy</code> - target locator strategy</dd>
 <dd><code>targetLocatorValue</code> - target locator value</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="dragAndDropByOffset(com.shaft.mcp.locatorStrategy,java.lang.String,int,int)">
-<h3>dragAndDropByOffset</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="element_drag_and_drop_by_offset",
-      description="drags and drops an element by offset")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">dragAndDropByOffset</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
- int&nbsp;xOffset,
- int&nbsp;yOffset)</span></div>
-<div class="block">Drags an element by an offset.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>locatorStrategy</code> - locator strategy</dd>
-<dd><code>locatorValue</code> - locator value</dd>
-<dd><code>xOffset</code> - horizontal offset</dd>
-<dd><code>yOffset</code> - vertical offset</dd>
+<dt>Returns:</dt>
+<dd>the active engine and, when a recording is active, the recorded step's code block</dd>
 </dl>
 </div>
 </section>
@@ -665,16 +653,18 @@ Not exposed as an MCP tool because semantic names and typed values may contain s
 <h3>isDisplayed</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_is_displayed",
-      description="checks if an element is displayed")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isDisplayed</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+      description="checks if an element is displayed; dispatches to the active engine")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementQueryResult.html" title="class in com.shaft.mcp">ElementQueryResult</a></span>&nbsp;<span class="element-name">isDisplayed</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Checks whether an element is displayed.</div>
+<div class="block">Checks whether an element is displayed, dispatching to whichever engine is currently active.
+Mobile engines (MOBILE_NATIVE/MOBILE_WEB) share the same WebDriver-backed session as WEB and use
+the same code path; only Playwright uses a distinct driver instance.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
 <dt>Returns:</dt>
-<dd>true when displayed</dd>
+<dd>the active engine and true when displayed</dd>
 </dl>
 </div>
 </section>
@@ -684,16 +674,18 @@ Not exposed as an MCP tool because semantic names and typed values may contain s
 <h3>isEnabled</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_is_enabled",
-      description="checks if an element is enabled")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isEnabled</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+      description="checks if an element is enabled; dispatches to the active engine")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementQueryResult.html" title="class in com.shaft.mcp">ElementQueryResult</a></span>&nbsp;<span class="element-name">isEnabled</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Checks whether an element is enabled.</div>
+<div class="block">Checks whether an element is enabled, dispatching to whichever engine is currently active.
+Mobile engines (MOBILE_NATIVE/MOBILE_WEB) share the same WebDriver-backed session as WEB and use
+the same code path; only Playwright uses a distinct driver instance.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
 <dt>Returns:</dt>
-<dd>true when enabled</dd>
+<dd>the active engine and true when enabled</dd>
 </dl>
 </div>
 </section>
@@ -703,16 +695,20 @@ Not exposed as an MCP tool because semantic names and typed values may contain s
 <h3>isSelected</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_is_selected",
-      description="checks if an element is selected")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isSelected</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+      description="checks if an element is selected; dispatches to the active engine")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementQueryResult.html" title="class in com.shaft.mcp">ElementQueryResult</a></span>&nbsp;<span class="element-name">isSelected</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
-<div class="block">Checks whether an element is selected.</div>
+<div class="block">Checks whether an element (for example a checkbox or radio button) is selected, dispatching to
+whichever engine is currently active. Mobile engines (MOBILE_NATIVE/MOBILE_WEB) share the same
+WebDriver-backed session as WEB and use the same code path; Playwright uses a small dedicated
+implementation via the raw <code>Locator.isChecked()</code> (design doc amendment A8), since no
+SHAFT Playwright <code>ElementActions</code> equivalent existed before this commit.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>locatorStrategy</code> - locator strategy</dd>
 <dd><code>locatorValue</code> - locator value</dd>
 <dt>Returns:</dt>
-<dd>true when selected</dd>
+<dd>the active engine and true when selected</dd>
 </dl>
 </div>
 </section>
