@@ -1,0 +1,39 @@
+name: 'Build shaft-mcp Live Launcher Jar'
+description: >-
+  Sets up JDK 25, builds a runnable shaft-mcp jar plus its runtime
+  dependencies, and writes a `java @argsfile` launcher for it (same recipe as
+  guided-workflows-live.yml, with -DheadlessExecution=true added to the
+  argsfile so the spawned MCP server process runs headless -- Web.java's
+  "system:properties" @Sources entry wins inside that process). Exports
+  MCP_JAVA (java executable) and MCP_ARGS (path to the argsfile) as job
+  environment variables so callers pass
+  "-D<gate>.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}" to a live test run.
+  Callers needing other reactor modules built (e.g. shaft-cli) must install
+  them separately -- this action only builds shaft-mcp.
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up JDK 25 (shaft-mcp runtime)
+      uses: actions/setup-java@v5
+      with:
+        java-version: '25'
+        distribution: 'zulu'
+        check-latest: true
+    - name: Build shaft-mcp with dependencies
+      shell: bash
+      run: |
+        mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip
+        mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
+    - name: Write shaft-mcp launcher argfile
+      shell: bash
+      run: |
+        JAR=$(ls shaft-mcp/target/shaft-mcp-*.jar | grep -v -e sources -e javadoc -e original | head -1)
+        CLASSPATH="$(realpath "$JAR"):$(realpath shaft-mcp/target/dependency)/*"
+        {
+          printf '"-cp"\n'
+          printf '"%s"\n' "$CLASSPATH"
+          printf '"-DheadlessExecution=true"\n'
+          printf 'com.shaft.mcp.ShaftMcpApplication\n'
+        } > shaft-mcp/target/shaft-mcp-live.args
+        echo "MCP_JAVA=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
+        echo "MCP_ARGS=$PWD/shaft-mcp/target/shaft-mcp-live.args" >> "$GITHUB_ENV"

@@ -3,6 +3,7 @@ package com.shaft.commandline;
 import com.shaft.commandline.util.Json;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -57,6 +58,7 @@ class ShaftCliLiveE2ETest {
     }
 
     @Test
+    @Timeout(90)
     void toolsLiveConnectsToTheCurrentBuildServer(@TempDir Path tempDir) throws IOException {
         Map<String, String> serverEnv = assumeLiveServerConfigured();
 
@@ -71,6 +73,7 @@ class ShaftCliLiveE2ETest {
     }
 
     @Test
+    @Timeout(90)
     void callInvokesAToolAgainstTheLiveServer(@TempDir Path tempDir) throws IOException {
         Map<String, String> serverEnv = assumeLiveServerConfigured();
 
@@ -85,6 +88,7 @@ class ShaftCliLiveE2ETest {
     }
 
     @Test
+    @Timeout(90)
     void doctorAnalyzeWithNoTraceFileReportsAnHonestFailure(@TempDir Path tempDir) throws IOException {
         Map<String, String> serverEnv = assumeLiveServerConfigured();
 

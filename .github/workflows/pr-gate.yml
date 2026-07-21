@@ -199,8 +199,13 @@ jobs:
           cache: 'maven'
       - name: Install shaft-cli reactor dependencies
         run: mvn --batch-mode -pl shaft-cli -am -DskipTests install -q '-DheadlessExecution=true' '-Dgpg.skip' '-Dcyclonedx.skip'
+      # -Dshaft.intellij.liveToolE2E=true with no liveMcpCommand set (issue #3932a):
+      # exercises ShaftCliLiveE2ETest's 3 offline methods (tools --cached, codegen,
+      # session status) for real on every PR; its 3 live-server methods still
+      # self-skip via Assumptions.assumeTrue (ShaftCliLiveE2ETest.java:144-160) --
+      # the live-server trio only runs in live-tools-nightly.yml.
       - name: Test shaft-cli
-        run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true'
+        run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true' '-Dshaft.intellij.liveToolE2E=true'
       - name: Package shaft-cli and run the binary
         shell: bash
         run: |
