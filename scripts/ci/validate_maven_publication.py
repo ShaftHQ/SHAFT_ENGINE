@@ -170,6 +170,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
         for field in ("m:name", "m:description"):
             if not _text(pom, field):
                 errors.append(f"{artifact} is missing {field.removeprefix('m:')}")
+        if _text(pom, "m:licenses/m:license/m:name") != "MIT License":
+            errors.append(f"{artifact} is missing explicit MIT License metadata")
         if packaging == "jar":
             plugins = {
                 _text(plugin, "m:artifactId")

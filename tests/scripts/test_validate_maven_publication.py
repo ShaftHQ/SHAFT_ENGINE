@@ -97,6 +97,19 @@ class MavenPublicationValidationTest(unittest.TestCase):
             self.assertIn(sbom, names)
             self.assertIn(f"{sbom}.asc", names)
 
+    def test_rejects_missing_license_metadata(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_contract(root)
+            pom = root / "shaft-engine" / "pom.xml"
+            document = ET.parse(pom)
+            licenses = document.getroot().find("m:licenses", MODULE.NS)
+            self.assertIsNotNone(licenses)
+            document.getroot().remove(licenses)
+            document.write(pom, encoding="utf-8", xml_declaration=True)
+            self.assertTrue(any("MIT License" in error and "shaft-engine" in error
+                                for error in MODULE.validate_publication(root)))
+
     def test_rejects_forbidden_source_jar_content(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
