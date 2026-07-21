@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/shaftassistantpanel-keeps-two-separate-message-object-graphs-transcript-vs-chatstate-extend-both-or-they-silently-desync.md",
+  "content_hash": "sha256:e4edc4f767408c26ddff2e1f647d0ad1620a299e74eee7e86f79cf59f8ba400f",
+  "created_at": "2026-07-21T21:45:19+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaftassistantpanel-keeps-two-separate-message-object-graphs-transcript-vs-chatstate-extend-both-or-they-silently-desync",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij: thread message kinds through ShaftAssistantPanel (#3968)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "assistant-panel",
+    "transcript-view",
+    "chat-state",
+    "message-kind"
+  ],
+  "title": "ShaftAssistantPanel keeps two separate Message object graphs (transcript vs chatState) -- extend both or they silently desync",
+  "type": "gotcha",
+  "updated_at": "2026-07-21T21:45:19+03:00"
+}
