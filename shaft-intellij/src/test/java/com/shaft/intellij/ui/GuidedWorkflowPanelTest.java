@@ -63,13 +63,19 @@ class GuidedWorkflowPanelTest {
         select(templates, "Start mobile emulation session for recording");
         useTemplate.doClick();
         CapturedInvocation mobileEmulation = last(invocations);
+        JsonObject mobileOptions = mobileEmulation.arguments().getAsJsonObject("mobileOptions");
         assertAll(
                 () -> assertEquals("driver_initialize", mobileEmulation.toolName()),
+                // driver_initialize's engine selector (issue #3899: the plugin must send the schema's
+                // uppercase Java-enum-name wire casing, e.g. MOBILE_WEB, not a lowercase variant).
+                () -> assertEquals("MOBILE_WEB", mobileEmulation.arguments().get("engine").getAsString()),
+                () -> assertNotNull(mobileOptions, "mobile fields must nest under mobileOptions: "
+                        + mobileEmulation.arguments()),
                 // Default combo selection is "Chrome" (matches CaptureBrowser#parse and
                 // MobileService#browserType, both case-insensitive) -- not the old hardcoded "CHROME".
-                () -> assertEquals("Chrome", mobileEmulation.arguments().get("browser").getAsString()),
-                () -> assertEquals("Pixel 5", mobileEmulation.arguments().get("deviceName").getAsString()),
-                () -> assertFalse(mobileEmulation.arguments().get("headless").getAsBoolean()));
+                () -> assertEquals("Chrome", mobileOptions.get("browser").getAsString()),
+                () -> assertEquals("Pixel 5", mobileOptions.get("deviceName").getAsString()),
+                () -> assertFalse(mobileOptions.get("headless").getAsBoolean()));
 
         select(templates, "Analyze failed Allure results");
         useTemplate.doClick();
@@ -198,7 +204,8 @@ class GuidedWorkflowPanelTest {
         CapturedInvocation mobileEmulation = last(invocations);
         assertAll(
                 () -> assertEquals("driver_initialize", mobileEmulation.toolName()),
-                () -> assertEquals("Edge", mobileEmulation.arguments().get("browser").getAsString(),
+                () -> assertEquals("Edge",
+                        mobileEmulation.arguments().getAsJsonObject("mobileOptions").get("browser").getAsString(),
                         "mobileWebEmulation() must read the same selected combo item"));
     }
 

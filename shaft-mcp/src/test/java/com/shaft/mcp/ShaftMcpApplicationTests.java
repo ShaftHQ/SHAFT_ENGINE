@@ -396,4 +396,51 @@ class ShaftMcpApplicationTests {
         }
         return false;
     }
+
+    /**
+     * Issue #3899 regression: {@code driver_initialize}'s mobile fields (former
+     * {@code mobile_initialize_web_emulation}/{@code mobile_initialize_native} parameters) moved
+     * under a nested {@code mobileOptions} object when commit 22bc611ec7 absorbed those tools
+     * (design doc amendment A9). The IntelliJ plugin's {@code GuidedWorkflowPanel.mobileWebEmulation()}
+     * kept sending them flat at the top level, which the live-served schema rejects
+     * ("property 'targetUrl' is not defined in the schema and the schema does not allow additional
+     * properties", ...): this asserts the served schema shape directly so that drift is caught by a
+     * fast in-repo test instead of only the nightly live E2E run.
+     */
+    @Test
+    void driverInitializeSchemaNestsMobileFieldsUnderMobileOptionsNotAtTheTopLevel() throws Exception {
+        JsonNode schema = toolInputSchema("driver_initialize");
+        JsonNode properties = schema.path("properties");
+
+        assertTrue(properties.has("mobileOptions"),
+                "driver_initialize schema must expose a nested mobileOptions object: " + schema);
+        assertFalse(properties.has("targetUrl"),
+                "targetUrl must live under mobileOptions, not top-level: " + schema);
+        assertFalse(properties.has("browser") && properties.path("browser").path("type").asText().equals("string")
+                        && properties.has("deviceName"),
+                "web-emulation fields must live under mobileOptions, not top-level: " + schema);
+
+        JsonNode mobileOptionsProperties = properties.path("mobileOptions").path("properties");
+        assertTrue(mobileOptionsProperties.has("targetUrl"), "mobileOptions must expose targetUrl: " + schema);
+        assertTrue(mobileOptionsProperties.has("deviceName"), "mobileOptions must expose deviceName: " + schema);
+        assertTrue(mobileOptionsProperties.has("headless"), "mobileOptions must expose headless: " + schema);
+    }
+
+    /**
+     * Issue #3899: confirms the wire-format casing {@code driver_initialize}'s {@code engine}
+     * selector actually validates against, so plugin/tool callers don't have to guess between the
+     * Java enum constant name ({@code MOBILE_WEB}) and the lowercase form used in prose elsewhere
+     * (for example {@link ActiveEngine}'s own javadoc says {@code engine=mobile_web}).
+     */
+    @Test
+    void driverInitializeEngineEnumWireCasingMatchesJavaConstantNames() throws Exception {
+        JsonNode schema = toolInputSchema("driver_initialize");
+        JsonNode engineEnum = schema.path("properties").path("engine").path("enum");
+
+        List<String> allowed = new java.util.ArrayList<>();
+        engineEnum.forEach(node -> allowed.add(node.asText()));
+
+        assertEquals(List.of("NONE", "WEB", "MOBILE_NATIVE", "MOBILE_WEB", "PLAYWRIGHT"), allowed,
+                "driver_initialize's engine enum wire values: " + schema);
+    }
 }

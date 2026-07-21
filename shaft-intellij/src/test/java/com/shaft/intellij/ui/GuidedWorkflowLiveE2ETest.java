@@ -64,13 +64,13 @@ class GuidedWorkflowLiveE2ETest {
 
         try (LiveMcp mcp = context.connect()) {
             JsonObject started = mcp.invoke(panel.click("Start recording"), SESSION_START_TIMEOUT);
-            assertEquals("ACTIVE", started.get("state").getAsString(), started.toString());
+            assertEquals("ACTIVE", webStatus(started).get("state").getAsString(), started.toString());
 
             JsonObject status = awaitEvents(mcp, 4, Duration.ofSeconds(90));
             assertTrue(status.get("eventCount").getAsInt() >= 4, status.toString());
 
             JsonObject stopped = mcp.invoke(panel.click("Stop recording"), TOOL_TIMEOUT);
-            assertEquals("COMPLETED", stopped.get("state").getAsString(), stopped.toString());
+            assertEquals("COMPLETED", webStatus(stopped).get("state").getAsString(), stopped.toString());
             assertTrue(context.workspaceFile("recordings/web-live.json"), "capture JSON missing");
 
             JsonObject generated = mcp.invoke(panel.click("Review code"), TOOL_TIMEOUT);
@@ -110,21 +110,22 @@ class GuidedWorkflowLiveE2ETest {
         panel.selectBackend(GuidedWorkflowPanel.BACKEND_MOBILE);
 
         try (LiveMcp mcp = context.connect()) {
-            JsonObject session = mcp.invoke(
-                    panel.useTemplate("Start mobile emulation session for recording"), SESSION_START_TIMEOUT);
-            assertEquals("web-emulation", session.get("mode").getAsString(), session.toString());
-            assertTrue(session.get("active").getAsBoolean(), session.toString());
+            // driver_initialize's mobile dispatch (design doc amendment A9) returns no structured
+            // status -- the former mobile_initialize_web_emulation session summary is absorbed but not
+            // surfaced back through the union response family, so success here is proven by invoke()
+            // itself (it fails the test on isError) and by the recording/actions that follow.
+            mcp.invoke(panel.useTemplate("Start mobile emulation session for recording"), SESSION_START_TIMEOUT);
 
             JsonObject recording = mcp.invoke(panel.click("Start recording"), TOOL_TIMEOUT);
-            assertTrue(recording.get("active").getAsBoolean(), recording.toString());
+            assertTrue(mobileStatus(recording).get("active").getAsBoolean(), recording.toString());
 
             mcp.invoke(mobileAction("mobile_type", "ID", "search",
                     Map.of("textValue", "SHAFT Engine")), TOOL_TIMEOUT);
             mcp.invoke(mobileAction("mobile_tap", "ID", "go", Map.of()), TOOL_TIMEOUT);
 
             JsonObject stopped = mcp.invoke(panel.click("Stop recording"), TOOL_TIMEOUT);
-            assertFalse(stopped.get("active").getAsBoolean(), stopped.toString());
-            assertTrue(stopped.get("actionCount").getAsInt() >= 2, stopped.toString());
+            assertFalse(mobileStatus(stopped).get("active").getAsBoolean(), stopped.toString());
+            assertTrue(mobileStatus(stopped).get("actionCount").getAsInt() >= 2, stopped.toString());
             assertTrue(context.workspaceFile("recordings/mobile-live.json"), "mobile recording missing");
 
             JsonObject generated = mcp.invoke(panel.click("Review code"), TOOL_TIMEOUT);
@@ -158,15 +159,37 @@ class GuidedWorkflowLiveE2ETest {
 
     private static JsonObject awaitEvents(LiveMcp mcp, int minimumEvents, Duration limit) throws Exception {
         long deadline = System.nanoTime() + limit.toNanos();
-        JsonObject status = null;
+        JsonObject status = new JsonObject();
         while (System.nanoTime() < deadline) {
-            status = mcp.invoke(new Invocation("capture_status", new JsonObject()), TOOL_TIMEOUT);
+            status = webStatus(mcp.invoke(new Invocation("capture_status", new JsonObject()), TOOL_TIMEOUT));
             if (status.has("eventCount") && status.get("eventCount").getAsInt() >= minimumEvents) {
                 return status;
             }
             Thread.sleep(2000);
         }
-        return status == null ? new JsonObject() : status;
+        return status;
+    }
+
+    /**
+     * Unwraps {@code capture_start}/{@code capture_status}/{@code capture_stop}'s
+     * {@code McpCaptureUnionStatus} response down to its WEB-engine {@code webStatus} section
+     * (design doc amendment A3, landed by #3881): the union's {@code state}/{@code eventCount}
+     * fields moved off the top level into this nested object.
+     */
+    private static JsonObject webStatus(JsonObject union) {
+        JsonObject webStatus = union.getAsJsonObject("webStatus");
+        assertNotNull(webStatus, "Expected a populated webStatus section: " + union);
+        return webStatus;
+    }
+
+    /**
+     * Unwraps the same union response's {@code mobileStatus} section, populated instead of
+     * {@code webStatus} when the active engine is MOBILE_NATIVE/MOBILE_WEB.
+     */
+    private static JsonObject mobileStatus(JsonObject union) {
+        JsonObject mobileStatus = union.getAsJsonObject("mobileStatus");
+        assertNotNull(mobileStatus, "Expected a populated mobileStatus section: " + union);
+        return mobileStatus;
     }
 
     private static Invocation mobileAction(
