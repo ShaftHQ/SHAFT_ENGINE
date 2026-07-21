@@ -119,9 +119,9 @@ class GuidedWorkflowLiveE2ETest {
             JsonObject recording = mcp.invoke(panel.click("Start recording"), TOOL_TIMEOUT);
             assertTrue(mobileStatus(recording).get("active").getAsBoolean(), recording.toString());
 
-            mcp.invoke(mobileAction("mobile_type", "ID", "search",
-                    Map.of("textValue", "SHAFT Engine")), TOOL_TIMEOUT);
-            mcp.invoke(mobileAction("mobile_tap", "ID", "go", Map.of()), TOOL_TIMEOUT);
+            mcp.invoke(mobileAction("element_type", "ID", "search",
+                    Map.of("text", "SHAFT Engine")), TOOL_TIMEOUT);
+            mcp.invoke(mobileAction("element_click", "ID", "go", Map.of()), TOOL_TIMEOUT);
 
             JsonObject stopped = mcp.invoke(panel.click("Stop recording"), TOOL_TIMEOUT);
             assertFalse(mobileStatus(stopped).get("active").getAsBoolean(), stopped.toString());
@@ -192,6 +192,12 @@ class GuidedWorkflowLiveE2ETest {
         return mobileStatus;
     }
 
+    /**
+     * Builds a locator-scoped invocation for the unified {@code element_type}/{@code element_click}
+     * tools. With the MOBILE_WEB session started above active, these dispatch through
+     * {@code MobileService.dispatchType}/{@code dispatchClick} and record the step exactly like the
+     * {@code mobile_type}/{@code mobile_tap} tools removed by design doc amendment A1 (#3881) did.
+     */
     private static Invocation mobileAction(
             String toolName, String strategy, String value, Map<String, String> extra) {
         JsonObject arguments = new JsonObject();
