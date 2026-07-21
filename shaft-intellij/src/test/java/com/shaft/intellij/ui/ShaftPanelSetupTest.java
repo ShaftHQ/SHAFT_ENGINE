@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.ui.WrapLayout;
@@ -2951,6 +2952,106 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(markdown.contains("couldn't finish"), markdown),
                 () -> assertTrue(markdown.contains("_Next:"), markdown));
+    }
+
+    /**
+     * Issue #3968: {@code ShaftAssistantPanel}'s {@code append(...)} call sites previously all
+     * role-inferred their kind via {@link ShaftAssistantChatState#resolveKind}'s default (everything
+     * non-user defaults to {@code assistant-text}) even when the call site already knew it was
+     * producing a tool-event, an error, a raw-verbose dump, or a milestone. These prove the relevant
+     * call sites now thread an explicit kind through to the persisted message.
+     */
+    @Test
+    void toolSelectedMilestoneCarriesTheMilestoneKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Method appendAgentMilestone =
+                ShaftAssistantPanel.class.getDeclaredMethod("appendAgentMilestone", String.class);
+        appendAgentMilestone.setAccessible(true);
+
+        appendAgentMilestone.invoke(panel, "Tool selected: local assistant");
+
+        assertEquals(ShaftAssistantChatState.KIND_MILESTONE, lastMessageKind(panel));
+    }
+
+    @Test
+    void verboseExactToolRequestDumpCarriesTheRawVerboseKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ((JBCheckBox) getField(panel, "verboseAgentOutput")).setSelected(true);
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantCommand.Invocation invocation =
+                AssistantCommand.Invocation.tool("shaft_guide_search", new JsonObject());
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+
+        // A null project fails the actual MCP dispatch with an NPE past the point where the Verbose
+        // exact-tool-request dump is appended, mirroring
+        // directCodegenToolDispatchArmsSameStickyReviewGateAsRecordFlow.
+        assertThrows(InvocationTargetException.class, () -> startMcpInvocation.invoke(panel, invocation));
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(panel).contains("Verbose — exact tool request"),
+                        transcriptMarkdown(panel)),
+                () -> assertEquals(ShaftAssistantChatState.KIND_RAW_VERBOSE, lastMessageKind(panel)));
+    }
+
+    @Test
+    void toolApprovalDenialOutcomeCarriesTheToolEventKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool("capture_start", new JsonObject());
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+        startMcpInvocation.invoke(panel, invocation);
+        JButton deny = approvalDecisionButton((ToolApprovalPromptPanel) transcriptWidget(panel), "Deny");
+
+        SwingUtilities.invokeAndWait(deny::doClick);
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(panel).contains("Denied `capture_start`")),
+                () -> assertEquals(ShaftAssistantChatState.KIND_TOOL_EVENT, lastMessageKind(panel)));
+    }
+
+    @Test
+    void mcpToolFailureRendersWithTheErrorKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAssistantResult(panel, "shaft_guide_search", ShaftMcpToolResult.failure("Tool exploded."));
+
+        assertEquals(ShaftAssistantChatState.KIND_ERROR, lastMessageKind(panel));
+    }
+
+    @Test
+    void mcpToolSuccessRendersWithTheDefaultAssistantTextKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAssistantResult(panel, "shaft_guide_search",
+                ShaftMcpToolResult.success(mcpText("Use Page Object locators.")));
+
+        assertEquals(ShaftAssistantChatState.KIND_ASSISTANT_TEXT, lastMessageKind(panel));
+    }
+
+    @Test
+    void localAgentStreamedFailureRendersWithTheErrorKindOnTheSameBubbleItStreamedInto() throws Exception {
+        // Issue #3968: the terminal failure replaces the SAME streaming placeholder bubble via
+        // replaceLast (issue #3628's fast in-place path) -- proving the kind change actually reaches
+        // the persisted message even though the streamed bubble started life with the default kind.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 11);
+        showAgentResult(panel, 11, ShaftMcpToolResult.failure("Timed out after 300 seconds."));
+
+        assertEquals(ShaftAssistantChatState.KIND_ERROR, lastMessageKind(panel));
+    }
+
+    @Test
+    void localAgentStreamedSuccessRendersWithTheDefaultAssistantTextKind() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 12);
+        showAgentResult(panel, 12, ShaftMcpToolResult.success("Final answer from Codex."));
+
+        assertEquals(ShaftAssistantChatState.KIND_ASSISTANT_TEXT, lastMessageKind(panel));
     }
 
     @Test
@@ -6509,6 +6610,19 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("approvalService");
         method.setAccessible(true);
         return (ToolApprovalService) method.invoke(panel);
+    }
+
+    /**
+     * Issue #3968: the persisted {@link ShaftAssistantChatState.Message#kind} of the most recently
+     * appended message in the panel's active session -- reads the same source of truth {@link
+     * MessageStyleRegistry#styleFor} resolves bubble colors from, so this is a stronger assertion
+     * than scraping rendered markdown text for a kind-specific string.
+     */
+    private static String lastMessageKind(ShaftAssistantPanel panel) throws Exception {
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        List<ShaftAssistantChatState.Message> messages = chatState.activeMessages();
+        assertFalse(messages.isEmpty(), "Expected at least one persisted message");
+        return messages.get(messages.size() - 1).kind;
     }
 
     private static JComponent transcriptWidget(ShaftAssistantPanel panel) throws Exception {

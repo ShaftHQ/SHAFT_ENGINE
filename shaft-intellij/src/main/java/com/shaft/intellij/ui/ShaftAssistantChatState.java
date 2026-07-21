@@ -132,13 +132,23 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     }
 
     void append(String role, String markdown, String raw) {
+        append(role, markdown, raw, null);
+    }
+
+    /**
+     * Same as {@link #append(String, String, String)}, plus an explicit {@code kind} (issue #3968)
+     * for call sites that already know they are producing a non-default kind -- a tool-event, an
+     * error, a raw-verbose dump, a milestone -- instead of always falling back to the role-inferred
+     * default. A blank/{@code null} kind behaves exactly like the 3-arg overload.
+     */
+    void append(String role, String markdown, String raw, String kind) {
         if (markdown == null || markdown.isBlank()) {
             return;
         }
         Session session = activeSession();
         Message message = new Message();
         message.role = role == null ? "" : role;
-        message.kind = resolveKind(message.kind, message.role);
+        message.kind = resolveKind(kind, message.role);
         String renderedMarkdown = "user".equals(message.role) ? stripSpeakerLabel(markdown) : markdown;
         message.markdown = redactSecrets(renderedMarkdown);
         if (message.markdown.isBlank()) {

@@ -172,4 +172,30 @@ class ShaftAssistantChatStateTest {
                 "An explicit persisted kind must survive a getState()/loadState() round trip, "
                         + "normalized to lowercase/trimmed rather than replaced by the role default");
     }
+
+    /**
+     * Issue #3968: {@code append} gained a 4-arg overload so {@code ShaftAssistantPanel} call sites
+     * that already know they are producing a non-default kind (a tool-event, an error, a raw-verbose
+     * dump, a milestone) can say so explicitly instead of always falling back to the role-inferred
+     * default the 3-arg {@link ShaftAssistantChatState#append(String, String, String)} still uses.
+     */
+    @Test
+    void fourArgAppendWithExplicitKindOverridesTheRoleInferredDefault() {
+        ShaftAssistantChatState state = new ShaftAssistantChatState();
+
+        state.append("assistant", "Tool call failed: timeout", "", ShaftAssistantChatState.KIND_ERROR);
+
+        ShaftAssistantChatState.Message message = state.activeMessages().get(0);
+        assertEquals(ShaftAssistantChatState.KIND_ERROR, message.kind);
+    }
+
+    @Test
+    void fourArgAppendWithBlankKindFallsBackToTheRoleInferredDefaultLikeTheThreeArgOverload() {
+        ShaftAssistantChatState state = new ShaftAssistantChatState();
+
+        state.append("assistant", "hi, how can I help?", "", "");
+
+        ShaftAssistantChatState.Message message = state.activeMessages().get(0);
+        assertEquals(ShaftAssistantChatState.KIND_ASSISTANT_TEXT, message.kind);
+    }
 }

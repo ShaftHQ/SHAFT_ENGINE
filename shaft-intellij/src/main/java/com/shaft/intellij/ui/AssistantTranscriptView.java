@@ -236,8 +236,21 @@ final class AssistantTranscriptView extends JPanel {
      * @param rawEvidence raw evidence to show behind the disclosure toggle, or blank/{@code null} for none
      */
     void append(String role, String message, String rawEvidence) {
+        append(role, message, rawEvidence, null);
+    }
+
+    /**
+     * Same as {@link #append(String, String, String)}, plus an explicit {@code kind} (issue #3968)
+     * for callers that already know they are producing a non-default kind -- a tool-event, an error,
+     * a raw-verbose dump, a milestone -- instead of always relying on the role-inferred default. A
+     * blank/{@code null} kind behaves exactly like the 3-arg overload.
+     *
+     * @param kind explicit {@link ShaftAssistantChatState} kind constant, or blank/{@code null} to
+     *             fall back to the role-inferred default
+     */
+    void append(String role, String message, String rawEvidence, String kind) {
         int sizeBeforeAdd = messages.size();
-        addMessage(role, message, rawEvidence);
+        addMessage(role, message, rawEvidence, kind);
         if (messages.size() == sizeBeforeAdd) {
             // addMessage() silently dropped a blank message -- nothing changed, nothing to render.
             return;
@@ -293,21 +306,47 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     void replaceLast(String role, String message) {
+        replaceLast(role, message, null);
+    }
+
+    /**
+     * Same as {@link #replaceLast(String, String)}, plus an explicit {@code kind} (issue #3968) for
+     * a streamed bubble whose final content changes kind -- for example a local-agent run that
+     * streamed as plain assistant text but terminates in failure, and must be re-styled as
+     * {@link ShaftAssistantChatState#KIND_ERROR} in place, not just re-worded. A blank/{@code null}
+     * kind leaves the message's existing kind untouched exactly like the 2-arg overload -- callers
+     * that only re-word content (the common streamed-line case) never risk silently decaying an
+     * already-explicit kind back to the role-inferred default.
+     *
+     * <p>A kind change forces a full {@link #refresh()} rather than the fast in-place incremental
+     * update: {@link #updateLastBubbleIncrementally} only mutates the already-rendered bubble's HTML
+     * content, never its background/foreground/stroke colors, so those must be re-resolved from
+     * scratch via a normal render pass whenever the kind genuinely changes. This only affects the
+     * (at most once per streamed run) terminal call that actually changes kind, not the common
+     * same-kind streamed-line path issue #3751 part 2 optimized.
+     */
+    void replaceLast(String role, String message, String kind) {
         if (message == null || message.isBlank()) {
             return;
         }
         if (messages.isEmpty()) {
-            append(role, message);
+            append(role, message, "", kind);
             return;
         }
         ShaftAssistantChatState.Message last = messages.get(messages.size() - 1);
         last.role = normalizedRole(role);
+        boolean kindChanged = false;
+        if (kind != null && !kind.isBlank()) {
+            String resolvedKind = ShaftAssistantChatState.resolveKind(kind, last.role);
+            kindChanged = !resolvedKind.equals(last.kind);
+            last.kind = resolvedKind;
+        }
         last.markdown = message;
         // The replaced content no longer corresponds to whatever evidence (if any) was captured for
         // the message being overwritten, and replaceLast() has no evidence of its own to carry over.
         setLastRawEvidence("");
         markdownDirty = true;
-        if (updateLastBubbleIncrementally(last.role, message)) {
+        if (!kindChanged && updateLastBubbleIncrementally(last.role, message)) {
             scrollLatestIntoView();
         } else {
             refresh();
@@ -513,7 +552,11 @@ final class AssistantTranscriptView extends JPanel {
                     continue;
                 }
                 // Restored messages never carry evidence -- it was never persisted in the first place.
-                addMessage(message.role, message.markdown, "");
+                // The explicit kind (issue #3968) IS carried over, though: without it, every
+                // non-default-kind message (an error, a milestone, ...) would silently decay back to
+                // its role-inferred default the moment a session is restored (panel construction) or
+                // the user switches chat tabs and back -- both of which route through this method.
+                addMessage(message.role, message.markdown, "", message.kind);
             }
         }
         markdown = joinMessages(messages);
@@ -604,12 +647,16 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private void addMessage(String role, String value, String rawEvidence) {
+        addMessage(role, value, rawEvidence, null);
+    }
+
+    private void addMessage(String role, String value, String rawEvidence, String kind) {
         if (value == null || value.isBlank()) {
             return;
         }
         ShaftAssistantChatState.Message message = new ShaftAssistantChatState.Message();
         message.role = normalizedRole(role);
-        message.kind = ShaftAssistantChatState.resolveKind(message.kind, message.role);
+        message.kind = ShaftAssistantChatState.resolveKind(kind, message.role);
         message.markdown = value;
         messages.add(message);
         messageRawEvidence.add(rawEvidence == null ? "" : rawEvidence);
