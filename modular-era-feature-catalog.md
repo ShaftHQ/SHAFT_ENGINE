@@ -497,8 +497,8 @@ Mobile support now covers Appium sessions, mobile web emulation, accessibility t
 | Native Appium sessions | Initialize native sessions, inspect accessibility, and tap by stable locators. | `mobile_initialize_native -> mobile_get_accessibility_tree -> mobile_tap(ACCESSIBILITY_ID, "login")` |
 | Toolchain diagnostics | Check Appium, Inspector plugin, adb, emulator, sdkmanager, avdmanager, and iOS/macOS readiness from one tool. | `mobile_toolchain_status` |
 | Inspector recording | Prepare, start, inspect status, control, stop, and generate code from wrapped Appium Inspector recording. | `mobile_inspector_record_prepare -> mobile_inspector_record_start -> mobile_inspector_record_stop` |
-| Locator-first replay | Convert a tap into `ACCESSIBILITY_ID` and a swipe target into `ID` when the accessibility tree supports it. | `mobile_recording_code_blocks(recordingPath="target/shaft-evidence/mobile-inspector-locators.json")` |
-| Mobile Page Object handoff | Return replay, ranked locator inventory, action sequence, Page Object draft, and focused insertion snippets for existing mobile POM classes. | `mobile_recording_code_blocks -> mobile_record_at_target_code_blocks` |
+| Locator-first replay | Convert a tap into `ACCESSIBILITY_ID` and a swipe target into `ID` when the accessibility tree supports it. | `capture_code_blocks --session target/shaft-evidence/mobile-inspector-locators.json --backend mobile` |
+| Mobile Page Object handoff | Return replay, ranked locator inventory, action sequence, Page Object draft, and focused insertion snippets for existing mobile POM classes. | `capture_code_blocks -> capture_record_at_target_code_blocks` |
 
 ```text
 mobile_initialize_native(appiumServerUrl="http://127.0.0.1:4723", platformName="Android", deviceName="emulator-5554")
