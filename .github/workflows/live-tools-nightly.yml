@@ -1,0 +1,294 @@
+name: Live Tools Nightly E2E
+
+# Issue #3932 (subtask of tracker #3926): six live E2E test classes existed
+# with ZERO workflow wiring before this file. pr-gate.yml's `cli` leg now
+# runs ShaftCliLiveE2ETest's 3 OFFLINE methods on every PR (no
+# liveMcpCommand configured there, so its 3 live-server methods self-skip
+# via Assumptions.assumeTrue -- ShaftCliLiveE2ETest.java:144-160); this
+# workflow is the only place the LIVE-server methods across all six classes
+# ever run:
+#   - shaft-cli: ShaftCliLiveE2ETest's live trio (tools/call/doctor analyze)
+#   - shaft-intellij: the four ShaftAssistantPanelLive*ToolE2ETest classes
+#     plus AssistantGeminiLiveE2ETest
+#
+# Every job here builds its own shaft-mcp launcher jar (via the
+# build-shaft-mcp-live-jar composite action, based on
+# guided-workflows-live.yml:29-49) and, where Maven live-server tests run,
+# does so BEFORE any JDK 17/Gradle switch -- the root pom's enforcer plugin
+# (pom.xml:589-590, range [25,26)) hard-fails any Maven invocation under
+# JDK 17.
+
+on:
+  schedule:
+    # 03:30 UTC: after e2eTests.yml/e2eLocalTests.yml/shaft-mcp.yml (01:00)
+    # and guided-workflows-live.yml (02:30), before none -- no collision.
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-tools-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  cli-live:
+    name: shaft-cli live E2E (Maven)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Build shaft-mcp live launcher jar
+        uses: ./.github/actions/build-shaft-mcp-live-jar
+      - name: Install shaft-cli reactor dependencies
+        run: mvn --batch-mode -pl shaft-cli -am install -DskipTests -q '-DheadlessExecution=true' '-Dgpg.skip' '-Dcyclonedx.skip'
+      - name: Run shaft-cli live E2E suite
+        run: >-
+          mvn --batch-mode -pl shaft-cli test
+          -Dtest=ShaftCliLiveE2ETest
+          -Dshaft.intellij.liveToolE2E=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Verify shaft-cli live tests actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-cli/target/surefire-reports/TEST-com.shaft.commandline.ShaftCliLiveE2ETest.xml
+          --min-executed 6
+      - name: Upload shaft-cli live evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shaft-cli-live-evidence
+          path: |
+            shaft-cli/target/surefire-reports
+            shaft-cli/build/live-tool-e2e-examples
+          if-no-files-found: ignore
+          retention-days: 14
+
+  intellij-tools-core:
+    name: IntelliJ live tools (Tool + Capture)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Build shaft-mcp live launcher jar
+        uses: ./.github/actions/build-shaft-mcp-live-jar
+      - name: Set up JDK 17 (Gradle)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.0.0'
+      - name: Run live IntelliJ chat-panel tool tests (Tool + Capture)
+        run: >-
+          gradle -p shaft-intellij test
+          --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveToolE2ETest
+          --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveCaptureToolE2ETest
+          -Dshaft.intellij.liveToolE2E=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/core"
+      - name: Verify live tool tests actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-intellij/build/test-results/test/TEST-com.shaft.intellij.ui.ShaftAssistantPanelLiveToolE2ETest.xml
+          shaft-intellij/build/test-results/test/TEST-com.shaft.intellij.ui.ShaftAssistantPanelLiveCaptureToolE2ETest.xml
+          --min-executed 4
+      - name: Upload live tool evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: intellij-live-tools-core-evidence
+          path: |
+            shaft-intellij/build/reports/tests/test
+            build/live-tools/core
+          if-no-files-found: ignore
+          retention-days: 14
+
+  intellij-tools-diagnostics:
+    name: IntelliJ live tools (Diagnostics)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Build shaft-mcp live launcher jar
+        uses: ./.github/actions/build-shaft-mcp-live-jar
+      - name: Set up JDK 17 (Gradle)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.0.0'
+      - name: Run live IntelliJ chat-panel tool tests (Diagnostics)
+        run: >-
+          gradle -p shaft-intellij test
+          --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveDiagnosticsToolE2ETest
+          -Dshaft.intellij.liveToolE2E=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/diagnostics"
+      - name: Verify live tool tests actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-intellij/build/test-results/test/TEST-com.shaft.intellij.ui.ShaftAssistantPanelLiveDiagnosticsToolE2ETest.xml
+          --min-executed 5
+      - name: Upload live tool evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: intellij-live-tools-diagnostics-evidence
+          path: |
+            shaft-intellij/build/reports/tests/test
+            build/live-tools/diagnostics
+          if-no-files-found: ignore
+          retention-days: 14
+
+  intellij-tools-authoring:
+    name: IntelliJ live tools (Authoring)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Build shaft-mcp live launcher jar
+        uses: ./.github/actions/build-shaft-mcp-live-jar
+      - name: Set up JDK 17 (Gradle)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.0.0'
+      # ShaftAssistantPanelLiveAuthoringToolE2ETest's two other methods
+      # (shaft_guide_search -> shafthq.github.io, test_plan_explore ->
+      # example.com) reach third-party hosts; run them in the separate,
+      # continue-on-error step below so their flakiness never fails this
+      # job -- and, by extension, never flips the notify job's outcome.
+      - name: Run authoring live tests (gating)
+        run: >-
+          gradle -p shaft-intellij test
+          --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.shaftProjectServiceCreatesAndInitializesAgentsThroughTheRealChatPanel"
+          --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.testAutomationServiceLooksUpScenariosAndChecksGuardrailsThroughTheRealChatPanel"
+          --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.codingPartnerServicePlansAndDiffsThroughTheRealChatPanel"
+          -Dshaft.intellij.liveToolE2E=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/authoring"
+      - name: Verify authoring gating tests actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-intellij/build/test-results/test/TEST-com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.xml
+          --min-executed 3
+      - name: Run authoring externally-networked tests (non-gating)
+        continue-on-error: true
+        run: >-
+          gradle -p shaft-intellij test
+          --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.guideServiceSearchesTheLiveUserGuideThroughTheRealChatPanel"
+          --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.plannerServiceExploresARealHeadlessSessionThroughTheRealChatPanel"
+          -Dshaft.intellij.liveToolE2E=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/authoring"
+      - name: Upload live tool evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: intellij-live-tools-authoring-evidence
+          path: |
+            shaft-intellij/build/reports/tests/test
+            build/live-tools/authoring
+          if-no-files-found: ignore
+          retention-days: 14
+
+  gemini-live:
+    name: IntelliJ live Gemini E2E
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    # Skip-if-absent, not fail-if-absent (unlike lambdatestTests.yml:63-70's
+    # LambdaTest credential check): a nightly run with no GEMINI_API_KEY
+    # configured yet should report "skipped", not "failure". No existing
+    # precedent for this in the repo -- job-level `if:` cannot read this
+    # job's own `env:` block and `if:` should not reference `secrets.`
+    # directly, so the secret is read once into the GEMINI_API_KEY job env
+    # var here, and every downstream step gates on `env.GEMINI_API_KEY != ''`.
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Build shaft-mcp live launcher jar
+        if: env.GEMINI_API_KEY != ''
+        uses: ./.github/actions/build-shaft-mcp-live-jar
+      - name: Set up JDK 17 (Gradle)
+        if: env.GEMINI_API_KEY != ''
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        if: env.GEMINI_API_KEY != ''
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.0.0'
+      - name: Run live Gemini E2E test
+        if: env.GEMINI_API_KEY != ''
+        run: >-
+          gradle -p shaft-intellij test
+          --tests com.shaft.intellij.ui.AssistantGeminiLiveE2ETest
+          -Dshaft.intellij.liveGemini=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/gemini"
+      - name: Verify live Gemini test actually executed
+        if: env.GEMINI_API_KEY != ''
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-intellij/build/test-results/test/TEST-com.shaft.intellij.ui.AssistantGeminiLiveE2ETest.xml
+          --min-executed 1
+      - name: Skip notice (GEMINI_API_KEY not configured)
+        if: env.GEMINI_API_KEY == ''
+        run: echo "::notice::GEMINI_API_KEY is not configured; skipping the live Gemini E2E job."
+      - name: Upload live Gemini evidence
+        if: always() && env.GEMINI_API_KEY != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: intellij-live-gemini-evidence
+          path: |
+            shaft-intellij/build/reports/tests/test
+            build/live-tools/gemini
+          if-no-files-found: ignore
+          retention-days: 14
+
+  notify:
+    name: Notify on nightly failure
+    needs:
+      - cli-live
+      - intellij-tools-core
+      - intellij-tools-diagnostics
+      - intellij-tools-authoring
+      - gemini-live
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:live-tools'
