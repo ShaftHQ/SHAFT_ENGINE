@@ -1434,7 +1434,8 @@ final class ShaftAssistantPanel extends JPanel {
                     invocation,
                     autoCompact.isSelected(),
                     localAgentOutputCoalescer::enqueue,
-                    localAgentApprovalHandler(streamToken));
+                    localAgentApprovalHandler(streamToken),
+                    verboseLocalAgentOutput());
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
             return;

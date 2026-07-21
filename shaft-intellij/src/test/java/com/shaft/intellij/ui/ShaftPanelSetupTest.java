@@ -2995,6 +2995,71 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(ShaftAssistantChatState.KIND_RAW_VERBOSE, lastMessageKind(panel)));
     }
 
+    /**
+     * Issue #3965 (final wiring step): PR #3977 threaded a {@code verbose} parameter through {@code
+     * AssistantLocalAgentRunner.agentOutput}/{@code StructuredStreamParser#failureOutput} and the new
+     * canonical 7-arg {@code start(...)} overload, proven at the runner level by {@code
+     * AssistantLocalAgentRunnerVerboseStreamTest}. But {@code ShaftAssistantPanel#send}'s own call
+     * site into {@code AssistantLocalAgentRunner.startWithOptionalCompact(...)} still resolved to an
+     * overload that hardcodes {@code verbose=true}, so production stderr leaked into the compact
+     * answer regardless of this Verbose checkbox. These two tests drive the REAL {@code send()} call
+     * site end to end -- a real (non-stubbed) OS process, the bundled JVM's own {@code java}
+     * executable invoked against a bogus main class, which deterministically exits non-zero with a
+     * stable stderr message -- so this is genuine evidence the panel's live Verbose state now reaches
+     * the runner, not just a re-assertion of the already-covered runner-level mechanism.
+     */
+    @Test
+    void localAgentVerboseOffWithholdsRawStderrFromTheCompactAnswerThroughTheRealPanelSendPath() throws Exception {
+        ShaftMcpToolResult result = runRealFailingCustomCommandThroughPanel(false);
+
+        assertFalse(result.output().contains(LOCAL_AGENT_VERBOSE_TEST_BOGUS_CLASS),
+                "Verbose off must withhold the real CLI's raw stderr from the compact answer: " + result.output());
+    }
+
+    @Test
+    void localAgentVerboseOnStillSurfacesRawStderrThroughTheRealPanelSendPath() throws Exception {
+        ShaftMcpToolResult result = runRealFailingCustomCommandThroughPanel(true);
+
+        assertTrue(result.output().contains(LOCAL_AGENT_VERBOSE_TEST_BOGUS_CLASS),
+                "Verbose on must still surface the real CLI's raw stderr in the compact answer: " + result.output());
+    }
+
+    private static final String LOCAL_AGENT_VERBOSE_TEST_BOGUS_CLASS = "NoSuchClassXYZ12345ForShaftVerboseTest";
+
+    private static ShaftMcpToolResult runRealFailingCustomCommandThroughPanel(boolean verbose) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ((JBCheckBox) getField(panel, "verboseAgentOutput")).setSelected(verbose);
+        JTextComponent customCommand = textComponent(panel, "Optional local agent command");
+        customCommand.setText(realJavaBogusClassCommandLine());
+
+        // "Explain this failure" is the same prompt AssistantLocalAgentRunnerVerboseStreamTest's
+        // customCommandInvocation() uses to route to the local-agent tool in ASK mode without
+        // tripping isCodeGenerationRequest/promptNeedsMcpToolCalls (which would otherwise redirect
+        // to the "needs MCP tool access" gate instead of ever reaching the local agent runner).
+        assistantPrompt(panel).setText("Explain this failure");
+        clickAccessible(panel, "Send assistant prompt");
+
+        ShaftMcpInvocation invocation = (ShaftMcpInvocation) getField(panel, "currentInvocation");
+        assertNotNull(invocation, "Expected send() to have started a real local-agent invocation");
+        ShaftMcpToolResult result = invocation.future().get(20, TimeUnit.SECONDS);
+        assertFalse(result.success(),
+                "The bogus main class must make the real java process exit non-zero: " + result.output());
+        // The real stderr line reaching send()'s live outputConsumer schedules the coalescer's real
+        // ~100ms one-shot javax.swing.Timer (ShaftAssistantPanel.java's LocalAgentOutputCoalescer
+        // wiring); this test never pumps the EDT to let it fire and self-stop, so without this wait
+        // the platform's SwingTimerWatcherExtension flags it as "Not disposed" in afterEach even
+        // though the assertions above already have everything they need.
+        Thread.sleep(250);
+        return result;
+    }
+
+    /** The bundled JVM's own {@code java} executable, invoked by absolute path (no PATH dependency). */
+    private static String realJavaBogusClassCommandLine() {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+        String javaBin = Path.of(System.getProperty("java.home"), "bin", windows ? "java.exe" : "java").toString();
+        return "\"" + javaBin + "\" " + LOCAL_AGENT_VERBOSE_TEST_BOGUS_CLASS;
+    }
+
     @Test
     void toolApprovalDenialOutcomeCarriesTheToolEventKind() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
