@@ -3508,6 +3508,28 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantVerboseModeStillSurfacesToolSearchDespiteNonVerboseMilestoneSuppression() throws Exception {
+        // Issue #3920: NON_ACTIONABLE_META_TOOL_NAMES only ever filters the *compact* non-verbose
+        // milestone bubble (addCompactLocalAgentMilestone) -- appendLocalAgentOutput's Verbose branch
+        // renders the raw accumulated stream unfiltered, so ToolSearch is not silently dropped
+        // system-wide, only gated behind Verbose (the policy this issue requires: formatted, behind a
+        // disclosure, or behind Verbose -- never truly gone). Pins that policy so a future change can't
+        // accidentally filter ToolSearch out of the Verbose stream too, which would make it a genuine
+        // silent drop with no escape hatch at all.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+
+        appendStreamingLocalAgentBubble(panel, 611);
+        appendLocalAgentOutput(panel, 611, "Calling tool ToolSearch...");
+
+        String transcript = transcriptMarkdown(panel);
+        assertTrue(transcript.contains("Calling tool ToolSearch"),
+                "ToolSearch must still reach the user via Verbose, even though the compact non-verbose "
+                        + "milestone bubble suppresses it: " + transcript);
+    }
+
+    @Test
     void assistantAgentMilestoneBubbleIsSkippedWhenSuppressedToolCallIsTheOnlyContent() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         appendStreamingLocalAgentBubble(panel, 112);
@@ -3574,6 +3596,53 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(transcript.contains("Tool result (Bash):"), transcript),
                 () -> assertTrue(transcript.toLowerCase(java.util.Locale.ROOT).contains("verbose"),
                         "The compacted preview must point the user at Verbose for the full output: " + transcript));
+    }
+
+    @Test
+    void assistantCompactedToolResultPointerIsReachableByTogglingVerboseMidRun() throws Exception {
+        // Issue #3920: confirms the "enable Verbose to see the full output" pointer from the sibling
+        // test above actually leads somewhere rather than being a dead end. localAgentOutput retains
+        // the full, uncompacted content for the whole run regardless of what the compact milestone
+        // bubble showed, so flipping Verbose on and letting the run stream at least one more line
+        // renders the complete original content via the (separate) live streaming bubble.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        String rawOutput = "line ".repeat(120).strip();
+        String longLine = "Tool result (Bash): " + rawOutput;
+
+        appendStreamingLocalAgentBubble(panel, 621);
+        appendLocalAgentOutput(panel, 621, longLine);
+        verbose.setSelected(true);
+        appendLocalAgentOutput(panel, 621, "next streamed line after enabling Verbose");
+
+        String transcript = transcriptMarkdown(panel);
+        assertTrue(transcript.contains(rawOutput),
+                "Enabling Verbose mid-run must actually surface the previously compacted full content: "
+                        + transcript);
+    }
+
+    @Test
+    void assistantNonVerboseModeSurfacesANoticeInsteadOfSilentlyDroppingRawJsonMilestoneLines() throws Exception {
+        // Issue #3920: addCompactLocalAgentMilestone used to silently return (append nothing at all)
+        // for an unmapped raw NDJSON sub-line ("{"/"[" -- see StructuredStreamParser#accept's raw
+        // passthrough for an event with no human-readable mapping). If that line never streams again
+        // while Verbose is on and the run finishes normally, the content was gone with zero trace it
+        // ever existed -- a genuine silent content drop, not "verbose-gated" in any meaningful sense.
+        // A compact milestone bubble must now surface instead, pointing the user at Verbose, matching
+        // the established compactIfRawToolResult pointer-text pattern for the same "reachable via
+        // Verbose" contract as every other suppression point in this issue.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String rawJson = "{\"type\":\"system\",\"subtype\":\"thinking_tokens\",\"tokens\":42}";
+
+        appendStreamingLocalAgentBubble(panel, 601);
+        appendLocalAgentOutput(panel, 601, rawJson);
+
+        String transcript = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertFalse(transcript.contains(rawJson),
+                        "Raw NDJSON must never render verbatim while Verbose is off: " + transcript),
+                () -> assertTrue(transcript.toLowerCase(java.util.Locale.ROOT).contains("verbose"),
+                        "A notice must point the user at Verbose instead of showing nothing at all: " + transcript));
     }
 
     @Test
@@ -3793,6 +3862,33 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(markdown.contains("Killed"), markdown),
                 () -> assertFalse(markdown.contains("raw content shown while verbose was on"),
                         "Verbose was off at kill time, so the raw partial buffer must not be dumped: "
+                                + markdown));
+    }
+
+    @Test
+    void assistantCancelledRunAfterVerboseToggledOffMidStreamDoesNotDumpRawBuffer() throws Exception {
+        // Issue #3920 fold-in: unlike stopLocalAgentStreaming (the Kill path, fixed for #3918 by
+        // PR#3958), showAgentResult's plain-Cancel path still keyed its "show the raw partial
+        // buffer?" decision off the sticky localAgentBubbleRendersContent flag (true forever once
+        // Verbose rendered anything this run) instead of Verbose's CURRENT state -- so a user who saw
+        // raw content while Verbose was on, then flipped it back off before cancelling (as opposed to
+        // killing), still got the entire raw buffer dumped into the "Cancelled" bubble. Mirrors
+        // assistantKilledRunAfterVerboseToggledOffMidStreamDoesNotDumpRawBuffer above.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+
+        appendStreamingLocalAgentBubble(panel, 501);
+        appendLocalAgentOutput(panel, 501, "raw content shown while verbose was on");
+        verbose.setSelected(false);
+
+        showAgentResult(panel, 501, null, new CancellationException("cancelled"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Cancelled"), markdown),
+                () -> assertFalse(markdown.contains("raw content shown while verbose was on"),
+                        "Verbose was off at cancel time, so the raw partial buffer must not be dumped: "
                                 + markdown));
     }
 

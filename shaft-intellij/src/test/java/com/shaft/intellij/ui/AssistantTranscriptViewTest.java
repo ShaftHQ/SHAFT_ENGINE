@@ -145,6 +145,37 @@ class AssistantTranscriptViewTest {
                 "replaceLast must mutate the existing last bubble in place and construct zero new bubbles");
     }
 
+    /**
+     * Issue #3920: {@link AssistantTranscriptView#trimOldestIfOverCapacity} deletes the oldest bubbles
+     * outright once a session exceeds {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION} -- a
+     * real content loss, not just a rendering choice, for any real-world session that runs long (many
+     * non-verbose milestone bubbles, one per streamed line). The cap is raised substantially (from 80)
+     * so genuine mid-session data loss becomes practically unreachable, while still bounding memory/
+     * render cost against a genuinely runaway pathological run -- a disclosure-collapse alternative was
+     * considered and rejected as disproportionate: the trim logic is tightly coupled to precise index
+     * bookkeeping across three parallel structures (messages/messageRawEvidence/renderedBubbles) with
+     * existing fragile invariants (canAppendIncrementally, truncationBoundaryIndex, the streamed-fence-
+     * delta fast path), and {@code ShaftAssistantChatState} enforces the identical cap independently on
+     * the persisted session, so a real "no loss ever" guarantee would need both layers redesigned
+     * together regardless.
+     */
+    @Test
+    void assistantTranscriptRetainsMessagesWellBeyondTheOldEightyMessageCapToAvoidSilentContentLoss() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        int messageCount = 150;
+
+        for (int i = 0; i < messageCount; i++) {
+            view.append("assistant", "Milestone " + i);
+        }
+
+        assertAll(
+                () -> assertEquals(messageCount, view.currentMessageCountForTest(),
+                        "150 messages must all be retained -- the old 80-message cap used to silently "
+                                + "drop the oldest 70: " + view.currentMessageCountForTest()),
+                () -> assertTrue(view.markdown().contains("Milestone 0"),
+                        "The oldest message must not be silently dropped: " + view.markdown()));
+    }
+
     @Test
     void replaceLastUpdatesTheExistingBubblesRenderedHtmlInPlace() {
         AssistantTranscriptView view = new AssistantTranscriptView();

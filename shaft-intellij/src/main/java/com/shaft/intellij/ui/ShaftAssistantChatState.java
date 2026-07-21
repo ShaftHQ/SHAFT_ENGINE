@@ -21,8 +21,16 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     private static final int MAX_SESSIONS = 12;
     // Package-private (not private): AssistantTranscriptView reuses this exact constant, rather than
     // duplicating the number, to bound its own rendered messages/bubbles to the same trim policy
-    // (issue #3751 part 2, MEDIUM finding 4).
-    static final int MAX_MESSAGES_PER_SESSION = 80;
+    // (issue #3751 part 2, MEDIUM finding 4). Trimming past this cap deletes the oldest messages
+    // outright -- a real agent-response content loss, not just a rendering choice (issue #3920). Raised
+    // from 80 to make genuine mid-session data loss practically unreachable while still bounding
+    // memory/render cost against a runaway pathological run; a disclosure-collapse ("N earlier
+    // messages") alternative was considered and rejected as disproportionate to this ticket -- the trim
+    // logic in AssistantTranscriptView is tightly coupled to precise index bookkeeping across three
+    // parallel structures with existing fragile invariants, and this same cap is enforced independently
+    // on the persisted session below (ensureMessages), so a real "no loss ever" guarantee would need
+    // both layers redesigned together regardless of a collapse bubble here.
+    static final int MAX_MESSAGES_PER_SESSION = 500;
     private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
             "(?iu)([\"']?\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|set-cookie)\\b[\"']?\\s*[:=]\\s*)([\"']?)[^\\s`'\",}]+([\"']?)");
