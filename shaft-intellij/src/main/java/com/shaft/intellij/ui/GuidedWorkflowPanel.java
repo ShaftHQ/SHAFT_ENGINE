@@ -94,7 +94,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private final String recordingKey = "guided#" + Integer.toHexString(System.identityHashCode(this));
     // Created lazily on the first poll so headless panel tests never touch platform executors.
     private Alarm statusPollAlarm;
-    private volatile boolean pollingActive;
+    // Package-private (not private) for GuidedWorkflowPanelTest, matching the applyStatusPoll()
+    // test seam below: exercises the real poll-response handling path against a status fixture
+    // without needing a live polling MCP connection to flip this on via startStatusPolling().
+    volatile boolean pollingActive;
     private boolean headlessLockedByPolicy;
     private boolean recorderSeenActive;
     private int pollsWithoutActivity;
@@ -1210,7 +1213,10 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 .whenComplete((result, error) -> onEdt(() -> applyStatusPoll(result, error)));
     }
 
-    private void applyStatusPoll(ShaftMcpToolResult result, Throwable error) {
+    // Package-private (not private) for GuidedWorkflowPanelTest (mirrors renderStepsFromStatus()
+    // below): exercises the real poll-response handling path against a status fixture directly,
+    // without needing a live polling MCP connection.
+    void applyStatusPoll(ShaftMcpToolResult result, Throwable error) {
         if (!pollingActive) {
             return;
         }
@@ -1219,7 +1225,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             scheduleNextStatusPoll();
             return;
         }
-        JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        JsonObject status = unwrapCaptureStatus(AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
         // Issue #3639: the steps list is a pure projection of this same polled status, refreshed on
         // every poll (active or the final post-stop poll) -- there is no separate client-side state
         // store. A capture_status payload (WebDriver) has no "steps" key, so this naturally renders
@@ -1396,6 +1402,34 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             }
             return text.toString();
         }
+    }
+
+    /**
+     * Unwraps a {@code capture_status}/{@code capture_api_status} union response ({@code
+     * McpCaptureUnionStatus}/{@code McpCaptureApiUnionStatus}, design doc amendment A3, landed by
+     * #3881) down to whichever of {@code webStatus}/{@code playwrightStatus}/{@code mobileStatus}
+     * the active engine populated -- mirrors {@code GuidedWorkflowLiveE2ETest}'s {@code
+     * webStatus()}/{@code mobileStatus()} helpers, which confirmed this wire shape against a live
+     * server (issue #3949): {@code state}/{@code active}/{@code actionCount}/{@code steps} live on
+     * that nested section, not at the union's top level. The union guarantees exactly one section is
+     * populated, so returning the first populated section is equivalent to dispatching on the
+     * union's {@code engine} field. A payload with none of these keys (already unwrapped, or a
+     * non-union shape) is returned unchanged.
+     *
+     * @param status the raw parsed tool output, or null
+     * @return the unwrapped engine-specific status section, or {@code status} itself when it has no
+     *         union section to unwrap
+     */
+    private static JsonObject unwrapCaptureStatus(JsonObject status) {
+        if (status == null) {
+            return null;
+        }
+        for (String section : new String[]{"webStatus", "playwrightStatus", "mobileStatus"}) {
+            if (status.has(section) && status.get(section).isJsonObject()) {
+                return status.getAsJsonObject(section);
+            }
+        }
+        return status;
     }
 
     private static boolean isRecorderActive(JsonObject status) {
