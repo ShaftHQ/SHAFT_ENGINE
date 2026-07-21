@@ -70,6 +70,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@Test(singleThreaded = true)
 public class ActionsCoverageUnitTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final By LOCATOR = By.id("target");

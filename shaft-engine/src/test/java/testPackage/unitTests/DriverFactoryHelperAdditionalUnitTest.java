@@ -402,6 +402,12 @@ public class DriverFactoryHelperAdditionalUnitTest {
         SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
         SHAFT.Properties.healenium.set().healEnabled(false);
         SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
+        // This test proves the mocked-construction success path only; it must not depend on
+        // whatever real Selenium Grid (if any) happens to be listening on :4444 in the current
+        // environment. Disable the live preflight explicitly instead of inheriting an ambient
+        // -DremotePreflightEnabled=true from the caller (e.g. the nightly grid CI jobs, which run
+        // a real Linux-only grid on this exact port and have no "chrome/windows" slot to match).
+        SHAFT.Properties.platform.set().remotePreflightEnabled(false);
 
         DriverFactoryHelper helper = new DriverFactoryHelper();
         try (MockedConstruction<RemoteWebDriver> ignored = org.mockito.Mockito.mockConstruction(RemoteWebDriver.class,
