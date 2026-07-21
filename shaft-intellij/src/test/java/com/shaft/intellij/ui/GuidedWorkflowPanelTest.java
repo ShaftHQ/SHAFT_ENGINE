@@ -1,8 +1,10 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.intellij.ui.components.JBList;
 import org.junit.jupiter.api.Test;
 
@@ -481,6 +483,44 @@ class GuidedWorkflowPanelTest {
         captureStatusShape.addProperty("eventCount", 3);
         assertTrue(GuidedWorkflowPanel.parseSteps(captureStatusShape).isEmpty());
         assertTrue(GuidedWorkflowPanel.parseSteps(null).isEmpty());
+    }
+
+    @Test
+    void applyStatusPollUnwrapsTheActiveEngineSectionFromTheUnionResponse() {
+        // Issue #3949: capture_status/capture_api_status return a union (McpCaptureUnionStatus /
+        // McpCaptureApiUnionStatus, design doc amendment A3, landed by #3881) with the real recorder
+        // status nested under webStatus/playwrightStatus/mobileStatus -- GuidedWorkflowLiveE2ETest's
+        // webStatus()/mobileStatus() helpers (confirmed against a live server) prove this is the
+        // actual wire shape, not the flat pre-#3881 shape. applyStatusPoll must unwrap the matching
+        // section before reading state/eventCount, or an active recording never renders as active.
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        panel.pollingActive = true;
+
+        JsonObject webStatus = new JsonObject();
+        webStatus.addProperty("state", "ACTIVE");
+        webStatus.addProperty("eventCount", 2);
+        webStatus.addProperty("readiness", "READY");
+        webStatus.addProperty("currentUrl", "https://example.com/cart");
+
+        JsonObject union = new JsonObject();
+        union.addProperty("engine", "WEB");
+        union.add("webStatus", webStatus);
+        union.add("playwrightStatus", JsonNull.INSTANCE);
+        union.add("mobileStatus", JsonNull.INSTANCE);
+
+        try {
+            panel.applyStatusPoll(new ShaftMcpToolResult(true, union.toString(), null, null), null);
+
+            String statusText = panel.recorderStatusLabel().getText();
+            assertAll(
+                    () -> assertTrue(statusText.contains("Recording"),
+                            "Expected the WEB engine's nested webStatus to render as active: " + statusText),
+                    () -> assertTrue(statusText.contains("2 steps"),
+                            "Expected the unwrapped webStatus eventCount to render: " + statusText));
+        } finally {
+            panel.dispose();
+        }
     }
 
     private static JsonObject recordedStepsStatus(String stepId) {
