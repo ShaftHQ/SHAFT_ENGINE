@@ -21,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
+@Test(singleThreaded = true)
 public class LambdaTestHelperUnitTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
