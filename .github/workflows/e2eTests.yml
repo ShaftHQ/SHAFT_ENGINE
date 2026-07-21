@@ -835,3 +835,21 @@ jobs:
         with:
           job-name: Ubuntu_JUnit_E2E
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  notify_e2e_tests_failure:
+    name: Notify on nightly failure
+    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:e2e-tests'

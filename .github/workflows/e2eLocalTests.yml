@@ -347,3 +347,21 @@ jobs:
         with:
           job-name: Windows_Edge_Cucumber_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  notify_local_e2e_tests_failure:
+    name: Notify on nightly failure
+    needs: [ Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local ]
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:local-e2e-tests'
