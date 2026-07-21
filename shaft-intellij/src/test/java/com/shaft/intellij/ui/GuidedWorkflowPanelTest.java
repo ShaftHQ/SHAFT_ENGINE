@@ -146,7 +146,13 @@ class GuidedWorkflowPanelTest {
         CapturedInvocation mobileStart = last(invocations);
         assertAll(
                 () -> assertEquals("capture_start", mobileStart.toolName()),
-                () -> assertFalse(mobileStart.arguments().get("includeSensitiveValues").getAsBoolean()));
+                // Issue #3908 live-repro finding: capture_start has no mode/includeSensitiveValues
+                // arguments (absorbed into sessionGoal / dropped, #3881) -- the stale flat shape this
+                // used to send fails live schema validation ("property 'mode' is not defined in the
+                // schema").
+                () -> assertFalse(mobileStart.arguments().has("mode")),
+                () -> assertFalse(mobileStart.arguments().has("includeSensitiveValues")),
+                () -> assertTrue(mobileStart.arguments().has("sessionGoal")));
 
         stop.doClick();
         CapturedInvocation mobileStop = last(invocations);
@@ -161,6 +167,13 @@ class GuidedWorkflowPanelTest {
                 () -> assertEquals("driver", mobileReview.arguments().get("driverVariableName").getAsString()));
 
         select(backend, "Playwright");
+        start.doClick();
+        CapturedInvocation playwrightStart = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_start", playwrightStart.toolName()),
+                () -> assertFalse(playwrightStart.arguments().has("mode")),
+                () -> assertFalse(playwrightStart.arguments().has("includeSensitiveValues")),
+                () -> assertTrue(playwrightStart.arguments().has("sessionGoal")));
         stop.doClick();
         assertEquals("capture_stop", last(invocations).toolName());
         review.doClick();
