@@ -220,6 +220,11 @@ did. Before committing any subagent's work:
   verify it yourself or send it back to prove it — don't accept an
   unverified empirical claim at face value, even from a subagent that
   otherwise did good work.
+- Scan the report/diff, and once opened, the PR body itself, for deferred/
+  out-of-scope/adjacent-finding/follow-up language — file a tracked issue for
+  each before treating the sub-item as done. This is AGENTS.md's Working
+  Rules out-of-scope-finding rule applied at PR-review time; see there for
+  the full rule.
 
 One commit per sub-item once it passes review, using this repo's normal
 commit-message conventions (issue number in the subject line).

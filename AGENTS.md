@@ -23,6 +23,7 @@ At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
 - Blockers in path: fix inline. Any other out-of-scope finding -- never drop or just chat it: interactive -> ask now-vs-issue; noninteractive -> `gh issue create` same session (search first, consolidate). Don't hunt for extras.
+- PR review: scan for deferred/out-of-scope/adjacent-finding language (yours or a delegate's) -- each needs a tracked issue before closing (search first, cross-link tracker).
 
 ## Windows/Codex Safety
 
