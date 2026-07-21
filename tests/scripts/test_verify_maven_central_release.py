@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import scripts.ci.validate_maven_publication as validate_publication
 import scripts.ci.verify_maven_central_release as verify
 
 FIXTURE_GOALS = verify.FIXTURE_GOALS
@@ -54,6 +55,23 @@ class VerifyMavenCentralReleaseTest(unittest.TestCase):
                 for command in commands
             }
             self.assertEqual(len(repositories), len(FIXTURE_GOALS))
+
+    def test_artifact_lists_match_the_deployed_reactor_publication_map(self):
+        # validate_maven_publication.PUBLIC_ARTIFACTS is the cross-checked, packaging-aware
+        # source of truth for what the reactor actually deploys (it reads each pom's
+        # <packaging>); JAR_ARTIFACTS/POM_ARTIFACTS here must not drift from it, or a
+        # published module (e.g. shaft-cli) silently stops being verified/reconciled.
+        expected_jars = {
+            name for name, (_, packaging) in validate_publication.PUBLIC_ARTIFACTS.items()
+            if packaging == "jar"
+        }
+        expected_poms = {
+            name for name, (_, packaging) in validate_publication.PUBLIC_ARTIFACTS.items()
+            if packaging == "pom"
+        }
+
+        self.assertEqual(set(verify.JAR_ARTIFACTS), expected_jars)
+        self.assertEqual(set(verify.POM_ARTIFACTS), expected_poms)
 
     def test_settings_force_the_requested_repository(self):
         with tempfile.TemporaryDirectory() as temp_dir:
