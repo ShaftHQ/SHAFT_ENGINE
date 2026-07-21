@@ -706,6 +706,66 @@ class CaptureGeneratorTest {
                 .anyMatch(fallback -> fallback.contains("username-input")));
     }
 
+    /**
+     * Issue #3905: a ROLE-strategy locator (the highest-scoring {@link LocatorCandidate.LocatorStrategy},
+     * always preferred when present -- see the nightly "Guided Workflows Live E2E" login fixture, where
+     * every field resolves to ROLE) renders {@code Role.BUTTON}/{@code Role.TEXTBOX} literals into the
+     * generated source ({@code semanticLocator}) without ever adding the matching
+     * {@code import com.shaft.gui.internal.locator.Role;} -- so real compilation fails with
+     * "cannot find symbol: variable Role" every time a ROLE locator is chosen and generation reaches
+     * the compile step. Reproduced deterministically here (no live browser needed): a session with a
+     * single ROLE-only-candidate button, real javac compilation requested via {@link #request}.
+     */
+    @Test
+    void roleStrategyLocatorGeneratesAnImportForTheRoleEnumSoCompilationSucceeds() throws Exception {
+        Path session = session(roleLocatorSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(request(session, temp.resolve("role")));
+
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("import com.shaft.gui.internal.locator.Role;"),
+                "generated source uses Role.BUTTON but never imports Role: " + source);
+        assertTrue(source.contains("Role.BUTTON"), source);
+        assertTrue(result.successful(),
+                "generation must compile a ROLE-strategy locator: " + result.report().compilation());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                result.report().compilation().status(),
+                result.report().compilation().diagnostics().toString());
+    }
+
+    private static CaptureSession roleLocatorSession() {
+        ElementSnapshot loginButton = new ElementSnapshot(
+                "login-button",
+                "button",
+                "button",
+                "Log in",
+                "",
+                Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:Log in", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "role-locator-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), loginButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
     @Test
     void controlFlowPreviewReportsSuggestionsWithoutChangingLinearReplay() throws Exception {
         Path preview = temp.resolve("control-flow-preview.json");
