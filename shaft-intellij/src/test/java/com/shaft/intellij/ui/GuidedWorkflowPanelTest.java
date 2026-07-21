@@ -164,7 +164,15 @@ class GuidedWorkflowPanelTest {
         CapturedInvocation mobileReview = last(invocations);
         assertAll(
                 () -> assertEquals("capture_code_blocks", mobileReview.toolName()),
-                () -> assertEquals("driver", mobileReview.arguments().get("driverVariableName").getAsString()));
+                () -> assertEquals("driver", mobileReview.arguments().get("driverVariableName").getAsString()),
+                // Issue #3916 live-repro finding: the unified capture_code_blocks tool (post-#3881)
+                // has no recordingPath argument -- it fails live schema validation ("property
+                // 'recordingPath' is not defined in the schema"). Mobile/Playwright must send
+                // sessionPath plus an explicit backend, exactly like the WebDriver branch below.
+                () -> assertFalse(mobileReview.arguments().has("recordingPath")),
+                () -> assertEquals("recordings/intellij-capture.json",
+                        mobileReview.arguments().get("sessionPath").getAsString()),
+                () -> assertEquals("mobile", mobileReview.arguments().get("backend").getAsString()));
 
         select(backend, "Playwright");
         start.doClick();
@@ -177,7 +185,13 @@ class GuidedWorkflowPanelTest {
         stop.doClick();
         assertEquals("capture_stop", last(invocations).toolName());
         review.doClick();
-        assertEquals("capture_code_blocks", last(invocations).toolName());
+        CapturedInvocation playwrightReview = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_code_blocks", playwrightReview.toolName()),
+                () -> assertFalse(playwrightReview.arguments().has("recordingPath")),
+                () -> assertEquals("recordings/intellij-capture.json",
+                        playwrightReview.arguments().get("sessionPath").getAsString()),
+                () -> assertEquals("playwright", playwrightReview.arguments().get("backend").getAsString()));
     }
 
     @Test
