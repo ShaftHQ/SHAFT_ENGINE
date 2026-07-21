@@ -36,9 +36,35 @@ final class CliExecutableDetector {
                 continue;
             }
             for (String extension : extensions) {
-                if (new File(directory, executable + extension).isFile()) {
+                String candidate = executable + extension;
+                boolean found = windows
+                        ? directoryContainsCaseInsensitive(directory, candidate)
+                        : new File(directory, candidate).isFile();
+                if (found) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Windows PATHEXT matching is case-insensitive by definition (cmd.exe resolves {@code .exe},
+     * {@code .Exe} and {@code .EXE} identically), regardless of whether the underlying filesystem
+     * happens to fold case itself. {@link File#isFile()} only matches case-insensitively on
+     * filesystems (like NTFS) that fold case at the OS level -- on a case-sensitive filesystem
+     * (e.g. the ext4 runners CI builds on) it would silently miss a real match. Listing the
+     * directory and comparing names with {@link String#equalsIgnoreCase} implements the
+     * case-insensitive match explicitly, so behavior no longer depends on the host filesystem.
+     */
+    private static boolean directoryContainsCaseInsensitive(String directory, String candidateName) {
+        File[] entries = new File(directory).listFiles();
+        if (entries == null) {
+            return false;
+        }
+        for (File entry : entries) {
+            if (entry.isFile() && entry.getName().equalsIgnoreCase(candidateName)) {
+                return true;
             }
         }
         return false;
