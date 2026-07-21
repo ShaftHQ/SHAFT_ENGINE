@@ -102,6 +102,10 @@ final class AssistantTranscriptView extends JPanel {
     static final String TRANSCRIPT_ROLE_PROPERTY = "shaft.transcript.role";
     static final String TRANSCRIPT_BUBBLE_PROPERTY = "shaft.transcript.bubble";
     static final String TRANSCRIPT_RENDERED_HTML_PROPERTY = "shaft.transcript.renderedHtml";
+    // Issue #3921: mirrors TRANSCRIPT_ROLE_PROPERTY, but carries the message's resolved
+    // ShaftAssistantChatState kind (KIND_USER/KIND_ASSISTANT_TEXT/...) rather than its role, so
+    // callers/tests can observe which MessageStyleRegistry entry a rendered row actually used.
+    static final String TRANSCRIPT_KIND_PROPERTY = "shaft.transcript.kind";
 
     private final Project project;
     private final JPanel fallbackPanel;
@@ -354,7 +358,7 @@ final class AssistantTranscriptView extends JPanel {
     private void appendBubbleIncrementally(int index) {
         ShaftAssistantChatState.Message message = messages.get(index);
         String rawEvidence = index < messageRawEvidence.size() ? messageRawEvidence.get(index) : "";
-        RenderedBubble handle = fallbackMessage(message.role, message.markdown, rawEvidence);
+        RenderedBubble handle = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
         fallbackPanel.add(handle.row);
         renderedBubbles.add(handle);
         fallbackPanel.revalidate();
@@ -605,6 +609,7 @@ final class AssistantTranscriptView extends JPanel {
         }
         ShaftAssistantChatState.Message message = new ShaftAssistantChatState.Message();
         message.role = normalizedRole(role);
+        message.kind = ShaftAssistantChatState.resolveKind(message.kind, message.role);
         message.markdown = value;
         messages.add(message);
         messageRawEvidence.add(rawEvidence == null ? "" : rawEvidence);
@@ -656,7 +661,7 @@ final class AssistantTranscriptView extends JPanel {
             }
             ShaftAssistantChatState.Message message = messages.get(i);
             String rawEvidence = i < messageRawEvidence.size() ? messageRawEvidence.get(i) : "";
-            RenderedBubble handle = fallbackMessage(message.role, message.markdown, rawEvidence);
+            RenderedBubble handle = fallbackMessage(message.role, message.kind, message.markdown, rawEvidence);
             fallbackPanel.add(handle.row);
             renderedBubbles.add(handle);
         }
@@ -850,22 +855,21 @@ final class AssistantTranscriptView extends JPanel {
         return row;
     }
 
-    private RenderedBubble fallbackMessage(String role, String markdown, String rawEvidence) {
+    private RenderedBubble fallbackMessage(String role, String kind, String markdown, String rawEvidence) {
         bubbleCreationCount++;
         String normalizedRole = normalizedRole(role);
         boolean user = USER_ROLE.equals(normalizedRole);
-        Color background = user
-                ? resolvedColor("Panel.selectionBackground", new Color(0x2563EB))
-                : resolvedColor("Panel.background", new Color(0xF6F8FA));
-        Color foreground = user
-                ? resolvedColor("Panel.selectionForeground", Color.WHITE)
-                : resolvedColor("TextArea.foreground", new Color(0x202020));
+        String normalizedKind = ShaftAssistantChatState.resolveKind(kind, normalizedRole);
+        MessageStyleRegistry.MessageStyle style = MessageStyleRegistry.styleFor(normalizedKind);
+        Color background = style.background();
+        Color foreground = style.foreground();
         JPanel row = new PreferredHeightRow(new BorderLayout());
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.emptyBottom(10));
         row.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
+        row.putClientProperty(TRANSCRIPT_KIND_PROPERTY, normalizedKind);
         row.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message row");
-        Color stroke = user ? null : resolvedColor("Component.borderColor", new Color(0xD0D7DE));
+        Color stroke = style.stroke();
         RoundedBubblePanel bubble = new RoundedBubblePanel(background, stroke, 18);
         bubble.setLayout(new BorderLayout());
         bubble.setBorder(JBUI.Borders.empty(9, 11));

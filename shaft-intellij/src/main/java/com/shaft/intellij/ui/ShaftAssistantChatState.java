@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -31,6 +32,19 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     // on the persisted session below (ensureMessages), so a real "no loss ever" guarantee would need
     // both layers redesigned together regardless of a collapse bubble here.
     static final int MAX_MESSAGES_PER_SESSION = 500;
+    // Message-kind model (issue #3921): before this, a message's visual/semantic "kind" (a plain
+    // assistant reply vs. a tool-call result vs. an error vs. verbose raw output vs. a compact
+    // progress milestone) existed only implicitly, encoded in markdown text and glyph prefixes
+    // (ShaftStatusPresentation icons) that AssistantTranscriptView's fallbackMessage() never
+    // actually branched on -- it only ever distinguished USER_ROLE from everything else. These
+    // constants are the full, explicit kind vocabulary; MessageStyleRegistry is the single place
+    // that maps each one to a rendered style.
+    public static final String KIND_ASSISTANT_TEXT = "assistant-text";
+    public static final String KIND_TOOL_EVENT = "tool-event";
+    public static final String KIND_ERROR = "error";
+    public static final String KIND_RAW_VERBOSE = "raw-verbose";
+    public static final String KIND_MILESTONE = "milestone";
+    public static final String KIND_USER = "user";
     private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
             "(?iu)([\"']?\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|set-cookie)\\b[\"']?\\s*[:=]\\s*)([\"']?)[^\\s`'\",}]+([\"']?)");
@@ -124,6 +138,7 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         Session session = activeSession();
         Message message = new Message();
         message.role = role == null ? "" : role;
+        message.kind = resolveKind(message.kind, message.role);
         String renderedMarkdown = "user".equals(message.role) ? stripSpeakerLabel(markdown) : markdown;
         message.markdown = redactSecrets(renderedMarkdown);
         if (message.markdown.isBlank()) {
@@ -274,9 +289,28 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         }
         Message copy = new Message();
         copy.role = source.role == null ? "" : source.role;
+        copy.kind = resolveKind(source.kind, copy.role);
         copy.markdown = redactSecrets(source.markdown);
         copy.createdAt = source.createdAt == null ? "" : source.createdAt;
         return copy;
+    }
+
+    /**
+     * Resolves the effective kind for a message: an explicit, non-blank {@code kind} is normalized
+     * (trimmed, lower-cased) and returned as-is; otherwise the kind is inferred from {@code role} --
+     * {@code "user"} resolves to {@link #KIND_USER}, everything else (including a blank/null role)
+     * resolves to {@link #KIND_ASSISTANT_TEXT}. Used both at message-construction time ({@link
+     * #append}) and at persistence-load time ({@link #normalizeMessage}) so a session saved before
+     * the {@code kind} field existed -- where every message deserializes {@code kind} as the field's
+     * declared default {@code ""} -- still resolves a sensible, role-inferred kind instead of staying
+     * blank.
+     */
+    public static String resolveKind(String kind, String role) {
+        if (kind != null && !kind.isBlank()) {
+            return kind.trim().toLowerCase(Locale.ROOT);
+        }
+        String normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
+        return KIND_USER.equals(normalizedRole) ? KIND_USER : KIND_ASSISTANT_TEXT;
     }
 
     private static String redactSecrets(String value) {
@@ -356,5 +390,11 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         public String role = "";
         public String markdown = "";
         public String createdAt = "";
+        // Left blank by default rather than eagerly resolved here: a session serialized before this
+        // field existed deserializes it as exactly this default ("", the XmlSerializer's behavior for
+        // an XML element with no matching child), which is how #resolveKind/normalizeMessage detect
+        // "no persisted kind" and fall back to a role-inferred default instead of trusting a blank
+        // value as if it were meaningful.
+        public String kind = "";
     }
 }
