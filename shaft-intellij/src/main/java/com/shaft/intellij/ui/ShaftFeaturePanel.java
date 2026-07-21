@@ -17,6 +17,8 @@ import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpProgress;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ToolCatalogDiff;
+import com.shaft.intellij.mcp.ToolCatalogIndex;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
@@ -40,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
 
@@ -464,9 +467,28 @@ final class ShaftFeaturePanel extends JPanel {
             setOutput("", formatErrorOutput(result));
         }
         status.setText(success
-                ? ShaftStatusPresentation.SUCCESS_ICON + " Tools refreshed"
+                ? ShaftStatusPresentation.SUCCESS_ICON + " Tools refreshed" + catalogDiffNote(result.output())
                 : ShaftStatusPresentation.ERROR_ICON + " Failed");
         showRecovery(category, project, () -> refreshCatalog(project));
+    }
+
+    /**
+     * Surfaces a stale bundled tool-index on an explicit "Refresh tools" (issue #3895, deferred from
+     * #3883(b)): compares the just-fetched live {@code tools/list} names against the bundled
+     * {@link ToolCatalogIndex#toolNames()} and, when they differ, appends the difference to the
+     * status text. {@code status} is a plain {@link javax.swing.JLabel}, which never renders
+     * {@code "\n"} as a line break, so the note is joined with " -- " to keep the label genuinely
+     * one line instead of one clipped/awkward run. Silent (returns {@code ""}) when the sets match or
+     * either side failed to parse -- {@link ToolCatalogDiff#diff(Set, Set)} is itself null/empty-safe,
+     * so a malformed response here never produces a false "every bundled tool is missing" alarm.
+     */
+    private static String catalogDiffNote(String toolsListOutput) {
+        Set<String> liveToolNames = ToolCatalog.parseToolsList(toolsListOutput).stream()
+                .map(DiscoveredTool::name)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        return ToolCatalogDiff.diff(liveToolNames, ToolCatalogIndex.toolNames())
+                .map(note -> " — " + note)
+                .orElse("");
     }
 
     private void showRecovery(McpInvocationError category, Project project, Runnable retryAction) {

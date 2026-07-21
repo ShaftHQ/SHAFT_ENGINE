@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.driver.SHAFT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -184,5 +185,40 @@ class EngineServiceTest {
         );
 
         logger.info("DuckDuckGo search scenario passed. First result URL: {}", firstResultHref);
+    }
+
+    /**
+     * #3894: exercises the omitted-{@code targetBrowser} path end-to-end exactly as the MCP layer
+     * invokes it -- the real 3-arg {@code @Tool}-annotated
+     * {@link EngineService#initializeDriver(BrowserType, ActiveEngine, McpMobileInitOptions)}
+     * signature with every optional param blank/null -- so
+     * {@link EngineService#resolveBrowserName(BrowserType)} defers to the already-configured
+     * {@code SHAFT.Properties.web.targetBrowserName()} (default chrome) against a real WebDriver
+     * launch, complementing the unit seam in
+     * {@link EngineServiceDriverInitializeTest#resolveBrowserNameDefersToTheConfiguredPropertyWhenTargetBrowserIsOmitted()}.
+     */
+    @Test
+    void testDriverInitializeWithOmittedTargetBrowserResolvesConfiguredDefault() {
+        String configuredBrowser = SHAFT.Properties.web.targetBrowserName();
+
+        engineService.initializeDriver(null, null, null);
+
+        // Proves the omitted case launched using the pre-existing configured default rather than
+        // overwriting it with a hardcoded/null value.
+        assertEquals(configuredBrowser, SHAFT.Properties.web.targetBrowserName(),
+                "Omitted targetBrowser should resolve to (and not overwrite) the configured default browser name");
+
+        browserService.navigate(TEST_URL);
+
+        String title = browserService.getTitle();
+        assertNotNull(title, "Page title should not be null");
+        assertFalse(title.isEmpty(), "Page title should not be empty");
+
+        String url = browserService.getCurrentUrl();
+        assertNotNull(url, "Current URL should not be null");
+        assertFalse(url.isEmpty(), "Current URL should not be empty");
+
+        logger.info("Driver initialized with omitted targetBrowser resolved to '{}'; title: {}",
+                configuredBrowser, title);
     }
 }

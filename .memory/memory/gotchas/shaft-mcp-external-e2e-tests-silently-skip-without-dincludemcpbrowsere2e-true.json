@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/shaft-mcp-external-e2e-tests-silently-skip-without-dincludemcpbrowsere2e-true.md",
+  "content_hash": "sha256:1ea150578ae564d3d6cb4987d179ce5caa61546f340ca253a6826d57cdac9db7",
+  "created_at": "2026-07-21T08:35:15+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-mcp-external-e2e-tests-silently-skip-without-dincludemcpbrowsere2e-true",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "work-github #3890 follow-ups batch"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-mcp",
+    "external-e2e",
+    "surefire",
+    "junit-tags"
+  ],
+  "title": "shaft-mcp external-e2e tests silently skip without -DincludeMcpBrowserE2E=true",
+  "type": "gotcha",
+  "updated_at": "2026-07-21T08:35:15+03:00"
+}
