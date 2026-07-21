@@ -420,3 +420,6 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync","timestamp":"2026-07-20T18:30:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-07-20T23:29:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.concurrent-agents-in-shared-checkout-must-stage-by-exact-path-never-a-or","timestamp":"2026-07-21T02:15:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit","timestamp":"2026-07-21T06:13:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all","timestamp":"2026-07-21T06:13:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-cli-pom-argline-clobbers-root-jacoco-prepare-agent-mvn-pl-shaft-cli-test-silently-produces-no-jacoco-exec","timestamp":"2026-07-21T06:13:44+03:00"}
