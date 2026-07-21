@@ -2878,20 +2878,20 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantLocalAgentTimeoutShowsFailureReasonBeforeMilestoneAndTokenNote() throws Exception {
+    void assistantLocalAgentTimeoutShowsFailureReasonAndTokenNoteWithoutMilestoneBubble() throws Exception {
+        // Issue #3919: the terminal "Failed (Ns)" milestone bubble that used to follow the failure
+        // reason is gone -- the reason and the token-usage note are what's left in the transcript.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
 
         appendStreamingLocalAgentBubble(panel, 9);
         showAgentResult(panel, 9, ShaftMcpToolResult.failure("Timed out after 300 seconds."));
 
         String markdown = transcriptMarkdown(panel);
-        int reasonIndex = markdown.indexOf("Timed out after 300 seconds.");
-        int milestoneIndex = markdown.indexOf("Failed (");
         assertAll(
-                () -> assertTrue(reasonIndex >= 0, "Failure reason must appear in the transcript: " + markdown),
-                () -> assertTrue(milestoneIndex >= 0, "Terminal milestone must appear in the transcript: " + markdown),
-                () -> assertTrue(reasonIndex < milestoneIndex,
-                        "Failure reason should render before the terminal milestone bubble: " + markdown),
+                () -> assertTrue(markdown.contains("Timed out after 300 seconds."),
+                        "Failure reason must appear in the transcript: " + markdown),
+                () -> assertFalse(markdown.contains("Failed ("),
+                        "The terminal milestone bubble must no longer appear: " + markdown),
                 () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token"),
                         "A terminal failure must say whether token usage is available: " + markdown));
     }
@@ -3591,6 +3591,28 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantVerboseStreamingAccumulatesInPlaceAcrossMultipleLines() throws Exception {
+        // Issue #3919: with no eager placeholder bubble to anchor the first replace, the first
+        // verbose line must still establish the transcript bubble the rest of the stream updates in
+        // place -- not a fresh bubble per streamed line.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+
+        appendStreamingLocalAgentBubble(panel, 501);
+        appendLocalAgentOutput(panel, 501, "first streamed line");
+        appendLocalAgentOutput(panel, 501, "second streamed line");
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("first streamed line"), markdown),
+                () -> assertTrue(markdown.contains("second streamed line"), markdown),
+                () -> assertEquals(2, countOccurrences(markdown, "```"),
+                        "Both lines must accumulate into the same fenced code block, not a fresh bubble "
+                                + "per streamed line: " + markdown));
+    }
+
+    @Test
     void assistantStructuredLocalAgentResponseShowsExactReportedTokenCountAndHidesRawUsageJson() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         // Shaped per the R3-T1 contract: an answer followed by a trailing single-line usage JSON,
@@ -3693,12 +3715,17 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantNonVerboseRunShowsPlaceholderWhileRunningThenReplacesIt() throws Exception {
+    void assistantNonVerboseRunShowsNoPlaceholderBubbleWhileRunning() throws Exception {
+        // Issue #3919: the "_Running local assistant..._" placeholder bubble is gone -- progress
+        // while a run is in flight is the toolbar spinner/status label's job alone, not a transcript
+        // bubble. The final answer still lands as a normal fresh bubble once the run completes.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String transcriptBeforeStream = transcriptMarkdown(panel);
 
         appendStreamingLocalAgentBubble(panel, 203);
-        assertTrue(transcriptMarkdown(panel).contains("Running local assistant"),
-                "A running placeholder should appear even with Verbose off: " + transcriptMarkdown(panel));
+        assertEquals(transcriptBeforeStream, transcriptMarkdown(panel),
+                "Starting a local-agent stream must not append any placeholder bubble: "
+                        + transcriptMarkdown(panel));
 
         showAgentResult(panel, 203, ShaftMcpToolResult.success("done"));
         String markdown = transcriptMarkdown(panel);
@@ -3708,7 +3735,9 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantKilledNonVerboseRunReplacesBarePlaceholderWithKilled() throws Exception {
+    void assistantKilledNonVerboseRunBeforeAnyOutputStillShowsKilled() throws Exception {
+        // Issue #3919: with no placeholder bubble to replace (nothing ever streamed), a kill request
+        // must still land a "Killed" bubble instead of leaving the run with no terminal signal at all.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         AtomicBoolean killed = new AtomicBoolean();
         ShaftMcpInvocation invocation = new ShaftMcpInvocation(
@@ -3727,7 +3756,7 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(killed.get()),
                 () -> assertTrue(markdown.contains("Killed"),
-                        "A killed non-verbose run must not leave the bare placeholder stuck forever: " + markdown),
+                        "A killed non-verbose run must still show a terminal signal: " + markdown),
                 () -> assertFalse(markdown.contains("Running local assistant"), markdown));
     }
 
@@ -3901,7 +3930,10 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantAgentMilestoneBubblesRecordLocalPromptCompletion() {
+    void assistantLocalPromptCompletionOmitsSyntheticMilestoneBubbles() {
+        // Issue #3919: "Prompt received" and a bare glyph-prefixed "Completed" bubble were pure
+        // synthesized progress chrome duplicating the toolbar spinner/status label -- removed from
+        // the transcript entirely; the real /help response is what the user actually asked for.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assistantPrompt(panel).setText("/help");
@@ -3909,48 +3941,16 @@ class ShaftPanelSetupTest {
 
         String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertTrue(transcript.contains("Prompt received"), transcript),
-                () -> assertTrue(transcript.contains("Completed"), transcript));
+                () -> assertFalse(transcript.contains("Prompt received"), transcript),
+                () -> assertFalse(transcript.contains("Completed"), transcript),
+                () -> assertTrue(transcript.contains("SHAFT Assistant commands:"), transcript));
     }
 
     @Test
-    void assistantAgentMilestoneTerminalBubbleShowsElapsedTimeSuffix() {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-
-        assistantPrompt(panel).setText("/help");
-        clickAccessible(panel, "Send assistant prompt");
-
-        String transcript = transcriptMarkdown(panel);
-        int start = transcript.indexOf("Completed (");
-        assertTrue(start >= 0, transcript);
-        int end = transcript.indexOf(')', start);
-        assertTrue(end > start, transcript);
-        String suffix = transcript.substring(start + "Completed (".length(), end);
-        assertTrue(suffix.equals("<1s") || suffix.matches("\\d+s") || suffix.matches("\\d+m \\d+s"), suffix);
-    }
-
-    @Test
-    void assistantAgentMilestoneBubbleIgnoresSecondTerminalEntryForSameRun() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-
-        assistantPrompt(panel).setText("/help");
-        clickAccessible(panel, "Send assistant prompt");
-        String transcriptAfterFirstTerminal = transcriptMarkdown(panel);
-        assertTrue(transcriptAfterFirstTerminal.contains("Completed ("), transcriptAfterFirstTerminal);
-        int completedBubblesAfterFirstTerminal = countOccurrences(transcriptAfterFirstTerminal, "Completed (");
-
-        // No resetAgentMilestones (i.e. no new send()) happens between these two terminal results, so
-        // the second terminal milestone must be dropped rather than appended as a new bubble
-        // alongside the first (the tool's own response bubble is still appended as usual).
-        showAssistantResult(panel, "shaft_guide_search", ShaftMcpToolResult.success(mcpText("Use Page Object locators.")));
-
-        String transcript = transcriptMarkdown(panel);
-        assertEquals(completedBubblesAfterFirstTerminal, countOccurrences(transcript, "Completed ("),
-                "A second terminal milestone bubble for the same run must be ignored: " + transcript);
-    }
-
-    @Test
-    void assistantCancelRequestShowsCancellingThenSingleCancelledTerminalEntry() throws Exception {
+    void assistantCancelRequestShowsSingleCancelledResponseWithoutMilestoneBubbles() throws Exception {
+        // Issue #3919: "Cancelling..."/terminal "Cancelled (Ns)" milestone bubbles are gone from the
+        // transcript -- the toolbar status label still shows "Cancelling..." (see containsText-based
+        // coverage elsewhere), and the real cancelled-tool response bubble already says so.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         ShaftMcpInvocation invocation = new ShaftMcpInvocation(
                 new CompletableFuture<>(), () -> {
@@ -3961,14 +3961,15 @@ class ShaftPanelSetupTest {
 
         cancelOrKillCurrent(panel);
         String transcriptAfterCancelRequest = transcriptMarkdown(panel);
-        assertTrue(transcriptAfterCancelRequest.contains("Cancelling..."), transcriptAfterCancelRequest);
+        assertFalse(transcriptAfterCancelRequest.contains("Cancelling..."), transcriptAfterCancelRequest);
 
         showAssistantResult(panel, "shaft_guide_search", null, new CancellationException("cancelled"));
 
         String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertEquals(1, countOccurrences(transcript, "Cancelled ("), transcript),
-                () -> assertFalse(transcript.contains("Killed ("), transcript));
+                () -> assertFalse(transcript.contains("Cancelled ("), transcript),
+                () -> assertFalse(transcript.contains("Killed ("), transcript),
+                () -> assertTrue(transcript.toLowerCase(java.util.Locale.ROOT).contains("cancelled"), transcript));
     }
 
     @Test
@@ -4000,6 +4001,10 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKillRequestTerminalEntryIsKilledNotCancelled() throws Exception {
+        // Issue #3919: no "Killing..."/terminal "Killed (Ns)" milestone bubbles in the transcript any
+        // more (the toolbar status label still shows "Killing...", see containsText-based coverage
+        // elsewhere) -- but the outcome ("killed" vs "cancelled") must still be distinguishable from
+        // the real response bubble.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         ShaftMcpInvocation invocation = new ShaftMcpInvocation(
                 new CompletableFuture<>(), () -> {
@@ -4011,14 +4016,15 @@ class ShaftPanelSetupTest {
         cancelOrKillCurrent(panel);
         cancelOrKillCurrent(panel);
         String transcriptAfterKillRequest = transcriptMarkdown(panel);
-        assertTrue(transcriptAfterKillRequest.contains("Killing..."), transcriptAfterKillRequest);
+        assertFalse(transcriptAfterKillRequest.contains("Killing..."), transcriptAfterKillRequest);
 
         showAssistantResult(panel, "shaft_guide_search", null, new CancellationException("killed"));
 
         String transcript = transcriptMarkdown(panel);
         assertAll(
-                () -> assertTrue(transcript.contains("Killed ("), transcript),
-                () -> assertFalse(transcript.contains("Cancelled ("), transcript));
+                () -> assertFalse(transcript.contains("Killed ("), transcript),
+                () -> assertFalse(transcript.contains("Cancelled ("), transcript),
+                () -> assertTrue(transcript.toLowerCase(java.util.Locale.ROOT).contains("killed"), transcript));
     }
 
     /**
@@ -4334,9 +4340,8 @@ class ShaftPanelSetupTest {
     @Test
     void assistantHasNoSeparateRunTimelineComponent() {
         // Issue #3695: the separately-scrollable "Run timeline" list (and its "Run timeline" label)
-        // below the chat is gone -- every milestone it used to show now renders as its own chat
-        // bubble in the transcript instead (see assistantAgentMilestoneBubblesRecordLocalPromptCompletion
-        // and friends).
+        // below the chat is gone. Issue #3919 later removed the synthesized milestone bubbles that
+        // replaced it too -- progress now belongs solely to the toolbar spinner/status label below.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assertAll(
