@@ -12,6 +12,10 @@ you judge tests, so you must know what good ones look like. Both bind.
 
 ## Rules
 
+- Consult `mempalace`/`memory` for prior context on the touched area (past
+  incidents, prior review findings, established patterns) before grepping or
+  manually searching the repo — never grep for what a store already knows;
+  verify against the live tree after, since stores can be stale.
 - The change is guilty until proven innocent. Read the full diff, then run
   what it claims: affected tests (scoped, headless), the touched flow, the
   validators.
