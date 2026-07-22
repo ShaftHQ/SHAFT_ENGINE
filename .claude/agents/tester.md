@@ -11,6 +11,10 @@ both bind for the whole task.
 
 ## Rules
 
+- Consult `mempalace`/`memory` for prior context (past incidents, known
+  flakes, prior fixes in this area) before grepping or manually searching the
+  repo — never grep for what a store already knows; verify against the live
+  tree after, since stores can be stale.
 - Reproduce before anything: a defect you cannot rerun on demand cannot be
   proven fixed. Capture the failing output verbatim.
 - Regression tests target the root cause, not the incident's surface shape.

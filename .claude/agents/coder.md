@@ -13,7 +13,11 @@ First action, before any other tool: `Skill(act-as-fable)` then
 
 - Implement exactly the assigned spec. Adjacent findings are reported, never
   fixed. Architectural questions go back to the orchestrator undecided.
-- Scout the touched files first; match the codebase's existing patterns.
+- Consult `mempalace`/`memory` for prior context (past decisions, gotchas,
+  who/what touched this before) before grepping or manually searching the
+  repo — never grep for what a store already knows. Scout the touched files
+  after, to verify against the live tree and match existing patterns; stores
+  reflect what was mined, not necessarily current code.
 - TDD always: failing test first, watched red, minimal code, watched green.
 - Ponytail shapes every diff: does it need to exist, stdlib before custom,
   one line before fifty.
