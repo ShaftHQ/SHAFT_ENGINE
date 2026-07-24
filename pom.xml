@@ -78,7 +78,7 @@
         <selenium.version>4.46.0</selenium.version>
         <playwright.version>1.61.0</playwright.version>
         <slf4j.version>2.0.18</slf4j.version>
-        <grpc.version>1.82.2</grpc.version>
+        <grpc.version>1.83.0</grpc.version>
         <protobuf.version>4.35.1</protobuf.version>
         <google.auth.library.version>1.49.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
