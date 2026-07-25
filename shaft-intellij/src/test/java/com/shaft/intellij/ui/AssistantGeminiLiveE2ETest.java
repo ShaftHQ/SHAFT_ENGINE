@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
@@ -42,6 +43,14 @@ class AssistantGeminiLiveE2ETest {
         Path workspace = Path.of(System.getProperty("shaft.intellij.workspaceRoot", ".."))
                 .toAbsolutePath()
                 .normalize();
+        // ShaftMcpStdioClient spawns the MCP server with `workspace` as its ProcessBuilder working
+        // directory (ShaftMcpStdioClient.java:79-80); CreateProcess/exec fails with a raw IOException
+        // when that directory does not already exist -- reproduced empirically (nightly run
+        // 30146701546: "java.io.IOException at AssistantGeminiLiveE2ETest.java:139"). CI passes a
+        // fresh, never-created "${GITHUB_WORKSPACE}/build/live-tools/gemini" here, so it must be
+        // created before use, the same way every other live-tool-E2E test's workspace already is
+        // (e.g. ShaftAssistantPanelLiveDiagnosticsToolE2ETest.LiveContext.assumeConfigured()).
+        Files.createDirectories(workspace);
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.assistantProviderType = "CLOUD";
         settings.cloudProvider = "gemini";
