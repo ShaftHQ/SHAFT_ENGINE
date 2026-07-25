@@ -91,7 +91,20 @@ Used by MCP API capture tools to control what network transactions are recorded.
 <p>Kept as a plain mutable class with public fields (rather than a record) because Spring AI
 binds <code>@Tool</code> method parameters of this type directly from tool-call JSON; <a href="#equals(java.lang.Object)"><code>equals(Object)</code></a>
 and <a href="#hashCode()"><code>hashCode()</code></a> are still overridden for structural equality since instances round-trip
-through <a href="CaptureStartOptions.html" title="class in com.shaft.capture.runtime"><code>CaptureStartOptions</code></a>, a record whose generated <code>equals</code> depends on it.</div>
+through <a href="CaptureStartOptions.html" title="class in com.shaft.capture.runtime"><code>CaptureStartOptions</code></a>, a record whose generated <code>equals</code> depends on it.
+
+<p><b>Do not switch the field annotations below to <code>@ToolParam(required = false)</code>.</b> That
+is the usual Spring AI idiom (see <code>CaptureService#apiStart</code> parameters and <code>
+McpMobileInitOptions</code>), but this class lives in <code>shaft-capture</code> -- a low-level runtime
+module that <code>shaft-mcp</code> depends on, not the reverse -- and <code>@ToolParam</code> lives in
+<code>spring-ai-model</code>, which <code>shaft-capture</code> deliberately does not depend on. Pulling that
+in here would invert the module boundary just to annotate a DTO. Instead this relies on Spring
+AI's JSON schema generator (victools' <code>JacksonModule</code> with <code>
+RESPECT_JSONPROPERTY_REQUIRED</code>) honouring the framework-neutral <code>
+com.fasterxml.jackson.annotation.JsonProperty(required = ...)</code> as an equivalent signal --
+confirmed by decompiling <code>spring-ai-model</code>'s <code>JsonSchemaGenerator</code>. <code>
+ShaftMcpApplicationTests#captureApiStartNetworkOptionsSchemaHasNoRequiredFieldsSoPartialNetworkOptionsSucceed</code>
+guards this behavior against regression (issue #3986).</div>
 </div>
 </section>
 <section class="summary">
