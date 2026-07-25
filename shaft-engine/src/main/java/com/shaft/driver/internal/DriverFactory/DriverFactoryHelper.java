@@ -23,6 +23,8 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.android.FlutterAndroidDriver;
+import io.appium.java_client.flutter.ios.FlutterIOSDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.AutomationName;
 import io.appium.java_client.windows.WindowsDriver;
@@ -669,8 +671,14 @@ public class DriverFactoryHelper {
 //            else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
 //            else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
             // legacy constructor-based code block
-            if (isAndroidExecution) return new AndroidDriver(targetExecutionUrlObject, capabilities);
-            else if (isIosExecution) return new IOSDriver(targetExecutionUrlObject, capabilities);
+            if (isAndroidExecution)
+                return isFlutterAppiumExecution(capabilities)
+                        ? new FlutterAndroidDriver(targetExecutionUrlObject, capabilities)
+                        : new AndroidDriver(targetExecutionUrlObject, capabilities);
+            else if (isIosExecution)
+                return isFlutterAppiumExecution(capabilities)
+                        ? new FlutterIOSDriver(targetExecutionUrlObject, capabilities)
+                        : new IOSDriver(targetExecutionUrlObject, capabilities);
             else if (isWindowsAppiumExecution(capabilities)) return new WindowsDriver(targetExecutionUrlObject, capabilities);
             else {
                 var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
@@ -737,6 +745,15 @@ public class DriverFactoryHelper {
         return "windows".equalsIgnoreCase(automationName)
                 || (DriverType.APPIUM_WINDOWS.getValue().equalsIgnoreCase(SHAFT.Properties.web.targetBrowserName())
                 && !app.isBlank());
+    }
+
+    private static boolean isFlutterAppiumExecution(Capabilities capabilities) {
+        String automationName = firstCapabilityValue(
+                capabilities,
+                "appium:automationName",
+                "automationName",
+                SHAFT.Properties.mobile.automationName());
+        return AutomationName.FLUTTER_INTEGRATION.equalsIgnoreCase(automationName);
     }
 
     private static String firstCapabilityValue(Capabilities capabilities, String firstName, String secondName, String fallback) {
