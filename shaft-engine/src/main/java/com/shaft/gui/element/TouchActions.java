@@ -17,6 +17,7 @@ import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
@@ -717,7 +718,9 @@ public class TouchActions extends FluentWebDriverAction {
             try {
                 if (driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
                     // appium native application
-                    boolean isElementFound = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
+                    boolean isElementFound = targetElementLocator instanceof AppiumBy.FlutterBy flutterTarget
+                            ? attemptFlutterScrollTillVisible(appiumDriver, flutterTarget, scrollableElementLocator, swipeDirection)
+                            : attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
                     if (!isElementFound) {
                         elementActionsHelper.failAction(appiumDriver, testData, targetElementLocator);
                     }
@@ -1129,6 +1132,38 @@ public class TouchActions extends FluentWebDriverAction {
         }
         ReportManager.logDiscrete("Element found on screen.");
         return true;
+    }
+
+    /**
+     * Scrolls a Flutter widget into view via the Flutter integration driver's "flutter: scrollTillVisible"
+     * command. Unlike the native "mobile: scrollGesture", this drives Flutter's own widget tree instead of
+     * the (nonexistent) native scrollable, so it works against a bare FlutterView.
+     * <p>
+     * Always returns {@code true}: the underlying command throws when the target widget is never found, and
+     * that exception propagates to the caller's existing catch block, which reports it via failAction.
+     */
+    private boolean attemptFlutterScrollTillVisible(AppiumDriver appiumDriver, AppiumBy.FlutterBy targetElementLocator,
+                                                      By scrollableElementLocator, SwipeDirection swipeDirection) {
+        var scrollParameter = new ScrollParameter(targetElementLocator, mapToFlutterScrollDirection(swipeDirection));
+        if (scrollableElementLocator instanceof AppiumBy.FlutterBy flutterScrollView) {
+            scrollParameter.setScrollView(flutterScrollView);
+        } else if (scrollableElementLocator != null) {
+            ReportManager.logDiscrete("Ignoring non-Flutter scrollable element locator \"" + scrollableElementLocator
+                    + "\" for the Flutter integration driver; a native container cannot scroll inside a FlutterView.");
+        }
+        ReportManager.logDiscrete("Swiping to find Element using the Flutter integration driver. SwipeDirection \""
+                + swipeDirection + "\", TargetElementLocator \"" + targetElementLocator + "\".");
+        appiumDriver.executeScript("flutter: scrollTillVisible", scrollParameter.toJson());
+        return true;
+    }
+
+    private ScrollParameter.ScrollDirection mapToFlutterScrollDirection(SwipeDirection swipeDirection) {
+        return switch (swipeDirection) {
+            case UP -> ScrollParameter.ScrollDirection.UP;
+            case DOWN -> ScrollParameter.ScrollDirection.DOWN;
+            case LEFT -> ScrollParameter.ScrollDirection.LEFT;
+            case RIGHT -> ScrollParameter.ScrollDirection.RIGHT;
+        };
     }
 
     private void attemptPinchToZoomIn() {
