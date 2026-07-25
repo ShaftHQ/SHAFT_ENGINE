@@ -741,11 +741,20 @@ class CaptureGeneratorTest {
      * expands into a union of every button-shaped element on the page. Since ROLE is the
      * highest-scoring strategy and therefore almost always selected, every recorded step generated a
      * locator that matched many elements instead of the one that was clicked, so replay hit the wrong
-     * element or failed. The fix chains the recorded name as a {@code hasText(...)} predicate onto the
-     * role locator so the union narrows back down to the one recorded element.
+     * element or failed.
+     *
+     * <p>The fix chains the recorded name as a predicate onto the role locator so the union narrows
+     * back down to the one recorded element. It must use
+     * {@link com.shaft.gui.internal.locator.LocatorBuilder#hasNormalizedText}, not {@code hasText}:
+     * the browser capture recorder whitespace-collapses and trims every recorded name before
+     * persisting it ({@code shaft-capture-recorder.js}'s {@code text()} helper), so an exact raw
+     * string-value comparison ({@code hasText}'s {@code [.="..."]}) fails against ordinary markup
+     * whose text carries surrounding/internal whitespace -- see
+     * {@code LocatorBuilderExtendedUnitTest#recordedNamePredicateShouldResolveRealisticWhitespacePaddedMarkup}
+     * in shaft-engine for the real-markup-resolution proof of that mismatch.
      */
     @Test
-    void roleStrategyLocatorChainsRecordedAccessibleNameAsHasTextPredicate() throws Exception {
+    void roleStrategyLocatorChainsRecordedAccessibleNameAsHasNormalizedTextPredicate() throws Exception {
         Path session = session(roleLocatorSession());
         writeCaptureData("alice");
 
@@ -754,10 +763,12 @@ class CaptureGeneratorTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText(\"Log in\").build()"),
-                "generated ROLE locator must chain the recorded accessible name so replay does not match "
-                        + "every button on the page: " + source);
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasNormalizedText(\"Log in\").build()"),
+                "generated ROLE locator must chain the recorded accessible name via hasNormalizedText so "
+                        + "replay does not match every button on the page and still resolves against "
+                        + "whitespace-padded real markup: " + source);
         assertFalse(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"), source);
+        assertFalse(source.contains(".hasText(\"Log in\")"), source);
     }
 
     /**

@@ -1395,7 +1395,7 @@ public final class CaptureGenerator {
                 String roleLocator = "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ")";
                 return semanticName.isBlank()
                         ? roleLocator + ".build()"
-                        : roleLocator + ".hasText(\"" + javaString(semanticName) + "\").build()";
+                        : roleLocator + ".hasNormalizedText(\"" + javaString(semanticName) + "\").build()";
             }
         }
         if (semanticName.isBlank()) {

@@ -267,6 +267,53 @@ public class LocatorBuilderExtendedUnitTest {
         }
     }
 
+    // ─── recorded-name predicate normalization (capture-replay regression) ────
+
+    /**
+     * Regression reproduction for the SHAFT capture-replay defect: the recorded accessible name
+     * predicate chained onto a ROLE locator must still resolve to the element on realistic markup,
+     * i.e. markup whose text carries leading/trailing/internal whitespace -- the overwhelmingly common
+     * case in real HTML (e.g. {@code <button>\n  Log in\n</button>}). The SHAFT capture recorder
+     * whitespace-collapses and trims every recorded accessible name before persisting it
+     * ({@code shaft-capture-recorder.js}'s {@code text()} helper: {@code String(value).replace(/\s+/g, " ").trim()}),
+     * so the recorded name {@code "Log in"} must be matched via the same normalization, not via an
+     * exact raw string-value comparison. This test resolves the real-world XPath the capture generator
+     * emits against realistic whitespace-padded markup via jsoup's XPath evaluator (no browser needed)
+     * to prove resolution empirically rather than by inference.
+     *
+     * <p>As committed, the capture generator chains {@link LocatorBuilder#hasText}, whose
+     * {@code [.="..."]} predicate compares the raw, un-normalized string-value -- so this assertion
+     * fails against realistic markup. Switching to {@code hasNormalizedText}'s
+     * {@code [normalize-space(.)="..."]} predicate (added by this change) matches the recorder's own
+     * normalization semantics and resolves correctly.
+     */
+    @Test(description = "Capture-replay regression: the recorded-name predicate chained onto a ROLE "
+            + "locator must resolve against realistic whitespace-padded markup")
+    public void recordedNamePredicateShouldResolveRealisticWhitespacePaddedMarkup() {
+        org.jsoup.nodes.Document markup = org.jsoup.Jsoup.parse("<button>\n    Log in\n  </button>");
+        String xpath = Locator.hasRole(Role.BUTTON).hasNormalizedText("Log in").build().toString()
+                .substring("By.xpath: ".length());
+        Assert.assertEquals(markup.selectXpath(xpath).size(), 1,
+                "recorded-name predicate must resolve to the one recorded element against realistic "
+                        + "whitespace-padded markup, exactly as the capture recorder normalizes names "
+                        + "before persisting them");
+    }
+
+    @Test(description = "hasNormalizedText: locator should embed a normalize-space(.) XPath predicate")
+    public void hasNormalizedTextShouldEmbedNormalizeSpacePredicate() {
+        By locator = Locator.hasTagName("button").hasNormalizedText("Log in").build();
+        Assert.assertEquals(locator.toString(), "By.xpath: //button[normalize-space(.)=\"Log in\"]");
+    }
+
+    @Test(description = "hasRole(BUTTON).hasNormalizedText(...): built xpath string must chain the "
+            + "normalize-space(.) predicate onto the parenthesized role union")
+    public void hasRoleThenHasNormalizedTextShouldProduceExpectedXpathString() {
+        By locator = Locator.hasRole(Role.BUTTON).hasNormalizedText("Log in").build();
+        String expected = "By.xpath: (//button | //input[@type='button'] | //input[@type='submit'] "
+                + "| //input[@type='reset'] | //a[contains(@class,'button')])[normalize-space(.)=\"Log in\"]";
+        Assert.assertEquals(locator.toString(), expected);
+    }
+
     // ─── combined attribute chaining with axis ─────────────────────────────────
 
     @Test(description = "Axis followed by attribute predicate should produce compound expression")
