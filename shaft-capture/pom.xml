@@ -36,6 +36,14 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
+            <!-- Jackson 2 (legacy) annotations, distinct from the tools.jackson (Jackson 3) family
+                 above, needed solely so NetworkCaptureOptions can compile against
+                 com.fasterxml.jackson.annotation.JsonProperty; see that class's javadoc. Version
+                 managed by the root pom (jackson.annotations.version). -->
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>

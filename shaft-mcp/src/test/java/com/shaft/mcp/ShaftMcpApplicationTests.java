@@ -376,6 +376,34 @@ class ShaftMcpApplicationTests {
                 "capture_generate_replay (the @McpTool-annotated overload) still requires sessionPath: " + required);
     }
 
+    /**
+     * Issue #3986: Spring AI 2.0.0 emits {@code requiredByDefault=true} for @Tool parameter POJOs,
+     * so {@link com.shaft.capture.runtime.NetworkCaptureOptions}'s six unannotated public fields
+     * were all schema-required -- rejecting any caller (including the curated
+     * {@code capture_api_start} example in tool-index.json) that sends a partial
+     * {@code networkOptions} object. Asserts the live-served nested schema, not just the source
+     * annotations, so a unit-level Java caller bypassing JSON-schema validation can never hide this
+     * again.
+     */
+    @Test
+    void captureApiStartNetworkOptionsSchemaHasNoRequiredFieldsSoPartialNetworkOptionsSucceed() throws Exception {
+        JsonNode networkOptionsSchema = toolInputSchema("capture_api_start").path("properties").path("networkOptions");
+
+        List<String> requiredNames = new java.util.ArrayList<>();
+        for (JsonNode node : networkOptionsSchema.path("required")) {
+            requiredNames.add(node.asText());
+        }
+
+        assertTrue(requiredNames.isEmpty(),
+                "capture_api_start's networkOptions schema still requires: " + requiredNames
+                        + " -- a partial networkOptions object must succeed schema validation");
+        for (String field : List.of("enabled", "excludeAssets", "excludePattern", "includePattern",
+                "captureResponseBodies", "captureRequestBodies")) {
+            assertTrue(networkOptionsSchema.path("properties").has(field),
+                    "networkOptions schema is missing property: " + field);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private JsonNode toolInputSchema(String toolName) throws Exception {
         Object bean = context.getBean("shaftTools");
