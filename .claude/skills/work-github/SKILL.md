@@ -1,12 +1,10 @@
 ---
 name: work-github
 description: >-
-  Work a GitHub issue/backlog end-to-end: scope against real code, resolve
-  branch/PR/merge-authority with the user once up front, then execute
-  unattended through branch/code/test/push/pr/green/merge/compact with
-  subagent delegation. Use for "/work-github", "work this issue", "loop
-  through the open tickets", or a session meant to end in a merged PR with
-  minimal further check-ins.
+  Work a GitHub issue or backlog end-to-end, from scoping to a merged PR.
+  Use for "/work-github", "work this issue", "loop through the open
+  tickets", or any session meant to end in a merged PR with minimal further
+  check-ins.
 ---
 
 # Work GitHub
