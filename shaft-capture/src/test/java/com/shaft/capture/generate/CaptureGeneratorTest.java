@@ -734,6 +734,50 @@ class CaptureGeneratorTest {
                 result.report().compilation().diagnostics().toString());
     }
 
+    /**
+     * Issue #TBD: the ROLE branch of {@code semanticLocator} computed the recorded accessible name
+     * into a local {@code semanticName} and then discarded it, emitting the bare
+     * {@code SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()} -- which {@link com.shaft.gui.internal.locator.LocatorBuilder#byRole}
+     * expands into a union of every button-shaped element on the page. Since ROLE is the
+     * highest-scoring strategy and therefore almost always selected, every recorded step generated a
+     * locator that matched many elements instead of the one that was clicked, so replay hit the wrong
+     * element or failed. The fix chains the recorded name as a {@code hasText(...)} predicate onto the
+     * role locator so the union narrows back down to the one recorded element.
+     */
+    @Test
+    void roleStrategyLocatorChainsRecordedAccessibleNameAsHasTextPredicate() throws Exception {
+        Path session = session(roleLocatorSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("role-name")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText(\"Log in\").build()"),
+                "generated ROLE locator must chain the recorded accessible name so replay does not match "
+                        + "every button on the page: " + source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"), source);
+    }
+
+    /**
+     * When no accessible name was recorded for the target (e.g. an icon-only control), there is
+     * nothing to narrow the ROLE union with, so generation must fall back to the bare
+     * {@code hasRole(...).build()} form rather than emitting an empty/blank predicate.
+     */
+    @Test
+    void roleStrategyLocatorWithoutAccessibleNameEmitsBareHasRole() throws Exception {
+        Path session = session(roleLocatorSessionWithoutAccessibleName());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("role-blank-name")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"), source);
+    }
+
     private static CaptureSession roleLocatorSession() {
         ElementSnapshot loginButton = new ElementSnapshot(
                 "login-button",
@@ -759,6 +803,38 @@ class CaptureGeneratorTest {
                         new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
                                 CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
                         new CaptureEvent.ClickEvent(CaptureFixtures.context(2), loginButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    private static CaptureSession roleLocatorSessionWithoutAccessibleName() {
+        ElementSnapshot iconButton = new ElementSnapshot(
+                "icon-button",
+                "button",
+                "button",
+                "",
+                "",
+                Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "role-locator-session-blank-name",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), iconButton,
                                 CaptureEvent.MouseButton.PRIMARY, 1)),
                 List.of(),
                 List.of(),
