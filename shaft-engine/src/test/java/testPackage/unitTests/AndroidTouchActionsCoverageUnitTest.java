@@ -6,7 +6,9 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.properties.internal.Properties;
+import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
@@ -18,6 +20,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.opentest4j.AssertionFailedError;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -515,6 +518,110 @@ public class AndroidTouchActionsCoverageUnitTest {
 
         verify(driver, times(3)).executeScript(eq("mobile: scrollGesture"), anyMap());
         verify(driver, never()).findElements(isNull());
+    }
+
+    // Issue #3996: FlutterIntegration driver targets must scroll via "flutter: scrollTillVisible",
+    // not the native "mobile: scrollGesture" (a no-op against a single FlutterView with no native scrollable).
+
+    @Test
+    public void swipeElementIntoViewWithFlutterLocatorShouldIssueFlutterScrollCommand() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        // Pre-fix reproduction: the native path throws "Element not found after scrolling to the end of the page."
+        // (TouchActions.java:1105), and failAction converts it into the reporter's real AssertionFailedError.
+        doThrow(new AssertionFailedError("Element not found after scrolling to the end of the page."))
+                .when(elementActionsHelper).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var targetLocator = AppiumBy.flutterKey("category_item_2");
+        touchActions.swipeElementIntoView(targetLocator, TouchActions.SwipeDirection.DOWN);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(driver).executeScript(eq("flutter: scrollTillVisible"), payloadCaptor.capture());
+        verify(driver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        Map<String, Object> payload = payloadCaptor.getValue();
+        SHAFT.Validations.assertThat().object(payload.get("finder"))
+                .isEqualTo(Map.of("using", "-flutter key", "value", "category_item_2")).perform();
+        SHAFT.Validations.assertThat().object(payload.get("scrollDirection")).isEqualTo("down").perform();
+    }
+
+    @Test
+    public void swipeElementIntoViewWithNativeLocatorShouldStillUseMobileScrollGesture() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement targetElement = mock(WebElement.class);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.DOWN);
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).executeScript(eq("flutter: scrollTillVisible"), any());
+    }
+
+    @Test
+    public void swipeElementIntoViewWithFlutterScrollableAndFlutterTargetShouldIncludeScrollView() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var scrollableLocator = AppiumBy.flutterType("ListView");
+        var targetLocator = AppiumBy.flutterKey("category_item_2");
+        touchActions.swipeElementIntoView(scrollableLocator, targetLocator, TouchActions.SwipeDirection.UP);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(driver).executeScript(eq("flutter: scrollTillVisible"), payloadCaptor.capture());
+        SHAFT.Validations.assertThat().object(payloadCaptor.getValue().containsKey("scrollView")).isTrue().perform();
+    }
+
+    @Test
+    public void swipeElementIntoViewWithFlutterTargetAndNativeScrollableShouldOmitScrollView() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var targetLocator = AppiumBy.flutterKey("category_item_2");
+        touchActions.swipeElementIntoView(By.id("nativeContainer"), targetLocator, TouchActions.SwipeDirection.LEFT);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(driver).executeScript(eq("flutter: scrollTillVisible"), payloadCaptor.capture());
+        verify(driver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+        SHAFT.Validations.assertThat().object(payloadCaptor.getValue().containsKey("scrollView")).isFalse().perform();
+    }
+
+    @Test
+    public void mapToFlutterScrollDirectionShouldPreserveWireFormatForAllDirections() throws Exception {
+        Method mapToFlutterScrollDirection = TouchActions.class.getDeclaredMethod("mapToFlutterScrollDirection", TouchActions.SwipeDirection.class);
+        mapToFlutterScrollDirection.setAccessible(true);
+        TouchActions touchActions = new TouchActions(createMockAndroidDriver());
+
+        Map<TouchActions.SwipeDirection, String> expectedWireDirections = Map.of(
+                TouchActions.SwipeDirection.UP, "up",
+                TouchActions.SwipeDirection.DOWN, "down",
+                TouchActions.SwipeDirection.LEFT, "left",
+                TouchActions.SwipeDirection.RIGHT, "right");
+
+        for (var entry : expectedWireDirections.entrySet()) {
+            ScrollParameter.ScrollDirection direction =
+                    (ScrollParameter.ScrollDirection) mapToFlutterScrollDirection.invoke(touchActions, entry.getKey());
+            SHAFT.Validations.assertThat().object(direction.getDirection()).isEqualTo(entry.getValue()).perform();
+        }
     }
 
     @Test
