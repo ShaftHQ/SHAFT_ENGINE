@@ -3,11 +3,10 @@ package testPackage.appium;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
+import io.appium.java_client.AppiumBy;
 import io.appium.java_client.remote.AutomationName;
-import io.github.ashwith.flutter.FlutterFinder;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -16,14 +15,14 @@ import org.testng.annotations.Test;
 /**
  * Test class for Flutter app automation using Appium Flutter Driver.
  * This test uses the demo Flutter counter app to validate the Flutter driver integration.
- * 
- * The test demonstrates proper usage of FlutterFinder library to locate and interact
- * with Flutter widgets.
+ *
+ * The test demonstrates proper usage of java-client's native Flutter locators
+ * ({@link AppiumBy} {@code flutter*} factory methods) to locate and interact with Flutter
+ * widgets, superseding the deprecated {@code appium_flutterfinder_java} dependency.
  */
 public class FlutterTest {
     private static final String ENABLE_FLUTTER_E2E_PROPERTY = "shaft.enableFlutterE2E";
     public static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    private FlutterFinder finder;
 
     /**
      * Setup method to configure and initialize the Flutter driver.
@@ -54,17 +53,16 @@ public class FlutterTest {
         // SHAFT.Properties.mobile.set().deviceName("Android Emulator");
         // SHAFT.Properties.mobile.set().platformVersion("13.0");
         
-        // Initialize the driver
+        // Initialize the driver. With automationName set to FLUTTER_INTEGRATION, SHAFT's
+        // DriverFactoryHelper constructs a FlutterAndroidDriver/FlutterIOSDriver under the hood,
+        // so AppiumBy's native flutter* locators can be used directly via findElement() below.
         driver.set(new SHAFT.GUI.WebDriver());
-        
-        // Initialize FlutterFinder - cast to RemoteWebDriver as required by FlutterFinder
-        finder = new FlutterFinder((RemoteWebDriver) driver.get().getDriver());
     }
 
     /**
      * Test to verify basic Flutter app launch and interaction.
      * This test verifies that the Flutter counter app can be launched
-     * and that the main title is displayed using FlutterFinder.
+     * and that the main title is displayed using a native AppiumBy flutter locator.
      */
     @Test(groups = {"flutter"}, description = "Verify Flutter app launches successfully")
     public void testFlutterAppLaunch() {
@@ -72,7 +70,7 @@ public class FlutterTest {
         // The Flutter demo app typically has a title widget
         
         // Find element by text (common in Flutter counter demo)
-        WebElement titleElement = finder.byText("Flutter Demo Home Page");
+        WebElement titleElement = driver.get().getDriver().findElement(AppiumBy.flutterText("Flutter Demo Home Page"));
         Validations.assertThat().object(titleElement).isNotNull().perform();
         
         // Verify driver is initialized and working
@@ -81,7 +79,7 @@ public class FlutterTest {
 
     /**
      * Test to verify Flutter counter app functionality.
-     * This test demonstrates proper FlutterFinder usage to interact with widgets:
+     * This test demonstrates proper native Flutter locator usage to interact with widgets:
      * 1. Finding elements by ValueKey
      * 2. Clicking buttons
      * 3. Verifying text changes
@@ -90,7 +88,7 @@ public class FlutterTest {
     public void testFlutterCounterIncrement() {
         // Find the increment button by ValueKey
         // Flutter counter demo typically uses 'increment' as the key
-        WebElement incrementButton = finder.byValueKey("increment");
+        WebElement incrementButton = driver.get().getDriver().findElement(AppiumBy.flutterKey("increment"));
         Validations.assertThat().object(incrementButton).isNotNull().perform();
         
         // Click the increment button
@@ -99,7 +97,7 @@ public class FlutterTest {
         // Verify the button click was successful
         // Note: In a real test, you would verify the counter value changed
         // For example:
-        // WebElement counterText = finder.byValueKey("counterText");
+        // WebElement counterText = driver.get().getDriver().findElement(AppiumBy.flutterKey("counterText"));
         // Assert.assertTrue(counterText.getText().contains("1"), "Counter should be incremented");
         
         Validations.assertThat().object(driver.get().getDriver()).isNotNull().perform();
@@ -107,25 +105,27 @@ public class FlutterTest {
     
     /**
      * Test to demonstrate finding elements by Type.
-     * This shows how to use byType() finder method.
+     * This shows how to use the {@link AppiumBy#flutterType(String)} native locator.
      */
     @Test(groups = {"flutter"}, description = "Verify finding elements by Type")
     public void testFlutterFindByType() {
         // Find an element by its Flutter widget type
         // For example, finding a FloatingActionButton
-        WebElement fabButton = finder.byType("FloatingActionButton");
+        WebElement fabButton = driver.get().getDriver().findElement(AppiumBy.flutterType("FloatingActionButton"));
         Validations.assertThat().object(fabButton).isNotNull().perform();
     }
     
     /**
      * Test to demonstrate finding elements by ToolTip.
-     * This shows how to use byToolTip() finder method.
+     * The native API has no dedicated tooltip finder; Flutter's Tooltip widget registers its
+     * message as a semantics label, so {@link AppiumBy#flutterSemanticsLabel(String)} is the
+     * equivalent native locator.
      */
     @Test(groups = {"flutter"}, description = "Verify finding elements by ToolTip")
     public void testFlutterFindByToolTip() {
-        // Find an element by its tooltip text
+        // Find an element by its tooltip text (exposed as a semantics label)
         // The increment button in Flutter demo usually has "Increment" tooltip
-        WebElement incrementButton = finder.byToolTip("Increment");
+        WebElement incrementButton = driver.get().getDriver().findElement(AppiumBy.flutterSemanticsLabel("Increment"));
         Validations.assertThat().object(incrementButton).isNotNull().perform();
     }
 

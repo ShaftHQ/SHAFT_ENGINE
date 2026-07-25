@@ -123,7 +123,17 @@
             </exclusions>
         </dependency>
 
-        <!-- APPIUM FLUTTER FINDER -->
+        <!-- APPIUM FLUTTER FINDER (DEPRECATED, see #4016)
+             Deprecated as of 10.3.20260726: its unexcluded java-client edge has already caused
+             two Maven Central delivery failures (open selenium ranges resolving against live
+             Central metadata instead of our BOM pins; see
+             .memory/memory/gotchas/appium-java-client-hard-selenium-version-ranges-beat-bom-pins.md).
+             java-client 10.1.1+ ships a native Flutter surface (AppiumBy flutter* locators,
+             FlutterIntegrationTestDriver) that replaces it; see the migrated
+             shaft-engine/src/test/java/testPackage/appium/FlutterTest.java for the equivalent
+             native locators. Still declared at compile scope to preserve the public classpath
+             during the deprecation window (AGENTS.md: "Preserve public API; deprecate before
+             removal"); tracked for demotion/removal in #4032. -->
         <dependency>
             <groupId>io.github.ashwithpoojary98</groupId>
             <artifactId>appium_flutterfinder_java</artifactId>
