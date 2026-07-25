@@ -5,7 +5,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "opus[1m]",
   "statusLine": {
     "type": "command",
     "command": "bash C:/Users/Mohab/.claude/statusline-command.sh"
@@ -30,5 +30,9 @@
   "skipWorkflowUsageWarning": true,
   "theme": "dark",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": false
+  "agentPushNotifEnabled": false,
+  "skillOverrides": {
+    "find-skills": "off",
+    "rag-implementation": "off"
+  }
 }
