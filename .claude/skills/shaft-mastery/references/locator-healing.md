@@ -7,6 +7,15 @@ never index- or style-class-based). SHAFT's `By`-based APIs and
 aria-snapshot assertions (`matchesAriaSnapshot`, partial-subset semantics)
 reward the role+name rung heavily.
 
+For SHAFT-generated/codegen output specifically, this collapses to two legal
+rungs (`choosing-shaft-locators` owns the full policy): ARIA-role-powered
+XPath via the SHAFT locator builder (`hasRole(...)`, folding a `test id`
+signal in as `hasAttribute("data-testid", ...)` on the same chain rather than
+a separate rung) first, native `By.xpath(...)` fallback only when no ARIA
+role exists. Smart Locator (`inputField`/`clickableField`) is never emitted
+into generated code — `test_code_guardrails_check` flags it (`SMART_LOCATOR`)
+— and is legitimate only for a human's own throwaway exploration snippet.
+
 ## Recorder truth rules (SHAFT-specific, hard-won)
 - Recorded locators must map 1:1 to real user actions; suppress
   browser-synthesized phantom steps (subframe storage restores, PR #3432;

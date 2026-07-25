@@ -1357,9 +1357,17 @@ final class ShaftAssistantPanel extends JPanel {
                 conversationContext,
                 attachmentsContext);
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
+        // AssistantCommand.requiresShaftProject(invocation) checked FIRST (and short-circuits): it is
+        // a cheap, pure tool-name-set check, whereas ShaftProjectDetector.isShaftProject(project) hits
+        // the filesystem and caches its answer per root for 30s. Checking isShaftProject first meant
+        // it ran (and cached) on EVERY send() -- including ones that never dispatch a gated tool, like
+        // shaft_project_create itself -- so a gated call moments later could see a stale "false"
+        // cached from before the project existed (issue #3988, nightly run 30146701546: a real
+        // shaft_project_create followed by shaft_project_upgrade was wrongly nudged as "doesn't look
+        // like a SHAFT project yet").
         if (!approvingCaptureReview
-                && !ShaftProjectDetector.isShaftProject(project)
-                && AssistantCommand.requiresShaftProject(invocation)) {
+                && AssistantCommand.requiresShaftProject(invocation)
+                && !ShaftProjectDetector.isShaftProject(project)) {
             invocation = AssistantCommand.shaftProjectRequiredNudge(invocation.toolName());
         }
         // Display-only: the transcript/chat-state bubble shows exactly what the user typed -- text

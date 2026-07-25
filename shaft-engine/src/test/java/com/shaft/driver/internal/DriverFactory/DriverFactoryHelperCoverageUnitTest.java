@@ -5,6 +5,8 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.OptionsManager;
 import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.android.FlutterAndroidDriver;
+import io.appium.java_client.remote.AutomationName;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import org.openqa.selenium.MutableCapabilities;
@@ -302,6 +304,27 @@ public class DriverFactoryHelperCoverageUnitTest {
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
+    }
+
+    @Test
+    public void isFlutterAppiumExecutionShouldReflectCapabilityFirstThenPropertyFallback() throws Exception {
+        Method isFlutterAppiumExecution = DriverFactoryHelper.class.getDeclaredMethod("isFlutterAppiumExecution", org.openqa.selenium.Capabilities.class);
+        isFlutterAppiumExecution.setAccessible(true);
+
+        MutableCapabilities flutterCapability = new MutableCapabilities();
+        flutterCapability.setCapability("appium:automationName", "FlutterIntegration");
+        SHAFT.Validations.assertThat().object(isFlutterAppiumExecution.invoke(null, flutterCapability)).isEqualTo(true).perform();
+
+        MutableCapabilities uiAutomator2Capability = new MutableCapabilities();
+        uiAutomator2Capability.setCapability("appium:automationName", "UiAutomator2");
+        SHAFT.Validations.assertThat().object(isFlutterAppiumExecution.invoke(null, uiAutomator2Capability)).isEqualTo(false).perform();
+
+        // empty capabilities: falls back to SHAFT.Properties.mobile.automationName()
+        SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
+        SHAFT.Validations.assertThat().object(isFlutterAppiumExecution.invoke(null, new MutableCapabilities())).isEqualTo(true).perform();
+
+        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
+        SHAFT.Validations.assertThat().object(isFlutterAppiumExecution.invoke(null, new MutableCapabilities())).isEqualTo(false).perform();
     }
 
     @Test
@@ -1145,6 +1168,16 @@ public class DriverFactoryHelperCoverageUnitTest {
             configureRemoteDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, new DesiredCapabilities());
             configureRemoteDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.APPIUM_SAMSUNG_BROWSER, new DesiredCapabilities());
             configureRemoteDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.APPIUM_BROWSER, new DesiredCapabilities());
+            SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
+        }
+
+        // Issue #4001: APPIUM_FLUTTER must construct FlutterAndroidDriver, not AndroidDriver, once the
+        // session's automationName identifies it as a Flutter session. This MUST NOT share the AndroidDriver
+        // mockConstruction block above -- FlutterAndroidDriver is a distinct concrete type that mockConstruction
+        // does not intercept via its supertype, so an unmocked construction here would attempt a real network
+        // connection to the "http://localhost:4723" hub URL above and hang CI.
+        SHAFT.Properties.mobile.set().automationName(AutomationName.FLUTTER_INTEGRATION);
+        try (MockedConstruction<FlutterAndroidDriver> ignoredFlutter = org.mockito.Mockito.mockConstruction(FlutterAndroidDriver.class)) {
             configureRemoteDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.APPIUM_FLUTTER, new DesiredCapabilities());
             SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
         }

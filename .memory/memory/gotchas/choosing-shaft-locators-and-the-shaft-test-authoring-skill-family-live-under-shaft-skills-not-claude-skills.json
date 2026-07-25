@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/choosing-shaft-locators-and-the-shaft-test-authoring-skill-family-live-under-shaft-skills-not-claude-skills.md",
+  "content_hash": "sha256:0360f62fa38b0e5b54c27829b41f1ccbb526af251dc90f37cd61160fd1a24aa3",
+  "created_at": "2026-07-26T02:46:42+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.choosing-shaft-locators-and-the-shaft-test-authoring-skill-family-live-under-shaft-skills-not-claude-skills",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Reconcile locator-strategy guidance across the skill corpus (#4030)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-skills",
+    "locator",
+    "repo-structure",
+    "issue-4030"
+  ],
+  "title": "choosing-shaft-locators and the SHAFT test-authoring skill family live under shaft-skills/, not .claude/skills/",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T02:46:42+03:00"
+}

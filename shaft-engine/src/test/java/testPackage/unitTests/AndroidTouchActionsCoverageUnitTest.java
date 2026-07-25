@@ -6,15 +6,18 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.ScreenOrientation;
+import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
@@ -39,11 +42,13 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -208,10 +213,10 @@ public class AndroidTouchActionsCoverageUnitTest {
         SHAFT.Validations.assertThat().object(elementUpParameters.get("height")).isEqualTo(270).perform();
         SHAFT.Validations.assertThat().object(elementLeftParameters.get("left")).isEqualTo(260).perform();
 
-        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class);
+        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class, boolean.class);
         performW3cCompliantScroll.setAccessible(true);
-        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters)).isEqualTo(true).perform();
-        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters)).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters, true)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters, false)).isEqualTo(false).perform();
         verify(iosDriver, times(2)).executeScript(eq("mobile: scroll"), anyMap());
     }
 
@@ -307,10 +312,10 @@ public class AndroidTouchActionsCoverageUnitTest {
         SHAFT.Validations.assertThat().object(leftParameters.containsKey("left")).isTrue().perform();
         SHAFT.Validations.assertThat().object(touchActions.and()).isEqualTo(touchActions).perform();
 
-        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class);
+        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class, boolean.class);
         performW3cCompliantScroll.setAccessible(true);
-        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, upParameters)).isEqualTo(true).perform();
-        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, upParameters)).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, upParameters, true)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, upParameters, false)).isEqualTo(false).perform();
 
     }
 
@@ -520,6 +525,80 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(driver, never()).findElements(isNull());
     }
 
+    // Issue #4004: swipeToEndOfView has no scroll-to-end primitive against a Flutter locator (ScrollParameter
+    // mandates a scrollTo target), so it must fail loudly instead of silently doing nothing.
+    @Test
+    public void swipeToEndOfViewWithFlutterScrollableLocatorShouldThrowUnsupportedCommandException() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        // Mutation-kill: failAction only throws when invoked with the exact remedy-naming UnsupportedCommandException.
+        // If the guard regresses (e.g. silently removed), the native scroll loop runs instead and either never
+        // calls failAction with this specific throwable, or calls it with a different one -- the stub never fires,
+        // and the test fails to observe the expected exception, catching the regression instead of silently passing.
+        doThrow(new AssertionFailedError("swipeToEndOfView has no scroll-to-end primitive for Flutter locators"))
+                .when(elementActionsHelper).failAction(any(WebDriver.class), anyString(), any(),
+                        org.mockito.ArgumentMatchers.<Throwable>argThat(throwable -> throwable instanceof UnsupportedCommandException
+                                && throwable.getMessage() != null
+                                && throwable.getMessage().contains("swipeElementIntoView")));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var scrollableLocator = AppiumBy.flutterType("ListView");
+        try {
+            touchActions.swipeToEndOfView(scrollableLocator, TouchActions.SwipeDirection.DOWN);
+            org.testng.Assert.fail("Expected the Flutter scroll-to-end guard to route into failAction with the remedy-naming UnsupportedCommandException, but no such exception propagated.");
+        } catch (AssertionFailedError expected) {
+            // expected: proves failAction was invoked with the remedy-naming UnsupportedCommandException
+        }
+        verify(driver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+    // Issue #4004: a native "mobile: scrollGesture"/"mobile: scroll" call against a bare FlutterView reports
+    // zero effective scrolls on the very first attempt -- ambiguous between "already at scroll end" (legitimate,
+    // e.g. a native overlay atop the FlutterView) and "silent no-op" (the bug). Warn instead of throwing, since
+    // throwing would falsely fail the legitimate case.
+    @Test
+    public void swipeToEndOfViewWithFlutterDriverAndZeroScrollsShouldEmitLoudWarning() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        try (MockedStatic<ReportManager> reportManager = mockStatic(ReportManager.class)) {
+            touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN);
+
+            reportManager.verify(() -> ReportManager.log(argThat(message -> message != null
+                    && message.toLowerCase(java.util.Locale.ROOT).contains("flutter")), eq(org.apache.logging.log4j.Level.WARN)));
+        }
+        verify(elementActionsHelper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        verify(driver, times(1)).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+    // Issue #4004: a Flutter session that genuinely scrolls a native overlay several times before reaching the
+    // end is a legitimate native scroll -- no warning should fire, matching today's behavior byte-for-byte.
+    @Test
+    public void swipeToEndOfViewWithFlutterDriverAndSuccessfulScrollsShouldNotWarnOrThrow() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        try (MockedStatic<ReportManager> reportManager = mockStatic(ReportManager.class)) {
+            touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN);
+
+            reportManager.verify(() -> ReportManager.log(anyString(), eq(org.apache.logging.log4j.Level.WARN)), never());
+        }
+        verify(elementActionsHelper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
     // Issue #3996: FlutterIntegration driver targets must scroll via "flutter: scrollTillVisible",
     // not the native "mobile: scrollGesture" (a no-op against a single FlutterView with no native scrollable).
 
@@ -678,6 +757,17 @@ public class AndroidTouchActionsCoverageUnitTest {
 
     private RemoteWebDriver createMockRemoteWebDriver() {
         RemoteWebDriver driver = mock(RemoteWebDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+    private io.appium.java_client.flutter.android.FlutterAndroidDriver createMockFlutterAndroidDriver() {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = mock(io.appium.java_client.flutter.android.FlutterAndroidDriver.class);
         WebDriver.Options options = mock(WebDriver.Options.class);
         WebDriver.Window window = mock(WebDriver.Window.class);
         when(driver.manage()).thenReturn(options);
