@@ -226,12 +226,15 @@ driver.assertThat().browser().title().contains("Success");
 
 ### Locators
 
-Walk the locator ladder: Smart Locator, then ARIA/semantic locator, then a
-stable app-owned attribute, then a composed `SHAFT.GUI.Locator` builder, then
-stable CSS, and native `By.xpath(...)` only as a last resort — never generate
-`SHAFT.GUI.Locator.xpath(...)`. Full detail, examples, and MCP verification
-steps live in the `choosing-shaft-locators` skill; load it rather than
-guessing when a locator needs real design work.
+Generated code has two legal rungs: ARIA-role-powered XPath via the SHAFT
+locator builder (`hasRole(...)`, chained with `hasText`/`hasAttribute`/
+context) first, native `By.xpath(...)` only as a last resort when the
+element exposes no ARIA role — never generate `SHAFT.GUI.Locator.xpath(...)`.
+Smart Locator (`inputField`/`clickableField`) is excluded from generated
+code; it's for a human's own throwaway, DOM-unexplored snippet only. Full
+detail, examples, and MCP verification steps live in the
+`choosing-shaft-locators` skill; load it rather than guessing when a locator
+needs real design work.
 
 ### Prefer SHAFT Wrappers Over Raw Selenium
 
@@ -273,7 +276,7 @@ real lookup or a real run.
 | Hardcoded browser/timeout in test code | Move it to `custom.properties` / `SHAFT.Properties.*` |
 | Assuming a passing run should have screenshots | Check `evidenceLevel`; `FAILURE_ONLY` is the default |
 | Trusting console output over Allure results | Count populated `*-result.json` files first |
-| `SHAFT.GUI.Locator.xpath(...)` or absolute XPath | Walk the locator ladder; use `By.xpath` only as a last resort |
+| `SHAFT.GUI.Locator.xpath(...)`, absolute XPath, or a generated Smart Locator | Use `hasRole(...)` on the SHAFT locator builder; `By.xpath` only as a last resort |
 | `Thread.sleep`, raw `driver.findElement`, `@FindBy` | Use SHAFT's fluent waits, actions, and locators instead |
 | Writing test code before a failing assertion exists | Write it, watch it fail red, then make it pass |
 | Widening a timeout or weakening an assertion to force green | Diagnose the root cause first; loosen only as a stated, deliberate call |

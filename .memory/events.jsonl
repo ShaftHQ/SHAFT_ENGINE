@@ -431,3 +431,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftassistantpanel-keeps-two-separate-message-object-graphs-transcript-vs-chatstate-extend-both-or-they-silently-desync","timestamp":"2026-07-21T21:45:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-mcp-bom-import-ordering-beats-reactor-pins","timestamp":"2026-07-26T00:42:48+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.appium-java-client-hard-selenium-version-ranges-beat-bom-pins","timestamp":"2026-07-26T00:42:48+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.choosing-shaft-locators-and-the-shaft-test-authoring-skill-family-live-under-shaft-skills-not-claude-skills","timestamp":"2026-07-26T02:46:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.locator-strategy-policy-reconciled-aria-role-shaft-builder-primary-plain-xpath-fallback-smart-locator-excluded-from-generated-code","timestamp":"2026-07-26T02:46:42+03:00"}
