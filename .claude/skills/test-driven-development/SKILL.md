@@ -46,27 +46,9 @@ Implement fresh from tests. Period.
 
 ## Red-Green-Refactor
 
-```dot
-digraph tdd_cycle {
-    rankdir=LR;
-    red [label="RED\nWrite failing test", shape=box, style=filled, fillcolor="#ffcccc"];
-    verify_red [label="Verify fails\ncorrectly", shape=diamond];
-    green [label="GREEN\nMinimal code", shape=box, style=filled, fillcolor="#ccffcc"];
-    verify_green [label="Verify passes\nAll green", shape=diamond];
-    refactor [label="REFACTOR\nClean up", shape=box, style=filled, fillcolor="#ccccff"];
-    next [label="Next", shape=ellipse];
-
-    red -> verify_red;
-    verify_red -> green [label="yes"];
-    verify_red -> red [label="wrong\nfailure"];
-    green -> verify_green;
-    verify_green -> refactor [label="yes"];
-    verify_green -> green [label="no"];
-    refactor -> verify_green [label="stay\ngreen"];
-    verify_green -> next;
-    next -> red;
-}
-```
+RED → verify it fails for the right reason → GREEN → verify it passes with
+everything else still green → REFACTOR → repeat. A wrong failure sends you
+back to RED; a failure after GREEN sends you back to the code, never the test.
 
 ### RED - Write Failing Test
 
@@ -115,7 +97,7 @@ Vague name, tests mock not code
 **MANDATORY. Never skip.**
 
 ```bash
-npm test path/to/test.test.ts
+mvn -pl <module> test -Dtest=Class#method -DheadlessExecution=true
 ```
 
 Confirm:
@@ -170,7 +152,7 @@ Don't add features, refactor other code, or "improve" beyond the test.
 **MANDATORY.**
 
 ```bash
-npm test path/to/test.test.ts
+mvn -pl <module> test -Dtest=Class#method -DheadlessExecution=true
 ```
 
 Confirm:
@@ -296,9 +278,9 @@ No exceptions without your human partner's permission.
 
 ## SHAFT adaptation (repo-local addition)
 
-Vendored from obra/superpowers (MIT, LICENSE alongside). In SHAFT_ENGINE the
-RED/GREEN runs must respect the guard hooks: always scoped and headless —
-`mvn -pl <module> test -Dtest=Class#method -DheadlessExecution=true` (never
-unscoped `mvn test`, never `-am` with tests). Watch the failure text, not
-just the red: `Actions.report()` failures are `RuntimeException`, only
+Vendored from obra/superpowers (MIT, LICENSE alongside); the TypeScript
+examples above illustrate the cycle, but the commands are this repo's. RED and
+GREEN runs must respect the guard hooks: always scoped and headless, never
+unscoped `mvn test`, never `-am` with tests. Watch the failure text, not just
+the red: `Actions.report()` failures are `RuntimeException`, only
 validation/accessibility APIs throw `AssertionError`.

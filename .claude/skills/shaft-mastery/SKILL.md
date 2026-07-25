@@ -1,11 +1,10 @@
 ---
 name: shaft-mastery
 description: >
-  Ten expert chapters for deep SHAFT_ENGINE work. Load the ONE matching
-  references/ chapter before deep work on: selenium-bidi, allure-internals,
-  appium-mobile, maven-release, testng-lifecycle, intellij-plugin,
-  mcp-protocol, ci-forensics, wait-strategies, locator-healing. Each is
-  self-contained and grounded in real SHAFT incidents.
+  Deep SHAFT_ENGINE work. Load the ONE matching references/ chapter before
+  working on: selenium-bidi, allure-internals, appium-mobile, maven-release,
+  testng-lifecycle, intellij-plugin, mcp-protocol, ci-forensics,
+  wait-strategies, locator-healing.
 ---
 
 # SHAFT Mastery
