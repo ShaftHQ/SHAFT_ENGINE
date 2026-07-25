@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/appium-java-client-hard-selenium-version-ranges-beat-bom-pins.md",
-  "content_hash": "sha256:974179c94023fe2fd1e0e7a049118c52ca137f738cdc4065e0c7a3bbdb0f6b8c",
+  "content_hash": "sha256:f9af40acc13ea2868eebde556e36817ed97eaf29789b6c655074fd70fe5ffc14",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [],
   "facets": {
@@ -23,9 +23,10 @@
     "appium",
     "dependencies",
     "release",
-    "maven"
+    "maven",
+    "bom-import-ordering"
   ],
   "title": "Appium java-client hard Selenium version ranges beat BOM pins",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-26T00:42:48+03:00"
 }
