@@ -5,6 +5,7 @@ import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.CaptureStep;
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.LocatorCandidate;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Tag;
@@ -1289,6 +1290,64 @@ class ManagedCaptureRecorderBrowserTest {
         }
     }
 
+    /**
+     * Regression for issue #4025: the recorder's in-page {@code locators()} function used to
+     * hardcode {@code uniquenessCount: 1} for the ROLE and LABEL strategies instead of measuring
+     * whether the locator actually matches exactly one element. Two buttons sharing the same
+     * inferred role ("button") and accessible name ("Submit") make the ROLE candidate
+     * ("button:Submit") built from clicking either one truthfully match both elements; the
+     * recorded {@code uniquenessCount} must reflect that real count instead of the fabricated
+     * {@code 1}, which previously caused the locator to be scored/treated as uniquely identifying
+     * its target.
+     */
+    @Test
+    void recordedRoleLocatorReflectsTrueUniquenessCountWhenMultipleElementsMatch(@TempDir Path temp)
+            throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("multi-match.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/multi-match",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("multi-match-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("submit-a")));
+
+            driver.findElement(By.id("submit-a")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Submit")));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        CaptureEvent.ClickEvent click = session.events().stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .filter(event -> "submit-a".equals(event.target().logicalElementId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("The click on #submit-a must be recorded."));
+        LocatorCandidate role = click.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "A ROLE locator candidate must be recorded for the clicked button: "
+                                + click.target().locatorCandidates()));
+        assertEquals(2, role.uniquenessCount(),
+                "Both buttons share role \"button\" and accessible name \"Submit\", so the ROLE "
+                        + "candidate " + role.expression() + " truthfully matches both elements; a "
+                        + "hardcoded uniquenessCount of 1 would wrongly claim it identifies its "
+                        + "target uniquely.");
+    }
+
     private static By assertionChoice(String label) {
         return By.xpath("//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='" + label + "']");
     }
@@ -1508,6 +1567,19 @@ class ManagedCaptureRecorderBrowserTest {
                     setTimeout(() => typeInto("username", "demo.user"), 2500);
                     setTimeout(() => typeInto("password", "demo.pass"), 2900);
                   </script>
+                </body>
+                </html>
+                """));
+        // Two elements sharing the same inferred role ("button") and accessible name ("Submit"),
+        // so a ROLE-strategy locator built from either one matches both -- proves uniquenessCount
+        // is measured, not hardcoded to 1 (issue #4025).
+        server.createContext("/multi-match", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Multi Match Fixture</title></head>
+                <body>
+                  <button id="submit-a">Submit</button>
+                  <button id="submit-b">Submit</button>
                 </body>
                 </html>
                 """));
