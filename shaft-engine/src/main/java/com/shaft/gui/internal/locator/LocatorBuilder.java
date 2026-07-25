@@ -86,6 +86,22 @@ public class LocatorBuilder {
         return this;
     }
 
+    /**
+     * Matches an element whose whitespace-normalized text equals {@code text}: internal runs of
+     * whitespace collapsed to a single space, then leading/trailing whitespace trimmed (XPath
+     * {@code normalize-space(.)}), rather than {@link #hasText}'s exact raw string-value comparison.
+     * Use this when the expected text was itself captured through an equivalent normalization step
+     * (e.g. a recorded accessible name), since real markup is rarely free of surrounding or internal
+     * whitespace.
+     *
+     * @param text the whitespace-normalized text to match
+     * @return self reference to continue building the locator
+     */
+    public LocatorBuilder hasNormalizedText(String text) {
+        parameters.add("[normalize-space(.)=\"" + text + "\"]");
+        return this;
+    }
+
     public LocatorBuilder containsText(String text) {
         parameters.add("[contains(.,\"" + text + "\")]");
         return this;
@@ -258,8 +274,9 @@ public class LocatorBuilder {
             return "[" + containsAttr.group(1) + "*=\"" + containsAttr.group(2) + "\"]";
         }
 
-        // contains(.,"text") or [.="text"]  →  no CSS equivalent, skip
-        if (parameter.contains("contains(.,") || parameter.startsWith("[.=")) {
+        // contains(.,"text"), [.="text"], or [normalize-space(.)="text"]  →  no CSS equivalent, skip
+        if (parameter.contains("contains(.,") || parameter.startsWith("[.=")
+                || parameter.startsWith("[normalize-space(.)=")) {
             return "";
         }
 

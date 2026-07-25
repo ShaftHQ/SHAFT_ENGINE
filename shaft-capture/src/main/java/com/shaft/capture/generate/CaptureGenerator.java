@@ -1392,7 +1392,10 @@ public final class CaptureGenerator {
         if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE) {
             Role ariaRole = ariaRole(target.role());
             if (ariaRole != null) {
-                return "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ").build()";
+                String roleLocator = "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ")";
+                return semanticName.isBlank()
+                        ? roleLocator + ".build()"
+                        : roleLocator + ".hasNormalizedText(\"" + javaString(semanticName) + "\").build()";
             }
         }
         if (semanticName.isBlank()) {
