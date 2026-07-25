@@ -1,7 +1,8 @@
 # Fable's field heuristics
 
-Extensions to SKILL.md for situations it only names. Nothing here restates
-the main file; read the section matching the situation you're in.
+Extensions to SKILL.md for situations it only names: each section elaborates
+a rule the main file states in a line or two. Read the section matching the
+situation you're in.
 
 ## When investigating anything
 

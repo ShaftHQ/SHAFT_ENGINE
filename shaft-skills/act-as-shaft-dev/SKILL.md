@@ -51,14 +51,11 @@ table row.
   session) only survives inside one MCP session or one `shaft-cli session
   start` daemon; a one-shot `shaft-cli call` spawns a fresh child process per
   command and loses state between calls.
-- Today `shaft-cli` ships stateless `guide search` and `doctor analyze|suggest`
-  aliases plus session-scoped `browser`/`element`/`capture` aliases and a
-  passthrough `shaft-cli call <TOOL>` for every tool name; a dedicated
-  `shaft-cli codegen` subcommand delegating to the deterministic
-  `CaptureCli generate` engine is landing in a parallel subtask (per the
-  design's CLI-first decision) — until it ships, drive codegen through
-  `capture_generate_replay`/`capture_code_blocks` (MCP) or `shaft-cli call
-  capture_generate_replay sessionPath=...`.
+- `shaft-cli` ships stateless `guide search` and `doctor analyze|suggest`
+  aliases, session-scoped `browser`/`element`/`capture` aliases, a
+  deterministic `shaft-cli codegen` (prefer it over MCP for codegen, per the
+  CLI-first decision), and a passthrough `shaft-cli call <TOOL>` for every
+  tool name. Exact flags and exit codes: `../references/shaft-cli-commands.md`.
 
 ### Direct command names — don't guess
 

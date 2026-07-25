@@ -1,11 +1,10 @@
 ---
 name: ponytail
 description: >
-  Forces the simplest, shortest solution that works: YAGNI, stdlib before
-  custom code, native before dependencies, one line before fifty. Use on ANY
-  coding task and every implementation decision. Levels lite/full/ultra.
-  Also on "ponytail", "be lazy", "yagni", "do less", or over-engineering
-  complaints. Not for non-coding requests.
+  Forces the simplest solution that works: YAGNI, stdlib before custom, one
+  line before fifty. Use on ANY coding task and every implementation
+  decision. Also on "ponytail", "be lazy", "yagni", "do less", or
+  over-engineering complaints. Not for non-coding requests.
 argument-hint: "[lite|full|ultra]"
 license: MIT
 ---

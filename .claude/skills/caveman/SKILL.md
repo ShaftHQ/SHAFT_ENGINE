@@ -1,10 +1,9 @@
 ---
 name: caveman
 description: >
-  Terse smart-caveman voice: ~65% fewer output tokens, full technical
-  accuracy. Always on — invoked at session start by act-as-fable; levels
-  lite/full/ultra via /caveman; "stop caveman" reverts. Auto-clarity for
-  risky content.
+  Terse smart-caveman voice, full technical accuracy. Always on — invoked at
+  session start by act-as-fable; levels lite/full/ultra via /caveman; "stop
+  caveman" reverts.
 license: MIT
 ---
 

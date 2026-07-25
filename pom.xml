@@ -50,15 +50,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- -Xmx: macos-latest GitHub-hosted runners have only 7GB RAM (vs 16GB on windows-latest/
-             ubuntu-latest), so the JVM's ergonomic default heap (unset otherwise) is smaller there,
-             and the single reused surefire fork (reuseForks=true) that runs the whole module's tests
-             sequentially under the JaCoCo agent accumulates garbage until it exceeds that smaller
-             ceiling, crashing with OutOfMemoryError: Java heap space (#3930). 1024m gives generous,
-             empirically verified headroom: locally reproduced a clean heap-space OOM at -Xmx80m, and
-             confirmed -Xmx128m comfortably clears 300+ sequential tests in the same fork, while
-             leaving about 6GB of the 7GB macOS runner for the browser and OS. -->
-        <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -Xmx1024m</surefireArgLine>
+        <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
         <mockito.version>5.23.0</mockito.version>
         <mockitoAgentArgLine>-javaagent:"${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</mockitoAgentArgLine>
         <surefire.excludedGroups>allure3-visual-demo</surefire.excludedGroups>
@@ -69,8 +61,8 @@
         <spring-ai.version>2.0.0</spring-ai.version>
         <!-- Dependency BOM Versions -->
         <junit.bom.version>6.1.2</junit.bom.version>
-        <allure.bom.version>2.35.3</allure.bom.version>
-        <cucumber.bom.version>7.34.4</cucumber.bom.version>
+        <allure.bom.version>2.35.4</allure.bom.version>
+        <cucumber.bom.version>7.34.5</cucumber.bom.version>
         <jackson.version>3.2.1</jackson.version>
         <jackson.legacy.version>2.22.1</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
@@ -78,7 +70,7 @@
         <selenium.version>4.46.0</selenium.version>
         <playwright.version>1.61.0</playwright.version>
         <slf4j.version>2.0.18</slf4j.version>
-        <grpc.version>1.82.2</grpc.version>
+        <grpc.version>1.83.0</grpc.version>
         <protobuf.version>4.35.1</protobuf.version>
         <google.auth.library.version>1.49.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
@@ -164,7 +156,7 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.5.38</version>
+                <version>1.6.0</version>
             </dependency>
             <!-- JUNIT6 BOM -->
             <!-- https://mvnrepository.com/artifact/org.junit/junit-bom -->
