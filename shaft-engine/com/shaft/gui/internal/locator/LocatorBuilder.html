@@ -58,6 +58,7 @@
 <li><a href="#hasClass(java.lang.String)" tabindex="0">hasClass(String)</a></li>
 <li><a href="#containsClass(java.lang.String)" tabindex="0">containsClass(String)</a></li>
 <li><a href="#hasText(java.lang.String)" tabindex="0">hasText(String)</a></li>
+<li><a href="#hasNormalizedText(java.lang.String)" tabindex="0">hasNormalizedText(String)</a></li>
 <li><a href="#containsText(java.lang.String)" tabindex="0">containsText(String)</a></li>
 <li><a href="#hasIndex(int)" tabindex="0">hasIndex(int)</a></li>
 <li><a href="#isFirst()" tabindex="0">isFirst()</a></li>
@@ -160,21 +161,28 @@ in long-running or parallel test environments.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hasIndex(int)" class="member-name-link">hasIndex</a><wbr>(int&nbsp;index)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasTagName(java.lang.String)" class="member-name-link">hasTagName</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tagName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hasText(java.lang.String)" class="member-name-link">hasText</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ShadowLocatorBuilder.html" title="class in com.shaft.gui.internal.locator">ShadowLocatorBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#insideShadowDom(org.openqa.selenium.By)" class="member-name-link">insideShadowDom</a><wbr>(org.openqa.selenium.By&nbsp;shadowDomLocator)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hasNormalizedText(java.lang.String)" class="member-name-link">hasNormalizedText</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Matches an element whose whitespace-normalized text equals <code>text</code>: internal runs of
+whitespace collapsed to a single space, then leading/trailing whitespace trimmed (XPath
+<code>normalize-space(.)</code>), rather than <a href="#hasText(java.lang.String)"><code>hasText(String)</code></a>'s exact raw string-value comparison.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasTagName(java.lang.String)" class="member-name-link">hasTagName</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;tagName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hasText(java.lang.String)" class="member-name-link">hasText</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isFirst()" class="member-name-link">isFirst</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ShadowLocatorBuilder.html" title="class in com.shaft.gui.internal.locator">ShadowLocatorBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#insideShadowDom(org.openqa.selenium.By)" class="member-name-link">insideShadowDom</a><wbr>(org.openqa.selenium.By&nbsp;shadowDomLocator)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isLast()" class="member-name-link">isLast</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isFirst()" class="member-name-link">isFirst</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isLast()" class="member-name-link">isLast</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -273,6 +281,26 @@ in long-running or parallel test environments.</div>
 <h3>hasText</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></span>&nbsp;<span class="element-name">hasText</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="hasNormalizedText(java.lang.String)">
+<h3>hasNormalizedText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></span>&nbsp;<span class="element-name">hasNormalizedText</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+<div class="block">Matches an element whose whitespace-normalized text equals <code>text</code>: internal runs of
+whitespace collapsed to a single space, then leading/trailing whitespace trimmed (XPath
+<code>normalize-space(.)</code>), rather than <a href="#hasText(java.lang.String)"><code>hasText(String)</code></a>'s exact raw string-value comparison.
+Use this when the expected text was itself captured through an equivalent normalization step
+(e.g. a recorded accessible name), since real markup is rarely free of surrounding or internal
+whitespace.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>text</code> - the whitespace-normalized text to match</dd>
+<dt>Returns:</dt>
+<dd>self reference to continue building the locator</dd>
+</dl>
 </div>
 </section>
 </li>
