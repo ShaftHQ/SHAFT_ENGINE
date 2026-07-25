@@ -17,8 +17,10 @@ import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
 import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.ios.IOSDriver;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -943,6 +945,7 @@ public class TouchActions extends FluentWebDriverAction {
         AtomicReference<List<Object>> visualIdentificationObjects = new AtomicReference<>(
                 elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage));
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 List<Object> currentAttempt = elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
@@ -952,7 +955,7 @@ public class TouchActions extends FluentWebDriverAction {
                     ReportManager.logDiscrete("Element found on screen.");
                     return true;
                 }
-                canScrollMore.set(performImageScrollStep(scrollableElementLocator, swipeDirection));
+                canScrollMore.set(performImageScrollStep(scrollableElementLocator, swipeDirection, isFirstAttempt.getAndSet(false)));
                 return !canScrollMore.get();
             });
         } catch (TimeoutException timeoutException) {
@@ -974,9 +977,9 @@ public class TouchActions extends FluentWebDriverAction {
         ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
     }
 
-    private boolean performImageScrollStep(By scrollableElementLocator, SwipeDirection swipeDirection) {
+    private boolean performImageScrollStep(By scrollableElementLocator, SwipeDirection swipeDirection, boolean isFirstAttempt) {
         if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
-            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null));
+            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null), isFirstAttempt);
         }
         int deltaX = 0;
         int deltaY = 0;
@@ -1065,15 +1068,29 @@ public class TouchActions extends FluentWebDriverAction {
         return scrollParameters;
     }
 
-    private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters) {
+    private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters, boolean isFirstAttempt) {
         boolean canScrollMore = true;
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+        var driver = driverFactoryHelper.getDriver();
+        if (driver instanceof AndroidDriver androidDriver) {
             var ret = androidDriver.executeScript("mobile: scrollGesture", scrollParameters);
             canScrollMore = ret == null || Boolean.parseBoolean(String.valueOf(ret));
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+        } else if (driver instanceof IOSDriver iosDriver) {
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
             var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
             canScrollMore = ret == null || (Boolean) ret;
+        }
+        // Issue #4004: "mobile: scrollGesture"/"mobile: scroll" only ever reaches a native overlay, never the
+        // FlutterView itself (java-client has no native-scroll primitive against Flutter widgets). Reporting
+        // zero effective scrolls on the very first attempt is ambiguous: it is either a native overlay that is
+        // already at its scroll end (legitimately succeeding today) or a silent no-op against the bare
+        // FlutterView (the bug). We cannot tell them apart, so warn loudly instead of either throwing a false
+        // failure or staying silent.
+        if (isFirstAttempt && !canScrollMore && driver instanceof FlutterIntegrationTestDriver) {
+            ReportManager.log("WARNING: scrolling reported no movement on the first attempt against a Flutter " +
+                    "integration session. \"mobile: scrollGesture\"/\"mobile: scroll\" only reach native overlays, " +
+                    "never the FlutterView itself; if you intended to scroll a Flutter widget, use " +
+                    "swipeElementIntoView(scrollableElementLocator, flutterTargetElementLocator, swipeDirection) " +
+                    "with an AppiumBy.FlutterBy target instead.", Level.WARN);
         }
         return canScrollMore;
     }
@@ -1082,11 +1099,19 @@ public class TouchActions extends FluentWebDriverAction {
         if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver)) {
             throw new UnsupportedCommandException("swipeToEndOfView is supported only for Appium drivers.");
         }
+        if (scrollableElementLocator instanceof AppiumBy.FlutterBy) {
+            // Issue #4004: java-client's Flutter ScrollParameter mandates a scrollTo target
+            // (ScrollParameter.java:50), so there is no scroll-to-end primitive to synthesize here.
+            throw new UnsupportedCommandException("swipeToEndOfView has no scroll-to-end primitive for Flutter " +
+                    "locators; use swipeElementIntoView(scrollableElementLocator, flutterTargetElementLocator, " +
+                    "swipeDirection) with an AppiumBy.FlutterBy target instead.");
+        }
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
         new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
             elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeToEndOfView", null, true);
-            canScrollMore.set(performW3cCompliantScroll(scrollParameters));
+            canScrollMore.set(performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false)));
             return !canScrollMore.get();
         });
     }
@@ -1094,6 +1119,7 @@ public class TouchActions extends FluentWebDriverAction {
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
         var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
         AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 // for the animated GIF:
@@ -1102,7 +1128,7 @@ public class TouchActions extends FluentWebDriverAction {
                 var elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
                 if (elementExistsOnViewPort)
                     return true;
-                canScrollMore.set(performW3cCompliantScroll(scrollParameters));
+                canScrollMore.set(performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false)));
                 elementExistsOnViewPort = !ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator).isEmpty();
                 if (!canScrollMore.get() && !elementExistsOnViewPort)
                     throw new RuntimeException("Element not found after scrolling to the end of the page.");
