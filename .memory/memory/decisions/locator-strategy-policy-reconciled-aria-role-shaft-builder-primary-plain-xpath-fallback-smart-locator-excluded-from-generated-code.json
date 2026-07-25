@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/decisions/locator-strategy-policy-reconciled-aria-role-shaft-builder-primary-plain-xpath-fallback-smart-locator-excluded-from-generated-code.md",
+  "content_hash": "sha256:efd31fcb3c2c131d831cdb4279cb258363d777da99dd653c5447aa8928c3ab03",
+  "created_at": "2026-07-26T02:46:42+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.locator-strategy-policy-reconciled-aria-role-shaft-builder-primary-plain-xpath-fallback-smart-locator-excluded-from-generated-code",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Reconcile locator-strategy guidance across the skill corpus (#4030)"
+  },
+  "status": "active",
+  "tags": [
+    "locator",
+    "shaft-skills",
+    "shaft-mastery",
+    "smart-locator",
+    "aria",
+    "issue-4030",
+    "pr-4031"
+  ],
+  "title": "Locator-strategy policy reconciled: ARIA-role SHAFT builder primary, plain XPath fallback, Smart Locator excluded from generated code",
+  "type": "decision",
+  "updated_at": "2026-07-26T02:46:42+03:00"
+}
