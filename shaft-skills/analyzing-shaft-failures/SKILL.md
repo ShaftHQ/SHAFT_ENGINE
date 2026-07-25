@@ -25,7 +25,7 @@ Analyze populated evidence before changing tests. Separate product defects, test
 
 | Symptom | First check |
 | --- | --- |
-| Locator not found or duplicate | Current DOM/tree, smart locator, app-owned attributes |
+| Locator not found or duplicate | Current DOM/tree, ARIA role via the SHAFT locator builder, app-owned attributes |
 | Stale/hidden/covered/interactable | Page state, frame/window context, synchronized SHAFT action |
 | Assertion mismatch | Expected behavior, test data, response/body state |
 | Timeout/flaky retry | Deterministic wait condition, environment, network trace |

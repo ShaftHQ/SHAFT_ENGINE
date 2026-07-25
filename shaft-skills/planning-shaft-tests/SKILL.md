@@ -26,7 +26,7 @@ Explore a target application to discover testable flows, generate annotated test
 - Always review generated plans in `specs/` with the user before proceeding to codegen or recording.
 - Treat `specs/` files as specifications and inputs to codegen, never as test code itself.
 - Keep test runs scoped and headless unless the user explicitly approves headed/full-suite execution.
-- Replace candidate locators in plans with verified Smart Locators or ARIA locators before codegen.
+- Replace candidate locators in plans with verified ARIA-role builder locators before codegen; see `choosing-shaft-locators` for the ladder (Smart Locators are excluded from generated code).
 - Use `test_plan_explore` to discover flows; do not manually compose plans when automated discovery is available.
 - Redirect codegen requests to `capture_start_codegen` (UI) or `capture_api_start`/`capture_api_generate` (API) after plan approval.
 
@@ -82,6 +82,6 @@ confirmed accurate):
 | Skipping plan review before codegen | Always review and edit `specs/` files with the user first |
 | Exploring beyond maxDepth 3 | Trim discovery scope; rerun with smaller bounds if needed |
 | Treating specs/ as test code | Specs are input to codegen; do not run them as tests |
-| Missing candidate locators in plans | Use page inspection or Playwright sidecar to populate Smart Locator hints |
+| Missing candidate locators in plans | Use page inspection or Playwright sidecar to populate ARIA-role builder hints |
 | Forgetting to verify insertion before apply | Preview with `shaft_coding_partner_diff` and apply only under user approval |
 | Running full test suite on new tests | Use `verify_run_focused` with headless scope instead |
