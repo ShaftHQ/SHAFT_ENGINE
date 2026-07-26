@@ -10,9 +10,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 /**
@@ -24,6 +26,14 @@ public final class CaptureManager implements AutoCloseable {
     // liveness probe fail while the browser is perfectly healthy. Only consecutive failures
     // may tear the session down, or a single flaky check silently discards the recording.
     private static final int HEALTH_FAILURES_BEFORE_INTERRUPT = 3;
+    // Bounds every invoke() wait (#4066): an unbounded executor.submit(...).get() turned any
+    // recorder-side hang (a wedged CDP/BiDi round trip, a stuck WebDriver.quit()) into an
+    // unbounded, undiagnosable MCP tool hang. A real browser session start observed ~18s; this
+    // gives ~5x headroom for a slow machine while still failing well before the MCP client's own
+    // 240s SESSION_START_TIMEOUT (ShaftMcpStdioClient), so the server reports a named, diagnosable
+    // error before the client gives up. checkpoint() is in-memory only and stop()/close() share
+    // start()'s browser-teardown I/O profile, so one bound honestly covers every invoke() call site.
+    private static final Duration DEFAULT_OPERATION_TIMEOUT = Duration.ofSeconds(90);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "shaft-capture-manager");
@@ -33,6 +43,7 @@ public final class CaptureManager implements AutoCloseable {
     private static final java.util.Set<String> SUPPORTED_MODES = java.util.Set.of("record", "inspect");
 
     private final Function<CaptureStartRequest, ManagedCaptureRecorder> recorderFactory;
+    private final Duration operationTimeout;
     private volatile ManagedCaptureRecorder recorder;
     private volatile CaptureStatus lastStatus = CaptureStatus.notRunning();
     private volatile String mode = "record";
@@ -48,10 +59,18 @@ public final class CaptureManager implements AutoCloseable {
     }
 
     CaptureManager(Function<CaptureStartRequest, ManagedCaptureRecorder> recorderFactory) {
+        this(recorderFactory, DEFAULT_OPERATION_TIMEOUT);
+    }
+
+    // Test-only seam: production always resolves to DEFAULT_OPERATION_TIMEOUT; tests inject a
+    // short bound so a deliberately-blocking operation proves the timeout in milliseconds instead
+    // of waiting out the real one.
+    CaptureManager(Function<CaptureStartRequest, ManagedCaptureRecorder> recorderFactory, Duration operationTimeout) {
         if (recorderFactory == null) {
             throw new IllegalArgumentException("Capture recorder factory is required.");
         }
         this.recorderFactory = recorderFactory;
+        this.operationTimeout = operationTimeout;
     }
 
     /**
@@ -99,7 +118,7 @@ public final class CaptureManager implements AutoCloseable {
                 false,
                 ProcessHandle.current().pid(),
                 null);
-        return invoke(() -> {
+        return invoke("start", () -> {
             sessionLock = CaptureSingleSessionLock.acquire(request.runtimeDirectory());
             try {
                 cleanupExistingSessionOutput(request.outputPath());
@@ -285,7 +304,7 @@ public final class CaptureManager implements AutoCloseable {
      * @return updated status
      */
     public CaptureStatus checkpoint(String description, Checkpoint.CheckpointKind kind) {
-        return invoke(() -> {
+        return invoke("checkpoint", () -> {
             requireRecorder().checkpoint(description, kind);
             lastStatus = recorder.status();
             return lastStatus;
@@ -308,7 +327,7 @@ public final class CaptureManager implements AutoCloseable {
             return withWarning(currentStatus, NO_ACTIVE_RECORDING_WARNING);
         }
         lastStatus = copyWithState(currentStatus, CaptureStatus.State.STOPPING);
-        return invoke(() -> {
+        return invoke("stop", () -> {
             cancelHealthCheck();
             try {
                 lastStatus = current.stop(discard);
@@ -336,7 +355,7 @@ public final class CaptureManager implements AutoCloseable {
     public synchronized void close() {
         ManagedCaptureRecorder current = recorder;
         if (current != null) {
-            invoke(() -> {
+            invoke("close", () -> {
                 cancelHealthCheck();
                 lastStatus = current.interrupt();
                 if (recorder == current) {
@@ -383,11 +402,13 @@ public final class CaptureManager implements AutoCloseable {
         return recorder;
     }
 
-    private <T> T invoke(java.util.concurrent.Callable<T> operation) {
+    private <T> T invoke(String operationName, java.util.concurrent.Callable<T> operation) {
+        Future<T> future = executor.submit(operation);
         try {
-            return executor.submit(operation).get();
+            return future.get(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            future.cancel(true);
             throw new IllegalStateException("SHAFT Capture control was interrupted.", exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
@@ -395,6 +416,17 @@ public final class CaptureManager implements AutoCloseable {
                 throw runtimeException;
             }
             throw new IllegalStateException("SHAFT Capture control failed.", cause);
+        } catch (TimeoutException exception) {
+            // Best-effort cancellation: interrupts the executor's worker thread. If the operation is
+            // blocked on native/browser I/O (the #4066/#4046 case) the interrupt may not land -- but
+            // the caller must get a bounded, named answer either way instead of hanging forever.
+            future.cancel(true);
+            throw new IllegalStateException(
+                    "SHAFT Capture " + operationName + " timed out after " + operationTimeout.toSeconds()
+                            + "s. The operation was cancelled, but if it was blocked on native/browser I/O it "
+                            + "may still be running and holding its browser/driver process -- check for and "
+                            + "clean up an orphaned browser or driver process.",
+                    exception);
         }
     }
 
