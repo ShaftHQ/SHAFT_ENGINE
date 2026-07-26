@@ -51,12 +51,34 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Same failure mode as selenium-bom above: spring-boot-dependencies 4.1.0 manages
+                 io.netty:* at 4.2.15.Final (GHSA netty-codec-http/http2/haproxy/compression
+                 advisories, alerts #155-#165), which as a child-declared import would beat the
+                 reactor's netty-bom (root pom.xml, already 4.2.16.Final). Import it here, first,
+                 so the patched version actually reaches shaft-mcp's resolved classpath. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- GHSA alert #154: spring-boot-dependencies manages org.postgresql:postgresql at
+                 42.7.11 (vulnerable, GHSA), which overrides shaft-engine's own direct 42.7.13 pin
+                 (shaft-engine/pom.xml) once shaft-mcp imports the Boot BOM above. Direct entries
+                 outrank the imported Boot BOM, so pin the same version shaft-engine already uses
+                 to keep the reactor's resolved postgresql driver consistent. -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.13</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
