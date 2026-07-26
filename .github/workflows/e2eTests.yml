@@ -79,7 +79,6 @@ jobs:
       - Android_Web_Chrome_BrowserStack
       - MacOSX_Safari_BrowserStack
       - Ubuntu_Chrome_Cucumber_Grid
-      - MacOSX_Safari_Cucumber_BrowserStack
       - Ubuntu_JUnit_E2E
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -711,49 +710,6 @@ jobs:
           job-name: Ubuntu_Chrome_Cucumber_Grid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
-  MacOSX_Safari_Cucumber_BrowserStack:
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Cucumber_BrowserStack,')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      job: ${{ steps.post_test_report.outputs.job }}
-      total: ${{ steps.post_test_report.outputs.total }}
-      passed: ${{ steps.post_test_report.outputs.passed }}
-      failed: ${{ steps.post_test_report.outputs.failed }}
-      broken: ${{ steps.post_test_report.outputs.broken }}
-      skipped: ${{ steps.post_test_report.outputs.skipped }}
-      duration: ${{ steps.post_test_report.outputs.duration }}
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-      - name: Setup Test Environment
-        uses: ./.github/actions/setup-test-env
-        with:
-          node-version: 'lts/*'
-      - name: Run tests
-        continue-on-error: true
-        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
-      # module-directory defaults to shaft-engine, but this job's -pl target is shaft-browserstack
-      # (which has no Cucumber TestNG runner class at all -- find shaft-browserstack -iname
-      # CucumberTests.java returns nothing, issue #4079). The default silently checked
-      # shaft-engine's allure-results instead, which the reactor -am build also populates via
-      # unrelated matched classes, masking that shaft-browserstack itself produces zero output.
-      # Pointing this at the actual target module makes the existing zero-result guard below
-      # (RESULT_COUNT -eq 0 / TOTAL -eq 0 checks in post-test-report/action.yml) fire correctly.
-      # require-coverage: false because that same zero-match selector means shaft-browserstack
-      # never produces target/jacoco.exec here either -- without this, the coverage-upload
-      # substep would fail first on a missing jacoco.xml and mask the real "zero scenarios"
-      # signal behind an unrelated, misleading coverage error.
-      - name: Post-Test Report and Check
-        id: post_test_report
-        if: always()
-        uses: ./.github/actions/post-test-report
-        with:
-          job-name: MacOSX_Safari_Cucumber_BrowserStack
-          module-directory: shaft-browserstack
-          require-coverage: 'false'
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
-
   Ubuntu_JUnit_E2E:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_JUnit_E2E,')
     runs-on: ubuntu-latest
@@ -933,7 +889,7 @@ jobs:
 
   notify_e2e_tests_failure:
     name: Notify on nightly failure
-    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
+    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, Ubuntu_JUnit_E2E ]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5
