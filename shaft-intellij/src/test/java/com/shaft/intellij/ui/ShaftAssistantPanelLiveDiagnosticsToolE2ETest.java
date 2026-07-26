@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +40,7 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
     @Timeout(120)
     void doctorServiceAnalyzesAFailedAllureResultThroughTheRealChatPanel() throws Exception {
         LiveContext context = LiveContext.assumeConfigured();
+        markWorkspaceAsShaftProject(context.workspace());
         Path allureResult = context.workspace().resolve("allure-results/failed-login-result.json");
         Files.createDirectories(allureResult.getParent());
         Files.writeString(allureResult, failedAllureResult(), StandardCharsets.UTF_8);
@@ -72,28 +74,49 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
     }
 
     /**
-     * {@code healer_run_failed_test} in a directory with no SHAFT project returns a real, graceful
-     * {@code GUARDRAIL_STOPPED} result (not an MCP error) -- proving live dispatch without the cost
-     * of a real Maven test run. {@code verify_run_focused} similarly runs a real (offline) Maven
-     * process against an empty directory and reports its real (non-zero-exit) outcome.
+     * {@code healer_run_failed_test} against a non-SHAFT {@code repositoryRoot} returns a real,
+     * graceful {@code GUARDRAIL_STOPPED} result (not an MCP error) -- proving live dispatch without
+     * the cost of a real Maven test run. {@code verify_run_focused} similarly runs a real (offline)
+     * Maven process against an empty directory and reports its real (non-zero-exit) outcome.
+     *
+     * <p>Both tools are gated behind {@link AssistantCommand#SHAFT_PROJECT_TOOLS}
+     * ({@code AssistantCommandRoutingTest#requiresShaftProjectGatesOnlyMutatingOrShaftReportingSpecificTools}
+     * asserts this by design, issue #4021), so the panel only dispatches them at all when
+     * {@code ShaftProjectDetector.isShaftProject(project)} -- a coarse check of the fake IntelliJ
+     * project's own root -- says yes. {@link #markWorkspaceAsShaftProject} gives the workspace root
+     * that marker so the panel routes the call through instead of nudging onboarding. The tool calls
+     * themselves still target a genuinely separate, marker-free {@code non-shaft-target} child
+     * directory as their {@code repositoryRoot}, so {@code HealerService}'s own
+     * {@code ShaftProjectMarker.isShaftRepository(repository)} check (HealerService.java:135) still
+     * sees no SHAFT project and takes the real non-SHAFT-directory branch this test means to exercise
+     * -- "through the real chat panel" and "against a non-SHAFT directory" are about two different
+     * roots (the panel's project vs. the tool's repositoryRoot), not a contradiction.
      */
     @Test
     @Timeout(120)
     void healerServiceRunsAgainstANonShaftDirectoryThroughTheRealChatPanel() throws Exception {
         LiveContext context = LiveContext.assumeConfigured();
+        markWorkspaceAsShaftProject(context.workspace());
+        Path nonShaftDirectory = context.workspace().resolve("non-shaft-target");
+        Files.createDirectories(nonShaftDirectory);
 
         try (LiveChatToolE2ESupport support = LiveChatToolE2ESupport.install(context.workspace(), context.mcpCommand())) {
             ShaftAssistantPanel panel = support.newPanel();
 
-            // "mvn.cmd" (not bare "mvn") on Windows: HealerService/verify_run_focused spawn the
-            // command via a raw ProcessBuilder (HealerService.java:450), which calls CreateProcess
-            // directly -- unlike a shell, Windows CreateProcess never appends PATHEXT extensions, so
-            // the extensionless "mvn" POSIX shim on PATH cannot be launched that way even though
-            // `where mvn` resolves it (reproduced empirically: intermittent "MCP healer command could
-            // not be launched" IOException). "mvn.cmd"/"mvnw.cmd" are explicitly allowlisted
-            // executables (HealerService.java:349) precisely for this platform difference.
+            // HealerService/verify_run_focused spawn the command via a raw ProcessBuilder
+            // (HealerService.java:450), which calls CreateProcess directly on Windows -- unlike a
+            // shell, Windows CreateProcess never appends PATHEXT extensions, so the extensionless
+            // "mvn" POSIX shim on PATH cannot be launched that way even though `where mvn` resolves it
+            // (reproduced empirically: intermittent "MCP healer command could not be launched"
+            // IOException). "mvn.cmd" is required there. But this test only ever runs in CI on the
+            // ubuntu-22.04 "intellij-tools-diagnostics" job (live-tools-nightly.yml), which has no
+            // "mvn.cmd" file at all -- only the "mvn" POSIX shell script -- so hardcoding "mvn.cmd"
+            // fails process launch outright on Linux (issue #4021). HealerService allowlists both
+            // names (HealerService.java:349); pick the one that actually exists for the current OS.
+            String mavenExecutable = mavenExecutableForOs();
             String healResponse = support.send(panel,
-                    "/mcp healer_run_failed_test {\"repositoryRoot\":\".\",\"testCommand\":[\"mvn.cmd\",\"test\"],"
+                    "/mcp healer_run_failed_test {\"repositoryRoot\":\"non-shaft-target\",\"testCommand\":[\""
+                            + mavenExecutable + "\",\"test\"],"
                             + "\"outputDirectory\":\"\",\"maxAttempts\":1,\"includeScreenshots\":false,"
                             + "\"includePageSnapshots\":false,\"allowedSourcePaths\":[],"
                             + "\"networkValidationApproved\":false,\"useConfiguredAi\":false,\"allowLocalAi\":false,"
@@ -104,7 +127,8 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
                     "healer_run_failed_test: Maven command failed to launch: " + healResponse);
 
             String verifyResponse = support.send(panel,
-                    "/mcp verify_run_focused {\"repositoryRoot\":\"\",\"command\":[\"mvn.cmd\",\"-q\",\"compile\"],"
+                    "/mcp verify_run_focused {\"repositoryRoot\":\"non-shaft-target\",\"command\":[\""
+                            + mavenExecutable + "\",\"-q\",\"compile\"],"
                             + "\"networkValidationApproved\":false}",
                     Duration.ofSeconds(60));
             assertNotError(verifyResponse, "verify_run_focused");
@@ -187,6 +211,52 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
             assertNotError(response, "autobot_provider_status");
             assertTrue(payload.contains("\"provider\":\"anthropic\""), "Expected the requested provider echoed back: " + payload);
         }
+    }
+
+    /**
+     * The Maven executable name valid for {@link ProcessBuilder} on the current OS: {@code "mvn.cmd"}
+     * on Windows (bare {@code "mvn"} cannot be launched there -- CreateProcess never appends PATHEXT
+     * extensions), {@code "mvn"} everywhere else, including this test's actual CI runner
+     * ({@code ubuntu-22.04}, which has no {@code mvn.cmd} file at all). Both names are allowlisted by
+     * {@code HealerService} (HealerService.java:349).
+     */
+    private static String mavenExecutableForOs() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")
+                ? "mvn.cmd"
+                : "mvn";
+    }
+
+    /**
+     * Writes a minimal {@code pom.xml} at {@code workspace} root that
+     * {@code ShaftProjectDetector}/{@code ShaftProjectMarker} (both scan a root's own build file, or
+     * one belonging to a direct child) recognize as a SHAFT dependency, so
+     * {@code AssistantCommand#requiresShaftProject}-gated tools dispatch through the panel instead of
+     * getting the "doesn't look like a SHAFT project yet" onboarding nudge (issue #4021). Idempotent:
+     * safe to call once per test even though every test method in this class shares one workspace
+     * directory across the whole live-tool-E2E JVM run.
+     */
+    private static void markWorkspaceAsShaftProject(Path workspace) throws Exception {
+        Path pom = workspace.resolve("pom.xml");
+        if (Files.exists(pom)) {
+            return;
+        }
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>com.shaft.live.diagnostics</groupId>
+                    <artifactId>diagnostics-shaft-marker</artifactId>
+                    <version>1.0.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>io.github.shafthq</groupId>
+                            <artifactId>shaft-bom</artifactId>
+                            <version>1.0.0</version>
+                            <type>pom</type>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """, StandardCharsets.UTF_8);
     }
 
     private static void assertNotError(String rawResponse, String toolName) {
