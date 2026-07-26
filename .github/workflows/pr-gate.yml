@@ -285,6 +285,10 @@ jobs:
   # except a short blocklist" selector. Verified individually (no real
   # WebDriver construction, no Docker/BrowserStack/network touchpoints)
   # before moving; e2eTests.yml now excludes them from GLOBAL_TESTING_SCOPE.
+  # Also named individually here: the sole remaining class from an orphaned
+  # TestNG suite XML found by #4071 (that file is deleted in the same change
+  # that added this line) -- pure file-read plus JSONCompare, no driver, no
+  # network, verified green with a scoped local run before being added.
   unit-tests:
     name: Unit Tests (${{ matrix.module }})
     needs: changes
@@ -315,7 +319,7 @@ jobs:
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
-          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, !RestValidationsBuilderUnitTest'
+          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, JsonActionsTests, !RestValidationsBuilderUnitTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Verify shaft-engine unit test results
@@ -395,24 +399,15 @@ jobs:
   # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
   # references is invisible -- unlike a failing test, nothing reports it, so
   # it can sit unused indefinitely looking like coverage (this is exactly how
-  # #4018's unitTestSuite.xml went unnoticed). This job is the CI-side
-  # regression guard for scripts/ci/validate_orphaned_suite_files.py.
-  #
-  # The unit test step is blocking and pins the repository's exact current
-  # set of known orphans, so any *new* orphan appearing fails the build. The
-  # raw validator step is deliberately continue-on-error: one TestNG suite
-  # XML under shaft-engine's TestSuites directory (see #4071's PR description
-  # for the exact file) is a known, escalated orphan as of #4071 -- one of
-  # the two classes it names runs via GLOBAL_TESTING_SCOPE's exclusion-only
-  # sweep (e2eLocalTests.yml:16, e2eTests.yml:42), but the other is
-  # explicitly excluded there (!%regex[.*Json.*], !%regex[.*JSON.*],
-  # !%regex[.*json.*]) and unreferenced anywhere else -- genuine dark
-  # coverage, not a cleanup call, escalated rather than decided unilaterally.
-  # Flip this step to blocking (drop continue-on-error and update the pinned
-  # unit test) once that file's fate is resolved. Deliberately not naming the
-  # file here: its own filename is part of this guard's reference corpus, and
-  # writing it in a workflow comment would make the guard see a false
-  # "reference" and stop flagging it.
+  # #4018's unitTestSuite.xml went unnoticed, and how this issue's own two
+  # siblings went unnoticed). This job is the CI-side regression guard for
+  # scripts/ci/validate_orphaned_suite_files.py: it fails the build whenever
+  # any TestNG suite XML file's own name never appears in a pom.xml, a
+  # workflow, or a script. Both files #4071 found are now resolved (one
+  # deleted as redundant, the other had its sole remaining class rehomed into
+  # the shaft-engine unit-tests leg above and was then deleted too), so there
+  # is no known-orphan set left to tolerate -- the raw validator step is
+  # blocking, same as the unit test step.
   orphaned-suite-files:
     name: Orphaned Suite XML Guard
     needs: changes
@@ -428,8 +423,7 @@ jobs:
           python-version: "3.13"
       - name: Run orphaned suite file guard unit tests
         run: python3 -m unittest tests.scripts.test_validate_orphaned_suite_files -v
-      - name: Report orphaned TestNG suite XML files (advisory pending #4071)
-        continue-on-error: true
+      - name: Validate no TestNG suite XML file is orphaned
         run: python3 scripts/ci/validate_orphaned_suite_files.py
 
   # Moved from security.yml's dependency-review job. Runs unconditionally on

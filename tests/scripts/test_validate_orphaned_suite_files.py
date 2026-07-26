@@ -76,22 +76,19 @@ class ValidateOrphanedSuiteFilesTest(unittest.TestCase):
             "shaft-engine/src/test/resources/TestSuites/orphan2.xml",
         })
 
-    def test_current_repository_has_no_new_orphans_beyond_the_escalated_testSuite02(self):
-        # #4071: cucumber_testSuite.xml was deleted in this same change (redundant --
-        # its sole class, cucumberTestRunner.CucumberTests, already runs via
-        # e2eLocalTests.yml:350 and e2eTests.yml:672's %regex[.*CucumberTests.*]).
-        # testSuite02.xml is deliberately left in place and escalated rather than
-        # deleted: its ValidationTests half runs via GLOBAL_TESTING_SCOPE's
-        # exclusion-only sweep (e2eLocalTests.yml:16, e2eTests.yml:42 -- neither
-        # excludes it), but its JsonActionsTests half is explicitly excluded there
+    def test_current_repository_has_no_orphaned_suite_files(self):
+        # #4071: cucumber_testSuite.xml was deleted (redundant -- its sole class,
+        # cucumberTestRunner.CucumberTests, already runs via e2eLocalTests.yml:350
+        # and e2eTests.yml:672's %regex[.*CucumberTests.*]). testSuite02.xml named
+        # two classes: ValidationTests already ran via GLOBAL_TESTING_SCOPE's
+        # exclusion-only sweep, but JsonActionsTests was explicitly excluded there
         # (!%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*]) and unreferenced
-        # anywhere else -- genuine dark coverage, not a cleanup call. This test pins
-        # that single known orphan so the guard stays green pending that decision;
-        # update or remove this pin once testSuite02.xml is resolved.
+        # anywhere else -- genuine dark coverage. Verified green with a scoped local
+        # run, then rehomed into pr-gate.yml's shaft-engine unit-tests allowlist
+        # (it's pure file-read plus JSONCompare, no driver, no network), after which
+        # testSuite02.xml was itself redundant and deleted. Zero known orphans left.
         repository_root = Path(__file__).resolve().parents[2]
-        errors = validate_repository(repository_root)
-        flagged = {error["path"] for error in errors}
-        self.assertEqual(flagged, {"shaft-engine/src/test/resources/TestSuites/testSuite02.xml"})
+        self.assertEqual(validate_repository(repository_root), [])
 
 
 if __name__ == "__main__":
