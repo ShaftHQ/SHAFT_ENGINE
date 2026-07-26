@@ -444,3 +444,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shafthq-github-io-fresh-git-worktree-needs-yarn-install-before-yarn-test-build","timestamp":"2026-07-26T10:25:51+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.mcp-guardrail-checks-only-have-teeth-via-autobotservice-runproviderchat","timestamp":"2026-07-26T10:25:51+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.concurrent-agents-sharing-one-m2-prefer-compile-package-over-install","timestamp":"2026-07-26T10:25:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.live-e2e-maven-executable-choice-must-match-the-ci-os-not-hardcode-mvn-cmd","timestamp":"2026-07-26T10:58:55+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.tag-external-e2e-alone-does-not-keep-a-browser-test-out-of-pr-gates","timestamp":"2026-07-26T10:58:55+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.junit-timeout-does-not-interrupt-a-hang-blocked-in-native-http-i-o","timestamp":"2026-07-26T10:58:55+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard","timestamp":"2026-07-26T10:58:55+03:00"}
