@@ -131,11 +131,28 @@ runs:
           grep -o "\"${field}\" *: *[0-9]*" "$file" 2>/dev/null | head -1 | grep -o '[0-9]*' || true
         }
 
+        # Describe why RESULT_COUNT is zero: absent directory vs. present-but-empty
+        # are different diagnostics and both should be actionable.
+        describe_allure_results_dir() {
+          if [ -d "$ALLURE_RESULTS_DIR" ]; then
+            echo "$ALLURE_RESULTS_DIR exists but contains no raw result files"
+          else
+            echo "$ALLURE_RESULTS_DIR does not exist"
+          fi
+        }
+
         # Count raw Allure result files before interpreting the generated summary.
         # An empty raw-results directory means the run is invalid, even if a stale summary exists.
+        # GNU find exits nonzero when its start path is entirely absent (not merely
+        # empty) -- guard with -d first so a missing directory can't kill the step
+        # via pipefail before reaching the diagnostics below (#4105).
         ALLURE_RESULTS_DIR="${{ inputs.module-directory }}/allure-results"
-        RESULT_COUNT=$(find "$ALLURE_RESULTS_DIR" -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
-        RESULT_COUNT=${RESULT_COUNT:-0}
+        if [ -d "$ALLURE_RESULTS_DIR" ]; then
+          RESULT_COUNT=$(find "$ALLURE_RESULTS_DIR" -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          RESULT_COUNT=${RESULT_COUNT:-0}
+        else
+          RESULT_COUNT=0
+        fi
         echo "Allure raw result files: $RESULT_COUNT"
 
         # SHAFT writes summary.json at the report root after generating the single-file HTML.
@@ -189,7 +206,7 @@ runs:
         # Primary check: use Allure report data.
         if [ -f "$ALLURE_SUMMARY" ]; then
           if [ "$RESULT_COUNT" -eq 0 ]; then
-            echo "::error::No raw Allure result files were generated in $ALLURE_RESULTS_DIR. Treating this as an invalid test run."
+            echo "::error::No raw Allure result files were generated: $(describe_allure_results_dir). Treating this as an invalid test run."
             exit 1
           fi
           if [ "$TOTAL" -eq 0 ]; then
@@ -221,7 +238,7 @@ runs:
           echo "All tests passed according to Allure report."
         else
           if [ "$RESULT_COUNT" -eq 0 ]; then
-            echo "::error::No Allure summary or raw result files were generated for ${{ inputs.module-directory }}."
+            echo "::error::No Allure summary was generated for ${{ inputs.module-directory }}, and $(describe_allure_results_dir)."
             exit 1
           fi
           echo "::warning::Allure report summary not found. Falling back to surefire reports."
