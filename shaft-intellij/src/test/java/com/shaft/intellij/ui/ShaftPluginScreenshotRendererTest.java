@@ -641,11 +641,18 @@ class ShaftPluginScreenshotRendererTest {
                 "The welcome message's trailing paragraph must contain the full onboarding sentence, "
                         + "including its final \"Copy response.\" clause, in the rendered document");
         Rectangle bounds = tailCharacterBounds.get();
-        assertTrue(bounds.y + bounds.height <= welcomePane.get().getHeight(),
+        int margin = welcomePane.get().getHeight() - (bounds.y + bounds.height);
+        // A margin that merely clears zero is exactly what regressed here once already (a shared
+        // htmlPane border reservation tuned against one platform's font metrics left only 1px of
+        // slack on a real run): require real headroom, not a razor-thin pass, so a future edit that
+        // erodes this back down gets caught here instead of on a CI runner with different font
+        // metrics.
+        assertTrue(margin >= 10,
                 "The trailing paragraph's final characters (\"Copy response.\") must be painted "
-                        + "inside the welcome message pane's own bounds at NARROW_WIDTH -- Swing clips "
-                        + "paint to component bounds, so text laid out below getHeight() is silently "
-                        + "dropped with no ellipsis, reproducing issue #4174.");
+                        + "inside the welcome message pane's own bounds at NARROW_WIDTH with a real "
+                        + "safety margin (>=10px), not a razor-thin pass -- Swing clips paint to "
+                        + "component bounds, so text laid out below getHeight() is silently dropped "
+                        + "with no ellipsis, reproducing issue #4174. Actual margin: " + margin + "px.");
     }
 
     /**
