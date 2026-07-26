@@ -376,36 +376,33 @@ def validate_local_references(root: Path, files: list[Path]) -> list[dict[str, s
     return errors
 
 
-ROUTING_HEADING = "## Routing"
+ROUTING_BRIDGES_PATH = ".agents/routing-bridges.txt"
 ROUTING_BRIDGE_NAME = re.compile(r"`([a-z0-9][a-z0-9-]*)`")
 
 
 def validate_routing_bridges(root: Path) -> list[dict[str, str]]:
-    """Ensure every bridge AGENTS.md's Routing section names by backtick
-    resolves to a .agents/skills/<name>/SKILL.md file.
+    """Ensure every bridge ROUTING_BRIDGES_PATH names by backtick resolves to
+    a .agents/skills/<name>/SKILL.md file.
 
-    Bridges are read as files, never `Skill`-tool invocable (issue #4053); a
-    name that only exists under .claude/skills (the Skill-tool-invocable
-    tree) does not satisfy this -- the two trees are independent.
+    The enumeration lives outside every guidance budget glob (#4067);
+    AGENTS.md's Routing section keeps only the always-on rule that bridges
+    exist and where to find them. Bridges are read as files, never
+    `Skill`-tool invocable (issue #4053); a name that only exists under
+    .claude/skills (the Skill-tool-invocable tree) does not satisfy this --
+    the two trees are independent.
     """
-    agents_path = root / "AGENTS.md"
-    if not agents_path.is_file():
+    bridges_path = root / ROUTING_BRIDGES_PATH
+    if not bridges_path.is_file():
         return []
-    content = agents_path.read_text(encoding="utf-8")
-    start = content.find(ROUTING_HEADING)
-    if start < 0:
-        return []
-    start += len(ROUTING_HEADING)
-    end = content.find("\n## ", start)
-    section = content[start : end if end >= 0 else len(content)]
+    content = bridges_path.read_text(encoding="utf-8")
     errors: list[dict[str, str]] = []
-    for name in ROUTING_BRIDGE_NAME.findall(section):
+    for name in ROUTING_BRIDGE_NAME.findall(content):
         if not (root / ".agents/skills" / name / "SKILL.md").is_file():
             errors.append(
                 issue(
                     "routing-bridge-missing",
-                    "AGENTS.md",
-                    f"Routing references bridge '{name}' with no .agents/skills/{name}/SKILL.md",
+                    ROUTING_BRIDGES_PATH,
+                    f"references bridge '{name}' with no .agents/skills/{name}/SKILL.md",
                 )
             )
     return errors
