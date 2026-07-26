@@ -479,3 +479,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.xmlpackage-getxmlclasses-already-does-a-scoped-package-scan","timestamp":"2026-07-26T18:13:02+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.aibudget-per-request-output-tokens-are-dead-unless-global-default-keeps-up","timestamp":"2026-07-26T18:19:35+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.gemini-thinkinglevel-is-3-x-only-thinkingbudget-is-2-5-series","timestamp":"2026-07-26T18:19:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.bash-tool-mangles-the-colon-in-git-ref-path-arguments-msys-path-translation","timestamp":"2026-07-26T18:33:00+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.bash-msys-path-mangling-family","timestamp":"2026-07-26T18:33:18+03:00"}

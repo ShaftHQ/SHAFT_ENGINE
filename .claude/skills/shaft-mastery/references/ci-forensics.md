@@ -81,3 +81,52 @@ A partial (non-`all`) `workflow_dispatch` also flips the failing-nightly
 tracking-issue `outcome` input to `'skip'` in both workflows' notify job —
 otherwise a single targeted job passing would read as the whole suite
 having recovered.
+
+## Local guard replay — prove a composite action's shell logic without dispatch (#4119)
+Complement to "Targeted dispatch" above: that section proves a test change is
+right by running one job. This proves a *workflow-level guard* is right
+without running any job at all. A composite action's `run:` step is plain
+shell once GitHub's `${{ inputs.* }}` templating is peeled off — extract,
+parameterize, fixture, replay.
+
+1. Extract the step's shell body verbatim (e.g. `.github/actions/post-test-report/
+   action.yml`'s "Write Summary and Check Test Results" step, id
+   `collect_results`, action.yml:119-252).
+2. Parameterize every `${{ inputs.<name> }}` token as a same-named shell
+   variable (`${{ inputs.module-directory }}` -> `$MODULE_DIR`,
+   `${{ inputs.job-name }}` -> `$JOB_NAME`) with one `sed` pass — no YAML or
+   Actions runtime involved.
+3. Default `$GITHUB_STEP_SUMMARY` / `$GITHUB_OUTPUT` to `/dev/null` when unset:
+   the script appends to them unconditionally, and GitHub sets them but a
+   local shell doesn't.
+4. Build a fixture tree from a real run's own evidence, one directory per
+   candidate input value: an `allure-results/*-result.json` file per scenario
+   and an `allure-report/summary.json` carrying the real totals. Directories
+   the guard should find nothing in are simply absent — that absence is the
+   condition under test.
+5. Run the extracted script once per candidate input value and read the exit
+   code and printed summary line. No `gh workflow run`, no runner queue, no
+   waiting.
+
+Proven this way for #4119: `MacOSX_Safari_Cucumber_BrowserStack`'s 13 Cucumber
+scenarios actually land under `shaft-engine/` (its `-Dtest` selector only
+matches shaft-engine's `cucumberTestRunner.CucumberTests`, pulled in via
+`-am`), never under the job's own `-pl` target `shaft-browserstack/`.
+Replaying action.yml's guard (RESULT_COUNT at action.yml:149-155, the
+no-summary branch at action.yml:239-243) against a fixture built from that
+real 13-passed evidence:
+- `MODULE_DIR=shaft-browserstack` (the #4079 override, matching `-pl` rather
+  than where output actually lands) — `Allure Report Summary: Total=0,
+  Passed=0, Failed=0, Broken=0, Skipped=0` then `::error::No Allure summary
+  was generated for shaft-browserstack, and shaft-browserstack/allure-results
+  does not exist.`, exit 1: the exact false failure #4119 reported on a fully
+  passing run.
+- `MODULE_DIR=shaft-engine` (the default at action.yml:33; e2eTests.yml:754-760
+  no longer overrides it, fixed by #4135) — `Allure Report Summary: Total=13,
+  Passed=13, Failed=0, Broken=0, Skipped=0` then `All tests passed according
+  to Allure report.`, exit 0.
+
+Generalizes to any composite-action guard: peel the templating, fixture the
+filesystem state the shell actually branches on, replay — reach for
+"Targeted dispatch" only once the local replay says the guard itself is
+sound and a real job run is what's left to check.
