@@ -426,6 +426,33 @@ jobs:
       - name: Validate no TestNG suite XML file is orphaned
         run: python3 scripts/ci/validate_orphaned_suite_files.py
 
+  # Issue #4142: GitHub's closing-keyword scanner has no negation awareness --
+  # it auto-closed #3930 from PR #4009's "Does not fix #3930's original macOS
+  # OOM", overriding a human's manual reopen 7 minutes earlier. Runs
+  # unconditionally on every pull_request (like dependency-review below, it
+  # concerns PR body text, not changed files, so no `changes` path leg gates
+  # it) and reads the live PR body via `github.event.pull_request.body`,
+  # which only exists on the pull_request event.
+  pr-body-autoclose-guard:
+    name: PR Body Autoclose Guard
+    needs: changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Run PR body autoclose guard unit tests
+        run: python3 -m unittest tests.scripts.test_validate_pr_closing_keywords -v
+      - name: Validate PR body has no negated closing-keyword references
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 scripts/ci/validate_pr_closing_keywords.py
+
   # Moved from security.yml's dependency-review job. Runs unconditionally on
   # every pull_request (no path leg matches it in the `changes` job, mirroring
   # its unconditional-per-PR behavior in security.yml today) and temporarily
@@ -461,6 +488,7 @@ jobs:
       - template-coupling
       - workflow-timeouts
       - orphaned-suite-files
+      - pr-body-autoclose-guard
       - dependency-review
     if: always()
     runs-on: ubuntu-22.04
@@ -478,6 +506,7 @@ jobs:
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
           ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
+          PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
           set -uo pipefail
@@ -495,6 +524,7 @@ jobs:
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
             echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
+            echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -504,7 +534,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
