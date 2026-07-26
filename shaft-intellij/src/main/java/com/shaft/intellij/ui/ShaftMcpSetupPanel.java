@@ -585,7 +585,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         recheckPrerequisites.getAccessibleContext().setAccessibleName("Recheck prerequisites");
         recheckPrerequisites.setToolTipText("Detect the required tools again after installing one");
         applyLabeledAction(recheckPrerequisites, ShaftIcons.CHECK);
-        recheckPrerequisites.addActionListener(event -> refreshPrerequisites());
+        recheckPrerequisites.addActionListener(event -> {
+            refreshPrerequisites();
+            updateActionState(false);
+        });
         JButton copyEngineWarmup = new JButton("Warm up Engine");
         // Resolve the latest engine release off-EDT now so the click below can pin a real version.
         SetupPrerequisites.prefetchLatestEngineVersion();
