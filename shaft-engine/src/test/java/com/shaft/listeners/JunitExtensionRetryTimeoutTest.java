@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,6 +71,9 @@ class BlockingRetryFixture {
     @Test
     void wedges() throws InterruptedException {
         releaseLatch.await();
+        // Reached only on a clean (non-interrupted) release: proves this fixture really did wait
+        // for the test-controlled latch rather than returning on some other, spurious path.
+        assertEquals(0, releaseLatch.getCount());
     }
 }
 
@@ -80,5 +84,8 @@ class SlowButSuccessfulRetryFixture {
         // Well under the 2s bound configured above, but not instantaneous: proves a legitimately
         // slow (bounded) retried test is not spuriously killed by the timeout.
         Thread.sleep(300);
+        // Proves the in-bound sleep ran to completion rather than being cut short by a cancel(true)
+        // interrupt -- the exact distinction this fixture exists to demonstrate.
+        assertFalse(Thread.currentThread().isInterrupted());
     }
 }
