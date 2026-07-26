@@ -490,6 +490,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @SuppressWarnings("UnusedReturnValue")
     @Override
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
+        String resolvedUrl = targetUrl;
         try {
             String domainName = browserActionsHelper.getDomainNameFromUrl(targetUrl);
             var strategy = browserActionsHelper.determineBasicAuthenticationStrategy(
@@ -513,18 +514,18 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                         + "HasAuthentication handler is CDP-backed and this remote driver session does not expose a "
                         + "reachable Chrome DevTools Protocol endpoint (no HasDevTools augmentation), so register() "
                         + "would silently do nothing. Falling back to URL-embedded credentials.", Level.WARN);
-                targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+                resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
             } else {
                 ReportManagerHelper.logDiscrete("Basic authentication downgraded to URL-embedded credentials: execution is remote and "
                         + "SHAFT.Properties.platform.enableBiDi() is disabled, so no native HasAuthentication handler can be provisioned "
                         + "on the remote driver. Enable BiDi to use the native handler for remote executions.", Level.WARN);
-                targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+                resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
-            targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+            resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
         }
-        return navigateToURL(targetUrl, targetUrlAfterAuthentication);
+        return navigateToURL(resolvedUrl, targetUrlAfterAuthentication);
     }
 
     /**
