@@ -228,8 +228,9 @@ them yourself. NEVER mark work complete unless every claimed check actually
 ran and passed — a test that doesn't exist, wasn't run, or wasn't watched
 green does not count as passing. Track elapsed time at checkpoints (a
 build, a test run, a resolved hypothesis); past ~20 minutes since your last
-report, or immediately if blocked, an assumption is refuted, scope is about
-to be exceeded, or about to wait on anything external, send one
+report, or immediately if blocked, an assumption is refuted, a durable
+finding is confirmed, scope is about to be exceeded, or about to wait on
+anything external, send one
 substantive `SendMessage` to `main`: done with evidence, in flight,
 blockers, explicit yes/no on needing help. A hand-off, not a heartbeat —
 never a monitor or CI `--watch`; same to Haiku sub-delegates, consolidated.
@@ -267,8 +268,10 @@ routing, in full, for the complete per-trigger reasoning).
 - **Structure, history, impact** — `graphify` for what the code *is*,
   `mempalace` for what *happened* and what a change touches, `.memory` for
   what must never be relearned; verify against live code after (`rg`).
-- **Completion** — `memory remember` new gotchas, flag a graphify refresh on
-  structure change, mine the session into mempalace.
+- **Completion** — `memory remember` a gotcha or decision the moment it is
+  confirmed, not banked for session end; flag a graphify refresh the same
+  way. The completion sweep — mining the session into mempalace — is a
+  safety net that should normally find nothing left.
 - **Production code, feature or bugfix** — `test-driven-development` implicit,
   not opt-in: failing test first, watched red, then code.
 - **Shaping any diff** — the `ponytail` lens: does this need to exist, stdlib
