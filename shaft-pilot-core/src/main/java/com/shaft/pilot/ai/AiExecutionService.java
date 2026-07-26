@@ -132,7 +132,38 @@ public final class AiExecutionService {
         } else if (isCircuitFailure(result.status())) {
             circuit.failure(configuration.circuitBreakerFailureThreshold());
         }
+        String outputBudgetWarning = reducedOutputBudgetWarning(request, configuration);
+        if (outputBudgetWarning != null) {
+            result = withWarning(result, outputBudgetWarning);
+        }
         return finish(request, providerId, model, redaction.safeSummary(), started, result);
+    }
+
+    /**
+     * Reports when a caller's requested output token budget was silently reduced to the configured
+     * maximum, so a mismatch between a per-call budget and the global ceiling (as in #4113) surfaces
+     * immediately instead of only showing up as truncated output.
+     *
+     * @param request request carrying the caller's requested budget
+     * @param configuration configured output token ceiling
+     * @return a safe warning message, or {@code null} when the request was already within budget
+     */
+    private static String reducedOutputBudgetWarning(AiRequest request, PilotConfiguration configuration) {
+        long requested = request.budget().maxOutputTokens();
+        long configured = configuration.maxOutputTokens();
+        if (requested <= 0 || requested <= configured) {
+            return null;
+        }
+        return "Requested output token budget (" + requested + ") exceeds the configured maximum ("
+                + configured + ") and was silently reduced.";
+    }
+
+    private static AiResponse withWarning(AiResponse response, String warning) {
+        java.util.ArrayList<String> warnings = new java.util.ArrayList<>(response.warnings());
+        warnings.add(warning);
+        return new AiResponse(response.schemaVersion(), response.status(), response.provider(), response.model(),
+                response.structuredPayload(), warnings, response.duration(), response.usage(),
+                response.fallbackReason(), response.deterministicFallback());
     }
 
     private AiResponse preflight(AiRequest request, PilotConfiguration configuration, AiProvider provider,
@@ -162,8 +193,7 @@ public final class AiExecutionService {
         }
         long estimatedInputTokens = Math.max(1, (requestBytes + 3) / 4);
         long inputLimit = inheritedLimit(request.budget().maxInputTokens(), configuration.maxInputTokens());
-        long outputLimit = inheritedLimit(request.budget().maxOutputTokens(), configuration.maxOutputTokens());
-        if (estimatedInputTokens > inputLimit || outputLimit > configuration.maxOutputTokens()) {
+        if (estimatedInputTokens > inputLimit) {
             return failure(request, AiResponseStatus.BUDGET_EXCEEDED, providerId, model,
                     "The request exceeds the configured token budget.", started);
         }
