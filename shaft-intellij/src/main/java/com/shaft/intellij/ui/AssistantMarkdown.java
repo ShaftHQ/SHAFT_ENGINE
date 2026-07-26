@@ -165,8 +165,11 @@ final class AssistantMarkdown {
      * on that nested section, not at the union's top level. The union guarantees exactly one section
      * is populated, so returning the first populated section is equivalent to dispatching on the
      * union's {@code engine} field. A payload with none of these keys (already unwrapped, or a
-     * non-union shape) is returned unchanged. Shared by {@code GuidedWorkflowPanel} and {@code
-     * ShaftAssistantPanel} -- both poll the same union-shaped capture status tools (issue #3955).
+     * non-union shape) is returned unchanged. Shared by {@code GuidedWorkflowPanel}, {@code
+     * RecorderToolPanel}, and {@code ShaftAssistantPanel} -- all three poll the same union-shaped
+     * capture status tools (issue #3955; consolidated onto this single call-through home, issue
+     * #4171, after a private same-named/same-signature method in {@code GuidedWorkflowPanel} had
+     * been shadowing this one for every unqualified call in that class).
      *
      * @param status the raw parsed tool output, or null
      * @return the unwrapped engine-specific status section, or {@code status} itself when it has no
@@ -182,6 +185,69 @@ final class AssistantMarkdown {
             }
         }
         return status;
+    }
+
+    /**
+     * Answers active/idle for an (already {@link #unwrapCaptureStatus}-unwrapped) engine-specific
+     * status section: {@code active} first (mobile), else {@code state} (web/Playwright). Issue
+     * #4171: consolidated single home for logic that used to be duplicated byte-for-byte in both
+     * {@code GuidedWorkflowPanel} and {@code RecorderToolPanel}.
+     *
+     * @param status the unwrapped status section, or null
+     * @return true when the status represents an active/starting/stopping recording
+     */
+    static boolean isRecorderActive(JsonObject status) {
+        if (status == null) {
+            return false;
+        }
+        if (status.has("active")) {
+            return status.get("active").getAsBoolean();
+        }
+        String state = status.has("state") ? status.get("state").getAsString() : "";
+        return "ACTIVE".equalsIgnoreCase(state) || "STARTING".equalsIgnoreCase(state)
+                || "STOPPING".equalsIgnoreCase(state);
+    }
+
+    /**
+     * Renders an (already unwrapped) status section's recorded-unit count as "N step(s)", with a
+     * trailing "(+N pending)" when pending signals exist -- recorded units read "steps" in every
+     * user-facing surface (shared authoring glossary, #3496/#3501) even though the wire fields keep
+     * their eventCount/actionCount names. Issue #4171: consolidated single home, see {@link
+     * #isRecorderActive}.
+     *
+     * @param status the unwrapped status section, or null
+     * @return the human-readable step count text
+     */
+    static String countText(JsonObject status) {
+        if (status == null) {
+            return "0 steps";
+        }
+        int steps = status.has("actionCount")
+                ? status.get("actionCount").getAsInt()
+                : status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
+        int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
+        String base = steps + (steps == 1 ? " step" : " steps");
+        return pending > 0 ? base + " (+" + pending + " pending)" : base;
+    }
+
+    /**
+     * Maps an (already unwrapped) status section's {@code readiness} wire enum to its human-cased
+     * label ("Ready"/"Risky"/"Blocked"), or {@code ""} when absent or unrecognized. Issue #4171:
+     * consolidated single home, see {@link #isRecorderActive}.
+     *
+     * @param status the unwrapped status section, or null
+     * @return the human-cased readiness label, or {@code ""}
+     */
+    static String readinessLabel(JsonObject status) {
+        if (status == null || !status.has("readiness")) {
+            return "";
+        }
+        return switch (status.get("readiness").getAsString().toUpperCase(java.util.Locale.ROOT)) {
+            case "READY" -> "Ready";
+            case "RISKY" -> "Risky";
+            case "BLOCKED" -> "Blocked";
+            default -> "";
+        };
     }
 
     /**

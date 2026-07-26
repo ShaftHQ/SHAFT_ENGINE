@@ -418,61 +418,23 @@ final class RecorderToolPanel extends JPanel {
         }
         JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
                 AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
-        if (isRecorderActive(status)) {
-            setStatus("Recording active - " + countText(status) + readinessSuffix(status)
+        if (AssistantMarkdown.isRecorderActive(status)) {
+            setStatus("Recording active - " + AssistantMarkdown.countText(status) + readinessSuffix(status)
                     + ". Open Advanced options for the full status.");
             return;
         }
         String state = status != null && status.has("state") ? status.get("state").getAsString() : "";
         if ("INCOMPLETE".equalsIgnoreCase(state) || "FAILED".equalsIgnoreCase(state)) {
             setStatus("Recording ended unexpectedly (" + state.toUpperCase(java.util.Locale.ROOT) + ") - "
-                    + countText(status) + ". Re-record the flow before generating code.");
+                    + AssistantMarkdown.countText(status) + ". Re-record the flow before generating code.");
             return;
         }
         setStatus("No active recording. Recorder idle. Open Advanced options for the full status.");
     }
 
-    /**
-     * Mirrors {@code GuidedWorkflowPanel#isRecorderActive} exactly: same {@code capture_status}
-     * union payload shape, so this panel's one-shot Check status answers the same active/idle
-     * question the same way -- {@code active} first (mobile), else {@code state} (web/Playwright).
-     */
-    private static boolean isRecorderActive(JsonObject status) {
-        if (status == null) {
-            return false;
-        }
-        if (status.has("active")) {
-            return status.get("active").getAsBoolean();
-        }
-        String state = status.has("state") ? status.get("state").getAsString() : "";
-        return "ACTIVE".equalsIgnoreCase(state) || "STARTING".equalsIgnoreCase(state)
-                || "STOPPING".equalsIgnoreCase(state);
-    }
-
-    /** Mirrors {@code GuidedWorkflowPanel#countText}: recorded units read "steps" everywhere. */
-    private static String countText(JsonObject status) {
-        if (status == null) {
-            return "0 steps";
-        }
-        int steps = status.has("actionCount")
-                ? status.get("actionCount").getAsInt()
-                : status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
-        int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
-        String base = steps + (steps == 1 ? " step" : " steps");
-        return pending > 0 ? base + " (+" + pending + " pending)" : base;
-    }
-
-    /** Mirrors {@code GuidedWorkflowPanel#readinessLabel}, rendered as a trailing " - Label" suffix. */
+    /** Mirrors {@link AssistantMarkdown#readinessLabel}, rendered as a trailing " - Label" suffix. */
     private static String readinessSuffix(JsonObject status) {
-        if (status == null || !status.has("readiness")) {
-            return "";
-        }
-        String readiness = switch (status.get("readiness").getAsString().toUpperCase(java.util.Locale.ROOT)) {
-            case "READY" -> "Ready";
-            case "RISKY" -> "Risky";
-            case "BLOCKED" -> "Blocked";
-            default -> "";
-        };
+        String readiness = AssistantMarkdown.readinessLabel(status);
         return readiness.isBlank() ? "" : " - " + readiness;
     }
 
