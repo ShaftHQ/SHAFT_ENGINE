@@ -265,7 +265,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -303,7 +303,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -341,7 +341,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
