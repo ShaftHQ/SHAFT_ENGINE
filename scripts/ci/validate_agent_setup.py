@@ -182,6 +182,39 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
     return errors
 
 
+def run_memory_check(root: Path) -> list[dict[str, str]]:
+    """Run `memory check` against the PATH-resolved Memory CLI.
+
+    Agents invoke `memory` from PATH (AGENTS.md, "Memory & Learning Loop"),
+    so this validates the toolchain copy actually in use rather than an
+    `npx --package`-cached copy nobody runs. Fails loudly with an actionable
+    message when the binary is missing instead of falling back to a download.
+    """
+    executable = shutil.which("memory")
+    if executable is None:
+        return [
+            issue(
+                "memory-check",
+                "memory",
+                "memory CLI not found on PATH. Install it globally with "
+                f"`npm install -g {MEMORY_PACKAGE}` and ensure the npm global "
+                "bin directory is on PATH, then retry.",
+            )
+        ]
+    completed = subprocess.run(
+        [executable, "check"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return []
+    detail = (completed.stderr or completed.stdout).strip().replace("\n", " ")
+    return [issue("memory-check", "memory", detail[:500] or f"exit code {completed.returncode}")]
+
+
 def run_command(root: Path, command: list[str], code: str) -> list[dict[str, str]]:
     """Run one external check and return a concise issue on failure."""
     executable = shutil.which(command[0])
@@ -261,21 +294,7 @@ def validate_repository(
         *validate_skill_hygiene(root),
     ]
     if run_external:
-        errors.extend(
-            run_command(
-                root,
-                [
-                    "npx",
-                    "--yes",
-                    "--package",
-                    MEMORY_PACKAGE,
-                    "--",
-                    "memory",
-                    "check",
-                ],
-                "memory-check",
-            )
-        )
+        errors.extend(run_memory_check(root))
         errors.extend(run_command(root, ["git", "diff", "--check"], "diff-check"))
     return (
         sorted(errors, key=lambda item: (item["path"], item["code"], item["message"])),
