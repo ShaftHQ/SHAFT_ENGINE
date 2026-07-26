@@ -14,6 +14,7 @@ import argparse
 import base64
 import json
 import re
+import sys
 import textwrap
 import xml.etree.ElementTree as ET
 import zipfile
@@ -474,6 +475,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    # Windows CI runners (and any non-UTF-8 console/pipe) default sys.stdout to
+    # a codec like cp1252 that cannot encode the emoji SHAFT's own assertion
+    # output contains, crashing this script's print() with UnicodeEncodeError
+    # (#4007). Force UTF-8 so the emoji print correctly instead of being
+    # stripped or crashing. Guarded because not every stdout stand-in (e.g.
+    # io.StringIO in tests) implements reconfigure().
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     args = parse_args()
     allure_failures = extract_failures(args.paths)
     surefire_failures = extract_surefire_failures(args.surefire_reports)

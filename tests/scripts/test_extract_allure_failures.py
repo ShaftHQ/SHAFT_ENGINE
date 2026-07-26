@@ -362,6 +362,38 @@ class ExtractAllureFailuresTests(unittest.TestCase):
         self.assertIn("visible exception", markdown)
         self.assertNotIn("hidden fixture should not be counted", markdown)
 
+    def test_prints_emoji_bearing_failure_reason_without_crashing_on_non_utf8_stdout(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "failed-result.json").write_text(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "fullName": "pkg.EmojiTest.fails",
+                        "statusDetails": {
+                            "message": "❌ assertion failed \U0001f50d see \U0001f4cd trace",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            buffer = io.BytesIO()
+            # Simulate a Windows CI runner whose stdout code page is cp1252, not
+            # UTF-8 -- this is what sys.stdout looks like on windows-latest when
+            # python's stdout is piped (e.g. `python3 ... | tee`), reproducing #4007.
+            # Force the encoding explicitly rather than relying on the dev shell's
+            # ambient (already-UTF-8) console.
+            non_utf8_stdout = io.TextIOWrapper(buffer, encoding="cp1252", errors="strict")
+            with patch("sys.argv", ["extract_allure_failures.py", str(root)]), patch("sys.stdout", non_utf8_stdout):
+                exit_code = main()
+                non_utf8_stdout.flush()
+
+        self.assertEqual(exit_code, 1)
+        printed = buffer.getvalue().decode("utf-8")
+        self.assertIn("❌", printed)
+        self.assertIn("pkg.EmojiTest.fails", printed)
+
     def test_ignores_hidden_allure_failures_from_generated_report_json(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_data = Path(temp_dir) / "data" / "test-results"
