@@ -76,6 +76,13 @@ final class ShaftMcpSetupPanel extends JPanel {
             "Next: pick your agent, then press Install SHAFT MCP -- this opens a terminal with the MCP+skills+CLI "
                     + "install command ready to go; run it there, then press Check.";
     private static final String CHECK_NEXT_STEP = "Press Check now.";
+    // Issue #4160 area A: a returning user reopening the panel in a new IDE session after setup
+    // already succeeded sees "4 Check setup: Done" (settings.mcpSetupComplete persists) alongside
+    // steps 1-3, which always reset to neutral on a fresh landing (issue #3426 A4/A5, #3560) --
+    // CHECK_NEXT_STEP's "Press Check now." reads as if nothing had ever been verified, contradicting
+    // the Done badge right above it. This greeting acknowledges the prior success instead.
+    private static final String ALREADY_VERIFIED_STEP =
+            "SHAFT MCP was verified in a previous session. Press Check to re-verify now.";
     private static final String GEMINI_FAMILY = "GEMINI";
     private static final String GEMINI_KEY_NAME = "GEMINI_API_KEY";
     /** Client-property key {@link #stepRow} stashes its action component under, so the row-collapse
@@ -763,7 +770,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         refreshPrerequisites();
         refreshRealChecks();
         if (!currentCommand().isBlank()) {
-            setStatusText(CHECK_NEXT_STEP);
+            setStatusText(settings.mcpSetupComplete ? ALREADY_VERIFIED_STEP : CHECK_NEXT_STEP);
         }
         updateActionState(false);
     }
