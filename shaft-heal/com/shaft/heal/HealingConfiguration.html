@@ -50,8 +50,9 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
-<li><a href="#%3Cinit%3E(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,boolean)" tabindex="0">HealingConfiguration(double, double, Set, List, boolean, Path, int, Duration, boolean, boolean, boolean)</a></li>
 <li><a href="#%3Cinit%3E(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,com.shaft.heal.HealingConfiguration.AiTrigger,boolean)" tabindex="0">HealingConfiguration(double, double, Set, List, boolean, Path, int, Duration, boolean, boolean, HealingConfiguration.AiTrigger, boolean)</a></li>
+<li><a href="#%3Cinit%3E(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,boolean)" tabindex="0">HealingConfiguration(double, double, Set, List, boolean, Path, int, Duration, boolean, boolean, boolean)</a></li>
+<li><a href="#%3Cinit%3E(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,com.shaft.heal.HealingConfiguration.AiTrigger,boolean,java.time.Duration)" tabindex="0">HealingConfiguration(double, double, Set, List, boolean, Path, int, Duration, boolean, boolean, HealingConfiguration.AiTrigger, boolean, Duration)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -72,6 +73,7 @@
 <li><a href="#aiEnabled()" tabindex="0">aiEnabled()</a></li>
 <li><a href="#aiTrigger()" tabindex="0">aiTrigger()</a></li>
 <li><a href="#sourcePatchEnabled()" tabindex="0">sourcePatchEnabled()</a></li>
+<li><a href="#ladderBudget()" tabindex="0">ladderBudget()</a></li>
 </ol>
 </li>
 </ol>
@@ -101,10 +103,12 @@
 <dd><code><span id="param-aiEnabled">aiEnabled</span></code> - whether optional provider reranking is enabled</dd>
 <dd><code><span id="param-aiTrigger">aiTrigger</span></code> - when optional provider reranking may run</dd>
 <dd><code><span id="param-sourcePatchEnabled">sourcePatchEnabled</span></code> - whether reviewed source-patch proposals are permitted</dd>
+<dd><code><span id="param-ladderBudget">ladderBudget</span></code> - hard total budget across the whole re-suggestion ladder, not per attempt
+                    (issue #4027); <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html#ZERO" title="class or interface in java.time" class="external-link"><code>Duration.ZERO</code></a> preserves today's one-shot behavior</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">HealingConfiguration</span>(double&nbsp;minimumConfidence, double&nbsp;ambiguityMargin, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceCategories, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes, boolean&nbsp;historyEnabled, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;historyPath, int&nbsp;historyMaxEntries, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;historyRetention, boolean&nbsp;visualEnabled, boolean&nbsp;aiEnabled, <a href="HealingConfiguration.AiTrigger.html" title="enum class in com.shaft.heal">HealingConfiguration.AiTrigger</a>&nbsp;aiTrigger, boolean&nbsp;sourcePatchEnabled)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">HealingConfiguration</span>(double&nbsp;minimumConfidence, double&nbsp;ambiguityMargin, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceCategories, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes, boolean&nbsp;historyEnabled, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;historyPath, int&nbsp;historyMaxEntries, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;historyRetention, boolean&nbsp;visualEnabled, boolean&nbsp;aiEnabled, <a href="HealingConfiguration.AiTrigger.html" title="enum class in com.shaft.heal">HealingConfiguration.AiTrigger</a>&nbsp;aiTrigger, boolean&nbsp;sourcePatchEnabled, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;ladderBudget)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Immutable current-thread SHAFT Heal configuration snapshot.</div>
 </div>
@@ -148,7 +152,7 @@
  boolean&nbsp;aiEnabled,
  boolean&nbsp;sourcePatchEnabled)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Backward-compatible constructor with the default AI trigger.</div>
+<div class="block">Backward-compatible constructor with the default AI trigger and no re-suggestion ladder.</div>
 </div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,com.shaft.heal.HealingConfiguration.AiTrigger,boolean)" class="member-name-link">HealingConfiguration</a><wbr>(double&nbsp;minimumConfidence,
  double&nbsp;ambiguityMargin,
@@ -163,6 +167,23 @@
  <a href="HealingConfiguration.AiTrigger.html" title="enum class in com.shaft.heal">HealingConfiguration.AiTrigger</a>&nbsp;aiTrigger,
  boolean&nbsp;sourcePatchEnabled)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Backward-compatible constructor without the re-suggestion ladder (one-shot, matching
+today's behavior).</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,com.shaft.heal.HealingConfiguration.AiTrigger,boolean,java.time.Duration)" class="member-name-link">HealingConfiguration</a><wbr>(double&nbsp;minimumConfidence,
+ double&nbsp;ambiguityMargin,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceCategories,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ boolean&nbsp;historyEnabled,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;historyPath,
+ int&nbsp;historyMaxEntries,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;historyRetention,
+ boolean&nbsp;visualEnabled,
+ boolean&nbsp;aiEnabled,
+ <a href="HealingConfiguration.AiTrigger.html" title="enum class in com.shaft.heal">HealingConfiguration.AiTrigger</a>&nbsp;aiTrigger,
+ boolean&nbsp;sourcePatchEnabled,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;ladderBudget)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Creates a normalized configuration.</div>
 </div>
 </div>
@@ -234,29 +255,34 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-historyRetention"><code>historyRetention</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#minimumConfidence()" class="member-name-link">minimumConfidence</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ladderBudget()" class="member-name-link">ladderBudget</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-ladderBudget"><code>ladderBudget</code></a> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#minimumConfidence()" class="member-name-link">minimumConfidence</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-minimumConfidence"><code>minimumConfidence</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sourcePatchEnabled()" class="member-name-link">sourcePatchEnabled</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sourcePatchEnabled()" class="member-name-link">sourcePatchEnabled</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-sourcePatchEnabled"><code>sourcePatchEnabled</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#testIdAttributes()" class="member-name-link">testIdAttributes</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#testIdAttributes()" class="member-name-link">testIdAttributes</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-testIdAttributes"><code>testIdAttributes</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#visualEnabled()" class="member-name-link">visualEnabled</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#visualEnabled()" class="member-name-link">visualEnabled</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-visualEnabled"><code>visualEnabled</code></a> record component.</div>
 </div>
 </div>
@@ -277,25 +303,6 @@
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,boolean)">
-<h3>HealingConfiguration</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">HealingConfiguration</span><wbr><span class="parameters">(double&nbsp;minimumConfidence,
- double&nbsp;ambiguityMargin,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceCategories,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
- boolean&nbsp;historyEnabled,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;historyPath,
- int&nbsp;historyMaxEntries,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;historyRetention,
- boolean&nbsp;visualEnabled,
- boolean&nbsp;aiEnabled,
- boolean&nbsp;sourcePatchEnabled)</span></div>
-<div class="block">Backward-compatible constructor with the default AI trigger.</div>
-</div>
-</section>
-</li>
-<li>
 <section class="detail" id="&lt;init&gt;(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,com.shaft.heal.HealingConfiguration.AiTrigger,boolean)">
 <h3>HealingConfiguration</h3>
 <div class="horizontal-scroll">
@@ -311,6 +318,47 @@
  boolean&nbsp;aiEnabled,
  <a href="HealingConfiguration.AiTrigger.html" title="enum class in com.shaft.heal">HealingConfiguration.AiTrigger</a>&nbsp;aiTrigger,
  boolean&nbsp;sourcePatchEnabled)</span></div>
+<div class="block">Backward-compatible constructor without the re-suggestion ladder (one-shot, matching
+today's behavior).</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,boolean)">
+<h3>HealingConfiguration</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">HealingConfiguration</span><wbr><span class="parameters">(double&nbsp;minimumConfidence,
+ double&nbsp;ambiguityMargin,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceCategories,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ boolean&nbsp;historyEnabled,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;historyPath,
+ int&nbsp;historyMaxEntries,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;historyRetention,
+ boolean&nbsp;visualEnabled,
+ boolean&nbsp;aiEnabled,
+ boolean&nbsp;sourcePatchEnabled)</span></div>
+<div class="block">Backward-compatible constructor with the default AI trigger and no re-suggestion ladder.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(double,double,java.util.Set,java.util.List,boolean,java.nio.file.Path,int,java.time.Duration,boolean,boolean,com.shaft.heal.HealingConfiguration.AiTrigger,boolean,java.time.Duration)">
+<h3>HealingConfiguration</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">HealingConfiguration</span><wbr><span class="parameters">(double&nbsp;minimumConfidence,
+ double&nbsp;ambiguityMargin,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceCategories,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;testIdAttributes,
+ boolean&nbsp;historyEnabled,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;historyPath,
+ int&nbsp;historyMaxEntries,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;historyRetention,
+ boolean&nbsp;visualEnabled,
+ boolean&nbsp;aiEnabled,
+ <a href="HealingConfiguration.AiTrigger.html" title="enum class in com.shaft.heal">HealingConfiguration.AiTrigger</a>&nbsp;aiTrigger,
+ boolean&nbsp;sourcePatchEnabled,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;ladderBudget)</span></div>
 <div class="block">Creates a normalized configuration.</div>
 </div>
 </section>
@@ -535,6 +583,19 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-sourcePatchEnabled"><code>sourcePatchEnabled</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ladderBudget()">
+<h3>ladderBudget</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a></span>&nbsp;<span class="element-name">ladderBudget</span>()</div>
+<div class="block">Returns the value of the <a href="#param-ladderBudget"><code>ladderBudget</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-ladderBudget"><code>ladderBudget</code></a> record component</dd>
 </dl>
 </div>
 </section>
