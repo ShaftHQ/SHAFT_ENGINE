@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
+    KNOWN_SECRET_SCANNER_LANDMINE_FILES,
     run_memory_check,
     validate_memory_setup,
     validate_repository,
@@ -132,6 +133,26 @@ approval_mode = "prompt"
         self.assertEqual(len(errors), 1)
         self.assertIn("create_relation", errors[0]["message"])
         self.assertIn("explicit", errors[0]["message"])
+
+    def test_rejects_new_memory_file_matching_secret_scanner_landmine(self):
+        # The unpatched Aictx Memory CLI's `openai_api_key` rule is
+        # `/sk-[A-Za-z0-9_-]{20,}/` with no `\b` anchor before `sk-`, so it
+        # matches mid-word inside ordinary hyphenated slugs -- confirmed live
+        # (issue #4005) via a from-scratch `npm install @aictx/memory@0.1.55`:
+        # `memory check` hard-fails (exit 1) on any canonical file whose text
+        # contains a word like "desk-" followed by 20+ word/hyphen characters.
+        self.write(
+            ".memory/memory/gotchas/new-thing-desk-abcdefghijklmnopqrstuvwxyz.md",
+            "desk-abcdefghijklmnopqrstuvwxyz\n",
+        )
+        self.assertIn("memory-secret-landmine", self.codes())
+
+    def test_known_preexisting_landmine_file_is_grandfathered(self):
+        # The two files already committed before this check existed (#4005)
+        # must not start failing every build; only NEW occurrences should.
+        allowlisted_path = sorted(KNOWN_SECRET_SCANNER_LANDMINE_FILES)[0]
+        self.write(allowlisted_path, "desk-abcdefghijklmnopqrstuvwxyz\n")
+        self.assertNotIn("memory-secret-landmine", self.codes())
 
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
         # Negative test: relaxing the relation-file message must not open a
