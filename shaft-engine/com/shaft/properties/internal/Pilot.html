@@ -441,11 +441,20 @@ explicitly enabled AI and approved the relevant processing location.</p></div>
 <h3>maxOutputTokens</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Key("pilot.ai.maxOutputTokens")
-@DefaultValue("2000")
+@DefaultValue("8000")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">maxOutputTokens</span>()</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>maximum output tokens</dd>
+<dd>maximum output tokens
+
+<p>Raised from 2,000 (issue #4113): autobot_provider_chat has requested an 8,000-token
+per-call budget since #3371, but this global ceiling -- left at its original default --
+silently clamped every request back down to 2,000 (outputTokenLimit() and
+AiExecutionService#inheritedLimit both take <code>min(requested, this value)</code>). Reasoning
+models spend thinking tokens from the same budget, so 2,000 routinely truncated a full
+generated test class before the answer JSON completed (finishReason=MAX_TOKENS). 8,000
+lets the already-declared per-call budget actually reach the wire, with wide headroom
+below Gemini 3.5 Flash's documented 65,000-token output ceiling.</p></dd>
 </dl>
 </div>
 </section>
