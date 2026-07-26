@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -378,8 +379,8 @@ final class AssistantLocalAgentRunner {
         try {
             Process process = processLauncher.launch(command, Path.of("."), Map.of());
             process.getOutputStream().close();
-            CompletableFuture<String> stdout = readAsync(process.getInputStream(), null);
-            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), null);
+            StreamRead stdout = readAsync(process.getInputStream(), null);
+            StreamRead stderr = readAsync(process.getErrorStream(), null);
             if (!process.waitFor(MCP_ACCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 return ShaftMcpToolResult.success(displayName
@@ -589,8 +590,8 @@ final class AssistantLocalAgentRunner {
                 InputStream stdoutStream = process.getInputStream();
                 InputStream stderrStream = process.getErrorStream();
                 stdinStream = process.getOutputStream();
-                CompletableFuture<String> stdout = readAsync(stdoutStream, effectiveConsumer);
-                CompletableFuture<String> stderr = readAsync(stderrStream, effectiveConsumer);
+                StreamRead stdout = readAsync(stdoutStream, effectiveConsumer);
+                StreamRead stderr = readAsync(stderrStream, effectiveConsumer);
                 stdinStream.write(stdin.getBytes(StandardCharsets.UTF_8));
                 // Every local CLI is launched with plain text input (no CLI here supports a stream-json
                 // *input* protocol yet), so each one reads its prompt from stdin until EOF before doing
@@ -1221,8 +1222,8 @@ final class AssistantLocalAgentRunner {
         try {
             Process process = processLauncher.launch(command, workingDirectory, Map.of());
             process.getOutputStream().close();
-            CompletableFuture<String> stdout = readAsync(process.getInputStream(), null);
-            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), null);
+            StreamRead stdout = readAsync(process.getInputStream(), null);
+            StreamRead stderr = readAsync(process.getErrorStream(), null);
             boolean finished = process.waitFor(MODEL_LIST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
@@ -1350,8 +1351,8 @@ final class AssistantLocalAgentRunner {
         try {
             Process process = processLauncher.launch(command, workingDirectory, Map.of());
             process.getOutputStream().close();
-            CompletableFuture<String> stdout = readAsync(process.getInputStream(), null);
-            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), null);
+            StreamRead stdout = readAsync(process.getInputStream(), null);
+            StreamRead stderr = readAsync(process.getErrorStream(), null);
             boolean finished = process.waitFor(COMPACT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
@@ -1721,9 +1722,23 @@ final class AssistantLocalAgentRunner {
         return String.join("\n\n", sections).trim();
     }
 
-    private static CompletableFuture<String> readAsync(InputStream stream, Consumer<String> outputConsumer) {
-        return CompletableFuture.supplyAsync(() -> {
-            StringBuilder output = new StringBuilder();
+    /**
+     * Pairs a background stream-read's eventual {@link #future} with a live {@link #capturedSoFar}
+     * view of whatever has been buffered up to any given moment. A {@code CompletableFuture} only
+     * ever yields a value once it completes, so a caller that gives up waiting on it (a timeout, or
+     * any other exception) has no way to recover partial progress from the future alone; {@code
+     * capturedSoFar} reads the same underlying (synchronized) buffer the reader thread is still
+     * writing to, so it is safe to consult at any time, whether or not the future has finished
+     * (issue #4164 follow-up: {@code stdoutNow}/{@code stderrNow} used to discard this on any
+     * exception, including a plain timeout, exactly like {@link #readAsync}'s own now-fixed
+     * IOException discard).
+     */
+    private record StreamRead(CompletableFuture<String> future, Supplier<String> capturedSoFar) {
+    }
+
+    private static StreamRead readAsync(InputStream stream, Consumer<String> outputConsumer) {
+        StringBuffer output = new StringBuffer();
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
             try {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
                     String line;
@@ -1735,22 +1750,30 @@ final class AssistantLocalAgentRunner {
                     }
                 }
             } catch (IOException exception) {
-                return "";
+                // Issue #4164: a torn-down pipe (e.g. destroyForcibly() during a Kill) must not discard
+                // whatever was already read and streamed to outputConsumer -- return the partial buffer
+                // instead of blanking it.
             }
             return output.toString();
         }, ShaftPluginExecutor.getInstance().executor());
+        return new StreamRead(future, output::toString);
     }
 
-    private static String stdoutNow(CompletableFuture<String> future) {
+    private static String stdoutNow(StreamRead read) {
         try {
-            return future.get(2, TimeUnit.SECONDS);
+            return read.future().get(2, TimeUnit.SECONDS);
         } catch (Exception exception) {
-            return "";
+            // Issue #4164: the process has already terminated by every caller of this method, so a
+            // read that is still incomplete at this point is slow, not silent (a timeout is the case
+            // that matters most here) -- or failed for an unrelated reason (e.g. a throwing
+            // outputConsumer). Either way, fall back to whatever the buffer already holds instead of
+            // blanking it to "".
+            return read.capturedSoFar().get();
         }
     }
 
-    private static String stderrNow(CompletableFuture<String> future) {
-        return stdoutNow(future);
+    private static String stderrNow(StreamRead read) {
+        return stdoutNow(read);
     }
 
     private static void closeQuietly(InputStream stream) {
