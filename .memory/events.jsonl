@@ -433,3 +433,6 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.appium-java-client-hard-selenium-version-ranges-beat-bom-pins","timestamp":"2026-07-26T00:42:48+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.choosing-shaft-locators-and-the-shaft-test-authoring-skill-family-live-under-shaft-skills-not-claude-skills","timestamp":"2026-07-26T02:46:42+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.locator-strategy-policy-reconciled-aria-role-shaft-builder-primary-plain-xpath-fallback-smart-locator-excluded-from-generated-code","timestamp":"2026-07-26T02:46:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.memory-secret-scanner-local-patch-is-fragile-reinstall-update-silently-reverts-it","timestamp":"2026-07-26T03:02:04+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.dtest-classa-classb-silently-runs-zero-tests-and-still-reports-build-success","timestamp":"2026-07-26T03:02:04+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-literal-inside-an-xml-comment-body-breaks-maven-with-a-misleading-non-parseable-pom-error","timestamp":"2026-07-26T03:02:04+03:00"}
