@@ -199,6 +199,40 @@ class AiExecutionServiceTest {
     }
 
     @Test
+    void reducedOutputBudgetSurfacesWarningOnSuccess() {
+        StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider);
+        try {
+            AiResponse response = service(registry,
+                    PilotTestConfiguration.enabled("stub", ProcessingLocation.REMOTE))
+                    .execute(request(approved(ProcessingLocation.REMOTE), 8_000));
+
+            assertEquals(AiResponseStatus.SUCCESS, response.status());
+            assertTrue(response.warnings().stream().anyMatch(warning -> warning.contains("output token budget")));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void inBudgetOutputRequestStaysSilent() {
+        StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider);
+        try {
+            AiResponse response = service(registry,
+                    PilotTestConfiguration.enabled("stub", ProcessingLocation.REMOTE))
+                    .execute(request(approved(ProcessingLocation.REMOTE), 100));
+
+            assertEquals(AiResponseStatus.SUCCESS, response.status());
+            assertTrue(response.warnings().stream().noneMatch(warning -> warning.contains("output token budget")));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
     void auditSinkFailureDoesNotReplaceProviderOrFallbackResult() {
         StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
         AiProviderRegistry registry = new AiProviderRegistry();
@@ -225,6 +259,10 @@ class AiExecutionServiceTest {
     }
 
     private static AiRequest request(ApprovalPolicy approvalPolicy) {
+        return request(approvalPolicy, 100);
+    }
+
+    private static AiRequest request(ApprovalPolicy approvalPolicy, long maxOutputTokens) {
         JsonNode schema = JSON.createObjectNode()
                 .put("type", "object")
                 .set("properties", JSON.createObjectNode()
@@ -233,7 +271,7 @@ class AiExecutionServiceTest {
                 .putArray("required").add("answer");
         return AiRequest.builder("unit-test", schema)
                 .text("password=top-secret")
-                .budget(new AiBudget(1_000, 100, BigDecimal.ONE))
+                .budget(new AiBudget(1_000, maxOutputTokens, BigDecimal.ONE))
                 .approvalPolicy(approvalPolicy)
                 .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
                 .timeout(Duration.ofSeconds(1))
