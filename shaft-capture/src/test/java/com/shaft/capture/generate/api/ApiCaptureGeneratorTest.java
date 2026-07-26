@@ -335,6 +335,80 @@ class ApiCaptureGeneratorTest {
         assertFalse(result.report().unsupportedEvents().isEmpty());
     }
 
+    /**
+     * Regression test for issue #4046: a session whose only network events are page-navigation
+     * traffic (the {@code ResourceKind.DOCUMENT} document request plus the browser's automatic
+     * favicon request -- exactly what {@code GuidedWorkflowLiveE2ETest}'s nightly run recorded when
+     * its wait condition raced the fixture page's own delayed {@code fetch()} calls) must still fail
+     * with the specific "no renderable API transactions" reason, not a bare {@code successful:false}.
+     * {@code DOCUMENT} is deliberately not asset-like ({@code ResourceKind#isAsset()}), so it is
+     * still visible to callers as "network activity happened" while remaining correctly excluded
+     * from codegen's renderable-transaction extraction ({@code isRenderableResourceKind} accepts
+     * only {@code XHR}/{@code FETCH}). This locks in that distinction so a future change to either
+     * filter cannot silently reintroduce an undiagnosable failure.
+     */
+    @Test
+    void sessionWithOnlyDocumentNavigationTransactionsFailsWithTheRenderableTransactionsReason() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-document-only"));
+        Path sessionPath = writeSessionWithOnlyDocumentNavigationEvents(outputRoot, "session-document-only");
+
+        ApiCaptureGenerationResult result = new ApiCaptureGenerator().generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "DocumentOnlyTest",
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS, false, false, true));
+
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertTrue(result.report().unsupportedEvents().stream().anyMatch(message -> message.contains(
+                        "No renderable API transactions (XHR/FETCH with a recorded response) "
+                                + "were found in this session.")),
+                "Expected the specific renderable-transactions reason, got: " + result.report().unsupportedEvents());
+    }
+
+    private Path writeSessionWithOnlyDocumentNavigationEvents(Path outputRoot, String sessionId) throws Exception {
+        Path sessionPath = outputRoot.resolve("recordings/" + sessionId + ".json");
+        Files.createDirectories(sessionPath.getParent());
+        Path bodiesDirectory = sessionPath.getParent().resolve(sessionId + "-network-bodies");
+        Files.createDirectories(bodiesDirectory);
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef pageRef = bodyStore.store(
+                "<!doctype html><html></html>".getBytes(StandardCharsets.UTF_8), "text/html", bodiesDirectory);
+
+        CaptureEvent.NetworkEvent document = new CaptureEvent.NetworkEvent(
+                CaptureFixtures.context(1),
+                "tx-1",
+                ResourceKind.DOCUMENT,
+                new HttpRequestRecord("GET", "https://app.example.test/", headers(), null),
+                new HttpResponseRecord(200, headers(), pageRef),
+                new NetworkTiming(null, null, null, null, null, null),
+                "",
+                "https://app.example.test/",
+                null);
+        CaptureEvent.NetworkEvent favicon = new CaptureEvent.NetworkEvent(
+                CaptureFixtures.context(2),
+                "tx-2",
+                ResourceKind.DOCUMENT,
+                new HttpRequestRecord("GET", "https://app.example.test/favicon.ico", headers(), null),
+                new HttpResponseRecord(200, headers(), pageRef),
+                new NetworkTiming(null, null, null, null, null, null),
+                "",
+                "https://app.example.test/",
+                null);
+
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                sessionId,
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(document, favicon),
+                List.of(),
+                List.of(),
+                null,
+                Map.of());
+        new CaptureJsonCodec().write(sessionPath, session);
+        return sessionPath;
+    }
+
     @Test
     void missingSessionFileFailsCleanlyWithoutThrowing() {
         Path outputRoot = tempDir.resolve("project-missing");
