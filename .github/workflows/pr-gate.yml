@@ -112,8 +112,13 @@ jobs:
             # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
             # any workflow file change must re-check that every job still declares
             # timeout-minutes, not only edits to this file (already covered by infra).
+            # Issue #4071's regression guard (scripts/ci/validate_orphaned_suite_files.py)
+            # needs the same treatment: an edit to the guard or its test must re-run the
+            # job even when no workflow file itself changed.
             workflows:
               - '.github/workflows/**'
+              - 'scripts/ci/validate_orphaned_suite_files.py'
+              - 'tests/scripts/test_validate_orphaned_suite_files.py'
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -280,6 +285,10 @@ jobs:
   # except a short blocklist" selector. Verified individually (no real
   # WebDriver construction, no Docker/BrowserStack/network touchpoints)
   # before moving; e2eTests.yml now excludes them from GLOBAL_TESTING_SCOPE.
+  # Also named individually here: the sole remaining class from an orphaned
+  # TestNG suite XML found by #4071 (that file is deleted in the same change
+  # that added this line) -- pure file-read plus JSONCompare, no driver, no
+  # network, verified green with a scoped local run before being added.
   unit-tests:
     name: Unit Tests (${{ matrix.module }})
     needs: changes
@@ -310,7 +319,7 @@ jobs:
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
-          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, !RestValidationsBuilderUnitTest'
+          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, JsonActionsTests, !RestValidationsBuilderUnitTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Verify shaft-engine unit test results
@@ -387,6 +396,36 @@ jobs:
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
 
+  # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
+  # references is invisible -- unlike a failing test, nothing reports it, so
+  # it can sit unused indefinitely looking like coverage (this is exactly how
+  # #4018's unitTestSuite.xml went unnoticed, and how this issue's own two
+  # siblings went unnoticed). This job is the CI-side regression guard for
+  # scripts/ci/validate_orphaned_suite_files.py: it fails the build whenever
+  # any TestNG suite XML file's own name never appears in a pom.xml, a
+  # workflow, or a script. Both files #4071 found are now resolved (one
+  # deleted as redundant, the other had its sole remaining class rehomed into
+  # the shaft-engine unit-tests leg above and was then deleted too), so there
+  # is no known-orphan set left to tolerate -- the raw validator step is
+  # blocking, same as the unit test step.
+  orphaned-suite-files:
+    name: Orphaned Suite XML Guard
+    needs: changes
+    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Run orphaned suite file guard unit tests
+        run: python3 -m unittest tests.scripts.test_validate_orphaned_suite_files -v
+      - name: Validate no TestNG suite XML file is orphaned
+        run: python3 scripts/ci/validate_orphaned_suite_files.py
+
   # Moved from security.yml's dependency-review job. Runs unconditionally on
   # every pull_request (no path leg matches it in the `changes` job, mirroring
   # its unconditional-per-PR behavior in security.yml today) and temporarily
@@ -421,6 +460,7 @@ jobs:
       - unit-tests
       - template-coupling
       - workflow-timeouts
+      - orphaned-suite-files
       - dependency-review
     if: always()
     runs-on: ubuntu-22.04
@@ -437,6 +477,7 @@ jobs:
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
+          ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
           set -uo pipefail
@@ -453,6 +494,7 @@ jobs:
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
+            echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -462,7 +504,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
