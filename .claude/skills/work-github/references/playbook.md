@@ -272,11 +272,14 @@ manufacturing a memory entry to fill the step.
   issue when a closing keyword appears anywhere in the PR body — `close`/
   `closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`
   immediately before `#N` — and a later disclaimer sentence does not
-  neutralize an earlier match. A partial-fix PR (`Related to #N`, never
-  `Closes #N`) must avoid every keyword above anywhere in its body,
-  including ordinary prose. Immediately after opening, run `gh pr view <n>
-  --json closingIssuesReferences`; if it lists an issue this PR does not
-  fully resolve, unlink it from the PR's Development sidebar.
+  neutralize an earlier match. The matcher also ignores negation:
+  `"does not close #4046"` auto-closes #4046 too, because `close #4046` is
+  the match — the disclaimer itself is the trigger, not something ordering
+  can save. A partial-fix PR (`Related to #N`, never `Closes #N`) must
+  avoid every keyword above anywhere in its body, including ordinary prose.
+  Immediately after opening, run `gh pr view <n> --json
+  closingIssuesReferences`; if it lists an issue this PR does not fully
+  resolve, unlink it from the PR's Development sidebar.
 - Wait for CI. If it fails, fix forward on the same branch — don't force-
   push over history the user might want to inspect, just add a fixing
   commit, unless the failure is trivially a fixup of the last commit itself.
