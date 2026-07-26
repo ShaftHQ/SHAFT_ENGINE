@@ -155,6 +155,8 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
         Path assistantFailureRecoveryCardScreenshot = outputPath.resolve("intellij-plugin-assistant-failure-recovery-card.png");
         Path assistantToolResultRawOutputScreenshot = outputPath.resolve("intellij-plugin-assistant-tool-result-raw-output.png");
+        Path assistantCancelledScreenshot = outputPath.resolve("intellij-plugin-assistant-cancelled.png");
+        Path assistantKilledScreenshot = outputPath.resolve("intellij-plugin-assistant-killed.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
         Path assistantModelFallbackScreenshot = outputPath.resolve("intellij-plugin-assistant-model-fallback.png");
         Path assistantSlashCommandsScreenshot = outputPath.resolve("intellij-plugin-assistant-slash-commands.png");
@@ -194,6 +196,8 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
         write(assistantFailureRecoveryCardScreenshot, renderAssistantFailureRecoveryCard(LIGHT_THEME, false));
         write(assistantToolResultRawOutputScreenshot, renderAssistantToolResultRawOutput(LIGHT_THEME, false));
+        write(assistantCancelledScreenshot, renderAssistantCancelled(LIGHT_THEME, false));
+        write(assistantKilledScreenshot, renderAssistantKilled(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
         write(assistantModelFallbackScreenshot, renderAssistantModelFallback(LIGHT_THEME, false));
         write(assistantSlashCommandsScreenshot, renderAssistantSlashCommands(LIGHT_THEME, false));
@@ -234,6 +238,8 @@ class ShaftPluginScreenshotRendererTest {
                         assistantProgressMilestonesScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantFailureRecoveryCardScreenshot) > 0,
                         assistantFailureRecoveryCardScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantCancelledScreenshot) > 0, assistantCancelledScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantKilledScreenshot) > 0, assistantKilledScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantModelFallbackScreenshot) > 0, assistantModelFallbackScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantSlashCommandsScreenshot) > 0, assistantSlashCommandsScreenshot + " should be non-empty"),
@@ -271,6 +277,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantLiveDarkScreenshot),
                 () -> assertDimensions(assistantProgressMilestonesScreenshot),
                 () -> assertDimensions(assistantFailureRecoveryCardScreenshot),
+                () -> assertDimensions(assistantCancelledScreenshot),
+                () -> assertDimensions(assistantKilledScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
                 () -> assertDimensions(assistantModelFallbackScreenshot),
                 () -> assertDimensions(toolsHumanizedDoctorCardScreenshot),
@@ -706,6 +714,52 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             clickAccessible(component, "Show raw output");
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /**
+     * Renders the terminal "Cancelled" chat bubble (tracker #4160 Area B audit / issue #4164: the
+     * screenshot-evidence suite had zero rendered coverage of either terminal Cancel/Kill state).
+     * Mirrors exactly how {@code ShaftAssistantPanel#showAgentCancelled} composes the bubble in
+     * production: the already-streamed partial output wrapped in the same fenced-code-block format
+     * {@code formatLocalAgentStreamingResponse} produces, followed by the terminal marker -- proving
+     * a user-cancelled run stays legible instead of going blank.
+     */
+    private static BufferedImage renderAssistantCancelled(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        return renderAssistantTerminalState(lookAndFeelClassName, dark, "Cancelled");
+    }
+
+    /**
+     * Same composition as {@link #renderAssistantCancelled}, for the user-initiated Kill
+     * ({@code destroyForcibly()}) path -- distinct label, identical layout.
+     */
+    private static BufferedImage renderAssistantKilled(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        return renderAssistantTerminalState(lookAndFeelClassName, dark, "Killed");
+    }
+
+    private static BufferedImage renderAssistantTerminalState(String lookAndFeelClassName, boolean dark, String label)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/codegen recordings/demo-recording.json", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            String partialOutput = "Reading pom.xml...\nAnalyzing dependency tree for shaft-mcp...";
+            String markdown = "```text\n" + partialOutput + "\n```\n\n_" + label + "._ (partial output above)";
+            component.simulateAppendForTest("assistant", markdown, "");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
             layout(component, !dark);
             image.set(render(component, WIDTH, HEIGHT));
         });

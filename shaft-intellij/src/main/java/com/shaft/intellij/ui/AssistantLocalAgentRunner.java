@@ -1735,7 +1735,9 @@ final class AssistantLocalAgentRunner {
                     }
                 }
             } catch (IOException exception) {
-                return "";
+                // Issue #4164: a torn-down pipe (e.g. destroyForcibly() during a Kill) must not discard
+                // whatever was already read and streamed to outputConsumer -- return the partial buffer
+                // instead of blanking it.
             }
             return output.toString();
         }, ShaftPluginExecutor.getInstance().executor());
