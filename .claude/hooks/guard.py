@@ -37,6 +37,21 @@
 #      skills -- structural version of the refusal previously enforced by
 #      charter prose alone (issue #4083). Requires settings.json's
 #      PreToolUse matcher to include "Skill".
+#   R8 Deny mutating `git stash` subcommands (pop/drop/apply/clear/push, and
+#      bare `git stash`) in Bash/PowerShell commands. The stash list lives in
+#      the shared .git dir, common to the main checkout and every
+#      `git worktree add`-created worktree; an empty `stash push` followed by
+#      `stash pop` can pop and DROP an unrelated entry from another
+#      session/worktree (issue #4130). Read-only `git stash list` / `git
+#      stash show` stay allowed.
+#   R9 `git worktree add` guardrails (issue #4126): (B1) deny when the Bash
+#      tool's worktree path argument contains backslashes -- Git Bash/MSYS
+#      consumes each backslash as an escape and the path silently collapses
+#      into one garbage segment at the repo root, exit 0. PowerShell is
+#      unaffected, so this check is Bash-only. (B2) deny any
+#      `git worktree add` missing `-c core.longpaths=true`, which otherwise
+#      aborts with `Filename too long` checking out existing over-long
+#      .memory/** paths. Both fail open on anything not confidently parsed.
 #
 # Stdlib only. Must run under both `py -3` (Windows launcher, this repo's
 # documented convention) and `python3` (Linux/CI/macOS), so avoid anything
@@ -320,9 +335,17 @@ _GUI_WORD_RE = re.compile(
     r"(?<![\w.\-])(?:" + "|".join(_GUI_WORD_VERBS) + r")(?![\w.\-])", re.IGNORECASE
 )
 
-# `ii` only counts as the GUI-open PowerShell alias when it stands alone as a
-# command word (not inside another identifier like "ascii" or "radii").
-_II_COMMAND_RE = re.compile(r"(?<![\w.\-])ii(?![\w.\-])", re.IGNORECASE)
+# `ii` and `start` are only the GUI-open PowerShell alias / verb when they
+# stand alone as the FIRST WORD of a command segment (real command position).
+# A plain word-boundary regex over the whole raw command string (the earlier
+# approach for `ii`) false-positives on any quoted interpreter argument that
+# merely contains the two letters as a delimited "word" -- e.g. a Python
+# regex character class `r'[Ii]mplement'` passed to `py -3 -c "..."` is not a
+# PowerShell command at all, yet `(?<![\w.\-])ii(?![\w.\-])` still matched it
+# (reported live; see PR description). Restricting to "first word of the
+# segment" (like `start` already did) fixes this without losing any real
+# detection: a bare `ii <path>` -- or `ii` after `;`/`&&`/`|`/`&` -- is still
+# the first word of its own segment and stays blocked.
 
 # `cmd /c start ...`
 _CMD_C_START_RE = re.compile(r"(?<![\w.\-])cmd(?:\.exe)?\s+/c\s+start(?![\w.\-])", re.IGNORECASE)
@@ -335,14 +358,20 @@ def _segments(command: str) -> list[str]:
     return _SEGMENT_SPLIT_RE.split(command)
 
 
-def _segment_starts_with_start(segment: str) -> bool:
-    """True if `start` is the first word of this command segment."""
-    # Deliberately excludes lookalikes: "--start-maximized", "restart",
-    # "capture_start" are NOT matches because they either are not the first
-    # token or `start` is not a standalone word there.
+def _segment_starts_with_word(segment: str, word: str) -> bool:
+    """True if `word` is the first word of this command segment (command position).
+
+    Deliberately excludes lookalikes: a short alias/verb inside a larger
+    identifier ("--start-maximized", "restart", "capture_start", "radii"),
+    embedded in a quoted interpreter argument (a regex character class like
+    `[Ii]mplement` passed to `py -3 -c "..."`, or ordinary prose like
+    "start something" inside a quoted string), or appearing later in the
+    same segment are NOT matches -- in every one of those cases the alias is
+    not the token actually being executed as a command.
+    """
     stripped = segment.strip()
     # Only strip a leading PowerShell call operator "&" followed by whitespace;
-    # do not attempt to skip past other prefixes -- we want `start` to be the
+    # do not attempt to skip past other prefixes -- we want `word` to be the
     # literal first word of the segment.
     candidate = stripped
     call_op_match = re.match(r"^&\s*", stripped)
@@ -351,8 +380,7 @@ def _segment_starts_with_start(segment: str) -> bool:
     first_word_match = re.match(r"^([A-Za-z_][\w.\-]*)", candidate)
     if not first_word_match:
         return False
-    first_word = first_word_match.group(1)
-    return first_word.lower() == "start"
+    return first_word_match.group(1).lower() == word.lower()
 
 
 def check_r3_gui_open(command: str) -> str | None:
@@ -365,13 +393,6 @@ def check_r3_gui_open(command: str) -> str | None:
             "dialogs -- use py -3 / node / mvn / git / non-interactive CLI "
             "invocations instead."
         )
-    if _II_COMMAND_RE.search(command):
-        return (
-            "R3 (GUI-open verb): this command invokes `ii`, the PowerShell "
-            "alias for Invoke-Item, as a standalone command word. Per "
-            "AGENTS.md Windows/Codex Safety, do not open items via GUI "
-            "handlers."
-        )
     if _CMD_C_START_RE.search(command):
         return (
             "R3 (GUI-open verb): this command runs `cmd /c start ...`, which "
@@ -379,7 +400,14 @@ def check_r3_gui_open(command: str) -> str | None:
             "Codex Safety, do not use `start` to launch GUI content."
         )
     for segment in _segments(command):
-        if _segment_starts_with_start(segment):
+        if _segment_starts_with_word(segment, "ii"):
+            return (
+                "R3 (GUI-open verb): this command invokes `ii`, the "
+                "PowerShell alias for Invoke-Item, as the first word of a "
+                "command segment (real command position). Per AGENTS.md "
+                "Windows/Codex Safety, do not open items via GUI handlers."
+            )
+        if _segment_starts_with_word(segment, "start"):
             return (
                 "R3 (GUI-open verb): `start` appears as the first word of a "
                 "command segment, which on Windows launches a new "
@@ -621,10 +649,194 @@ def check_r7_orchestration_skill(hook_input: dict) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# R8: deny mutating `git stash` subcommands (shared across worktrees)
+# ---------------------------------------------------------------------------
+
+_GIT_NAMES = frozenset({"git", "git.exe"})
+
+
+def _git_segments(command: str) -> list[str]:
+    """Segments whose executable is git (command position, not quoted prose)."""
+    return [
+        segment
+        for segment in _command_segments(_sanitize_for_command_head(command))
+        if _head_executable_matches(segment, _GIT_NAMES)
+    ]
+
+
+def _tokens_after_head(segment: str, names: frozenset[str]) -> list[str] | None:
+    """Return the tokens following the segment's matching head executable, or None."""
+    tokens = _segment_tokens(segment)
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if _ENV_ASSIGNMENT_RE.match(token):
+            index += 1
+            continue
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in names:
+            return tokens[index + 1:]
+        if basename in _RUNNER_PREFIX_TOKENS or basename == "timeout":
+            index += 1
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        return None
+    return None
+
+
+_GIT_STASH_MUTATING_SUBCOMMANDS = frozenset({"pop", "drop", "apply", "clear", "push"})
+_GIT_STASH_READONLY_SUBCOMMANDS = frozenset({"list", "show"})
+_GIT_GLOBAL_OPTS_WITH_ARG = frozenset({"-c", "-C"})
+
+
+def _stash_subcommand(rest: list[str]) -> tuple[bool, str | None]:
+    """Return (is_stash_command, subcommand_or_None) for tokens following the git executable."""
+    index = 0
+    while index < len(rest):
+        token = rest[index]
+        if token in _GIT_GLOBAL_OPTS_WITH_ARG:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        break
+    if index >= len(rest) or rest[index].lower() != "stash":
+        return False, None
+    index += 1
+    while index < len(rest):
+        token = rest[index]
+        if token.startswith("-"):
+            index += 1
+            continue
+        return True, token.lower()
+    return True, None
+
+
+def check_r8_git_stash(command: str) -> str | None:
+    """Return a block reason for a mutating `git stash` subcommand, or None."""
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, _GIT_NAMES)
+        if rest is None:
+            continue
+        is_stash, sub = _stash_subcommand(rest)
+        if not is_stash or sub in _GIT_STASH_READONLY_SUBCOMMANDS:
+            continue
+        if sub is None or sub in _GIT_STASH_MUTATING_SUBCOMMANDS:
+            return (
+                "R8 (git stash shared across worktrees): the stash list lives in "
+                "the shared .git directory, common to the main checkout and every "
+                "`git worktree add`-created worktree. A `git stash` that finds "
+                "nothing to save still lets a later `git stash pop` pop and DROP "
+                "an unrelated entry from a different session/worktree -- this has "
+                "already destroyed a months-old stash and silently reverted a "
+                "tracked AGENTS.md in this repo (issue #4130). Do not run mutating "
+                f"`git stash{(' ' + sub) if sub else ''}` in a shared-.git "
+                "worktree -- commit your work to your own branch instead "
+                "(`git add -A && git commit`), or use read-only `git stash list` "
+                "/ `git stash show` / `git diff` to inspect state without "
+                "mutating the shared stash."
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# R9: `git worktree add` guardrails (backslash-via-Bash, missing longpaths)
+# ---------------------------------------------------------------------------
+
+_GIT_WORKTREE_ADD_FLAGS_WITH_ARG = frozenset({"-b", "-B", "--reason"})
+_LONGPATHS_RE = re.compile(
+    r"(?<![\w.-])-c\s+[\"']?core\.longpaths=true[\"']?(?![\w.-])", re.IGNORECASE
+)
+
+
+def _worktree_add_rest(rest: list[str]) -> list[str] | None:
+    """Return tokens after 'worktree add' in `rest`, or None if not confidently a match."""
+    index = 0
+    seen_worktree = False
+    while index < len(rest):
+        token = rest[index]
+        if not seen_worktree:
+            if token.lower() == "worktree":
+                seen_worktree = True
+                index += 1
+                continue
+            if token in _GIT_GLOBAL_OPTS_WITH_ARG:
+                index += 2
+                continue
+            if token.startswith("-"):
+                index += 1
+                continue
+            return None  # unexpected token before 'worktree': not confidently parseable
+        if token.lower() == "add":
+            return rest[index + 1:]
+        return None  # 'worktree' subcommand other than 'add'
+    return None
+
+
+def _worktree_add_path(rest_after_add: list[str]) -> str | None:
+    """Return the worktree path token, or None if it cannot be confidently identified."""
+    index = 0
+    while index < len(rest_after_add):
+        token = rest_after_add[index]
+        if token in _GIT_WORKTREE_ADD_FLAGS_WITH_ARG:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        return token.strip("\"'")
+    return None
+
+
+def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
+    """Return a block reason for an unsafe `git worktree add` invocation, or None."""
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, _GIT_NAMES)
+        if rest is None:
+            continue
+        rest_after_add = _worktree_add_rest(rest)
+        if rest_after_add is None:
+            continue
+
+        if tool_name == "Bash":
+            path = _worktree_add_path(rest_after_add)
+            if path is not None and "\\" in path:
+                return (
+                    "R9 (git worktree add backslash path via Bash): the Bash "
+                    "tool runs Git Bash/MSYS, which consumes each backslash in "
+                    f"'{path}' as an escape -- the path silently collapses into "
+                    "one garbage segment at the repo root (exit code 0, no "
+                    "error). Confirmed twice this session, including "
+                    "`C:\\w4067` becoming drive-relative `C:w4067` (issue "
+                    "#4126). Use forward slashes instead, e.g. "
+                    f"'{path.replace(chr(92), '/')}'."
+                )
+
+        if not _LONGPATHS_RE.search(segment):
+            match = re.search(r"\bworktree\b", segment, re.IGNORECASE)
+            if match:
+                corrected = (
+                    segment[: match.start()] + "-c core.longpaths=true " + segment[match.start():]
+                )
+            else:
+                corrected = segment.strip() + " (add -c core.longpaths=true before 'worktree')"
+            return (
+                "R9 (git worktree add missing longpaths): plain `git worktree "
+                "add` aborts with `Filename too long` checking out existing "
+                "over-long .memory/** paths, stopping an agent before it starts "
+                "any work (issue #4126). Add -c core.longpaths=true: "
+                f"`{corrected.strip()}`"
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
-_CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open)
+_CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash)
 
 
 def evaluate_command(command: str) -> str | None:
@@ -677,6 +889,8 @@ def run_pretooluse(hook_input: dict) -> int:
         note_graphify_reference_from_command(command, session_id)
         note_tdd_test_run_from_command(command, session_id)
         reason = evaluate_command(command)
+        if reason is None:
+            reason = check_r9_worktree_add(command, tool_name)
         if reason is not None:
             _print_deny(reason)  # per protocol: deny is signaled via JSON on stdout, exit 0
         return 0
@@ -774,6 +988,11 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("explorer word blocked", "explorer report.html", True),
     ("standalone ii blocked", "ii .\\report.html", True),
     ("ii inside word not blocked", "radii.txt", False),
+    ("ii after && in command position still blocked", "git status && ii report.html", True),
+    ("ii inside quoted regex char class in a py -c argument is not blocked (issue: R3 false positive)",
+     "py -3 -c \"import re; p = re.compile(r'[Ii]mplement')\"", False),
+    ("start inside quoted text in a py -c argument is not blocked (sibling check, same root cause)",
+     "py -3 -c \"s = 'start something'\"", False),
     ("--start-maximized not blocked", "chromedriver --start-maximized", False),
     ("restart not blocked", "sudo systemctl restart nginx", False),
     ("capture_start not blocked", "mcp__shaft-mcp__capture_start", False),
@@ -801,6 +1020,20 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("npx allure serve is still a real command", "npx allure serve target/allure-results", True),
     ("multi-line mvn continuation keeps its scoping flags",
      "mvn -pl shaft-mcp test \\\n  -Dtest=Foo \\\n  -DheadlessExecution=true", False),
+
+    # --- R8: git stash mutating subcommands blocked, read-only allowed (issue #4130) ---
+    ("bare git stash blocked", "git stash", True),
+    ("git stash push blocked", "git stash push", True),
+    ("git stash pop blocked", "git stash pop", True),
+    ("git stash drop blocked", "git stash drop", True),
+    ("git stash apply blocked", "git stash apply", True),
+    ("git stash clear blocked", "git stash clear", True),
+    ("git stash list allowed (read-only)", "git stash list", False),
+    ("git stash show allowed (read-only)", "git stash show stash@{0}", False),
+    ("git stash pop with stash ref still blocked", "git stash pop stash@{1}", True),
+    ("non-stash git command allowed", "git status", False),
+    ("git stash mentioned in commit message prose is not a real command",
+     'git commit -m "ran git stash pop earlier"', False),
 ]
 
 
@@ -1009,13 +1242,82 @@ def run_r7_self_test() -> int:
     return 0
 
 
+def run_r9_worktree_self_test() -> int:
+    """Exercises R9: git worktree add backslash-via-Bash + missing-longpaths guardrails."""
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    # --- B1: backslash worktree path via Bash is denied ---
+    reason = check_r9_worktree_add(
+        r"git -c core.longpaths=true worktree add C:\Users\Mohab\w4067 -b ChaosEngine/w4067 origin/main",
+        "Bash",
+    )
+    check("Bash backslash worktree path (with longpaths) is denied", reason is not None)
+    check("Bash backslash denial names forward slashes", reason is not None and "forward slash" in reason)
+
+    # --- B1 does not fire for PowerShell (backslashes are normal there) ---
+    reason = check_r9_worktree_add(
+        r"git -c core.longpaths=true worktree add C:\Users\Mohab\w4067 -b ChaosEngine/w4067 origin/main",
+        "PowerShell",
+    )
+    check("PowerShell backslash worktree path is allowed (B1 is Bash-only)", reason is None)
+
+    # --- B2: missing -c core.longpaths=true is denied (both tools), with a corrected command ---
+    reason = check_r9_worktree_add(
+        "git worktree add C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/.claude/worktrees/w4067 -b ChaosEngine/w4067 origin/main",
+        "Bash",
+    )
+    check("Bash worktree add missing longpaths is denied", reason is not None)
+    check("longpaths denial includes the corrected command", reason is not None and "core.longpaths=true" in reason)
+
+    reason = check_r9_worktree_add(
+        "git worktree add C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/.claude/worktrees/w4067 -b ChaosEngine/w4067 origin/main",
+        "PowerShell",
+    )
+    check("PowerShell worktree add missing longpaths is denied too (B2 applies to both tools)", reason is not None)
+
+    # --- Fully correct invocation (forward slashes + longpaths) is allowed ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/.claude/worktrees/w4067 "
+        "-b ChaosEngine/w4067 origin/main",
+        "Bash",
+    )
+    check("Correct invocation (forward slashes + longpaths) is allowed", reason is None)
+
+    # --- Not a worktree-add command at all: fails open ---
+    reason = check_r9_worktree_add(r"git worktree list", "Bash")
+    check("git worktree list (no add) is allowed", reason is None)
+
+    reason = check_r9_worktree_add(r"git status", "Bash")
+    check("unrelated git command is allowed", reason is None)
+
+    # --- Prose mention in a quoted string is not a real command ---
+    reason = check_r9_worktree_add(
+        'git commit -m "ran git worktree add C:\\Users\\Mohab\\w4067 earlier"', "Bash"
+    )
+    check("git worktree add mentioned in commit message prose is not a real command", reason is None)
+
+    total_checks = len(failures)
+    print(f"\nR9 worktree-add self-test summary: {total_checks} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
         graphify_result = run_graphify_self_test()
         tdd_result = run_tdd_self_test()
         r7_result = run_r7_self_test()
-        return command_result or graphify_result or tdd_result or r7_result
+        r9_result = run_r9_worktree_self_test()
+        return command_result or graphify_result or tdd_result or r7_result or r9_result
 
     if "--session-start" in argv:
         return run_session_start()
