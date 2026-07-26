@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,15 +103,20 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
         try (LiveChatToolE2ESupport support = LiveChatToolE2ESupport.install(context.workspace(), context.mcpCommand())) {
             ShaftAssistantPanel panel = support.newPanel();
 
-            // "mvn.cmd" (not bare "mvn") on Windows: HealerService/verify_run_focused spawn the
-            // command via a raw ProcessBuilder (HealerService.java:450), which calls CreateProcess
-            // directly -- unlike a shell, Windows CreateProcess never appends PATHEXT extensions, so
-            // the extensionless "mvn" POSIX shim on PATH cannot be launched that way even though
-            // `where mvn` resolves it (reproduced empirically: intermittent "MCP healer command could
-            // not be launched" IOException). "mvn.cmd"/"mvnw.cmd" are explicitly allowlisted
-            // executables (HealerService.java:349) precisely for this platform difference.
+            // HealerService/verify_run_focused spawn the command via a raw ProcessBuilder
+            // (HealerService.java:450), which calls CreateProcess directly on Windows -- unlike a
+            // shell, Windows CreateProcess never appends PATHEXT extensions, so the extensionless
+            // "mvn" POSIX shim on PATH cannot be launched that way even though `where mvn` resolves it
+            // (reproduced empirically: intermittent "MCP healer command could not be launched"
+            // IOException). "mvn.cmd" is required there. But this test only ever runs in CI on the
+            // ubuntu-22.04 "intellij-tools-diagnostics" job (live-tools-nightly.yml), which has no
+            // "mvn.cmd" file at all -- only the "mvn" POSIX shell script -- so hardcoding "mvn.cmd"
+            // fails process launch outright on Linux (issue #4021). HealerService allowlists both
+            // names (HealerService.java:349); pick the one that actually exists for the current OS.
+            String mavenExecutable = mavenExecutableForOs();
             String healResponse = support.send(panel,
-                    "/mcp healer_run_failed_test {\"repositoryRoot\":\"non-shaft-target\",\"testCommand\":[\"mvn.cmd\",\"test\"],"
+                    "/mcp healer_run_failed_test {\"repositoryRoot\":\"non-shaft-target\",\"testCommand\":[\""
+                            + mavenExecutable + "\",\"test\"],"
                             + "\"outputDirectory\":\"\",\"maxAttempts\":1,\"includeScreenshots\":false,"
                             + "\"includePageSnapshots\":false,\"allowedSourcePaths\":[],"
                             + "\"networkValidationApproved\":false,\"useConfiguredAi\":false,\"allowLocalAi\":false,"
@@ -121,7 +127,8 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
                     "healer_run_failed_test: Maven command failed to launch: " + healResponse);
 
             String verifyResponse = support.send(panel,
-                    "/mcp verify_run_focused {\"repositoryRoot\":\"non-shaft-target\",\"command\":[\"mvn.cmd\",\"-q\",\"compile\"],"
+                    "/mcp verify_run_focused {\"repositoryRoot\":\"non-shaft-target\",\"command\":[\""
+                            + mavenExecutable + "\",\"-q\",\"compile\"],"
                             + "\"networkValidationApproved\":false}",
                     Duration.ofSeconds(60));
             assertNotError(verifyResponse, "verify_run_focused");
@@ -204,6 +211,19 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
             assertNotError(response, "autobot_provider_status");
             assertTrue(payload.contains("\"provider\":\"anthropic\""), "Expected the requested provider echoed back: " + payload);
         }
+    }
+
+    /**
+     * The Maven executable name valid for {@link ProcessBuilder} on the current OS: {@code "mvn.cmd"}
+     * on Windows (bare {@code "mvn"} cannot be launched there -- CreateProcess never appends PATHEXT
+     * extensions), {@code "mvn"} everywhere else, including this test's actual CI runner
+     * ({@code ubuntu-22.04}, which has no {@code mvn.cmd} file at all). Both names are allowlisted by
+     * {@code HealerService} (HealerService.java:349).
+     */
+    private static String mavenExecutableForOs() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")
+                ? "mvn.cmd"
+                : "mvn";
     }
 
     /**
