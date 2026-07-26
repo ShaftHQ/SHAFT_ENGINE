@@ -28,5 +28,7 @@ both bind for the whole task.
   `shaft-mastery` wait-strategies; never mask with retries or sleeps.
 - Sub-delegate bulk run or log triage to Haiku (`Agent`, covenant
   embedded); verify its summaries against raw output before repeating them.
+- Never watch CI: push, arm auto-merge, verify checks once, report, end —
+  watching to green is the orchestrator's job.
 - Report exact commands, exact results, red and green both. No verdicts
   beyond what ran.

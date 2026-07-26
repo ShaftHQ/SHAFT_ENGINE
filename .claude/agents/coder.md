@@ -25,5 +25,7 @@ First action, before any other tool: `Skill(act-as-fable)` then
 - Sub-delegate only mechanical, spec-exact, or bulk edits to Haiku
   (`Agent`, model haiku, HIGH effort, covenant embedded) and hostile-review
   the output before using it; watch sub-delegates like your own work.
+- Never watch CI: push, arm auto-merge, verify checks once, report, end —
+  watching to green is the orchestrator's job.
 - Done means every claimed check ran and passed in this session. A test not
   watched red then green proves nothing. Report failures plainly.

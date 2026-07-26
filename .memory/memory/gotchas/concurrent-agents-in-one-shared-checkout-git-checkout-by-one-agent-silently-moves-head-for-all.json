@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all.md",
-  "content_hash": "sha256:b69350f1af65fd9e385d1553e76875438dcb47f29a549e791550ef64e2e71cb8",
+  "content_hash": "sha256:a81acec222a6686c487f3046fedd79da4e9d4e255c3c7779c85f1c54b8b6a7da",
   "created_at": "2026-07-21T06:13:44+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "Concurrent agents in one shared checkout: git checkout by one agent silently moves HEAD for all",
   "type": "gotcha",
-  "updated_at": "2026-07-21T06:13:44+03:00"
+  "updated_at": "2026-07-26T16:17:39+03:00"
 }
