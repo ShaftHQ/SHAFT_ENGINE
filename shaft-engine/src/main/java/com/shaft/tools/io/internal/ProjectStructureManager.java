@@ -8,14 +8,21 @@ import org.apache.logging.log4j.Logger;
 import org.testng.TestNG;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
+import org.testng.xml.XmlTest;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -67,14 +74,15 @@ public class ProjectStructureManager {
      * inspecting the suite's own class list instead of the call stack.
      *
      * @param suites the suites TestNG is about to run
-     * @return {@link RunType#CUCUMBER} when any suite hosts a Cucumber TestNG runner class
-     * ({@code io.cucumber.testng.AbstractTestNGCucumberTests} subclass), {@link RunType#TESTNG}
-     * otherwise
+     * @return {@link RunType#CUCUMBER} when any suite (including suites reached transitively via
+     * {@code <suite-file>}) hosts a Cucumber TestNG runner class, whether declared directly in
+     * {@code <classes>} (with or without a {@code <methods>} filter) or discovered by a
+     * {@code <packages>} scan, {@link RunType#TESTNG} otherwise
      */
     public static RunType identifyRunType(List<XmlSuite> suites) {
-        boolean isUsingCucumberTestNgRunner = suites.stream()
+        boolean isUsingCucumberTestNgRunner = flattenSuites(suites)
                 .flatMap(suite -> suite.getTests().stream())
-                .flatMap(xmlTest -> xmlTest.getXmlClasses().stream())
+                .flatMap(ProjectStructureManager::classesDeclaredByTest)
                 .anyMatch(ProjectStructureManager::extendsAbstractTestNGCucumberTests);
         if (isUsingCucumberTestNgRunner) {
             logger.debug("Detected Cucumber execution (TestNG runner).");
@@ -82,6 +90,43 @@ public class ProjectStructureManager {
         }
         logger.debug("Detected TestNG execution.");
         return RunType.TESTNG;
+    }
+
+    /**
+     * Walks {@code suites} together with every suite transitively reachable through
+     * {@link XmlSuite#getChildSuites()} (the in-memory representation of a {@code <suite-file>}
+     * reference). Traversal is bounded by an identity-based visited set: a suite already emitted is
+     * never re-queued, which keeps this terminating even if a caller hands in a child-suite graph
+     * that cycles back on itself (TestNG's own parser never produces one, but this method takes a
+     * plain {@code List<XmlSuite>} and must not hang on an adversarial or hand-built one either).
+     *
+     * @param suites the top-level suites to start from
+     * @return every suite in {@code suites} and its transitive child suites, each exactly once
+     */
+    private static Stream<XmlSuite> flattenSuites(List<XmlSuite> suites) {
+        Set<XmlSuite> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        List<XmlSuite> flattened = new ArrayList<>();
+        Deque<XmlSuite> pending = new ArrayDeque<>(suites);
+        while (!pending.isEmpty()) {
+            XmlSuite suite = pending.removeFirst();
+            if (visited.add(suite)) {
+                flattened.add(suite);
+                pending.addAll(suite.getChildSuites());
+            }
+        }
+        return flattened.stream();
+    }
+
+    /**
+     * The classes a {@link XmlTest} makes available to its suite, whether declared explicitly via
+     * {@code <classes>} or discovered via a {@code <packages>} scan. {@link org.testng.xml.XmlPackage#getXmlClasses()}
+     * performs that scan itself (scoped to the declared package, not the full classpath) and is the
+     * same mechanism TestNG uses internally to resolve {@code <packages>} at suite-build time.
+     */
+    private static Stream<XmlClass> classesDeclaredByTest(XmlTest xmlTest) {
+        return Stream.concat(
+                xmlTest.getXmlClasses().stream(),
+                xmlTest.getXmlPackages().stream().flatMap(xmlPackage -> xmlPackage.getXmlClasses().stream()));
     }
 
     private static boolean extendsAbstractTestNGCucumberTests(XmlClass xmlClass) {

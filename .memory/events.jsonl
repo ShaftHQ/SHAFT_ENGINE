@@ -476,3 +476,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.act-as-fable-skill-mds-16384-byte-cap-is-a-recurring-tax-not-a-one-off","timestamp":"2026-07-26T17:57:51+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.git-stash-pop-is-shared-across-every-worktree-of-one-git-never-pop-speculatively","timestamp":"2026-07-26T18:00:13+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.browsersignal-browsingcontextid-is-safe-to-treat-as-driver-getwindowhandle-for-passive-tracking-off-the-cdp-callback-thread","timestamp":"2026-07-26T18:00:46+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.xmlpackage-getxmlclasses-already-does-a-scoped-package-scan","timestamp":"2026-07-26T18:13:02+03:00"}
