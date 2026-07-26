@@ -23,6 +23,9 @@ import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+import org.testng.xml.XmlClass;
+import org.testng.xml.XmlSuite;
+import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -86,6 +89,34 @@ public class TestNGListenerCoverageUnitTest {
         List<IMethodInstance> result = listener.intercept(methods, Mockito.mock(ITestContext.class));
 
         assertEquals(result.size(), 10, "Non-test (configuration) methods must never be shard-filtered.");
+    }
+
+    @Test(description = "alter() must wire cucumber.features onto the suite for a Cucumber-over-TestNG runner " +
+            "(AbstractTestNGCucumberTests subclass), reproducing #4078: this auto-wiring never fired because " +
+            "identifyRunType()'s stack probe cannot see Cucumber this early in the TestNG lifecycle")
+    public void alterConfiguresCucumberPropertiesForCucumberTestNgRunnerSuite() {
+        XmlSuite suite = new XmlSuite();
+        XmlTest xmlTest = new XmlTest(suite);
+        xmlTest.setXmlClasses(new ArrayList<>(List.of(new XmlClass(cucumberTestRunner.CucumberTests.class))));
+
+        new TestNGListener().alter(new ArrayList<>(List.of(suite)));
+
+        assertEquals(suite.getParameters().get("cucumber.features"),
+                com.shaft.driver.SHAFT.Properties.cucumber.cucumberFeatures(),
+                "alter() should have taken the CUCUMBER branch and configured cucumber.features on the suite.");
+    }
+
+    @Test(description = "alter() must NOT wire cucumber.features onto a suite that hosts no Cucumber TestNG " +
+            "runner class, proving the #4078 fix does not misdetect a plain TestNG suite as Cucumber")
+    public void alterDoesNotConfigureCucumberPropertiesForPlainTestNgSuite() {
+        XmlSuite suite = new XmlSuite();
+        XmlTest xmlTest = new XmlTest(suite);
+        xmlTest.setXmlClasses(new ArrayList<>(List.of(new XmlClass(TestNGListenerCoverageUnitTest.class))));
+
+        new TestNGListener().alter(new ArrayList<>(List.of(suite)));
+
+        assertNull(suite.getParameters().get("cucumber.features"),
+                "alter() should not have taken the CUCUMBER branch for a plain TestNG suite.");
     }
 
     private static IMethodInstance methodInstance(String className, String methodName, boolean isTest) {

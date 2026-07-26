@@ -6,6 +6,8 @@ import com.shaft.tools.io.ReportManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.testng.TestNG;
+import org.testng.xml.XmlClass;
+import org.testng.xml.XmlSuite;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -48,6 +51,44 @@ public class ProjectStructureManager {
         } else {
             logger.debug("Detected JUnit 5 execution.");
             return RunType.JUNIT;
+        }
+    }
+
+    /**
+     * Detects the active test runner from the TestNG suites being altered.
+     *
+     * <p>This overload exists specifically for {@link org.testng.IAlterSuiteListener#alter},
+     * which TestNG invokes directly during its own suite-processing phase, before any test
+     * method (and therefore before any Cucumber {@code io.cucumber.core.runner.Runner} stack
+     * frame) has run. At that point {@link #identifyRunType()}'s stack probe can never observe
+     * Cucumber, even for a Cucumber-over-TestNG run ({@code AbstractTestNGCucumberTests}), so a
+     * caller at that call site is already known to be TestNG-driven &mdash; the only remaining
+     * question is whether TestNG is hosting a Cucumber runner. That is answered here by
+     * inspecting the suite's own class list instead of the call stack.
+     *
+     * @param suites the suites TestNG is about to run
+     * @return {@link RunType#CUCUMBER} when any suite hosts a Cucumber TestNG runner class
+     * ({@code io.cucumber.testng.AbstractTestNGCucumberTests} subclass), {@link RunType#TESTNG}
+     * otherwise
+     */
+    public static RunType identifyRunType(List<XmlSuite> suites) {
+        boolean isUsingCucumberTestNgRunner = suites.stream()
+                .flatMap(suite -> suite.getTests().stream())
+                .flatMap(xmlTest -> xmlTest.getXmlClasses().stream())
+                .anyMatch(ProjectStructureManager::extendsAbstractTestNGCucumberTests);
+        if (isUsingCucumberTestNgRunner) {
+            logger.debug("Detected Cucumber execution (TestNG runner).");
+            return RunType.CUCUMBER;
+        }
+        logger.debug("Detected TestNG execution.");
+        return RunType.TESTNG;
+    }
+
+    private static boolean extendsAbstractTestNGCucumberTests(XmlClass xmlClass) {
+        try {
+            return io.cucumber.testng.AbstractTestNGCucumberTests.class.isAssignableFrom(xmlClass.getSupportClass());
+        } catch (Throwable throwable) {
+            return false;
         }
     }
 
