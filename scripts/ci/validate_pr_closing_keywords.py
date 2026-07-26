@@ -64,11 +64,28 @@ def _is_negated(body: str, keyword_start: int) -> bool:
     return bool(NEGATION_RE.search(window))
 
 
+def _dewrap_hard_wrapped_text(text: str) -> str:
+    """Collapse a hard-wrapped single newline into a space, preserving paragraph breaks.
+
+    Both commit messages (git's ~72-column convention) and PR bodies composed in an
+    editor/CLI that hard-wraps at ~72-80 columns can split a negation cue like "Does
+    not" onto its own line from the "fix #N" that follows (issue #4146: the real commit
+    that squash-merged into PR #4141 did exactly this -- 0 matches unwrapped, 1
+    flattened, confirmed against the shipped guard). The clause-boundary logic below
+    treats any bare newline as a hard stop by design, so an unrelated bullet's negation
+    can't leak into the next bullet in a PR body -- but that same rule silently defeats
+    detection on hard-wrapped prose. A blank line (double newline) still marks a real
+    paragraph/bullet break and is left alone.
+    """
+    return re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+
+
 def find_negated_autocloses(body: str) -> list[dict[str, str]]:
     """Flag every closing-keyword+issue-reference pair written inside a negation."""
     errors: list[dict[str, str]] = []
     if not body:
         return errors
+    body = _dewrap_hard_wrapped_text(body)
     for match in CLOSING_REFERENCE_RE.finditer(body):
         if not _is_negated(body, match.start(1)):
             continue
@@ -86,12 +103,45 @@ def find_negated_autocloses(body: str) -> list[dict[str, str]]:
     return errors
 
 
+def find_negated_autocloses_in_commits(commits: list[tuple[str, str]]) -> list[dict[str, str]]:
+    """Flag every negated closing-keyword+issue-reference pair in any commit message.
+
+    Reuses find_negated_autocloses unchanged (issue #4146: the detection logic itself
+    is surface-agnostic, dewrapping included) and tags the offending commit.
+    """
+    errors: list[dict[str, str]] = []
+    for sha, message in commits:
+        for error in find_negated_autocloses(message):
+            errors.append(
+                issue(
+                    error["code"],
+                    f"commit:{sha}",
+                    f"{sha[:12]}: {error['message']}",
+                )
+            )
+    return errors
+
+
+def parse_commits_json(raw: str) -> list[tuple[str, str]]:
+    """Parse a JSON array of {"sha": ..., "message": ...} objects (e.g. from `gh api .../commits`)."""
+    if not raw:
+        return []
+    return [(entry["sha"], entry["message"]) for entry in json.loads(raw)]
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--body",
         help="PR body text to validate; defaults to the $PR_BODY environment variable",
+    )
+    parser.add_argument(
+        "--commits-json",
+        help=(
+            "JSON array of {sha, message} commit objects to validate; defaults to the "
+            "$PR_COMMITS_JSON environment variable"
+        ),
     )
     parser.add_argument("--format", choices=("text", "json"), default="text")
     return parser
@@ -101,7 +151,11 @@ def main() -> int:
     """Run the CLI."""
     args = build_parser().parse_args()
     body = args.body if args.body is not None else os.environ.get("PR_BODY", "")
+    commits_json = (
+        args.commits_json if args.commits_json is not None else os.environ.get("PR_COMMITS_JSON", "")
+    )
     errors = find_negated_autocloses(body)
+    errors.extend(find_negated_autocloses_in_commits(parse_commits_json(commits_json)))
     if args.format == "json":
         print(json.dumps({"valid": not errors, "errors": errors}, indent=2))
     elif errors:

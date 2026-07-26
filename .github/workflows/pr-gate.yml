@@ -10,6 +10,29 @@ name: PR Gate
 # .github/workflows/README.md). If a merge queue is ever enabled, add
 # `merge_group:` to the triggers below.
 #
+# Issue #4145: the `pull_request` trigger's default activity types (opened,
+# synchronize, reopened) never re-run the gate when a PR's body is edited with
+# no new commit. That leaves two failure modes for the pr-body-autoclose-guard
+# leg below: a red check stays red forever after a rewording (stale-red, until
+# an unrelated commit or a close+reopen forces a re-run), and a body edited
+# *after* the last push to add a hazard sails through on the old green result
+# (stale-pass -- confirmed live: PR #4150's failing check did not re-run after
+# its body was reworded, with no new commit). `edited` is added below so the
+# guard job re-runs on a bare body/title edit. Every *heavy* leg (build/test/
+# install/dependency-review jobs, gated further down with `&& github.event.
+# action != 'edited'`) explicitly skips on that action instead: re-running the
+# IntelliJ build, unit-test matrix, etc. on every typo fix is real,
+# non-trivial cost paid by every PR, and none of those legs read PR body/title
+# text -- only pr-body-autoclose-guard needs to see it. The alternative
+# (a separate workflow triggered only on `edited`) was rejected: it would be a
+# status check outside `PR Gate Summary`, needing its own branch-protection
+# entry to actually block a merge, for no cost saving over gating in place.
+# The concurrency group below is split for `edited` events for the same
+# reason: without that split, a bare body edit mid-run would cancel an
+# in-flight *heavy* run (same PR, same default group) via cancel-in-progress
+# and replace it with a summary where those legs report "skipped" -- passing
+# vacuously without ever actually re-validating the current commit.
+#
 # Deliberately pull_request + push(main) only, no workflow_dispatch:
 # dorny/paths-filter cannot resolve a diff base outside push/pull_request
 # events, so a workflow_dispatch run would either always fail the changes job
@@ -26,6 +49,7 @@ name: PR Gate
 
 on:
   pull_request:
+    types: [ opened, synchronize, reopened, edited ]
   push:
     branches: [ main ]
 
@@ -33,7 +57,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
+  # `edited` gets its own subgroup per PR so a bare body/title edit cancels
+  # only another in-flight edit, never an in-flight opened/synchronize/
+  # reopened run's heavy legs (see the `edited`-handling note above).
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'edited' && '-edited' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -123,7 +150,7 @@ jobs:
   docs-boundary:
     name: Documentation Boundary Gate
     needs: changes
-    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -138,7 +165,7 @@ jobs:
   installer-verify:
     name: Installer verification (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -173,7 +200,7 @@ jobs:
   intellij-build:
     name: Build IntelliJ plugin
     needs: changes
-    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -191,7 +218,7 @@ jobs:
   cli:
     name: shaft-cli (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -232,7 +259,7 @@ jobs:
   capture-e2e:
     name: SHAFT Capture Browser E2E
     needs: changes
-    if: needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -292,7 +319,7 @@ jobs:
   unit-tests:
     name: Unit Tests (${{ matrix.module }})
     needs: changes
-    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
@@ -347,7 +374,7 @@ jobs:
   template-coupling:
     name: Template Coupling Gate
     needs: changes
-    if: needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -379,7 +406,7 @@ jobs:
   workflow-timeouts:
     name: Workflow Timeout Guard
     needs: changes
-    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -411,7 +438,7 @@ jobs:
   orphaned-suite-files:
     name: Orphaned Suite XML Guard
     needs: changes
-    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true') && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -430,15 +457,30 @@ jobs:
   # it auto-closed #3930 from PR #4009's "Does not fix #3930's original macOS
   # OOM", overriding a human's manual reopen 7 minutes earlier. Runs
   # unconditionally on every pull_request (like dependency-review below, it
-  # concerns PR body text, not changed files, so no `changes` path leg gates
-  # it) and reads the live PR body via `github.event.pull_request.body`,
-  # which only exists on the pull_request event.
+  # concerns PR body/commit text, not changed files, so no `changes` path leg
+  # gates it) and does NOT skip on `edited` (issue #4145): it is the one leg
+  # that must re-run when only the body changes, and it is cheap enough that
+  # re-running it on every edit is the whole point, not a cost to avoid.
+  #
+  # Issue #4146: GitHub scans commit messages pushed to the default branch,
+  # not just the PR body -- confirmed live via issue #3930's timeline, which
+  # recorded its second auto-close via a squash-merge commit SHA, with the
+  # PR's own body and closingIssuesReferences clean. A force-push can add a
+  # hazardous commit to an already-auto-merge-armed PR and merge within a
+  # minute, so the PR's individual commit messages are fetched via the REST
+  # API (not `git log` -- this job's checkout is unauthenticated for that
+  # range and shallow by default; the API reflects the current commit list
+  # even after a force-push, i.e. on the next `synchronize`) and scanned with
+  # the same detection function, unchanged, reused from the PR-body path.
   pr-body-autoclose-guard:
-    name: PR Body Autoclose Guard
+    name: PR Body & Commit Autoclose Guard
     needs: changes
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -446,11 +488,23 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+      - name: Fetch PR commit messages
+        id: pr-commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo 'commits_json<<PR_COMMITS_JSON_EOF'
+            gh api -X GET "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
+              -f per_page=100 --jq '[.[] | {sha: .sha, message: .commit.message}]'
+            echo 'PR_COMMITS_JSON_EOF'
+          } >> "$GITHUB_OUTPUT"
       - name: Run PR body autoclose guard unit tests
         run: python3 -m unittest tests.scripts.test_validate_pr_closing_keywords -v
-      - name: Validate PR body has no negated closing-keyword references
+      - name: Validate PR body and commit messages have no negated closing-keyword references
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_COMMITS_JSON: ${{ steps.pr-commits.outputs.commits_json }}
         run: python3 scripts/ci/validate_pr_closing_keywords.py
 
   # Moved from security.yml's dependency-review job. Runs unconditionally on
@@ -461,7 +515,7 @@ jobs:
   dependency-review:
     name: Dependency Review
     needs: changes
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'edited'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
