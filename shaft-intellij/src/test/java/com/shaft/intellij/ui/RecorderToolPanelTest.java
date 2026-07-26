@@ -224,21 +224,19 @@ class RecorderToolPanelTest {
 
     /**
      * Second half of the same real-payload story: once the recorder answers idle, {@code
-     * checkStatus()} must say so in plain language and clear the shared indicator -- proving {@code
-     * ShaftRecordingActivity.stopped(recordingKey)} actually resyncs (not just some other surface's
-     * key). The active precondition is established directly via {@link ShaftRecordingActivity#started}
-     * (using this panel's own key via the {@link RecorderToolPanel#recordingKeyForTests()} test
-     * accessor) rather than through a prior active {@code checkStatus()} poll, since a check no
-     * longer arms the indicator itself (see the test above).
+     * checkStatus()} must say so in plain language. Re-review of issue #4165 established that a
+     * one-shot check must be purely observational in <b>both</b> directions (see the two
+     * stale-response regression tests below), so -- unlike the first version of this test -- this
+     * no longer asserts that a check resyncs the indicator; it only pins the rendered text for a
+     * plain idle answer with no recording in play, and confirms the indicator (already idle here)
+     * is left alone.
      */
     @Test
-    void checkStatusRendersIdleStateAndClearsTheSharedRecordingIndicatorAfterAPriorActivePoll() {
+    void checkStatusRendersIdleStateWithoutTouchingTheSharedRecordingIndicator() {
         ShaftRecordingActivity.resetForTests();
         try {
             RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
             javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
-            ShaftRecordingActivity.started(panel.recordingKeyForTests());
-            assertTrue(ShaftRecordingActivity.active(), "Precondition: a recording must be marked active");
 
             JsonObject idleWebStatus = new JsonObject();
             idleWebStatus.addProperty("state", "NOT_RUNNING");
@@ -251,8 +249,7 @@ class RecorderToolPanelTest {
 
             assertAll(
                     () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
-                    () -> assertFalse(ShaftRecordingActivity.active(),
-                            "Check status must resync the shared recording indicator back to idle"));
+                    () -> assertFalse(ShaftRecordingActivity.active()));
         } finally {
             ShaftRecordingActivity.resetForTests();
         }
@@ -298,6 +295,48 @@ class RecorderToolPanelTest {
             assertFalse(ShaftRecordingActivity.active(),
                     "A stale active status-check response must never resurrect the shared indicator "
                             + "after a real stop already cleared it");
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * The mirror-image race (re-review of issue #4165): a "Check status" click fires while idle,
+     * then before it returns, "Start recording" is clicked and its response lands first, correctly
+     * setting the indicator active. The earlier check's stale, pre-start "idle" response then
+     * arrives and must not clear an indicator a genuinely live recording just set -- same {@code
+     * CompletableFuture.supplyAsync} ordering gap, same absence of button-disabling in {@link
+     * #guardReady()}, identical reachability to the stop-races-check direction above. Idempotency of
+     * the {@code stopped()} call is a different property from staleness of the information it acts
+     * on: calling it twice is harmless, but calling it once based on a response that predates a
+     * start is not.
+     */
+    @Test
+    void aStaleIdleCheckStatusResponseArrivingAfterAStartMustNotClearTheSharedIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+            // "Start recording"'s response reached the EDT first and set the indicator active
+            // (mirrors startRecording()'s ShaftRecordingActivity.started(recordingKey) call,
+            // RecorderToolPanel.java:233).
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            assertTrue(ShaftRecordingActivity.active(), "Precondition: the start above must have set it active");
+
+            // The earlier, stale "Check status" response -- issued before the start, still carrying
+            // the pre-start 'idle' answer -- arrives afterwards.
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "NOT_RUNNING");
+            webStatus.addProperty("eventCount", 0);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertTrue(ShaftRecordingActivity.active(),
+                    "A stale idle status-check response must never clear the shared indicator after a "
+                            + "real start already set it");
         } finally {
             ShaftRecordingActivity.resetForTests();
         }

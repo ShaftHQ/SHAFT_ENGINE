@@ -387,17 +387,20 @@ final class RecorderToolPanel extends JPanel {
      * payload (issue #3949: the real section lives nested under {@code webStatus}/{@code
      * playwrightStatus}/{@code mobileStatus}) to answer active/idle for real.
      *
-     * <p>Deliberately does <b>not</b> call {@link ShaftRecordingActivity#started} when the answer is
-     * active (issue #4165 review follow-up): {@code ShaftMcpInvocationService.startTool} dispatches
-     * each call via {@code CompletableFuture.supplyAsync} with no ordering guarantee between
-     * concurrent calls, and {@link #guardReady()} never disables the buttons while a call is in
-     * flight -- so a "Check status" response can race a later "Stop recording" response and land
-     * after it, re-arming the shared indicator from a stale, pre-stop "active" answer that {@link
-     * #stopRecording()} already correctly cleared. A one-shot check is an observation, not a start:
-     * only {@link #startRecording()}, {@link #stopRecording()}, and {@link #removeNotify()} (this
-     * panel's close hook) may set or clear the indicator. Finding it idle is still safe to resync
-     * unconditionally, since {@link ShaftRecordingActivity#stopped} is idempotent and {@link
-     * #stopRecording()} already calls it speculatively regardless of success/failure.
+     * <p>Deliberately never calls {@link ShaftRecordingActivity#started}/{@link
+     * ShaftRecordingActivity#stopped} from either branch (issue #4165 review follow-up, both
+     * directions): {@code ShaftMcpInvocationService.startTool} dispatches each call via {@code
+     * CompletableFuture.supplyAsync} with no ordering guarantee between concurrent calls, and
+     * {@link #guardReady()} never disables the buttons while a call is in flight. A "Check status"
+     * response can race a later "Stop recording" response and land after it, re-arming the
+     * indicator from a stale, pre-stop "active" answer that {@link #stopRecording()} already
+     * correctly cleared -- and symmetrically, a stale pre-start "idle" answer can land after a
+     * later "Start recording" response and clear an indicator {@link #startRecording()} already
+     * correctly set. Idempotency of a {@code started()}/{@code stopped()} call is a different
+     * property from staleness of the information it acts on: calling either twice is harmless, but
+     * calling either once based on a response that predates a later start/stop is not. A one-shot
+     * check is purely an observation: only {@link #startRecording()}, {@link #stopRecording()}, and
+     * {@link #removeNotify()} (this panel's close hook) may set or clear the shared indicator.
      *
      * <p>Package-private test seam: a real {@code ShaftMcpInvocationService.getInstance(project)
      * .startTool(...)} round trip cannot be exercised in this headless unit-test JVM (see the class
@@ -420,7 +423,6 @@ final class RecorderToolPanel extends JPanel {
                     + ". Open Advanced options for the full status.");
             return;
         }
-        ShaftRecordingActivity.stopped(recordingKey);
         String state = status != null && status.has("state") ? status.get("state").getAsString() : "";
         if ("INCOMPLETE".equalsIgnoreCase(state) || "FAILED".equalsIgnoreCase(state)) {
             setStatus("Recording ended unexpectedly (" + state.toUpperCase(java.util.Locale.ROOT) + ") - "
