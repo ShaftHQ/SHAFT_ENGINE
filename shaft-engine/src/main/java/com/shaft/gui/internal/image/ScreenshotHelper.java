@@ -147,7 +147,7 @@ public class ScreenshotHelper {
                     driver.switchTo().defaultContent();
                     return takeViewportScreenshot(driver, retryAttempts - 1);
                 } else {
-                    FailureReporter.fail(ScreenshotManager.class, "Failed to capture a screenshot", exception);
+                    FailureReporter.fail(ScreenshotHelper.class, "Failed to capture a screenshot", exception);
                     return null;
                 }
         }
