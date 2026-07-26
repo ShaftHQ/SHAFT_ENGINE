@@ -201,9 +201,10 @@ inspecting the suite's own class list instead of the call stack.</div>
 <dt>Parameters:</dt>
 <dd><code>suites</code> - the suites TestNG is about to run</dd>
 <dt>Returns:</dt>
-<dd><a href="ProjectStructureManager.RunType.html#CUCUMBER"><code>ProjectStructureManager.RunType.CUCUMBER</code></a> when any suite hosts a Cucumber TestNG runner class
-(<code>io.cucumber.testng.AbstractTestNGCucumberTests</code> subclass), <a href="ProjectStructureManager.RunType.html#TESTNG"><code>ProjectStructureManager.RunType.TESTNG</code></a>
-otherwise</dd>
+<dd><a href="ProjectStructureManager.RunType.html#CUCUMBER"><code>ProjectStructureManager.RunType.CUCUMBER</code></a> when any suite (including suites reached transitively via
+<code>&lt;suite-file&gt;</code>) hosts a Cucumber TestNG runner class, whether declared directly in
+<code>&lt;classes&gt;</code> (with or without a <code>&lt;methods&gt;</code> filter) or discovered by a
+<code>&lt;packages&gt;</code> scan, <a href="ProjectStructureManager.RunType.html#TESTNG"><code>ProjectStructureManager.RunType.TESTNG</code></a> otherwise</dd>
 </dl>
 </div>
 </section>
