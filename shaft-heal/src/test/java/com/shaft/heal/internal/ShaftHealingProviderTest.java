@@ -4,6 +4,8 @@ import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.healing.HealingActionOutcome;
 import com.shaft.gui.internal.healing.HealingExplanation;
+import com.shaft.gui.internal.healing.HealingFingerprintObservation;
+import com.shaft.gui.internal.healing.HealingFingerprintSeed;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingObservation;
 import com.shaft.gui.internal.healing.HealingRequest;
@@ -32,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -278,6 +281,34 @@ public class ShaftHealingProviderTest {
         Assert.assertEquals(
                 ShaftHeal.lastReport().orElseThrow().decision().status(),
                 HealingDecision.Status.NO_HISTORY);
+    }
+
+    @Test
+    public void seededFingerprintShouldSatisfyHistoryLookupWithoutALiveElementOrDriver() {
+        // Issue #4161: shaft-capture computes this same evidence at generation/replay time, before
+        // any live driver exists for the checked-in test's later real run. Seeding must make the
+        // history lookup succeed on that later run instead of short-circuiting to NO_HISTORY.
+        WebDriver driver = driver();
+        WebElement candidate = element("new-id-test", "Username");
+        configureSearch(driver, List.of(candidate));
+        ShaftHealingProvider provider = new ShaftHealingProvider();
+        By originalLocator = By.id("old-id");
+        HealingFingerprintSeed seed = new HealingFingerprintSeed(
+                "input", "Username", "Username", "", "old-id", "username",
+                "textbox", "text", "Username", "",
+                Map.of("data-testid", "old-id-test"), Map.of(),
+                true, true, false);
+
+        HealingManager.observeFingerprint(new HealingFingerprintObservation(
+                driver.getCurrentUrl(), originalLocator, "TYPE", seed));
+        Optional<HealingResolution> resolution = provider.resolve(new HealingRequest(
+                driver, originalLocator, "TYPE", true, null, null, null));
+
+        Assert.assertNotEquals(
+                ShaftHeal.lastReport().orElseThrow().decision().status(),
+                HealingDecision.Status.NO_HISTORY);
+        Assert.assertTrue(resolution.isPresent());
+        Assert.assertTrue(resolution.get().selectedLocator().toString().contains("new-id-test"));
     }
 
     @Test(dataProvider = "nativePlatforms")
