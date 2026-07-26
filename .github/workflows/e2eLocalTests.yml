@@ -8,6 +8,21 @@ on:
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
+    inputs:
+      jobs:
+        description: >-
+          Comma-separated job names to run, no spaces (e.g. "Windows_Chrome_Local" or
+          "Windows_Chrome_Local,MacOSX_Safari_Local"). Defaults to every job -- today's
+          behaviour -- and is always every job on the scheduled nightly run.
+        required: false
+        default: 'all'
+      tests:
+        description: >-
+          Maven -Dtest= selector, threaded into every selected job's Run
+          tests step. Leave empty to keep each selected job's own default
+          selector unchanged.
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -41,6 +56,7 @@ jobs:
           needs-json: ${{ toJSON(needs) }}
 
   Windows_Edge_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Edge_Local,')
     runs-on: windows-latest
     timeout-minutes: 90
     outputs:
@@ -69,7 +85,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -79,6 +95,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Local,')
     runs-on: macos-latest
     timeout-minutes: 90
     outputs:
@@ -100,7 +117,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}, !%regex[.*MobileEmulation.*]"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*]', env.GLOBAL_TESTING_SCOPE) }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -110,6 +127,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Chrome_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Chrome_Local,')
     runs-on: windows-latest
     timeout-minutes: 75
     outputs:
@@ -135,7 +153,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -145,6 +163,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_SikuliX_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_SikuliX_Local,')
     runs-on: windows-latest
     timeout-minutes: 10
     outputs:
@@ -168,7 +187,7 @@ jobs:
           node-version: '20'
       - name: Run SikuliX Windows desktop flow
         continue-on-error: true
-        run: mvn -pl shaft-sikulix -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=SikuliWindowsDesktopE2ETest"
+        run: mvn -pl shaft-sikulix -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'SikuliWindowsDesktopE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -179,6 +198,7 @@ jobs:
           module-directory: shaft-sikulix
 
   Windows_Appium_Desktop_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Appium_Desktop_Local,')
     runs-on: windows-latest
     timeout-minutes: 15
     outputs:
@@ -260,7 +280,7 @@ jobs:
             }
             throw "Appium server did not become ready."
           }
-          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:\Windows\System32\notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=WindowsDesktopAppiumE2ETest"
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:\Windows\System32\notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WindowsDesktopAppiumE2ETest' }}"
       - name: Dump Appium server log
         if: always()
         shell: powershell
@@ -290,6 +310,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Chrome_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Chrome_Local,')
     runs-on: macos-latest
     timeout-minutes: 90
     outputs:
@@ -311,7 +332,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -321,6 +342,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_Edge_Cucumber_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Edge_Cucumber_Local,')
     runs-on: windows-latest
     timeout-minutes: 10
     outputs:
@@ -347,7 +369,7 @@ jobs:
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -396,6 +418,11 @@ jobs:
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:
-          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          # A targeted dispatch (github.event.inputs.jobs set to something other than
+          # '' / 'all') only runs a subset of jobs on purpose (#4115) -- most needs.*.result
+          # entries are 'skipped', not real passes, so this must never be read as a
+          # full-suite recovery/failure signal. Only a schedule run or a full ('all'/empty)
+          # dispatch feeds the real outcome into the tracking-issue logic below.
+          outcome: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.jobs != '' && github.event.inputs.jobs != 'all') && 'skip' || (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'skip') || 'success' }}
           workflow-name: ${{ github.workflow }}
           label: 'nightly-failure:local-e2e-tests'

@@ -8,6 +8,21 @@ on:
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
+    inputs:
+      jobs:
+        description: >-
+          Comma-separated job names to run, no spaces (e.g. "Ubuntu_APIs" or
+          "Ubuntu_APIs,Ubuntu_Database"). Defaults to every job -- today's
+          behaviour -- and is always every job on the scheduled nightly run.
+        required: false
+        default: 'all'
+      tests:
+        description: >-
+          Maven -Dtest= selector, threaded into every selected job's Run
+          tests step. Leave empty to keep each selected job's own default
+          selector unchanged.
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -80,6 +95,7 @@ jobs:
           needs-json: ${{ toJSON(needs) }}
 
   Ubuntu_Database:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Database,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -119,7 +135,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]"
+        run: mvn -pl shaft-engine -am -e test "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -129,6 +145,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_APIs:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_APIs,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -148,7 +165,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*API.*], %regex[.*Api.*], %regex[.*PathParamTest.*], %regex[.*SwaggerContractTest.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*YAML.*], %regex[.*Yaml.*], %regex[.*yaml.*], %regex[.*CLIWizard.*], %regex[.*TerminalActions.*], %regex[.*properties.Mobile.*], %regex[.*CSVFileManagerUnitTest.*], %regex[.*PdfFileManager.*], %regex[.*ExcelFileManager.*]"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*API.*], %regex[.*Api.*], %regex[.*PathParamTest.*], %regex[.*SwaggerContractTest.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*YAML.*], %regex[.*Yaml.*], %regex[.*yaml.*], %regex[.*CLIWizard.*], %regex[.*TerminalActions.*], %regex[.*properties.Mobile.*], %regex[.*CSVFileManagerUnitTest.*], %regex[.*PdfFileManager.*], %regex[.*ExcelFileManager.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -158,6 +175,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Visual_Module:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Visual_Module,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -177,7 +195,7 @@ jobs:
           node-version: '20'
       - name: Run visual module tests
         continue-on-error: true
-        run: mvn -pl shaft-visual -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=ImageProcessingActionsUnitTest"
+        run: mvn -pl shaft-visual -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'ImageProcessingActionsUnitTest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -188,6 +206,7 @@ jobs:
           module-directory: shaft-visual
 
   Ubuntu_Desktop_Video_Module:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Desktop_Video_Module,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -207,7 +226,7 @@ jobs:
           node-version: '20'
       - name: Run desktop video module tests
         continue-on-error: true
-        run: mvn -pl shaft-video -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=DesktopVideoRecordingProviderRegistrationTest"
+        run: mvn -pl shaft-video -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'DesktopVideoRecordingProviderRegistrationTest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -218,6 +237,7 @@ jobs:
           module-directory: shaft-video
 
   Ubuntu_Firefox_Grid:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Firefox_Grid,')
     runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
@@ -245,7 +265,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -255,6 +275,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Chrome_Grid:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Chrome_Grid,')
     runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
@@ -282,7 +303,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -292,6 +313,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_MicrosoftEdge_Grid:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_MicrosoftEdge_Grid,')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -319,7 +341,7 @@ jobs:
         run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${GLOBAL_TESTING_SCOPE}"
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -329,6 +351,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Playwright_Chrome:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_Chrome,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -352,7 +375,7 @@ jobs:
         run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chrome"
       - name: Run Playwright Chrome E2E
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=ChromePlaywrightActionsE2ETest"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'ChromePlaywrightActionsE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -362,6 +385,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Playwright_Edge:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_Edge,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -385,7 +409,7 @@ jobs:
         run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps msedge"
       - name: Run Playwright Edge E2E
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=EdgePlaywrightActionsE2ETest"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'EdgePlaywrightActionsE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -395,6 +419,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Playwright_WebKit:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_WebKit,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -418,7 +443,7 @@ jobs:
         run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
       - name: Run Playwright WebKit E2E
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=WebKitPlaywrightActionsE2ETest"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WebKitPlaywrightActionsE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -428,6 +453,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Playwright_Firefox:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_Firefox,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -451,7 +477,7 @@ jobs:
         run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps firefox"
       - name: Run Playwright Firefox E2E
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=FirefoxPlaywrightActionsE2ETest"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'FirefoxPlaywrightActionsE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -461,6 +487,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Playwright_GalaxyS26Ultra:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_GalaxyS26Ultra,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -484,7 +511,7 @@ jobs:
         run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chromium"
       - name: Run Playwright Galaxy S26 Ultra E2E
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=GalaxyS26UltraPlaywrightActionsE2ETest"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'GalaxyS26UltraPlaywrightActionsE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -494,6 +521,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Playwright_IPhone17ProMax:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_IPhone17ProMax,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -517,7 +545,7 @@ jobs:
         run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
       - name: Run Playwright iPhone 17 Pro Max E2E
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=IPhone17ProMaxPlaywrightActionsE2ETest"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'IPhone17ProMaxPlaywrightActionsE2ETest' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -527,6 +555,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Native_BrowserStack:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Native_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 50
     outputs:
@@ -549,7 +578,7 @@ jobs:
       - name: Run tests
         continue-on-error: true
         timeout-minutes: 40
-        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]"
+        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -559,6 +588,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   iOS_Web_SAFARI_BrowserStack:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',iOS_Web_SAFARI_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -578,7 +608,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*], %regex[.*IOSBasicInteractionsTest.*]"
+        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*MobileWebTest.*], %regex[.*IOSBasicInteractionsTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -588,6 +618,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Web_Chrome_BrowserStack:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Web_Chrome_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -607,7 +638,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
+        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*MobileWebTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -617,6 +648,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_BrowserStack:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -636,7 +668,7 @@ jobs:
           node-version: '20'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]"
+        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -646,6 +678,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_Chrome_Cucumber_Grid:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Chrome_Cucumber_Grid,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -669,7 +702,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures" "-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber" "-Dcucumber.plugin=pretty,json:allure-results/cucumber.json,html:allure-results/cucumberReport.html,com.shaft.listeners.CucumberTestRunnerListener" "-Dtest=%regex[.*(CucumberTests|CucumberFeatureListenerUnitTest|CucumberTestRunnerListenerUnitTest).*]"
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DmaximumPerformanceMode=2" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures" "-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber" "-Dcucumber.plugin=pretty,json:allure-results/cucumber.json,html:allure-results/cucumberReport.html,com.shaft.listeners.CucumberTestRunnerListener" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*(CucumberTests|CucumberFeatureListenerUnitTest|CucumberTestRunnerListenerUnitTest).*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -679,6 +712,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Safari_Cucumber_BrowserStack:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Cucumber_BrowserStack,')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -698,7 +732,7 @@ jobs:
           node-version: 'lts/*'
       - name: Run tests
         continue-on-error: true
-        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+        run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
       # module-directory defaults to shaft-engine, but this job's -pl target is shaft-browserstack
       # (which has no Cucumber TestNG runner class at all -- find shaft-browserstack -iname
       # CucumberTests.java returns nothing, issue #4079). The default silently checked
@@ -721,6 +755,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_JUnit_E2E:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_JUnit_E2E,')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -856,7 +891,7 @@ jobs:
             "-DgenerateAllureReportArchive=true" \
             "-Dallure.automaticallyOpen=false" \
             "-Dallure.open=false" \
-            "-Dtest=Junit*,MoonTests"
+            "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'Junit*,MoonTests' }}"
 
       - name: Verify JUnit Test Results Exist
         if: always()
@@ -911,6 +946,11 @@ jobs:
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:
-          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          # A targeted dispatch (github.event.inputs.jobs set to something other than
+          # '' / 'all') only runs a subset of jobs on purpose (#4115) -- most needs.*.result
+          # entries are 'skipped', not real passes, so this must never be read as a
+          # full-suite recovery/failure signal. Only a schedule run or a full ('all'/empty)
+          # dispatch feeds the real outcome into the tracking-issue logic below.
+          outcome: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.jobs != '' && github.event.inputs.jobs != 'all') && 'skip' || (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'skip') || 'success' }}
           workflow-name: ${{ github.workflow }}
           label: 'nightly-failure:e2e-tests'
