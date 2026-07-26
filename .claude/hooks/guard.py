@@ -377,6 +377,37 @@ def _sanitize_for_gui_word_check(command: str) -> str:
     return _blank_prose_quotes(_sanitize_for_command_head(command))
 
 
+def _unquote_exec_flag_payload(command: str) -> str:
+    """Drop the quote characters around an exec-flag-quoted payload, blank prose.
+
+    `_blank_prose_quotes` keeps an exec-flag-quoted payload (after -c /
+    -Command / /c / --command) intact, quotes included -- fine for
+    `_GUI_WORD_RE`, a plain substring search unaffected by surrounding quote
+    characters. But `_CMD_C_START_RE` requires the verb to follow `/c` with
+    only WHITESPACE in between, so a quote character right after `/c`
+    defeats it even though the quote changes nothing about what actually
+    runs (issue #4152: `cmd /c "start report.html"` is `cmd /c start
+    report.html` from the shell's point of view). Replacing the quote
+    characters with spaces -- while still blanking pure-prose quotes, as
+    `_blank_prose_quotes` does -- lets the structural whitespace-only check
+    see through the quoting without weakening the prose exemption.
+    """
+
+    def repl(match: re.Match[str]) -> str:
+        quoted = match.group(1)
+        if quoted is not None:
+            prefix = match.group(0)[: -len(quoted)]
+            return prefix + " " + quoted[1:-1] + " "
+        return " " * len(match.group(0))  # prose quote: blank so its words can't match
+
+    return _EXEC_FLAG_QUOTE_RE.sub(repl, command)
+
+
+def _sanitize_for_cmd_c_check(command: str) -> str:
+    """Strip data-only quoted/heredoc prose and unquote exec-flag payloads."""
+    return _unquote_exec_flag_payload(_sanitize_for_command_head(command))
+
+
 # `ii` and `start` are only the GUI-open PowerShell alias / verb when they
 # stand alone as the FIRST WORD of a command segment (real command position).
 # A plain word-boundary regex over the whole raw command string (the earlier
@@ -435,7 +466,7 @@ def check_r3_gui_open(command: str) -> str | None:
             "dialogs -- use py -3 / node / mvn / git / non-interactive CLI "
             "invocations instead."
         )
-    if _CMD_C_START_RE.search(command):
+    if _CMD_C_START_RE.search(_sanitize_for_cmd_c_check(command)):
         return (
             "R3 (GUI-open verb): this command runs `cmd /c start ...`, which "
             "opens a GUI/file-association handler. Per AGENTS.md Windows/"
@@ -1063,6 +1094,16 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
      'cmd /c "rundll32 shell32.dll,OpenAs_RunDLL report.html"', True),
     ("os.startfile nested inside py -3 -c \"...\" (this repo's documented convention)",
      "py -3 -c \"import os; os.startfile('report.html')\"", True),
+
+    # --- R3 `cmd /c start`: a quote between /c and the verb must not defeat
+    # the structural check (issue #4152, false negative -- the dangerous
+    # direction). ---
+    ("cmd /c \"start ...\" (quoted) must stay blocked -- issue #4152",
+     'cmd /c "start report.html"', True),
+    ("cmd.exe /c \"start ...\" (quoted, .exe form) must stay blocked -- issue #4152",
+     'cmd.exe /c "start https://example.com"', True),
+    ("git commit -m prose mentioning the verb stays allowed alongside the #4152 fix",
+     'git commit -m "we never start a browser"', False),
 
     # --- R3 GUI-word verbs: quoted PROSE merely discussing a denylisted verb
     # must NOT block -- reproduced live this session via `git commit -m` and
