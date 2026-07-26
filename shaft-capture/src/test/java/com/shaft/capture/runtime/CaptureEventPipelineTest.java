@@ -843,6 +843,56 @@ class CaptureEventPipelineTest {
                         + "own recorded name instead of staying blank: " + click.target());
     }
 
+    /**
+     * Issue #4026: the in-page recorder self-verifies a literal XPath for semantic locator
+     * candidates and sends it as {@code replayXpath} on each locator payload entry. The pipeline
+     * used to parse only {@code strategy}/{@code expression}/{@code uniquenessCount}/{@code visible}/
+     * {@code stable}/{@code signals} from that map and silently drop {@code replayXpath}, so
+     * {@link LocatorCandidate#replayXpath()} always came back blank no matter what the client sent --
+     * defeating the entire point of recording it. The server must thread it through unchanged.
+     */
+    @Test
+    void threadsRecordedReplayXpathFromLocatorPayloadOntoTheCandidate(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        Map<String, Object> target = Map.of(
+                "logicalElementId", "alert-banner",
+                "tagName", "div",
+                "role", "alert",
+                "accessibleName", "Something went wrong",
+                "label", "",
+                "attributes", Map.of(),
+                "locators", List.of(Map.of(
+                        "strategy", "ROLE",
+                        "expression", "alert:Something went wrong",
+                        "uniquenessCount", 1,
+                        "visible", true,
+                        "stable", true,
+                        "signals", List.of("ACCESSIBLE"),
+                        "replayXpath", "//div[normalize-space(.)=\"Something went wrong\"]")),
+                "visible", true,
+                "enabled", true,
+                "selected", false);
+        pipeline.accept(signal("click", START, target, Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        CaptureEvent.ClickEvent click = assertInstanceOf(
+                CaptureEvent.ClickEvent.class, store.read().events().get(0));
+        LocatorCandidate role = click.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "A ROLE locator candidate must be recorded: " + click.target()));
+        assertEquals("//div[normalize-space(.)=\"Something went wrong\"]", role.replayXpath(),
+                "the recorded replayXpath must survive the pipeline unchanged instead of being "
+                        + "dropped: " + role);
+    }
+
     @Test
     void deletingTypedStepPrunesExternalDataReference(@TempDir Path temp) throws Exception {
         Path output = temp.resolve("session.json");

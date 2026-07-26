@@ -1348,6 +1348,74 @@ class ManagedCaptureRecorderBrowserTest {
                         + "target uniquely.");
     }
 
+    /**
+     * Issue #4026: for an unmapped ARIA role, {@code CaptureGenerator} used to reconstruct a
+     * predicate blind in Java -- guessing between an {@code aria-label} attribute and the element's
+     * own text -- and an exact-text guess cannot survive internal DOM whitespace even when it
+     * guesses the right signal. The in-page recorder knows the true signal and must instead
+     * self-verify a literal {@code replayXpath} (using {@code normalize-space()}) against the live
+     * DOM, so record and replay resolve the exact same element from one shared artifact.
+     */
+    @Test
+    void recordedReplayXpathResolvesTheSameElementDespiteInternalDomWhitespace(@TempDir Path temp)
+            throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("replay-xpath.json");
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/replay-xpath";
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                url,
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("replay-xpath-runtime"),
+                true));
+        LocatorCandidate role;
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("status-banner")));
+
+            driver.findElement(By.id("status-banner")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.toLowerCase(java.util.Locale.ROOT)
+                            .contains("wrong")));
+
+            CaptureSession session = new CaptureJsonCodec().read(output);
+            CaptureEvent.ClickEvent click = session.events().stream()
+                    .filter(CaptureEvent.ClickEvent.class::isInstance)
+                    .map(CaptureEvent.ClickEvent.class::cast)
+                    .filter(event -> "status-banner".equals(event.target().logicalElementId()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "The click on #status-banner must be recorded."));
+            role = click.target().locatorCandidates().stream()
+                    .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "A ROLE locator candidate must be recorded for the clicked div: "
+                                    + click.target().locatorCandidates()));
+            assertFalse(role.replayXpath().isBlank(),
+                    "the recorder must self-verify and record a literal replayXpath for an "
+                            + "unmapped ARIA role candidate: " + role);
+
+            // Simulate replay: reload the page so the DOM is rebuilt fresh, then resolve the
+            // recorded replayXpath exactly as the generated code's By.xpath(...) would at replay.
+            driver.navigate().refresh();
+            waitFor(() -> elementPresent(driver, By.id("status-banner")));
+            List<WebElement> matches = driver.findElements(By.xpath(role.replayXpath()));
+            assertEquals(1, matches.size(),
+                    "the recorded replayXpath must resolve to exactly the recorded element at "
+                            + "replay time despite its internal DOM whitespace: " + role.replayXpath());
+            assertEquals("status-banner", matches.get(0).getAttribute("id"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
     private static By assertionChoice(String label) {
         return By.xpath("//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='" + label + "']");
     }
@@ -1580,6 +1648,22 @@ class ManagedCaptureRecorderBrowserTest {
                 <body>
                   <button id="submit-a">Submit</button>
                   <button id="submit-b">Submit</button>
+                </body>
+                </html>
+                """));
+        // An unmapped ARIA role (no com.shaft.gui.internal.locator.Role equivalent) whose accessible
+        // name comes from the element's own inner text, laid out across multiple source lines so the
+        // DOM text node carries real internal whitespace/newlines that XPath's exact-text equality
+        // would fail to match but normalize-space() collapses the same way the recorder's own name
+        // normalization does (issue #4026).
+        server.createContext("/replay-xpath", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Replay XPath Fixture</title></head>
+                <body>
+                  <div id="status-banner" role="alert">Something
+                    went
+                    wrong</div>
                 </body>
                 </html>
                 """));
