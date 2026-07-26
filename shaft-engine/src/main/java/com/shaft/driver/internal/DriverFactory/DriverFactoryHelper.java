@@ -684,7 +684,7 @@ public class DriverFactoryHelper {
                 var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
                 try {
                     driver.setFileDetector(new LocalFileDetector());
-                    return augmentRemoteWebDriver(driver, SHAFT.Properties.web.targetBrowserName().toLowerCase(), SHAFT.Properties.platform.enableBiDi());
+                    return augmentRemoteWebDriver(driver, SHAFT.Properties.platform.enableBiDi());
                 } catch (Throwable postCreationFailure) {
                     // the live RemoteWebDriver session was already created against the grid; quit it
                     // before rethrowing so a post-creation failure doesn't leak a pinned grid slot (#3811)
@@ -709,23 +709,31 @@ public class DriverFactoryHelper {
     // collect two Augmentation entries for the same HasCdp interface; ByteBuddy's DynamicType.Builder#implement
     // then throws "IllegalStateException: Already implemented interface ... HasCdp" the moment the second
     // .implement(HasCdp.class) is requested, killing every chromium remote/grid session (issue #3788).
-    static WebDriver augmentRemoteWebDriver(RemoteWebDriver driver, String browserName, boolean enableBiDi) {
+    //
+    // Do NOT add a custom AddHasAuthentication augmentation here either, for a different reason (issue
+    // #4037): Augmenter#augment captures the ExecuteMethod used by every augmentation registered in the
+    // SAME .augment() call BEFORE the final, actually-augmented class exists -- AddHasAuthentication's own
+    // register() handler checks `((RemoteExecuteMethod) executeMethod).getWrappedDriver() instanceof
+    // HasDevTools`, and getWrappedDriver() always returns the ORIGINAL, pre-augmentation RemoteWebDriver
+    // that was captured in that closure, which never implements HasDevTools. So a manually pre-registered
+    // AddHasAuthentication's handler is a silent no-op FOREVER, regardless of what the real session
+    // capabilities say (confirmed empirically: DriverFactoryHelperAugmentationUnitTest#
+    // nativeAuthHandlerShouldAttemptCdpConnectionRatherThanSilentlyNoOp). Selenium's own
+    // Augmenter#addDependentAugmentations safety net (which AddHasAuthentication exists specifically to
+    // cover, since it is not ServiceLoader-discoverable) does not have this problem: it runs a SEPARATE,
+    // LATER .augment() pass using the already-partially-augmented driver, so by the time its
+    // RemoteExecuteMethod is built, extractRemoteWebDriver returns an object that already implements
+    // HasDevTools (when the session capabilities actually grant it). Leaving AddHasAuthentication
+    // unregistered here lets that safety net do the (correctly-sequenced) job instead.
+    static WebDriver augmentRemoteWebDriver(RemoteWebDriver driver, boolean enableBiDi) {
         var augmenter = new Augmenter();
         if (enableBiDi) {
             augmenter = augmenter.addDriverAugmentation(new BiDiProvider());
-            if (Arrays.asList("chrome", "edge").contains(browserName)) {
-                // Selenium's HasAuthentication is CDP-backed (org.openqa.selenium.remote.AddHasAuthentication),
-                // not auto-discovered via ServiceLoader for RemoteWebDriver, so navigateToURLWithBasicAuthentication
-                // would otherwise always fall back to URL-embedded credentials on remote executions (issue #3732).
-                augmenter = augmenter.addDriverAugmentation(new AddHasAuthentication());
-            }
         }
         var augmentedDriver = augmenter.augment(driver);
-        // Diagnostic evidence for issue #4037: AddHasAuthentication's own register() handler is a silent
-        // no-op unless the augmented driver also implements HasDevTools (CDP-backed), which Selenium only
-        // grants when the session capabilities returned by the remote endpoint advertise a reachable CDP
-        // endpoint (se:cdp/se:cdpEnabled or an equivalent reported URI). Log both so a remote-only failure
-        // can be diagnosed from the returned capabilities instead of guessed at.
+        // Diagnostic evidence for issue #4037: log the real post-session capabilities plus the resulting
+        // HasAuthentication/HasDevTools augmentation outcome, so a remote-only failure can be diagnosed
+        // from evidence instead of guessed at.
         ReportManagerHelper.logDiscrete("Remote session capabilities after augmentation: `" + driver.getCapabilities()
                 + "`. HasAuthentication=" + (augmentedDriver instanceof HasAuthentication)
                 + ", HasDevTools=" + (augmentedDriver instanceof HasDevTools) + ".", Level.DEBUG);
