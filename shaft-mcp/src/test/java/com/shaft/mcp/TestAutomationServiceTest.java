@@ -220,7 +220,7 @@ class TestAutomationServiceTest {
     }
 
     @Test
-    void guardrailWarnsOnIntentBasedSmartLocatorUsage() {
+    void guardrailRejectsIntentBasedSmartLocatorUsage() {
         McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
                 import com.shaft.driver.SHAFT;
                 import org.openqa.selenium.By;
@@ -231,10 +231,65 @@ class TestAutomationServiceTest {
                 }
                 """);
 
+        assertFalse(result.passed());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SMART_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 5));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SMART_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 6));
+    }
+
+    @Test
+    void guardrailRejectsLocatorDeclaredInsideTestAnnotatedClass() {
+        McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
+                import com.shaft.driver.SHAFT;
+                import com.shaft.gui.internal.locator.Role;
+                import org.openqa.selenium.By;
+                import org.testng.annotations.Test;
+
+                class CheckoutTest {
+                    private final By checkoutButton = SHAFT.GUI.Locator.hasRole(Role.BUTTON)
+                            .hasText("Checkout").build();
+
+                    @Test
+                    void checkout(SHAFT.GUI.WebDriver driver) {
+                        driver.element().click(checkoutButton);
+                    }
+                }
+                """);
+
+        assertFalse(result.passed());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("POM_VIOLATION")
+                && violation.severity().equals("ERROR")));
+    }
+
+    @Test
+    void guardrailAllowsLocatorsDeclaredInSeparatePageObjectFromTestClass() {
+        McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
+                import com.shaft.driver.SHAFT;
+                import com.shaft.gui.internal.locator.Role;
+                import org.openqa.selenium.By;
+                import org.testng.annotations.Test;
+
+                public final class LoginPage {
+                    private final By email = SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build();
+                    private final By submit = SHAFT.GUI.Locator.hasRole(Role.BUTTON).build();
+
+                    public LoginPage login(SHAFT.GUI.WebDriver driver, String user, String password) {
+                        driver.element().type(email, user);
+                        driver.element().click(submit);
+                        return this;
+                    }
+                }
+
+                class LoginTest {
+                    @Test
+                    void login(SHAFT.GUI.WebDriver driver) {
+                        new LoginPage(driver).login(driver, "user@example.com", "secret123");
+                    }
+                }
+                """);
+
         assertTrue(result.passed());
-        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SMART_LOCATOR")
-                && violation.severity().equals("WARNING") && violation.line() == 5));
-        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SMART_LOCATOR")
-                && violation.severity().equals("WARNING") && violation.line() == 6));
+        assertTrue(result.violations().stream().noneMatch(violation -> violation.kind().equals("POM_VIOLATION")));
     }
 }
