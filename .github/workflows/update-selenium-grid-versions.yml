@@ -17,6 +17,7 @@ concurrency:
 jobs:
   update-versions:
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -185,6 +186,7 @@ jobs:
     needs: [update-versions]
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write

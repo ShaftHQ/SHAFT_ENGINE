@@ -19,6 +19,7 @@ concurrency:
 jobs:
   prepare-release-pr:
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - name: Checkout Default Branch
         uses: actions/checkout@v7

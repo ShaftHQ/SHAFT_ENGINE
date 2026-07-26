@@ -280,6 +280,7 @@ jobs:
       - gemini-live
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write

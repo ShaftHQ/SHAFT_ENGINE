@@ -67,6 +67,7 @@ jobs:
       - MacOSX_Safari_Cucumber_BrowserStack
       - Ubuntu_JUnit_E2E
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
@@ -80,6 +81,7 @@ jobs:
 
   Ubuntu_Database:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -128,6 +130,7 @@ jobs:
 
   Ubuntu_APIs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -156,6 +159,7 @@ jobs:
 
   Ubuntu_Visual_Module:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -185,6 +189,7 @@ jobs:
 
   Ubuntu_Desktop_Video_Module:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -214,6 +219,7 @@ jobs:
 
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     permissions:
       contents: read
     outputs:
@@ -250,6 +256,7 @@ jobs:
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     permissions:
       contents: read
     outputs:
@@ -286,6 +293,7 @@ jobs:
 
   Ubuntu_MicrosoftEdge_Grid:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     permissions:
       contents: read
     outputs:
@@ -322,6 +330,7 @@ jobs:
 
   Ubuntu_Playwright_Chrome:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -354,6 +363,7 @@ jobs:
 
   Ubuntu_Playwright_Edge:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -386,6 +396,7 @@ jobs:
 
   Ubuntu_Playwright_WebKit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -418,6 +429,7 @@ jobs:
 
   Ubuntu_Playwright_Firefox:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -450,6 +462,7 @@ jobs:
 
   Ubuntu_Playwright_GalaxyS26Ultra:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -482,6 +495,7 @@ jobs:
 
   Ubuntu_Playwright_IPhone17ProMax:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -514,6 +528,7 @@ jobs:
 
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -545,6 +560,7 @@ jobs:
 
   iOS_Web_SAFARI_BrowserStack:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -573,6 +589,7 @@ jobs:
 
   Android_Web_Chrome_BrowserStack:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -601,6 +618,7 @@ jobs:
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -629,6 +647,7 @@ jobs:
 
   Ubuntu_Chrome_Cucumber_Grid:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -661,6 +680,7 @@ jobs:
 
   MacOSX_Safari_Cucumber_BrowserStack:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -689,6 +709,7 @@ jobs:
 
   Ubuntu_JUnit_E2E:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     env:
@@ -867,6 +888,7 @@ jobs:
     needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write

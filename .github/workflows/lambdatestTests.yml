@@ -27,6 +27,7 @@ jobs:
       - LambdaTest_WebApp
       - LambdaTest_DesktopWeb
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
@@ -40,6 +41,7 @@ jobs:
 
   LambdaTest_NativeAndroid:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
@@ -113,6 +115,7 @@ jobs:
 
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
@@ -191,6 +194,7 @@ jobs:
 
   LambdaTest_WebApp:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
@@ -242,6 +246,7 @@ jobs:
 
   LambdaTest_DesktopWeb:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}

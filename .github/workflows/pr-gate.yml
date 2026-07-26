@@ -40,6 +40,7 @@ jobs:
   changes:
     name: Detect changed paths
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
       intellij: ${{ steps.filter.outputs.intellij }}
@@ -48,6 +49,7 @@ jobs:
       templates: ${{ steps.filter.outputs.templates }}
       javacore: ${{ steps.filter.outputs.javacore }}
       infra: ${{ steps.filter.outputs.infra }}
+      workflows: ${{ steps.filter.outputs.workflows }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -107,12 +109,18 @@ jobs:
               - 'pom.xml'
             infra:
               - '.github/workflows/pr-gate.yml'
+            # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
+            # any workflow file change must re-check that every job still declares
+            # timeout-minutes, not only edits to this file (already covered by infra).
+            workflows:
+              - '.github/workflows/**'
 
   docs-boundary:
     name: Documentation Boundary Gate
     needs: changes
     if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -127,6 +135,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -161,6 +170,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -178,6 +188,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -218,6 +229,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -273,6 +285,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -327,6 +340,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -348,6 +362,31 @@ jobs:
           -DheadlessExecution=true
           -Dgpg.skip
 
+  # Issue #4081: MacOSX_Safari_Local hung after a heap OOM and burned the full
+  # 6-hour default job ceiling on a macos-latest runner (10x billing
+  # multiplier) because nothing bounded it. This job is the CI-side
+  # regression guard for scripts/ci/validate_workflow_timeouts.py, which
+  # fails whenever any .github/workflows/*.yml job has no timeout-minutes.
+  workflow-timeouts:
+    name: Workflow Timeout Guard
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml --quiet
+      - name: Run workflow timeout guard unit tests
+        run: python3 -m unittest tests.scripts.test_validate_workflow_timeouts -v
+      - name: Validate every workflow job declares timeout-minutes
+        run: python3 scripts/ci/validate_workflow_timeouts.py
+
   # Moved from security.yml's dependency-review job. Runs unconditionally on
   # every pull_request (no path leg matches it in the `changes` job, mirroring
   # its unconditional-per-PR behavior in security.yml today) and temporarily
@@ -358,6 +397,7 @@ jobs:
     needs: changes
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -380,9 +420,11 @@ jobs:
       - capture-e2e
       - unit-tests
       - template-coupling
+      - workflow-timeouts
       - dependency-review
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
       - name: Evaluate leg results
         env:
@@ -394,6 +436,7 @@ jobs:
           CAPTURE_RESULT: ${{ needs.capture-e2e.result }}
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
+          WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
           set -uo pipefail
@@ -409,6 +452,7 @@ jobs:
             echo "| capture-e2e | ${CAPTURE_RESULT} |"
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
+            echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -418,7 +462,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

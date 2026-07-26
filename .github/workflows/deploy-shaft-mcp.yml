@@ -19,6 +19,7 @@ jobs:
   deploy-render:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
       - name: Trigger Render deployment
         env:
@@ -33,6 +34,7 @@ jobs:
   deploy-fly:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - name: Checkout released source
         uses: actions/checkout@v7
@@ -53,6 +55,7 @@ jobs:
   smithery:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
       - name: Record optional Smithery deployment handoff
         run: |

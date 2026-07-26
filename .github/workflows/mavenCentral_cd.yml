@@ -59,6 +59,7 @@ jobs:
     # Maven Central + GPG/OSSRH secrets are not available on forked repos; signing would fail with empty key id.
     if: github.event.repository.fork == false
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     outputs:
       already_released: ${{ steps.guard.outputs.already_released }}
     steps:
@@ -83,6 +84,7 @@ jobs:
       MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     permissions:
       contents: read  # only builds/tests/deploys to Maven Central; the GitHub Release is created by announce_release.
     outputs:
@@ -211,6 +213,7 @@ jobs:
     # Skip when build_release_and_deliver was skipped (nothing new delivered), not just on failure.
     if: needs.build_release_and_deliver.result == 'success'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -242,6 +245,7 @@ jobs:
     # Skip when build_release_and_deliver was skipped (nothing new delivered), not just on failure.
     if: needs.build_release_and_deliver.result == 'success'
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -336,6 +340,7 @@ jobs:
     # are then cleanly 'skipped', not failed - the outcome expression below must not alert on that.
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write
