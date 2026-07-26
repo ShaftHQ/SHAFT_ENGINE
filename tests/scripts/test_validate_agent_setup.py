@@ -2,9 +2,11 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
+    run_memory_check,
     validate_memory_setup,
     validate_repository,
 )
@@ -86,6 +88,17 @@ approval_mode = "prompt"
         repository_root = Path(__file__).resolve().parents[2]
         errors, _ = validate_repository(repository_root, run_external=False)
         self.assertEqual(errors, [])
+
+    def test_missing_memory_binary_reports_actionable_error(self):
+        with patch("scripts.ci.validate_agent_setup.shutil.which", return_value=None):
+            errors = run_memory_check(self.root)
+        self.assertEqual(len(errors), 1)
+        error = errors[0]
+        self.assertEqual(error["code"], "memory-check")
+        self.assertEqual(error["path"], "memory")
+        self.assertIn("PATH", error["message"])
+        self.assertIn("install", error["message"].lower())
+        self.assertNotIn("Traceback", error["message"])
 
 
 if __name__ == "__main__":

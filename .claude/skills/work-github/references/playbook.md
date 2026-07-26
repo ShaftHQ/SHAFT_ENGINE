@@ -268,6 +268,20 @@ manufacturing a memory entry to fill the step.
 
 - Push the branch, open one PR per the shape decided in step 1, with a
   description that lists each sub-item and its commit.
+- **Verify no accidental auto-close, every time.** GitHub auto-closes an
+  issue two ways: a closing keyword anywhere in the PR body — `close`/
+  `closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`
+  immediately before `#N` — where a later disclaimer sentence does not
+  neutralize an earlier match; or a branch named after an issue, which
+  creates a Development-sidebar link on merge independently of body text
+  (this repo's `ChaosEngine/fix-<issue>-<slug>` convention triggers this on
+  every branch). A partial-fix PR (`Related to #N`, never `Closes #N`) must
+  avoid every keyword above anywhere in its body, including ordinary prose.
+  Immediately after opening, run `gh pr view <n> --json
+  closingIssuesReferences`; if it lists an issue this PR does not fully
+  resolve, unlink it from the PR's Development sidebar — this is the only
+  check that reports the effective link regardless of which mechanism
+  created it.
 - Wait for CI. If it fails, fix forward on the same branch — don't force-
   push over history the user might want to inspect, just add a fixing
   commit, unless the failure is trivially a fixup of the last commit itself.
