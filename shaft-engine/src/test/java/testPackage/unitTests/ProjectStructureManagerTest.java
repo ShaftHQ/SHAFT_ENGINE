@@ -5,6 +5,8 @@ import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 import org.testng.xml.XmlClass;
+import org.testng.xml.XmlInclude;
+import org.testng.xml.XmlPackage;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
@@ -76,6 +78,61 @@ public class ProjectStructureManagerTest {
         xmlTest.setXmlClasses(List.of(new XmlClass(ProjectStructureManagerTest.class)));
 
         ProjectStructureManager.RunType runType = ProjectStructureManager.identifyRunType(List.of(suite));
+
+        SHAFT.Validations.assertThat().object(runType).isEqualTo(ProjectStructureManager.RunType.TESTNG).perform();
+    }
+
+    @Test(description = "identifyRunType(suites) detects a Cucumber TestNG runner class declared via <packages> " +
+            "(package scan) rather than an explicit <classes><class> entry")
+    public void identifyRunTypeWithSuitesDetectsCucumberTestNgRunnerClassDeclaredViaPackages() {
+        XmlSuite suite = new XmlSuite();
+        XmlTest xmlTest = new XmlTest(suite);
+        xmlTest.setXmlPackages(List.of(new XmlPackage("cucumberTestRunner")));
+
+        ProjectStructureManager.RunType runType = ProjectStructureManager.identifyRunType(List.of(suite));
+
+        SHAFT.Validations.assertThat().object(runType).isEqualTo(ProjectStructureManager.RunType.CUCUMBER).perform();
+    }
+
+    @Test(description = "identifyRunType(suites) detects a Cucumber TestNG runner class declared only inside a " +
+            "child suite pulled in via <suite-file>, which the parent's own getTests() does not expose")
+    public void identifyRunTypeWithSuitesDetectsCucumberTestNgRunnerClassInChildSuiteFile() {
+        XmlSuite parentSuite = new XmlSuite();
+        XmlSuite childSuite = new XmlSuite();
+        XmlTest childXmlTest = new XmlTest(childSuite);
+        childXmlTest.setXmlClasses(List.of(new XmlClass(cucumberTestRunner.CucumberTests.class)));
+        parentSuite.getChildSuites().add(childSuite);
+
+        ProjectStructureManager.RunType runType = ProjectStructureManager.identifyRunType(List.of(parentSuite));
+
+        SHAFT.Validations.assertThat().object(runType).isEqualTo(ProjectStructureManager.RunType.CUCUMBER).perform();
+    }
+
+    @Test(description = "identifyRunType(suites) still detects a Cucumber TestNG runner class when the suite " +
+            "restricts it to specific methods via <methods><include>, proving the #4078 class walk already " +
+            "covers this declaration shape without needing a code change")
+    public void identifyRunTypeWithSuitesDetectsCucumberTestNgRunnerClassFilteredByMethods() {
+        XmlSuite suite = new XmlSuite();
+        XmlTest xmlTest = new XmlTest(suite);
+        XmlClass xmlClass = new XmlClass(cucumberTestRunner.CucumberTests.class);
+        xmlClass.setIncludedMethods(List.of(new XmlInclude("runScenario")));
+        xmlTest.setXmlClasses(List.of(xmlClass));
+
+        ProjectStructureManager.RunType runType = ProjectStructureManager.identifyRunType(List.of(suite));
+
+        SHAFT.Validations.assertThat().object(runType).isEqualTo(ProjectStructureManager.RunType.CUCUMBER).perform();
+    }
+
+    @Test(description = "identifyRunType(suites) terminates instead of infinite-looping when child suites form a " +
+            "cycle, proving the child-suite recursion is bounded by a visited-set rather than plain depth-first " +
+            "descent", timeOut = 10000)
+    public void identifyRunTypeWithSuitesTerminatesOnCyclicChildSuites() {
+        XmlSuite suiteA = new XmlSuite();
+        XmlSuite suiteB = new XmlSuite();
+        suiteA.getChildSuites().add(suiteB);
+        suiteB.getChildSuites().add(suiteA); // cycle: B points back to A
+
+        ProjectStructureManager.RunType runType = ProjectStructureManager.identifyRunType(List.of(suiteA));
 
         SHAFT.Validations.assertThat().object(runType).isEqualTo(ProjectStructureManager.RunType.TESTNG).perform();
     }
