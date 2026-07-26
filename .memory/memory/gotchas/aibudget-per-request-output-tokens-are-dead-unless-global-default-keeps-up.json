@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/aibudget-per-request-output-tokens-are-dead-unless-global-default-keeps-up.md",
+  "content_hash": "sha256:e5206b0274e9facd2e44575daaab2bba5f09c8e1dde4ce9f1d4b03fcde77ab68",
+  "created_at": "2026-07-26T18:19:35+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.aibudget-per-request-output-tokens-are-dead-unless-global-default-keeps-up",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix #4113: Gemini output-token truncation"
+  },
+  "status": "active",
+  "tags": [
+    "gemini",
+    "pilot-ai",
+    "token-budget",
+    "shaft-ai",
+    "issue-4113"
+  ],
+  "title": "AiBudget per-request output tokens are dead unless global default keeps up",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T18:19:35+03:00"
+}
