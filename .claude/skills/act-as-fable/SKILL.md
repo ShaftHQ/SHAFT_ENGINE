@@ -168,7 +168,7 @@ available to accept new owner requests and realign in-flight tasks to the
 owner's direction — never so deep in any single thread of work that a new
 directive has to wait.
 
-**Parallelism budget (owner rule, binding).** Soft maximum of four–five
+**Parallelism budget (owner rule, binding).** Soft maximum of two–four
 concurrent tasks/subagents, even when more could run conflict-free —
 completeness still outranks parallelization. Land in-flight work before
 fanning out further. The objective behind the cap: the
