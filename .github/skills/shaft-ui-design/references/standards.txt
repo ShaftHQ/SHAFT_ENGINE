@@ -32,6 +32,8 @@
 - Components: icon buttons use existing icon libraries when available; familiar controls beat custom widgets.
 - Motion: purposeful and sparse; never gate visibility on animations; avoid layout-property animation; always respect `prefers-reduced-motion`.
 - Assets: prefer real product/report/docs imagery or deterministic screenshots. Do not use generated images for exact UI text, code, logos, or claims.
+- Color: never pure `#000000` or `#ffffff` for surfaces or body text; keep one accent role and let neutrals carry the rest. Accent saturation above ~80% reads as a default theme, not a choice.
+- States: every interactive surface ships focus, loading, empty, and error states. A loading state mirrors the real layout's dimensions rather than a centered spinner, so the page does not jump when content arrives.
 
 ## Unslop Rules
 
@@ -61,3 +63,7 @@ Reject and rewrite these unless the brief explicitly requires them and the choic
 - Do not hand-draw replacement glyphs in screenshot renderers or paint fake icons over components. If screenshots show blank or broken icons, fix the shared icon source (`ShaftIcons` or assets) so runtime UI and screenshots use the same real icon.
 - Preserve icon-only button shape, size, tooltip, and accessible-name behavior through `ShaftIconButtons`; do not add one-off button styling in individual panels.
 - Validate IntelliJ icon/UI changes with the smallest relevant set: `ShaftIconAssetsTest`, focused panel tests that assert icons paint visible pixels, screenshot renderer output, and visual inspection of light, dark, and narrow states.
+- Swing surfaces obey the same states and color rules as the web surfaces above: focus, loading, empty, and error states are required; one accent role; never pure black or white. The plugin-screenshot renderer is where you verify them, not a browser.
+- Keep icon stroke weight and metaphor consistent across a panel. Avoid cliche metaphors (rocket for run, shield for security) when a platform `AllIcons` entry already names the concept.
+
+Portions of the color/state rules above are re-expressed from leonxlnx/taste-skill (MIT, Copyright (c) 2026 Leonxlnx).

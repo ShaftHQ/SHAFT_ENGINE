@@ -149,6 +149,13 @@ session may open several grouped PRs, one per group of related subtasks.
   checked, close the tracking issue itself in the same session, with a final
   summary comment — don't leave it open awaiting a human close.
 
+When a tracking issue's checkbox list will be worked by more than one agent,
+suffix each line that is safe to run concurrently with `[P]` — meaning its
+file scope is disjoint from every other `[P]` line. Lines without the marker
+are sequential. This records the pre-dispatch disjoint-scope check on the line
+it applies to instead of re-deriving it per dispatch (convention adapted from
+github/spec-kit, MIT, Copyright GitHub, Inc.).
+
 ### Example `gh` invocations
 
 Open the tracking issue with a checkbox list (subtask issues don't exist yet,
