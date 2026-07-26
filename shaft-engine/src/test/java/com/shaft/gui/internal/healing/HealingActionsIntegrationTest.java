@@ -6,6 +6,7 @@ import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
@@ -142,6 +143,37 @@ public class HealingActionsIntegrationTest {
 
         Optional<HealingResolution> resolution = HealingManager.resolve(
                 driver, ORIGINAL, "CLICK", true, null, null, null);
+
+        Assert.assertTrue(resolution.isPresent());
+        verify(provider, atLeastOnce()).resolve(any());
+    }
+
+    @Test
+    public void flutterByLocatorShouldNeverInvokeHealingProvider() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+        By flutterLocator = AppiumBy.flutterKey("submit-button");
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, flutterLocator, "CLICK", true, null, null, null);
+
+        Assert.assertTrue(resolution.isEmpty());
+        verify(provider, never()).resolve(any());
+    }
+
+    @Test
+    public void nonFlutterAppiumLocatorHealingShouldRemainUnchanged() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-accessibility-id", List.of(recovered), By.id("new-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+        By accessibilityIdLocator = AppiumBy.accessibilityId("submit-button");
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, accessibilityIdLocator, "CLICK", true, null, null, null);
 
         Assert.assertTrue(resolution.isPresent());
         verify(provider, atLeastOnce()).resolve(any());

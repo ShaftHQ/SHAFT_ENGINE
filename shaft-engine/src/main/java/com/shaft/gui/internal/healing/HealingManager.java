@@ -3,6 +3,7 @@ package com.shaft.gui.internal.healing;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import io.appium.java_client.AppiumBy;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.StaleElementReferenceException;
@@ -49,6 +50,16 @@ public final class HealingManager {
             By shadowHostLocator,
             By shadowContentLocator) {
         if (!HealingStrategy.current().usesShaftHeal() || !isApplicable(action)) {
+            return Optional.empty();
+        }
+        if (locator instanceof AppiumBy.FlutterBy) {
+            // Issue #4002: FlutterBy locators address Flutter's own widget tree via the
+            // "-flutter *" strategies, which has no representation in the native page
+            // source. Alternatives derived from native page source are wrong by
+            // construction, so healing must not attempt them.
+            ReportManager.logDiscrete(
+                    "SHAFT Heal does not attempt recovery for AppiumBy.FlutterBy locators: "
+                            + "native page source has no representation of the Flutter widget tree.");
             return Optional.empty();
         }
         try {
