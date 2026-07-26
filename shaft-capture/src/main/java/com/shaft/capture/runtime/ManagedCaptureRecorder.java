@@ -967,7 +967,7 @@ class ManagedCaptureRecorder {
     }
 
     private void startNetworkRecorder(WebDriver activeDriver) {
-        if (!apiCaptureEnabled()) {
+        if (!apiCaptureEnabled() || networkCaptureExplicitlyDisabled(request.options().networkOptions())) {
             return;
         }
         if (!(activeDriver instanceof HasDevTools)) {
@@ -1020,6 +1020,16 @@ class ManagedCaptureRecorder {
         }
     }
 
+    // Package-private (not private) so ManagedCaptureRecorderControlTest can pin this directly; see
+    // issue #4057 -- NetworkCaptureOptions.enabled has no equivalent on the target
+    // com.shaft.capture.network.NetworkCaptureOptions record, so it cannot be carried through
+    // translateNetworkCaptureOptions and must instead gate whether a recorder is created at all,
+    // before apiCaptureEnabled()'s decision (apiCapture flag or the global capture.enabled property)
+    // is allowed to start one.
+    static boolean networkCaptureExplicitlyDisabled(NetworkCaptureOptions requested) {
+        return requested != null && !requested.enabled;
+    }
+
     private static boolean isDefaultNetworkCaptureOptions(NetworkCaptureOptions options) {
         NetworkCaptureOptions defaults = new NetworkCaptureOptions();
         return options.enabled == defaults.enabled
@@ -1035,6 +1045,8 @@ class ManagedCaptureRecorder {
     // com.shaft.capture.runtime.NetworkCaptureOptions.excludeAssets (true = drop assets) and
     // com.shaft.capture.network.NetworkCaptureOptions.includeAssetTypes (true = keep assets) are
     // the same concept with inverted meaning, translated here by hand with no compiler guard.
+    // captureRequestBodies/captureResponseBodies are carried through as-is (issue #4057); enabled
+    // has no target-side equivalent and is handled separately by networkCaptureExplicitlyDisabled.
     static com.shaft.capture.network.NetworkCaptureOptions translateNetworkCaptureOptions(
             NetworkCaptureOptions options) {
         return new com.shaft.capture.network.NetworkCaptureOptions(
@@ -1043,7 +1055,9 @@ class ManagedCaptureRecorder {
                 globList(options.excludePattern),
                 true,
                 com.shaft.capture.network.NetworkCaptureOptions.DEFAULT_MAX_TRANSACTIONS,
-                com.shaft.capture.network.NetworkCaptureOptions.DEFAULT_MAX_BODY_BYTES);
+                com.shaft.capture.network.NetworkCaptureOptions.DEFAULT_MAX_BODY_BYTES,
+                options.captureRequestBodies,
+                options.captureResponseBodies);
     }
 
     private static List<String> globList(String value) {
