@@ -189,6 +189,7 @@ class GuidedWorkflowLiveE2ETest {
 
                 JsonObject status = awaitApiEndpoints(mcp, List.of("/api/session", "/api/profile"),
                         Duration.ofSeconds(90));
+                assertTrue(status.get("networkTransactionCount").getAsInt() >= 2, status.toString());
 
                 JsonObject stoppedStatus = webStatus(mcp.invoke(apiStop(false), TOOL_TIMEOUT));
                 assertEquals("COMPLETED", stoppedStatus.get("state").getAsString(), stoppedStatus.toString());
