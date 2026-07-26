@@ -30,12 +30,16 @@ import org.junit.platform.launcher.listeners.TestExecutionSummary;
 import org.opentest4j.TestAbortedException;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -49,6 +53,18 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
             ExtensionContext.Namespace.create(JunitExtension.class, "retry");
     private static final String PENDING_RETRY_KEY = "pendingRetry";
     private static final ConcurrentMap<String, ActiveRetryAttempt> activeRetryAttempts = new ConcurrentHashMap<>();
+    // Bounds every retry re-execution (#4074): same shape as #4066/PR #4073's
+    // CaptureManager.invoke() -- an unbounded executor.submit(...).get() turned a wedged retried
+    // test into an unbounded, undiagnosable hang, and the executor.shutdownNow() cleanup sitting in
+    // this method's own finally block never got a chance to run because the blocking get() never
+    // returned. This repo already paid for exactly that shape of bug at the CI level (#4009):
+    // Ubuntu_Chrome_Grid/Ubuntu_Firefox_Grid jobs ran to their 360-minute wall-clock limit instead
+    // of failing fast. Unlike CaptureManager's internal, bounded-duration browser-lifecycle calls, a
+    // retry re-executes arbitrary user test code (its own @BeforeEach/@AfterEach, browser session,
+    // assertions) whose legitimate duration varies far more, so the bound is generous (30 minutes)
+    // rather than CaptureManager's 90 seconds -- while still failing well inside the 360-minute job
+    // ceiling even across a handful of retry attempts.
+    private static final Duration DEFAULT_RETRY_ATTEMPT_TIMEOUT = Duration.ofMinutes(30);
 
     @Override
     public void beforeAll(ExtensionContext context) {
@@ -192,13 +208,16 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
     private static TestExecutionSummary executeRetryAttempt(ExtensionContext context, Method method, int attempt,
                                                            int maxRetryCount) throws Exception {
         String uniqueId = context.getUniqueId();
+        String operationName = (method == null ? context.getDisplayName() : method.getName())
+                + " retry attempt " + attempt + "/" + maxRetryCount;
         activeRetryAttempts.put(uniqueId, new ActiveRetryAttempt(attempt, maxRetryCount));
         try {
             TestExecutionSummary summary = executeRetryRequest(
-                    retryRequest(DiscoverySelectors.selectUniqueId(uniqueId)));
+                    retryRequest(DiscoverySelectors.selectUniqueId(uniqueId)), operationName);
             if (summary.getTestsFoundCount() == 0 && method != null) {
                 summary = executeRetryRequest(
-                        retryRequest(DiscoverySelectors.selectMethod(context.getRequiredTestClass(), method)));
+                        retryRequest(DiscoverySelectors.selectMethod(context.getRequiredTestClass(), method)),
+                        operationName);
             }
             return summary;
         } finally {
@@ -214,27 +233,51 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
                 .build();
     }
 
-    private static TestExecutionSummary executeRetryRequest(LauncherDiscoveryRequest request) throws Exception {
+    private static TestExecutionSummary executeRetryRequest(LauncherDiscoveryRequest request, String operationName)
+            throws Exception {
+        return executeRetryRequest(request, operationName, DEFAULT_RETRY_ATTEMPT_TIMEOUT);
+    }
+
+    // Test-only seam: production always resolves to DEFAULT_RETRY_ATTEMPT_TIMEOUT; tests inject a
+    // short bound so a deliberately-wedged retried test proves the timeout in milliseconds instead
+    // of waiting out the real one.
+    static TestExecutionSummary executeRetryRequest(LauncherDiscoveryRequest request, String operationName,
+                                                      Duration timeout) throws Exception {
         ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "shaft-junit-retry");
             thread.setDaemon(false);
             return thread;
         });
+        Future<TestExecutionSummary> future = executor.submit(() -> {
+            SummaryGeneratingListener summaryListener = new SummaryGeneratingListener();
+            LauncherFactory.create(LauncherConfig.builder()
+                    .enableLauncherSessionListenerAutoRegistration(false)
+                    .enableTestExecutionListenerAutoRegistration(false)
+                    .build()).execute(request, summaryListener);
+            return summaryListener.getSummary();
+        });
         try {
-            return executor.submit(() -> {
-                SummaryGeneratingListener summaryListener = new SummaryGeneratingListener();
-                LauncherFactory.create(LauncherConfig.builder()
-                        .enableLauncherSessionListenerAutoRegistration(false)
-                        .enableTestExecutionListenerAutoRegistration(false)
-                        .build()).execute(request, summaryListener);
-                return summaryListener.getSummary();
-            }).get();
+            return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            future.cancel(true);
             throw e;
         } catch (ExecutionException e) {
             throwAsException(e.getCause() == null ? e : e.getCause());
             throw e;
+        } catch (TimeoutException e) {
+            // Best-effort cancellation: interrupts the "shaft-junit-retry" worker thread. If the
+            // retried test is blocked on native/browser I/O (the #4066/#4046 case, and #4074's own
+            // finding that a JUnit @Timeout in same-thread interrupt mode failed to unblock a native
+            // hang) the interrupt may not land -- but the caller must get a bounded, named answer
+            // either way instead of hanging forever.
+            future.cancel(true);
+            throw new IllegalStateException(
+                    "SHAFT JUnit retry " + operationName + " timed out after " + timeout.toSeconds()
+                            + "s. The retried test was cancelled, but if it was blocked on native/browser I/O it "
+                            + "may still be running and holding its browser/driver process -- check for and "
+                            + "clean up an orphaned browser or driver process.",
+                    e);
         } finally {
             executor.shutdownNow();
         }
