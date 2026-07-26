@@ -462,3 +462,9 @@
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.question-open-do-codecov-patch-and-codecov-project-and-codacy-actually-gate-auto-merge-or-are-they-advisory-related-to-gotcha-auto-merge-armed-on-pr-gate-green-is-unsafe-when-the-fixs-acceptance-criterion-is-a-job-outside-the-gate","timestamp":"2026-07-26T16:21:30+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-26T16:30:30+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-26T16:37:57+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.selenium-augmenter-augment-captures-the-pre-augmentation-executemethod-pre-registered-addhasauthentication-is-a-permanent-no-op","timestamp":"2026-07-26T17:14:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.surefire-testng-provider-multi-class-dtest-writes-junitreports-not-top-level-surefire-reports","timestamp":"2026-07-26T17:14:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.global-testing-scope-only-wired-into-7-jobs-most-e2e-workflow-jobs-hardcode-their-own-dtest","timestamp":"2026-07-26T17:14:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gnu-find-exits-nonzero-on-an-absent-start-path-guards-it-under-set-euo-pipefail","timestamp":"2026-07-26T17:14:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.judge-a-nightly-by-per-job-failure-signature-not-overall-red-green-a-changed-message-is-progress","timestamp":"2026-07-26T17:14:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.gradle-truncates-intellij-live-e2e-assertion-messages-full-text-is-in-the-evidence-artifact","timestamp":"2026-07-26T17:14:32+03:00"}
