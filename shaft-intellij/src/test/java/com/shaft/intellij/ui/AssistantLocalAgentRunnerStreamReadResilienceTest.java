@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,6 +43,63 @@ class AssistantLocalAgentRunnerStreamReadResilienceTest {
     }
 
     /**
+     * Sibling defect in the same file, same investigation (issue #4164 follow-up): {@code
+     * stdoutNow}/{@code stderrNow} returned {@code ""} on <em>any</em> exception from {@code
+     * future.get(2, TimeUnit.SECONDS)} -- including a plain {@link java.util.concurrent.TimeoutException}
+     * -- discarding whatever the background reader thread had already captured. The process has
+     * already terminated by every caller of these methods (this stub reports a prompt, successful
+     * exit), so a still-incomplete read at the 2-second mark means the drain is slow, not silent;
+     * its buffered content is exactly what a user needs to see when something hangs.
+     */
+    @Test
+    void alreadyBufferedStdoutSurvivesWhenTheDrainReadIsStillRunningPastTheGraceWindow() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "stub-agent --print", false);
+        StubProcess process = StubProcess.stdoutBlockingAfterOneLine(
+                "buffered before the drain stalled", 5000);
+
+        long startNanos = System.nanoTime();
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, line -> { }, (command, workingDirectory, environment) -> process);
+        ShaftMcpToolResult result = running.future().get(8, TimeUnit.SECONDS);
+        long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+
+        assertTrue(elapsedMillis < 4500,
+                "The result must arrive via stdoutNow's own 2-second grace window timing out, not by "
+                        + "waiting out the simulated 5-second stall: took " + elapsedMillis + "ms");
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("buffered before the drain stalled"),
+                "Buffered stdout must survive stdoutNow's own get() timing out while the background "
+                        + "read is still running: " + result.output());
+    }
+
+    /**
+     * Same defect, a different triggering path: the read future can also complete <em>exceptionally</em>
+     * for a reason that has nothing to do with a timeout (here, the caller-supplied live
+     * {@code outputConsumer} itself throws) -- {@code stdoutNow}'s old blanket {@code catch (Exception)}
+     * discarded the buffer in this case too. The already-buffered line is appended before the consumer
+     * is invoked (see {@code readAsync}), so it must survive regardless of what the consumer does.
+     */
+    @Test
+    void alreadyBufferedStdoutSurvivesWhenTheReadFutureCompletesExceptionallyForAnUnrelatedReason()
+            throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "stub-agent --print", false);
+        StubProcess process = StubProcess.stdoutThrowingAfterLines("captured before the consumer failed");
+        Consumer<String> throwingConsumer = line -> {
+            throw new IllegalStateException("consumer boom");
+        };
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, throwingConsumer, (command, workingDirectory, environment) -> process);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertTrue(result.output().contains("captured before the consumer failed"),
+                "Buffered stdout must survive the read future completing exceptionally for a non-timeout "
+                        + "reason: " + result.output());
+    }
+
+    /**
      * Minimal stub {@link Process} whose stdout yields a handful of complete lines and then throws
      * {@link IOException} instead of reaching EOF, simulating a stream torn down mid-read. Mirrors
      * the proven {@code StubProcess} pattern in {@code AssistantLocalAgentRunnerCommandTest}.
@@ -55,6 +113,10 @@ class AssistantLocalAgentRunnerStreamReadResilienceTest {
 
         static StubProcess stdoutThrowingAfterLines(String... lines) {
             return new StubProcess(new ThrowingAfterLinesInputStream(lines));
+        }
+
+        static StubProcess stdoutBlockingAfterOneLine(String line, long blockMillis) {
+            return new StubProcess(new BlockingAfterLineInputStream(line, blockMillis));
         }
 
         @Override
@@ -125,6 +187,54 @@ class AssistantLocalAgentRunnerStreamReadResilienceTest {
                 throw new IOException("Simulated pipe teardown after buffered lines");
             }
             return bytes[position++] & 0xFF;
+        }
+    }
+
+    /**
+     * Yields one newline-terminated line in its very first bulk read, then blocks for {@code
+     * blockMillis} on the next read before signalling clean EOF -- simulating a background reader
+     * thread whose drain is still genuinely in flight when a caller's short grace-period wait gives
+     * up on it. Overrides the bulk {@link #read(byte[], int, int)} directly (rather than relying on
+     * {@link InputStream}'s default single-byte-at-a-time loop) so the line's bytes are handed back
+     * in one fill -- otherwise the default loop would keep calling {@link #read()} within the very
+     * same bulk read and block before ever returning the line to {@code BufferedReader.readLine()}.
+     */
+    private static final class BlockingAfterLineInputStream extends InputStream {
+        private final byte[] bytes;
+        private final long blockMillis;
+        private boolean lineDelivered;
+        private boolean blocked;
+
+        BlockingAfterLineInputStream(String line, long blockMillis) {
+            this.bytes = (line + "\n").getBytes(StandardCharsets.UTF_8);
+            this.blockMillis = blockMillis;
+        }
+
+        @Override
+        public synchronized int read() throws IOException {
+            byte[] single = new byte[1];
+            int read = read(single, 0, 1);
+            return read == -1 ? -1 : single[0] & 0xFF;
+        }
+
+        @Override
+        public synchronized int read(byte[] b, int off, int len) throws IOException {
+            if (!lineDelivered) {
+                lineDelivered = true;
+                int length = Math.min(len, bytes.length);
+                System.arraycopy(bytes, 0, b, off, length);
+                return length;
+            }
+            if (!blocked) {
+                blocked = true;
+                try {
+                    Thread.sleep(blockMillis);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while simulating a stalled drain", interrupted);
+                }
+            }
+            return -1;
         }
     }
 }
