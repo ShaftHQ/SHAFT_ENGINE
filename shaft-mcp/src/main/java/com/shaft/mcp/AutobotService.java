@@ -171,6 +171,7 @@ public class AutobotService {
             AiResponse response = aiExecutor.apply(request);
             JsonNode payload = response.structuredPayload();
             List<AutobotCodeBlock> codeBlocks = parseCodeBlocks(payload.path("codeBlocks"));
+            McpCodeGuardrailResult guardrails = guardrailResult(codeBlocks);
             return new AutobotProviderChatResponse(
                     response.status().name(),
                     response.provider().isBlank() ? normalizedProvider : response.provider(),
@@ -178,11 +179,11 @@ public class AutobotService {
                     normalizedMode,
                     payload.path("answer").asText(""),
                     payload.path("summary").asText(""),
-                    codeBlocks,
+                    enforcedCodeBlocks(codeBlocks, guardrails),
                     stringList(payload.path("citedGuideUrls")),
                     stringList(payload.path("locatorAssumptions")),
-                    guardrailStatus(codeBlocks),
-                    response.warnings(),
+                    guardrailStatusLabel(guardrails),
+                    withGuardrailWarning(response.warnings(), guardrails),
                     response.duration(),
                     response.fallbackReason());
         } finally {
@@ -304,15 +305,21 @@ public class AutobotService {
         return List.copyOf(values);
     }
 
-    private static String guardrailStatus(List<AutobotCodeBlock> blocks) {
+    private static McpCodeGuardrailResult guardrailResult(List<AutobotCodeBlock> blocks) {
         List<String> codes = blocks.stream()
                 .map(AutobotCodeBlock::code)
                 .filter(value -> !value.isBlank())
                 .toList();
         if (codes.isEmpty()) {
+            return null;
+        }
+        return new TestAutomationService().checkGeneratedCode("java", String.join("\n", codes));
+    }
+
+    private static String guardrailStatusLabel(McpCodeGuardrailResult result) {
+        if (result == null) {
             return "NOT_CHECKED";
         }
-        McpCodeGuardrailResult result = new TestAutomationService().checkGeneratedCode("java", String.join("\n", codes));
         if (result.passed()) {
             return "PASSED";
         }
@@ -320,6 +327,25 @@ public class AutobotService {
                 .filter(violation -> "ERROR".equals(violation.severity()))
                 .count();
         return "VIOLATIONS: " + errors + " error(s)";
+    }
+
+    /**
+     * Withholds generated code that fails guardrails instead of merely labelling it, so an
+     * {@code ERROR}-severity violation (such as a Smart Locator) never reaches the MCP caller.
+     */
+    private static List<AutobotCodeBlock> enforcedCodeBlocks(
+            List<AutobotCodeBlock> blocks, McpCodeGuardrailResult result) {
+        return result == null || result.passed() ? blocks : List.of();
+    }
+
+    private static List<String> withGuardrailWarning(List<String> warnings, McpCodeGuardrailResult result) {
+        if (result == null || result.passed()) {
+            return warnings;
+        }
+        List<String> combined = new ArrayList<>(warnings);
+        combined.add("Guardrail-violating generated code was withheld: " + guardrailStatusLabel(result)
+                + ". Fix the reported violations (see test_code_guardrails_check) and retry.");
+        return List.copyOf(combined);
     }
 
     private static String keyEnvironmentVariable(String provider) {

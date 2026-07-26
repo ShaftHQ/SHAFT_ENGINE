@@ -216,6 +216,52 @@ class AutobotServiceTest {
         assertTrue(response.guardrailStatus().startsWith("VIOLATIONS"));
     }
 
+    @Test
+    void providerChatWithholdsCodeContainingSmartLocatorGuardrailErrors() {
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    var payload = tools.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+                    payload.put("answer", "done");
+                    payload.putArray("codeBlocks").addObject()
+                            .put("code", "driver.element().click(SHAFT.GUI.Locator.clickableField(\"Sign in\"));");
+                    return AiResponse.success("gemini", "gemini-3.5-flash", payload,
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                            request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "gemini", "gemini-3.5-flash", "PLAN", "Write a sign-in test", "", 10, false);
+
+        assertTrue(response.codeBlocks().isEmpty(),
+                "Generated code with a SMART_LOCATOR guardrail ERROR must never reach the MCP caller");
+        assertTrue(response.guardrailStatus().startsWith("VIOLATIONS"));
+        assertTrue(response.warnings().stream().anyMatch(warning -> warning.contains("guardrail")),
+                "A withheld code block must explain why via warnings");
+    }
+
+    @Test
+    void providerChatStillReturnsAriaRoleAndPlainXpathCodeThatPassesGuardrails() {
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    var payload = tools.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+                    payload.put("answer", "done");
+                    payload.putArray("codeBlocks").addObject().put("code", """
+                            By signIn = SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText("Sign in").build();
+                            By legacyFallback = By.xpath("//button[@id='legacy-submit']");
+                            driver.element().click(signIn);
+                            """);
+                    return AiResponse.success("gemini", "gemini-3.5-flash", payload,
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                            request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "gemini", "gemini-3.5-flash", "PLAN", "Write a sign-in test", "", 10, false);
+
+        assertEquals(1, response.codeBlocks().size());
+        assertEquals("PASSED", response.guardrailStatus());
+    }
+
     private static final class CapturingRunner implements LocalAgentProcessRunner {
         private final AtomicReference<List<String>> command = new AtomicReference<>();
         private final AtomicReference<Path> workingDirectory = new AtomicReference<>();
