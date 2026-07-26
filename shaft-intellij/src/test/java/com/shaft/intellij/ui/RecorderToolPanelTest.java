@@ -186,9 +186,13 @@ class RecorderToolPanelTest {
      * RecorderToolPanel#applyStatusCheck}, the package-private test seam mirroring {@code
      * GuidedWorkflowPanel#applyStatusPoll} since a live MCP round trip cannot run in this headless
      * unit-test JVM (see the class javadoc).
+     *
+     * <p>Review follow-up (issue #4165): finding "active" must render the real text but must
+     * <b>not</b> arm the shared {@link ShaftRecordingActivity} indicator by itself -- see {@link
+     * #aStaleActiveCheckStatusResponseArrivingAfterAStopMustNotResurrectTheSharedIndicator} for why.
      */
     @Test
-    void checkStatusRendersTheRealActiveStateAndResyncsTheSharedRecordingIndicator() {
+    void checkStatusRendersTheRealActiveStateWithoutArmingTheSharedRecordingIndicator() {
         ShaftRecordingActivity.resetForTests();
         try {
             RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
@@ -208,8 +212,11 @@ class RecorderToolPanelTest {
                     () -> assertTrue(status.getText().contains("3 steps"),
                             "Expected the real active status to render, not the old generic 'refreshed' text: "
                                     + status.getText()),
-                    () -> assertTrue(ShaftRecordingActivity.active(),
-                            "Check status must resync the shared recording indicator to active"));
+                    () -> assertFalse(ShaftRecordingActivity.active(),
+                            "A one-shot status check finding 'active' must not arm the shared recording "
+                                    + "indicator by itself -- a check is not a start, and doing so risks "
+                                    + "resurrecting the indicator from a stale response after a real stop "
+                                    + "already cleared it"));
         } finally {
             ShaftRecordingActivity.resetForTests();
         }
@@ -217,10 +224,12 @@ class RecorderToolPanelTest {
 
     /**
      * Second half of the same real-payload story: once the recorder answers idle, {@code
-     * checkStatus()} must say so in plain language and clear the shared indicator it previously set
-     * -- proving {@code ShaftRecordingActivity.stopped(recordingKey)} actually resyncs (not just
-     * some other surface's key), by starting from the active state this same panel instance just
-     * published.
+     * checkStatus()} must say so in plain language and clear the shared indicator -- proving {@code
+     * ShaftRecordingActivity.stopped(recordingKey)} actually resyncs (not just some other surface's
+     * key). The active precondition is established directly via {@link ShaftRecordingActivity#started}
+     * (using this panel's own key via the {@link RecorderToolPanel#recordingKeyForTests()} test
+     * accessor) rather than through a prior active {@code checkStatus()} poll, since a check no
+     * longer arms the indicator itself (see the test above).
      */
     @Test
     void checkStatusRendersIdleStateAndClearsTheSharedRecordingIndicatorAfterAPriorActivePoll() {
@@ -228,15 +237,8 @@ class RecorderToolPanelTest {
         try {
             RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
             javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
-
-            JsonObject activeWebStatus = new JsonObject();
-            activeWebStatus.addProperty("state", "ACTIVE");
-            activeWebStatus.addProperty("eventCount", 1);
-            JsonObject activeUnion = new JsonObject();
-            activeUnion.addProperty("engine", "WEB");
-            activeUnion.add("webStatus", activeWebStatus);
-            panel.applyStatusCheck(ShaftMcpToolResult.success(activeUnion.toString()), null);
-            assertTrue(ShaftRecordingActivity.active(), "Precondition: the active poll above must have registered");
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            assertTrue(ShaftRecordingActivity.active(), "Precondition: a recording must be marked active");
 
             JsonObject idleWebStatus = new JsonObject();
             idleWebStatus.addProperty("state", "NOT_RUNNING");
@@ -251,6 +253,136 @@ class RecorderToolPanelTest {
                     () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
                     () -> assertFalse(ShaftRecordingActivity.active(),
                             "Check status must resync the shared recording indicator back to idle"));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Review finding (issue #4165): {@code ShaftMcpInvocationService.startTool} dispatches each
+     * call via {@code CompletableFuture.supplyAsync} (no ordering guarantee between concurrent
+     * calls), and {@code guardReady()} never disables the buttons while a call is in flight. So a
+     * user can click "Check status" and then immediately "Stop recording"; if the stop's response
+     * lands first (it calls {@code ShaftRecordingActivity.stopped(recordingKey)} unconditionally),
+     * the earlier check's still-active (pre-stop) response can arrive afterwards. Before this fix,
+     * that stale response's {@code started(recordingKey)} call would resurrect the indicator the
+     * stop had just correctly cleared -- the same failure shape {@code GuidedWorkflowPanel#dispose}
+     * (issue #3591 item 3) was written to prevent on the sibling panel. This proves the ordering
+     * cannot resurrect it: the stop-cleared state stays idle even after the stale active check
+     * response is applied afterwards.
+     */
+    @Test
+    void aStaleActiveCheckStatusResponseArrivingAfterAStopMustNotResurrectTheSharedIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+            // A recording was active, then "Stop recording"'s response reached the EDT first and
+            // cleared the indicator (mirrors stopRecording()'s unconditional
+            // ShaftRecordingActivity.stopped(recordingKey) call, RecorderToolPanel.java:246-249).
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            ShaftRecordingActivity.stopped(panel.recordingKeyForTests());
+            assertFalse(ShaftRecordingActivity.active(), "Precondition: the stop above must have cleared it");
+
+            // The earlier, stale "Check status" response -- issued before the stop, still carrying
+            // the pre-stop 'active' answer -- arrives afterwards.
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "ACTIVE");
+            webStatus.addProperty("eventCount", 4);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertFalse(ShaftRecordingActivity.active(),
+                    "A stale active status-check response must never resurrect the shared indicator "
+                            + "after a real stop already cleared it");
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Review follow-up (issue #4165): {@code RecorderToolPanel} had no {@code dispose}, {@code
+     * removeNotify}, or {@code Disposer} hook at all, unlike {@code GuidedWorkflowPanel#dispose}
+     * (issue #3591 item 3), which exists specifically "to prevent a stuck-active recording key if
+     * the panel closes mid-recording". {@code RecorderToolPanel} has no background poller to cancel
+     * (unlike {@code GuidedWorkflowPanel}'s status-poll {@code Alarm}) and is not wired into {@code
+     * ShaftToolWindowPanel}'s {@code Disposer} tree, so {@link RecorderToolPanel#removeNotify()} --
+     * the standard Swing teardown callback, fired without any external wiring -- is the equivalent,
+     * scope-safe place to clear the indicator on close.
+     */
+    @Test
+    void removeNotifyClearsTheSharedRecordingIndicatorLikeGuidedWorkflowPanelsDispose() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            assertTrue(ShaftRecordingActivity.active(), "Precondition: a recording must be marked active");
+
+            panel.removeNotify();
+
+            assertFalse(ShaftRecordingActivity.active(),
+                    "Closing the panel (removeNotify) must clear a stuck-active recording key, mirroring "
+                            + "GuidedWorkflowPanel#dispose (issue #3591 item 3)");
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Review follow-up (issue #4165): the {@code INCOMPLETE}/{@code FAILED} terminal-state branch
+     * in {@link RecorderToolPanel#applyStatusCheck} had no test. Pins the "ended unexpectedly"
+     * message for an {@code INCOMPLETE} state.
+     */
+    @Test
+    void checkStatusRendersEndedUnexpectedlyForAnIncompleteState() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "INCOMPLETE");
+            webStatus.addProperty("eventCount", 6);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("ended unexpectedly"), status.getText()),
+                    () -> assertTrue(status.getText().contains("INCOMPLETE"), status.getText()),
+                    () -> assertTrue(status.getText().contains("6 steps"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /** Same terminal-state branch, for a {@code FAILED} state. */
+    @Test
+    void checkStatusRendersEndedUnexpectedlyForAFailedState() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "FAILED");
+            webStatus.addProperty("eventCount", 2);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("ended unexpectedly"), status.getText()),
+                    () -> assertTrue(status.getText().contains("FAILED"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
         } finally {
             ShaftRecordingActivity.resetForTests();
         }

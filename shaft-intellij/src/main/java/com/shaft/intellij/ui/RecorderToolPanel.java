@@ -182,6 +182,15 @@ final class RecorderToolPanel extends JPanel {
     }
 
     /**
+     * Package-private test accessor: this panel's stable {@link ShaftRecordingActivity} session
+     * key, so tests can establish or verify indicator state through the exact same key the panel's
+     * own start/stop/check/close code paths use (issue #4165 review follow-up).
+     */
+    String recordingKeyForTests() {
+        return recordingKey;
+    }
+
+    /**
      * Delegates to the embedded {@link ShaftFeaturePanel}, then expands the Advanced section
      * whenever the prefilled tool is not one this tab's Quick Start section curates -- otherwise the
      * prefilled request would land in a collapsed section the user never sees (required for {@code
@@ -376,9 +385,19 @@ final class RecorderToolPanel extends JPanel {
      * status" unable to say whether a still-active server-side session existed. This mirrors {@code
      * GuidedWorkflowPanel#applyStatusPoll}'s parsing of the same {@code capture_status} union
      * payload (issue #3949: the real section lives nested under {@code webStatus}/{@code
-     * playwrightStatus}/{@code mobileStatus}) to answer active/idle for real and resync the
-     * indicator so other tool-window surfaces (the readiness strip) agree with what this check just
-     * found.
+     * playwrightStatus}/{@code mobileStatus}) to answer active/idle for real.
+     *
+     * <p>Deliberately does <b>not</b> call {@link ShaftRecordingActivity#started} when the answer is
+     * active (issue #4165 review follow-up): {@code ShaftMcpInvocationService.startTool} dispatches
+     * each call via {@code CompletableFuture.supplyAsync} with no ordering guarantee between
+     * concurrent calls, and {@link #guardReady()} never disables the buttons while a call is in
+     * flight -- so a "Check status" response can race a later "Stop recording" response and land
+     * after it, re-arming the shared indicator from a stale, pre-stop "active" answer that {@link
+     * #stopRecording()} already correctly cleared. A one-shot check is an observation, not a start:
+     * only {@link #startRecording()}, {@link #stopRecording()}, and {@link #removeNotify()} (this
+     * panel's close hook) may set or clear the indicator. Finding it idle is still safe to resync
+     * unconditionally, since {@link ShaftRecordingActivity#stopped} is idempotent and {@link
+     * #stopRecording()} already calls it speculatively regardless of success/failure.
      *
      * <p>Package-private test seam: a real {@code ShaftMcpInvocationService.getInstance(project)
      * .startTool(...)} round trip cannot be exercised in this headless unit-test JVM (see the class
@@ -397,7 +416,6 @@ final class RecorderToolPanel extends JPanel {
         JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
                 AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
         if (isRecorderActive(status)) {
-            ShaftRecordingActivity.started(recordingKey);
             setStatus("Recording active - " + countText(status) + readinessSuffix(status)
                     + ". Open Advanced options for the full status.");
             return;
@@ -470,6 +488,21 @@ final class RecorderToolPanel extends JPanel {
                     }
                     setStatus("Code generated. Open Advanced options to review the raw output.");
                 }));
+    }
+
+    /**
+     * Clears a stuck-active recording key when this panel closes (issue #4165 review follow-up),
+     * mirroring {@code GuidedWorkflowPanel#dispose}'s reason for existing (issue #3591 item 3): "a
+     * stuck-active recording key if the panel closes mid-recording". Unlike {@code
+     * GuidedWorkflowPanel}, this panel has no background poller/{@code Alarm} to cancel and is not
+     * wired into {@code ShaftToolWindowPanel}'s {@code Disposer} tree, so this standard Swing
+     * teardown callback -- fired automatically when the panel is removed from its containment
+     * hierarchy, no external wiring required -- is the equivalent, scope-safe close hook.
+     */
+    @Override
+    public void removeNotify() {
+        super.removeNotify();
+        ShaftRecordingActivity.stopped(recordingKey);
     }
 
     /**
