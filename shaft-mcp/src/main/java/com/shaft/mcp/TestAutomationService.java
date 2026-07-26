@@ -21,6 +21,10 @@ public class TestAutomationService {
             "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*xpath\\s*\\(");
     private static final Pattern SMART_LOCATOR = Pattern.compile(
             "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*(?:clickableField|inputField)\\s*\\(");
+    private static final Pattern CLASS_BOUNDARY = Pattern.compile("\\bclass\\s+\\w+");
+    private static final Pattern TEST_ANNOTATION = Pattern.compile("@Test\\b");
+    private static final Pattern LOCATOR_DECLARATION = Pattern.compile(
+            "\\bBy\\s+\\w+\\s*=\\s*(?:SHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.|By\\s*\\.\\s*xpath\\s*\\()");
     private static final Pattern BY_XPATH = Pattern.compile("\\bBy\\s*\\.\\s*xpath\\s*\\(\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
     private static final Pattern PAGE_FACTORY = Pattern.compile("(?:@FindBy\\b|\\bPageFactory\\b)");
     private static final Pattern IMPLICIT_WAIT = Pattern.compile(
@@ -58,6 +62,9 @@ public class TestAutomationService {
     private static final String NO_HARDCODED_SECRET = "Do not hard-code obvious header, token, or password secrets.";
     private static final String NO_SMART_LOCATOR = "Avoid generating SHAFT.GUI.Locator.clickableField/inputField"
             + " (intent-based smart locators); prefer role-based locators or the SHAFT locator builder instead.";
+    private static final String NO_POM_VIOLATION = "Do not declare locators (SHAFT.GUI.Locator.* or By.xpath) inside a"
+            + " class that also has @Test methods; move locators/actions into a Page Object class and keep"
+            + " orchestration in the test.";
     private static final List<String> GUIDANCE_RULES = List.of(
             "Call shaft_guide_search before writing SHAFT API, GUI, mobile, CLI, DB, or troubleshooting code.",
             "Keep MCP as guidance and inspection; the calling agent writes repository files and runs validation.",
@@ -146,7 +153,8 @@ public class TestAutomationService {
         List<McpCodeGuardrailViolation> violations = new ArrayList<>();
         addThreadSleepViolations(source, violations);
         addShaftLocatorXpathViolations(source, violations);
-        addSmartLocatorWarnings(source, violations);
+        addSmartLocatorViolations(source, violations);
+        addPageObjectModelViolations(source, violations);
         addAbsoluteXpathViolations(source, violations);
         addPageFactoryWarnings(source, violations);
         addImplicitWaitWarnings(source, violations);
@@ -175,8 +183,35 @@ public class TestAutomationService {
                 NO_SHAFT_LOCATOR_XPATH);
     }
 
-    private static void addSmartLocatorWarnings(String source, List<McpCodeGuardrailViolation> violations) {
-        addPatternViolations(source, violations, SMART_LOCATOR, "SMART_LOCATOR", "WARNING", NO_SMART_LOCATOR);
+    private static void addSmartLocatorViolations(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, SMART_LOCATOR, "SMART_LOCATOR", "ERROR", NO_SMART_LOCATOR);
+    }
+
+    private static void addPageObjectModelViolations(String source, List<McpCodeGuardrailViolation> violations) {
+        List<Integer> boundaries = classBoundaries(source);
+        for (int i = 0; i < boundaries.size() - 1; i++) {
+            int start = boundaries.get(i);
+            String classBody = source.substring(start, boundaries.get(i + 1));
+            Matcher locatorMatcher = LOCATOR_DECLARATION.matcher(classBody);
+            if (!locatorMatcher.find() || !TEST_ANNOTATION.matcher(classBody).find()) {
+                continue;
+            }
+            int offset = start + locatorMatcher.start();
+            if (isCommentOnlyLine(source, offset)) {
+                continue;
+            }
+            violations.add(violation("POM_VIOLATION", "ERROR", NO_POM_VIOLATION, source, offset));
+        }
+    }
+
+    private static List<Integer> classBoundaries(String source) {
+        List<Integer> boundaries = new ArrayList<>();
+        Matcher classMatcher = CLASS_BOUNDARY.matcher(source);
+        while (classMatcher.find()) {
+            boundaries.add(classMatcher.start());
+        }
+        boundaries.add(source.length());
+        return boundaries;
     }
 
     private static void addAbsoluteXpathViolations(String source, List<McpCodeGuardrailViolation> violations) {

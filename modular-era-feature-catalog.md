@@ -243,8 +243,10 @@ The recorder/codegen handoff is now a three-iteration coding-partner loop before
 any source edit: plan the working set and user steps, reuse the recommended Java
 owner and insertion anchor, avoid duplicate locators/actions/classes, prove
 missing browser steps, inspect the patch preview, collect evidence, then verify
-locally. Generated code uses Smart Locators and the SHAFT locator builder before
-native `By.xpath(...)`; it must not emit `SHAFT.GUI.Locator.xpath(...)`.
+locally. Generated code uses the SHAFT locator builder's ARIA-role locators
+(`hasRole(...)`) first, native `By.xpath(...)` only as a fallback when no
+ARIA role exists; it must not emit `SHAFT.GUI.Locator.xpath(...)` or a Smart
+Locator (`inputField`/`clickableField`).
 
 The public entry point is IntelliJ, not raw MCP: Assistant `/partner` and Guided
 `Plan coding partner` gather the IDE context, then MCP returns the reuse plan,
@@ -341,7 +343,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, Copilot IntelliJ, plus installer defaults that the IntelliJ plugin can use to find the generated stdio argfile automatically. The Marketplace plugin itself does not run installer scripts. | `py -3 scripts/mcp/install_shaft_mcp.py --client intellij-plugin --json` |
 | URL intent orientation | Open a URL, bound the DOM, rank actionable elements, return SHAFT locator code, and suggest the next MCP tools. | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10)` |
 | Coding partner plan | Summarize the current IntelliJ/user intent, rank existing Java targets, return a structured `stepPlan`, recommend a target source/anchor, list missing code, suggest MCP proof calls, and return a focused verification command. | `shaft_coding_partner_plan(repositoryPath=".", intent="login", currentSourcePath="src/test/java/...")` |
-| Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
+| Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText("Sign in").build()` |
 | Capture review blocks | Return setup prerequisites, assertion suggestions, locator alternatives, action sequences, locator-confidence queues, validation back-links, and control-flow review notes as additive MCP code blocks after generation. | `capture_code_blocks`, `capture_record_at_target_code_blocks` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
 | Playwright MCP and CLI parity | Official Playwright MCP/CLI can be used as a delegated exploration sidecar for accessibility snapshots, browser commands, network/storage/devtools, codegen, and Test Agent planning; SHAFT converts the proven behavior into Java Page Objects, Capture sessions, Doctor/Heal evidence, and `SHAFT.GUI.Playwright` or WebDriver code. | `test_automation_scenarios(area="playwright")`, `capture_codegen_features`, `capture generate --backend playwright` |
@@ -356,7 +358,7 @@ browser_open_intent(
 )
 
 orientation.elements[0].bestLocator.strategy=ROLE
-orientation.elements[0].shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")
+orientation.elements[0].shaftLocatorCode=SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText("Sign in").build()
 nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, element_click, natural_act, capture_start, capture_code_blocks, test_code_guardrails_check]
 ```
 
@@ -478,7 +480,7 @@ Load current shaft-capture-recorder.js into a local fixture page.
 Type email, select plan, type notes, toggle terms, submit.
 Capture overlay state: RISKY | 8 events | Step 8 needs a follow-up assertion after form submission.
 Step inspector: edit, delete, move up/down, or add a visible assertion from the captured target.
-Generated replay syntax: driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+Generated replay syntax: driver.element().click(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).hasAttribute("name", "Username").build());
 ```
 
 <table>
