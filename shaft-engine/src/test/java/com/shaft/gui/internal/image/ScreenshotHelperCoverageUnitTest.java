@@ -2,7 +2,9 @@ package com.shaft.gui.internal.image;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.internal.FailureReporter;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -29,6 +31,8 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 public class ScreenshotHelperCoverageUnitTest {
@@ -130,6 +134,19 @@ public class ScreenshotHelperCoverageUnitTest {
         when(((TakesScreenshot) fatalDriver).getScreenshotAs(OutputType.BYTES))
                 .thenThrow(new RuntimeException("unexpected screenshot failure"));
         Assert.assertThrows(RuntimeException.class, () -> ScreenshotHelper.takeViewportScreenshot(fatalDriver, 1));
+    }
+
+    @Test
+    public void takeViewportScreenshotShouldReportScreenshotHelperClassOnFailure() {
+        WebDriver fatalDriver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        when(((TakesScreenshot) fatalDriver).getScreenshotAs(OutputType.BYTES))
+                .thenThrow(new RuntimeException("unexpected screenshot failure"));
+
+        try (MockedStatic<FailureReporter> failureReporter = mockStatic(FailureReporter.class)) {
+            ScreenshotHelper.takeViewportScreenshot(fatalDriver, 1);
+
+            failureReporter.verify(() -> FailureReporter.fail(eq(ScreenshotHelper.class), anyString(), any(Throwable.class)));
+        }
     }
 
     @Test
