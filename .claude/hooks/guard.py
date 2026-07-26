@@ -335,6 +335,48 @@ _GUI_WORD_RE = re.compile(
     r"(?<![\w.\-])(?:" + "|".join(_GUI_WORD_VERBS) + r")(?![\w.\-])", re.IGNORECASE
 )
 
+# The multi-word/dotted verbs above collide with a different shape than the
+# short aliases below: not a quoted regex character class, but ordinary PROSE
+# -- a commit message, PR/issue body, or code comment merely discussing one of
+# these five patterns (reported live, twice, this session: `git commit -m` and
+# `gh issue create --body`; see issue #4147). Restricting to "first word of a
+# command segment" (the short-alias fix) does not apply here without losing
+# real detection: `os.startfile` is never a command's first token -- it is
+# always embedded in an interpreter's script argument (`python3 -c "..."`) --
+# and a real invocation can also be nested inside a QUOTED script argument to
+# another interpreter, e.g. `powershell -Command "Start-Process notepad"` run
+# via the Bash tool. So instead of restricting position, reuse the existing
+# multi-line-quote/heredoc sanitizer (`_sanitize_for_command_head`, already
+# used ahead of the Maven/Allure command-head checks) and additionally blank
+# single-line quoted strings that are pure data -- UNLESS the quote
+# immediately follows a "treat this quoted text as code to execute" flag
+# (-c / -Command / /c / --command), which keeps every real nested-interpreter
+# invocation scanned. This is deliberately scoped to the interpreters this
+# harness actually exposes (PowerShell/cmd/python/py via the Bash and
+# PowerShell tools); an obfuscated `-EncodedCommand` (base64) is undetectable
+# either way, before or after this fix.
+_EXEC_FLAG_QUOTE_RE = re.compile(
+    r"(?:--?[Cc]ommand|-[Cc]|/[Cc])\s+(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+    r"|(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+)
+
+
+def _blank_prose_quotes(command: str) -> str:
+    """Blank single-line quoted strings that are data, keeping nested-code quotes intact."""
+
+    def repl(match: re.Match[str]) -> str:
+        if match.group(1) is not None:
+            return match.group(0)  # protected: flag + quoted code, scan it as-is
+        return " " * len(match.group(0))  # prose quote: blank so its words can't match
+
+    return _EXEC_FLAG_QUOTE_RE.sub(repl, command)
+
+
+def _sanitize_for_gui_word_check(command: str) -> str:
+    """Strip data-only quoted/heredoc prose before the R3 multi-word-verb search."""
+    return _blank_prose_quotes(_sanitize_for_command_head(command))
+
+
 # `ii` and `start` are only the GUI-open PowerShell alias / verb when they
 # stand alone as the FIRST WORD of a command segment (real command position).
 # A plain word-boundary regex over the whole raw command string (the earlier
@@ -384,7 +426,7 @@ def _segment_starts_with_word(segment: str, word: str) -> bool:
 
 
 def check_r3_gui_open(command: str) -> str | None:
-    if _GUI_WORD_RE.search(command):
+    if _GUI_WORD_RE.search(_sanitize_for_gui_word_check(command)):
         return (
             "R3 (GUI-open verb): this command invokes a GUI-opening verb "
             "(Start-Process / Invoke-Item / rundll32 / os.startfile / "
@@ -1002,6 +1044,41 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("start after & blocked", "git status & start chrome", True),
     ("start mid-word in later segment not blocked", "git status && echo restart-service", False),
     ("empty command allowed", "", False),
+
+    # --- R3 GUI-word verbs (Start-Process/Invoke-Item/rundll32/os.startfile/
+    # explorer): realistic REAL invocation shapes must stay blocked, including
+    # ones where the verb is not the literal first token (issue #4147) ---
+    ("Start-Process after && separator", "git status && Start-Process notepad", True),
+    ("Invoke-Item after ; separator", "git status; Invoke-Item report.html", True),
+    ("rundll32 after & separator", "git status & rundll32 shell32.dll,OpenAs_RunDLL report.html", True),
+    ("Start-Process after | separator", "echo hi | Start-Process notepad", True),
+    ("Start-Process after PowerShell call operator", "& Start-Process notepad", True),
+    ("Start-Process on right side of an assignment", "$result = Start-Process notepad -PassThru", True),
+    ("rundll32 with a bash env-assignment prefix", "FOO=1 rundll32 shell32.dll,OpenAs_RunDLL report.html", True),
+    ("Start-Process nested inside powershell -Command \"...\"",
+     'powershell -Command "Start-Process notepad"', True),
+    ("Invoke-Item nested inside powershell -c \"...\" (short flag)",
+     'powershell -c "Invoke-Item report.html"', True),
+    ("rundll32 nested inside cmd /c \"...\"",
+     'cmd /c "rundll32 shell32.dll,OpenAs_RunDLL report.html"', True),
+    ("os.startfile nested inside py -3 -c \"...\" (this repo's documented convention)",
+     "py -3 -c \"import os; os.startfile('report.html')\"", True),
+
+    # --- R3 GUI-word verbs: quoted PROSE merely discussing a denylisted verb
+    # must NOT block -- reproduced live this session via `git commit -m` and
+    # `gh issue create --body` (issue #4147) ---
+    ("git commit -m mentioning 'explorer' in prose is not a real command",
+     'git commit -m "explorer word appears in this commit message only"', False),
+    ("gh issue create --body mentioning 'rundll32' in prose is not a real command",
+     'gh issue create --body "this body discusses rundll32 in prose only"', False),
+    ("gh pr create --title mentioning 'Start-Process' in prose is not a real command",
+     'gh pr create --title "Fix Start-Process false positive"', False),
+    ("bash heredoc PR body mentioning 'explorer' is prose, not a command",
+     "gh pr create --body-file - <<'EOF'\nThis body discusses explorer in prose.\nEOF", False),
+    ("multi-line quoted body mentioning 'Invoke-Item' is prose, not a command",
+     'gh pr create --title "Fix" --body "Notes:\nInvoke-Item was mentioned here.\nAll good."', False),
+    ("inline quoted tag mentioning 'test-explorer' is prose, not a command (mempalace precedent)",
+     'echo "tag: test-explorer"', False),
 
     # --- Command-head matching: quoted/heredoc PROSE about Maven must not block (issue #3422 item 14) ---
     ("gh pr create body mentioning mvn test is prose, not a command",
