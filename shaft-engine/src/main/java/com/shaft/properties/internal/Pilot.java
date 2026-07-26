@@ -72,9 +72,20 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("16000")
     int maxInputTokens();
 
-    /** @return maximum output tokens */
+    /**
+     * @return maximum output tokens
+     *
+     * <p>Raised from 2,000 (issue #4113): autobot_provider_chat has requested an 8,000-token
+     * per-call budget since #3371, but this global ceiling -- left at its original default --
+     * silently clamped every request back down to 2,000 (outputTokenLimit() and
+     * AiExecutionService#inheritedLimit both take {@code min(requested, this value)}). Reasoning
+     * models spend thinking tokens from the same budget, so 2,000 routinely truncated a full
+     * generated test class before the answer JSON completed (finishReason=MAX_TOKENS). 8,000
+     * lets the already-declared per-call budget actually reach the wire, with wide headroom
+     * below Gemini 3.5 Flash's documented 65,000-token output ceiling.</p>
+     */
     @Key("pilot.ai.maxOutputTokens")
-    @DefaultValue("2000")
+    @DefaultValue("8000")
     int maxOutputTokens();
 
     /** @return maximum accepted provider-reported cost in USD */
