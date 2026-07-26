@@ -80,6 +80,43 @@ class AssistantTranscriptViewTest {
                 () -> assertFalse(isVisibleInHierarchy(rawArea), "Raw output must hide again after a second click"));
     }
 
+    /**
+     * Issue #4163's bundled font finding: the raw-output disclosure hardcoded its family to the
+     * generic JDK logical name {@code Font.MONOSPACED}, which ignores the IDE's own configured
+     * editor font (and the user's font/theme settings) -- unlike every other theme-derived value this
+     * class already reads through {@link com.intellij.openapi.editor.colors.EditorColorsManager}
+     * (see {@code highlightedByLexer}'s syntax-color lookup a few hundred lines below). The raw text
+     * area must instead use the same {@code EditorColorsScheme}-sourced font every real IntelliJ
+     * editor surface uses.
+     */
+    @Test
+    void rawOutputTextAreaUsesTheIdesConfiguredEditorFontFamilyNotTheHardcodedLogicalMonospacedName() {
+        AssistantTranscriptView view = new AssistantTranscriptView();
+        view.append("assistant", "Tool ran.", "{\"raw\":true}");
+
+        JBTextArea rawArea = findByType(view, JBTextArea.class);
+        assertNotNull(rawArea, "Expected a raw output text area for a message with evidence");
+
+        assertEquals(AssistantTranscriptView.monospacedFontFamily(), rawArea.getFont().getFamily(),
+                "Raw output must resolve its font family through the same IDE-editor-font lookup "
+                        + "this class already uses for syntax colors (EditorColorsManager), not a "
+                        + "hardcoded logical java.awt.Font.MONOSPACED name");
+    }
+
+    /**
+     * This module builds no live {@code Application} in its tests (no {@code BasePlatformTestCase}
+     * fixture -- see {@code PickLocatorAtCaretActionTest}'s javadoc), and {@code
+     * EditorColorsManager.getInstance()} unconditionally dereferences {@code
+     * ApplicationManager.getApplication()} with no null guard of its own, so calling it here would
+     * throw. Pins the documented {@code ApplicationManager.getApplication() == null} guard's fallback
+     * so a future refactor cannot silently reintroduce that {@code NullPointerException} in every
+     * test in this class that appends a message with raw evidence.
+     */
+    @Test
+    void monospacedFontFamilyFallsBackToLogicalMonospacedWithoutALiveEditorColorsScheme() {
+        assertEquals(java.awt.Font.MONOSPACED, AssistantTranscriptView.monospacedFontFamily());
+    }
+
     @Test
     void rawEvidenceNeverLeaksIntoTranscriptMarkdown() {
         AssistantTranscriptView view = new AssistantTranscriptView();

@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
+import com.intellij.ui.components.JBScrollPane;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -22,6 +23,8 @@ import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JScrollBar;
+import javax.swing.JViewport;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -35,6 +38,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -56,6 +60,7 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
@@ -486,6 +491,73 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component, width, height));
         });
         return image.get();
+    }
+
+    /**
+     * Issue #4163 (tracker #4160 area B): a static render of {@code intellij-plugin-assistant-empty-
+     * narrow.png} was read as showing the first-run welcome bubble's "Got it" dismiss button cut off
+     * below the visible frame, with no scrollbar visually distinguishable in the PNG. That finding was
+     * filed at medium confidence with an explicit caveat: {@link AssistantTranscriptView#showWidget}
+     * adds the welcome bubble into a panel that sits inside a real scroll pane (this view's own
+     * "Assistant transcript" {@link JBScrollPane}), so a static render alone cannot prove the button is
+     * unreachable -- only a live check of the real {@link JViewport}/{@link JScrollBar} model can.
+     *
+     * <p>This test drives the exact same narrow/dark construction {@link #renderAssistantEmpty} uses
+     * for its screenshot evidence and checks reachability directly. Against current {@code main}, the
+     * button is already fully inside the initial (unscrolled) viewport -- no clip, no scroll needed --
+     * and stays inside the viewport if the transcript is scrolled to the bottom, so the dismiss control
+     * is never orphaned either way. The finding does not reproduce; no layout change is made for it
+     * (see {@code AssistantTranscriptView} class-level history for the font-family fix this issue also
+     * bundled, which is a genuine, separate defect).
+     */
+    @Test
+    void firstRunWelcomeDismissButtonIsVisibleWithoutScrollingAtNarrowDarkWidth() throws InterruptedException, InvocationTargetException {
+        AtomicReference<Boolean> reachableBeforeScrolling = new AtomicReference<>();
+        AtomicReference<Boolean> reachableAfterScrollingToBottom = new AtomicReference<>();
+        AtomicReference<JButton> dismissButton = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(DARK_THEME, true);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            JComponent component = new ShaftToolWindowPanel(
+                    screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());
+            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, false);
+
+            JButton gotIt = findByAccessibleName(component, "Dismiss first run coach", JButton.class);
+            dismissButton.set(gotIt);
+            if (gotIt == null) {
+                return;
+            }
+
+            JBScrollPane transcriptScroll = findByAccessibleName(component, "Assistant transcript", JBScrollPane.class);
+            if (transcriptScroll == null) {
+                return;
+            }
+            JViewport viewport = transcriptScroll.getViewport();
+            Component view = viewport.getView();
+            Rectangle buttonInViewCoordinates =
+                    SwingUtilities.convertRectangle(gotIt.getParent(), gotIt.getBounds(), view);
+
+            reachableBeforeScrolling.set(viewport.getViewRect().contains(buttonInViewCoordinates));
+
+            JScrollBar verticalScrollBar = transcriptScroll.getVerticalScrollBar();
+            verticalScrollBar.setValue(verticalScrollBar.getMaximum());
+            reachableAfterScrollingToBottom.set(viewport.getViewRect().contains(buttonInViewCoordinates));
+        });
+
+        assertNotNull(dismissButton.get(),
+                "The welcome bubble's Got it button must render at a narrow dark tool window width");
+        assertAll(
+                () -> assertTrue(reachableBeforeScrolling.get(),
+                        "The Got it button must already be fully inside the initial (unscrolled) "
+                                + "viewport at NARROW_WIDTH x HEIGHT under DarculaLaf -- a regression here "
+                                + "would reproduce issue #4163's reported clip."),
+                () -> assertTrue(reachableAfterScrollingToBottom.get(),
+                        "The Got it button must stay fully inside the viewport when the transcript is "
+                                + "scrolled to the bottom -- it must never become orphaned by scrolling."));
     }
 
     /**
@@ -1498,7 +1570,8 @@ class ShaftPluginScreenshotRendererTest {
      * <p>{@code rendersFeatureCatalogScreenshotsWhenOutputDirectoryIsProvided} only runs its body
      * (including every {@code configureLookAndFeel} call) when {@code -Dshaft.intellij.screenshotDir}
      * is set -- which none of this module's CI or local {@code gradlew test} invocations do -- so in
-     * practice this test is the only code in the whole module that installs a real platform L&F
+     * practice this test, and {@link #firstRunWelcomeDismissButtonIsVisibleWithoutScrollingAtNarrowDarkWidth}
+     * (issue #4163), are the only code in the whole module that installs a real platform L&F
      * (IntelliJLaf/DarculaLaf) during an ordinary test run. Other test classes (e.g.
      * {@code ShaftTestsPanelTest}, {@code ToolApprovalPromptPanelTest}) build real
      * {@code com.intellij.ui.treeStructure.Tree}/button components with no L&F of their own and
