@@ -469,3 +469,9 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.judge-a-nightly-by-per-job-failure-signature-not-overall-red-green-a-changed-message-is-progress","timestamp":"2026-07-26T17:14:32+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.gradle-truncates-intellij-live-e2e-assertion-messages-full-text-is-in-the-evidence-artifact","timestamp":"2026-07-26T17:14:32+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.global-testing-scope-only-wired-into-7-jobs-most-e2e-workflow-jobs-hardcode-their-own-dtest","timestamp":"2026-07-26T17:18:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.crash-time-writeback-zeroed-git-config-to-nul-bytes-not-git-corruption","timestamp":"2026-07-26T17:57:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.squash-merge-makes-landed-branches-look-unmerged-by-rev-list-count","timestamp":"2026-07-26T17:57:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.windows-git-worktree-add-backslash-path-via-bash-silently-misfires-memory-paths-need-core-longpaths","timestamp":"2026-07-26T17:57:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.validate-routing-bridges-lives-in-validate-agent-guidance-py-not-validate-agent-setup-py","timestamp":"2026-07-26T17:57:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.act-as-fable-skill-mds-16384-byte-cap-is-a-recurring-tax-not-a-one-off","timestamp":"2026-07-26T17:57:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.git-stash-pop-is-shared-across-every-worktree-of-one-git-never-pop-speculatively","timestamp":"2026-07-26T18:00:13+03:00"}
