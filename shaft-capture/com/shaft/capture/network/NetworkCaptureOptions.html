@@ -56,6 +56,7 @@
 </li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(boolean,java.util.List,java.util.List,boolean,int,long,boolean,boolean)" tabindex="0">NetworkCaptureOptions(boolean, List, List, boolean, int, long, boolean, boolean)</a></li>
 <li><a href="#%3Cinit%3E(boolean,java.util.List,java.util.List,boolean,int,long)" tabindex="0">NetworkCaptureOptions(boolean, List, List, boolean, int, long)</a></li>
 </ol>
 </li>
@@ -71,6 +72,8 @@
 <li><a href="#firstPartyOnly()" tabindex="0">firstPartyOnly()</a></li>
 <li><a href="#maxTransactions()" tabindex="0">maxTransactions()</a></li>
 <li><a href="#maxBodyBytes()" tabindex="0">maxBodyBytes()</a></li>
+<li><a href="#captureRequestBodies()" tabindex="0">captureRequestBodies()</a></li>
+<li><a href="#captureResponseBodies()" tabindex="0">captureResponseBodies()</a></li>
 </ol>
 </li>
 </ol>
@@ -94,10 +97,14 @@
 <dd><code><span id="param-firstPartyOnly">firstPartyOnly</span></code> - whether only same-origin (relative to the initiator page) requests are recorded</dd>
 <dd><code><span id="param-maxTransactions">maxTransactions</span></code> - maximum number of transactions recorded per session</dd>
 <dd><code><span id="param-maxBodyBytes">maxBodyBytes</span></code> - maximum number of body bytes persisted per request/response; <code>&lt;= 0</code> means unlimited</dd>
+<dd><code><span id="param-captureRequestBodies">captureRequestBodies</span></code> - whether request bodies are persisted at all; <code>false</code> records the
+                             transaction (method/URL/headers/status) with no request <code>BodyRef</code></dd>
+<dd><code><span id="param-captureResponseBodies">captureResponseBodies</span></code> - whether response bodies are persisted at all; <code>false</code> records the
+                             transaction with no response <code>BodyRef</code></dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">NetworkCaptureOptions</span>(boolean&nbsp;includeAssetTypes, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlIncludeGlobs, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlExcludeGlobs, boolean&nbsp;firstPartyOnly, int&nbsp;maxTransactions, long&nbsp;maxBodyBytes)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">NetworkCaptureOptions</span>(boolean&nbsp;includeAssetTypes, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlIncludeGlobs, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlExcludeGlobs, boolean&nbsp;firstPartyOnly, int&nbsp;maxTransactions, long&nbsp;maxBodyBytes, boolean&nbsp;captureRequestBodies, boolean&nbsp;captureResponseBodies)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Options controlling <a href="CaptureNetworkRecorder.html" title="class in com.shaft.capture.network"><code>CaptureNetworkRecorder</code></a> filtering and body-capture behavior.</div>
 </div>
@@ -141,6 +148,20 @@
  int&nbsp;maxTransactions,
  long&nbsp;maxBodyBytes)</code></div>
 <div class="col-last even-row-color">
+<div class="block">Compatibility constructor for callers that predate <code>captureRequestBodies</code>/
+<code>captureResponseBodies</code> (issue #4057): preserves the original unconditional
+body-capture behavior (subject to <code>maxBodyBytes</code> truncation) by defaulting both
+new flags to <code>true</code>.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(boolean,java.util.List,java.util.List,boolean,int,long,boolean,boolean)" class="member-name-link">NetworkCaptureOptions</a><wbr>(boolean&nbsp;includeAssetTypes,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlIncludeGlobs,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlExcludeGlobs,
+ boolean&nbsp;firstPartyOnly,
+ int&nbsp;maxTransactions,
+ long&nbsp;maxBodyBytes,
+ boolean&nbsp;captureRequestBodies,
+ boolean&nbsp;captureResponseBodies)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Creates normalized, validated network capture options.</div>
 </div>
 </div>
@@ -157,6 +178,16 @@
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureRequestBodies()" class="member-name-link">captureRequestBodies</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-captureRequestBodies"><code>captureRequestBodies</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureResponseBodies()" class="member-name-link">captureResponseBodies</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-captureResponseBodies"><code>captureResponseBodies</code></a> record component.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="NetworkCaptureOptions.html" title="class in com.shaft.capture.network">NetworkCaptureOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#defaults()" class="member-name-link">defaults</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
@@ -268,6 +299,22 @@ only, capped at <a href="#DEFAULT_MAX_TRANSACTIONS">500</a> transactions.</div>
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="&lt;init&gt;(boolean,java.util.List,java.util.List,boolean,int,long,boolean,boolean)">
+<h3>NetworkCaptureOptions</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">NetworkCaptureOptions</span><wbr><span class="parameters">(boolean&nbsp;includeAssetTypes,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlIncludeGlobs,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;urlExcludeGlobs,
+ boolean&nbsp;firstPartyOnly,
+ int&nbsp;maxTransactions,
+ long&nbsp;maxBodyBytes,
+ boolean&nbsp;captureRequestBodies,
+ boolean&nbsp;captureResponseBodies)</span></div>
+<div class="block">Creates normalized, validated network capture options.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="&lt;init&gt;(boolean,java.util.List,java.util.List,boolean,int,long)">
 <h3>NetworkCaptureOptions</h3>
 <div class="horizontal-scroll">
@@ -277,7 +324,19 @@ only, capped at <a href="#DEFAULT_MAX_TRANSACTIONS">500</a> transactions.</div>
  boolean&nbsp;firstPartyOnly,
  int&nbsp;maxTransactions,
  long&nbsp;maxBodyBytes)</span></div>
-<div class="block">Creates normalized, validated network capture options.</div>
+<div class="block">Compatibility constructor for callers that predate <code>captureRequestBodies</code>/
+<code>captureResponseBodies</code> (issue #4057): preserves the original unconditional
+body-capture behavior (subject to <code>maxBodyBytes</code> truncation) by defaulting both
+new flags to <code>true</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>includeAssetTypes</code> - whether stylesheet/script/image/font/media requests are recorded</dd>
+<dd><code>urlIncludeGlobs</code> - URL glob patterns; when non-empty, only matching URLs are recorded</dd>
+<dd><code>urlExcludeGlobs</code> - URL glob patterns excluded even when an include glob also matches</dd>
+<dd><code>firstPartyOnly</code> - whether only same-origin (relative to the initiator page) requests are recorded</dd>
+<dd><code>maxTransactions</code> - maximum number of transactions recorded per session</dd>
+<dd><code>maxBodyBytes</code> - maximum number of body bytes persisted per request/response; <code>&lt;= 0</code> means unlimited</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -424,6 +483,32 @@ only, capped at <a href="#DEFAULT_MAX_TRANSACTIONS">500</a> transactions.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-maxBodyBytes"><code>maxBodyBytes</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="captureRequestBodies()">
+<h3>captureRequestBodies</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">captureRequestBodies</span>()</div>
+<div class="block">Returns the value of the <a href="#param-captureRequestBodies"><code>captureRequestBodies</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-captureRequestBodies"><code>captureRequestBodies</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="captureResponseBodies()">
+<h3>captureResponseBodies</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">captureResponseBodies</span>()</div>
+<div class="block">Returns the value of the <a href="#param-captureResponseBodies"><code>captureResponseBodies</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-captureResponseBodies"><code>captureResponseBodies</code></a> record component</dd>
 </dl>
 </div>
 </section>
