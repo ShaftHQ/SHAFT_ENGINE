@@ -1,0 +1,5 @@
+shaft-intellij/build.gradle.kts:140 sets `options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Werror"))` on the `JavaCompile` task type, so any deprecation warning in shaft-intellij (test or production code) is a compile failure, not a warning.
+
+Consequence: `javax.swing.text.JTextComponent#modelToView(int)` is deprecated in the JDK and cannot be called anywhere under shaft-intellij, including in Swing tests that measure whether a rendered character's y-coordinate falls inside a pane's bounds. Discovered while writing such a pixel-position assertion for issue 4174.
+
+Fix: use `#modelToView2D(int)` instead -- same purpose, but returns `Rectangle2D` (not `Rectangle`), so callers that need integer bounds must convert (e.g. `.getBounds()` on the `Rectangle2D`, or round the double fields) rather than assigning directly to a `Rectangle`.
