@@ -1488,6 +1488,46 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void recheckPrerequisitesButtonCollapsesSatisfiedRowImmediately() throws Exception {
+        // Issue #4168: the Recheck button used to call refreshPrerequisites() without
+        // updateActionState(), so a satisfied row's content updated correctly but the row stayed
+        // expanded until some later, unrelated interaction triggered a state update -- matching
+        // every other path in this panel, which collapses a satisfied step immediately.
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        setField(panel, "prerequisitesDetector",
+                (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family ->
+                        List.of(new SetupPrerequisites.Prerequisite(
+                                "Python 3", false, true, "winget install -e --id Python.Python.3.12")));
+        Method refresh = ShaftMcpSetupPanel.class.getDeclaredMethod("refreshPrerequisites");
+        refresh.setAccessible(true);
+        refresh.invoke(panel);
+        // Establish the legitimate "still missing" starting state -- every other call site of
+        // refreshPrerequisites() pairs it with updateActionState(); only the Recheck button (the
+        // bug under test) does not.
+        Method updateActionState = ShaftMcpSetupPanel.class.getDeclaredMethod("updateActionState", boolean.class);
+        updateActionState.setAccessible(true);
+        updateActionState.invoke(panel, false);
+
+        JPanel prerequisitesRow = (JPanel) getField(panel, "prerequisitesRow");
+        JComponent prerequisitesAction = stepRowAction(panel, prerequisitesRow);
+        assertTrue(prerequisitesAction.isVisible(),
+                "row must stay expanded while a required prerequisite is missing");
+
+        // The user installs Python 3 outside the IDE, then clicks Recheck.
+        setField(panel, "prerequisitesDetector",
+                (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family ->
+                        List.of(new SetupPrerequisites.Prerequisite("Python 3", true, true, "")));
+        clickAccessible(panel, "Recheck prerequisites");
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Python 3 detected")),
+                () -> assertFalse(prerequisitesAction.isVisible(),
+                        "Recheck must collapse a now-satisfied prerequisite row immediately, matching "
+                                + "every other path in this panel (issue #4168)"));
+    }
+
+    @Test
     void setupPanelOffersRestartCommandWhenClientCannotAccessShaftMcp() throws Exception {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {

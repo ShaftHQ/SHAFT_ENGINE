@@ -182,6 +182,10 @@ class ShaftPluginScreenshotRendererTest {
         Path mcpSetupSuccessScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-success.png");
         Path mcpSetupErrorScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-error-dark.png");
         Path mcpSetupOfflineScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-offline.png");
+        Path mcpSetupPrerequisitesRecheckBeforeScreenshot =
+                outputPath.resolve("intellij-plugin-mcp-setup-prerequisites-recheck-before.png");
+        Path mcpSetupPrerequisitesRecheckAfterScreenshot =
+                outputPath.resolve("intellij-plugin-mcp-setup-prerequisites-recheck-after.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
         Path settingsDarkScreenshot = outputPath.resolve("intellij-plugin-settings-dark.png");
         Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
@@ -223,6 +227,10 @@ class ShaftPluginScreenshotRendererTest {
         write(mcpSetupSuccessScreenshot, renderSetupSuccess(LIGHT_THEME, false));
         write(mcpSetupErrorScreenshot, renderSetupError(DARK_THEME, true));
         write(mcpSetupOfflineScreenshot, renderSetupMcpOffline(LIGHT_THEME, false));
+        write(mcpSetupPrerequisitesRecheckBeforeScreenshot,
+                renderSetupPrerequisitesRecheckBefore(LIGHT_THEME, false));
+        write(mcpSetupPrerequisitesRecheckAfterScreenshot,
+                renderSetupPrerequisitesRecheckAfter(LIGHT_THEME, false));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
         write(mcpGuideScreenshot, renderToolWindow(9, "Guide", LIGHT_THEME, false));
@@ -265,6 +273,10 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(mcpSetupSuccessScreenshot) > 0, mcpSetupSuccessScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupErrorScreenshot) > 0, mcpSetupErrorScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupOfflineScreenshot) > 0, mcpSetupOfflineScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupPrerequisitesRecheckBeforeScreenshot) > 0,
+                        mcpSetupPrerequisitesRecheckBeforeScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupPrerequisitesRecheckAfterScreenshot) > 0,
+                        mcpSetupPrerequisitesRecheckAfterScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
@@ -303,6 +315,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(mcpSetupSuccessScreenshot),
                 () -> assertDimensions(mcpSetupErrorScreenshot),
                 () -> assertDimensions(mcpSetupOfflineScreenshot),
+                () -> assertDimensions(mcpSetupPrerequisitesRecheckBeforeScreenshot),
+                () -> assertDimensions(mcpSetupPrerequisitesRecheckAfterScreenshot),
                 () -> assertDimensions(settingsScreenshot),
                 () -> assertDimensions(settingsDarkScreenshot),
                 () -> assertDimensions(mcpGuideScreenshot),
@@ -314,6 +328,9 @@ class ShaftPluginScreenshotRendererTest {
                         "Settings light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
                         "Advanced Tools light and dark screenshots should differ"),
+                () -> assertTrue(Files.mismatch(mcpSetupPrerequisitesRecheckBeforeScreenshot,
+                                mcpSetupPrerequisitesRecheckAfterScreenshot) >= 0,
+                        "Recheck collapsing the satisfied prerequisites row must visibly change the screenshot"),
                 () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("SHAFT.GUI.WebDriver")),
                 () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.browser().navigateToURL")),
                 () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.element().click")),
@@ -1159,6 +1176,93 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
+    }
+
+    /**
+     * Issue #4168 evidence, "before" half: a required prerequisite is still missing, so the
+     * prerequisites row is legitimately expanded (established the same way every other legitimate
+     * call site pairs {@code refreshPrerequisites()} with {@code updateActionState()} -- only the
+     * Recheck button used not to, which is what the "after" screenshot below demonstrates the fix
+     * for).
+     */
+    private static BufferedImage renderSetupPrerequisitesRecheckBefore(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "";
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), settings,
+                    () -> {
+                    });
+            setField(component, "prerequisitesDetector", missingPythonPrerequisiteDetector());
+            invokeRefreshPrerequisitesAndUpdateActionState(component);
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /**
+     * Issue #4168 evidence, "after" half: the user installs Python 3 outside the IDE, then clicks
+     * the real "Recheck" button. With the fix, that click alone -- not some later unrelated
+     * interaction -- collapses the now-satisfied prerequisites row.
+     */
+    private static BufferedImage renderSetupPrerequisitesRecheckAfter(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "";
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), settings,
+                    () -> {
+                    });
+            setField(component, "prerequisitesDetector", missingPythonPrerequisiteDetector());
+            invokeRefreshPrerequisitesAndUpdateActionState(component);
+            setField(component, "prerequisitesDetector",
+                    (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family ->
+                            List.of(new SetupPrerequisites.Prerequisite("Python 3", true, true, "")));
+            clickAccessible(component, "Recheck prerequisites");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>
+            missingPythonPrerequisiteDetector() {
+        return family -> List.of(new SetupPrerequisites.Prerequisite(
+                "Python 3", false, true, "winget install -e --id Python.Python.3.12"));
+    }
+
+    private static void invokeRefreshPrerequisitesAndUpdateActionState(ShaftMcpSetupPanel component) {
+        try {
+            Method refresh = ShaftMcpSetupPanel.class.getDeclaredMethod("refreshPrerequisites");
+            refresh.setAccessible(true);
+            refresh.invoke(component);
+            Method updateActionState = ShaftMcpSetupPanel.class.getDeclaredMethod("updateActionState", boolean.class);
+            updateActionState.setAccessible(true);
+            updateActionState.invoke(component, false);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to refresh prerequisites for screenshot setup", exception);
+        }
     }
 
     private static void setField(Object target, String name, Object value) {
