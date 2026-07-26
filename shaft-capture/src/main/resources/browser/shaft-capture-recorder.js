@@ -282,12 +282,62 @@
     const parent = element.closest && element.closest("label");
     return text(parent && parent.innerText);
   };
-  const accessibleName = element =>
-    text(element.getAttribute("aria-label")) ||
-    label(element) ||
-    text(element.getAttribute("alt")) ||
-    text(element.getAttribute("title")) ||
-    text(element.innerText);
+  // Tracks WHICH DOM signal produced the accessible name (issue #4026), in the same precedence
+  // order as accessibleName() below, so a self-verified replayXpath can be built against the
+  // actual source instead of a Java-side guess (e.g. .hasAttribute("aria-label", ...) emitted
+  // against an element that has no such attribute -- the recorded name came from its own text).
+  // "label" (an associated <label> element) is intentionally left without a predicate here: the
+  // name lives on a *different* DOM node than the target element, so a self-verified XPath rooted
+  // at the target's own tag/attributes/text cannot express it.
+  const accessibleNameSignal = element => {
+    const ariaLabel = text(element.getAttribute("aria-label"));
+    if (ariaLabel) return {name: ariaLabel, source: "aria-label"};
+    const labelText = label(element);
+    if (labelText) return {name: labelText, source: "label"};
+    const alt = text(element.getAttribute("alt"));
+    if (alt) return {name: alt, source: "alt"};
+    const title = text(element.getAttribute("title"));
+    if (title) return {name: title, source: "title"};
+    const innerText = text(element.innerText);
+    if (innerText) return {name: innerText, source: "text"};
+    return {name: "", source: ""};
+  };
+  const accessibleName = element => accessibleNameSignal(element).name;
+  // XPath 1.0 has no escape sequence for embedded quotes; a literal must switch quote characters
+  // or, when a value contains both, fall back to concat() splitting on the double quote.
+  const xpathLiteral = value => {
+    if (!value.includes("\"")) return `"${value}"`;
+    if (!value.includes("'")) return `'${value}'`;
+    return "concat(" + value.split("\"").map(part => `"${part}"`).join(", '\"', ") + ")";
+  };
+  const replayXpathPredicateBySource = {
+    "aria-label": name => `normalize-space(@aria-label)=${xpathLiteral(name)}`,
+    "alt": name => `normalize-space(@alt)=${xpathLiteral(name)}`,
+    "title": name => `normalize-space(@title)=${xpathLiteral(name)}`,
+    "text": name => `normalize-space(.)=${xpathLiteral(name)}`
+  };
+  // Computes and self-verifies a literal XPath for a ROLE candidate against the LIVE DOM (issue
+  // #4026): normalize-space() collapses the target's raw DOM whitespace/newlines the same way
+  // text() already collapsed the recorded name, so record and replay agree even when the source
+  // element's text is laid out across multiple lines. Self-verification (document.evaluate must
+  // resolve the candidate string back to this exact element) means a mistake here degrades to no
+  // replayXpath rather than ever shipping a broken locator.
+  const computeReplayXpath = (element, name, source) => {
+    const predicateBuilder = replayXpathPredicateBySource[source];
+    if (!predicateBuilder) return "";
+    const tag = String(element.localName || "*").toLowerCase();
+    const xpath = `//${tag}[${predicateBuilder(name)}]`;
+    try {
+      const result = document.evaluate(
+          xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+      for (let index = 0; index < result.snapshotLength; index++) {
+        if (result.snapshotItem(index) === element) return xpath;
+      }
+    } catch (ignored) {
+      return "";
+    }
+    return "";
+  };
   const targetName = target =>
     text(target && (
       target.accessibleName ||
@@ -425,7 +475,7 @@
   const locators = element => {
     const result = [];
     const visible = Boolean(element.getClientRects && element.getClientRects().length);
-    const add = (strategy, expression, selector, stable, signals) => {
+    const add = (strategy, expression, selector, stable, signals, replayXpath) => {
       if (!expression) return;
       const normalized = text(expression);
       let uniquenessCount;
@@ -444,12 +494,17 @@
         uniquenessCount,
         visible,
         stable,
-        signals
+        signals,
+        replayXpath: replayXpath || ""
       });
     };
     const role = inferredRole(element);
-    const name = accessibleName(element);
-    if (role && name) add("ROLE", `${role}:${name}`, "", true, ["ACCESSIBLE"]);
+    const nameSignal = accessibleNameSignal(element);
+    const name = nameSignal.name;
+    if (role && name) {
+      add("ROLE", `${role}:${name}`, "", true, ["ACCESSIBLE"],
+          computeReplayXpath(element, name, nameSignal.source));
+    }
     const targetLabel = label(element);
     if (targetLabel) add("LABEL", targetLabel, "", true, ["ACCESSIBLE", "LABEL_ASSOCIATED"]);
     testIdAttributes.forEach(attribute => {

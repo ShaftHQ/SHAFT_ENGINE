@@ -743,6 +743,8 @@ final class CaptureEventPipeline implements AutoCloseable {
                 if (expression.value().isBlank()) {
                     continue;
                 }
+                var replayXpath = privacy.sanitizeText(string(raw.get("replayXpath")));
+                summary = summary.merge(replayXpath.summary());
                 locators.add(new LocatorCandidate(
                         enumValue(
                                 LocatorCandidate.LocatorStrategy.class,
@@ -752,7 +754,8 @@ final class CaptureEventPipeline implements AutoCloseable {
                         integer(raw.get("uniquenessCount"), 0),
                         bool(raw.get("visible")),
                         bool(raw.get("stable")),
-                        locatorSignals(raw.get("signals"))));
+                        locatorSignals(raw.get("signals")),
+                        replayXpath.value()));
             }
         }
         String targetId = logicalId.value().isBlank()
@@ -763,7 +766,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                 targetId,
                 string(signal.target().get("tagName")),
                 string(signal.target().get("role")),
-                accessibleName.value(),
+                backfillAccessibleName(accessibleName.value(), locators),
                 label.value(),
                 attributes.attributes(),
                 locators,
@@ -771,6 +774,29 @@ final class CaptureEventPipeline implements AutoCloseable {
                 bool(signal.target().get("enabled")),
                 bool(signal.target().get("selected")));
         return new SafeTarget(snapshot, summary);
+    }
+
+    /**
+     * Recovers the accessible name server-side when the client payload's top-level
+     * {@code target.accessibleName} field is blank (issue #4026): an older recorder build, a
+     * payload truncated in transit, or a non-browser producer can omit or blank that field even
+     * though the same name was recorded a second time, embedded in a ROLE candidate's own
+     * {@code "<role>:<name>"} expression. Codegen (see {@code CaptureGenerator}) reads
+     * {@link ElementSnapshot#accessibleName()} directly, so losing it there silently degrades every
+     * ROLE/ACCESSIBLE_NAME/LABEL locator built from this target.
+     */
+    private static String backfillAccessibleName(String rawAccessibleName, List<LocatorCandidate> locators) {
+        if (!rawAccessibleName.isBlank()) {
+            return rawAccessibleName;
+        }
+        return locators.stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                .map(LocatorCandidate::expression)
+                .filter(expression -> expression.indexOf(':') >= 0)
+                .map(expression -> expression.substring(expression.indexOf(':') + 1))
+                .filter(name -> !name.isBlank())
+                .findFirst()
+                .orElse(rawAccessibleName);
     }
 
     private void rememberLocatorPreference(BrowserSignal signal) {

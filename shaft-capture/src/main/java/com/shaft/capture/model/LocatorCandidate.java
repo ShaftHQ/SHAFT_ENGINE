@@ -12,6 +12,10 @@ import java.util.Set;
  * @param visible whether the target was visible
  * @param stable whether the evidence appeared stable
  * @param signals additional deterministic scoring signals
+ * @param replayXpath literal XPath the in-page recorder computed and self-verified for this
+ *                    candidate (issue #4026), or blank when none was computed. When present,
+ *                    it is the exact string the engine resolves at replay -- record and replay
+ *                    share one artifact instead of independently deriving the same locator twice.
  */
 public record LocatorCandidate(
         LocatorStrategy strategy,
@@ -19,7 +23,28 @@ public record LocatorCandidate(
         int uniquenessCount,
         boolean visible,
         boolean stable,
-        Set<LocatorSignal> signals) {
+        Set<LocatorSignal> signals,
+        String replayXpath) {
+    /**
+     * Creates immutable locator evidence with no recorded {@code replayXpath} (additive
+     * backward-compatible overload; existing 6-arg call sites keep compiling unchanged).
+     *
+     * @param strategy locator strategy
+     * @param expression raw locator expression
+     * @param uniquenessCount number of matching elements observed
+     * @param visible whether the target was visible
+     * @param stable whether the evidence appeared stable
+     * @param signals additional deterministic scoring signals
+     */
+    public LocatorCandidate(
+            LocatorStrategy strategy,
+            String expression,
+            int uniquenessCount,
+            boolean visible,
+            boolean stable,
+            Set<LocatorSignal> signals) {
+        this(strategy, expression, uniquenessCount, visible, stable, signals, "");
+    }
     /**
      * Supported locator evidence strategies.
      */
@@ -80,6 +105,7 @@ public record LocatorCandidate(
         signals = signals == null || signals.isEmpty()
                 ? Set.of()
                 : java.util.Collections.unmodifiableSet(java.util.EnumSet.copyOf(signals));
+        replayXpath = replayXpath == null ? "" : replayXpath;
     }
 
     /**

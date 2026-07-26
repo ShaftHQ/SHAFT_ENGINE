@@ -821,6 +821,71 @@ class CaptureGeneratorTest {
                 Map.of());
     }
 
+    /**
+     * Issue #4026: when the ROLE candidate's ARIA role has no {@link com.shaft.gui.internal.locator.Role}
+     * enum equivalent (here {@code "alert"}, absent from {@code CaptureGenerator#ariaRole}'s 14-entry
+     * table), {@code semanticLocator} used to reconstruct a predicate blind in Java --
+     * {@code .hasAttribute("aria-label", name)} -- even when the recorded name actually came from the
+     * element's own (whitespace-padded) inner text, not an {@code aria-label} attribute the element
+     * doesn't have. That reconstruction cannot know which DOM signal produced the name and silently
+     * emits a locator matching nothing. The in-page recorder knows the true signal and already
+     * self-verified an XPath against the live DOM, using {@code normalize-space(.)} so internal
+     * whitespace cannot break the match; when that {@code replayXpath} is present, generation must
+     * emit it verbatim via {@code By.xpath(...)} instead of re-deriving a predicate.
+     */
+    @Test
+    void unmappedRoleStrategyLocatorUsesRecordedReplayXpathVerbatimInsteadOfReconstructingAPredicate()
+            throws Exception {
+        Path session = session(unmappedRoleReplayXpathSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("unmapped-role-replay-xpath")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains(
+                        "By.xpath(\"//div[normalize-space(.)=\\\"Something  went wrong\\\"]\")"),
+                "generated locator must use the recorded, self-verified replayXpath verbatim: " + source);
+        assertFalse(source.contains(".hasAttribute(\"aria-label\""),
+                "must not fall back to the blind Java-side aria-label reconstruction "
+                        + "when a replayXpath was recorded: " + source);
+        assertTrue(source.contains("import org.openqa.selenium.By;"));
+    }
+
+    private static CaptureSession unmappedRoleReplayXpathSession() {
+        ElementSnapshot alert = new ElementSnapshot(
+                "alert-banner",
+                "div",
+                "alert",
+                "Something  went wrong",
+                "",
+                Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "alert:Something  went wrong", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                        "//div[normalize-space(.)=\"Something  went wrong\"]")),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "unmapped-role-replay-xpath-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), alert,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
     private static CaptureSession roleLocatorSessionWithoutAccessibleName() {
         ElementSnapshot iconButton = new ElementSnapshot(
                 "icon-button",

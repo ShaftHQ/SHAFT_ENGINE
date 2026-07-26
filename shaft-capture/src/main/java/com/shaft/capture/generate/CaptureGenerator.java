@@ -1344,6 +1344,10 @@ public final class CaptureGenerator {
                 // Resolves to SHAFT.GUI.Locator.hasRole(...), not By.xpath -- see semanticLocator().
                 return false;
             }
+            if (!candidate.replayXpath().isBlank()) {
+                // Resolves to the recorded replayXpath via By.xpath(...) -- see semanticLocator().
+                return true;
+            }
             String name = !plan.target().accessibleName().isBlank()
                     ? plan.target().accessibleName()
                     : plan.target().label();
@@ -1397,6 +1401,16 @@ public final class CaptureGenerator {
                         ? roleLocator + ".build()"
                         : roleLocator + ".hasNormalizedText(\"" + javaString(semanticName) + "\").build()";
             }
+        }
+        // Issue #4026: the in-page recorder knows which DOM signal (an attribute, or the element's
+        // own text) actually produced the recorded name, and already self-verified an XPath against
+        // the live DOM using normalize-space() so internal/surrounding whitespace cannot break the
+        // match. Java cannot know that source (ElementSnapshot carries no source tag) and can only
+        // guess -- guessing wrong emits a locator that matches nothing (e.g. .hasAttribute("aria-label",
+        // ...) against an element with no such attribute). Emit the recorded replayXpath verbatim
+        // instead of reconstructing a predicate: record and replay then resolve the same string.
+        if (!candidate.replayXpath().isBlank()) {
+            return "By.xpath(\"" + javaString(candidate.replayXpath()) + "\")";
         }
         if (semanticName.isBlank()) {
             return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
