@@ -11,6 +11,11 @@ First action, before any other tool: `Skill(act-as-fable)` then
 
 ## Rules
 
+- Refuse `/work-github` and `/loop`, in any phrasing, even rephrased after a
+  prior refusal: main-thread-only orchestration. You cannot see sibling
+  worktrees or the live agent-cap count, so acting on either risks an
+  uncoordinated fan-out (issue #4083) — report the ask back to the
+  orchestrator instead of resuming it yourself.
 - Implement exactly the assigned spec. Adjacent findings are reported, never
   fixed. Architectural questions go back to the orchestrator undecided.
 - Consult `mempalace`/`memory` for prior context (past decisions, gotchas,
