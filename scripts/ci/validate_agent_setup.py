@@ -50,6 +50,30 @@ GENERATED_MEMORY_PATHS = {
 # (133 characters) so new drift is caught before it reaches a clone.
 MAX_MEMORY_BASENAME_LENGTH = 160
 MEMORY_CANONICAL_GLOBS = ("memory/**/*.json", "memory/**/*.md", "relations/*.json")
+# The Aictx Memory CLI's `openai_api_key` block-rule pattern
+# (`sk-[A-Za-z0-9_-]{20,}`, dist/cli/main.js:3223 in @aictx/memory@0.1.55) has
+# no `\b` anchor before `sk-`, so it matches mid-word inside an ordinary
+# hyphenated slug -- e.g. "...mid-task-while-still-actively-working..." is
+# read as "ta" + "sk-while-still-actively-working", tripping
+# MemorySecretDetected and hard-failing `memory check` (exit 1). Confirmed
+# live (issue #4005) with a from-scratch `npm install @aictx/memory@0.1.55`
+# (i.e. without this machine's local patch) against a disposable copy of this
+# repo's real `.memory/` store. The upstream fix (anchor with `\b`) is
+# TDD-verified against upstream's own suite on
+# https://github.com/MohabMohie/memory/tree/fix/openai-key-pattern-word-boundary
+# but not merged/released, so this landmine is still live on any unpatched
+# machine, CI runner, or fresh clone. This check catches new occurrences
+# before they reach the store; it is not a general secret scanner and does
+# not replace one.
+SECRET_SCANNER_LANDMINE_PATTERN = re.compile(r"sk-[A-Za-z0-9_-]{20,}")
+# Grandfathered: committed before this check existed. Do not add to this set
+# for new entries -- rename the memory title/slug instead (avoid a hyphenated
+# word ending in "sk" -- task-, risk-, disk-, desk-, mask-, kiosk-, etc. --
+# immediately followed by 20+ word/hyphen characters).
+KNOWN_SECRET_SCANNER_LANDMINE_FILES = {
+    ".memory/memory/gotchas/memory-secret-scanner-local-patch-is-fragile-reinstall-update-silently-reverts-it.md",
+    ".memory/memory/gotchas/worktree-isolated-agents-can-be-reclaimed-mid-task-while-still-actively-working-with-no-committed-diff.json",
+}
 RELATION_GLOB = "relations/*.json"
 # `create_relation` (patch.schema.json #/$defs/createRelation) accepts an
 # optional, caller-supplied `id` -- confirmed live against the real Memory
@@ -152,6 +176,26 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
                         f"basename exceeds {MAX_MEMORY_BASENAME_LENGTH} characters "
                         "(risks Windows MAX_PATH on checkout); shorten the object/relation id."
                         + hint,
+                    )
+                )
+            relative_posix = memory_path.relative_to(root).as_posix()
+            if relative_posix in KNOWN_SECRET_SCANNER_LANDMINE_FILES:
+                continue
+            landmine = SECRET_SCANNER_LANDMINE_PATTERN.search(
+                memory_path.read_text(encoding="utf-8")
+            )
+            if landmine:
+                errors.append(
+                    issue(
+                        "memory-secret-landmine",
+                        relative_posix,
+                        f"content matches {landmine.group(0)[:32]!r}, which the unpatched "
+                        "Aictx Memory CLI's unanchored openai_api_key rule "
+                        "(`sk-[A-Za-z0-9_-]{20,}`, no \\b before `sk-`) reads as an API "
+                        "key and hard-fails `memory check` on (issue #4005). Rename the "
+                        'title/slug to avoid a hyphenated word ending in "sk" '
+                        "(task-, risk-, disk-, desk-, mask-, kiosk-, ...) followed by "
+                        "20+ word/hyphen characters.",
                     )
                 )
 
