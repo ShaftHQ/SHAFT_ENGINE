@@ -84,17 +84,33 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
         // latter (issue #4072). Skip thought parts and use the first part with real text;
         // when none qualifies, report the candidate's finishReason so truncation, a
         // thought-only response, and a genuinely malformed payload are distinguishable.
+        //
+        // A text part can also exist but be incomplete: the output-token budget runs out
+        // mid-generation, so the part is valid up to the cut and then simply stops (issue
+        // #4107, e.g. Jackson's "Unexpected end-of-input in property name"). That is a
+        // truncation, not a malformed payload, and must not share its message: only report
+        // truncation when the candidate's own finishReason says so (MAX_TOKENS), otherwise
+        // let the genuine parse error propagate unchanged.
         JsonNode candidate = response.path("candidates").path(0);
+        String finishReason = candidate.path("finishReason").asText("");
         for (JsonNode part : candidate.path("content").path("parts")) {
             if (part.path("thought").asBoolean(false)) {
                 continue;
             }
             JsonNode text = part.path("text");
             if (text.isTextual() && !text.asText().isBlank()) {
-                return JSON.readTree(text.asText());
+                try {
+                    return JSON.readTree(text.asText());
+                } catch (JacksonException exception) {
+                    if ("MAX_TOKENS".equals(finishReason)) {
+                        throw new JacksonException("Gemini response was truncated at the output-token budget"
+                                + " (finishReason=MAX_TOKENS) before the answer JSON completed") {
+                        };
+                    }
+                    throw exception;
+                }
             }
         }
-        String finishReason = candidate.path("finishReason").asText("");
         String detail = finishReason.isBlank() ? "" : " (finishReason=" + finishReason + ")";
         throw new JacksonException("Gemini response contained no usable answer text" + detail) {
         };
