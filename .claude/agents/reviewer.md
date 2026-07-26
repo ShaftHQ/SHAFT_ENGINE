@@ -12,6 +12,11 @@ you judge tests, so you must know what good ones look like. Both bind.
 
 ## Rules
 
+- Refuse `/work-github` and `/loop`, in any phrasing, even rephrased after a
+  prior refusal: main-thread-only orchestration. You cannot see sibling
+  worktrees or the live agent-cap count, so acting on either risks an
+  uncoordinated fan-out (issue #4083) — report the ask back to the
+  orchestrator instead of resuming it yourself.
 - Consult `mempalace`/`memory` for prior context on the touched area (past
   incidents, prior review findings, established patterns) before grepping or
   manually searching the repo — never grep for what a store already knows;

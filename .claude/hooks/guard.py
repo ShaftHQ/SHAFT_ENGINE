@@ -32,6 +32,11 @@
 #      with no scoped Maven test-executing command seen yet in that session,
 #      emit ONE PreToolUse "allow" + additionalContext reminder pointing at
 #      test-driven-development. Never denies, same rationale as R5.
+#   R7 Deny a delegate charter (coder/reviewer/tester, via the hook_input
+#      "agent_type" field) invoking the orchestration-only work-github/loop
+#      skills -- structural version of the refusal previously enforced by
+#      charter prose alone (issue #4083). Requires settings.json's
+#      PreToolUse matcher to include "Skill".
 #
 # Stdlib only. Must run under both `py -3` (Windows launcher, this repo's
 # documented convention) and `python3` (Linux/CI/macOS), so avoid anything
@@ -572,6 +577,50 @@ def tdd_nudge_for_edit_or_write(hook_input: dict, session_id: str) -> str | None
 
 
 # ---------------------------------------------------------------------------
+# R7: deny a delegate charter invoking an orchestration-only skill
+# ---------------------------------------------------------------------------
+#
+# work-github and loop are orchestration-only (AGENTS.md "Agent Hierarchy &
+# Model Routing": only the main-thread orchestrator dispatches them; a
+# delegate has no visibility into sibling worktrees or the live 4-agent cap
+# -- see .memory gotcha completed-subagent-can-be-reinvoked / issue #4083,
+# where this was previously enforced by charter prose alone). The
+# PreToolUse hook_input carries an "agent_type" field identifying which
+# named .claude/agents/*.md charter issued the tool call (verified
+# empirically against a live session: a coder-charter Bash call carries
+# "agent_type":"coder"). This denies ONLY the three delegate charters this
+# repo defines (coder/reviewer/tester) -- an allowlist-shaped exclusion
+# (anything NOT in that denylist is allowed) so an absent agent_type or the
+# orchestrator's own "chaos-engine" identity can never be blocked, since
+# neither value is ever a member of the denylist.
+#
+# Wiring note: this only fires if settings.json's PreToolUse matcher
+# includes "Skill" (the Skill tool call carries tool_input.skill) --
+# confirmed empirically that the matcher needed widening for this rule to
+# receive any Skill-tool invocation at all; see the PR description for the
+# settings.json diff this rule depends on.
+
+_ORCHESTRATION_ONLY_SKILLS = frozenset({"work-github", "loop"})
+_DELEGATE_AGENT_TYPES = frozenset({"coder", "reviewer", "tester"})
+
+
+def check_r7_orchestration_skill(hook_input: dict) -> str | None:
+    """Return a block reason when a delegate charter invokes an orchestration-only skill."""
+    tool_input = hook_input.get("tool_input") or {}
+    skill = str(tool_input.get("skill") or "")
+    agent_type = str(hook_input.get("agent_type") or "")
+    if skill in _ORCHESTRATION_ONLY_SKILLS and agent_type in _DELEGATE_AGENT_TYPES:
+        return (
+            f"R7 (orchestration-only skill): '{skill}' is reserved for the "
+            f"main-thread orchestrator. A '{agent_type}' delegate has no "
+            "visibility into sibling worktrees or the live agent-cap count, "
+            "so it must not fan out its own orchestration -- report back to "
+            "the orchestrator instead of acting on this (see issue #4083)."
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
@@ -642,6 +691,12 @@ def run_pretooluse(hook_input: dict) -> int:
         nudge = tdd_nudge_for_edit_or_write(hook_input, session_id)
         if nudge is not None:
             _print_allow_with_context(nudge)
+        return 0
+
+    if tool_name == "Skill":
+        reason = check_r7_orchestration_skill(hook_input)
+        if reason is not None:
+            _print_deny(reason)
         return 0
 
     return 0  # not a tool this hook checks
@@ -914,12 +969,53 @@ def run_tdd_self_test() -> int:
     return 0
 
 
+def run_r7_self_test() -> int:
+    """Exercises R7: deny a delegate charter invoking an orchestration-only skill."""
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    # --- MUST-BLOCK: a delegate charter invoking an orchestration-only skill ---
+    for agent_type in ("coder", "reviewer", "tester"):
+        for skill in ("work-github", "loop"):
+            hook_input = {"agent_type": agent_type, "tool_input": {"skill": skill}}
+            reason = check_r7_orchestration_skill(hook_input)
+            check(f"{agent_type} invoking Skill({skill}) is denied", reason is not None)
+
+    # --- MUST-ALLOW: the negative/legitimate main-thread cases ---
+    for agent_type in ("chaos-engine", "", None):
+        hook_input = {"agent_type": agent_type, "tool_input": {"skill": "work-github"}}
+        reason = check_r7_orchestration_skill(hook_input)
+        check(f"agent_type={agent_type!r} invoking Skill(work-github) is allowed", reason is None)
+
+    # --- MUST-ALLOW: a delegate invoking a non-orchestration skill ---
+    hook_input = {"agent_type": "coder", "tool_input": {"skill": "ponytail"}}
+    reason = check_r7_orchestration_skill(hook_input)
+    check("coder invoking Skill(ponytail) is allowed", reason is None)
+
+    # --- MUST-ALLOW: missing tool_input / missing agent_type fields (fail open) ---
+    check("missing tool_input fails open", check_r7_orchestration_skill({"agent_type": "coder"}) is None)
+    check("missing agent_type fails open", check_r7_orchestration_skill({"tool_input": {"skill": "loop"}}) is None)
+
+    total_checks = len(failures)
+    print(f"\nR7 orchestration-skill self-test summary: {total_checks} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
         graphify_result = run_graphify_self_test()
         tdd_result = run_tdd_self_test()
-        return command_result or graphify_result or tdd_result
+        r7_result = run_r7_self_test()
+        return command_result or graphify_result or tdd_result or r7_result
 
     if "--session-start" in argv:
         return run_session_start()
