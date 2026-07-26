@@ -474,3 +474,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-git-worktree-add-backslash-path-via-bash-silently-misfires-memory-paths-need-core-longpaths","timestamp":"2026-07-26T17:57:51+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.validate-routing-bridges-lives-in-validate-agent-guidance-py-not-validate-agent-setup-py","timestamp":"2026-07-26T17:57:51+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.act-as-fable-skill-mds-16384-byte-cap-is-a-recurring-tax-not-a-one-off","timestamp":"2026-07-26T17:57:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.git-stash-pop-is-shared-across-every-worktree-of-one-git-never-pop-speculatively","timestamp":"2026-07-26T18:00:13+03:00"}
