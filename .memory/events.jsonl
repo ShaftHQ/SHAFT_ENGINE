@@ -450,3 +450,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard","timestamp":"2026-07-26T10:58:55+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.memory-secret-scanner-local-patch-is-fragile-reinstall-update-silently-reverts-it","timestamp":"2026-07-26T15:12:18+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-26T15:57:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.auto-merge-armed-on-pr-gate-green-is-unsafe-when-the-fixs-acceptance-criterion-is-a-job-outside-the-gate","timestamp":"2026-07-26T16:17:39+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.mvn-test-in-shaft-engine-silently-runs-zero-junit5-tests-under-the-default-testng-maven-profile","timestamp":"2026-07-26T16:17:39+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.codacy-pr-findings-are-readable-unauthenticated-via-the-public-api","timestamp":"2026-07-26T16:17:39+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all","timestamp":"2026-07-26T16:17:39+03:00"}
