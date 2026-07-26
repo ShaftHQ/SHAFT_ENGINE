@@ -440,3 +440,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.in-page-replayxpath-emitter-scoped-to-role-strategy-only-label-strategy-left-alone","timestamp":"2026-07-26T09:52:26+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.editing-a-prs-description-via-gh-pr-edit-body-does-not-change-what-gh-pr-merge-squash-uses-as-the-squash-commit-message-a-closes-n-in-the-branchs-original-commit-still-auto-closes-the-issue","timestamp":"2026-07-26T10:05:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.editing-pr-description-does-not-change-squash-merge-commit-message-original-closes-n-still-closes-issue","timestamp":"2026-07-26T10:05:46+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.issue-4057-enabled-capturerequestbodies-captureresponsebodies-were-all-live-mcp-contract-defects-not-redundant","timestamp":"2026-07-26T10:34:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.two-same-named-networkcaptureoptions-types-across-shaft-capture-packages-check-both-before-trusting-it-does-nothing","timestamp":"2026-07-26T10:34:38+03:00"}
