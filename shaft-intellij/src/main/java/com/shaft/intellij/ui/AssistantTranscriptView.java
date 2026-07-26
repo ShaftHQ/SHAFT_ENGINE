@@ -1168,10 +1168,13 @@ final class AssistantTranscriptView extends JPanel {
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, UNKNOWN_ROLE);
         bubble.getAccessibleContext().setAccessibleName(accessibleName);
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
-        // JEditorPane under-reports the preferred height of a trailing HTML list by roughly its last
-        // item's bottom margin, which cropped the final "Review code into a test" step against the
-        // actions row below. Reserve extra bottom room so BorderLayout gives the pane enough height.
-        htmlPane.setBorder(JBUI.Borders.emptyBottom(JBUI.scale(10)));
+        // JEditorPane under-reports the preferred height of trailing wrapped content -- originally
+        // seen with a trailing HTML list (cropping the final "Review code into a test" step against
+        // the actions row below), and, at narrow tool-window widths, also with a trailing wrapped
+        // plain paragraph (issue #4174: the welcome message's last sentence painted below the pane's
+        // own bounds and was silently dropped, with no ellipsis). Reserve extra bottom room so
+        // BorderLayout gives the pane enough height to cover both shapes.
+        htmlPane.setBorder(JBUI.Borders.emptyBottom(JBUI.scale(30)));
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, UNKNOWN_ROLE);
         // Unlike a persisted fallbackMessage() pane, this one can exist in the tree of a freshly
         // constructed, otherwise message-less panel (the welcome shows before any real message
@@ -1700,9 +1703,7 @@ final class AssistantTranscriptView extends JPanel {
         Lexer lexer = highlighter.getHighlightingLexer();
         lexer.start(code);
         StringBuilder highlighted = new StringBuilder();
-        EditorColorsScheme scheme = EditorColorsManager.getInstance() == null
-                ? null
-                : EditorColorsManager.getInstance().getGlobalScheme();
+        EditorColorsScheme scheme = currentEditorColorsSchemeOrNull();
         boolean styled = false;
         while (lexer.getTokenType() != null) {
             String token = code.substring(lexer.getTokenStart(), lexer.getTokenEnd());
@@ -1720,6 +1721,21 @@ final class AssistantTranscriptView extends JPanel {
             lexer.advance();
         }
         return styled ? highlighted.toString() : "";
+    }
+
+    /**
+     * Issue #4175: {@code EditorColorsManager.getInstance()} unconditionally dereferences {@code
+     * ApplicationManager.getApplication()} with no null guard of its own, so it throws rather than
+     * returning {@code null} once there is no live {@code Application} -- guarding on its own return
+     * value (the previous shape here) was dead code that could never catch anything. Mirrors {@link
+     * #monospacedFontFamily()}'s corrected guard: check {@link ApplicationManager#getApplication()}
+     * itself first, and only call {@code EditorColorsManager.getInstance()} once an {@code
+     * Application} actually exists.
+     */
+    static EditorColorsScheme currentEditorColorsSchemeOrNull() {
+        return ApplicationManager.getApplication() == null
+                ? null
+                : EditorColorsManager.getInstance().getGlobalScheme();
     }
 
     private static TextAttributes attributesFor(TextAttributesKey[] keys, EditorColorsScheme scheme) {

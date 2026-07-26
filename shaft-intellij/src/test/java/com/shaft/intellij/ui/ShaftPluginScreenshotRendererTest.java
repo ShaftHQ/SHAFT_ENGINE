@@ -19,6 +19,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
@@ -29,6 +30,7 @@ import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.ColorUIResource;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
@@ -583,6 +585,67 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(reachableAfterScrollingToBottom.get(),
                         "The Got it button must stay fully inside the viewport when the transcript is "
                                 + "scrolled to the bottom -- it must never become orphaned by scrolling."));
+    }
+
+    /**
+     * Issue #4174 (tracker #4160 area B): investigating #4163's sibling "Got it" button-clip claim
+     * (see {@link #firstRunWelcomeDismissButtonIsVisibleWithoutScrollingAtNarrowDarkWidth} above,
+     * which did NOT reproduce) turned up a real, different defect in the same welcome bubble: at
+     * narrow tool-window widths the trailing paragraph -- "...the ones you'll reach for first are
+     * New chat, Send, and Copy response." -- is silently cut off mid-sentence, with no ellipsis or
+     * other signal that content is missing. Swing clips painting to a component's own bounds, so a
+     * character laid out below {@link JEditorPane#getHeight()} is never painted; this drives the
+     * exact same narrow/dark construction and proves the pane's own allocated height (after real
+     * layout) falls short of where the paragraph's final characters are positioned -- the same
+     * height-under-reporting mechanism {@code assistantBubbleWithActions}'s existing trailing-list-
+     * crop fix comment documents for a different (list, not paragraph) content shape.
+     */
+    @Test
+    void firstRunWelcomeTrailingParagraphIsNotClippedAtNarrowWidth() throws InterruptedException, InvocationTargetException {
+        AtomicReference<JEditorPane> welcomePane = new AtomicReference<>();
+        AtomicReference<Rectangle> tailCharacterBounds = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(DARK_THEME, true);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            JComponent component = new ShaftToolWindowPanel(
+                    screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());
+            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, false);
+
+            JEditorPane pane = findByAccessibleName(component, "Assistant welcome message content", JEditorPane.class);
+            welcomePane.set(pane);
+            if (pane == null) {
+                return;
+            }
+            try {
+                String rendered = pane.getDocument().getText(0, pane.getDocument().getLength());
+                String tail = "Copy response.";
+                int tailStart = rendered.indexOf(tail);
+                if (tailStart < 0) {
+                    return;
+                }
+                int lastOffset = tailStart + tail.length() - 1;
+                java.awt.geom.Rectangle2D bounds2D = pane.modelToView2D(lastOffset);
+                tailCharacterBounds.set(bounds2D == null ? null : bounds2D.getBounds());
+            } catch (BadLocationException exception) {
+                throw new IllegalStateException(exception);
+            }
+        });
+
+        assertNotNull(welcomePane.get(),
+                "The welcome bubble's message pane must render at a narrow dark tool window width");
+        assertNotNull(tailCharacterBounds.get(),
+                "The welcome message's trailing paragraph must contain the full onboarding sentence, "
+                        + "including its final \"Copy response.\" clause, in the rendered document");
+        Rectangle bounds = tailCharacterBounds.get();
+        assertTrue(bounds.y + bounds.height <= welcomePane.get().getHeight(),
+                "The trailing paragraph's final characters (\"Copy response.\") must be painted "
+                        + "inside the welcome message pane's own bounds at NARROW_WIDTH -- Swing clips "
+                        + "paint to component bounds, so text laid out below getHeight() is silently "
+                        + "dropped with no ellipsis, reproducing issue #4174.");
     }
 
     /**
