@@ -39,6 +39,7 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
     @Timeout(120)
     void doctorServiceAnalyzesAFailedAllureResultThroughTheRealChatPanel() throws Exception {
         LiveContext context = LiveContext.assumeConfigured();
+        markWorkspaceAsShaftProject(context.workspace());
         Path allureResult = context.workspace().resolve("allure-results/failed-login-result.json");
         Files.createDirectories(allureResult.getParent());
         Files.writeString(allureResult, failedAllureResult(), StandardCharsets.UTF_8);
@@ -72,15 +73,31 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
     }
 
     /**
-     * {@code healer_run_failed_test} in a directory with no SHAFT project returns a real, graceful
-     * {@code GUARDRAIL_STOPPED} result (not an MCP error) -- proving live dispatch without the cost
-     * of a real Maven test run. {@code verify_run_focused} similarly runs a real (offline) Maven
-     * process against an empty directory and reports its real (non-zero-exit) outcome.
+     * {@code healer_run_failed_test} against a non-SHAFT {@code repositoryRoot} returns a real,
+     * graceful {@code GUARDRAIL_STOPPED} result (not an MCP error) -- proving live dispatch without
+     * the cost of a real Maven test run. {@code verify_run_focused} similarly runs a real (offline)
+     * Maven process against an empty directory and reports its real (non-zero-exit) outcome.
+     *
+     * <p>Both tools are gated behind {@link AssistantCommand#SHAFT_PROJECT_TOOLS}
+     * ({@code AssistantCommandRoutingTest#requiresShaftProjectGatesOnlyMutatingOrShaftReportingSpecificTools}
+     * asserts this by design, issue #4021), so the panel only dispatches them at all when
+     * {@code ShaftProjectDetector.isShaftProject(project)} -- a coarse check of the fake IntelliJ
+     * project's own root -- says yes. {@link #markWorkspaceAsShaftProject} gives the workspace root
+     * that marker so the panel routes the call through instead of nudging onboarding. The tool calls
+     * themselves still target a genuinely separate, marker-free {@code non-shaft-target} child
+     * directory as their {@code repositoryRoot}, so {@code HealerService}'s own
+     * {@code ShaftProjectMarker.isShaftRepository(repository)} check (HealerService.java:135) still
+     * sees no SHAFT project and takes the real non-SHAFT-directory branch this test means to exercise
+     * -- "through the real chat panel" and "against a non-SHAFT directory" are about two different
+     * roots (the panel's project vs. the tool's repositoryRoot), not a contradiction.
      */
     @Test
     @Timeout(120)
     void healerServiceRunsAgainstANonShaftDirectoryThroughTheRealChatPanel() throws Exception {
         LiveContext context = LiveContext.assumeConfigured();
+        markWorkspaceAsShaftProject(context.workspace());
+        Path nonShaftDirectory = context.workspace().resolve("non-shaft-target");
+        Files.createDirectories(nonShaftDirectory);
 
         try (LiveChatToolE2ESupport support = LiveChatToolE2ESupport.install(context.workspace(), context.mcpCommand())) {
             ShaftAssistantPanel panel = support.newPanel();
@@ -93,7 +110,7 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
             // not be launched" IOException). "mvn.cmd"/"mvnw.cmd" are explicitly allowlisted
             // executables (HealerService.java:349) precisely for this platform difference.
             String healResponse = support.send(panel,
-                    "/mcp healer_run_failed_test {\"repositoryRoot\":\".\",\"testCommand\":[\"mvn.cmd\",\"test\"],"
+                    "/mcp healer_run_failed_test {\"repositoryRoot\":\"non-shaft-target\",\"testCommand\":[\"mvn.cmd\",\"test\"],"
                             + "\"outputDirectory\":\"\",\"maxAttempts\":1,\"includeScreenshots\":false,"
                             + "\"includePageSnapshots\":false,\"allowedSourcePaths\":[],"
                             + "\"networkValidationApproved\":false,\"useConfiguredAi\":false,\"allowLocalAi\":false,"
@@ -104,7 +121,7 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
                     "healer_run_failed_test: Maven command failed to launch: " + healResponse);
 
             String verifyResponse = support.send(panel,
-                    "/mcp verify_run_focused {\"repositoryRoot\":\"\",\"command\":[\"mvn.cmd\",\"-q\",\"compile\"],"
+                    "/mcp verify_run_focused {\"repositoryRoot\":\"non-shaft-target\",\"command\":[\"mvn.cmd\",\"-q\",\"compile\"],"
                             + "\"networkValidationApproved\":false}",
                     Duration.ofSeconds(60));
             assertNotError(verifyResponse, "verify_run_focused");
@@ -187,6 +204,39 @@ class ShaftAssistantPanelLiveDiagnosticsToolE2ETest {
             assertNotError(response, "autobot_provider_status");
             assertTrue(payload.contains("\"provider\":\"anthropic\""), "Expected the requested provider echoed back: " + payload);
         }
+    }
+
+    /**
+     * Writes a minimal {@code pom.xml} at {@code workspace} root that
+     * {@code ShaftProjectDetector}/{@code ShaftProjectMarker} (both scan a root's own build file, or
+     * one belonging to a direct child) recognize as a SHAFT dependency, so
+     * {@code AssistantCommand#requiresShaftProject}-gated tools dispatch through the panel instead of
+     * getting the "doesn't look like a SHAFT project yet" onboarding nudge (issue #4021). Idempotent:
+     * safe to call once per test even though every test method in this class shares one workspace
+     * directory across the whole live-tool-E2E JVM run.
+     */
+    private static void markWorkspaceAsShaftProject(Path workspace) throws Exception {
+        Path pom = workspace.resolve("pom.xml");
+        if (Files.exists(pom)) {
+            return;
+        }
+        Files.writeString(pom, """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>com.shaft.live.diagnostics</groupId>
+                    <artifactId>diagnostics-shaft-marker</artifactId>
+                    <version>1.0.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>io.github.shafthq</groupId>
+                            <artifactId>shaft-bom</artifactId>
+                            <version>1.0.0</version>
+                            <type>pom</type>
+                        </dependency>
+                    </dependencies>
+                </project>
+                """, StandardCharsets.UTF_8);
     }
 
     private static void assertNotError(String rawResponse, String toolName) {
