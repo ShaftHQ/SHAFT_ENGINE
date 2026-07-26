@@ -449,3 +449,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.junit-timeout-does-not-interrupt-a-hang-blocked-in-native-http-i-o","timestamp":"2026-07-26T10:58:55+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard","timestamp":"2026-07-26T10:58:55+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.memory-secret-scanner-local-patch-is-fragile-reinstall-update-silently-reverts-it","timestamp":"2026-07-26T15:12:18+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-26T15:57:42+03:00"}

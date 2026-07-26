@@ -77,12 +77,27 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
 
     @Override
     protected JsonNode parseStructuredPayload(JsonNode response) throws JacksonException {
-        JsonNode text = response.path("candidates").path(0).path("content").path("parts").path(0).path("text");
-        if (!text.isTextual()) {
-            throw new JacksonException("Missing candidate text") {
-            };
+        // Thinking-enabled Gemini models (e.g. gemini-3.5-flash) can emit a leading
+        // {"thought": true, ...} part ahead of the real answer part, or exhaust the output
+        // budget on thinking before ever emitting an answer part. Reading parts[0]
+        // unconditionally misreads the former as malformed JSON and gives no signal for the
+        // latter (issue #4072). Skip thought parts and use the first part with real text;
+        // when none qualifies, report the candidate's finishReason so truncation, a
+        // thought-only response, and a genuinely malformed payload are distinguishable.
+        JsonNode candidate = response.path("candidates").path(0);
+        for (JsonNode part : candidate.path("content").path("parts")) {
+            if (part.path("thought").asBoolean(false)) {
+                continue;
+            }
+            JsonNode text = part.path("text");
+            if (text.isTextual() && !text.asText().isBlank()) {
+                return JSON.readTree(text.asText());
+            }
         }
-        return JSON.readTree(text.asText());
+        String finishReason = candidate.path("finishReason").asText("");
+        String detail = finishReason.isBlank() ? "" : " (finishReason=" + finishReason + ")";
+        throw new JacksonException("Gemini response contained no usable answer text" + detail) {
+        };
     }
 
     @Override
