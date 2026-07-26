@@ -496,3 +496,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable","timestamp":"2026-07-26T20:23:29+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.issue-4161-fingerprint-seeding-seam-shipped-in-pr-4173-new-observefingerprint-method-name-not-an-observe-overload","timestamp":"2026-07-26T20:23:29+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable","timestamp":"2026-07-26T20:37:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.single-frame-swing-screenshot-evidence-cannot-confirm-scrollable-content-clipping-claims-verify-the-live-jviewport-before-treating-them-as-defects","timestamp":"2026-07-26T20:45:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.shaft-intellij-gradle-unit-tests-have-no-live-intellij-application-guard-every-applicationmanager-touch","timestamp":"2026-07-26T20:45:21+03:00"}
