@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Per-session network transaction recorder. Registers a single Selenium DevTools {@link Filter}
@@ -70,6 +71,7 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
     private final AtomicLong recordedCount = new AtomicLong();
     private final Deque<String> lastEndpoints = new ArrayDeque<>();
     private final Object lastEndpointsLock = new Object();
+    private final Supplier<String> currentPageUrlSupplier;
     private volatile boolean maxTransactionsWarned;
     private NetworkInterceptor interceptor;
     private volatile boolean started;
@@ -81,6 +83,10 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
      * @param bodiesDirectory directory used to persist request/response bodies
      * @param options network capture filtering and body-capture options
      * @param sessionId owning capture session identifier, used for deterministic secret-ref derivation
+     * @param currentPageUrlSupplier supplies the last-known top-level page URL for first-party
+     *                               classification and {@code initiatorPageUrl} tagging; must be a
+     *                               non-blocking read (see {@link #createFilter()} for why it must
+     *                               never call back into the WebDriver session)
      * @param sink destination for each recorded, redacted network transaction
      * @param warn destination for safe one-time warnings
      */
@@ -89,17 +95,21 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
             Path bodiesDirectory,
             NetworkCaptureOptions options,
             String sessionId,
+            Supplier<String> currentPageUrlSupplier,
             Consumer<RecordedTransaction> sink,
             Consumer<String> warn) {
-        if (driver == null || bodiesDirectory == null || sink == null || warn == null) {
+        if (driver == null || bodiesDirectory == null || currentPageUrlSupplier == null
+                || sink == null || warn == null) {
             throw new IllegalArgumentException(
-                    "Network recorder requires a driver, bodies directory, sink, and warn consumer.");
+                    "Network recorder requires a driver, bodies directory, current-page-URL supplier, "
+                            + "sink, and warn consumer.");
         }
         this.driver = driver;
         this.bodyStore = new NetworkBodyStore();
         this.sessionDirectory = bodiesDirectory.toAbsolutePath().normalize();
         this.options = options == null ? NetworkCaptureOptions.defaults() : options;
         this.sessionId = sessionId == null || sessionId.isBlank() ? "capture-session" : sessionId;
+        this.currentPageUrlSupplier = currentPageUrlSupplier;
         this.sink = sink;
         this.warn = warn;
     }
@@ -444,9 +454,18 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
         }
     }
 
+    /**
+     * Never calls back into the WebDriver session (issue #4046): this runs on the CDP
+     * {@code Fetch.requestPaused} callback thread, before the request it is handling has been
+     * continued. A classic WebDriver command issued from here (e.g. {@code driver.getCurrentUrl()})
+     * is queued by chromedriver behind the very page load that cannot complete until this callback
+     * continues the paused request -- a circular wait that deadlocks both this call and any other
+     * in-flight WebDriver command on the same session (observed: {@code executeScript} hanging
+     * forever). {@link #currentPageUrlSupplier} must therefore be a non-blocking read.
+     */
     private String currentPageOrigin() {
         try {
-            return originOf(driver.getCurrentUrl());
+            return originOf(currentPageUrlSupplier.get());
         } catch (RuntimeException exception) {
             return "";
         }

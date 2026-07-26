@@ -60,7 +60,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<HttpRequest> observedByNext = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
 
             String requestPayload = "abcdefghij"; // 10 bytes, exceeds maxBodyBytes=5
@@ -112,7 +113,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
 
             HttpRequest request = new HttpRequest(HttpMethod.POST, "https://example.test/api/orders");
@@ -145,7 +147,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
 
             HttpRequest request = new HttpRequest(HttpMethod.POST, "https://example.test/api/orders");
@@ -175,7 +178,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
 
             HttpRequest assetRequest = new HttpRequest(HttpMethod.GET, "https://example.test/static/app.css");
@@ -201,7 +205,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
 
             filterRef.get().apply(req -> new HttpResponse().setStatus(200).addHeader("Content-Type", "text/css"))
@@ -226,7 +231,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
 
             HttpRequest crossOrigin = new HttpRequest(HttpMethod.GET, "https://third-party.test/pixel.gif");
@@ -253,7 +259,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
             HttpHandler next = req -> new HttpResponse().setStatus(200);
 
@@ -282,7 +289,8 @@ class CaptureNetworkRecorderTest {
         AtomicReference<Filter> filterRef = new AtomicReference<>();
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
-                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+                    driver, temp.resolve("bodies"), options, "session-1", driver::getCurrentUrl,
+                    events::add, warnings::add);
             assertTrue(recorder.start());
             HttpHandler next = req -> new HttpResponse().setStatus(200);
 
@@ -298,13 +306,46 @@ class CaptureNetworkRecorderTest {
     }
 
     @Test
+    void neverCallsDriverGetCurrentUrlFromTheInterceptionFilter() throws Exception {
+        // Regression for issue #4046: the interception filter used to call driver.getCurrentUrl()
+        // (a classic WebDriver command) from inside the CDP Fetch.requestPaused callback, before
+        // continuing the very request that callback was handling. chromedriver serializes classic
+        // command processing per session; since the pending page load cannot complete until this
+        // callback continues the paused request, the reentrant getCurrentUrl() call contended with
+        // (and, against a real browser, deadlocked) any other in-flight WebDriver command on the
+        // same session (observed: RemoteWebDriver.executeScript hanging forever). The page origin
+        // must instead come from the supplied, non-reentrant currentPageUrlSupplier.
+        List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
+        WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
+        Mockito.when(driver.getCurrentUrl()).thenThrow(new AssertionError(
+                "CaptureNetworkRecorder must never call driver.getCurrentUrl() from its interception "
+                        + "filter -- see issue #4046."));
+        NetworkCaptureOptions options = new NetworkCaptureOptions(true, List.of(), List.of(), true, 500, 0);
+
+        AtomicReference<Filter> filterRef = new AtomicReference<>();
+        try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
+            CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
+                    driver, temp.resolve("bodies"), options, "session-1", () -> "https://example.test/app",
+                    events::add, warnings::add);
+            assertTrue(recorder.start());
+
+            HttpHandler next = req -> new HttpResponse().setStatus(200);
+            filterRef.get().apply(next).execute(new HttpRequest(HttpMethod.GET, "https://example.test/api/data"));
+
+            assertEquals(1, events.size());
+            assertEquals("https://example.test", events.getFirst().initiatorPageUrl());
+            recorder.close();
+        }
+    }
+
+    @Test
     void warnsAndSkipsWhenDriverDoesNotSupportDevTools() {
         List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
         WebDriver driver = Mockito.mock(WebDriver.class);
 
         CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
                 driver, temp.resolve("bodies"), NetworkCaptureOptions.defaults(), "session-1",
-                events::add, warnings::add);
+                driver::getCurrentUrl, events::add, warnings::add);
 
         assertFalse(recorder.start());
         assertTrue(warnings.stream().anyMatch(warning -> warning.contains("DevTools") || warning.contains("driver")));
@@ -338,7 +379,7 @@ class CaptureNetworkRecorderTest {
 
                 CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
                         driver, temp.resolve("bodies"), NetworkCaptureOptions.defaults(), "session-1",
-                        events::add, warnings::add);
+                        driver::getCurrentUrl, events::add, warnings::add);
 
                 assertTrue(recorder.start(),
                         "CaptureNetworkRecorder must become the sole interceptor owner instead of "
@@ -382,7 +423,7 @@ class CaptureNetworkRecorderTest {
 
                 CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
                         driver, temp.resolve("bodies"), NetworkCaptureOptions.defaults(), "session-1",
-                        ignoredTransaction -> { }, warnings::add);
+                        driver::getCurrentUrl, ignoredTransaction -> { }, warnings::add);
 
                 assertFalse(recorder.start(),
                         "The recorder must not double-register a competing DevTools network filter "
@@ -412,6 +453,7 @@ class CaptureNetworkRecorderTest {
         try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
             CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
                     driver, temp.resolve("bodies"), options, "network-session",
+                    driver::getCurrentUrl,
                     transaction -> store.append(toNetworkEvent(store, transaction)),
                     warnings::add);
             assertTrue(recorder.start());

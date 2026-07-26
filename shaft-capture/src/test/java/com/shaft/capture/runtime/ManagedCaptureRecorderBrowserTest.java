@@ -1499,28 +1499,45 @@ class ManagedCaptureRecorderBrowserTest {
      * <p><b>Isolation result (2026-07-26):</b> disabling {@code startCollector} (the BiDi UI-event
      * collector) and re-running left the hang unchanged -- CDP {@code NetworkInterceptor} alone
      * conflicts with a subsequent {@code executeScript} call; this is not a BiDi+CDP concurrency
-     * conflict. Root-cause fix is tracked on #4046 and intentionally not attempted here (tester
-     * scope: reproduce and hand off, not implement).
+     * conflict.
      *
-     * <p><b>Disabled, not merely tagged:</b> this class already carries {@code @Tag("external-e2e")},
-     * but that is not sufficient gating here -- {@code .github/actions/capture-browser-e2e} runs
-     * this exact class (by name, all methods) with {@code -DincludeCaptureBrowserE2E} from
-     * {@code pr-gate.yml} (PR-blocking), {@code mavenCentral_cd.yml}, and
-     * {@code shaft-pilot-release.yml}. Left enabled, this test would hang every PR's gate. Remove
-     * {@code @Disabled} only once the underlying hang is fixed.
+     * <p><b>Root cause (confirmed with a debug-instrumented run, thread names and timestamps):</b>
+     * {@code CaptureNetworkRecorder}'s interception filter called {@code driver.getCurrentUrl()} --
+     * a classic WebDriver command -- from inside the CDP {@code Fetch.requestPaused} callback,
+     * <em>before</em> continuing the very request that callback was handling
+     * ({@code CaptureNetworkRecorder.currentPageOrigin()}, invoked from
+     * {@code createFilter()} ahead of {@code next.execute(request)}). chromedriver serializes
+     * classic command processing per session; the pending page load cannot complete until the
+     * paused request is continued, and continuing it was blocked on this very reentrant call --
+     * a circular wait that deadlocked both the reentrant call and the main thread's concurrent
+     * {@code executeScript}. Fixed by sourcing the page origin from a non-reentrant
+     * {@code currentPageUrlSupplier} (backed by {@code ManagedCaptureRecorder}'s passively-tracked
+     * {@code currentUrl}) instead of querying the driver from the callback thread.
      *
-     * <p>Note for whoever picks this up: {@code @Timeout(60)} below does NOT reliably abort this
-     * particular hang locally -- the blocked thread is parked inside a native
+     * <p>Note for whoever revisits this: {@code @Timeout(60)} below does NOT reliably abort this
+     * class of hang locally -- the blocked thread parks inside a native
      * {@code CompletableFuture.get()} round-trip to chromedriver that did not honor interrupt in
-     * two separate local runs (test kept running 2+ minutes past the bound until the process tree
-     * was killed externally). Don't trust the annotation alone to keep a future CI run bounded.
+     * separate local runs (the test kept running well past the bound until the process tree was
+     * killed externally). Don't trust the annotation alone to keep a future CI run bounded if this
+     * regresses.
+     *
+     * <p><b>Still disabled -- second, separate failure found (2026-07-26):</b> with the deadlock
+     * fixed, this test no longer hangs (it now completes in ~32s against a 55s external bound,
+     * confirmed via a hard-killed, PID-tracked run), but it fails with a distinct, bounded
+     * {@code org.openqa.selenium.ScriptTimeoutException: script timeout} at
+     * {@code ManagedCaptureRecorder.java:153} (the same {@code executeScript} call site), against
+     * Selenium's default {@code timeouts:{script: 30000}}. This is un-root-caused -- left disabled
+     * and handed off rather than guessed at. Re-enable only once that failure is independently
+     * diagnosed and fixed.
      */
     @Test
     @org.junit.jupiter.api.Timeout(60)
-    @org.junit.jupiter.api.Disabled("Issue #4046: reproduces a real hang (CDP NetworkInterceptor "
-            + "poisons a subsequent executeScript call) -- @Timeout does not reliably abort it, and "
-            + "this class runs unconditionally from pr-gate.yml's capture-browser-e2e step. Re-enable "
-            + "once the root cause is fixed.")
+    @org.junit.jupiter.api.Disabled("Issue #4046: the CDP-NetworkInterceptor-vs-executeScript "
+            + "deadlock is fixed (see PR history), but a second, separate ScriptTimeoutException "
+            + "surfaced once the deadlock stopped masking it -- un-root-caused, tracked as a "
+            + "follow-up. @Timeout does not reliably abort a regression of the original hang, and "
+            + "this class runs unconditionally from pr-gate.yml's capture-browser-e2e step. "
+            + "Re-enable once the ScriptTimeoutException is fixed.")
     void startCompletesWhenApiCaptureIsEnabledAgainstARealBrowser(@TempDir Path temp) throws Exception {
         HttpServer server = localFixture();
         ManagedCaptureRecorder recorder = null;

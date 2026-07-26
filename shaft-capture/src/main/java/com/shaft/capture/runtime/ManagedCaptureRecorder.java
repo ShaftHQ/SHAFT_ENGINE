@@ -95,7 +95,9 @@ class ManagedCaptureRecorder {
      * injectable so the stop-time flush can be tested without launching a real browser.
      */
     private Supplier<List<String>> pendingBrowserDeletesReader = this::readPendingBrowserDeletesFromOverlay;
-    private String currentUrl;
+    // Volatile: read from the CDP network-interception callback thread (via the currentPageUrlSupplier
+    // passed to CaptureNetworkRecorder, issue #4046) as well as the owning thread and status() callers.
+    private volatile String currentUrl;
     private volatile boolean paused;
     private volatile boolean uiStopRequested;
 
@@ -977,7 +979,7 @@ class ManagedCaptureRecorder {
         try {
             networkRecorder = new CaptureNetworkRecorder(
                     activeDriver, networkBodiesDirectory, resolvedNetworkCaptureOptions(), sessionId,
-                    this::acceptNetworkEvent, this::warn);
+                    () -> currentUrl, this::acceptNetworkEvent, this::warn);
             if (!networkRecorder.start()) {
                 networkRecorder = null;
             }
