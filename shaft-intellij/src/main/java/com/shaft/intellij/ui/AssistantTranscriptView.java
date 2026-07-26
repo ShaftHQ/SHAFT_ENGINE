@@ -1161,8 +1161,12 @@ final class AssistantTranscriptView extends JPanel {
         Color foreground = resolvedColor("TextArea.foreground", new Color(0x202020));
         Color stroke = resolvedColor("Component.borderColor", new Color(0xD0D7DE));
         RoundedBubblePanel bubble = new RoundedBubblePanel(background, stroke, 18);
-        bubble.setLayout(new BorderLayout(0, 8));
-        bubble.setBorder(JBUI.Borders.empty(9, 11));
+        // A tighter vgap (was 8) and bottom outer margin (was 9) claim back a few px of the
+        // otherwise-fixed vertical budget a narrow tool window gives this bubble, independent of the
+        // htmlPane height reservation below -- see that reservation's comment for why the two must
+        // not share the same budget (issue #4174).
+        bubble.setLayout(new BorderLayout(0, 4));
+        bubble.setBorder(JBUI.Borders.empty(9, 11, 5, 11));
         bubble.setBackground(background);
         bubble.setForeground(foreground);
         bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, UNKNOWN_ROLE);
@@ -1170,11 +1174,20 @@ final class AssistantTranscriptView extends JPanel {
         JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
         // JEditorPane under-reports the preferred height of trailing wrapped content -- originally
         // seen with a trailing HTML list (cropping the final "Review code into a test" step against
-        // the actions row below), and, at narrow tool-window widths, also with a trailing wrapped
-        // plain paragraph (issue #4174: the welcome message's last sentence painted below the pane's
-        // own bounds and was silently dropped, with no ellipsis). Reserve extra bottom room so
-        // BorderLayout gives the pane enough height to cover both shapes.
-        htmlPane.setBorder(JBUI.Borders.emptyBottom(JBUI.scale(30)));
+        // the actions row below), and (issue #4174) also with a trailing wrapped plain paragraph at
+        // narrow tool-window widths, by roughly one line's worth. A fixed pixel constant tuned to one
+        // platform's font rendering is fragile (issue #4174's PR history: a value that looked
+        // comfortable locally left only single-digit pixels of margin once the button-reachability
+        // test below was checked against its own real geometry). Reserve three body lines' worth
+        // instead, derived from the live font metrics actually in effect via bodyLineHeight(), so the
+        // reservation is proportional to whatever font metrics are live on the current platform
+        // rather than a guess tuned for one. This and the actions row below necessarily share this
+        // bubble's fixed vertical budget once laid out in the transcript's scroll viewport (growing
+        // one pushes the other down by the same amount); the vgap/margin trims above claim back
+        // independent room so this reservation doesn't have to fight the "Got it" button's own
+        // reachability margin (firstRunWelcomeDismissButtonIsVisibleWithoutScrollingAtNarrowDarkWidth)
+        // down to a razor-thin margin by itself.
+        htmlPane.setBorder(JBUI.Borders.emptyBottom(bodyLineHeight() * 3));
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, UNKNOWN_ROLE);
         // Unlike a persisted fallbackMessage() pane, this one can exist in the tree of a freshly
         // constructed, otherwise message-less panel (the welcome shows before any real message
