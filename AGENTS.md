@@ -10,7 +10,7 @@ Bridges (`.agents/skills/<name>/SKILL.md`, not Skill-invocable) enumerated in [r
 
 ## New Task Flow
 
-At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin/main`; reuse session -- sub-tasks are commits, unless file-dependent (merge first, branch+PR/issue). Before PR sync default, resolve conflicts, rerun checks; commit, push, tracker+subtasks (work-github 3b).
+At session start fetch/prune, branch/worktree fresh `ChaosEngine/*` from `origin/main`; reuse session -- sub-tasks are commits, unless file-dependent (merge first, branch+PR/issue). Before PR sync default, resolve conflicts (`.memory/events.jsonl` CONFLICTING on GitHub alone is a false positive -- `merge=union` already resolves it locally keeping both sides; just rebase+push, #4137), rerun checks; commit, push, tracker+subtasks (work-github 3b).
 
 ## Working Rules
 
