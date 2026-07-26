@@ -1,0 +1,11 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:3eb7b1b7fb7d624eaaf1796612f76da12c3e314c7c6621570fa1bdaa8ed43358",
+  "created_at": "2026-07-26T18:33:18+03:00",
+  "from": "gotcha.bash-tool-mangles-the-colon-in-git-ref-path-arguments-msys-path-translation",
+  "id": "rel.bash-msys-path-mangling-family",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.windows-git-worktree-add-backslash-path-via-bash-silently-misfires-memory-paths-need-core-longpaths",
+  "updated_at": "2026-07-26T18:33:18+03:00"
+}
