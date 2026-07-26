@@ -72,6 +72,19 @@
 <div class="col-last odd-row-color class-summary class-summary-tab4">
 <div class="block">Provider-neutral explanation for an accepted healing decision.</div>
 </div>
+<div class="col-first even-row-color class-summary class-summary-tab4"><a href="HealingFingerprintObservation.html" title="class in com.shaft.gui.internal.healing">HealingFingerprintObservation</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab4">
+<div class="block">Recorded element evidence supplied to an optional provider without a live driver or element
+(issue #4161) -- e.g. generation-time seeding from shaft-capture's already-computed per-element
+DOM signal, so recorded fingerprint history exists before a generated test is ever replayed.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="HealingFingerprintSeed.html" title="class in com.shaft.gui.internal.healing">HealingFingerprintSeed</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="block">Plain-data element evidence for seeding SHAFT Heal history without a live driver or element
+(issue #4161). shaft-engine must not depend on shaft-heal, so this mirrors shaft-heal's
+<code>LocatorFingerprint</code> field-for-field for the web platform; an optional provider converts
+it into a real fingerprint and persists it.</div>
+</div>
 <div class="col-first even-row-color class-summary class-summary-tab2"><a href="HealingManager.html" title="class in com.shaft.gui.internal.healing">HealingManager</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Guards optional SHAFT Heal provider calls and preserves deterministic fallback.</div>

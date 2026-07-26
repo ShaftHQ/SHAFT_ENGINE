@@ -50,6 +50,7 @@
 <ol class="toc-list">
 <li><a href="#resolve(org.openqa.selenium.WebDriver,org.openqa.selenium.By,java.lang.String,boolean,org.openqa.selenium.By,org.openqa.selenium.By,org.openqa.selenium.By)" tabindex="0">resolve(WebDriver, By, String, boolean, By, By, By)</a></li>
 <li><a href="#observe(org.openqa.selenium.WebDriver,org.openqa.selenium.By,java.util.List,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.By,org.openqa.selenium.By)" tabindex="0">observe(WebDriver, By, List, String, By, By, By)</a></li>
+<li><a href="#observeFingerprint(com.shaft.gui.internal.healing.HealingFingerprintObservation)" tabindex="0">observeFingerprint(HealingFingerprintObservation)</a></li>
 <li><a href="#recordOutcome(org.openqa.selenium.WebDriver,com.shaft.gui.internal.healing.HealingResolution,org.openqa.selenium.By,java.lang.String,boolean,java.lang.String)" tabindex="0">recordOutcome(WebDriver, HealingResolution, By, String, boolean, String)</a></li>
 <li><a href="#clear(org.openqa.selenium.WebDriver)" tabindex="0">clear(WebDriver)</a></li>
 </ol>
@@ -102,24 +103,30 @@
 <div class="block">Records a unique successful original resolution when SHAFT Heal is active.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordOutcome(org.openqa.selenium.WebDriver,com.shaft.gui.internal.healing.HealingResolution,org.openqa.selenium.By,java.lang.String,boolean,java.lang.String)" class="member-name-link">recordOutcome</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#observeFingerprint(com.shaft.gui.internal.healing.HealingFingerprintObservation)" class="member-name-link">observeFingerprint</a><wbr>(<a href="HealingFingerprintObservation.html" title="class in com.shaft.gui.internal.healing">HealingFingerprintObservation</a>&nbsp;observation)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Records a recorded fingerprint seed when SHAFT Heal is available, without a live driver or
+element (issue #4161).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordOutcome(org.openqa.selenium.WebDriver,com.shaft.gui.internal.healing.HealingResolution,org.openqa.selenium.By,java.lang.String,boolean,java.lang.String)" class="member-name-link">recordOutcome</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  <a href="HealingResolution.html" title="class in com.shaft.gui.internal.healing">HealingResolution</a>&nbsp;resolution,
  org.openqa.selenium.By&nbsp;originalLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  boolean&nbsp;successful,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failure)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Records the result of an action performed by SHAFT on a recovered element.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="HealingResolution.html" title="class in com.shaft.gui.internal.healing">HealingResolution</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resolve(org.openqa.selenium.WebDriver,org.openqa.selenium.By,java.lang.String,boolean,org.openqa.selenium.By,org.openqa.selenium.By,org.openqa.selenium.By)" class="member-name-link">resolve</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="HealingResolution.html" title="class in com.shaft.gui.internal.healing">HealingResolution</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resolve(org.openqa.selenium.WebDriver,org.openqa.selenium.By,java.lang.String,boolean,org.openqa.selenium.By,org.openqa.selenium.By,org.openqa.selenium.By)" class="member-name-link">resolve</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  org.openqa.selenium.By&nbsp;locator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  boolean&nbsp;visibilityRequired,
  org.openqa.selenium.By&nbsp;frameLocator,
  org.openqa.selenium.By&nbsp;shadowHostLocator,
  org.openqa.selenium.By&nbsp;shadowContentLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Attempts recovery only for locator-not-found failures at SHAFT-owned
 element-resolution boundaries.</div>
 </div>
@@ -189,6 +196,21 @@ element-resolution boundaries.</div>
 <dd><code>frameLocator</code> - active frame locator</dd>
 <dd><code>shadowHostLocator</code> - active shadow host locator</dd>
 <dd><code>shadowContentLocator</code> - active shadow content locator</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="observeFingerprint(com.shaft.gui.internal.healing.HealingFingerprintObservation)">
+<h3>observeFingerprint</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">observeFingerprint</span><wbr><span class="parameters">(<a href="HealingFingerprintObservation.html" title="class in com.shaft.gui.internal.healing">HealingFingerprintObservation</a>&nbsp;observation)</span></div>
+<div class="block">Records a recorded fingerprint seed when SHAFT Heal is available, without a live driver or
+element (issue #4161). Optional-provider failures are swallowed, matching every other
+<code>HealingManager</code> entry point -- seeding must never fail generation or replay.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>observation</code> - recorded seed evidence</dd>
 </dl>
 </div>
 </section>

@@ -51,6 +51,7 @@
 <li><a href="#resolve(com.shaft.gui.internal.healing.HealingRequest)" tabindex="0">resolve(HealingRequest)</a></li>
 <li><a href="#explain(java.lang.String)" tabindex="0">explain(String)</a></li>
 <li><a href="#observe(com.shaft.gui.internal.healing.HealingObservation)" tabindex="0">observe(HealingObservation)</a></li>
+<li><a href="#observeFingerprint(com.shaft.gui.internal.healing.HealingFingerprintObservation)" tabindex="0">observeFingerprint(HealingFingerprintObservation)</a></li>
 <li><a href="#recordOutcome(com.shaft.gui.internal.healing.HealingActionOutcome)" tabindex="0">recordOutcome(HealingActionOutcome)</a></li>
 <li><a href="#clear(org.openqa.selenium.WebDriver)" tabindex="0">clear(WebDriver)</a></li>
 </ol>
@@ -101,14 +102,21 @@ never execute the intended user action.</p></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Records evidence from a unique successful original resolution.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#recordOutcome(com.shaft.gui.internal.healing.HealingActionOutcome)" class="member-name-link">recordOutcome</a><wbr>(<a href="HealingActionOutcome.html" title="class in com.shaft.gui.internal.healing">HealingActionOutcome</a>&nbsp;outcome)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#observeFingerprint(com.shaft.gui.internal.healing.HealingFingerprintObservation)" class="member-name-link">observeFingerprint</a><wbr>(<a href="HealingFingerprintObservation.html" title="class in com.shaft.gui.internal.healing">HealingFingerprintObservation</a>&nbsp;observation)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Records a recorded fingerprint seed without a live driver or element (issue #4161) --
+generation-time seeding uses this instead of <a href="#observe(com.shaft.gui.internal.healing.HealingObservation)"><code>observe(HealingObservation)</code></a>, which
+requires a live resolved element.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#recordOutcome(com.shaft.gui.internal.healing.HealingActionOutcome)" class="member-name-link">recordOutcome</a><wbr>(<a href="HealingActionOutcome.html" title="class in com.shaft.gui.internal.healing">HealingActionOutcome</a>&nbsp;outcome)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Records the action outcome after SHAFT, not the provider, executes it.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="HealingResolution.html" title="class in com.shaft.gui.internal.healing">HealingResolution</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#resolve(com.shaft.gui.internal.healing.HealingRequest)" class="member-name-link">resolve</a><wbr>(<a href="HealingRequest.html" title="class in com.shaft.gui.internal.healing">HealingRequest</a>&nbsp;request)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="HealingResolution.html" title="class in com.shaft.gui.internal.healing">HealingResolution</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#resolve(com.shaft.gui.internal.healing.HealingRequest)" class="member-name-link">resolve</a><wbr>(<a href="HealingRequest.html" title="class in com.shaft.gui.internal.healing">HealingRequest</a>&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Attempts recovery for a locator-not-found failure.</div>
 </div>
 </div>
@@ -164,6 +172,21 @@ never execute the intended user action.</p></div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>observation</code> - successful observation</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="observeFingerprint(com.shaft.gui.internal.healing.HealingFingerprintObservation)">
+<h3>observeFingerprint</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">observeFingerprint</span><wbr><span class="parameters">(<a href="HealingFingerprintObservation.html" title="class in com.shaft.gui.internal.healing">HealingFingerprintObservation</a>&nbsp;observation)</span></div>
+<div class="block">Records a recorded fingerprint seed without a live driver or element (issue #4161) --
+generation-time seeding uses this instead of <a href="#observe(com.shaft.gui.internal.healing.HealingObservation)"><code>observe(HealingObservation)</code></a>, which
+requires a live resolved element.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>observation</code> - recorded seed evidence</dd>
 </dl>
 </div>
 </section>
