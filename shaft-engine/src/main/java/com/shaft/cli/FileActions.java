@@ -696,9 +696,9 @@ public class FileActions {
             // make sure we get the actual file
             File zip = File.createTempFile("archive_", url.toString().substring(url.toString().length() - 4), targetDir);
             zip.deleteOnExit();
-            OutputStream out = new BufferedOutputStream(new FileOutputStream(zip));
-            copyInputStream(in, out);
-            out.close();
+            try (OutputStream out = new BufferedOutputStream(new FileOutputStream(zip))) {
+                copyInputStream(in, out);
+            }
             unpacked = unpackArchive(zip, targetDir);
             passAction("Target URL\"" + url + "\" | Destination Folder: \"" + destinationFolderPath + "\"");
         } catch (IOException rootCauseException) {
