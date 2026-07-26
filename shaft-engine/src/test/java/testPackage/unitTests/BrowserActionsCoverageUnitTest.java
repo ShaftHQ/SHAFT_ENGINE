@@ -255,11 +255,45 @@ public class BrowserActionsCoverageUnitTest {
     }
 
     @Test
-    public void navigateWithBasicAuthenticationShouldUseNativeHandlerForRemoteExecutionWhenBiDiIsEnabled() {
-        // Regression for issue #3732: remote execution with BiDi enabled (the default) must use the
-        // real HasAuthentication.register() handler instead of silently downgrading to URL-embedded
-        // credentials, so BasicAuthenticationTests#basicAuthenticationWebdriverBidi actually exercises
-        // the BiDi-augmented path remotely.
+    public void navigateWithBasicAuthenticationShouldUseNativeHandlerForRemoteExecutionWhenBiDiIsEnabledAndCdpIsAvailable() {
+        // Regression for issue #3732: remote execution with BiDi enabled (the default) AND a reachable
+        // CDP endpoint (HasDevTools) must use the real HasAuthentication.register() handler instead of
+        // silently downgrading to URL-embedded credentials, so
+        // BasicAuthenticationTests#basicAuthenticationWebdriverBidi actually exercises the
+        // BiDi-augmented path remotely. See #4037 for the sibling "no CDP access" fallback case.
+        SHAFT.Properties.platform.set().executionAddress("remote-grid");
+        SHAFT.Properties.platform.set().enableBiDi(true);
+
+        WebDriver cdpCapableDriver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class, HasAuthentication.class, HasDevTools.class));
+        WebDriver.Options cdpOptions = mock(WebDriver.Options.class);
+        WebDriver.Navigation cdpNavigation = mock(WebDriver.Navigation.class);
+        when(cdpCapableDriver.manage()).thenReturn(cdpOptions);
+        when(cdpCapableDriver.navigate()).thenReturn(cdpNavigation);
+        when(cdpCapableDriver.getCurrentUrl()).thenReturn("https://example.com/start");
+        doNothing().when(cdpNavigation).to(anyString());
+
+        BrowserActions cdpBrowserActions = new BrowserActions(cdpCapableDriver, true);
+        cdpBrowserActions.navigateToURLWithBasicAuthentication(
+                "https://example.com/secure",
+                "user",
+                "pass",
+                "https://example.com/secure");
+
+        Mockito.verify((HasAuthentication) cdpCapableDriver).register(any(), any());
+        Mockito.verify(cdpNavigation).to("https://example.com/secure");
+    }
+
+    @Test
+    public void navigateWithBasicAuthenticationShouldFallBackWhenRemoteDriverHasNoCdpAccess() {
+        // Regression for issue #4037: Selenium's HasAuthentication is CDP-backed -- its
+        // AddHasAuthentication augmentation only actually installs an auth handler when the wrapped
+        // driver also implements HasDevTools (see AddHasAuthentication#getImplementation). A remote
+        // Augmented session that lacks a reachable CDP endpoint still gets the HasAuthentication
+        // interface woven on by Augmenter#addDependentAugmentations, so register() can be called
+        // without throwing -- but Selenium's handler silently does nothing without HasDevTools, and
+        // the auth prompt is never answered (nightly Ubuntu_Chrome_Grid failure). Detect that case
+        // and use the URL-embedded fallback instead of trusting a handler that cannot actually work.
         SHAFT.Properties.platform.set().executionAddress("remote-grid");
         SHAFT.Properties.platform.set().enableBiDi(true);
         when(driver.getCurrentUrl()).thenReturn("https://example.com/start");
@@ -270,8 +304,8 @@ public class BrowserActionsCoverageUnitTest {
                 "pass",
                 "https://example.com/secure");
 
-        Mockito.verify((HasAuthentication) driver).register(any(), any());
-        Mockito.verify(navigation).to("https://example.com/secure");
+        Mockito.verify((HasAuthentication) driver, Mockito.never()).register(any(), any());
+        Mockito.verify(navigation).to("https://user:pass@example.com/secure");
     }
 
     @Test

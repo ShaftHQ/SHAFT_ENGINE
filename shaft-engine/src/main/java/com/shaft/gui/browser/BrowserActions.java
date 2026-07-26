@@ -32,6 +32,7 @@ import io.appium.java_client.ios.IOSDriver;
 import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
+import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 
@@ -489,24 +490,42 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @SuppressWarnings("UnusedReturnValue")
     @Override
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
+        String resolvedUrl = targetUrl;
         try {
             String domainName = browserActionsHelper.getDomainNameFromUrl(targetUrl);
             var strategy = browserActionsHelper.determineBasicAuthenticationStrategy(
                     SHAFT.Properties.platform.executionAddress(), SHAFT.Properties.platform.enableBiDi());
-            if (strategy == BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION) {
+            var activeDriver = driverFactoryHelper.getDriver();
+            // HasAuthentication is CDP-backed (Selenium's AddHasAuthentication#getImplementation only
+            // installs the handler when the wrapped driver also implements HasDevTools); Augmenter still
+            // weaves the HasAuthentication interface onto a remote session regardless of CDP reachability
+            // (AddHasAuthentication#isApplicable only checks the browser name), so register() can be
+            // called without throwing yet silently do nothing on a Grid session with no reachable CDP
+            // endpoint. Local drivers (ChromeDriver/EdgeDriver) always implement HasDevTools natively, so
+            // this only gates the remote, Augmenter-based path (issue #4037).
+            boolean isLocalExecution = "local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress());
+            boolean nativeHandlerCanActuallyWork = activeDriver instanceof HasAuthentication
+                    && (isLocalExecution || activeDriver instanceof HasDevTools);
+            if (strategy == BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION && nativeHandlerCanActuallyWork) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
-                ((HasAuthentication) driverFactoryHelper.getDriver()).register(uriPredicate, UsernameAndPassword.of(username, password));
+                ((HasAuthentication) activeDriver).register(uriPredicate, UsernameAndPassword.of(username, password));
+            } else if (strategy == BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION) {
+                ReportManagerHelper.logDiscrete("Basic authentication downgraded to URL-embedded credentials: the native "
+                        + "HasAuthentication handler is CDP-backed and this remote driver session does not expose a "
+                        + "reachable Chrome DevTools Protocol endpoint (no HasDevTools augmentation), so register() "
+                        + "would silently do nothing. Falling back to URL-embedded credentials.", Level.WARN);
+                resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
             } else {
                 ReportManagerHelper.logDiscrete("Basic authentication downgraded to URL-embedded credentials: execution is remote and "
                         + "SHAFT.Properties.platform.enableBiDi() is disabled, so no native HasAuthentication handler can be provisioned "
                         + "on the remote driver. Enable BiDi to use the native handler for remote executions.", Level.WARN);
-                targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+                resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
-            targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+            resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
         }
-        return navigateToURL(targetUrl, targetUrlAfterAuthentication);
+        return navigateToURL(resolvedUrl, targetUrlAfterAuthentication);
     }
 
     /**
