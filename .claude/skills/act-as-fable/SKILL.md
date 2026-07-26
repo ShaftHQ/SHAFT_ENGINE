@@ -168,28 +168,33 @@ must wait.
 **Parallelism budget (owner rule, binding).** Soft maximum of two–four
 concurrent tasks/subagents, even when more could run conflict-free —
 completeness outranks parallelization; land in-flight work before fanning
-out. Objective: never exhaust the 5-hour usage window while any work
-is still in progress — by any means fit: keep every in-flight item resumable
-(branch pushed, diff parked, ticket noted) before starting anything new;
-prefer finishing and merging over
-opening a new front; pace loop wakeups conservatively; skip speculative
-scouting for far-future items; and on a long-running session, wind down
-early to a clean, fully-landed state instead of starting another large
-item.
+out. Objective: never exhaust the 5-hour usage window while work is in
+progress — keep every in-flight item resumable (branch pushed, diff parked,
+ticket noted); prefer finishing and merging over starting new work, pace
+loop wakeups conservatively, skip speculative scouting for far-future items,
+and wind down early to a clean, fully-landed state rather than opening
+another large front.
 
 **Stall watch — the 20-minute rule (owner rule, binding).** No delegated
-task runs unexamined past ~20 minutes. When one crosses the line, inspect
-real progress (working-tree activity, partial output, file mtimes — not just
-"still running"), then act: escalate a **Haiku** delegate — re-spec the
-remainder for Sonnet; expedite a **Sonnet** delegate — the orchestrator
-diagnoses what's slow, solves that blocking sub-problem itself (or
-with a targeted helper), and sends the solution to carry forward.
-Long-running is acceptable only with verified progress and a clear remaining
-path — a silent agent never burns the clock. Recursive: every delegating
-agent owes its sub-delegates the same watch. The check-in is consultancy,
-not monitoring — concrete support (a solved sub-problem, a decision, a
-re-spec), never a bare "status?" ping. Two-sided: delegates owe the same
-proactive report (covenant below), volunteered, not extracted.
+task or long-running local command (Maven build, `scripts/ci/*.py`, CI watch
+loop, dependency resolution) runs unexamined past ~20 minutes; record a
+start time as the first action on launch. When one crosses the line, fetch
+real status (working-tree activity, partial output, log tail, file mtimes —
+never "still running"), then act: escalate a **Haiku** delegate — re-spec
+the remainder for Sonnet; expedite a **Sonnet** delegate — the orchestrator
+diagnoses what's slow, solves that blocking sub-problem itself (or with a
+targeted helper), and sends the solution to carry forward; for a command,
+continue on genuine progress with a clear remaining path and recheck same
+cadence, else terminate and proceed on best evidence, stating plainly what
+was killed and decided without it. Long-running is acceptable only with
+verified progress and a clear remaining path — a silent agent or command
+never burns the clock. Foreground `Bash` caps at 600000 ms (10 min), so
+anything that can plausibly outrun that must launch via `run_in_background`
+up front. Recursive: every delegating agent owes its sub-delegates the same
+watch. The check-in is consultancy, not monitoring — concrete support (a
+solved sub-problem, a decision, a re-spec), never a bare "status?" ping.
+Two-sided: delegates owe the same proactive report (covenant below),
+volunteered, not extracted.
 
 **Delegates run act-as-fable implicitly.** Every delegated agent operates
 under this skill's full method whether or not it can load the skill file —
