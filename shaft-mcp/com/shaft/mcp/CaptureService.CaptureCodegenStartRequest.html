@@ -241,7 +241,8 @@
 <section class="detail" id="targetUrl">
 <h3>targetUrl</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">targetUrl</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="initial http, https, or file URL; blank or omitted opens an empty browser at about:blank")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">targetUrl</span></div>
 </div>
 </section>
 </li>
@@ -249,7 +250,8 @@
 <section class="detail" id="browser">
 <h3>browser</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">browser</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="Chrome or Edge; blank selects Chrome")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">browser</span></div>
 </div>
 </section>
 </li>
@@ -257,7 +259,8 @@
 <section class="detail" id="outputPath">
 <h3>outputPath</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">outputPath</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="recording/capture JSON output path; blank selects a timestamped recording")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">outputPath</span></div>
 </div>
 </section>
 </li>
@@ -265,7 +268,8 @@
 <section class="detail" id="headless">
 <h3>headless</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">headless</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="whether to launch without a visible browser window; unspecified defaults to headless per repo policy")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">headless</span></div>
 </div>
 </section>
 </li>
@@ -273,7 +277,8 @@
 <section class="detail" id="targetLanguage">
 <h3>targetLanguage</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">targetLanguage</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="requested codegen target language; SHAFT always generates Java TestNG regardless, other values are accepted for compatibility with a warning")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">targetLanguage</span></div>
 </div>
 </section>
 </li>
@@ -281,7 +286,8 @@
 <section class="detail" id="testIdAttribute">
 <h3>testIdAttribute</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">testIdAttribute</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">testIdAttribute</span></div>
 </div>
 </section>
 </li>
@@ -289,7 +295,8 @@
 <section class="detail" id="channel">
 <h3>channel</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">channel</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">channel</span></div>
 </div>
 </section>
 </li>
@@ -297,7 +304,8 @@
 <section class="detail" id="deviceName">
 <h3>deviceName</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">deviceName</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="device emulation hint")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">deviceName</span></div>
 </div>
 </section>
 </li>
@@ -305,7 +313,8 @@
 <section class="detail" id="viewportSize">
 <h3>viewportSize</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">viewportSize</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="viewport size as width,height in pixels (e.g. 1280,720)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">viewportSize</span></div>
 </div>
 </section>
 </li>
@@ -313,7 +322,8 @@
 <section class="detail" id="colorScheme">
 <h3>colorScheme</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">colorScheme</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="preferred color scheme hint (e.g. light or dark)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">colorScheme</span></div>
 </div>
 </section>
 </li>
@@ -321,7 +331,8 @@
 <section class="detail" id="geolocation">
 <h3>geolocation</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">geolocation</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="geolocation as latitude,longitude")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">geolocation</span></div>
 </div>
 </section>
 </li>
@@ -329,7 +340,8 @@
 <section class="detail" id="ignoreHttpsErrors">
 <h3>ignoreHttpsErrors</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">ignoreHttpsErrors</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="whether HTTPS certificate errors are ignored")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">ignoreHttpsErrors</span></div>
 </div>
 </section>
 </li>
@@ -337,7 +349,8 @@
 <section class="detail" id="blockServiceWorkers">
 <h3>blockServiceWorkers</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">blockServiceWorkers</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="whether service workers should be blocked")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">blockServiceWorkers</span></div>
 </div>
 </section>
 </li>
@@ -345,7 +358,8 @@
 <section class="detail" id="loadStoragePath">
 <h3>loadStoragePath</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">loadStoragePath</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="storage-state input path to restore cookies/local storage from before recording starts")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">loadStoragePath</span></div>
 </div>
 </section>
 </li>
@@ -353,7 +367,8 @@
 <section class="detail" id="saveStoragePath">
 <h3>saveStoragePath</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveStoragePath</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="storage-state output path to persist cookies/local storage to when the session ends")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveStoragePath</span></div>
 </div>
 </section>
 </li>
@@ -361,7 +376,8 @@
 <section class="detail" id="language">
 <h3>language</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">language</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="locale/language hint (e.g. en-US)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">language</span></div>
 </div>
 </section>
 </li>
@@ -369,7 +385,8 @@
 <section class="detail" id="timezone">
 <h3>timezone</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">timezone</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="timezone hint (e.g. America/Los_Angeles)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">timezone</span></div>
 </div>
 </section>
 </li>
@@ -377,7 +394,8 @@
 <section class="detail" id="proxyServer">
 <h3>proxyServer</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">proxyServer</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="proxy server URL")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">proxyServer</span></div>
 </div>
 </section>
 </li>
@@ -385,7 +403,8 @@
 <section class="detail" id="proxyBypass">
 <h3>proxyBypass</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">proxyBypass</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="comma-separated proxy bypass list")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">proxyBypass</span></div>
 </div>
 </section>
 </li>
@@ -393,7 +412,8 @@
 <section class="detail" id="saveHarPath">
 <h3>saveHarPath</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveHarPath</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="HAR output path; blank disables HAR capture")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveHarPath</span></div>
 </div>
 </section>
 </li>
@@ -401,7 +421,8 @@
 <section class="detail" id="saveHarGlob">
 <h3>saveHarGlob</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveHarGlob</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="HAR URL glob filter restricting which requests are written to the HAR")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveHarGlob</span></div>
 </div>
 </section>
 </li>
@@ -409,7 +430,8 @@
 <section class="detail" id="timeoutMillis">
 <h3>timeoutMillis</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">timeoutMillis</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">timeoutMillis</span></div>
 </div>
 </section>
 </li>
@@ -417,7 +439,8 @@
 <section class="detail" id="userAgent">
 <h3>userAgent</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">userAgent</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="user-agent override")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">userAgent</span></div>
 </div>
 </section>
 </li>
@@ -425,7 +448,8 @@
 <section class="detail" id="userDataDirectory">
 <h3>userDataDirectory</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">userDataDirectory</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="persistent browser profile directory; blank uses a temporary profile")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">userDataDirectory</span></div>
 </div>
 </section>
 </li>
@@ -433,7 +457,8 @@
 <section class="detail" id="sessionGoal">
 <h3>sessionGoal</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">sessionGoal</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="optional user intent for the journey; drives generated test class and method names")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">sessionGoal</span></div>
 </div>
 </section>
 </li>
@@ -441,7 +466,8 @@
 <section class="detail" id="apiCapture">
 <h3>apiCapture</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">apiCapture</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="whether API network recording is enabled for this session")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">apiCapture</span></div>
 </div>
 </section>
 </li>
@@ -449,7 +475,8 @@
 <section class="detail" id="networkOptions">
 <h3>networkOptions</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.NetworkCaptureOptions</span>&nbsp;<span class="element-name">networkOptions</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="network capture filtering options; ignored unless apiCapture is set")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.NetworkCaptureOptions</span>&nbsp;<span class="element-name">networkOptions</span></div>
 </div>
 </section>
 </li>
@@ -457,7 +484,8 @@
 <section class="detail" id="saveHarContent">
 <h3>saveHarContent</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveHarContent</span></div>
+<div class="member-signature"><span class="annotations">@ToolParam(description="HAR body-content emission mode: blank or none (the default) keeps truncated network-trace preview bodies, full emits complete request/response bodies from API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">saveHarContent</span></div>
 </div>
 </section>
 </li>
