@@ -493,3 +493,5 @@
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.gotcha-github-actions-expressions-binds-tighter-than-so-appending-a-guard-to-an-existing-a-b-condition-needs-parentheses-related-to-constraint-pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-07-26T19:33:00+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.actions-precedence-gotcha-related-to-pr-gate-vacuous-green-constraint","timestamp":"2026-07-26T19:32:42+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.memory-cli-supersede-shorthand-fails-on-windows-with-long-object-ids","timestamp":"2026-07-26T19:35:49+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable","timestamp":"2026-07-26T20:23:29+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.issue-4161-fingerprint-seeding-seam-shipped-in-pr-4173-new-observefingerprint-method-name-not-an-observe-overload","timestamp":"2026-07-26T20:23:29+03:00"}

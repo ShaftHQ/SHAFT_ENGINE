@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable.md",
+  "content_hash": "sha256:504f66b381099270c89359d50d0d714660fbfa00f5d1fda390b588391422a140",
+  "created_at": "2026-07-26T20:23:29+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "issue 4161 fingerprint seeding seam + maximumPerformanceMode ordering"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-heal",
+    "shaft-engine",
+    "properties",
+    "testng-lifecycle",
+    "maximum-performance-mode",
+    "issue-4161",
+    "issue-4172"
+  ],
+  "title": "TestNGListener suite-start postProcessing runs before setUp, later same-thread healing.strategy override wins over maximumPerformanceMode disable",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T20:23:29+03:00"
+}
