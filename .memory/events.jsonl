@@ -481,3 +481,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.gemini-thinkinglevel-is-3-x-only-thinkingbudget-is-2-5-series","timestamp":"2026-07-26T18:19:35+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.bash-tool-mangles-the-colon-in-git-ref-path-arguments-msys-path-translation","timestamp":"2026-07-26T18:33:00+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.bash-msys-path-mangling-family","timestamp":"2026-07-26T18:33:18+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n","timestamp":"2026-07-26T18:46:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.pr-issue-prose-is-not-a-merge-state-source-of-truth-check-state-and-mergedat","timestamp":"2026-07-26T18:46:54+03:00"}
