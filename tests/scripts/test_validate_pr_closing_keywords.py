@@ -1,6 +1,20 @@
+import json
+import os
+
+# subprocess is used only to invoke this repo's own CLI script below with a
+# fixed, list-args argv (never shell=True, no untrusted command construction).
+import subprocess  # nosec B404
+import sys
 import unittest
 
-from scripts.ci.validate_pr_closing_keywords import find_negated_autocloses
+from scripts.ci.validate_pr_closing_keywords import (
+    find_negated_autocloses,
+    find_negated_autocloses_in_commits,
+    parse_commits_json,
+)
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CLI_SCRIPT = os.path.join(REPO_ROOT, "scripts", "ci", "validate_pr_closing_keywords.py")
 
 # Real body of PR #4009 (verified via `gh pr view 4009 --json body`). GitHub's
 # closing-keyword scanner matched "fix #3930" inside "Does not fix #3930's..."
@@ -99,12 +113,148 @@ class FindNegatedAutoclosesTest(unittest.TestCase):
             [],
         )
 
+    def test_hard_wrapped_body_negation_is_flagged(self):
+        """Coordinator-reproduced gap: an editor/CLI that hard-wraps a PR body at ~72-80
+        columns can split "Does not" onto its own line from "fix #N", and a bare '\\n'
+        clause boundary would silently swallow the negation. Confirmed independently
+        against the shipped guard: the real PR #4141 commit text (see
+        FindNegatedAutoclosesInCommitsTest) scores 0 matches unwrapped, 1 flattened."""
+        errors = find_negated_autocloses("This PR does not\nfix #3930 here.")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("#3930", errors[0]["message"])
+
     def test_full_issue_url_negation_is_flagged(self):
         errors = find_negated_autocloses(
             "This does not fix https://github.com/ShaftHQ/SHAFT_ENGINE/issues/3930 fully."
         )
         self.assertEqual(len(errors), 1)
         self.assertIn("#3930", errors[0]["message"])
+
+
+class FindNegatedAutoclosesInCommitsTest(unittest.TestCase):
+    # Exact raw commit text (byte-for-byte, via `gh api
+    # repos/ShaftHQ/SHAFT_ENGINE/commits/82b7d875331ecb28a16256907949477f86f8add2`) of the
+    # real branch commit behind the #3930 incident (issue #4146): a force-push at
+    # 15:47:32Z added this as a second commit to PR #4141's already-auto-merge-armed
+    # branch, and the merge one minute later (15:48:09Z) squash-merged it byte-for-byte
+    # into commit c0f82a611bbf5a93d81c4f7cdc3c56ac55069d8f -- arming auto-merge does not
+    # freeze a PR against later pushes. Git hard-wraps prose at ~72 columns, so this real
+    # text splits "Does not" from "fix #3930" across a single newline; the shipped `main`
+    # implementation (before this PR) scores 0 matches against it, confirmed empirically.
+    PR_4141_COMMIT_BODY = (
+        "Record two post-PR gotchas: negation-blind auto-close, PR prose isn't merge-state\n"
+        "\n"
+        "GitHub's issue-closing keyword scan matched \"fix #3930\" inside \"Does not\n"
+        "fix #3930\" in PR 4009's body, auto-closing the issue on merge despite the\n"
+        "PR explicitly disclaiming it and despite a human having manually reopened\n"
+        "it 7 minutes earlier with \"Leaving open.\" Verified via the issue's own\n"
+        "timeline and PR 4009's closingIssuesReferences. Cross-references 4142,\n"
+        "which tracks the fix.\n"
+        "\n"
+        "Also records that PR/issue prose describing work as landed is not a\n"
+        "merge-state source of truth -- gh pr view state/mergedAt is.\n"
+    )
+
+    def test_real_pr_4141_commit_body_is_flagged(self):
+        """RED fixture: real hard-wrapped commit text that squash-merged and closed #3930 (issue #4146)."""
+        errors = find_negated_autocloses_in_commits(
+            [("82b7d875331ecb28a16256907949477f86f8add2", self.PR_4141_COMMIT_BODY)]
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertIn("#3930", errors[0]["message"])
+        self.assertIn("82b7d875331e", errors[0]["message"])
+
+    # Exact raw commit text (via `gh api
+    # repos/ShaftHQ/SHAFT_ENGINE/commits/41cf8fb0ea5fd5c971b7123327870b37c87379dd`) found
+    # while measuring dewrap false positives against this repo's own merged-PR history:
+    # an independent, unrelated occurrence of the same shape, months after #3930 and by
+    # a different author, quoting PR #4068's disclaimer while explaining the #3930
+    # incident -- proof this is a recurring pattern in this repo, not a one-off. Its own
+    # subject line ("Fix #4101: ...") is a legitimate, unrelated close and must stay
+    # unflagged; only the quoted "does not\nclose #4046" is hazardous.
+    PR_4102_COMMIT_BODY = (
+        "Fix #4101: add concrete example that the disclaimer itself is the trap\n"
+        "\n"
+        "Orchestrator follow-up: the removed branch-naming claim obscured a\n"
+        "sharper point about the real mechanism. PR #4068's body said \"does not\n"
+        "close #4046\" while trying to explicitly NOT close it, and that phrase\n"
+        "is exactly what GitHub matched -- close #N ignores any preceding\n"
+        "negation. The existing \"later disclaimer doesn't neutralize an earlier\n"
+        "match\" line describes keyword-then-disclaimer ordering; it doesn't\n"
+        "cover the case where the disclaimer sentence IS the match. Add one\n"
+        "concrete example so a reader writing \"does not close #N\" to be safe\n"
+        "doesn't get bitten the same way twice.\n"
+    )
+
+    def test_real_pr_4102_commit_body_flags_only_the_quoted_hazard(self):
+        """A second, independent real occurrence of the same shape (found via the FP sweep, not #3930)."""
+        errors = find_negated_autocloses_in_commits(
+            [("41cf8fb0ea5fd5c971b7123327870b37c87379dd", self.PR_4102_COMMIT_BODY)]
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertIn("#4046", errors[0]["message"])
+        self.assertNotIn("#4101", errors[0]["message"])
+
+    def test_multi_commit_branch_only_flags_the_offending_commit(self):
+        """A multi-commit branch must identify which commit is hazardous, not just that one is."""
+        commits = [
+            ("aaaaaaaaaaaa", "Add a helper method\n\nNo issues referenced here."),
+            ("bbbbbbbbbbbb", "This doesn't close #10 by itself.\n"),
+            ("cccccccccccc", "Refactor tests for clarity\n"),
+        ]
+        errors = find_negated_autocloses_in_commits(commits)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("bbbbbbbbbbbb", errors[0]["path"])
+        self.assertIn("#10", errors[0]["message"])
+
+    def test_commit_with_genuine_close_is_accepted(self):
+        self.assertEqual(
+            find_negated_autocloses_in_commits([("dddddddddddd", "Closes #20\n")]),
+            [],
+        )
+
+    def test_no_commits_is_accepted(self):
+        self.assertEqual(find_negated_autocloses_in_commits([]), [])
+
+
+class ParseCommitsJsonTest(unittest.TestCase):
+    def test_empty_string_yields_no_commits(self):
+        self.assertEqual(parse_commits_json(""), [])
+
+    def test_parses_sha_and_message_pairs(self):
+        raw = json.dumps(
+            [{"sha": "abc123", "message": "Fix bug\n"}, {"sha": "def456", "message": "Add test\n"}]
+        )
+        self.assertEqual(
+            parse_commits_json(raw),
+            [("abc123", "Fix bug\n"), ("def456", "Add test\n")],
+        )
+
+
+class MainCLIIntegrationTest(unittest.TestCase):
+    """Exercises the actual CLI entry point CI invokes: PR_BODY + PR_COMMITS_JSON env vars."""
+
+    def _run_cli(self, *, body="", commits_json=""):
+        env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json}
+        return subprocess.run(  # nosec B603
+            [sys.executable, CLI_SCRIPT],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=REPO_ROOT,
+        )
+
+    def test_cli_fails_and_identifies_commit_for_commit_only_hazard(self):
+        commits = json.dumps([{"sha": "1234567890ab", "message": "This doesn't close #77 yet."}])
+        result = self._run_cli(body="Closes #4127", commits_json=commits)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("#77", result.stderr)
+        self.assertIn("1234567890ab", result.stderr)
+
+    def test_cli_passes_when_body_and_commits_are_clean(self):
+        commits = json.dumps([{"sha": "1234567890ab", "message": "Add a helper.\n"}])
+        result = self._run_cli(body="Closes #4127", commits_json=commits)
+        self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":
