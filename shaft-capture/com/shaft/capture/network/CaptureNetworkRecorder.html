@@ -50,7 +50,7 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
-<li><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.nio.file.Path,com.shaft.capture.network.NetworkCaptureOptions,java.lang.String,java.util.function.Consumer,java.util.function.Consumer)" tabindex="0">CaptureNetworkRecorder(WebDriver, Path, NetworkCaptureOptions, String, Consumer, Consumer)</a></li>
+<li><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.nio.file.Path,com.shaft.capture.network.NetworkCaptureOptions,java.lang.String,java.util.function.Supplier,java.util.function.Consumer,java.util.function.Consumer)" tabindex="0">CaptureNetworkRecorder(WebDriver, Path, NetworkCaptureOptions, String, Supplier, Consumer, Consumer)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -137,10 +137,11 @@ wrapped into a <code>CaptureEvent.NetworkEvent</code> once the caller assigns an
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.nio.file.Path,com.shaft.capture.network.NetworkCaptureOptions,java.lang.String,java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">CaptureNetworkRecorder</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(org.openqa.selenium.WebDriver,java.nio.file.Path,com.shaft.capture.network.NetworkCaptureOptions,java.lang.String,java.util.function.Supplier,java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">CaptureNetworkRecorder</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;bodiesDirectory,
  <a href="NetworkCaptureOptions.html" title="class in com.shaft.capture.network">NetworkCaptureOptions</a>&nbsp;options,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Supplier.html" title="class or interface in java.util.function" class="external-link">Supplier</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;currentPageUrlSupplier,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CaptureNetworkRecorder.RecordedTransaction.html" title="class in com.shaft.capture.network">CaptureNetworkRecorder.RecordedTransaction</a>&gt;&nbsp;sink,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warn)</code></div>
 <div class="col-last even-row-color">
@@ -205,13 +206,14 @@ filters here and HAR-export filtering in <code>ManagedCaptureRecorder</code>).</
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(org.openqa.selenium.WebDriver,java.nio.file.Path,com.shaft.capture.network.NetworkCaptureOptions,java.lang.String,java.util.function.Consumer,java.util.function.Consumer)">
+<section class="detail" id="&lt;init&gt;(org.openqa.selenium.WebDriver,java.nio.file.Path,com.shaft.capture.network.NetworkCaptureOptions,java.lang.String,java.util.function.Supplier,java.util.function.Consumer,java.util.function.Consumer)">
 <h3>CaptureNetworkRecorder</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CaptureNetworkRecorder</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;bodiesDirectory,
  <a href="NetworkCaptureOptions.html" title="class in com.shaft.capture.network">NetworkCaptureOptions</a>&nbsp;options,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Supplier.html" title="class or interface in java.util.function" class="external-link">Supplier</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;currentPageUrlSupplier,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CaptureNetworkRecorder.RecordedTransaction.html" title="class in com.shaft.capture.network">CaptureNetworkRecorder.RecordedTransaction</a>&gt;&nbsp;sink,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warn)</span></div>
 <div class="block">Creates a network recorder for one browser session.</div>
@@ -221,6 +223,10 @@ filters here and HAR-export filtering in <code>ManagedCaptureRecorder</code>).</
 <dd><code>bodiesDirectory</code> - directory used to persist request/response bodies</dd>
 <dd><code>options</code> - network capture filtering and body-capture options</dd>
 <dd><code>sessionId</code> - owning capture session identifier, used for deterministic secret-ref derivation</dd>
+<dd><code>currentPageUrlSupplier</code> - supplies the last-known top-level page URL for first-party
+                              classification and <code>initiatorPageUrl</code> tagging; must be a
+                              non-blocking read (see <code>createFilter()</code> for why it must
+                              never call back into the WebDriver session)</dd>
 <dd><code>sink</code> - destination for each recorded, redacted network transaction</dd>
 <dd><code>warn</code> - destination for safe one-time warnings</dd>
 </dl>
