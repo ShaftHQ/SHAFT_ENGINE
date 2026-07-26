@@ -1480,6 +1480,74 @@ class ManagedCaptureRecorderBrowserTest {
         return condition.getAsBoolean();
     }
 
+    /**
+     * Regression repro for issue #4046: the nightly {@code guided-workflows-live.yml} run has
+     * failed 100% of the time (5/5 scheduled runs since PR #3938 merged) on
+     * {@code GuidedWorkflowLiveE2ETest#apiRecorderCapturesNetworkTrafficAndGeneratesShaftApiCode},
+     * which times out waiting for {@code capture_api_start} to respond. That is the only
+     * {@code CaptureManager} caller in the whole repo that starts a real browser with
+     * {@code apiCapture=true} (network recording via {@link org.openqa.selenium.devtools.HasDevTools})
+     * -- every other caller, including this file's other browser tests, only exercises the plain
+     * BiDi-based UI event collector ({@code ManagedCaptureRecorder#startCollector}). This test
+     * isolates that exact combination against a real Chrome session and reproduces the hang
+     * locally: {@code jstack} pins the blocked thread at
+     * {@code ManagedCaptureRecorder.start(ManagedCaptureRecorder.java:151)}, inside
+     * {@code RemoteWebDriver.executeScript} -&gt; {@code JdkHttpClient.execute} -&gt;
+     * {@code CompletableFuture.get()}, which never returns once the CDP {@code NetworkInterceptor}
+     * (installed one line earlier by {@code startNetworkRecorder}) is active.
+     *
+     * <p><b>Isolation result (2026-07-26):</b> disabling {@code startCollector} (the BiDi UI-event
+     * collector) and re-running left the hang unchanged -- CDP {@code NetworkInterceptor} alone
+     * conflicts with a subsequent {@code executeScript} call; this is not a BiDi+CDP concurrency
+     * conflict. Root-cause fix is tracked on #4046 and intentionally not attempted here (tester
+     * scope: reproduce and hand off, not implement).
+     *
+     * <p><b>Disabled, not merely tagged:</b> this class already carries {@code @Tag("external-e2e")},
+     * but that is not sufficient gating here -- {@code .github/actions/capture-browser-e2e} runs
+     * this exact class (by name, all methods) with {@code -DincludeCaptureBrowserE2E} from
+     * {@code pr-gate.yml} (PR-blocking), {@code mavenCentral_cd.yml}, and
+     * {@code shaft-pilot-release.yml}. Left enabled, this test would hang every PR's gate. Remove
+     * {@code @Disabled} only once the underlying hang is fixed.
+     *
+     * <p>Note for whoever picks this up: {@code @Timeout(60)} below does NOT reliably abort this
+     * particular hang locally -- the blocked thread is parked inside a native
+     * {@code CompletableFuture.get()} round-trip to chromedriver that did not honor interrupt in
+     * two separate local runs (test kept running 2+ minutes past the bound until the process tree
+     * was killed externally). Don't trust the annotation alone to keep a future CI run bounded.
+     */
+    @Test
+    @org.junit.jupiter.api.Timeout(60)
+    @org.junit.jupiter.api.Disabled("Issue #4046: reproduces a real hang (CDP NetworkInterceptor "
+            + "poisons a subsequent executeScript call) -- @Timeout does not reliably abort it, and "
+            + "this class runs unconditionally from pr-gate.yml's capture-browser-e2e step. Re-enable "
+            + "once the root cause is fixed.")
+    void startCompletesWhenApiCaptureIsEnabledAgainstARealBrowser(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        ManagedCaptureRecorder recorder = null;
+        try {
+            Path output = temp.resolve("recordings").resolve("api-capture.json");
+            Path runtime = temp.resolve("runtime");
+            CaptureStartOptions options = new CaptureStartOptions(
+                    "", "", "", "", "", "", "", false, false,
+                    "", "", "", "", "", "", "", "", Duration.ZERO, "", null, "",
+                    true, new NetworkCaptureOptions());
+            recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                    CaptureBrowser.CHROME,
+                    output,
+                    runtime,
+                    true,
+                    options));
+            recorder.start();
+            assertEquals(CaptureStatus.State.ACTIVE, recorder.status().state());
+        } finally {
+            if (recorder != null && recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
     private static HttpServer localFixture() throws IOException {
         HttpServer server = HttpServer.create(
                 new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
