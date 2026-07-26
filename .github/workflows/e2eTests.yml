@@ -699,12 +699,25 @@ jobs:
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      # module-directory defaults to shaft-engine, but this job's -pl target is shaft-browserstack
+      # (which has no Cucumber TestNG runner class at all -- find shaft-browserstack -iname
+      # CucumberTests.java returns nothing, issue #4079). The default silently checked
+      # shaft-engine's allure-results instead, which the reactor -am build also populates via
+      # unrelated matched classes, masking that shaft-browserstack itself produces zero output.
+      # Pointing this at the actual target module makes the existing zero-result guard below
+      # (RESULT_COUNT -eq 0 / TOTAL -eq 0 checks in post-test-report/action.yml) fire correctly.
+      # require-coverage: false because that same zero-match selector means shaft-browserstack
+      # never produces target/jacoco.exec here either -- without this, the coverage-upload
+      # substep would fail first on a missing jacoco.xml and mask the real "zero scenarios"
+      # signal behind an unrelated, misleading coverage error.
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Safari_Cucumber_BrowserStack
+          module-directory: shaft-browserstack
+          require-coverage: 'false'
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Ubuntu_JUnit_E2E:

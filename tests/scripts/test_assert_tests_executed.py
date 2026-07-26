@@ -71,6 +71,19 @@ class AssertTestsExecutedTest(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
 
+    def test_missing_report_fails_with_a_clear_message_not_a_traceback(self):
+        # Regression for #4079: a runner class that Surefire never even discovers (e.g. because
+        # multiple classes matched the same -Dtest selector, so its report landed under
+        # surefire-reports/junitreports/ instead of the path a caller expected) writes no report
+        # file at all. That must fail the gate with a clear, actionable message -- not an
+        # unhandled FileNotFoundError traceback, which is barely more legible than the silent
+        # false-green this script exists to prevent.
+        missing_report = Path(self.temp_dir.name) / "TEST-does.not.Exist.xml"
+
+        exit_code = main([str(missing_report), "--min-executed", "1"])
+
+        self.assertEqual(exit_code, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

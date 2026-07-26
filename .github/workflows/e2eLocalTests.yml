@@ -348,6 +348,31 @@ jobs:
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      # The %regex[.*CucumberTests.*] selector also matches unrelated unit tests (e.g.
+      # CucumberTestsHelperCoverageUnitTest, testPackage.properties.CucumberTests). Their
+      # passing runs previously kept the aggregate Allure total above zero even during
+      # #4079's original defect, when the real Cucumber runner found zero scenarios and
+      # every job on this selector reported false-green. #4078 fixed the underlying
+      # auto-wiring (verified: cucumberTestRunner.CucumberTests now finds and runs all 4
+      # scenarios both locally and in CI), but this check remains as the regression guard --
+      # a future break in that auto-wiring must fail loudly and can never hide behind the
+      # unrelated classes' passing counts. Checked via the runner's own Surefire report so
+      # this can't be fooled by that padding the way the aggregate Allure total can.
+      #
+      # Path note: when more than one class matches -Dtest (as here), Surefire's TestNG
+      # provider writes each class's JUnit-style report under surefire-reports/junitreports/,
+      # not a top-level surefire-reports/TEST-<Class>.xml (that top-level path is only
+      # produced when a single class is selected directly, e.g. -Dtest=<FQCN> with no other
+      # matches -- confirmed empirically both ways).
+      - name: Verify Cucumber scenarios actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-engine/target/surefire-reports/junitreports/TEST-cucumberTestRunner.CucumberTests.xml
+          --min-executed 1
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()

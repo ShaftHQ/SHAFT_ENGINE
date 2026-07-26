@@ -35,6 +35,19 @@ def main(argv: list[str] | None = None) -> int:
 
     total_tests = total_failures = total_errors = total_skipped = 0
     for report in args.reports:
+        if not report.is_file():
+            # No report file at all means Surefire/Gradle never even ran (or never discovered)
+            # the class this report was expected for -- a stronger "zero" than an all-skipped
+            # report. Fail with a clear, actionable message instead of an unhandled
+            # FileNotFoundError traceback, which reads as a script bug rather than the actual
+            # zero-test-execution signal this gate exists to surface (issue #4079).
+            print(f"::error::expected report not found: {report} -- the test class this report "
+                  "belongs to never ran (or never produced output); check the test selector, and "
+                  "whether it matched multiple classes causing this report to land somewhere else "
+                  "(e.g. Surefire's TestNG provider writes per-class reports under "
+                  "surefire-reports/junitreports/ instead of the top-level directory when more "
+                  "than one class matches -Dtest)")
+            return 1
         tests, failures, errors, skipped = summarize(report)
         executed = tests - skipped
         print(f"{report}: tests={tests} failures={failures} errors={errors} skipped={skipped} executed={executed}")
