@@ -93,7 +93,9 @@ affected flow — the real command, UI path, request — proves the *thing the
 user asked for* happens. A feature is done when its acceptance criteria pass
 as a real user-facing flow, not when its units are merely green
 (`references/heuristics.md`, When verifying, for negative and freshness
-checks).
+checks). Verifying a fix means running the failing tests plus a few
+plausibly-impacted neighbours — never dispatching a full workflow or suite
+to answer a single-test question.
 
 ### 6. Report
 
@@ -166,28 +168,33 @@ must wait.
 **Parallelism budget (owner rule, binding).** Soft maximum of two–four
 concurrent tasks/subagents, even when more could run conflict-free —
 completeness outranks parallelization; land in-flight work before fanning
-out. Objective: never exhaust the 5-hour usage window while any work
-is still in progress — by any means fit: keep every in-flight item resumable
-(branch pushed, diff parked, ticket noted) before starting anything new;
-prefer finishing and merging over
-opening a new front; pace loop wakeups conservatively; skip speculative
-scouting for far-future items; and on a long-running session, wind down
-early to a clean, fully-landed state instead of starting another large
-item.
+out. Objective: never exhaust the 5-hour usage window while work is in
+progress — keep every in-flight item resumable (branch pushed, diff parked,
+ticket noted); prefer finishing and merging over starting new work, pace
+loop wakeups conservatively, skip speculative scouting for far-future items,
+and wind down early to a clean, fully-landed state rather than opening
+another large front.
 
 **Stall watch — the 20-minute rule (owner rule, binding).** No delegated
-task runs unexamined past ~20 minutes. When one crosses the line, inspect
-real progress (working-tree activity, partial output, file mtimes — not just
-"still running"), then act: escalate a **Haiku** delegate — re-spec the
-remainder for Sonnet; expedite a **Sonnet** delegate — the orchestrator
-diagnoses what's slow, solves that blocking sub-problem itself (or
-with a targeted helper), and sends the solution to carry forward.
-Long-running is acceptable only with verified progress and a clear remaining
-path — a silent agent never burns the clock. Recursive: every delegating
-agent owes its sub-delegates the same watch. The check-in is consultancy,
-not monitoring — concrete support (a solved sub-problem, a decision, a
-re-spec), never a bare "status?" ping. Two-sided: delegates owe the same
-proactive report (covenant below), volunteered, not extracted.
+task or long-running local command (Maven build, `scripts/ci/*.py`, CI watch
+loop, dependency resolution) runs unexamined past ~20 minutes; record a
+start time as the first action on launch. When one crosses the line, fetch
+real status (working-tree activity, partial output, log tail, file mtimes —
+never "still running"), then act: escalate a **Haiku** delegate — re-spec
+the remainder for Sonnet; expedite a **Sonnet** delegate — the orchestrator
+diagnoses what's slow, solves that blocking sub-problem itself (or with a
+targeted helper), and sends the solution to carry forward; for a command,
+continue on genuine progress with a clear remaining path and recheck same
+cadence, else terminate and proceed on best evidence, stating plainly what
+was killed and decided without it. Long-running is acceptable only with
+verified progress and a clear remaining path — a silent agent or command
+never burns the clock. Foreground `Bash` caps at 600000 ms (10 min), so
+anything that can plausibly outrun that must launch via `run_in_background`
+up front. Recursive: every delegating agent owes its sub-delegates the same
+watch. The check-in is consultancy, not monitoring — concrete support (a
+solved sub-problem, a decision, a re-spec), never a bare "status?" ping.
+Two-sided: delegates owe the same proactive report (covenant below),
+volunteered, not extracted.
 
 **Delegates run act-as-fable implicitly.** Every delegated agent operates
 under this skill's full method whether or not it can load the skill file —
@@ -226,8 +233,9 @@ them yourself. NEVER mark work complete unless every claimed check actually
 ran and passed — a test that doesn't exist, wasn't run, or wasn't watched
 green does not count as passing. Track elapsed time at checkpoints (a
 build, a test run, a resolved hypothesis); past ~20 minutes since your last
-report, or immediately if blocked, an assumption is refuted, scope is about
-to be exceeded, or about to wait on anything external, send one
+report, or immediately if blocked, an assumption is refuted, a durable
+finding is confirmed, scope is about to be exceeded, or about to wait on
+anything external, send one
 substantive `SendMessage` to `main`: done with evidence, in flight,
 blockers, explicit yes/no on needing help. A hand-off, not a heartbeat —
 never a monitor or CI `--watch`; same to Haiku sub-delegates, consolidated.
@@ -265,8 +273,10 @@ routing, in full, for the complete per-trigger reasoning).
 - **Structure, history, impact** — `graphify` for what the code *is*,
   `mempalace` for what *happened* and what a change touches, `.memory` for
   what must never be relearned; verify against live code after (`rg`).
-- **Completion** — `memory remember` new gotchas, flag a graphify refresh on
-  structure change, mine the session into mempalace.
+- **Completion** — `memory remember` a gotcha or decision the moment it is
+  confirmed, not banked for session end; flag a graphify refresh the same
+  way. The completion sweep — mining the session into mempalace — is a
+  safety net that should normally find nothing left.
 - **Production code, feature or bugfix** — `test-driven-development` implicit,
   not opt-in: failing test first, watched red, then code.
 - **Shaping any diff** — the `ponytail` lens: does this need to exist, stdlib
