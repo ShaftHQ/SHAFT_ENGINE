@@ -436,3 +436,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-secret-scanner-local-patch-is-fragile-reinstall-update-silently-reverts-it","timestamp":"2026-07-26T03:02:04+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.dtest-classa-classb-silently-runs-zero-tests-and-still-reports-build-success","timestamp":"2026-07-26T03:02:04+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.a-literal-inside-an-xml-comment-body-breaks-maven-with-a-misleading-non-parseable-pom-error","timestamp":"2026-07-26T03:02:04+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.xpath-text-node-equality-does-not-collapse-whitespace-like-element-innertext-does","timestamp":"2026-07-26T09:52:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.in-page-replayxpath-emitter-scoped-to-role-strategy-only-label-strategy-left-alone","timestamp":"2026-07-26T09:52:26+03:00"}
