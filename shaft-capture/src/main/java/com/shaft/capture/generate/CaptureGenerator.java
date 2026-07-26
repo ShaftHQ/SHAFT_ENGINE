@@ -276,8 +276,6 @@ public final class CaptureGenerator {
                         request.enrichmentPreviewPath(), report);
             }
 
-            atomicWrite(paths.source(), source);
-            atomicWrite(paths.data(), dataJson);
             CaptureGenerationReport.Validation compilation = request.compile()
                     ? validator.compile(paths.source(), paths.classes())
                     : CaptureGenerationReport.Validation.skipped("Compilation was not requested.");
@@ -301,6 +299,10 @@ public final class CaptureGenerator {
             boolean successful = compilation.status()
                     != CaptureGenerationReport.Validation.ValidationStatus.FAILED
                     && replay.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED;
+            if (successful) {
+                atomicWrite(paths.source(), source);
+                atomicWrite(paths.data(), dataJson);
+            }
             CaptureGenerationReport report = report(
                     session,
                     paths,
