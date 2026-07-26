@@ -87,7 +87,19 @@ public class RemoteGridPreflightUnitTest {
         var executor = Executors.newSingleThreadExecutor();
         try (MockedStatic<ReportManagerHelper> ignored = Mockito.mockStatic(ReportManagerHelper.class);
              var firstPermit = RemoteGridPreflight.beforeSession(gridUrl(server), chromeCapabilities())) {
-            var secondPermit = executor.submit(() -> RemoteGridPreflight.beforeSession(gridUrl(server), chromeCapabilities()));
+            // SHAFT.Properties overrides are thread-local by design (Properties.java), so the
+            // background thread must set its own copy of the same overrides before calling
+            // beforeSession -- exactly as a real parallel test-execution thread would configure
+            // itself. Without this, the pooled thread reads the global defaults
+            // (remotePreflightEnabled=false), short-circuits to a no-op permit, and the Future
+            // can complete before the isDone() check below ever samples it (#4040).
+            var secondPermit = executor.submit(() -> {
+                SHAFT.Properties.platform.set()
+                        .remotePreflightEnabled(true)
+                        .remoteAdaptiveSessionThrottling(true)
+                        .remotePreflightTimeoutSeconds(1);
+                return RemoteGridPreflight.beforeSession(gridUrl(server), chromeCapabilities());
+            });
 
             SHAFT.Validations.assertThat().object(secondPermit.isDone()).isEqualTo(false).perform();
             firstPermit.close();
