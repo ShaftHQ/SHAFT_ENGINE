@@ -63,7 +63,13 @@ class CaptureGeneratorTest {
         assertTrue(blockers.stream()
                 .anyMatch(blocker -> blocker.contains("upload.avatar")
                         && blocker.contains("fixture")));
-        assertEquals(Files.readString(first.sourcePath()), Files.readString(second.sourcePath()));
+        // Issue #4172: the emitted healing.history.path is an ABSOLUTE path derived from each
+        // call's own output directory (by design -- a later real run must resolve it to the SAME
+        // location generation-time seeding wrote to), so "first" and "second" legitimately differ
+        // on that one line even though every other line is still a pure function of the session.
+        assertEquals(
+                withStableHealingHistoryPath(Files.readString(first.sourcePath())),
+                withStableHealingHistoryPath(Files.readString(second.sourcePath())));
         assertEquals(Files.readString(first.testDataPath()), Files.readString(second.testDataPath()));
         assertEquals(first.report(), second.report());
 
@@ -71,7 +77,7 @@ class CaptureGeneratorTest {
         String data = Files.readString(first.testDataPath());
         String golden = Files.readString(Path.of(
                 "src/test/resources/fixtures/golden-generated-session-1.java"));
-        assertEquals(normalizeLineEndings(golden), normalizeLineEndings(source));
+        assertEquals(normalizeLineEndings(golden), normalizeLineEndings(withStableHealingHistoryPath(source)));
         assertTrue(source.contains("@AfterMethod(alwaysRun = true)"));
         assertTrue(source.contains("driver.quit();"));
         assertTrue(source.contains("SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
@@ -1439,6 +1445,18 @@ class CaptureGeneratorTest {
 
     private static String normalizeLineEndings(String value) {
         return value.replace("\r\n", "\n").replace('\r', '\n');
+    }
+
+    /**
+     * Redacts the ONE line of generated source that is legitimately output-directory-dependent
+     * (issue #4172's absolute {@code healing.history.path}), so byte-for-byte comparisons across
+     * different output directories -- or against a static golden fixture -- still hold for every
+     * other line, which remains a pure function of the captured session.
+     */
+    private static String withStableHealingHistoryPath(String source) {
+        return source.replaceAll(
+                "(?m)^(\\s*\\.historyPath\\(\")[^\"]*(\"\\)\\r?)$",
+                "$1PLACEHOLDER$2");
     }
 
     private static long count(String value, String needle) {

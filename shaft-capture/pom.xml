@@ -65,6 +65,17 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <!-- Test-only: proves the generation-time fingerprint seeding (issue #4172) actually
+                 satisfies a later shaft-heal history lookup, the same way
+                 ShaftHealingProviderTest#seededFingerprintShouldSatisfyHistoryLookupWithoutALiveElementOrDriver
+                 proves it at the shaft-heal layer. Production code never depends on shaft-heal,
+                 only the optional runtime ServiceLoader seam in shaft-engine (issue #4161). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-heal</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <properties>
