@@ -489,3 +489,6 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-07-26T19:06:15+03:00"}
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.gotcha-arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute-related-to-gotcha-githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n","timestamp":"2026-07-26T19:07:37+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.auto-merge-arm-race-related-to-quote-blind-auto-close","timestamp":"2026-07-26T19:07:37+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.github-actions-expressions-binds-tighter-than-so-appending-a-guard-to-an-existing-a-b-condition-needs-parentheses","timestamp":"2026-07-26T19:31:20+03:00"}
+{"actor":"agent","event":"relation.deleted","relation_id":"rel.gotcha-github-actions-expressions-binds-tighter-than-so-appending-a-guard-to-an-existing-a-b-condition-needs-parentheses-related-to-constraint-pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-07-26T19:33:00+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.actions-precedence-gotcha-related-to-pr-gate-vacuous-green-constraint","timestamp":"2026-07-26T19:32:42+03:00"}
