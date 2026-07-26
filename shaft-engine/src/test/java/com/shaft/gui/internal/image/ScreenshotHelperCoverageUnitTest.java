@@ -137,7 +137,7 @@ public class ScreenshotHelperCoverageUnitTest {
     }
 
     @Test
-    public void shouldReportScreenshotHelperClassOnScreenshotFailure() {
+    public void takeViewportScreenshotShouldReportScreenshotHelperClassOnFailure() {
         WebDriver fatalDriver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
         when(((TakesScreenshot) fatalDriver).getScreenshotAs(OutputType.BYTES))
                 .thenThrow(new RuntimeException("unexpected screenshot failure"));
