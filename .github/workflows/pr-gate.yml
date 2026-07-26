@@ -112,8 +112,13 @@ jobs:
             # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
             # any workflow file change must re-check that every job still declares
             # timeout-minutes, not only edits to this file (already covered by infra).
+            # Issue #4071's regression guard (scripts/ci/validate_orphaned_suite_files.py)
+            # needs the same treatment: an edit to the guard or its test must re-run the
+            # job even when no workflow file itself changed.
             workflows:
               - '.github/workflows/**'
+              - 'scripts/ci/validate_orphaned_suite_files.py'
+              - 'tests/scripts/test_validate_orphaned_suite_files.py'
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -387,6 +392,46 @@ jobs:
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
 
+  # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
+  # references is invisible -- unlike a failing test, nothing reports it, so
+  # it can sit unused indefinitely looking like coverage (this is exactly how
+  # #4018's unitTestSuite.xml went unnoticed). This job is the CI-side
+  # regression guard for scripts/ci/validate_orphaned_suite_files.py.
+  #
+  # The unit test step is blocking and pins the repository's exact current
+  # set of known orphans, so any *new* orphan appearing fails the build. The
+  # raw validator step is deliberately continue-on-error: one TestNG suite
+  # XML under shaft-engine's TestSuites directory (see #4071's PR description
+  # for the exact file) is a known, escalated orphan as of #4071 -- one of
+  # the two classes it names runs via GLOBAL_TESTING_SCOPE's exclusion-only
+  # sweep (e2eLocalTests.yml:16, e2eTests.yml:42), but the other is
+  # explicitly excluded there (!%regex[.*Json.*], !%regex[.*JSON.*],
+  # !%regex[.*json.*]) and unreferenced anywhere else -- genuine dark
+  # coverage, not a cleanup call, escalated rather than decided unilaterally.
+  # Flip this step to blocking (drop continue-on-error and update the pinned
+  # unit test) once that file's fate is resolved. Deliberately not naming the
+  # file here: its own filename is part of this guard's reference corpus, and
+  # writing it in a workflow comment would make the guard see a false
+  # "reference" and stop flagging it.
+  orphaned-suite-files:
+    name: Orphaned Suite XML Guard
+    needs: changes
+    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Run orphaned suite file guard unit tests
+        run: python3 -m unittest tests.scripts.test_validate_orphaned_suite_files -v
+      - name: Report orphaned TestNG suite XML files (advisory pending #4071)
+        continue-on-error: true
+        run: python3 scripts/ci/validate_orphaned_suite_files.py
+
   # Moved from security.yml's dependency-review job. Runs unconditionally on
   # every pull_request (no path leg matches it in the `changes` job, mirroring
   # its unconditional-per-PR behavior in security.yml today) and temporarily
@@ -421,6 +466,7 @@ jobs:
       - unit-tests
       - template-coupling
       - workflow-timeouts
+      - orphaned-suite-files
       - dependency-review
     if: always()
     runs-on: ubuntu-22.04
@@ -437,6 +483,7 @@ jobs:
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
+          ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
           set -uo pipefail
@@ -453,6 +500,7 @@ jobs:
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
+            echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -462,7 +510,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
