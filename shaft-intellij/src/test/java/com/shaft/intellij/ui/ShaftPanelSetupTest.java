@@ -1296,6 +1296,20 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelReopeningAfterPriorCompletionDoesNotContradictTheDoneBadge() {
+        // Issue #4160 area A: reopening the panel in a new IDE session after setup previously
+        // succeeded (settings.mcpSetupComplete persists) shows "4 Check setup: Done" immediately --
+        // but until now the greeting text always said "Press Check now.", as if nothing had ever
+        // been verified. A returning user reading "Done" and "Press Check now." side by side has no
+        // way to tell whether setup actually works; the guidance must acknowledge the prior success.
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
+        });
+        JLabel nextStep = findByAccessibleName(panel, "SHAFT MCP setup next step", JLabel.class);
+        assertNotEquals("Press Check now.", nextStep.getText(),
+                "greeting text must not contradict the already-Done Check-setup badge");
+    }
+
+    @Test
     void setupPanelUpgradeStepReflectsRealProjectVersionCheck() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
