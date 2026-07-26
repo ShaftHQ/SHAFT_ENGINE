@@ -182,6 +182,15 @@ final class RecorderToolPanel extends JPanel {
     }
 
     /**
+     * Package-private test accessor: this panel's stable {@link ShaftRecordingActivity} session
+     * key, so tests can establish or verify indicator state through the exact same key the panel's
+     * own start/stop/check/close code paths use (issue #4165 review follow-up).
+     */
+    String recordingKeyForTests() {
+        return recordingKey;
+    }
+
+    /**
      * Delegates to the embedded {@link ShaftFeaturePanel}, then expands the Advanced section
      * whenever the prefilled tool is not one this tab's Quick Start section curates -- otherwise the
      * prefilled request would land in a collapsed section the user never sees (required for {@code
@@ -366,13 +375,105 @@ final class RecorderToolPanel extends JPanel {
         setStatus("Checking recording status...");
         ShaftMcpInvocationService.getInstance(project).startTool("capture_status", captureStatusArguments())
                 .future()
-                .whenComplete((result, error) -> onEdt(() -> {
-                    if (failed(result, error)) {
-                        setStatus("Recorder status unavailable: " + failureText(result, error));
-                        return;
-                    }
-                    setStatus("Recorder status refreshed. Open Advanced options for the full status.");
-                }));
+                .whenComplete((result, error) -> onEdt(() -> applyStatusCheck(result, error)));
+    }
+
+    /**
+     * Issue #4165: the success branch used to ignore the {@code capture_status} payload entirely
+     * and always report the same "refreshed" string, never resyncing the shared {@link
+     * ShaftRecordingActivity} indicator -- so restarting the IDE or reopening this tab left "Check
+     * status" unable to say whether a still-active server-side session existed. This mirrors {@code
+     * GuidedWorkflowPanel#applyStatusPoll}'s parsing of the same {@code capture_status} union
+     * payload (issue #3949: the real section lives nested under {@code webStatus}/{@code
+     * playwrightStatus}/{@code mobileStatus}) to answer active/idle for real.
+     *
+     * <p>Deliberately never calls {@link ShaftRecordingActivity#started}/{@link
+     * ShaftRecordingActivity#stopped} from either branch (issue #4165 review follow-up, both
+     * directions): {@code ShaftMcpInvocationService.startTool} dispatches each call via {@code
+     * CompletableFuture.supplyAsync} with no ordering guarantee between concurrent calls, and
+     * {@link #guardReady()} never disables the buttons while a call is in flight. A "Check status"
+     * response can race a later "Stop recording" response and land after it, re-arming the
+     * indicator from a stale, pre-stop "active" answer that {@link #stopRecording()} already
+     * correctly cleared -- and symmetrically, a stale pre-start "idle" answer can land after a
+     * later "Start recording" response and clear an indicator {@link #startRecording()} already
+     * correctly set. Idempotency of a {@code started()}/{@code stopped()} call is a different
+     * property from staleness of the information it acts on: calling either twice is harmless, but
+     * calling either once based on a response that predates a later start/stop is not. A one-shot
+     * check is purely an observation: only {@link #startRecording()}, {@link #stopRecording()}, and
+     * {@link #removeNotify()} (this panel's close hook) may set or clear the shared indicator.
+     *
+     * <p>Package-private test seam: a real {@code ShaftMcpInvocationService.getInstance(project)
+     * .startTool(...)} round trip cannot be exercised in this headless unit-test JVM (see the class
+     * javadoc), so tests call this directly with a fixture {@link ShaftMcpToolResult} instead of
+     * going through the live MCP connection -- mirrors how {@code GuidedWorkflowPanelTest} exercises
+     * {@code applyStatusPoll} the same way.
+     *
+     * @param result tool result, or null on failure
+     * @param error transport/execution error, or null on success
+     */
+    void applyStatusCheck(ShaftMcpToolResult result, Throwable error) {
+        if (failed(result, error)) {
+            setStatus("Recorder status unavailable: " + failureText(result, error));
+            return;
+        }
+        JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
+                AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
+        if (isRecorderActive(status)) {
+            setStatus("Recording active - " + countText(status) + readinessSuffix(status)
+                    + ". Open Advanced options for the full status.");
+            return;
+        }
+        String state = status != null && status.has("state") ? status.get("state").getAsString() : "";
+        if ("INCOMPLETE".equalsIgnoreCase(state) || "FAILED".equalsIgnoreCase(state)) {
+            setStatus("Recording ended unexpectedly (" + state.toUpperCase(java.util.Locale.ROOT) + ") - "
+                    + countText(status) + ". Re-record the flow before generating code.");
+            return;
+        }
+        setStatus("No active recording. Recorder idle. Open Advanced options for the full status.");
+    }
+
+    /**
+     * Mirrors {@code GuidedWorkflowPanel#isRecorderActive} exactly: same {@code capture_status}
+     * union payload shape, so this panel's one-shot Check status answers the same active/idle
+     * question the same way -- {@code active} first (mobile), else {@code state} (web/Playwright).
+     */
+    private static boolean isRecorderActive(JsonObject status) {
+        if (status == null) {
+            return false;
+        }
+        if (status.has("active")) {
+            return status.get("active").getAsBoolean();
+        }
+        String state = status.has("state") ? status.get("state").getAsString() : "";
+        return "ACTIVE".equalsIgnoreCase(state) || "STARTING".equalsIgnoreCase(state)
+                || "STOPPING".equalsIgnoreCase(state);
+    }
+
+    /** Mirrors {@code GuidedWorkflowPanel#countText}: recorded units read "steps" everywhere. */
+    private static String countText(JsonObject status) {
+        if (status == null) {
+            return "0 steps";
+        }
+        int steps = status.has("actionCount")
+                ? status.get("actionCount").getAsInt()
+                : status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
+        int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
+        String base = steps + (steps == 1 ? " step" : " steps");
+        return pending > 0 ? base + " (+" + pending + " pending)" : base;
+    }
+
+    /** Mirrors {@code GuidedWorkflowPanel#readinessLabel}, rendered as a trailing " - Label" suffix. */
+    private static String readinessSuffix(JsonObject status) {
+        if (status == null || !status.has("readiness")) {
+            return "";
+        }
+        String readiness = switch (status.get("readiness").getAsString().toUpperCase(java.util.Locale.ROOT)) {
+            case "READY" -> "Ready";
+            case "RISKY" -> "Risky";
+            case "BLOCKED" -> "Blocked";
+            default -> "";
+        };
+        return readiness.isBlank() ? "" : " - " + readiness;
     }
 
     private void reviewCode() {
@@ -389,6 +490,21 @@ final class RecorderToolPanel extends JPanel {
                     }
                     setStatus("Code generated. Open Advanced options to review the raw output.");
                 }));
+    }
+
+    /**
+     * Clears a stuck-active recording key when this panel closes (issue #4165 review follow-up),
+     * mirroring {@code GuidedWorkflowPanel#dispose}'s reason for existing (issue #3591 item 3): "a
+     * stuck-active recording key if the panel closes mid-recording". Unlike {@code
+     * GuidedWorkflowPanel}, this panel has no background poller/{@code Alarm} to cancel and is not
+     * wired into {@code ShaftToolWindowPanel}'s {@code Disposer} tree, so this standard Swing
+     * teardown callback -- fired automatically when the panel is removed from its containment
+     * hierarchy, no external wiring required -- is the equivalent, scope-safe close hook.
+     */
+    @Override
+    public void removeNotify() {
+        super.removeNotify();
+        ShaftRecordingActivity.stopped(recordingKey);
     }
 
     /**
