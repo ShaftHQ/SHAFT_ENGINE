@@ -1532,12 +1532,6 @@ class ManagedCaptureRecorderBrowserTest {
      */
     @Test
     @org.junit.jupiter.api.Timeout(60)
-    @org.junit.jupiter.api.Disabled("Issue #4046: the CDP-NetworkInterceptor-vs-executeScript "
-            + "deadlock is fixed (see PR history), but a second, separate ScriptTimeoutException "
-            + "surfaced once the deadlock stopped masking it -- un-root-caused, tracked as a "
-            + "follow-up. @Timeout does not reliably abort a regression of the original hang, and "
-            + "this class runs unconditionally from pr-gate.yml's capture-browser-e2e step. "
-            + "Re-enable once the ScriptTimeoutException is fixed.")
     void startCompletesWhenApiCaptureIsEnabledAgainstARealBrowser(@TempDir Path temp) throws Exception {
         HttpServer server = localFixture();
         ManagedCaptureRecorder recorder = null;

@@ -98,6 +98,19 @@ class ManagedCaptureRecorder {
     // Volatile: read from the CDP network-interception callback thread (via the currentPageUrlSupplier
     // passed to CaptureNetworkRecorder, issue #4046) as well as the owning thread and status() callers.
     private volatile String currentUrl;
+    // Captured once, on the owning thread, right after the driver is created (issue #4077): the sole
+    // window this session starts with. acceptNetworkEvent() -- CaptureNetworkRecorder's sink -- runs
+    // synchronously on the CDP Fetch.requestPaused callback thread, before the paused request it is
+    // handling is continued; calling driver.getWindowHandle() from there is the exact same reentrant
+    // WebDriver-call-from-inside-the-Fetch-callback deadlock #4076 fixed for getCurrentUrl(), just at
+    // a different call site (confirmed via jstack: the callback thread parked in
+    // JdkHttpClient.execute() -> CompletableFuture.get() waiting on chromedriver's response to
+    // getWindowHandle(), which cannot be served until the very request this callback is blocking
+    // resolves -- the main thread's concurrent executeScript() then times out at Selenium's 30s
+    // script-timeout bound). Not updated across tab switches; multi-window attribution for network
+    // events is already a documented best-effort limitation elsewhere in this pipeline (see
+    // CaptureEventPipeline.resolveBrowsingContextId(), issue #3816).
+    private volatile String currentWindowHandle = "";
     private volatile boolean paused;
     private volatile boolean uiStopRequested;
 
@@ -136,6 +149,10 @@ class ManagedCaptureRecorder {
             configureShaft();
             shaftDriver = new SHAFT.GUI.WebDriver(request.browser().driverType(), browserOptions());
             driver = shaftDriver.getDriver();
+            // Cache the starting window handle before any CDP network interception is installed
+            // (issue #4077); see the currentWindowHandle field javadoc for why acceptNetworkEvent()
+            // must never call driver.getWindowHandle() itself.
+            currentWindowHandle = safeWindowHandle();
             applyRuntimeOptions();
             store = new CaptureSessionStore(request.outputPath());
             store.start(startSession(browserMetadata(driver)));
@@ -1079,7 +1096,7 @@ class ManagedCaptureRecorder {
         try {
             long sequence = store.nextSequence();
             com.shaft.capture.model.PageContext page = new com.shaft.capture.model.PageContext(
-                    transaction.initiatorPageUrl(), "", safeWindowHandle(), List.of(), 0, 0);
+                    transaction.initiatorPageUrl(), "", currentWindowHandle, List.of(), 0, 0);
             com.shaft.capture.model.EventContext context = new com.shaft.capture.model.EventContext(
                     sequence, Instant.now(), page,
                     com.shaft.capture.model.EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
