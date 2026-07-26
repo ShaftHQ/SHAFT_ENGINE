@@ -376,6 +376,41 @@ def validate_local_references(root: Path, files: list[Path]) -> list[dict[str, s
     return errors
 
 
+ROUTING_HEADING = "## Routing"
+ROUTING_BRIDGE_NAME = re.compile(r"`([a-z0-9][a-z0-9-]*)`")
+
+
+def validate_routing_bridges(root: Path) -> list[dict[str, str]]:
+    """Ensure every bridge AGENTS.md's Routing section names by backtick
+    resolves to a .agents/skills/<name>/SKILL.md file.
+
+    Bridges are read as files, never `Skill`-tool invocable (issue #4053); a
+    name that only exists under .claude/skills (the Skill-tool-invocable
+    tree) does not satisfy this -- the two trees are independent.
+    """
+    agents_path = root / "AGENTS.md"
+    if not agents_path.is_file():
+        return []
+    content = agents_path.read_text(encoding="utf-8")
+    start = content.find(ROUTING_HEADING)
+    if start < 0:
+        return []
+    start += len(ROUTING_HEADING)
+    end = content.find("\n## ", start)
+    section = content[start : end if end >= 0 else len(content)]
+    errors: list[dict[str, str]] = []
+    for name in ROUTING_BRIDGE_NAME.findall(section):
+        if not (root / ".agents/skills" / name / "SKILL.md").is_file():
+            errors.append(
+                issue(
+                    "routing-bridge-missing",
+                    "AGENTS.md",
+                    f"Routing references bridge '{name}' with no .agents/skills/{name}/SKILL.md",
+                )
+            )
+    return errors
+
+
 def validate_scopes(root: Path, budget: dict) -> list[dict[str, str]]:
     """Ensure every path-scoped instruction matches repository files."""
     errors: list[dict[str, str]] = []
@@ -471,6 +506,7 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_file_budgets(root, budget),
         *validate_host_contexts(root, budget),
         *validate_total_reduction(root, budget),
+        *validate_routing_bridges(root),
         *validate_skills(root, budget),
         *validate_local_references(root, reference_files),
         *validate_scopes(root, budget),
