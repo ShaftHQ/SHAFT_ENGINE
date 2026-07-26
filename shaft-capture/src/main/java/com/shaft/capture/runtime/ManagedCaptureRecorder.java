@@ -1030,7 +1030,12 @@ class ManagedCaptureRecorder {
                 && options.captureRequestBodies == defaults.captureRequestBodies;
     }
 
-    private static com.shaft.capture.network.NetworkCaptureOptions translateNetworkCaptureOptions(
+    // Package-private (not private) so ManagedCaptureRecorderControlTest can pin the
+    // excludeAssets <-> includeAssetTypes polarity inversion directly; see issue #4014 --
+    // com.shaft.capture.runtime.NetworkCaptureOptions.excludeAssets (true = drop assets) and
+    // com.shaft.capture.network.NetworkCaptureOptions.includeAssetTypes (true = keep assets) are
+    // the same concept with inverted meaning, translated here by hand with no compiler guard.
+    static com.shaft.capture.network.NetworkCaptureOptions translateNetworkCaptureOptions(
             NetworkCaptureOptions options) {
         return new com.shaft.capture.network.NetworkCaptureOptions(
                 !options.excludeAssets,

@@ -252,6 +252,36 @@ class ManagedCaptureRecorderControlTest {
     }
 
     @Test
+    void translateNetworkCaptureOptionsInvertsExcludeAssetsIntoIncludeAssetTypes() {
+        // Regression for issue #4014: com.shaft.capture.runtime.NetworkCaptureOptions.excludeAssets
+        // (true = drop asset requests) and com.shaft.capture.network.NetworkCaptureOptions.includeAssetTypes
+        // (true = keep asset requests) are the same concept with inverted polarity, translated by
+        // hand at ManagedCaptureRecorder.translateNetworkCaptureOptions with no compiler guard. This
+        // pins the inversion so a "simplified" (unguarded) mapping fails loudly instead of silently
+        // recording the opposite of what the caller asked for.
+        NetworkCaptureOptions excludeAssetsRequested = new NetworkCaptureOptions();
+        excludeAssetsRequested.excludeAssets = true;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(excludeAssetsRequested);
+
+        assertFalse(translated.includeAssetTypes(),
+                "excludeAssets=true (drop assets) must translate to includeAssetTypes=false (keep no assets)");
+    }
+
+    @Test
+    void translateNetworkCaptureOptionsKeepsAssetTypesWhenNotExcluded() {
+        NetworkCaptureOptions includeAssetsRequested = new NetworkCaptureOptions();
+        includeAssetsRequested.excludeAssets = false;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(includeAssetsRequested);
+
+        assertTrue(translated.includeAssetTypes(),
+                "excludeAssets=false (keep assets) must translate to includeAssetTypes=true (keep assets)");
+    }
+
+    @Test
     void filterHarByGlobKeepsOnlyEntriesWhoseUrlMatchesTheGlobAndCountsDropped() {
         String harJson = """
                 {
