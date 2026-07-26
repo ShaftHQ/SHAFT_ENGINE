@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/running-the-live-gemini-e2e-test-for-the-intellij-plugin.md",
-  "content_hash": "sha256:3bd334aa983d8429eae2005b635e5e76210b08466273e0bbd23a55b4e93fcf9f",
+  "content_hash": "sha256:a9c577b6878ff06da3d8d4cf1e42be18bad65d9d94d509e872f5808ae43d9601",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
   "facets": {
@@ -29,5 +29,5 @@
   ],
   "title": "Running the live Gemini E2E test for the IntelliJ plugin",
   "type": "workflow",
-  "updated_at": "2026-07-26T15:57:42+03:00"
+  "updated_at": "2026-07-26T16:37:57+03:00"
 }

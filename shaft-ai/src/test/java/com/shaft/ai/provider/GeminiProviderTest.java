@@ -48,6 +48,51 @@ class GeminiProviderTest {
         assertTrue(exception.getMessage().contains("MAX_TOKENS"), exception.getMessage());
     }
 
+    @Test
+    void parseStructuredPayloadReportsTruncationWhenTextPartIsCutOffMidJsonAndFinishReasonIsMaxTokens() {
+        // Reproduces issue #4107: the model emits a real (non-thought) answer part, but the
+        // output-token budget runs out mid-generation, so the text is valid up to the cut and then
+        // stops -- e.g. mid property name, matching the live nightly's Jackson message "Unexpected
+        // end-of-input in property name". Unlike the no-usable-text-part case above, a text part
+        // *does* exist here, so the old code took the JSON.readTree(...) path and let Jackson's raw
+        // parse-error message escape instead of recognizing the truncation.
+        JsonNode response = geminiResponse("MAX_TOKENS", textPart("{\"answer\":\"partial value cut off mid-prop"));
+
+        JacksonException exception = assertThrows(JacksonException.class, () -> provider.parseStructuredPayload(response));
+
+        assertTrue(exception.getMessage().contains("MAX_TOKENS"), exception.getMessage());
+        assertTrue(exception.getMessage().toLowerCase(java.util.Locale.ROOT).contains("truncat"), exception.getMessage());
+    }
+
+    @Test
+    void parseStructuredPayloadReportsBothParseErrorAndObservedFinishReasonWhenNotMaxTokens() {
+        // A genuinely malformed payload (not a truncation) must not be relabeled as a truncation
+        // just because it fails to parse -- the two are different defects (issue #4107). But the
+        // finishReason Gemini actually reported must still surface: the parse-error message alone
+        // cannot tell a future reader whether this was truncation under a different finishReason
+        // value or a real malformed payload, so the observed finishReason (here STOP) must appear
+        // in the message even though it is not MAX_TOKENS.
+        JsonNode response = geminiResponse("STOP", textPart("{not valid json at all"));
+
+        JacksonException exception = assertThrows(JacksonException.class, () -> provider.parseStructuredPayload(response));
+
+        String message = exception.getMessage().toLowerCase(java.util.Locale.ROOT);
+        assertTrue(message.contains("not valid json") || message.contains("unexpected"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("STOP"), exception.getMessage());
+    }
+
+    @Test
+    void parseStructuredPayloadReportsParseErrorAndNoneWhenFinishReasonIsAbsent() {
+        // When Gemini's candidate omits finishReason entirely, the diagnostic must say so
+        // explicitly rather than silently omitting it -- an absent value is itself a fact worth
+        // surfacing, not something to swallow (issue #4107).
+        JsonNode response = geminiResponse("", textPart("{not valid json at all"));
+
+        JacksonException exception = assertThrows(JacksonException.class, () -> provider.parseStructuredPayload(response));
+
+        assertTrue(exception.getMessage().contains("<none>"), exception.getMessage());
+    }
+
     private static ObjectNode thoughtPart(String text) {
         ObjectNode part = JSON.createObjectNode();
         part.put("thought", true);
