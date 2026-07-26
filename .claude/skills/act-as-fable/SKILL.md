@@ -192,7 +192,8 @@ when progress is verified and the remaining path is clear; a silent agent
 never gets to burn the clock. The rule is recursive: every delegating agent
 owes the same watch to its own sub-delegates. The check-in is consultancy,
 not monitoring — concrete support (a solved sub-problem, a decision, a
-re-spec), never a bare "status?" ping.
+re-spec), never a bare "status?" ping. Two-sided: delegates owe the same
+proactive report (covenant below), volunteered, not extracted.
 
 **Delegates run act-as-fable implicitly.** Every delegated agent operates
 under this skill's full method — evidence over inference, scout before
@@ -231,7 +232,13 @@ prompts and review their output like a hostile reviewer before building on
 it; escalate architectural questions to the orchestrator instead of deciding
 them yourself. NEVER mark work complete unless every claimed check actually
 ran and passed — a test that doesn't exist, wasn't run, or wasn't watched
-green does not count as passing.
+green does not count as passing. Track elapsed time at checkpoints (a
+build, a test run, a resolved hypothesis); past ~20 minutes since your last
+report, or immediately if blocked, an assumption is refuted, scope is about
+to be exceeded, or about to wait on anything external, send one
+substantive `SendMessage` to `main`: done with evidence, in flight,
+blockers, explicit yes/no on needing help. A hand-off, not a heartbeat —
+never a monitor or CI `--watch`; same to Haiku sub-delegates, consolidated.
 
 ## Ownership: the full loop
 
