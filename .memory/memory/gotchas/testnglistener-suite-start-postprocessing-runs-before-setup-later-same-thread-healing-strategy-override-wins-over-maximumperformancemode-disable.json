@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable.md",
-  "content_hash": "sha256:504f66b381099270c89359d50d0d714660fbfa00f5d1fda390b588391422a140",
+  "content_hash": "sha256:9e4d8af6c4949524bb974697754460995a53ca2ebba094a15a3e27a4172567d4",
   "created_at": "2026-07-26T20:23:29+03:00",
   "evidence": [],
   "facets": {
@@ -25,9 +25,10 @@
     "testng-lifecycle",
     "maximum-performance-mode",
     "issue-4161",
-    "issue-4172"
+    "issue-4172",
+    "unverified-integration-claim"
   ],
-  "title": "TestNGListener suite-start postProcessing runs before setUp, later same-thread healing.strategy override wins over maximumPerformanceMode disable",
+  "title": "Last-write-wins on healing.strategy is proven; TestNGListener suite-start-before-setUp ordering rests on the documented contract, not a runtime test",
   "type": "gotcha",
-  "updated_at": "2026-07-26T20:23:29+03:00"
+  "updated_at": "2026-07-26T20:37:00+03:00"
 }
