@@ -22,6 +22,7 @@ jobs:
     # no-op delivery for an already-published version, which must not re-publish here.
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
       - name: Checkout released source
         uses: actions/checkout@v7

@@ -21,6 +21,7 @@ concurrency:
 jobs:
   detect-shaft-version-change:
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     outputs:
       changed: ${{ steps.version-diff.outputs.changed }}
     steps:
@@ -71,6 +72,7 @@ jobs:
     needs: detect-shaft-version-change
     if: needs.detect-shaft-version-change.outputs.changed == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7

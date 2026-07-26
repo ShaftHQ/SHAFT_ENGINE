@@ -37,6 +37,7 @@ jobs:
     # Maven Central + GPG/OSSRH secrets are not available on forked repos; signing would fail with empty key id.
     if: github.event.repository.fork == false
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     permissions:
       contents: write
     env:

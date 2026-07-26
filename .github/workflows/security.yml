@@ -29,6 +29,7 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

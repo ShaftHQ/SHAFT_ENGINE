@@ -16,6 +16,7 @@ jobs:
   installer-script-tests:
     name: Installer script tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +45,7 @@ jobs:
   package-and-smoke:
     needs: installer-script-tests
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -101,6 +103,7 @@ jobs:
     needs: [installer-script-tests, package-and-smoke]
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write

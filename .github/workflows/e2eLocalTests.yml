@@ -28,6 +28,7 @@ jobs:
       - MacOSX_Chrome_Local
       - Windows_Edge_Cucumber_Local
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
@@ -41,6 +42,7 @@ jobs:
 
   Windows_Edge_Local:
     runs-on: windows-latest
+    timeout-minutes: 90
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -78,6 +80,7 @@ jobs:
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
+    timeout-minutes: 90
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -108,6 +111,7 @@ jobs:
 
   Windows_Chrome_Local:
     runs-on: windows-latest
+    timeout-minutes: 75
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -142,6 +146,7 @@ jobs:
 
   Windows_SikuliX_Local:
     runs-on: windows-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -175,6 +180,7 @@ jobs:
 
   Windows_Appium_Desktop_Local:
     runs-on: windows-latest
+    timeout-minutes: 15
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -285,6 +291,7 @@ jobs:
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
+    timeout-minutes: 90
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -315,6 +322,7 @@ jobs:
 
   Windows_Edge_Cucumber_Local:
     runs-on: windows-latest
+    timeout-minutes: 10
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -353,6 +361,7 @@ jobs:
     needs: [ Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local ]
     if: always()
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write
