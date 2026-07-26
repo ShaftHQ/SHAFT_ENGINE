@@ -366,13 +366,94 @@ final class RecorderToolPanel extends JPanel {
         setStatus("Checking recording status...");
         ShaftMcpInvocationService.getInstance(project).startTool("capture_status", captureStatusArguments())
                 .future()
-                .whenComplete((result, error) -> onEdt(() -> {
-                    if (failed(result, error)) {
-                        setStatus("Recorder status unavailable: " + failureText(result, error));
-                        return;
-                    }
-                    setStatus("Recorder status refreshed. Open Advanced options for the full status.");
-                }));
+                .whenComplete((result, error) -> onEdt(() -> applyStatusCheck(result, error)));
+    }
+
+    /**
+     * Issue #4165: the success branch used to ignore the {@code capture_status} payload entirely
+     * and always report the same "refreshed" string, never resyncing the shared {@link
+     * ShaftRecordingActivity} indicator -- so restarting the IDE or reopening this tab left "Check
+     * status" unable to say whether a still-active server-side session existed. This mirrors {@code
+     * GuidedWorkflowPanel#applyStatusPoll}'s parsing of the same {@code capture_status} union
+     * payload (issue #3949: the real section lives nested under {@code webStatus}/{@code
+     * playwrightStatus}/{@code mobileStatus}) to answer active/idle for real and resync the
+     * indicator so other tool-window surfaces (the readiness strip) agree with what this check just
+     * found.
+     *
+     * <p>Package-private test seam: a real {@code ShaftMcpInvocationService.getInstance(project)
+     * .startTool(...)} round trip cannot be exercised in this headless unit-test JVM (see the class
+     * javadoc), so tests call this directly with a fixture {@link ShaftMcpToolResult} instead of
+     * going through the live MCP connection -- mirrors how {@code GuidedWorkflowPanelTest} exercises
+     * {@code applyStatusPoll} the same way.
+     *
+     * @param result tool result, or null on failure
+     * @param error transport/execution error, or null on success
+     */
+    void applyStatusCheck(ShaftMcpToolResult result, Throwable error) {
+        if (failed(result, error)) {
+            setStatus("Recorder status unavailable: " + failureText(result, error));
+            return;
+        }
+        JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
+                AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
+        if (isRecorderActive(status)) {
+            ShaftRecordingActivity.started(recordingKey);
+            setStatus("Recording active - " + countText(status) + readinessSuffix(status)
+                    + ". Open Advanced options for the full status.");
+            return;
+        }
+        ShaftRecordingActivity.stopped(recordingKey);
+        String state = status != null && status.has("state") ? status.get("state").getAsString() : "";
+        if ("INCOMPLETE".equalsIgnoreCase(state) || "FAILED".equalsIgnoreCase(state)) {
+            setStatus("Recording ended unexpectedly (" + state.toUpperCase(java.util.Locale.ROOT) + ") - "
+                    + countText(status) + ". Re-record the flow before generating code.");
+            return;
+        }
+        setStatus("No active recording. Recorder idle. Open Advanced options for the full status.");
+    }
+
+    /**
+     * Mirrors {@code GuidedWorkflowPanel#isRecorderActive} exactly: same {@code capture_status}
+     * union payload shape, so this panel's one-shot Check status answers the same active/idle
+     * question the same way -- {@code active} first (mobile), else {@code state} (web/Playwright).
+     */
+    private static boolean isRecorderActive(JsonObject status) {
+        if (status == null) {
+            return false;
+        }
+        if (status.has("active")) {
+            return status.get("active").getAsBoolean();
+        }
+        String state = status.has("state") ? status.get("state").getAsString() : "";
+        return "ACTIVE".equalsIgnoreCase(state) || "STARTING".equalsIgnoreCase(state)
+                || "STOPPING".equalsIgnoreCase(state);
+    }
+
+    /** Mirrors {@code GuidedWorkflowPanel#countText}: recorded units read "steps" everywhere. */
+    private static String countText(JsonObject status) {
+        if (status == null) {
+            return "0 steps";
+        }
+        int steps = status.has("actionCount")
+                ? status.get("actionCount").getAsInt()
+                : status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
+        int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
+        String base = steps + (steps == 1 ? " step" : " steps");
+        return pending > 0 ? base + " (+" + pending + " pending)" : base;
+    }
+
+    /** Mirrors {@code GuidedWorkflowPanel#readinessLabel}, rendered as a trailing " - Label" suffix. */
+    private static String readinessSuffix(JsonObject status) {
+        if (status == null || !status.has("readiness")) {
+            return "";
+        }
+        String readiness = switch (status.get("readiness").getAsString().toUpperCase(java.util.Locale.ROOT)) {
+            case "READY" -> "Ready";
+            case "RISKY" -> "Risky";
+            case "BLOCKED" -> "Blocked";
+            default -> "";
+        };
+        return readiness.isBlank() ? "" : " - " + readiness;
     }
 
     private void reviewCode() {

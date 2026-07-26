@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.intellij.java.JavaTargetContext;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
 
@@ -174,6 +175,129 @@ class RecorderToolPanelTest {
 
         findButton(panel, "Review code").doClick();
         assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+    }
+
+    /**
+     * Issue #4165: {@code checkStatus()}'s success handler used to ignore the {@code
+     * capture_status} payload entirely and always report the same "refreshed" string. This pins
+     * the real fix -- parsing {@code active}/{@code state} out of the same union payload shape
+     * {@code GuidedWorkflowPanel#applyStatusPoll} already handles (issue #3949's {@code
+     * webStatus}/{@code playwrightStatus}/{@code mobileStatus} union) -- via {@link
+     * RecorderToolPanel#applyStatusCheck}, the package-private test seam mirroring {@code
+     * GuidedWorkflowPanel#applyStatusPoll} since a live MCP round trip cannot run in this headless
+     * unit-test JVM (see the class javadoc).
+     */
+    @Test
+    void checkStatusRendersTheRealActiveStateAndResyncsTheSharedRecordingIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "ACTIVE");
+            webStatus.addProperty("eventCount", 3);
+            webStatus.addProperty("readiness", "READY");
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("3 steps"),
+                            "Expected the real active status to render, not the old generic 'refreshed' text: "
+                                    + status.getText()),
+                    () -> assertTrue(ShaftRecordingActivity.active(),
+                            "Check status must resync the shared recording indicator to active"));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Second half of the same real-payload story: once the recorder answers idle, {@code
+     * checkStatus()} must say so in plain language and clear the shared indicator it previously set
+     * -- proving {@code ShaftRecordingActivity.stopped(recordingKey)} actually resyncs (not just
+     * some other surface's key), by starting from the active state this same panel instance just
+     * published.
+     */
+    @Test
+    void checkStatusRendersIdleStateAndClearsTheSharedRecordingIndicatorAfterAPriorActivePoll() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject activeWebStatus = new JsonObject();
+            activeWebStatus.addProperty("state", "ACTIVE");
+            activeWebStatus.addProperty("eventCount", 1);
+            JsonObject activeUnion = new JsonObject();
+            activeUnion.addProperty("engine", "WEB");
+            activeUnion.add("webStatus", activeWebStatus);
+            panel.applyStatusCheck(ShaftMcpToolResult.success(activeUnion.toString()), null);
+            assertTrue(ShaftRecordingActivity.active(), "Precondition: the active poll above must have registered");
+
+            JsonObject idleWebStatus = new JsonObject();
+            idleWebStatus.addProperty("state", "NOT_RUNNING");
+            idleWebStatus.addProperty("eventCount", 0);
+            JsonObject idleUnion = new JsonObject();
+            idleUnion.addProperty("engine", "WEB");
+            idleUnion.add("webStatus", idleWebStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(idleUnion.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active(),
+                            "Check status must resync the shared recording indicator back to idle"));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * A malformed or missing-field {@code capture_status} response (no {@code active}, no {@code
+     * state}, no union section -- e.g. an already-unwrapped or empty payload) must degrade to a
+     * plain idle answer, never crash and never leave the shared indicator on.
+     */
+    @Test
+    void checkStatusDegradesGracefullyOnAMissingFieldPayload() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success("{}"), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Same degrade-gracefully bar for a response that is not valid JSON at all (a raw MCP text
+     * envelope {@link com.shaft.intellij.ui.AssistantMarkdown#jsonObjectFromMcpOutput} cannot parse
+     * as a JSON object) -- must not throw.
+     */
+    @Test
+    void checkStatusDegradesGracefullyOnUnparsableOutput() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success("not json at all"), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
     }
 
     @Test
