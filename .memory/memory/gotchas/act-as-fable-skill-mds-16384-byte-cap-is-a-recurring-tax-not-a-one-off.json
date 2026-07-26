@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/act-as-fable-skill-mds-16384-byte-cap-is-a-recurring-tax-not-a-one-off.md",
+  "content_hash": "sha256:36bab7824d3b4c0531d7c48729b90249c0558b68e442a57d770c621546e710db",
+  "created_at": "2026-07-26T17:57:51+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.act-as-fable-skill-mds-16384-byte-cap-is-a-recurring-tax-not-a-one-off",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "record five durable gotchas from the crash-recovery session (2026-07-26)"
+  },
+  "status": "active",
+  "tags": [
+    "skill-budget",
+    "act-as-fable",
+    "byte-cap"
+  ],
+  "title": "act-as-fable SKILL.md's 16384-byte cap is a recurring tax, not a one-off",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T17:57:51+03:00"
+}

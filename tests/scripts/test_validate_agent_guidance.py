@@ -3,7 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.validate_agent_guidance import parse_frontmatter, validate_repository
+from scripts.ci.validate_agent_guidance import (
+    parse_frontmatter,
+    validate_repository,
+    validate_routing_bridges,
+)
 
 
 class ValidateAgentGuidanceTest(unittest.TestCase):
@@ -255,11 +259,22 @@ policy:
         )
         self.assertIn("unmatched-scope", self.codes())
 
+    def test_validate_routing_bridges_reads_dedicated_file_directly(self):
+        # Direct call (not via validate_repository) of the current contract
+        # (#4067): the enumeration lives in ROUTING_BRIDGES_PATH
+        # (.agents/routing-bridges.txt), outside every guidance budget glob --
+        # AGENTS.md's own "## Routing" section is no longer parsed for it.
+        self.write(
+            ".agents/routing-bridges.txt",
+            "`example-bridge` example; `missing-bridge` gone.\n",
+        )
+        codes = {error["code"] for error in validate_routing_bridges(self.root)}
+        self.assertIn("routing-bridge-missing", codes)
+
     def test_rejects_routing_bridge_with_no_skill_file(self):
         self.write(
-            "AGENTS.md",
-            "# Agents\n\n[Local](docs/local.md)\n\n"
-            "## Routing\n\nBridge: `example-bridge` example; `missing-bridge` gone.\n",
+            ".agents/routing-bridges.txt",
+            "`example-bridge` example; `missing-bridge` gone.\n",
         )
         self.assertIn("routing-bridge-missing", self.codes())
 
@@ -272,11 +287,7 @@ policy:
             ".claude/skills/native-only/SKILL.md",
             "---\nname: native-only\ndescription: Native skill only.\n---\n\n# Native\n",
         )
-        self.write(
-            "AGENTS.md",
-            "# Agents\n\n[Local](docs/local.md)\n\n"
-            "## Routing\n\nBridge: `native-only` example.\n",
-        )
+        self.write(".agents/routing-bridges.txt", "`native-only` example.\n")
         self.assertIn("routing-bridge-missing", self.codes())
 
     def test_rejects_costly_mandate(self):

@@ -98,18 +98,21 @@ class ManagedCaptureRecorder {
     // Volatile: read from the CDP network-interception callback thread (via the currentPageUrlSupplier
     // passed to CaptureNetworkRecorder, issue #4046) as well as the owning thread and status() callers.
     private volatile String currentUrl;
-    // Captured once, on the owning thread, right after the driver is created (issue #4077): the sole
-    // window this session starts with. acceptNetworkEvent() -- CaptureNetworkRecorder's sink -- runs
-    // synchronously on the CDP Fetch.requestPaused callback thread, before the paused request it is
-    // handling is continued; calling driver.getWindowHandle() from there is the exact same reentrant
-    // WebDriver-call-from-inside-the-Fetch-callback deadlock #4076 fixed for getCurrentUrl(), just at
-    // a different call site (confirmed via jstack: the callback thread parked in
+    // Seeded once, on the owning thread, right after the driver is created (issue #4077), then kept
+    // fresh passively by trackCurrentWindowHandle() off every incoming BrowserSignal (issue #4090) --
+    // never by calling the driver again. acceptNetworkEvent() -- CaptureNetworkRecorder's sink --
+    // runs synchronously on the CDP Fetch.requestPaused callback thread, before the paused request it
+    // is handling is continued; calling driver.getWindowHandle() from there is the exact same
+    // reentrant WebDriver-call-from-inside-the-Fetch-callback deadlock #4076 fixed for getCurrentUrl(),
+    // just at a different call site (confirmed via jstack: the callback thread parked in
     // JdkHttpClient.execute() -> CompletableFuture.get() waiting on chromedriver's response to
     // getWindowHandle(), which cannot be served until the very request this callback is blocking
     // resolves -- the main thread's concurrent executeScript() then times out at Selenium's 30s
-    // script-timeout bound). Not updated across tab switches; multi-window attribution for network
-    // events is already a documented best-effort limitation elsewhere in this pipeline (see
-    // CaptureEventPipeline.resolveBrowsingContextId(), issue #3816).
+    // script-timeout bound). trackCurrentWindowHandle() never touches the driver, so this cannot
+    // reintroduce that deadlock. Still a best-effort value (not the pipeline's own per-signal
+    // "window-N" numbering used for UI events; see CaptureEventPipeline.resolveBrowsingContextId(),
+    // issue #3816) since network activity fired before any signal from a newly active tab arrives
+    // (e.g. the tab's own first request) can still race ahead of the update.
     private volatile String currentWindowHandle = "";
     private volatile boolean paused;
     private volatile boolean uiStopRequested;
@@ -409,6 +412,15 @@ class ManagedCaptureRecorder {
         this.store = store;
         this.pipeline = pipeline;
         this.state = CaptureStatus.State.ACTIVE;
+    }
+
+    /**
+     * Seeds {@link #currentWindowHandle} the way {@link #start()} would (issue #4077's one-time
+     * cache), so tests can exercise {@link #acceptNetworkEvent} / {@link #acceptSignal} tab-switch
+     * behavior (issue #4090) without launching a real browser.
+     */
+    void currentWindowHandleForTesting(String handle) {
+        this.currentWindowHandle = handle;
     }
 
     /**
@@ -1148,6 +1160,7 @@ class ManagedCaptureRecorder {
         if (signal == null) {
             return;
         }
+        trackCurrentWindowHandle(signal);
         switch (signal.kind()) {
             case "control" -> handleControl(signal);
             case "checkpoint" -> handleCheckpoint(signal);
@@ -1157,6 +1170,27 @@ class ManagedCaptureRecorder {
                 }
             }
         }
+    }
+
+    /**
+     * Keeps {@link #currentWindowHandle} current across tab switches (issue #4090) by passively
+     * reading each incoming signal's browsing-context id, instead of leaving the value {@link #start()}
+     * cached once and letting it go stale. This never calls into the driver: {@link
+     * PollingBrowserEventCollector} already assigns its signals' browsing-context id directly from
+     * {@code driver.getWindowHandle()}, and {@link BidiBrowserEventCollector}'s BiDi browsing-context
+     * id is Selenium's Chromium CDP-target-id-backed equivalent of that same handle -- both collectors
+     * deliver signals on their own listener/polling threads, never on the CDP {@code Fetch.requestPaused}
+     * callback thread {@link #acceptNetworkEvent} is invoked from, so this introduces no reentrant call
+     * into the driver from that thread and cannot reintroduce #4077's deadlock. The loopback sink's
+     * {@code "loopback"} sentinel id is ignored so a redundant-channel delivery race never overwrites a
+     * real handle with a placeholder (mirrors {@link CaptureEventPipeline#resolveBrowsingContextId}).
+     */
+    private void trackCurrentWindowHandle(BrowserSignal signal) {
+        String contextId = signal.browsingContextId();
+        if (contextId.isBlank() || BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID.equals(contextId)) {
+            return;
+        }
+        currentWindowHandle = contextId;
     }
 
     private void handleControl(BrowserSignal signal) {

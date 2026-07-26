@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/gotchas/browsersignal-browsingcontextid-is-safe-to-treat-as-driver-getwindowhandle-for-passive-tracking-off-the-cdp-callback-thread.md",
+  "content_hash": "sha256:af3c370c969c46ffc3ba78581bfd1eeff65a6a6c8773d455e4ed25eb215b5a1b",
+  "created_at": "2026-07-26T18:00:46+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.browsersignal-browsingcontextid-is-safe-to-treat-as-driver-getwindowhandle-for-passive-tracking-off-the-cdp-callback-thread",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix #4090: keep network-event window attribution correct across tab switches"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-capture",
+    "managedcapturerecorder",
+    "cdp",
+    "bidi",
+    "deadlock",
+    "issue-4090",
+    "issue-4077"
+  ],
+  "title": "BrowserSignal.browsingContextId() is safe to treat as driver.getWindowHandle() for passive tracking off the CDP callback thread",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T18:00:46+03:00"
+}

@@ -100,6 +100,54 @@ approval_mode = "prompt"
         self.assertIn("install", error["message"].lower())
         self.assertNotIn("Traceback", error["message"])
 
+    def test_overlong_relation_filename_hints_at_explicit_short_id(self):
+        # A real `create_relation` patch left to auto-derive its id from two
+        # ~90+ char endpoint ids produces a 222-char basename (issue #4110,
+        # reproduced live against the real Memory CLI). The relation's own
+        # `id`/`from`/`to` fields carry no length cap (relation.schema.json),
+        # and `create_relation` already accepts an explicit custom `id` --
+        # so the actionable fix is a short custom id, not a longer/relaxed
+        # basename cap (which would reopen the Windows MAX_PATH risk this
+        # check exists to catch).
+        overlong_name = "gotcha-" + "a" * 160 + "-related-to-fact-" + "b" * 30
+        self.write(
+            f".memory/relations/{overlong_name}.json",
+            json.dumps(
+                {
+                    "id": f"rel.{overlong_name}",
+                    "from": "gotcha." + "a" * 160,
+                    "predicate": "related_to",
+                    "to": "fact." + "b" * 30,
+                    "status": "active",
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "updated_at": "2026-01-01T00:00:00Z",
+                }
+            ),
+        )
+        errors = [
+            error
+            for error in validate_memory_setup(self.root)
+            if error["code"] == "memory-filename-length"
+        ]
+        self.assertEqual(len(errors), 1)
+        self.assertIn("create_relation", errors[0]["message"])
+        self.assertIn("explicit", errors[0]["message"])
+
+    def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
+        # Negative test: relaxing the relation-file message must not open a
+        # hole for genuinely over-long non-relation memory objects, which
+        # have no analogous explicit-id override and must still be shortened.
+        overlong_name = "gotcha-" + "c" * 170
+        self.write(f".memory/memory/gotchas/{overlong_name}.md", "body")
+        errors = [
+            error
+            for error in validate_memory_setup(self.root)
+            if error["code"] == "memory-filename-length"
+        ]
+        self.assertEqual(len(errors), 1)
+        self.assertNotIn("create_relation", errors[0]["message"])
+        self.assertIn("shorten the object", errors[0]["message"])
+
 
 if __name__ == "__main__":
     unittest.main()

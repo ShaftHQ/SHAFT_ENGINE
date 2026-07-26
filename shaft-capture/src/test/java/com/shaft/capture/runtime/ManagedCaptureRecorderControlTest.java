@@ -11,6 +11,7 @@ import com.shaft.capture.model.network.HttpRequestRecord;
 import com.shaft.capture.model.network.HttpResponseRecord;
 import com.shaft.capture.model.network.NetworkTiming;
 import com.shaft.capture.model.network.ResourceKind;
+import com.shaft.capture.network.CaptureNetworkRecorder;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.capture.storage.NetworkBodyStore;
@@ -88,6 +89,53 @@ class ManagedCaptureRecorderControlTest {
         assertEquals(1, status.eventCount());
         assertEquals(CaptureSession.SessionStatus.COMPLETED, store.read().status());
         assertTrue(store.read().events().getFirst() instanceof CaptureEvent.NavigationEvent);
+    }
+
+    @Test
+    void acceptNetworkEventAttributesToTheCurrentWindowAfterATabSwitch() throws Exception {
+        // Regression for issue #4090: acceptNetworkEvent() built each NetworkEvent's PageContext
+        // from currentWindowHandle, a field cached ONCE at start() (issue #4077) and never updated
+        // afterward, so every network event kept attributing to the session's original window even
+        // after the user switched tabs. currentWindowHandle must now track the tab that most
+        // recently produced a BrowserSignal (acceptSignal()), never a live driver.getWindowHandle()
+        // call from acceptNetworkEvent() -- that call runs on the CDP Fetch.requestPaused callback
+        // thread and is exactly the reentrant deadlock #4077 fixed.
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = activateEmptySession(recorder, request);
+        // Simulates start()'s one-time cache (issue #4077) without launching a real browser.
+        recorder.currentWindowHandleForTesting("window-1");
+
+        recorder.acceptNetworkEvent(networkTransaction("txn-1", "https://api.example.test/first"));
+
+        recorder.acceptSignal(BrowserSignal.generated(
+                "navigation",
+                "window-2",
+                Map.of("url", "https://example.test/second", "title", "Second"),
+                Map.of("action", "OPEN")));
+        recorder.acceptNetworkEvent(networkTransaction("txn-2", "https://api.example.test/second"));
+
+        List<CaptureEvent.NetworkEvent> networkEvents = store.read().events().stream()
+                .filter(CaptureEvent.NetworkEvent.class::isInstance)
+                .map(CaptureEvent.NetworkEvent.class::cast)
+                .toList();
+        assertEquals(2, networkEvents.size());
+        assertEquals("window-1", networkEvents.get(0).context().page().logicalWindowId(),
+                "The network event recorded while window-1 was active must attribute to window-1.");
+        assertEquals("window-2", networkEvents.get(1).context().page().logicalWindowId(),
+                "A network event recorded after switching to window-2 must attribute to window-2, "
+                        + "not the stale window-1 handle captured at session start.");
+    }
+
+    private CaptureNetworkRecorder.RecordedTransaction networkTransaction(String transactionId, String url) {
+        return new CaptureNetworkRecorder.RecordedTransaction(
+                transactionId,
+                ResourceKind.XHR,
+                new HttpRequestRecord("GET", url, Map.of(), null),
+                new HttpResponseRecord(200, Map.of(), null),
+                new NetworkTiming(null, null, null, null, null, Duration.ofMillis(5)),
+                "",
+                url);
     }
 
     @Test
