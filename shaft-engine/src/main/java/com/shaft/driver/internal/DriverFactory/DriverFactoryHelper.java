@@ -720,7 +720,16 @@ public class DriverFactoryHelper {
                 augmenter = augmenter.addDriverAugmentation(new AddHasAuthentication());
             }
         }
-        return augmenter.augment(driver);
+        var augmentedDriver = augmenter.augment(driver);
+        // Diagnostic evidence for issue #4037: AddHasAuthentication's own register() handler is a silent
+        // no-op unless the augmented driver also implements HasDevTools (CDP-backed), which Selenium only
+        // grants when the session capabilities returned by the remote endpoint advertise a reachable CDP
+        // endpoint (se:cdp/se:cdpEnabled or an equivalent reported URI). Log both so a remote-only failure
+        // can be diagnosed from the returned capabilities instead of guessed at.
+        ReportManagerHelper.logDiscrete("Remote session capabilities after augmentation: `" + driver.getCapabilities()
+                + "`. HasAuthentication=" + (augmentedDriver instanceof HasAuthentication)
+                + ", HasDevTools=" + (augmentedDriver instanceof HasDevTools) + ".", Level.DEBUG);
+        return augmentedDriver;
     }
 
     private static boolean isWindowsPlatform() {
