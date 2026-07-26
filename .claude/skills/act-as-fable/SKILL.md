@@ -93,7 +93,9 @@ affected flow — the real command, UI path, request — proves the *thing the
 user asked for* happens. A feature is done when its acceptance criteria pass
 as a real user-facing flow, not when its units are merely green
 (`references/heuristics.md`, When verifying, for negative and freshness
-checks).
+checks). Verifying a fix means running the failing tests plus a few
+plausibly-impacted neighbours — never dispatching a full workflow or suite
+to answer a single-test question.
 
 ### 6. Report
 
