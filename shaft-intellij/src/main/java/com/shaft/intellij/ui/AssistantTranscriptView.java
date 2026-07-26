@@ -7,6 +7,7 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
+import com.intellij.openapi.editor.colors.EditorFontType;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.fileTypes.FileType;
@@ -1065,6 +1066,28 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     /**
+     * Resolves the IDE's own configured editor font family (issue #4163) -- the same {@link
+     * EditorColorsScheme} source {@link #highlightedByLexer} already reads for syntax colors -- so
+     * monospaced UI in this view (currently just {@link #rawEvidenceDisclosure}) respects the user's
+     * actual editor font/theme settings instead of the generic JDK logical name {@link
+     * Font#MONOSPACED}, which ignores them and renders inconsistently across platforms. Falls back to
+     * {@code Font.MONOSPACED} when no live {@code Application} exists -- this module's tests construct
+     * none (no {@code BasePlatformTestCase} fixture) -- guarding on {@link
+     * ApplicationManager#getApplication()} itself rather than on {@code EditorColorsManager
+     * .getInstance()}'s return value: that call unconditionally dereferences {@code
+     * ApplicationManager.getApplication().getService(...)} with no null guard of its own, so it
+     * throws (never returns {@code null}) once there is no live {@code Application} to ask.
+     */
+    static String monospacedFontFamily() {
+        if (ApplicationManager.getApplication() == null) {
+            return Font.MONOSPACED;
+        }
+        EditorColorsScheme scheme = EditorColorsManager.getInstance().getGlobalScheme();
+        Font editorFont = scheme == null ? null : scheme.getFont(EditorFontType.PLAIN);
+        return editorFont == null ? Font.MONOSPACED : editorFont.getFamily();
+    }
+
+    /**
      * Builds the collapsed-by-default "Show raw output" disclosure for a message's raw evidence
      * (issue #3601 A5) -- for example a tool's raw JSON result, available here because {@link
      * ShaftAssistantPanel#runToolAndRenderCard} passes it straight through {@link #append(String,
@@ -1087,7 +1110,7 @@ final class AssistantTranscriptView extends JPanel {
         rawArea.setLineWrap(true);
         rawArea.setWrapStyleWord(true);
         Font monospaced = rawArea.getFont();
-        rawArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, monospaced == null ? 12 : monospaced.getSize()));
+        rawArea.setFont(new Font(monospacedFontFamily(), Font.PLAIN, monospaced == null ? 12 : monospaced.getSize()));
         rawArea.setCaretPosition(0);
         rawArea.getAccessibleContext().setAccessibleName("Raw tool output");
 
