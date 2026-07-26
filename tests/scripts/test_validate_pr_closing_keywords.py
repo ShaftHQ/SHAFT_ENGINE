@@ -1,6 +1,9 @@
 import json
 import os
-import subprocess
+
+# subprocess is used only to invoke this repo's own CLI script below with a
+# fixed, list-args argv (never shell=True, no untrusted command construction).
+import subprocess  # nosec B404
 import sys
 import unittest
 
@@ -233,7 +236,7 @@ class MainCLIIntegrationTest(unittest.TestCase):
 
     def _run_cli(self, *, body="", commits_json=""):
         env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json}
-        return subprocess.run(
+        return subprocess.run(  # nosec B603
             [sys.executable, CLI_SCRIPT],
             capture_output=True,
             text=True,

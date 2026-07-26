@@ -65,18 +65,16 @@ def _is_negated(body: str, keyword_start: int) -> bool:
 
 
 def _dewrap_hard_wrapped_text(text: str) -> str:
-    """Collapse a hard-wrapped single newline into a space, preserving paragraph breaks.
-
-    Both commit messages (git's ~72-column convention) and PR bodies composed in an
-    editor/CLI that hard-wraps at ~72-80 columns can split a negation cue like "Does
-    not" onto its own line from the "fix #N" that follows (issue #4146: the real commit
-    that squash-merged into PR #4141 did exactly this -- 0 matches unwrapped, 1
-    flattened, confirmed against the shipped guard). The clause-boundary logic below
-    treats any bare newline as a hard stop by design, so an unrelated bullet's negation
-    can't leak into the next bullet in a PR body -- but that same rule silently defeats
-    detection on hard-wrapped prose. A blank line (double newline) still marks a real
-    paragraph/bullet break and is left alone.
-    """
+    """Collapse a hard-wrapped single newline into a space, preserving paragraph breaks."""
+    # Both commit messages (git's ~72-column convention) and PR bodies composed in an
+    # editor/CLI that hard-wraps at ~72-80 columns can split a negation cue like "Does
+    # not" onto its own line from the "fix #N" that follows (issue #4146: the real commit
+    # that squash-merged into PR #4141 did exactly this -- 0 matches unwrapped, 1
+    # flattened, confirmed against the shipped guard). The clause-boundary logic below
+    # treats any bare newline as a hard stop by design, so an unrelated bullet's negation
+    # can't leak into the next bullet in a PR body -- but that same rule silently defeats
+    # detection on hard-wrapped prose. A blank line (double newline) still marks a real
+    # paragraph/bullet break and is left alone.
     return re.sub(r"(?<!\n)\n(?!\n)", " ", text)
 
 
@@ -104,11 +102,9 @@ def find_negated_autocloses(body: str) -> list[dict[str, str]]:
 
 
 def find_negated_autocloses_in_commits(commits: list[tuple[str, str]]) -> list[dict[str, str]]:
-    """Flag every negated closing-keyword+issue-reference pair in any commit message.
-
-    Reuses find_negated_autocloses unchanged (issue #4146: the detection logic itself
-    is surface-agnostic, dewrapping included) and tags the offending commit.
-    """
+    """Flag every negated closing-keyword+issue-reference pair in any commit message."""
+    # Reuses find_negated_autocloses unchanged (issue #4146: the detection logic itself
+    # is surface-agnostic, dewrapping included) and tags the offending commit.
     errors: list[dict[str, str]] = []
     for sha, message in commits:
         for error in find_negated_autocloses(message):
