@@ -371,6 +371,36 @@
   };
   const isControlElement = element =>
     Boolean(element && element.closest && element.closest("[data-shaft-capture-control]"));
+  // ROLE/LABEL candidates have no CSS selector to run through count() -- their uniqueness can
+  // only be measured by walking the page and re-deriving each element's role/accessible-name/
+  // label the same way it was derived to build the candidate (issue #4025: this used to be
+  // hardcoded to 1, fabricating uniqueness for locators that in fact matched many elements).
+  // locatorScore()/readinessFor() (below) only ever distinguish "0 matches" / "exactly 1" /
+  // "more than 1", so the walk stops the moment a second match is found: a page with many
+  // duplicate roles/labels never stalls recording on every keystroke, and the count can never be
+  // inflated back down to a false "unique" once it has found real evidence otherwise.
+  const MULTI_MATCH_CAP = 2;
+  const semanticMatchCount = predicate => {
+    try {
+      let found = 0;
+      const candidates = document.querySelectorAll("body *");
+      for (let index = 0; index < candidates.length && found < MULTI_MATCH_CAP; index++) {
+        const candidate = candidates[index];
+        if (!isControlElement(candidate) && predicate(candidate)) found++;
+      }
+      return found;
+    } catch (ignored) {
+      return 0;
+    }
+  };
+  const roleMatchCount = expression => {
+    const separator = expression.indexOf(":");
+    const role = separator < 0 ? expression : expression.slice(0, separator);
+    const name = separator < 0 ? "" : expression.slice(separator + 1);
+    return semanticMatchCount(candidate =>
+      inferredRole(candidate) === role && (!name || accessibleName(candidate) === name));
+  };
+  const labelMatchCount = expression => semanticMatchCount(candidate => label(candidate) === expression);
   const cssPath = element => {
     const parts = [];
     let current = element;
@@ -397,10 +427,21 @@
     const visible = Boolean(element.getClientRects && element.getClientRects().length);
     const add = (strategy, expression, selector, stable, signals) => {
       if (!expression) return;
+      const normalized = text(expression);
+      let uniquenessCount;
+      if (selector) {
+        uniquenessCount = count(selector);
+      } else if (strategy === "ROLE") {
+        uniquenessCount = roleMatchCount(normalized);
+      } else if (strategy === "LABEL") {
+        uniquenessCount = labelMatchCount(normalized);
+      } else {
+        uniquenessCount = 1;
+      }
       result.push({
         strategy,
-        expression: text(expression),
-        uniquenessCount: selector ? count(selector) : 1,
+        expression: normalized,
+        uniquenessCount,
         visible,
         stable,
         signals
