@@ -65,16 +65,32 @@ class GeminiProviderTest {
     }
 
     @Test
-    void parseStructuredPayloadPropagatesRawParseErrorWhenTextIsMalformedButFinishReasonIsNotMaxTokens() {
+    void parseStructuredPayloadReportsBothParseErrorAndObservedFinishReasonWhenNotMaxTokens() {
         // A genuinely malformed payload (not a truncation) must not be relabeled as a truncation
-        // just because it fails to parse -- the two are different defects (issue #4107).
+        // just because it fails to parse -- the two are different defects (issue #4107). But the
+        // finishReason Gemini actually reported must still surface: the parse-error message alone
+        // cannot tell a future reader whether this was truncation under a different finishReason
+        // value or a real malformed payload, so the observed finishReason (here STOP) must appear
+        // in the message even though it is not MAX_TOKENS.
         JsonNode response = geminiResponse("STOP", textPart("{not valid json at all"));
 
         JacksonException exception = assertThrows(JacksonException.class, () -> provider.parseStructuredPayload(response));
 
-        assertTrue(exception.getMessage().toLowerCase(java.util.Locale.ROOT).contains("not valid json")
-                        || exception.getMessage().toLowerCase(java.util.Locale.ROOT).contains("unexpected"),
-                exception.getMessage());
+        String message = exception.getMessage().toLowerCase(java.util.Locale.ROOT);
+        assertTrue(message.contains("not valid json") || message.contains("unexpected"), exception.getMessage());
+        assertTrue(exception.getMessage().contains("STOP"), exception.getMessage());
+    }
+
+    @Test
+    void parseStructuredPayloadReportsParseErrorAndNoneWhenFinishReasonIsAbsent() {
+        // When Gemini's candidate omits finishReason entirely, the diagnostic must say so
+        // explicitly rather than silently omitting it -- an absent value is itself a fact worth
+        // surfacing, not something to swallow (issue #4107).
+        JsonNode response = geminiResponse("", textPart("{not valid json at all"));
+
+        JacksonException exception = assertThrows(JacksonException.class, () -> provider.parseStructuredPayload(response));
+
+        assertTrue(exception.getMessage().contains("<none>"), exception.getMessage());
     }
 
     private static ObjectNode thoughtPart(String text) {

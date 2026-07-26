@@ -88,9 +88,14 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
         // A text part can also exist but be incomplete: the output-token budget runs out
         // mid-generation, so the part is valid up to the cut and then simply stops (issue
         // #4107, e.g. Jackson's "Unexpected end-of-input in property name"). That is a
-        // truncation, not a malformed payload, and must not share its message: only report
-        // truncation when the candidate's own finishReason says so (MAX_TOKENS), otherwise
-        // let the genuine parse error propagate unchanged.
+        // truncation, not a malformed payload, and must not share its message: MAX_TOKENS gets
+        // the specific "truncated at the output-token budget" wording. But whether a real live
+        // failure actually carries MAX_TOKENS here was never directly observed (the raw Gemini
+        // response body is not logged anywhere upstream of this parse) -- so the diagnostic must
+        // not be conditional on a value nobody has confirmed. Every parse failure always reports
+        // the candidate's actual finishReason (explicitly "<none>" when absent) alongside the
+        // real parse error, so a future failure either confirms MAX_TOKENS or names whatever
+        // Gemini actually reports instead of repeating today's opaque message.
         JsonNode candidate = response.path("candidates").path(0);
         String finishReason = candidate.path("finishReason").asText("");
         for (JsonNode part : candidate.path("content").path("parts")) {
@@ -107,7 +112,11 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
                                 + " (finishReason=MAX_TOKENS) before the answer JSON completed") {
                         };
                     }
-                    throw exception;
+                    String observedFinishReason = finishReason.isBlank() ? "<none>" : finishReason;
+                    String parseMessage = exception.getMessage();
+                    throw new JacksonException("Gemini response text failed to parse (finishReason="
+                            + observedFinishReason + "): " + (parseMessage == null ? exception.toString() : parseMessage)) {
+                    };
                 }
             }
         }
