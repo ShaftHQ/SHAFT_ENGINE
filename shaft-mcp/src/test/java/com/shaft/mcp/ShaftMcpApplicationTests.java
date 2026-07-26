@@ -404,6 +404,60 @@ class ShaftMcpApplicationTests {
         }
     }
 
+    /**
+     * Issue #4045: {@link com.shaft.mcp.CaptureService.CaptureCodegenStartRequest} exposed roughly
+     * 28 fields to MCP clients with no {@code @ToolParam} annotations, so the generated
+     * {@code capture_start} tool schema's nested {@code codegenOptions} carried bare field names and
+     * no descriptions. Asserts the live-served nested schema -- not just the source annotations --
+     * carries an accurate description for every field, so a calling agent no longer has to guess
+     * what each parameter means.
+     */
+    @Test
+    void captureStartCodegenOptionsSchemaHasDescriptionForEveryField() throws Exception {
+        JsonNode codegenOptionsSchema = toolInputSchema("capture_start").path("properties").path("codegenOptions");
+        JsonNode properties = codegenOptionsSchema.path("properties");
+
+        Map<String, String> expectedDescriptions = Map.ofEntries(
+                Map.entry("targetUrl", "initial http, https, or file URL; blank or omitted opens an empty browser at about:blank"),
+                Map.entry("browser", "Chrome or Edge; blank selects Chrome"),
+                Map.entry("outputPath", "recording/capture JSON output path; blank selects a timestamped recording"),
+                Map.entry("headless", "whether to launch without a visible browser window; unspecified defaults to headless per repo policy"),
+                Map.entry("targetLanguage", "requested codegen target language; SHAFT always generates Java TestNG regardless, other values are accepted for compatibility with a warning"),
+                Map.entry("testIdAttribute", "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements"),
+                Map.entry("channel", "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection"),
+                Map.entry("deviceName", "device emulation hint"),
+                Map.entry("viewportSize", "viewport size as width,height in pixels (e.g. 1280,720)"),
+                Map.entry("colorScheme", "preferred color scheme hint (e.g. light or dark)"),
+                Map.entry("geolocation", "geolocation as latitude,longitude"),
+                Map.entry("ignoreHttpsErrors", "whether HTTPS certificate errors are ignored"),
+                Map.entry("blockServiceWorkers", "whether service workers should be blocked"),
+                Map.entry("loadStoragePath", "storage-state input path to restore cookies/local storage from before recording starts"),
+                Map.entry("saveStoragePath", "storage-state output path to persist cookies/local storage to when the session ends"),
+                Map.entry("language", "locale/language hint (e.g. en-US)"),
+                Map.entry("timezone", "timezone hint (e.g. America/Los_Angeles)"),
+                Map.entry("proxyServer", "proxy server URL"),
+                Map.entry("proxyBypass", "comma-separated proxy bypass list"),
+                Map.entry("saveHarPath", "HAR output path; blank disables HAR capture"),
+                Map.entry("saveHarGlob", "HAR URL glob filter restricting which requests are written to the HAR"),
+                Map.entry("timeoutMillis", "maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout"),
+                Map.entry("userAgent", "user-agent override"),
+                Map.entry("userDataDirectory", "persistent browser profile directory; blank uses a temporary profile"),
+                Map.entry("sessionGoal", "optional user intent for the journey; drives generated test class and method names"),
+                Map.entry("apiCapture", "whether API network recording is enabled for this session"),
+                Map.entry("networkOptions", "network capture filtering options; ignored unless apiCapture is set"),
+                Map.entry("saveHarContent", "HAR body-content emission mode: blank or none (the default) keeps truncated "
+                        + "network-trace preview bodies, full emits complete request/response bodies from "
+                        + "API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII"));
+
+        for (Map.Entry<String, String> expected : expectedDescriptions.entrySet()) {
+            JsonNode field = properties.path(expected.getKey());
+            assertTrue(field.has("description"),
+                    "codegenOptions schema field '" + expected.getKey() + "' is missing a description");
+            assertEquals(expected.getValue(), field.path("description").asText(),
+                    "codegenOptions schema field '" + expected.getKey() + "' has an unexpected description");
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private JsonNode toolInputSchema(String toolName) throws Exception {
         Object bean = context.getBean("shaftTools");

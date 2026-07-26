@@ -262,33 +262,63 @@ public class CaptureService {
      * Structured request fields for the Playwright-codegen-compatible MCP start tool.
      */
     public static final class CaptureCodegenStartRequest {
+        @ToolParam(description = "initial http, https, or file URL; blank or omitted opens an empty browser at about:blank")
         public String targetUrl;
+        @ToolParam(description = "Chrome or Edge; blank selects Chrome")
         public String browser;
+        @ToolParam(description = "recording/capture JSON output path; blank selects a timestamped recording")
         public String outputPath;
+        @ToolParam(description = "whether to launch without a visible browser window; unspecified defaults to headless per repo policy")
         public boolean headless;
+        @ToolParam(description = "requested codegen target language; SHAFT always generates Java TestNG regardless, other values are accepted for compatibility with a warning")
         public String targetLanguage;
+        @ToolParam(description = "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements")
         public String testIdAttribute;
+        @ToolParam(description = "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection")
         public String channel;
+        @ToolParam(description = "device emulation hint")
         public String deviceName;
+        @ToolParam(description = "viewport size as width,height in pixels (e.g. 1280,720)")
         public String viewportSize;
+        @ToolParam(description = "preferred color scheme hint (e.g. light or dark)")
         public String colorScheme;
+        @ToolParam(description = "geolocation as latitude,longitude")
         public String geolocation;
+        @ToolParam(description = "whether HTTPS certificate errors are ignored")
         public boolean ignoreHttpsErrors;
+        @ToolParam(description = "whether service workers should be blocked")
         public boolean blockServiceWorkers;
+        @ToolParam(description = "storage-state input path to restore cookies/local storage from before recording starts")
         public String loadStoragePath;
+        @ToolParam(description = "storage-state output path to persist cookies/local storage to when the session ends")
         public String saveStoragePath;
+        @ToolParam(description = "locale/language hint (e.g. en-US)")
         public String language;
+        @ToolParam(description = "timezone hint (e.g. America/Los_Angeles)")
         public String timezone;
+        @ToolParam(description = "proxy server URL")
         public String proxyServer;
+        @ToolParam(description = "comma-separated proxy bypass list")
         public String proxyBypass;
+        @ToolParam(description = "HAR output path; blank disables HAR capture")
         public String saveHarPath;
+        @ToolParam(description = "HAR URL glob filter restricting which requests are written to the HAR")
         public String saveHarGlob;
+        @ToolParam(description = "maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout")
         public long timeoutMillis;
+        @ToolParam(description = "user-agent override")
         public String userAgent;
+        @ToolParam(description = "persistent browser profile directory; blank uses a temporary profile")
         public String userDataDirectory;
+        @ToolParam(description = "optional user intent for the journey; drives generated test class and method names")
         public String sessionGoal;
+        @ToolParam(description = "whether API network recording is enabled for this session")
         public boolean apiCapture;
+        @ToolParam(description = "network capture filtering options; ignored unless apiCapture is set")
         public NetworkCaptureOptions networkOptions;
+        @ToolParam(description = "HAR body-content emission mode: blank or none (the default) keeps truncated "
+                + "network-trace preview bodies, full emits complete request/response bodies from "
+                + "API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII")
         public String saveHarContent;
     }
 
