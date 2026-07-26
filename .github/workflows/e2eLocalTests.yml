@@ -348,6 +348,20 @@ jobs:
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      # The %regex[.*CucumberTests.*] selector also matches unrelated unit tests
+      # (e.g. CucumberTestsHelperCoverageUnitTest, testPackage.properties.CucumberTests)
+      # whose passing runs kept the aggregate Allure total above zero even when the actual
+      # Cucumber runner found zero scenarios (issue #4079). Check its own Surefire report
+      # directly so a real zero-scenario regression can never hide behind that padding.
+      - name: Verify Cucumber scenarios actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-engine/target/surefire-reports/TEST-cucumberTestRunner.CucumberTests.xml
+          --min-executed 1
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
