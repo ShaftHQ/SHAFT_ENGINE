@@ -483,3 +483,9 @@
 {"actor":"agent","event":"relation.created","relation_id":"rel.bash-msys-path-mangling-family","timestamp":"2026-07-26T18:33:18+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n","timestamp":"2026-07-26T18:46:54+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.pr-issue-prose-is-not-a-merge-state-source-of-truth-check-state-and-mergedat","timestamp":"2026-07-26T18:46:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute","timestamp":"2026-07-26T19:06:15+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.gotcha-arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute-related-to-gotcha-githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n","timestamp":"2026-07-26T19:06:15+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n","timestamp":"2026-07-26T19:06:15+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-07-26T19:06:15+03:00"}
+{"actor":"agent","event":"relation.deleted","relation_id":"rel.gotcha-arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute-related-to-gotcha-githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n","timestamp":"2026-07-26T19:07:37+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.auto-merge-arm-race-related-to-quote-blind-auto-close","timestamp":"2026-07-26T19:07:37+03:00"}
