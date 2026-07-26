@@ -1,5 +1,6 @@
 package com.shaft.driver.internal.DriverFactory;
 
+import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.OptionsManager;
@@ -34,6 +35,7 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.ClientConfig;
 import org.openqa.selenium.safari.SafariOptions;
 import org.openqa.selenium.safari.SafariDriver;
+import org.openqa.selenium.SessionNotCreatedException;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.mockito.MockedConstruction;
 import org.testng.annotations.AfterMethod;
@@ -1203,6 +1205,39 @@ public class DriverFactoryHelperCoverageUnitTest {
             helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.CHROME, null);
             org.mockito.Mockito.verify(window).setSize(new org.openqa.selenium.Dimension(1234, 678));
             SHAFT.Validations.assertThat().object(helper.getDriver()).isEqualTo(mockedRemoteDriver).perform();
+        }
+    }
+
+    @Test
+    public void createNewLocalDriverInstanceShouldRetryLocalSafariSessionAfterRecoveringFromPairingConflict() throws Exception {
+        // issue #1548: safaridriver permits exactly one active WebDriver session system-wide. When
+        // that "already paired" conflict is hit, the recovery branch kills any lingering
+        // Safari/SafariDriver processes -- but it must then retry driver construction, or the
+        // recovery is pointless: the session gets freed but the caller still fails with the very
+        // error the recovery just fixed.
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        OptionsManager mockedOptionsManager = org.mockito.Mockito.mock(OptionsManager.class);
+        org.mockito.Mockito.when(mockedOptionsManager.getSfOptions())
+                .thenThrow(new SessionNotCreatedException(
+                        "Could not create a session: The Safari instance is already paired with another WebDriver session."))
+                .thenReturn(new SafariOptions());
+
+        Field optionsManagerField = DriverFactoryHelper.class.getDeclaredField("optionsManager");
+        optionsManagerField.setAccessible(true);
+        optionsManagerField.set(helper, mockedOptionsManager);
+
+        Method createNewLocalDriverInstance = DriverFactoryHelper.class.getDeclaredMethod(
+                "createNewLocalDriverInstance", com.shaft.driver.DriverFactory.DriverType.class, int.class);
+        createNewLocalDriverInstance.setAccessible(true);
+
+        try (MockedConstruction<TerminalActions> ignoredTerminal = org.mockito.Mockito.mockConstruction(TerminalActions.class);
+             MockedConstruction<SafariDriver> ignoredSafari = org.mockito.Mockito.mockConstruction(SafariDriver.class)) {
+            createNewLocalDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.SAFARI, 1);
+
+            SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
+            org.mockito.Mockito.verify(mockedOptionsManager, org.mockito.Mockito.times(2)).getSfOptions();
+            org.mockito.Mockito.verify(ignoredTerminal.constructed().get(0))
+                    .performTerminalCommands(org.mockito.ArgumentMatchers.anyList());
         }
     }
 

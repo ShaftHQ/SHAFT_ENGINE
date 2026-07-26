@@ -1007,14 +1007,14 @@ public class DriverFactoryHelper {
                     }
                 } else if (message != null && message.contains("The Safari instance is already paired with another WebDriver session.")) {
                     //this issue happens when running locally via safari/mac platform
-                    // attempting blind fix by trying to quit existing safari instances if any
+                    // attempting blind fix by trying to quit existing safari instances if any, then
+                    // retrying (issue #1548): safaridriver only allows one active session system-wide,
+                    // so killing the stale pairing is useless unless we retry with the now-freed instance
                     try {
                         SHAFT.CLI.terminal().performTerminalCommands(Arrays.asList(
                                 "osascript -e 'quit app \"Safari\"'", "osascript -e 'quit app \"SafariDriver\"'",
                                 "pkill -x Safari", "pkill -x SafariDriver",
                                 "killall Safari", "killall SafariDriver"));
-                        //minimizing retry attempts to save execution time
-                        shouldRetry = false;
                     } catch (Throwable throwable) {
                         ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
                     }
