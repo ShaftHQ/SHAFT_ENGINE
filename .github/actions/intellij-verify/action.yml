@@ -37,6 +37,16 @@ runs:
       uses: gradle/actions/setup-gradle@v6
       with:
         gradle-version: '9.0.0'
+    # ubuntu-22.04 runner images ship only fonts-noto-color-emoji (no DejaVu/
+    # Liberation/any general text font). Without a real text font present,
+    # JVM/Swing logical-font substitution for Dialog/sans-serif on that image
+    # resolves to something with no relationship to any real desktop, which
+    # makes headless Swing layout tests (font metrics, text wrapping) unstable
+    # relative to local/production rendering. No-op on non-Linux runners.
+    - name: Install text fonts for headless Swing rendering
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-liberation
     - name: Validate Marketplace secrets
       if: inputs.publish == 'true'
       shell: bash
