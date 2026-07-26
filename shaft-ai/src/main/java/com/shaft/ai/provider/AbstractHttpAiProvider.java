@@ -116,8 +116,10 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
                     "Provider request was interrupted.", Duration.between(started, Instant.now()),
                     request.deterministicFallback());
         } catch (JacksonException exception) {
+            String reason = exception.getMessage();
             return AiResponse.failure(AiResponseStatus.INVALID_RESPONSE, id(), configuration.model(),
-                    "Provider returned malformed JSON.", Duration.between(started, Instant.now()),
+                    reason == null || reason.isBlank() ? "Provider returned malformed JSON." : reason,
+                    Duration.between(started, Instant.now()),
                     request.deterministicFallback());
         } catch (IOException exception) {
             return AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, id(), configuration.model(),
