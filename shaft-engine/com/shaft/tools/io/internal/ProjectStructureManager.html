@@ -56,6 +56,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#identifyRunType()" tabindex="0">identifyRunType()</a></li>
+<li><a href="#identifyRunType(java.util.List)" tabindex="0">identifyRunType(List)</a></li>
 <li><a href="#initialize(com.shaft.tools.io.internal.ProjectStructureManager.RunType)" tabindex="0">initialize(ProjectStructureManager.RunType)</a></li>
 </ol>
 </li>
@@ -125,9 +126,14 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Detects the active test runner from the current stack trace.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initialize(com.shaft.tools.io.internal.ProjectStructureManager.RunType)" class="member-name-link">initialize</a><wbr>(<a href="ProjectStructureManager.RunType.html" title="enum class in com.shaft.tools.io.internal">ProjectStructureManager.RunType</a>&nbsp;runType)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ProjectStructureManager.RunType.html" title="enum class in com.shaft.tools.io.internal">ProjectStructureManager.RunType</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#identifyRunType(java.util.List)" class="member-name-link">identifyRunType</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.testng.xml.XmlSuite&gt;&nbsp;suites)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Detects the active test runner from the TestNG suites being altered.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initialize(com.shaft.tools.io.internal.ProjectStructureManager.RunType)" class="member-name-link">initialize</a><wbr>(<a href="ProjectStructureManager.RunType.html" title="enum class in com.shaft.tools.io.internal">ProjectStructureManager.RunType</a>&nbsp;runType)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Prepares project structure and listener registration files based on run type.</div>
 </div>
 </div>
@@ -172,6 +178,32 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the inferred execution mode</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="identifyRunType(java.util.List)">
+<h3>identifyRunType</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ProjectStructureManager.RunType.html" title="enum class in com.shaft.tools.io.internal">ProjectStructureManager.RunType</a></span>&nbsp;<span class="element-name">identifyRunType</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.testng.xml.XmlSuite&gt;&nbsp;suites)</span></div>
+<div class="block">Detects the active test runner from the TestNG suites being altered.
+
+<p>This overload exists specifically for <code>IAlterSuiteListener.alter(List)</code>,
+which TestNG invokes directly during its own suite-processing phase, before any test
+method (and therefore before any Cucumber <code>io.cucumber.core.runner.Runner</code> stack
+frame) has run. At that point <a href="#identifyRunType()"><code>identifyRunType()</code></a>'s stack probe can never observe
+Cucumber, even for a Cucumber-over-TestNG run (<code>AbstractTestNGCucumberTests</code>), so a
+caller at that call site is already known to be TestNG-driven &mdash; the only remaining
+question is whether TestNG is hosting a Cucumber runner. That is answered here by
+inspecting the suite's own class list instead of the call stack.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>suites</code> - the suites TestNG is about to run</dd>
+<dt>Returns:</dt>
+<dd><a href="ProjectStructureManager.RunType.html#CUCUMBER"><code>ProjectStructureManager.RunType.CUCUMBER</code></a> when any suite hosts a Cucumber TestNG runner class
+(<code>io.cucumber.testng.AbstractTestNGCucumberTests</code> subclass), <a href="ProjectStructureManager.RunType.html#TESTNG"><code>ProjectStructureManager.RunType.TESTNG</code></a>
+otherwise</dd>
 </dl>
 </div>
 </section>
