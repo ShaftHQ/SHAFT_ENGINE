@@ -61,6 +61,39 @@ public class PropertiesHelperMaximumPerformanceModeUnitTest {
         }
     }
 
+    /**
+     * Settles the ordering unknown flagged in issue #4161: {@code TestNGListener.onStart(ISuite)}
+     * calls {@code DriverFactoryHelper.preflightRemoteGridIfConfigured()} -&gt;
+     * {@code PropertiesHelper.postProcessing()} at SUITE start, strictly before any
+     * {@code @BeforeMethod}. A generated test's {@code setUp()} runs later, on the same
+     * (single, non-parallel) replay thread. Since both paths write {@code healing.strategy}
+     * through the same thread-local {@code ThreadLocalPropertiesManager} map, the later write on
+     * that shared thread wins -- so a generated test's setUp() that sets {@code healing.strategy}
+     * would silently defeat maximumPerformanceMode's forced "disabled", not the other way round.
+     */
+    @Test
+    public void laterHealingStrategyOverrideShouldWinOverMaximumPerformanceModeDisable() throws Exception {
+        String originalStrategy = SHAFT.Properties.healing.strategy();
+        int originalMode = SHAFT.Properties.flags.maximumPerformanceMode();
+        try {
+            SHAFT.Properties.flags.set().maximumPerformanceMode(1);
+            invokeMaximumPerformanceModeOverride();
+            Assert.assertEquals(SHAFT.Properties.healing.strategy(), "disabled",
+                    "maximumPerformanceMode should force-disable healing when it runs first.");
+
+            // Simulates a generated test's setUp() running strictly after suite-start
+            // postProcessing() on the same replay thread.
+            SHAFT.Properties.healing.set().strategy("shaft-heal");
+
+            Assert.assertEquals(SHAFT.Properties.healing.strategy(), "shaft-heal",
+                    "A later same-thread override must win: setUp() running after suite start "
+                            + "silently defeats maximumPerformanceMode's healing-disable.");
+        } finally {
+            SHAFT.Properties.flags.set().maximumPerformanceMode(originalMode);
+            SHAFT.Properties.healing.set().strategy(originalStrategy);
+        }
+    }
+
     private void invokeMaximumPerformanceModeOverride() throws Exception {
         Method method = PropertiesHelper.class.getDeclaredMethod("overridePropertiesForMaximumPerformanceMode");
         method.setAccessible(true);

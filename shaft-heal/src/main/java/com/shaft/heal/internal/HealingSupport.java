@@ -29,8 +29,29 @@ final class HealingSupport {
         if (context.platform().nativePlatform()) {
             return sanitize(context.applicationId() + "/" + context.screenId());
         }
+        return pageKeyFromUrl(safeCurrentUrl(driver));
+    }
+
+    private static String safeCurrentUrl(WebDriver driver) {
         try {
-            URI uri = new URI(Objects.requireNonNullElse(driver.getCurrentUrl(), ""));
+            return driver.getCurrentUrl();
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+
+    /**
+     * Derives a page key from a recorded page URL, without a live driver (issue #4161) --
+     * generation-time seeding has a recorded URL string but no live {@link WebDriver} to query.
+     * Shares the exact scheme/authority/path normalization {@link #pageKey(WebDriver)} applies, so
+     * a seeded record and a later live resolution key to the same page identically.
+     *
+     * @param url recorded page URL
+     * @return sanitized page key
+     */
+    static String pageKeyFromUrl(String url) {
+        try {
+            URI uri = new URI(Objects.requireNonNullElse(url, ""));
             if (uri.getScheme() == null) {
                 return sanitize(uri.getPath());
             }

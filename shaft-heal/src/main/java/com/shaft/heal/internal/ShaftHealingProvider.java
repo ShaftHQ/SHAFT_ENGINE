@@ -2,6 +2,8 @@ package com.shaft.heal.internal;
 
 import com.shaft.gui.internal.healing.HealingActionOutcome;
 import com.shaft.gui.internal.healing.HealingExplanation;
+import com.shaft.gui.internal.healing.HealingFingerprintObservation;
+import com.shaft.gui.internal.healing.HealingFingerprintSeed;
 import com.shaft.gui.internal.healing.HealingObservation;
 import com.shaft.gui.internal.healing.HealingProvider;
 import com.shaft.gui.internal.healing.HealingRequest;
@@ -10,6 +12,7 @@ import com.shaft.heal.HealingConfiguration;
 import com.shaft.heal.ShaftHeal;
 import com.shaft.heal.model.HealingDecision;
 import com.shaft.heal.model.HealingContext;
+import com.shaft.heal.model.HealingPlatform;
 import com.shaft.heal.model.HealingReport;
 import com.shaft.heal.model.LocatorFingerprint;
 import org.openqa.selenium.By;
@@ -163,6 +166,51 @@ public class ShaftHealingProvider implements HealingProvider {
                 contextMetadata,
                 fingerprint,
                 visualReference);
+    }
+
+    @Override
+    public void observeFingerprint(HealingFingerprintObservation observation) {
+        HealingConfiguration configuration = HealingConfiguration.current();
+        String pageKey = HealingSupport.pageKeyFromUrl(observation.pageUrl());
+        String originalLocator = HealingSupport.locator(observation.originalLocator());
+        // Generation-time seeding has no live driver, frame, or shadow root -- only the top-level
+        // page context applies (issue #4161). HealingSupport.context() tolerates a null driver and
+        // null locators, so the resulting context matches a later live top-level resolution.
+        HealingContext contextMetadata = HealingSupport.context(null, null, null, null);
+        String context = contextMetadata.stableKey();
+        LocatorFingerprint fingerprint = toFingerprint(observation.fingerprint());
+        new HealingHistoryStore(configuration).save(
+                pageKey,
+                originalLocator,
+                context,
+                contextMetadata,
+                fingerprint,
+                "");
+    }
+
+    private static LocatorFingerprint toFingerprint(HealingFingerprintSeed seed) {
+        return new LocatorFingerprint(
+                LocatorFingerprint.CURRENT_SCHEMA_VERSION,
+                seed.tagName(),
+                seed.accessibleName(),
+                seed.associatedLabel(),
+                seed.visibleText(),
+                seed.id(),
+                seed.name(),
+                seed.role(),
+                seed.type(),
+                seed.placeholder(),
+                seed.title(),
+                seed.testIds(),
+                seed.semanticAttributes(),
+                "",
+                HealingPlatform.WEB,
+                Map.of(),
+                "",
+                seed.displayed(),
+                seed.enabled(),
+                seed.selected(),
+                "");
     }
 
     @Override

@@ -38,6 +38,17 @@ public interface HealingProvider {
     void observe(HealingObservation observation);
 
     /**
+     * Records a recorded fingerprint seed without a live driver or element (issue #4161) --
+     * generation-time seeding uses this instead of {@link #observe(HealingObservation)}, which
+     * requires a live resolved element.
+     *
+     * @param observation recorded seed evidence
+     */
+    default void observeFingerprint(HealingFingerprintObservation observation) {
+        // Optional provider hook.
+    }
+
+    /**
      * Records the action outcome after SHAFT, not the provider, executes it.
      *
      * @param outcome action outcome

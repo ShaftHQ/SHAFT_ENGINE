@@ -125,6 +125,22 @@ public final class HealingManager {
     }
 
     /**
+     * Records a recorded fingerprint seed when SHAFT Heal is available, without a live driver or
+     * element (issue #4161). Optional-provider failures are swallowed, matching every other
+     * {@code HealingManager} entry point -- seeding must never fail generation or replay.
+     *
+     * @param observation recorded seed evidence
+     */
+    public static void observeFingerprint(HealingFingerprintObservation observation) {
+        try {
+            HealingProviderRegistry.findProvider()
+                    .ifPresent(provider -> provider.observeFingerprint(observation));
+        } catch (RuntimeException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+        }
+    }
+
+    /**
      * Records the result of an action performed by SHAFT on a recovered element.
      *
      * @param driver active driver
