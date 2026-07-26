@@ -92,6 +92,18 @@ public interface Healing extends EngineProperties<Healing> {
     boolean sourcePatchEnabled();
 
     /**
+     * @return hard total budget in seconds across the whole deterministic re-suggestion ladder,
+     *         not per attempt (issue #4027). {@code 0} (the default) preserves today's one-shot
+     *         {@code resolve()} behavior unchanged; only a positive value retries until the
+     *         element is found or the budget is hit. Every existing healing user keeps today's
+     *         single attempt unless this is explicitly raised (e.g. by SHAFT-Assistant-generated
+     *         tests, which set it in their generated {@code setUp()}).
+     */
+    @Key("healing.ladder.budgetSeconds")
+    @DefaultValue("0")
+    int ladderBudgetSeconds();
+
+    /**
      * Returns a fluent builder for current-thread overrides.
      *
      * @return current-thread property builder
@@ -185,6 +197,12 @@ public interface Healing extends EngineProperties<Healing> {
         /** @param value source-patch proposal enabled state @return this builder */
         public SetProperty sourcePatchEnabled(boolean value) {
             setProperty("healing.sourcePatch.enabled", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value hard total ladder budget in seconds (0 preserves today's one-shot behavior) @return this builder */
+        public SetProperty ladderBudgetSeconds(int value) {
+            setProperty("healing.ladder.budgetSeconds", String.valueOf(value));
             return this;
         }
     }

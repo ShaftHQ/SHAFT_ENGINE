@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
  * @param aiEnabled whether optional provider reranking is enabled
  * @param aiTrigger when optional provider reranking may run
  * @param sourcePatchEnabled whether reviewed source-patch proposals are permitted
+ * @param ladderBudget hard total budget across the whole re-suggestion ladder, not per attempt
+ *                     (issue #4027); {@link Duration#ZERO} preserves today's one-shot behavior
  */
 public record HealingConfiguration(
         double minimumConfidence,
@@ -38,7 +40,8 @@ public record HealingConfiguration(
         boolean visualEnabled,
         boolean aiEnabled,
         AiTrigger aiTrigger,
-        boolean sourcePatchEnabled) {
+        boolean sourcePatchEnabled,
+        Duration ladderBudget) {
     /**
      * Optional provider reranking trigger.
      */
@@ -50,7 +53,29 @@ public record HealingConfiguration(
     }
 
     /**
-     * Backward-compatible constructor with the default AI trigger.
+     * Backward-compatible constructor without the re-suggestion ladder (one-shot, matching
+     * today's behavior).
+     */
+    public HealingConfiguration(
+            double minimumConfidence,
+            double ambiguityMargin,
+            Set<String> evidenceCategories,
+            List<String> testIdAttributes,
+            boolean historyEnabled,
+            Path historyPath,
+            int historyMaxEntries,
+            Duration historyRetention,
+            boolean visualEnabled,
+            boolean aiEnabled,
+            AiTrigger aiTrigger,
+            boolean sourcePatchEnabled) {
+        this(minimumConfidence, ambiguityMargin, evidenceCategories, testIdAttributes,
+                historyEnabled, historyPath, historyMaxEntries, historyRetention,
+                visualEnabled, aiEnabled, aiTrigger, sourcePatchEnabled, Duration.ZERO);
+    }
+
+    /**
+     * Backward-compatible constructor with the default AI trigger and no re-suggestion ladder.
      */
     public HealingConfiguration(
             double minimumConfidence,
@@ -93,7 +118,8 @@ public record HealingConfiguration(
                 properties.visualEnabled(),
                 properties.aiEnabled(),
                 aiTrigger(properties.aiTrigger()),
-                properties.sourcePatchEnabled());
+                properties.sourcePatchEnabled(),
+                Duration.ofSeconds(Math.max(0, properties.ladderBudgetSeconds())));
     }
 
     /**
@@ -105,6 +131,7 @@ public record HealingConfiguration(
         historyPath = historyPath == null ? Path.of("target/shaft-heal/history.json") : historyPath;
         historyRetention = historyRetention == null ? Duration.ofDays(30) : historyRetention;
         aiTrigger = aiTrigger == null ? AiTrigger.AMBIGUOUS : aiTrigger;
+        ladderBudget = ladderBudget == null || ladderBudget.isNegative() ? Duration.ZERO : ladderBudget;
     }
 
     private static List<String> split(String value) {
