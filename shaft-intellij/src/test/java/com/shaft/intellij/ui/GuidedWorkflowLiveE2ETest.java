@@ -187,7 +187,8 @@ class GuidedWorkflowLiveE2ETest {
                 String outputPath = startStatus.get("outputPath").getAsString();
                 assertFalse(outputPath.isBlank(), "capture_api_start should report the persisted session path");
 
-                JsonObject status = awaitNetworkTransactions(mcp, 2, Duration.ofSeconds(90));
+                JsonObject status = awaitApiEndpoints(mcp, List.of("/api/session", "/api/profile"),
+                        Duration.ofSeconds(90));
                 assertTrue(status.get("networkTransactionCount").getAsInt() >= 2, status.toString());
 
                 JsonObject stoppedStatus = webStatus(mcp.invoke(apiStop(false), TOOL_TIMEOUT));
@@ -264,19 +265,54 @@ class GuidedWorkflowLiveE2ETest {
         return new Invocation("capture_api_generate", arguments);
     }
 
-    private static JsonObject awaitNetworkTransactions(LiveMcp mcp, int minimumTransactions, Duration limit)
+    /**
+     * Waits until {@code capture_api_status}'s {@code lastEndpoints} reports every one of
+     * {@code expectedEndpointFragments}, instead of gating on a raw {@code networkTransactionCount}
+     * threshold the way this used to (issue #4046). {@code networkTransactionCount} counts every
+     * non-asset network transaction ({@code ResourceKind#isAsset()} excludes only stylesheet/script/
+     * image/font/media), so it includes the fixture page's own {@code DOCUMENT}-kind document
+     * request and the browser's automatic favicon request. On the nightly run that root-caused this,
+     * those two alone satisfied a {@code >= 2} gate before the fixture's delayed {@code fetch()}
+     * calls -- scheduled via {@code setTimeout} -- ever fired, so {@code capture_api_stop} ran
+     * against a session with zero renderable (XHR/FETCH) transactions and {@code capture_api_generate}
+     * correctly, diagnosably reported that. No raw-count threshold fixes this: navigation noise is
+     * unbounded. Waiting for the specific endpoints the scenario actually needs removes the race at
+     * its cause.
+     */
+    private static JsonObject awaitApiEndpoints(LiveMcp mcp, List<String> expectedEndpointFragments, Duration limit)
             throws Exception {
         long deadline = System.nanoTime() + limit.toNanos();
         JsonObject status = new JsonObject();
+        List<String> lastObservedEndpoints = List.of();
         while (System.nanoTime() < deadline) {
             status = webStatus(mcp.invoke(new Invocation("capture_api_status", new JsonObject()), TOOL_TIMEOUT));
-            if (status.has("networkTransactionCount") && status.get("networkTransactionCount").getAsInt()
-                    >= minimumTransactions) {
+            lastObservedEndpoints = observedEndpoints(status);
+            if (containsEveryFragment(lastObservedEndpoints, expectedEndpointFragments)) {
                 return status;
             }
             Thread.sleep(2000);
         }
-        return status;
+        fail("Timed out after " + limit + " waiting for capture_api_status.lastEndpoints to include every one of "
+                + expectedEndpointFragments + "; last observed endpoints were " + lastObservedEndpoints
+                + ". Final status: " + status);
+        return status; // unreachable -- fail() always throws
+    }
+
+    private static List<String> observedEndpoints(JsonObject status) {
+        JsonArray endpoints = status.getAsJsonArray("lastEndpoints");
+        if (endpoints == null) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (JsonElement endpoint : endpoints) {
+            result.add(endpoint.getAsString());
+        }
+        return result;
+    }
+
+    private static boolean containsEveryFragment(List<String> observedEndpoints, List<String> expectedFragments) {
+        return expectedFragments.stream().allMatch(fragment ->
+                observedEndpoints.stream().anyMatch(endpoint -> endpoint.contains(fragment)));
     }
 
     /**
