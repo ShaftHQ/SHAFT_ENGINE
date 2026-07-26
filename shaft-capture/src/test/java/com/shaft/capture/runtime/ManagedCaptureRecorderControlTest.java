@@ -282,6 +282,51 @@ class ManagedCaptureRecorderControlTest {
     }
 
     @Test
+    void translateNetworkCaptureOptionsCarriesCaptureRequestBodiesThrough() {
+        // Regression for issue #4057: captureRequestBodies was silently discarded by the translation,
+        // so a caller who set it had no effect on CaptureNetworkRecorder's body-capture behavior.
+        NetworkCaptureOptions requested = new NetworkCaptureOptions();
+        requested.captureRequestBodies = true;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(requested);
+
+        assertTrue(translated.captureRequestBodies(),
+                "captureRequestBodies=true on the MCP-bound options must survive translation");
+    }
+
+    @Test
+    void translateNetworkCaptureOptionsCarriesCaptureResponseBodiesThrough() {
+        // Regression for issue #4057: captureResponseBodies was silently discarded by the translation.
+        NetworkCaptureOptions requested = new NetworkCaptureOptions();
+        requested.captureResponseBodies = true;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(requested);
+
+        assertTrue(translated.captureResponseBodies(),
+                "captureResponseBodies=true on the MCP-bound options must survive translation");
+    }
+
+    @Test
+    void networkCaptureExplicitlyDisabledIsTrueOnlyWhenEnabledIsExplicitlyFalse() {
+        // Regression for issue #4057: NetworkCaptureOptions.enabled had no equivalent on the target
+        // record and was silently discarded, so a caller could not opt out of network recording via
+        // networkOptions once apiCapture (or the global capture.enabled property) turned it on.
+        NetworkCaptureOptions disabled = new NetworkCaptureOptions();
+        disabled.enabled = false;
+        assertTrue(ManagedCaptureRecorder.networkCaptureExplicitlyDisabled(disabled),
+                "enabled=false must be honored as an explicit opt-out");
+
+        NetworkCaptureOptions defaultEnabled = new NetworkCaptureOptions();
+        assertFalse(ManagedCaptureRecorder.networkCaptureExplicitlyDisabled(defaultEnabled),
+                "the default enabled=true must not suppress network recording");
+
+        assertFalse(ManagedCaptureRecorder.networkCaptureExplicitlyDisabled(null),
+                "a null networkOptions must not suppress network recording");
+    }
+
+    @Test
     void filterHarByGlobKeepsOnlyEntriesWhoseUrlMatchesTheGlobAndCountsDropped() {
         String harJson = """
                 {

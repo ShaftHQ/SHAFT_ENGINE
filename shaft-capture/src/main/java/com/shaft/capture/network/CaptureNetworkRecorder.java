@@ -256,9 +256,10 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
                 ? Map.of()
                 : secretHeaderReplacer.replaceSecrets(headers(response), sessionId);
 
-        BodyRef requestBodyRef = bodyStore.store(
-                requestBody, request.getContentType(), sessionDirectory, (int) options.maxBodyBytes());
-        BodyRef responseBodyRef = response == null
+        BodyRef requestBodyRef = options.captureRequestBodies()
+                ? bodyStore.store(requestBody, request.getContentType(), sessionDirectory, (int) options.maxBodyBytes())
+                : null;
+        BodyRef responseBodyRef = response == null || !options.captureResponseBodies()
                 ? null
                 : bodyStore.store(responseBody, response.getContentType(), sessionDirectory, (int) options.maxBodyBytes());
 

@@ -11,6 +11,10 @@ import java.util.List;
  * @param firstPartyOnly    whether only same-origin (relative to the initiator page) requests are recorded
  * @param maxTransactions   maximum number of transactions recorded per session
  * @param maxBodyBytes      maximum number of body bytes persisted per request/response; {@code <= 0} means unlimited
+ * @param captureRequestBodies  whether request bodies are persisted at all; {@code false} records the
+ *                              transaction (method/URL/headers/status) with no request {@code BodyRef}
+ * @param captureResponseBodies whether response bodies are persisted at all; {@code false} records the
+ *                              transaction with no response {@code BodyRef}
  */
 public record NetworkCaptureOptions(
         boolean includeAssetTypes,
@@ -18,7 +22,9 @@ public record NetworkCaptureOptions(
         List<String> urlExcludeGlobs,
         boolean firstPartyOnly,
         int maxTransactions,
-        long maxBodyBytes) {
+        long maxBodyBytes,
+        boolean captureRequestBodies,
+        boolean captureResponseBodies) {
     /**
      * Default maximum number of recorded transactions per session.
      */
@@ -41,6 +47,30 @@ public record NetworkCaptureOptions(
         if (maxBodyBytes <= 0) {
             maxBodyBytes = DEFAULT_MAX_BODY_BYTES;
         }
+    }
+
+    /**
+     * Compatibility constructor for callers that predate {@code captureRequestBodies}/
+     * {@code captureResponseBodies} (issue #4057): preserves the original unconditional
+     * body-capture behavior (subject to {@code maxBodyBytes} truncation) by defaulting both
+     * new flags to {@code true}.
+     *
+     * @param includeAssetTypes whether stylesheet/script/image/font/media requests are recorded
+     * @param urlIncludeGlobs   URL glob patterns; when non-empty, only matching URLs are recorded
+     * @param urlExcludeGlobs   URL glob patterns excluded even when an include glob also matches
+     * @param firstPartyOnly    whether only same-origin (relative to the initiator page) requests are recorded
+     * @param maxTransactions   maximum number of transactions recorded per session
+     * @param maxBodyBytes      maximum number of body bytes persisted per request/response; {@code <= 0} means unlimited
+     */
+    public NetworkCaptureOptions(
+            boolean includeAssetTypes,
+            List<String> urlIncludeGlobs,
+            List<String> urlExcludeGlobs,
+            boolean firstPartyOnly,
+            int maxTransactions,
+            long maxBodyBytes) {
+        this(includeAssetTypes, urlIncludeGlobs, urlExcludeGlobs, firstPartyOnly, maxTransactions, maxBodyBytes,
+                true, true);
     }
 
     /**

@@ -100,6 +100,72 @@ class CaptureNetworkRecorderTest {
     }
 
     @Test
+    void skipsStoringRequestAndResponseBodiesWhenBothCaptureBodyFlagsAreFalse() throws Exception {
+        // Regression for issue #4057: captureRequestBodies/captureResponseBodies were accepted from
+        // MCP callers but had no effect -- bodies were always persisted regardless. This pins that
+        // setting both to false now actually suppresses body persistence.
+        List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
+        NetworkCaptureOptions options = new NetworkCaptureOptions(
+                true, List.of(), List.of(), false, 500, 0, false, false);
+        WebDriver driver = devToolsDriver("https://example.test/app");
+
+        AtomicReference<Filter> filterRef = new AtomicReference<>();
+        try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
+            CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
+                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+            assertTrue(recorder.start());
+
+            HttpRequest request = new HttpRequest(HttpMethod.POST, "https://example.test/api/orders");
+            request.setContent(Contents.utf8String("request-payload"));
+            HttpHandler next = req -> {
+                HttpResponse response = new HttpResponse().setStatus(200);
+                response.setContent(Contents.utf8String("response-payload"));
+                return response;
+            };
+            filterRef.get().apply(next).execute(request);
+
+            assertEquals(1, events.size());
+            CaptureNetworkRecorder.RecordedTransaction event = events.getFirst();
+            assertEquals("POST", event.request().method(), "method/URL must still be recorded");
+            assertEquals(200, event.response().statusCode(), "status must still be recorded");
+            assertEquals(null, event.request().body(), "request body must not be stored");
+            assertEquals(null, event.response().body(), "response body must not be stored");
+            recorder.close();
+        }
+    }
+
+    @Test
+    void capturesRequestBodyButNotResponseBodyWhenOnlyCaptureRequestBodiesIsTrue() throws Exception {
+        // Proves the two body flags are wired independently, not collapsed into one switch.
+        List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
+        NetworkCaptureOptions options = new NetworkCaptureOptions(
+                true, List.of(), List.of(), false, 500, 0, true, false);
+        WebDriver driver = devToolsDriver("https://example.test/app");
+
+        AtomicReference<Filter> filterRef = new AtomicReference<>();
+        try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
+            CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
+                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+            assertTrue(recorder.start());
+
+            HttpRequest request = new HttpRequest(HttpMethod.POST, "https://example.test/api/orders");
+            request.setContent(Contents.utf8String("request-payload"));
+            HttpHandler next = req -> {
+                HttpResponse response = new HttpResponse().setStatus(200);
+                response.setContent(Contents.utf8String("response-payload"));
+                return response;
+            };
+            filterRef.get().apply(next).execute(request);
+
+            assertEquals(1, events.size());
+            CaptureNetworkRecorder.RecordedTransaction event = events.getFirst();
+            assertTrue(event.request().body() != null, "request body must be stored when captureRequestBodies=true");
+            assertEquals(null, event.response().body(), "response body must not be stored when captureResponseBodies=false");
+            recorder.close();
+        }
+    }
+
+    @Test
     void dropsAssetRequestsWhenIncludeAssetTypesIsFalse() throws Exception {
         List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
         NetworkCaptureOptions options = new NetworkCaptureOptions(
