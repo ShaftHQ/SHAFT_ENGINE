@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:21fa66d6985961bd017479e57331d96ee5f3988eaf4dbcf799a0c279d409e535",
+  "created_at": "2026-07-26T19:32:42+03:00",
+  "from": "gotcha.github-actions-expressions-binds-tighter-than-so-appending-a-guard-to-an-existing-a-b-condition-needs-parentheses",
+  "id": "rel.actions-precedence-gotcha-related-to-pr-gate-vacuous-green-constraint",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps",
+  "updated_at": "2026-07-26T19:32:42+03:00"
+}
