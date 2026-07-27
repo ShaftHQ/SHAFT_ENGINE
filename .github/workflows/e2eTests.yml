@@ -23,6 +23,21 @@ on:
           selector unchanged.
         required: false
         default: ''
+      enableFlutterE2E:
+        description: >-
+          Opt-in flag for the Android_Flutter_Emulator_E2E job (issue #4197).
+          Mirrors the existing -Dshaft.enableFlutterE2E Maven system property
+          that already gates FlutterTest.java (SkipException unless set,
+          FlutterTest.java:24,34-37) -- reused here as a workflow_dispatch
+          input instead of a dotted property key because GitHub Actions
+          expression syntax can't address a literal dot in an input name.
+          This job never runs on the nightly schedule (schedule triggers
+          can't supply inputs); set to 'true' on a manual dispatch to run
+          it. It only proves an Appium session opens against the real,
+          pinned demo-app on an emulator -- it does not run FlutterTest.java
+          and does not exercise the fluent Flutter API (see job comment).
+        required: false
+        default: 'false'
 
 permissions:
   contents: read
@@ -77,6 +92,7 @@ jobs:
       - Android_Native_BrowserStack
       - iOS_Web_SAFARI_BrowserStack
       - Android_Web_Chrome_BrowserStack
+      - Android_Flutter_Emulator_E2E
       - MacOSX_Safari_BrowserStack
       - Ubuntu_Chrome_Cucumber_Grid
       - MacOSX_Safari_Cucumber_BrowserStack
@@ -647,6 +663,130 @@ jobs:
           job-name: Android_Web_Chrome_BrowserStack
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
+  # Issue #4197: proves a real Appium session can be opened against a Flutter
+  # app built with the driver's own required server wiring, on a real CI
+  # runner -- something FlutterTest.java (permanently SkipException-gated,
+  # FlutterTest.java:24,34-37) has never had a CI leg to prove. This job
+  # deliberately does NOT touch FlutterTest.java or run it: issue #4017 is
+  # concurrently adding the fluent Flutter API and its own gated test stubs
+  # in that exact file. What this job proves: the demo-app/emulator/Appium
+  # pipeline boots and a session opens. What it does NOT prove: that any of
+  # the fluent API's calls behave correctly against a live Flutter widget
+  # tree -- wiring that is explicitly deferred to a fast-follow ticket once
+  # both this job and issue 4017 have landed. Gated behind the
+  # enableFlutterE2E workflow_dispatch input above (never runs on the
+  # nightly schedule) -- see that input's description for why it mirrors
+  # -Dshaft.enableFlutterE2E instead of duplicating the gating concept.
+  Android_Flutter_Emulator_E2E:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.enableFlutterE2E == 'true' && (github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          java-version: '17'
+          node-version: '20'
+      - name: Setup Flutter 3.22.1
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.22.1
+          channel: stable
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4.0.1
+      - name: Checkout pinned appium-flutter-server demo-app
+        uses: actions/checkout@v7
+        with:
+          repository: AppiumTestDistribution/appium-flutter-server
+          # Pinned commit, verified current HEAD of main at ticket time (issue #4197) --
+          # never track a moving branch; there is no permanently-hosted prebuilt APK,
+          # the upstream project's own CI builds fresh from source every run too.
+          ref: 78ba97a6146091b944335d0db3330f74416f3ac7
+          path: appium-flutter-server
+          sparse-checkout: |
+            demo-app
+      - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
+        # Recipe taken verbatim from appium-flutter-server's own
+        # .github/workflows/main.yml at the pinned commit -- their CI runs this
+        # exact sequence successfully today.
+        run: |
+          set -euo pipefail
+          cd appium-flutter-server/demo-app
+          dart pub global activate rps --version 0.8.0
+          flutter build apk --debug
+          cd android && ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+      - name: Install Appium and the Flutter Integration Driver
+        run: |
+          set -euo pipefail
+          npm install -g appium@3.5.2
+          appium driver install --source npm appium-flutter-integration-driver
+      - name: Boot emulator and assert an Appium Flutter session opens
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          script: |
+            set -euo pipefail
+            APK_PATH="$GITHUB_WORKSPACE/appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk"
+            ls -l "$APK_PATH"
+            adb devices
+
+            # The Appium server and the session-open assertion MUST run in the same
+            # step/script: a server started via a background job in an earlier step
+            # gets torn down when that step's shell exits, so nothing is listening by
+            # the time a later step tries to connect (see e2eLocalTests.yml's
+            # Windows_Appium_Desktop_Local job comment, issue #3806, for the same
+            # gotcha discovered the hard way there). Co-locating start + assertion
+            # here keeps the server alive for the whole session-creation window.
+            appiumLog="$RUNNER_TEMP/appium-server.log"
+            appium --address 127.0.0.1 --port 4723 --log-level info --log "$appiumLog" &
+            APPIUM_PID=$!
+            trap 'kill "$APPIUM_PID" 2>/dev/null || true' EXIT
+
+            ready=false
+            for i in $(seq 1 60); do
+              if curl --max-time 2 -fsS http://127.0.0.1:4723/status >/dev/null 2>&1; then
+                ready=true
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ready" != true ]; then
+              echo "::error::Appium server did not become ready."
+              cat "$appiumLog" || true
+              exit 1
+            fi
+
+            SESSION_PAYLOAD=$(jq -n --arg app "$APK_PATH" '{capabilities: {alwaysMatch: {platformName: "Android", "appium:automationName": "FlutterIntegration", "appium:app": $app, "appium:noReset": true}}}')
+
+            RESPONSE=$(curl --max-time 120 -fsS -X POST -H "Content-Type: application/json" -d "$SESSION_PAYLOAD" http://127.0.0.1:4723/session)
+            echo "$RESPONSE"
+            SESSION_ID=$(echo "$RESPONSE" | jq -r '.value.sessionId // empty')
+            if [ -z "$SESSION_ID" ]; then
+              echo "::error::Appium session did not open -- no sessionId in response."
+              cat "$appiumLog" || true
+              exit 1
+            fi
+            echo "Appium Flutter session opened: $SESSION_ID"
+            curl --max-time 30 -fsS -X DELETE "http://127.0.0.1:4723/session/$SESSION_ID" || true
+      - name: Upload Appium server log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Android_Flutter_Emulator_E2E_appium_log
+          path: ${{ runner.temp }}/appium-server.log
+          if-no-files-found: ignore
+
   MacOSX_Safari_BrowserStack:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_BrowserStack,')
     runs-on: ubuntu-latest
@@ -938,7 +1078,7 @@ jobs:
 
   notify_e2e_tests_failure:
     name: Notify on nightly failure
-    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
+    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, Android_Flutter_Emulator_E2E, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5
