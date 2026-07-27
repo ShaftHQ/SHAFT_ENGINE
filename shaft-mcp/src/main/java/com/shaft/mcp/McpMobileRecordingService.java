@@ -199,7 +199,9 @@ final class McpMobileRecordingService {
                 safeParameters,
                 sensitiveStored ? javaCode : redactedJavaCode,
                 sensitiveStored,
-                warnings);
+                warnings,
+                0,
+                false);
         List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
         actions.add(recorded);
         recording = new McpMobileRecording(
