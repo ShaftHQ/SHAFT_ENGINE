@@ -706,22 +706,27 @@ final class AssistantLocalAgentRunner {
                 processReference.set(null);
             }
         } finally {
-            // Issue #3962: notified exactly once, from every exit path of this method (normal return,
-            // timeout, a thrown exception, or a cancellation the checks above turned into a thrown
-            // CancellationException) -- unconditionally, regardless of whether cancellationRequested
-            // was ever observed. This runs strictly before this method returns/throws to the
-            // supplyAsync wrapper that completes the primary future, so by the time any caller's
-            // future.whenComplete callback can possibly observe this run's outcome, this notification
-            // has already happened -- closing the race #3758/#3768 exploit differently (this side
-            // channel is never subject to future.cancel(true), which only ever affects the primary
-            // future's own stored result).
-            if (terminalAnswerConsumer != null) {
-                terminalAnswerConsumer.accept(streamParser != null && streamParser.hasTerminalEvent()
-                        ? streamParser.finalOutput()
-                        : null);
-            }
-            if (bridge != null) {
-                bridge.close();
+            try {
+                // Issue #3962: notified exactly once, from every exit path of this method (normal
+                // return, timeout, a thrown exception, or a cancellation the checks above turned into a
+                // thrown CancellationException) -- unconditionally, regardless of whether
+                // cancellationRequested was ever observed. This runs strictly before this method
+                // returns/throws to the supplyAsync wrapper that completes the primary future, so by the
+                // time any caller's future.whenComplete callback can possibly observe this run's
+                // outcome, this notification has already happened -- closing the race #3758/#3768
+                // exploit differently (this side channel is never subject to future.cancel(true), which
+                // only ever affects the primary future's own stored result).
+                if (terminalAnswerConsumer != null) {
+                    terminalAnswerConsumer.accept(streamParser != null && streamParser.hasTerminalEvent()
+                            ? streamParser.finalOutput()
+                            : null);
+                }
+            } finally {
+                // Nested so a misbehaving terminalAnswerConsumer (e.g. a caller's completion callback
+                // throwing) can never suppress closing the approval bridge's HTTP server underneath it.
+                if (bridge != null) {
+                    bridge.close();
+                }
             }
         }
     }
