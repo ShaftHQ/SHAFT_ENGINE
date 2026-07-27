@@ -301,6 +301,10 @@
       "mutation": false,
       "sensitive": false
     },
+    "doctor_propose_advisory_locator": {
+      "mutation": false,
+      "sensitive": false
+    },
     "doctor_propose_healed_locator": {
       "mutation": false,
       "sensitive": false

@@ -41,8 +41,13 @@ final class HealingDecisionEngine {
         if (deterministicEligible.isEmpty()) {
             RankedCandidate top = eligible.getFirst();
             double confidence = top.report().score().finalScore();
-            return result(HealingDecision.Status.BELOW_THRESHOLD, null, confidence,
-                    "The best deterministic candidate did not meet the minimum confidence.");
+            // Issue #4194: a low-confidence best candidate is the wired trigger for a reviewable
+            // SHAFT Doctor advisory proposal -- never an auto-applied replacement.
+            return new DecisionResult(
+                    new HealingDecision(HealingDecision.Status.BELOW_THRESHOLD, "", confidence,
+                            "The best deterministic candidate did not meet the minimum confidence.",
+                            true, true),
+                    null);
         }
         List<RankedCandidate> finalEligible = deterministicEligible.stream()
                 .sorted(Comparator

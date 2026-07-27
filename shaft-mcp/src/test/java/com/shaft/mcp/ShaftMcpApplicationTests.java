@@ -69,8 +69,9 @@ class ShaftMcpApplicationTests {
 
         Set<String> expected = expectedTools();
         assertEquals(expected, toolNames);
-        assertEquals(89, toolNames.size(), "the tool architecture sweep's frozen catalog is exactly 89 tools "
-                + "(design doc Decision 2); update the manifest fixture deliberately, never this literal");
+        assertEquals(90, toolNames.size(), "the tool architecture sweep's frozen catalog is exactly 90 tools "
+                + "(design doc Decision 2, +1 for issue #4194's doctor_propose_advisory_locator); "
+                + "update the manifest fixture deliberately, never this literal");
         assertTrue(toolNames.contains("doctor_analyze_failed_allure"));
         assertTrue(toolNames.contains("trace_latest"));
         assertTrue(toolNames.contains("trace_read"));

@@ -156,6 +156,82 @@ class HealingLocatorProposalServiceTest {
                         repository.resolve("target/unsafe"))));
     }
 
+    @Test
+    void belowThresholdReportCreatesAdvisoryProposalWithoutEditingOrReplacingTheLocator(
+            @TempDir Path repository) throws Exception {
+        // Issue #4194: a low-trust ladder outcome must surface a reviewable advisory comment --
+        // never a silent, auto-applied locator replacement.
+        Path source = source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        String original = Files.readString(source, StandardCharsets.UTF_8);
+        Path report = report(repository, true, "BELOW_THRESHOLD", "NOT_EXECUTED");
+        HealingLocatorProposalService service = new HealingLocatorProposalService();
+
+        HealingLocatorProposal proposal = service.proposeAdvisory(new HealingLocatorProposalRequest(
+                repository,
+                report,
+                "src/test/java/example/LoginTest.java",
+                true,
+                repository.resolve("target/advisories")));
+
+        assertEquals(original, Files.readString(source, StandardCharsets.UTF_8),
+                "Real source file must never be touched by an advisory proposal.");
+        assertTrue(proposal.proposalId().startsWith("heal-advisory-"));
+        assertTrue(proposal.patch().rationale().contains("ADVISORY"));
+        assertEquals("By.id(\"new-login\")", proposal.proposedExpression());
+        assertTrue(proposal.patch().content().contains("By.id(\"old-login\")"),
+                "The advisory patch must keep the original locator -- comment only, never replaced.");
+        assertTrue(proposal.patch().content().contains("new-login"),
+                "The advisory comment must reference the suggested candidate.");
+        assertTrue(Files.isRegularFile(Path.of(proposal.manifestPath())));
+    }
+
+    @Test
+    void advisoryProposalRejectsAnythingOtherThanBelowThreshold(@TempDir Path repository)
+            throws Exception {
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path recoveredReport = report(repository, true, "RECOVERED", "PASSED");
+
+        assertThrows(IllegalArgumentException.class, () -> new HealingLocatorProposalService()
+                .proposeAdvisory(new HealingLocatorProposalRequest(
+                        repository,
+                        recoveredReport,
+                        "src/test/java/example/LoginTest.java",
+                        true,
+                        repository.resolve("target/advisory-wrong-status"))));
+    }
+
+    @Test
+    void advisoryProposalRequiresExplicitConsent(@TempDir Path repository) throws Exception {
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path belowThresholdReport = report(repository, true, "BELOW_THRESHOLD", "NOT_EXECUTED");
+
+        assertThrows(IllegalArgumentException.class, () -> new HealingLocatorProposalService()
+                .proposeAdvisory(new HealingLocatorProposalRequest(
+                        repository,
+                        belowThresholdReport,
+                        "src/test/java/example/LoginTest.java",
+                        false,
+                        repository.resolve("target/advisory-no-consent"))));
+    }
+
+    @Test
+    void advisoryProposalRespectsTheSourcePatchDisabledGate(@TempDir Path repository) throws Exception {
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path belowThresholdReport = report(repository, true, "BELOW_THRESHOLD", "NOT_EXECUTED");
+        SHAFT.Properties.healing.set().sourcePatchEnabled(false);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> new HealingLocatorProposalService().proposeAdvisory(
+                        new HealingLocatorProposalRequest(
+                                repository,
+                                belowThresholdReport,
+                                "src/test/java/example/LoginTest.java",
+                                true,
+                                repository.resolve("target/advisory-disabled"))));
+
+        assertTrue(failure.getMessage().contains("healing.sourcePatch.enabled"));
+    }
+
     private static Path source(Path repository, String locatorLine) throws Exception {
         Path source = repository.resolve("src/test/java/example/LoginTest.java");
         Files.createDirectories(source.getParent());

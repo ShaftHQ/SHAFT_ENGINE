@@ -365,6 +365,45 @@ public class DoctorService {
     }
 
     /**
+     * Creates an advisory-only, unconfirmed locator patch proposal from a low-trust
+     * ({@code BELOW_THRESHOLD}) SHAFT Heal report (issue #4194).
+     *
+     * <p>Unlike {@link #proposeHealedLocator}, this never requires a confirmed recovery -- a
+     * low-confidence best candidate is exactly the signal this exists for. The resulting patch
+     * only adds a review comment; it never replaces the existing locator.</p>
+     *
+     * @param repositoryRoot approved Git repository root
+     * @param healingReportPath low-trust SHAFT Heal report JSON
+     * @param sourcePath repository-relative Java source file
+     * @param sourcePatchConsent explicit proposal consent
+     * @param outputDirectory proposal artifact directory
+     * @return reviewable advisory proposal and structured Doctor patch
+     */
+    @Tool(name = "doctor_propose_advisory_locator",
+            description = "maps a low-trust SHAFT Heal report to one reviewable advisory locator"
+                    + " comment proposal without editing, replacing, or publishing")
+    public HealingLocatorProposal proposeAdvisoryLocator(
+            String repositoryRoot,
+            String healingReportPath,
+            String sourcePath,
+            boolean sourcePatchConsent,
+            String outputDirectory) {
+        Path repository = workspacePolicy.existing(repositoryRoot, "Repository root");
+        Path healingReport = workspacePolicy.existing(healingReportPath, "Healing report path");
+        String approvedSourcePath = workspacePolicy.sourceAllowlist(repository, List.of(sourcePath)).getFirst();
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("target/shaft-doctor/healing-proposals",
+                        "Doctor healing proposal output directory")
+                : workspacePolicy.output(outputDirectory, "Doctor healing proposal output directory");
+        return new HealingLocatorProposalService().proposeAdvisory(new HealingLocatorProposalRequest(
+                repository,
+                healingReport,
+                approvedSourcePath,
+                sourcePatchConsent,
+                output));
+    }
+
+    /**
      * Publishes an approved proposal as a draft pull request only.
      *
      * @param manifestPath persisted proposal manifest

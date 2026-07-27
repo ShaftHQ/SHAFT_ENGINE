@@ -69,6 +69,36 @@ public class DeterministicScorerTest {
         Assert.assertNull(result.selected());
     }
 
+    @Test
+    public void belowThresholdDecisionShouldProposeAdvisoryReview() {
+        // Issue #4194: a low-confidence best candidate is exactly the "low trust" signal that
+        // should surface a reviewable SHAFT Doctor advisory proposal -- never an auto-applied fix.
+        HealingConfiguration configuration = configuration(0.75, 0.10);
+        RankedCandidate lowConfidenceCandidate = candidate("a", 0.70);
+
+        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
+                List.of(lowConfidenceCandidate), configuration, true);
+
+        Assert.assertEquals(result.decision().status(), HealingDecision.Status.BELOW_THRESHOLD);
+        Assert.assertTrue(result.decision().sourcePatchProposed());
+    }
+
+    @Test
+    public void ambiguousDecisionShouldNotProposeAdvisoryReview() {
+        // Only BELOW_THRESHOLD is the wired #4194 trigger; AMBIGUOUS (two deterministically
+        // confident candidates too close to separate) is a different failure shape and stays
+        // untouched by this seam.
+        HealingConfiguration configuration = configuration(0.75, 0.10);
+        RankedCandidate first = candidate("a", 0.9);
+        RankedCandidate second = candidate("b", 0.9);
+
+        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
+                List.of(first, second), configuration, true);
+
+        Assert.assertEquals(result.decision().status(), HealingDecision.Status.AMBIGUOUS);
+        Assert.assertFalse(result.decision().sourcePatchProposed());
+    }
+
     private static RankedCandidate candidate(String id, double score) {
         return candidate(id, score, null, score);
     }
