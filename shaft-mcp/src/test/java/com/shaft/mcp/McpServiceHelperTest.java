@@ -180,9 +180,15 @@ class McpServiceHelperTest {
         assertEquals("click sign in", result.get("userIntent"));
         assertEquals("button", candidate.get("tagName"));
         assertEquals("Sign in", candidate.get("accessibleName"));
-        assertEquals("ROLE", bestLocator.get("strategy"));
+        // Issue #4271: browser_open_intent ranks through the shared LocatorRanker, so it now follows
+        // the unified policy's tiers. This button carries a unique, stable, author-written id
+        // ("submit-login"), which is tier 1 and outranks its ARIA role -- the same ordering codegen
+        // uses. Recommending one locator here and a different one from codegen for the same element
+        // is precisely the divergence issue #4270 exists to remove.
+        assertEquals("ID", bestLocator.get("strategy"));
         assertTrue(String.valueOf(candidate.get("shaftLocatorCode"))
-                .contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"));
+                .contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"submit-login\").build()"),
+                String.valueOf(candidate.get("shaftLocatorCode")));
         @SuppressWarnings("unchecked")
         List<String> nextTools = (List<String>) result.get("nextTools");
         assertTrue(nextTools.contains("element_click"));

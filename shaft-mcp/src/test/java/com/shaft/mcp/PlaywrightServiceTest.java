@@ -58,7 +58,11 @@ class PlaywrightServiceTest {
         assertFalse(result.successful());
         assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
         assertFalse(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-full-class")));
-        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("rung-1")),
+        // Issue #4271 renamed the ladder's rung-1/rung-2 language to named policy tiers. The
+        // assertion still proves the same thing -- the refusal reason reaches the caller -- and
+        // now pins the more specific wording the user actually sees.
+        assertTrue(result.warnings().stream().anyMatch(
+                        warning -> warning.contains("no unique stable id, no self-verified ARIA role")),
                 result.warnings().toString());
         CaptureSession session = new CaptureJsonCodec().read(result.captureSessionPath());
         assertTrue(session.events().getFirst() instanceof CaptureEvent.NavigationEvent);
@@ -103,7 +107,11 @@ class PlaywrightServiceTest {
         assertTrue(Files.isRegularFile(result.reportPath()));
         assertArtifactDoesNotContain(result.reportPath(), "alice@example.test");
         assertFalse(result.report().toString().contains("alice@example.test"));
-        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("rung-1")),
+        // Issue #4271 renamed the ladder's rung-1/rung-2 language to named policy tiers. The
+        // assertion still proves the same thing -- the refusal reason reaches the caller -- and
+        // now pins the more specific wording the user actually sees.
+        assertTrue(result.warnings().stream().anyMatch(
+                        warning -> warning.contains("no unique stable id, no self-verified ARIA role")),
                 result.warnings().toString());
     }
 
@@ -379,7 +387,11 @@ class PlaywrightServiceTest {
         assertFalse(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-target-action-snippet")));
         assertFalse(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-target-patch-preview")));
         assertFalse(result.successful());
-        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("rung-1")),
+        // Issue #4271 renamed the ladder's rung-1/rung-2 language to named policy tiers. The
+        // assertion still proves the same thing -- the refusal reason reaches the caller -- and
+        // now pins the more specific wording the user actually sees.
+        assertTrue(result.warnings().stream().anyMatch(
+                        warning -> warning.contains("no unique stable id, no self-verified ARIA role")),
                 result.warnings().toString());
     }
 

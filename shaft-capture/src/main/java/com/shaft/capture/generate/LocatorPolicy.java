@@ -91,7 +91,9 @@ public final class LocatorPolicy {
             // on hash SHAPE rather than prefix alone: an authored "sc-header"/"css-container" would
             // otherwise be refused for merely sharing a prefix.
             Pattern.compile("^sc-[A-Za-z0-9]*[A-Z][A-Za-z0-9]*$"),   // styled-components (sc-bdVaJa)
-            Pattern.compile("^css-[a-z0-9]*\\d[a-z0-9]*$"),          // emotion (css-1a2b3c)
+            // The hash may be followed by a readable suffix (react-select v5 emits
+            // css-1s2u09g-control), so the hash segment is anchored by end-of-string OR a hyphen.
+            Pattern.compile("^css-[a-z0-9]*\\d[a-z0-9]*(?:-|$)"),    // emotion (css-1a2b3c, css-1s2u09g-control)
             Pattern.compile("\\d{8,}"),                              // mirrors recorder dynamic()
             Pattern.compile("(?i)[a-f0-9]{8}-[a-f0-9-]{27,}"));      // mirrors recorder dynamic()
 

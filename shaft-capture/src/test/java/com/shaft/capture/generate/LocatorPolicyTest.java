@@ -70,7 +70,9 @@ class LocatorPolicyTest {
                 "yui_3_18_1_1_1",                    // YUI
                 "GWT_uid_9",                         // GWT
                 "u_0_3",                             // legacy Facebook / React
-                "select2-country-container")) {      // select2
+                "select2-country-container",         // select2
+                "css-1s2u09g-control",               // emotion / react-select v5, suffixed
+                "css-b62m3t-container")) {           // emotion / react-select v5, suffixed
             LocatorCandidate candidate = new LocatorCandidate(
                     LocatorCandidate.LocatorStrategy.ID, generatedId, 1, true, true, Set.of());
 
