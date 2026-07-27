@@ -37,9 +37,9 @@ class ToolCatalogIndexTest {
     }
 
     @Test
-    void toolNamesMatchesTheCanonical89ToolCatalog() {
-        assertEquals(89, ToolCatalogIndex.toolNames().size(),
-                "the bundled index must track the canonical 89-tool catalog (#3868); a mismatch means "
+    void toolNamesMatchesTheCanonical90ToolCatalog() {
+        assertEquals(90, ToolCatalogIndex.toolNames().size(),
+                "the bundled index must track the canonical 90-tool catalog (#3868); a mismatch means "
                         + "the build-time copy is stale or the resource wasn't regenerated");
     }
 
@@ -61,7 +61,7 @@ class ToolCatalogIndexTest {
 
     @Test
     void intentKeywordsReturnsEmptyForAToolWithNoCuratedKeywordsYet() {
-        // Most of the 89-tool catalog has no curated intentKeywords overlay entries yet (only 8/89
+        // Most of the 90-tool catalog has no curated intentKeywords overlay entries yet (only 8/90
         // are curated as of #3868/#3869) -- must degrade to an empty list, never null or an exception.
         assertEquals(List.of(), ToolCatalogIndex.intentKeywords("element_click"));
     }
