@@ -871,6 +871,18 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
     }
 
+    @Test
+    public void activateInjectedImageWithNonFlutterDriverShouldFailAction() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.activateInjectedImage("mock-image-123");
+
+        verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
+    }
+
     private AndroidDriver createMockAndroidDriver() {
         AndroidDriver driver = mock(AndroidDriver.class);
         WebDriver.Options options = mock(WebDriver.Options.class);
