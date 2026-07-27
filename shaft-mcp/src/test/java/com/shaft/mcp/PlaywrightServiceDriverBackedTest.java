@@ -267,8 +267,10 @@ class PlaywrightServiceDriverBackedTest {
 
         McpMobileReplayResult replay = service.replayRecording(recording.toString(), "driver");
 
+        // Zero of the two recorded actions actually ran against a driver -- an unconfirmed/skipped
+        // replay must not be reported as a bare success (#4230).
         assertEquals(0, replay.replayedActionCount());
-        assertTrue(replay.successful());
+        assertFalse(replay.successful());
     }
 
     @Test
