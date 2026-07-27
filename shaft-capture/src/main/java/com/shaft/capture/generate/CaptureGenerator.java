@@ -306,12 +306,18 @@ public final class CaptureGenerator {
                         request.enrichmentPreviewPath(), report);
             }
 
+            // Issue #4166: compile() and replay() run against a STAGED copy of the source, never
+            // against paths.source() itself, so a failed regeneration can never clobber a
+            // previously-good generated test the user already had. The test-data JSON must still be
+            // written to its real path here -- the replay subprocess loads it by the deterministic
+            // SHAFT.TestData.JSON(dataFileName(className)) convention, not from a staged location.
             stage = "writing generated artifacts to disk";
-            atomicWrite(paths.source(), source);
+            Path stagedSource = stagingSourcePath(outputRoot, request.packageName(), className);
+            atomicWrite(stagedSource, source);
             atomicWrite(paths.data(), dataJson);
             stage = "compiling the generated test";
             CaptureGenerationReport.Validation compilation = request.compile()
-                    ? validator.compile(paths.source(), paths.classes())
+                    ? validator.compile(stagedSource, paths.classes())
                     : CaptureGenerationReport.Validation.skipped("Compilation was not requested.");
             reporter.accept(request.replay() ? 0.75 : 0.9, "Compiled generated test: " + compilation.status());
             stage = "replaying the generated test";
@@ -334,10 +340,19 @@ public final class CaptureGenerator {
                         "Replay was skipped because compilation failed.");
                 reporter.accept(0.9, "Replay skipped: compilation failed");
             }
-            stage = "writing the generation report";
             boolean successful = compilation.status()
                     != CaptureGenerationReport.Validation.ValidationStatus.FAILED
                     && replay.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED;
+            if (successful) {
+                stage = "promoting the validated generated source to its final path";
+                atomicWrite(paths.source(), source);
+            } else if (Files.exists(paths.source())) {
+                state.warnings().add("Generated test source was not written: compilation or replay failed, "
+                        + "so the existing file at " + relative(paths.root(), paths.source())
+                        + " was left unchanged.");
+            }
+            deleteStagedSourceQuietly(stagedSource);
+            stage = "writing the generation report";
             CaptureGenerationReport report = report(
                     session,
                     paths,
@@ -2409,6 +2424,27 @@ public final class CaptureGenerator {
             return java.net.URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
         } catch (IllegalArgumentException malformedEscape) {
             return value;
+        }
+    }
+
+    /**
+     * Path for the pre-validation copy of the generated source (issue #4166). Compilation and
+     * replay run against this path -- never against {@code paths.source()} -- so a failed
+     * regeneration never overwrites a previously-good generated test at the real output path.
+     */
+    private static Path stagingSourcePath(Path outputRoot, String packageName, String className) {
+        return outputRoot.resolve("target/shaft-capture/staging")
+                .resolve(packageName.replace('.', '/'))
+                .resolve(className + ".java")
+                .normalize();
+    }
+
+    private static void deleteStagedSourceQuietly(Path stagedSource) {
+        try {
+            Files.deleteIfExists(stagedSource);
+        } catch (IOException ignored) {
+            // Best-effort cleanup of an unpublished staged artifact under target/; never reaches
+            // the user and is safe to leave for the next `mvn clean`.
         }
     }
 
