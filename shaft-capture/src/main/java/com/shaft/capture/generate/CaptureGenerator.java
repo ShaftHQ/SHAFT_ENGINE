@@ -1637,10 +1637,31 @@ public final class CaptureGenerator {
         String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
         return switch (candidate.strategy()) {
             case ROLE, ACCESSIBLE_NAME, LABEL -> semanticLocator(target, name, candidate);
+            case TEST_ID, CSS, ID, NAME -> nonAriaLocatorExpression(candidate);
+            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+        };
+    }
+
+    /**
+     * Issue #4264: {@code isLadderEligible} (see below) admits a TEST_ID/CSS/ID/NAME candidate as
+     * rung-2 eligible whenever it carries a non-blank self-verified {@code replayXpath}, exactly
+     * like any other strategy. But rendering used to switch on {@code strategy()} alone for these
+     * four and always emit the literal {@code SHAFT.GUI.Locator.id/name/cssSelector(...)} form,
+     * which the unconditional {@code NON_ARIA_LOCATOR} guardrail (GeneratedCodeGuardrails) bans
+     * regardless of ladder eligibility -- the two gates disagreed. A genuinely rung-2-eligible
+     * candidate must render via its self-verified replayXpath instead, exactly like
+     * {@link #semanticLocator} already does for ROLE/LABEL/ACCESSIBLE_NAME.
+     */
+    private static String nonAriaLocatorExpression(LocatorCandidate candidate) {
+        if (!candidate.replayXpath().isBlank()) {
+            return "By.xpath(\"" + javaString(candidate.replayXpath()) + "\")";
+        }
+        return switch (candidate.strategy()) {
             case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(candidate.expression()) + "\")";
             case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(candidate.expression()) + "\")";
             case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(candidate.expression()) + "\")";
-            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+            default -> throw new IllegalStateException(
+                    "nonAriaLocatorExpression only handles TEST_ID/CSS/ID/NAME, got " + candidate.strategy());
         };
     }
 
@@ -1708,6 +1729,16 @@ public final class CaptureGenerator {
     private static boolean usesNativeBy(TargetPlan plan) {
         LocatorCandidate candidate = plan.selection().selected().candidate();
         if (candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH) {
+            return true;
+        }
+        // Issue #4264: must agree with nonAriaLocatorExpression() -- a TEST_ID/CSS/ID/NAME candidate
+        // with a self-verified replayXpath renders as By.xpath(...) there too, so the "import
+        // org.openqa.selenium.By;" line must be added or the generated source fails to compile.
+        if ((candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.CSS
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.ID
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.NAME)
+                && !candidate.replayXpath().isBlank()) {
             return true;
         }
         if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE

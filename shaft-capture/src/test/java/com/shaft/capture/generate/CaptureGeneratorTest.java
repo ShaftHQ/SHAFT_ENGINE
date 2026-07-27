@@ -952,6 +952,121 @@ class CaptureGeneratorTest {
                 Map.of());
     }
 
+    /**
+     * Issue #4264: {@code isLadderEligible} admits a TEST_ID/CSS/ID/NAME candidate as rung-2
+     * eligible whenever it carries a non-blank self-verified {@code replayXpath}, exactly like any
+     * other strategy -- but {@code locatorExpression} used to switch on {@code strategy()} alone
+     * for these four and always render the literal {@code SHAFT.GUI.Locator.id/name/cssSelector(...)}
+     * form, which the unconditional {@code NON_ARIA_LOCATOR} guardrail bans regardless of ladder
+     * eligibility: the two gates disagreed. A genuinely rung-2-eligible ID candidate must render via
+     * its self-verified replayXpath instead, exactly like ROLE/LABEL/ACCESSIBLE_NAME already do.
+     */
+    @Test
+    void idStrategyCandidateWithSelfVerifiedReplayXpathRendersAsByXpathNotNonAriaLocator() throws Exception {
+        Path session = session(idStrategyReplayXpathSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("id-strategy-replay-xpath")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//button[@id=\\\"login-button\\\"]\")"),
+                "a rung-2-eligible ID candidate must render its self-verified replayXpath: " + source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.id("),
+                "must not fall back to the NON_ARIA_LOCATOR-banned literal ID builder once rung-2 "
+                        + "evidence is present: " + source);
+        assertTrue(source.contains("import org.openqa.selenium.By;"));
+    }
+
+    private static CaptureSession idStrategyReplayXpathSession() {
+        ElementSnapshot loginButton = new ElementSnapshot(
+                "login-button",
+                "button",
+                "button",
+                "",
+                "",
+                Map.of("id", "login-button"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                        "login-button", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.USER_PROVIDED),
+                        "//button[@id=\"login-button\"]")),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "id-strategy-replay-xpath-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), loginButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    /**
+     * Issue #4264 follow-up: the TEST_ID and CSS strategies share one switch arm with ID/NAME in
+     * {@code locatorExpression} -- this covers that arm too, so the fix is not accidentally scoped
+     * to only the ID case.
+     */
+    @Test
+    void cssStrategyCandidateWithSelfVerifiedReplayXpathRendersAsByXpathNotNonAriaLocator() throws Exception {
+        Path session = session(cssStrategyReplayXpathSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("css-strategy-replay-xpath")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//button[@data-testid=\\\"submit\\\"]\")"),
+                "a rung-2-eligible CSS candidate must render its self-verified replayXpath: " + source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.cssSelector("),
+                "must not fall back to the NON_ARIA_LOCATOR-banned literal cssSelector builder once "
+                        + "rung-2 evidence is present: " + source);
+    }
+
+    private static CaptureSession cssStrategyReplayXpathSession() {
+        ElementSnapshot submitButton = new ElementSnapshot(
+                "submit-button",
+                "button",
+                "button",
+                "",
+                "",
+                Map.of("data-testid", "submit"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
+                        "[data-testid=\"submit\"]", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.TEST_ATTRIBUTE),
+                        "//button[@data-testid=\"submit\"]")),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "css-strategy-replay-xpath-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), submitButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
     private static CaptureSession roleLocatorSessionWithoutAccessibleName() {
         ElementSnapshot iconButton = new ElementSnapshot(
                 "icon-button",
