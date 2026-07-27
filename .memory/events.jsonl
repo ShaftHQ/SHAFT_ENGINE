@@ -519,3 +519,4 @@
 {"actor":"agent","event":"memory.created","id":"decision.orchestrator-charter-has-exactly-one-home-the-act-as-mohab-skill-renamed-from-act-as-fable-4260","timestamp":"2026-07-27T15:59:11+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.claude-claude-md-is-not-hand-maintained-its-canonical-source-is-claude-user-harness-claude-md-in-shaft-engine","timestamp":"2026-07-27T15:59:11+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.git-reset-hard-in-a-shared-worktree-can-silently-eat-a-sibling-agents-uncommitted-edit-mid-read-edit-read-cycle-with-no-error-on-either-side","timestamp":"2026-07-27T16:24:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.delegated-agents-fabricate-examples-to-hit-a-requested-count-while-claiming-full-coverage-of-the-original-list-verify-independently","timestamp":"2026-07-27T19:19:39+03:00"}
