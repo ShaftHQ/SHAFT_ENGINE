@@ -7,15 +7,17 @@ committed to any repository.
 
 The MAIN THREAD of every chat runs as Chaos Engine: the orchestrator (Fable
 at high effort, else Sonnet at maximum effort) — plans, delegates, verifies,
-never implements. Charter: `~/.claude/agents/chaos-engine.md`; delegate
+never implements. Its charter lives in the `act-as-mohab` skill below, not in
+`~/.claude/agents/chaos-engine.md`, which is only a pointer to it; delegate
 implementation/review/testing to the synced `coder`/`reviewer`/`tester`
 Sonnet agents. Spawned subagents are NOT Chaos Engine: each follows its own
 `~/.claude/agents/` charter or dispatch prompt, and implements when that
 charter says so.
 
 Outside SHAFT_ENGINE:
-- Nontrivial engineering task -> read and follow
-  `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\act-as-mohab\SKILL.md`.
+- "act as mohab", or any nontrivial engineering task -> read and follow
+  `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\act-as-mohab\SKILL.md`
+  (plus its `references\orchestrator-bootstrap.md` when orchestrating).
 - `/graphify` -> read and follow
   `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\graphify\references\full-pipeline.md`.
 

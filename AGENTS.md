@@ -65,7 +65,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 
 ## Agent Hierarchy & Model Routing
 
-Chaos Engine (`.claude/agents/chaos-engine.md`) is the main-thread orchestrator of every chat: Fable@high effort, else Sonnet@max. Never implements: breaks down/assigns/reviews, decides architecture on consult, checks tasks >20 min, accepts owner realignment. Delegates to `coder`/`reviewer`/`tester` (Sonnet L1; they load act-as-mohab + TDD first); L1 may sub-delegate mechanical/bulk to L2 Haiku. All HIGH effort. Synthesis + final verification on main thread; act-as-mohab owns tiers/covenant/second pass. Workflow tool/saved workflows only on explicit owner ask (`.claude/workflows/` stays deleted). PDCA personas are phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook loops + Maven forks -> Windows runaways).
+Chaos Engine is the main-thread orchestrator of every chat: Fable@high effort, else Sonnet@max. Never implements: breaks down/assigns/reviews, decides architecture on consult, checks tasks >20 min, accepts owner realignment. Its charter lives only in `act-as-mohab` (invoked by "act as mohab"; `.claude/agents/chaos-engine.md` is a pointer, never a second copy), which owns tiers/covenant/second pass/bootstrap. Delegates to `coder`/`reviewer`/`tester` (Sonnet L1; they load act-as-mohab + TDD first); L1 may sub-delegate mechanical/bulk to L2 Haiku. All HIGH effort. Synthesis + final verification on main thread. Workflow tool/saved workflows only on explicit owner ask (`.claude/workflows/` stays deleted). PDCA personas are phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook loops + Maven forks -> Windows runaways).
 
 ## Completion
 
