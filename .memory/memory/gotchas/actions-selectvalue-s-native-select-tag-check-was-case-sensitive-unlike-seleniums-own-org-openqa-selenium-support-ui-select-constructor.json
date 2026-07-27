@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/actions-selectvalue-s-native-select-tag-check-was-case-sensitive-unlike-seleniums-own-org-openqa-selenium-support-ui-select-constructor.md",
+  "content_hash": "sha256:a2e396cd4bca4534cd5a67a5d8440d7ace7f8082f9e539c2c33f630ffbe979fe",
+  "created_at": "2026-07-28T00:51:38+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.actions-selectvalue-s-native-select-tag-check-was-case-sensitive-unlike-seleniums-own-org-openqa-selenium-support-ui-select-constructor",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Nightly e2eLocalTests.yml MacOSX_Safari_Local triage: fix accessible-name catch-widening and select() tag-name case-insensitivity, run 30237601576"
+  },
+  "status": "active",
+  "tags": [
+    "safari",
+    "safaridriver",
+    "select",
+    "actions-java",
+    "tag-name-case",
+    "e2e-nightly"
+  ],
+  "title": "Actions.selectValue()'s native <select> tag check was case-sensitive, unlike Selenium's own org.openqa.selenium.support.ui.Select constructor",
+  "type": "gotcha",
+  "updated_at": "2026-07-28T00:51:38+03:00"
+}

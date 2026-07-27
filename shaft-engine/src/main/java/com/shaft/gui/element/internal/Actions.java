@@ -529,12 +529,16 @@ public class Actions extends ElementActions {
                     if (!isMobileNativeExecution) {
                         try {
                             fetchedName = foundElements.get().getFirst().getAccessibleName();
-                        } catch (UnsupportedCommandException | StaleElementReferenceException throwable) {
+                        } catch (WebDriverException throwable) {
                             //happens on some elements that show unhandled inspector error
                             //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
                             //ignore
                             //saw it again with mobile web tests
                             // the stale was thrown in an iframe
+                            //also seen as a bare WebDriverException from SafariDriver computing the
+                            //accessible name of a hidden/non-interactable element (e.g. "Get dom
+                            //attribute ... is broken" in E2ECoverageTests#elementIsHiddenShouldPass) -
+                            //this is reporting-only metadata and must never fail the actual action
                             fetchedName = foundElements.get().getFirst().getDomProperty("text");
                         }
                     } else {
@@ -1012,7 +1016,12 @@ public class Actions extends ElementActions {
     }
 
     private void selectValue(WebElement targetElement, By locator, String valueOrVisibleText) {
-        if (!"select".equals(targetElement.getTagName())) {
+        // Case-insensitive to match Selenium's own org.openqa.selenium.support.ui.Select
+        // constructor ("select".equalsIgnoreCase(tagName)); a driver returning a differently-cased
+        // tag name (observed from SafariDriver: "SELECT") must still be routed to the native
+        // <select> handling below instead of the custom/non-select dropdown fallback, which can
+        // never find a matching option for a real native dropdown.
+        if (!"select".equalsIgnoreCase(targetElement.getTagName())) {
             if (!SHAFT.Properties.flags.handleNonSelectDropDown()) {
                 throw new InvalidElementStateException("Tag should be <select>, yet it was found to be <" + targetElement.getTagName() + ">.");
             }

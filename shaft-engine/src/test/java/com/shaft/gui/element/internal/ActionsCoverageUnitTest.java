@@ -223,6 +223,41 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void selectActionShouldTreatUppercaseSelectTagNameAsNativeDropdown() {
+        // SafariDriver has been observed on nightly e2eLocalTests.yml runs (GUIWizardTests
+        // #test_selectFromDropdownList) failing with NoSuchElementException("No elements were
+        // found.") against a genuine, verified <select> element on a stable public test page.
+        // Selenium's own Select class treats the tag name check case-insensitively
+        // ("select".equalsIgnoreCase(tagName) - see org.openqa.selenium.support.ui.Select
+        // constructor), so SHAFT's own pre-check must not be stricter: a driver returning
+        // "SELECT" (or any other casing) must still be routed to the native <select> handling
+        // instead of the custom/non-select dropdown fallback, which can never find a matching
+        // option for a real native dropdown and throws "No elements were found."
+        SHAFT.Properties.flags.set().handleNonSelectDropDown(true);
+        WebDriver driver = mock(WebDriver.class);
+        WebElement dropdown = standardElement();
+        when(dropdown.getTagName()).thenReturn("SELECT");
+        when(dropdown.getDomAttribute("multiple")).thenReturn(null);
+        WebElement option1 = standardElement();
+        when(option1.getText()).thenReturn("Option 1");
+        when(option1.getDomProperty("value")).thenReturn("1");
+        when(option1.getAttribute("index")).thenReturn("0");
+        WebElement option2 = standardElement();
+        when(option2.getText()).thenReturn("Option 2");
+        when(option2.getDomProperty("value")).thenReturn("2");
+        when(option2.getAttribute("index")).thenReturn("1");
+        when(dropdown.findElements(By.tagName("option"))).thenReturn(List.of(option1, option2));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(dropdown));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).select(LOCATOR, "Option 2");
+            verify(option2).click();
+            verify(dropdown, never()).click();
+        }
+    }
+
+    @Test
     public void selectActionShouldShowSelectedValueAndKeepLocatorMetadataInAllureStep() {
         SHAFT.Properties.flags.set().handleNonSelectDropDown(true);
         WebDriver driver = mock(WebDriver.class);
@@ -801,6 +836,29 @@ public class ActionsCoverageUnitTest {
         WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         WebElement element = standardElement();
         when(element.getAccessibleName()).thenThrow(new UnsupportedCommandException("unsupported accessible name"));
+        when(element.getDomProperty("text")).thenReturn("fallback name");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).typeAppend(LOCATOR, "append");
+            verify(element).getDomProperty("text");
+        }
+    }
+
+    @Test
+    public void performActionShouldFallbackFromGenericWebDriverExceptionOnAccessibleNameToDomText() {
+        // SafariDriver has been observed throwing a bare WebDriverException (rather than the
+        // narrower UnsupportedCommandException/StaleElementReferenceException already handled
+        // above) when computing the accessible name of a hidden/non-interactable element
+        // (nightly e2eLocalTests.yml MacOSX_Safari_Local run, E2ECoverageTests#elementIsHiddenShouldPass:
+        // "Get dom attribute ... is broken"). Reporting-only accessible-name lookup must never
+        // fail the actual requested action; it must fall back the same way the narrower exception
+        // types already do.
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenThrow(new WebDriverException("element is not interactable"));
         when(element.getDomProperty("text")).thenReturn("fallback name");
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
         DriverFactoryHelper helper = helperFor(driver);

@@ -551,3 +551,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.markdown-link-checkers-miss-bare-filenames-in-table-cells-check-both-directions-against-disk","timestamp":"2026-07-28T00:15:42+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.io-github-shafthq-shaft-engine-is-the-legacy-relocation-pom-shaft-engine-is-the-live-artifact","timestamp":"2026-07-28T00:15:42+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only","timestamp":"2026-07-28T00:15:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.actions-performactions-reporting-only-accessible-name-fetch-only-caught-two-narrow-exception-types-not-generic-webdriverexception","timestamp":"2026-07-28T00:51:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.actions-selectvalue-s-native-select-tag-check-was-case-sensitive-unlike-seleniums-own-org-openqa-selenium-support-ui-select-constructor","timestamp":"2026-07-28T00:51:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.actionscoverageunittest-performactionshouldreportoriginalexceptionasrootcausewhenfailurescreenshotthrows-leaks-a-real-awt-screenshot-capture-despite-being-fully-mocked","timestamp":"2026-07-28T00:51:38+03:00"}
