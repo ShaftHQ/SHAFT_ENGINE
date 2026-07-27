@@ -59,6 +59,7 @@
 <li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" tabindex="0">HealingReport(String, String, String, String, String, String, String, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata)</a></li>
 <li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" tabindex="0">HealingReport(String, String, String, String, String, String, String, HealingContext, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata)</a></li>
 <li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata)" tabindex="0">HealingReport(String, String, String, String, String, String, String, HealingContext, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata, HealingReport.LadderMetadata)</a></li>
+<li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata,boolean)" tabindex="0">HealingReport(String, String, String, String, String, String, String, HealingContext, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata, HealingReport.LadderMetadata, boolean)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -80,6 +81,7 @@
 <li><a href="#privacy()" tabindex="0">privacy()</a></li>
 <li><a href="#action()" tabindex="0">action()</a></li>
 <li><a href="#ladder()" tabindex="0">ladder()</a></li>
+<li><a href="#visibilityRequired()" tabindex="0">visibilityRequired()</a></li>
 </ol>
 </li>
 </ol>
@@ -111,10 +113,13 @@
 <dd><code><span id="param-privacy">privacy</span></code> - minimization and redaction metadata</dd>
 <dd><code><span id="param-action">action</span></code> - action and post-action metadata</dd>
 <dd><code><span id="param-ladder">ladder</span></code> - re-suggestion ladder metadata (issue #4027)</dd>
+<dd><code><span id="param-visibilityRequired">visibilityRequired</span></code> - whether this attempt required the selected candidate to be visible
+                           and enabled, mirroring <code>HealingDecisionEngine</code>'s own
+                           eligibility gate (issue #4215)</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">HealingReport</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context, <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates, <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision, <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider, <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy, <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action, <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">HealingReport</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context, <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates, <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision, <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider, <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy, <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action, <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder, boolean&nbsp;visibilityRequired)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Structured, explainable SHAFT Heal attempt report.</div>
 </div>
@@ -210,9 +215,29 @@ the ladder was not engaged, matching today's one-shot behavior.</div>
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action,
  <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Creates a backward-compatible report without a persisted visibility-required flag
+(issue #4215); defaults to <code>true</code>, preserving the previous safe-direction assumption
+that a candidate must be interactable.</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata,boolean)" class="member-name-link">HealingReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context,
+ <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates,
+ <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision,
+ <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
+ <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
+ <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action,
+ <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder,
+ boolean&nbsp;visibilityRequired)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Creates an immutable report.</div>
 </div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" class="member-name-link">HealingReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" class="member-name-link">HealingReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator,
@@ -224,7 +249,7 @@ the ladder was not engaged, matching today's one-shot behavior.</div>
  <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
  <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Creates a backward-compatible report without structured context metadata or re-suggestion
 ladder metadata.</div>
 </div>
@@ -326,6 +351,11 @@ ladder metadata.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#visibilityRequired()" class="member-name-link">visibilityRequired</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-visibilityRequired"><code>visibilityRequired</code></a> record component.</div>
 </div>
 </div>
 </div>
@@ -429,6 +459,31 @@ the ladder was not engaged, matching today's one-shot behavior.</div>
  <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action,
  <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder)</span></div>
+<div class="block">Creates a backward-compatible report without a persisted visibility-required flag
+(issue #4215); defaults to <code>true</code>, preserving the previous safe-direction assumption
+that a candidate must be interactable.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata,boolean)">
+<h3>HealingReport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">HealingReport</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context,
+ <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates,
+ <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision,
+ <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
+ <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
+ <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action,
+ <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder,
+ boolean&nbsp;visibilityRequired)</span></div>
 <div class="block">Creates an immutable report.</div>
 </div>
 </section>
@@ -476,7 +531,7 @@ the ladder was not engaged, matching today's one-shot behavior.</div>
 <h3>equals</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public final</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">equals</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;o)</span></div>
-<div class="block">Indicates whether some other object is "equal to" this one. The objects are equal if the other object is of the same class and if all the record components are equal. All components in this record class are compared with <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Objects.html#equals(java.lang.Object,java.lang.Object)" title="class or interface in java.util" class="external-link"><code>Objects::equals(Object,Object)</code></a>.</div>
+<div class="block">Indicates whether some other object is "equal to" this one. The objects are equal if the other object is of the same class and if all the record components are equal. Reference components are compared with <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Objects.html#equals(java.lang.Object,java.lang.Object)" title="class or interface in java.util" class="external-link"><code>Objects::equals(Object,Object)</code></a>; primitive components are compared with the <code>compare</code> method from their corresponding wrapper classes.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html#equals(java.lang.Object)" title="class or interface in java.lang" class="external-link">equals</a></code>&nbsp;in class&nbsp;<code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></code></dd>
@@ -666,6 +721,19 @@ the ladder was not engaged, matching today's one-shot behavior.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-ladder"><code>ladder</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="visibilityRequired()">
+<h3>visibilityRequired</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">visibilityRequired</span>()</div>
+<div class="block">Returns the value of the <a href="#param-visibilityRequired"><code>visibilityRequired</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-visibilityRequired"><code>visibilityRequired</code></a> record component</dd>
 </dl>
 </div>
 </section>
