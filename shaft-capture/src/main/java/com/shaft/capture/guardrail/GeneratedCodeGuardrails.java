@@ -67,8 +67,9 @@ public final class GeneratedCodeGuardrails {
     private static final String NO_SMART_LOCATOR = "Avoid generating SHAFT.GUI.Locator.clickableField/inputField"
             + " (intent-based smart locators); prefer role-based locators or the SHAFT locator builder instead.";
     private static final String NO_NON_ARIA_LOCATOR = "Do not generate SHAFT.GUI.Locator.id/name/cssSelector/"
-            + "className/tagName; use a self-verified ARIA role (hasRole) or, when no role is available, a "
-            + "self-verified By.xpath.";
+            + "className/tagName; use a unique author-written id through the locator builder "
+            + "(hasAnyTagName().hasId(...)), else a self-verified ARIA role (hasRole), else a self-verified "
+            + "relative By.xpath.";
     private static final String NO_POM_VIOLATION = "Do not declare locators (SHAFT.GUI.Locator.* or By.xpath) inside a"
             + " class that also has @Test methods; move locators/actions into a Page Object class and keep"
             + " orchestration in the test.";

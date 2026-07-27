@@ -506,7 +506,11 @@ public final class CaptureGenerator {
                         target.logicalElementId(),
                         ignored -> new MutableTargetPlan(target, event.context(), ladderedSelection));
                 existing.eventIds.add(eventId);
-                if (ladderedSelection.selected().score() > existing.selection.selected().score()) {
+                // Issue #4271 review finding 2: ordered by the ranker's own lexicographic (tier,
+                // score) comparator, never by raw score -- a later sighting with a +1000
+                // USER_PROVIDED boost must not displace a higher-tier selection.
+                if (LocatorRanker.BEST_FIRST.compare(
+                        ladderedSelection.selected(), existing.selection.selected()) < 0) {
                     existing.target = target;
                     existing.context = event.context();
                     existing.selection = ladderedSelection;
@@ -733,17 +737,23 @@ public final class CaptureGenerator {
                 eligible.getFirst(), eligible.subList(1, eligible.size())));
     }
 
+    /**
+     * Issue #4271 review finding 3: this inspected {@code candidate.expression()}, but since the
+     * tiered policy an emitted locator is the plan's rendered source -- a tier-3 selection ships its
+     * {@code replayXpath}, not its expression -- so an indexed, positional XPath was emitted with no
+     * warning whenever the candidate's own expression happened to look clean. Inspect what is
+     * actually shipped. (Absolute XPath is no longer checked here: {@link LocatorPolicy} refuses it
+     * at the tier boundary, so it can no longer reach rendering at all.)
+     */
     private static Optional<String> brittleLocatorWarning(TargetPlan target) {
         LocatorCandidate candidate = target.selection().selected().candidate();
-        String expression = candidate.expression();
-        boolean xpath = candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH;
-        boolean brittle = (xpath && isAbsoluteXpath(expression)) || INDEXED_LOCATOR.matcher(expression).find();
-        if (!brittle) {
+        String rendered = selectedPlan(target).source();
+        if (!INDEXED_LOCATOR.matcher(rendered).find()) {
             return Optional.empty();
         }
         String evidence = String.join(",", target.eventIds());
         String summary = "Brittle " + candidate.strategy() + " locator selected for "
-                + target.logicalElementId() + ": " + expression + ".";
+                + target.logicalElementId() + ": " + rendered + ".";
         return Optional.of(reviewWarning(
                 "LOCATOR",
                 "WARNING",
@@ -1577,31 +1587,53 @@ public final class CaptureGenerator {
      * cannot drift apart.
      */
     private static By runtimeLocator(TargetPlan plan) {
-        return runtimeLocator(plan.target(), plan.selection().selected().candidate());
+        return selectedPlan(plan).runtimeLocator();
     }
 
-    private static By runtimeLocator(ElementSnapshot target, LocatorCandidate candidate) {
+    /**
+     * Issue #4271 review finding 6: {@link LocatorRanker.ScoredLocator} already carries the plan the
+     * ranker computed, so every caller below reads that cached value instead of recomputing
+     * {@link LocatorPolicy#plan} four more times per target.
+     */
+    private static LocatorPolicy.LocatorPlan selectedPlan(TargetPlan plan) {
+        return plan.selection().selected().plan().orElseThrow(() -> unplannable(
+                plan.target(), plan.selection().selected().candidate()));
+    }
+
+    static By runtimeLocator(ElementSnapshot target, LocatorCandidate candidate) {
         return LocatorPolicy.plan(target, candidate)
                 .map(LocatorPolicy.LocatorPlan::runtimeLocator)
-                .orElseGet(() -> By.xpath(DEGENERATE_XPATH));
+                .orElseThrow(() -> unplannable(target, candidate));
     }
 
     private static String locatorExpression(TargetPlan plan) {
-        return locatorExpression(plan.target(), plan.selection().selected().candidate());
+        return selectedPlan(plan).source();
     }
 
     /**
      * Issue #4271: renders exactly what {@link LocatorPolicy} planned. A candidate with no plan
      * cannot reach here through {@code generate()} -- {@link #ladderSelection} refuses the whole
-     * element first -- so the degenerate fallback exists only to keep this total.
+     * element first.
      */
-    private static String locatorExpression(ElementSnapshot target, LocatorCandidate candidate) {
+    static String locatorExpression(ElementSnapshot target, LocatorCandidate candidate) {
         return LocatorPolicy.plan(target, candidate)
                 .map(LocatorPolicy.LocatorPlan::source)
-                .orElse("By.xpath(\"" + DEGENERATE_XPATH + "\")");
+                .orElseThrow(() -> unplannable(target, candidate));
     }
 
-    private static final String DEGENERATE_XPATH = "//*";
+    /**
+     * Issue #4271 review finding 4: rendering a refused candidate used to fall through to
+     * {@code By.xpath("//*")}, which matches the first element in the whole document and is also fed
+     * to {@code HealingManager.observeFingerprint} -- silently shipping a wrong locator and poisoning
+     * SHAFT Heal with a garbage fingerprint. The generation gate makes this unreachable, so reaching
+     * it means the gate/render invariant is broken; fail loudly rather than emit something wrong.
+     */
+    private static IllegalStateException unplannable(ElementSnapshot target, LocatorCandidate candidate) {
+        return new IllegalStateException(
+                "No LocatorPolicy plan for element " + target.logicalElementId() + " candidate "
+                        + candidate.strategy() + " '" + candidate.expression() + "'. Generation must "
+                        + "refuse an unplannable element before rendering; this is a SHAFT codegen defect.");
+    }
 
     private static boolean needsByImport(List<TargetPlan> targets, boolean fallbackReplay) {
         return fallbackReplay || targets.stream().anyMatch(CaptureGenerator::usesNativeBy);
@@ -1623,9 +1655,7 @@ public final class CaptureGenerator {
      * {@code null} only for the defensive no-plan case {@link #ladderSelection} already excludes.
      */
     private static LocatorPolicy.Tier tier(TargetPlan plan) {
-        return LocatorPolicy.plan(plan.target(), plan.selection().selected().candidate())
-                .map(LocatorPolicy.LocatorPlan::tier)
-                .orElse(null);
+        return plan.selection().selected().tier().orElse(null);
     }
 
     /**
@@ -1644,7 +1674,8 @@ public final class CaptureGenerator {
     }
 
     private static boolean usesNativeBy(TargetPlan plan) {
-        return tier(plan) != LocatorPolicy.Tier.UNIQUE_ID && tier(plan) != LocatorPolicy.Tier.VERIFIED_ROLE;
+        LocatorPolicy.Tier tier = tier(plan);
+        return tier != LocatorPolicy.Tier.UNIQUE_ID && tier != LocatorPolicy.Tier.VERIFIED_ROLE;
     }
 
     private static String locatorReference(
@@ -1655,9 +1686,11 @@ public final class CaptureGenerator {
                 .filter(plan -> plan.logicalElementId().equals(target.logicalElementId()))
                 .findFirst()
                 .map(plan -> locatorExpression(plan, fallbackReplay))
-                .orElseGet(() -> target.locatorCandidates().isEmpty()
-                        ? "By.xpath(\"//*\")"
-                        : locatorExpression(target, target.locatorCandidates().getFirst()));
+                // Issue #4271 review finding 4: no silent degenerate fallback -- an element that was
+                // never planned must never be rendered from its raw, unranked first candidate.
+                .orElseThrow(() -> new IllegalStateException(
+                        "Element " + target.logicalElementId() + " was rendered without a planned "
+                                + "locator selection. This is a SHAFT codegen defect."));
     }
 
     private static String locatorExpression(TargetPlan plan, boolean fallbackReplay) {

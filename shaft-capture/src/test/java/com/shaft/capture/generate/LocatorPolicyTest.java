@@ -36,6 +36,61 @@ class LocatorPolicyTest {
         assertEquals("By.xpath: //*[@id=\"username\"]", plan.orElseThrow().runtimeLocator().toString());
     }
 
+    /**
+     * Issue #4271 review finding 1: tier 1's whole premise is that only a human-authored id reaches
+     * it. That premise rested on the recorder's {@code dynamic()} check
+     * ({@code shaft-capture-recorder.js:17-19}), which tests only for an 8+ digit run or a UUID --
+     * so every mainstream framework auto-id below is classified {@code stable=true} and would have
+     * been promoted over a live-verified ARIA role. Each of these must be refused by tier 1.
+     *
+     * <p>The check lives here, in Java, rather than in the recorder: it is unit-testable (the repo
+     * has no JS test harness), and it protects every producer of {@link LocatorCandidate} -- the
+     * shaft-mcp adapters construct candidates directly and never run the recorder's {@code dynamic()}
+     * at all, so a recorder-only fix would leave exactly the surfaces #4272 is about unprotected.
+     */
+    @Test
+    void frameworkGeneratedIdsAreNeverAdmittedToTheIdTier() {
+        for (String generatedId : List.of(
+                ":r1:",                              // React 18 useId
+                ":R1mcq:",                           // React useId, nested variant
+                "radix-:R1mcq:",                     // Radix UI
+                "mat-input-3",                       // Angular Material
+                "cdk-overlay-0",                     // Angular CDK
+                "ng-select-12",                      // ng-select
+                "react-select-2-input",              // react-select
+                "ember1234",                         // Ember
+                "j_idt42",                           // JSF
+                "ctl00_ContentPlaceHolder1_txtUser", // ASP.NET WebForms
+                "sc-bdVaJa",                         // styled-components
+                "css-1a2b3c",                        // emotion
+                "jss42",                             // JSS / Material-UI v4
+                "emotion-css-7f8g9h")) {             // emotion, prefixed
+            LocatorCandidate candidate = new LocatorCandidate(
+                    LocatorCandidate.LocatorStrategy.ID, generatedId, 1, true, true, Set.of());
+
+            assertEquals(Optional.empty(), LocatorPolicy.plan(target(candidate), candidate),
+                    "framework-generated id must never win tier 1: " + generatedId);
+        }
+    }
+
+    /**
+     * The counterpart to the case above: hardening tier 1 must not swallow ordinary human-authored
+     * ids. Detection is necessarily heuristic and errs toward refusing, but these must still pass.
+     */
+    @Test
+    void genuinelyAuthoredIdsAreStillAdmittedToTheIdTier() {
+        for (String authoredId : List.of(
+                "username", "login-btn", "login-button", "custom-button", "submit", "x",
+                "email_address", "checkout-form", "primaryNavigation")) {
+            LocatorCandidate candidate = new LocatorCandidate(
+                    LocatorCandidate.LocatorStrategy.ID, authoredId, 1, true, true, Set.of());
+
+            assertEquals(LocatorPolicy.Tier.UNIQUE_ID,
+                    LocatorPolicy.plan(target(candidate), candidate).orElseThrow().tier(),
+                    "authored id must still reach tier 1: " + authoredId);
+        }
+    }
+
     @Test
     void verifiedRoleWithAMappableAriaRolePlansAsTierTwoThroughHasRole() {
         LocatorCandidate candidate = new LocatorCandidate(

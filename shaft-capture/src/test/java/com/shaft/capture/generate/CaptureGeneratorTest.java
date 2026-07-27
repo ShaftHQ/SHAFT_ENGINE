@@ -879,6 +879,143 @@ class CaptureGeneratorTest {
                 CaptureGenerator.guardrailUnsupportedFindings(source).toString());
     }
 
+    /**
+     * Issue #4271 review finding 2: {@code LocatorRanker} ranks candidates lexicographically by
+     * (tier, score) <em>within one element snapshot</em>, but when the same logical element is seen
+     * again on a later event, {@code CaptureGenerator} merged the two selections by raw additive
+     * score alone with the tier ignored. A {@code USER_PROVIDED} signal is worth +1000, so a tier-3
+     * XPath selection on the second sighting displaced the tier-1 unique-id selection from the first
+     * -- issue #4239's F2 defect shape, alive in the one code path the tier redesign claimed had
+     * made it impossible. The merge must use the same lexicographic ordering as the ranker.
+     */
+    @Test
+    void aLaterHigherScoringLowerTierSightingCannotDisplaceTheWinningTier() throws Exception {
+        Path session = session(sameElementTwoSightingsSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("tier-merge")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"login-btn\").build()"),
+                "the tier-1 unique id must survive a later, higher-scoring tier-3 sighting: " + source);
+        assertFalse(source.contains("By.xpath(\"//div[normalize-space(.)=\\\"Log in\\\"]\")"),
+                "a USER_PROVIDED score boost must not promote a tier-3 selection over tier 1: " + source);
+    }
+
+    /**
+     * Two events against one logical element. The first sighting carries a unique stable id (tier 1,
+     * lower additive score); the second carries a self-verified XPath pinned with USER_PROVIDED
+     * (tier 3, +1000 score).
+     */
+    private static CaptureSession sameElementTwoSightingsSession() {
+        ElementSnapshot tierOneSighting = new ElementSnapshot(
+                "login-button", "button", "", "", "", Map.of("id", "login-btn"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                        "login-btn", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true, true, false);
+        ElementSnapshot tierThreeSighting = new ElementSnapshot(
+                "login-button", "div", "", "Log in", "", Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.LABEL,
+                        "Log in", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.USER_PROVIDED,
+                                LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE),
+                        "//div[normalize-space(.)=\"Log in\"]")),
+                true, true, false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "same-element-two-sightings-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(4),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), tierOneSighting,
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(3), tierThreeSighting,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    /**
+     * Issue #4271 review finding 3: {@code brittleLocatorWarning} inspected
+     * {@code candidate.expression()}, but a tier-3 selection ships its {@code replayXpath} -- so an
+     * indexed, positional XPath was emitted with no brittleness warning whenever the candidate's own
+     * expression happened to look clean. The warning must inspect what is actually shipped.
+     */
+    @Test
+    void brittlenessWarningInspectsTheRenderedLocatorNotTheRawCandidateExpression() throws Exception {
+        Path session = session(indexedReplayXpathSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("brittle-replay-xpath")));
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(result.report().warnings().stream()
+                        .anyMatch(warning -> warning.startsWith("review/LOCATOR/")
+                                && warning.contains("login-button")
+                                && warning.contains("//div[3]/button[2]")),
+                "an indexed replayXpath must raise a brittleness warning naming what was actually "
+                        + "shipped: " + result.report().warnings());
+    }
+
+    private static CaptureSession indexedReplayXpathSession() {
+        ElementSnapshot loginButton = new ElementSnapshot(
+                "login-button", "button", "", "Log in", "", Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.LABEL,
+                        "Log in", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                        "//div[3]/button[2]")),
+                true, true, false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "indexed-replay-xpath-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), loginButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    /**
+     * Issue #4271 review finding 4: rendering a candidate the policy refused used to fall through to
+     * {@code By.xpath("//*")} -- a locator matching the first element in the document, which is also
+     * fed to {@code HealingManager.observeFingerprint} and would poison SHAFT Heal with a garbage
+     * fingerprint. The generation gate makes this unreachable, so if it is ever reached the
+     * invariant is broken and it must say so loudly rather than silently ship a wrong locator.
+     */
+    @Test
+    void renderingAnUnplannableCandidateFailsLoudlyInsteadOfEmittingAMatchAnythingXpath() {
+        ElementSnapshot target = new ElementSnapshot(
+                "orphan", "div", "", "", "", Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
+                        "div:nth-child(2)", 1, true, false,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.GENERATED))),
+                true, true, false);
+        LocatorCandidate unplannable = target.locatorCandidates().getFirst();
+
+        assertThrows(IllegalStateException.class,
+                () -> CaptureGenerator.locatorExpression(target, unplannable));
+        assertThrows(IllegalStateException.class,
+                () -> CaptureGenerator.runtimeLocator(target, unplannable));
+    }
+
     private static CaptureSession uniqueIdLocatorSession() {
         ElementSnapshot loginButton = new ElementSnapshot(
                 "login-button",

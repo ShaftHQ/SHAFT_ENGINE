@@ -45,14 +45,29 @@ public final class LocatorRanker {
         }
         List<ScoredLocator> ranked = target.locatorCandidates().stream()
                 .map(candidate -> score(candidate, target, context, interaction))
-                .sorted(Comparator.comparingInt(LocatorRanker::tierRank)
-                        .thenComparing(Comparator.comparingInt(ScoredLocator::score).reversed())
-                        .thenComparingInt(item -> -STRATEGY_PRIORITY.get(item.candidate().strategy()))
-                        .thenComparing(item -> item.candidate().strategy().name())
-                        .thenComparing(item -> item.candidate().expression()))
+                .sorted(BEST_FIRST)
                 .toList();
         return new LocatorSelection(ranked.getFirst(), ranked.subList(1, ranked.size()));
     }
+
+    /**
+     * The one total, deterministic best-first ordering over scored candidates: lexicographic on
+     * (tier, score, strategy priority, strategy name, expression).
+     *
+     * <p>Issue #4271 review finding 2: this is public and shared because {@code CaptureGenerator}
+     * also has to order selections -- when one logical element is seen on several events it keeps
+     * the better sighting -- and it previously did so by raw {@link ScoredLocator#score()} alone.
+     * That reintroduced issue #4239's F2 defect across event boundaries: a {@code USER_PROVIDED}
+     * signal worth +1000 let a tier-3 selection displace a tier-1 one. A second hand-maintained copy
+     * of an ordering rule is exactly the drift this redesign exists to remove, so there is now one
+     * comparator and both callers use it.
+     */
+    public static final Comparator<ScoredLocator> BEST_FIRST =
+            Comparator.comparingInt(LocatorRanker::tierRank)
+                    .thenComparing(Comparator.comparingInt(ScoredLocator::score).reversed())
+                    .thenComparingInt(item -> -STRATEGY_PRIORITY.get(item.candidate().strategy()))
+                    .thenComparing(item -> item.candidate().strategy().name())
+                    .thenComparing(item -> item.candidate().expression());
 
     /**
      * Issue #4271: the primary, lexicographic sort key -- {@link LocatorPolicy.Tier} ordinal for

@@ -11,12 +11,17 @@ Choose locators that express user intent first and DOM mechanics last. A locator
 
 ## Locator Ladder
 
-Generated/codegen output has exactly two legal rungs. Stop at the first one that uniquely identifies the element:
+Generated/codegen output has exactly three legal tiers. Stop at the first one that uniquely identifies the element:
 
-1. ARIA-role-powered XPath via the SHAFT locator builder: `SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText("Submit").build()`. Add `hasAttribute(...)`, `containsText(...)`, tag, or parent/shadow/iframe context to the same chain when role + text alone doesn't uniquely match — do not drop out of the builder to reach for a stable attribute or CSS separately.
-2. Native `By.xpath(...)` — the only permitted fallback, and only when the target element exposes no usable ARIA role. Never absolute XPath; do not generate `SHAFT.GUI.Locator.xpath(...)`.
+1. **Unique, stable, author-written `id`**, via the SHAFT locator builder: `SHAFT.GUI.Locator.hasAnyTagName().hasId("checkout-submit").build()`. Only when the id matches exactly one element on the page and was written by a human. Framework-generated ids are excluded — React `:r1:`, Angular `mat-input-3` / `cdk-overlay-0`, Ember `ember1234`, JSF `j_idt42`, ASP.NET `ctl00_...`, CSS-in-JS `sc-bdVaJa` / `css-1a2b3c` and similar recycle across deploys. If in doubt that a human named it, skip to tier 2.
+2. **ARIA-role-powered XPath** via the SHAFT locator builder: `SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasNormalizedText("Submit").build()`. Add `hasAttribute(...)`, `containsText(...)`, tag, or parent/shadow/iframe context to the same chain when role + text alone doesn't uniquely match — do not drop out of the builder to reach for a stable attribute or CSS separately.
+3. Native, relative `By.xpath(...)` — the last permitted fallback, and only when the element has neither a unique author-written id nor a usable ARIA role. Never absolute XPath; do not generate `SHAFT.GUI.Locator.xpath(...)`.
 
-**Smart locator is excluded from generated/codegen output.** `SHAFT.GUI.Locator.inputField("Email")` / `clickableField("Sign in")` OR-tries dozens of XPath strategies non-deterministically — you can't tell which one matched, and `test_code_guardrails_check` already flags it (`SMART_LOCATOR`, `WARNING`). Its one legitimate use is a human's own throwaway, DOM-unexplored exploration snippet that is never published or inserted into a repo; move to rung 1 the moment the DOM is inspected.
+Never emit `SHAFT.GUI.Locator.id/name/cssSelector/className/tagName(...)`. A unique id is expressed through the builder's `hasId(...)` (tier 1), not through those raw strategy factories, which `test_code_guardrails_check` rejects as `NON_ARIA_LOCATOR` (ERROR).
+
+This ordering is enforced mechanically in `shaft-capture`'s `LocatorPolicy` (issue #4271), not merely recommended: an element with no tier-1/2/3 evidence fails generation rather than degrading to a weaker locator.
+
+**Smart locator is excluded from generated/codegen output.** `SHAFT.GUI.Locator.inputField("Email")` / `clickableField("Sign in")` OR-tries dozens of XPath strategies non-deterministically — you can't tell which one matched, and `test_code_guardrails_check` already flags it (`SMART_LOCATOR`, `WARNING`). Its one legitimate use is a human's own throwaway, DOM-unexplored exploration snippet that is never published or inserted into a repo; move to the highest matching tier the moment the DOM is inspected.
 
 ## MCP Checks
 
@@ -33,7 +38,7 @@ Generated/codegen output has exactly two legal rungs. Stop at the first one that
 - Keep generated `SHAFT.GUI.Locator.*` locators inline only for throwaway snippets; move stable locators into page objects for repo insertion.
 - Reuse locator summaries returned by `shaft_coding_partner_plan` and add only missing fields that the current DOM proves are needed.
 - Preserve user-provided locator choices from Capture when the recorder marks them as intentional.
-- Build every generated locator through the SHAFT locator builder's ARIA role (`hasRole(...)`); use a native Selenium `By.xpath(...)` object only when the target element exposes no ARIA role.
+- Build every generated locator through the SHAFT locator builder, in tier order: a unique author-written id (`hasAnyTagName().hasId(...)`), then an ARIA role (`hasRole(...)`); use a native relative Selenium `By.xpath(...)` object only when the element has neither.
 - For SHAFT Playwright code, use native Playwright locators only as the same last fallback.
 - Do not use coordinate-only actions while a locator candidate exists.
 - Do not paste raw DOM snapshots into source code.
@@ -41,6 +46,7 @@ Generated/codegen output has exactly two legal rungs. Stop at the first one that
 ## Examples
 
 ```java
+By checkoutSubmit = SHAFT.GUI.Locator.hasAnyTagName().hasId("checkout-submit").build();
 By submit = SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasText("Create Account").build();
 By email = SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).hasAttribute("aria-label", "Email").build();
 By alert = SHAFT.GUI.Locator.hasAnyTagName().hasAttribute("role", "alert").containsText("error").build();
@@ -109,7 +115,7 @@ response (`McpGuideSearchResult`, truncated):
       "codeBlocks": ["By email = SHAFT.GUI.Locator.inputField(\"Email\");"]
     }
   ],
-  "guidanceRules": ["Stop at the first locator rung that uniquely matches."],
+  "guidanceRules": ["Stop at the first locator tier that uniquely matches."],
   "warnings": []
 }
 ```
@@ -127,7 +133,7 @@ response (`McpGuideSearchResult`, truncated):
 | Mistake | Fix |
 | --- | --- |
 | `By.xpath("/html/body/...")` | Use the SHAFT locator builder's ARIA role, not an absolute path |
-| Generated ID chosen blindly | Prefer ARIA role + visible text over a guessed `id` |
+| Framework-generated ID chosen blindly | Tier 1 is only for a unique, author-written `id`; a recycled framework id (`:r1:`, `mat-input-3`, `sc-bdVaJa`) must fall to the ARIA role instead |
 | Smart Locator in generated/repo code | Replace with an ARIA-role builder locator; Smart Locator is throwaway-snippet only |
 | Multiple builder-XPath matches | Add parent/container context or another attribute filter to the same builder chain |
 | Locator repaired from old report only | Inspect current DOM/tree before changing source |
