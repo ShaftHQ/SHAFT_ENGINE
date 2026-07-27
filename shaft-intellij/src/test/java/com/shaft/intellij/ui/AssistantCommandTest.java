@@ -666,4 +666,30 @@ class AssistantCommandTest {
                 () -> assertTrue(codegenPrompt.contains(
                         "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt));
     }
+
+    /**
+     * Issue #4239 (Phase 0, item P0.1b): two more occurrences of the same "smart locators" fallback
+     * recommendation fixed by P0.1/#4240 were flagged out of that PR's scope -- one of them is the
+     * post-approval file-creation prompt built by {@code captureIntegrationPrompt} and dispatched
+     * through {@code approvedCaptureIntegration}. Same policy as the rest of the file: SHAFT locator
+     * builder ARIA-role strategy ({@code SHAFT.GUI.Locator.hasRole(...)}) first, native
+     * {@code By.xpath(...)} only when the element exposes no ARIA role, never Smart Locators.
+     */
+    @Test
+    void captureIntegrationPromptStatesAriaRoleFirstLocatorPolicyAndNeverRecommendsSmartLocators() {
+        AssistantCommand.Invocation invocation = AssistantCommand.approvedCaptureIntegration(
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "C:/work/project",
+                "",
+                "Reviewed capture markdown",
+                "{}");
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(prompt.toLowerCase(Locale.ROOT).contains("smart locator"), prompt),
+                () -> assertTrue(prompt.contains("SHAFT.GUI.Locator.hasRole("), prompt),
+                () -> assertTrue(prompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), prompt));
+    }
 }

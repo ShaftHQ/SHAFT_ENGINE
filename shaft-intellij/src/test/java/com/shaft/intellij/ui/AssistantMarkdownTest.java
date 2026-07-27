@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -1026,6 +1027,25 @@ class AssistantMarkdownTest {
                 () -> assertEquals("", AssistantMarkdown.readinessLabel(unknown)),
                 () -> assertEquals("", AssistantMarkdown.readinessLabel(new JsonObject())),
                 () -> assertEquals("", AssistantMarkdown.readinessLabel(null)));
+    }
+
+    /**
+     * Issue #4239 (Phase 0, item P0.1b): two more occurrences of the same "smart locators" fallback
+     * recommendation fixed by P0.1/#4240 were flagged out of that PR's scope -- one of them is this
+     * user-facing rejection message shown when generated Java uses native Selenium or a rejected
+     * SHAFT locator fallback. Same policy as the rest of the codebase: SHAFT locator builder
+     * ARIA-role strategy ({@code SHAFT.GUI.Locator.hasRole(...)}) first, native {@code By.xpath(...)}
+     * only when the element exposes no ARIA role, never Smart Locators.
+     */
+    @Test
+    void nativeSeleniumRejectionMarkdownStatesAriaRoleFirstLocatorPolicyAndNeverRecommendsSmartLocators() {
+        String markdown = AssistantMarkdown.nativeSeleniumRejectionMarkdown();
+
+        assertAll(
+                () -> assertFalse(markdown.toLowerCase(Locale.ROOT).contains("smart locator"), markdown),
+                () -> assertTrue(markdown.contains("SHAFT.GUI.Locator.hasRole("), markdown),
+                () -> assertTrue(markdown.contains("By.xpath(...)"), markdown),
+                () -> assertTrue(markdown.contains("only when the element exposes no ARIA role"), markdown));
     }
 
     private static String mcpText(String text) {
