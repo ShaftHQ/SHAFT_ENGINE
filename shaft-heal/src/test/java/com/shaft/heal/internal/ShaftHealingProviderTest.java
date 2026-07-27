@@ -124,6 +124,34 @@ public class ShaftHealingProviderTest {
     }
 
     @Test
+    public void reportPersistsTheRequestsVisibilityRequiredFlagAcrossRecordOutcome() throws Exception {
+        // Issue #4215: HealingLocatorProposalService.validateAdvisoryReport needs to know whether
+        // visibilityRequired applied to the attempt that produced the report, to mirror
+        // HealingDecisionEngine.java:29-33's eligibility gate exactly instead of approximating it.
+        WebDriver driver = driver();
+        WebElement original = element("old-id", "Username");
+        WebElement candidate = element("new-id", "Username");
+        configureSearch(driver, List.of(candidate));
+        ShaftHealingProvider provider = new ShaftHealingProvider();
+        By originalLocator = By.id("old-id");
+        provider.observe(new HealingObservation(
+                driver, originalLocator, original, "TYPE", null, null, null));
+
+        HealingResolution resolution = provider.resolve(new HealingRequest(
+                        driver, originalLocator, "TYPE", false, null, null, null))
+                .orElseThrow();
+
+        Assert.assertFalse(ShaftHeal.lastReport().orElseThrow().visibilityRequired());
+
+        provider.recordOutcome(new HealingActionOutcome(
+                driver, resolution.attemptId(), originalLocator, resolution.selectedLocator(),
+                "TYPE", true, "UNVERIFIABLE", ""));
+
+        Assert.assertFalse(ShaftHeal.lastReport().orElseThrow().visibilityRequired(),
+                "recordOutcome must preserve the originally persisted visibilityRequired flag.");
+    }
+
+    @Test
     public void serviceLoadedProviderShouldRetainPendingOutcomeState() {
         WebDriver driver = driver();
         WebElement original = element("old-id", "Username");

@@ -91,7 +91,8 @@ public class ShaftHealingProvider implements HealingProvider {
                     HealingReport.ProviderMetadata.disabled(),
                     false,
                     false,
-                    HealingReport.LadderMetadata.disabled()));
+                    HealingReport.LadderMetadata.disabled(),
+                    request.visibilityRequired()));
             return Optional.empty();
         }
 
@@ -110,7 +111,8 @@ public class ShaftHealingProvider implements HealingProvider {
                 reranked.remoteEvidenceSent(),
                 result.selected() != null,
                 new HealingReport.LadderMetadata(
-                        run.rungs(), run.elapsed().toMillis(), configuration.ladderBudget().toSeconds()));
+                        run.rungs(), run.elapsed().toMillis(), configuration.ladderBudget().toSeconds()),
+                request.visibilityRequired());
         writer.publish(report);
         if (result.selected() == null) {
             return Optional.empty();
@@ -302,7 +304,8 @@ public class ShaftHealingProvider implements HealingProvider {
                 previous.provider(),
                 previous.privacy(),
                 action,
-                previous.ladder());
+                previous.ladder(),
+                previous.visibilityRequired());
         new HealingReportWriter(pending.configuration()).publish(updated);
         if (outcome.successful()) {
             HealingHistoryStore store = new HealingHistoryStore(pending.configuration());
@@ -340,7 +343,8 @@ public class ShaftHealingProvider implements HealingProvider {
             HealingReport.ProviderMetadata provider,
             boolean remoteEvidenceSent,
             boolean recoveryUsed,
-            HealingReport.LadderMetadata ladder) {
+            HealingReport.LadderMetadata ladder,
+            boolean visibilityRequired) {
         HealingReport.ActionMetadata action = new HealingReport.ActionMetadata(
                 request.action(),
                 recoveryUsed,
@@ -364,7 +368,8 @@ public class ShaftHealingProvider implements HealingProvider {
                         0,
                         remoteEvidenceSent),
                 action,
-                ladder);
+                ladder,
+                visibilityRequired);
     }
 
     private static List<com.shaft.heal.model.HealingCandidate> rankedReports(List<RankedCandidate> candidates) {
