@@ -1146,6 +1146,67 @@ class CaptureGeneratorTest {
                 .anyMatch(warning -> warning.contains("#3065")), result.report().warnings().toString());
     }
 
+    // Issue #4166: a failed compile/replay must never destroy a previously-good generated test
+    // file already sitting at the same output path -- only a validated regeneration may be
+    // promoted to paths.source().
+    @Test
+    void failedReplayLeavesPreviouslyGeneratedSourceUnchanged() throws Exception {
+        CaptureSession baseline = CaptureFixtures.representativeSession();
+        writeCaptureData("alice");
+        Path output = temp.resolve("overwrite-protection");
+
+        CaptureGenerationResult first = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session(baseline), output, "generated.capture", "OverwriteProtectionTest", true,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll()));
+        assertTrue(first.successful(), first.report().unsupportedEvents().toString());
+        String originalSource = Files.readString(first.sourcePath());
+
+        // Same events (so analysis/compile would still be valid) but a different sessionGoal, so
+        // the deterministically-rendered source is provably different text from the original --
+        // otherwise a byte-identical regeneration could pass even with the bug still present.
+        CaptureSession regenerated = new CaptureSession(
+                baseline.schemaVersion(), baseline.sessionId(), baseline.status(), baseline.startedAt(),
+                baseline.endedAt(), baseline.browser(), baseline.events(), baseline.checkpoints(),
+                baseline.dataReferences(), baseline.redactionSummary(),
+                Map.of("sessionGoal", JSON.getNodeFactory().textNode("Regenerated after a forced replay failure")));
+
+        GeneratedTestValidator failingReplayValidator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("Simulated replay failure for regression coverage."), 1);
+            }
+        };
+        CaptureGenerationResult second = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), failingReplayValidator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session(regenerated), output, "generated.capture", "OverwriteProtectionTest", true,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertFalse(second.successful());
+        assertEquals(first.sourcePath(), second.sourcePath());
+        assertEquals(originalSource, Files.readString(second.sourcePath()));
+        assertTrue(second.report().warnings().stream()
+                        .anyMatch(warning -> warning.contains("left unchanged")),
+                second.report().warnings().toString());
+    }
+
     @Test
     void workspaceContainedFileUrlRecordingIsNotAPrivacyBlocker() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();
