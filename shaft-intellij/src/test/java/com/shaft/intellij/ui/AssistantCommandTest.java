@@ -624,4 +624,46 @@ class AssistantCommandTest {
         assertEquals("C:/work/project", invocation.arguments().get("workingDirectory").getAsString());
         assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
     }
+
+    /**
+     * Issue #4239 (Phase 0, item P0.1 / finding F1): SHAFT's own lint
+     * ({@code TestAutomationService.NO_SMART_LOCATOR}) rates Smart Locator usage in generated code
+     * as ERROR, but the prompts delivered to the LLM used to actively recommend "smart locators" as
+     * a preferred or fallback strategy in both {@code SHAFT_MCP_USAGE_HINT} and
+     * {@code SHAFT_CODEGEN_TOOL_GUIDANCE}. The real policy (already reconciled everywhere else in
+     * PR #4031) is: SHAFT locator builder ARIA-role strategy ({@code SHAFT.GUI.Locator.hasRole(...)})
+     * first, native {@code By.xpath(...)} only when the element exposes no ARIA role, and Smart
+     * Locator is never recommended in generated code.
+     */
+    @Test
+    void localAgentPromptsStateAriaRoleFirstLocatorPolicyAndNeverRecommendSmartLocators() {
+        AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
+                "open wikipedia and search for SHAFT Engine",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation codegen = AssistantCommand.fromPrompt(
+                "generate a Java login test with a page object",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String nonCodegenPrompt = nonCodegen.arguments().get("prompt").getAsString();
+        String codegenPrompt = codegen.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(nonCodegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"),
+                        nonCodegenPrompt),
+                () -> assertTrue(nonCodegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), nonCodegenPrompt),
+                () -> assertTrue(nonCodegenPrompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), nonCodegenPrompt),
+                () -> assertFalse(codegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt));
+    }
 }
