@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
@@ -46,20 +47,22 @@ class PlaywrightServiceTest {
 
         McpMobileReplayResult result = recorder.codeBlocks(recording.toString(), "page");
 
+        // Issue #4239 P1.4a ladder (#4252): an ID-strategy locator recorded through the manual
+        // Playwright MCP tools carries no self-verified ARIA role or XPath evidence, so codegen now
+        // honestly fails instead of silently emitting SHAFT.GUI.Locator.id(...) (#4262). The capture
+        // session is still recorded and persisted; only downstream code generation is blocked, and
+        // the caller sees why (#4262 P1) instead of a bare unexplained failure.
         assertTrue(Files.isRegularFile(result.captureSessionPath()));
-        assertTrue(Files.isRegularFile(result.sourcePath()));
         assertTrue(Files.isRegularFile(result.reportPath()));
-        assertTrue(Files.isRegularFile(result.reviewPath()));
-        assertTrue(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-full-class")));
-        assertTrue(result.report().warnings().stream()
-                .anyMatch(warning -> warning.contains("No recorded SHAFT assertion-builder verification")));
+        assertFalse(Files.exists(result.sourcePath()));
+        assertFalse(result.successful());
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertFalse(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-full-class")));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("rung-1")),
+                result.warnings().toString());
         CaptureSession session = new CaptureJsonCodec().read(result.captureSessionPath());
         assertTrue(session.events().getFirst() instanceof CaptureEvent.NavigationEvent);
         assertTrue(session.events().get(1) instanceof CaptureEvent.TypeEvent);
-        assertTrue(Files.readString(result.sourcePath()).contains("SHAFT.GUI.Playwright"));
-        assertTrue(Files.readString(result.sourcePath()).contains("driver.element().type("));
-        assertFalse(Files.readString(result.sourcePath()).contains("alice@example.test"));
-        assertTrue(Files.readString(result.testDataPath()).contains("alice@example.test"));
     }
 
     @Test
@@ -81,20 +84,27 @@ class PlaywrightServiceTest {
         McpMobileReplayResult result = recorder.codeBlocks(recording.toString(), "page");
 
         assertTrue(Files.isRegularFile(recording));
+        // The manual replay-method block is built directly from the recorded steps (never routed
+        // through CaptureGenerator), so it stays available and redaction-safe regardless of whether
+        // deterministic codegen below can generate a SHAFT test from this locator evidence.
         String code = result.codeBlocks().getFirst().code();
         assertTrue(code.contains("SHAFT.GUI.Playwright page"));
         assertTrue(code.contains("<redacted>"));
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("redacted")));
         assertFalse(code.contains("alice@example.test"));
         assertTrue(Files.isRegularFile(result.captureSessionPath()));
-        assertTrue(Files.isRegularFile(result.sourcePath()));
-        assertTrue(Files.isRegularFile(result.testDataPath()));
-        assertTrue(Files.isRegularFile(result.reportPath()));
         assertArtifactDoesNotContain(result.captureSessionPath(), "alice@example.test");
-        assertArtifactDoesNotContain(result.sourcePath(), "alice@example.test");
-        assertArtifactDoesNotContain(result.testDataPath(), "alice@example.test");
+
+        // Issue #4239 P1.4a ladder (#4252): the recorded ID-strategy locator has no self-verified
+        // evidence, so deterministic codegen honestly fails (#4262) before any source/test-data file
+        // is written -- nothing to leak a value into, and the caller is told why.
+        assertFalse(Files.exists(result.sourcePath()));
+        assertFalse(Files.exists(result.testDataPath()));
+        assertTrue(Files.isRegularFile(result.reportPath()));
         assertArtifactDoesNotContain(result.reportPath(), "alice@example.test");
         assertFalse(result.report().toString().contains("alice@example.test"));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("rung-1")),
+                result.warnings().toString());
     }
 
     @Test
@@ -362,14 +372,15 @@ class PlaywrightServiceTest {
 
         McpMobileReplayResult result = recorder.codeBlocks(recording.toString(), "driver", target, "open");
 
-        McpCodeBlock snippet = block(result.codeBlocks(), "capture-target-action-snippet");
-        assertEquals(McpCodeBlock.Kind.ACTION, snippet.kind());
-        assertTrue(snippet.placement().contains("open"));
-
-        McpCodeBlock preview = block(result.codeBlocks(), "capture-target-patch-preview");
-        assertEquals("PATCH_PREVIEW", preview.kind().name());
-        assertTrue(preview.code().contains("LoginPage.java"));
-        assertTrue(preview.code().contains("open"));
+        // Issue #4239 P1.4a ladder (#4252): the recorded ID-strategy "login" locator has no
+        // self-verified evidence, so deterministic codegen honestly fails (#4262) before ever
+        // reaching target-insertion planning -- no capture-target-* block is produced, and the
+        // reason is surfaced in warnings() instead of a silent, unexplained empty block list.
+        assertFalse(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-target-action-snippet")));
+        assertFalse(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-target-patch-preview")));
+        assertFalse(result.successful());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("rung-1")),
+                result.warnings().toString());
     }
 
     private static McpMobileRecordedAction click(McpPlaywrightRecordingService recorder, String locatorValue) {
@@ -381,13 +392,6 @@ class PlaywrightServiceTest {
                 "driver.element().click(SHAFT.GUI.Locator.id(\"" + locatorValue + "\"));",
                 "driver.element().click(SHAFT.GUI.Locator.id(\"" + locatorValue + "\"));",
                 false);
-    }
-
-    private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {
-        return blocks.stream()
-                .filter(block -> block.id().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("Missing block " + id));
     }
 
     private static void assertArtifactDoesNotContain(Path path, String rawValue) throws Exception {
