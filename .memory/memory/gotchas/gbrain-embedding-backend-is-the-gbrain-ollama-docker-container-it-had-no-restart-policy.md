@@ -1,5 +1,0 @@
-SUPERSEDED 2026-07-27 memory-hygiene cleanup: gbrain was fully uninstalled 2026-07-18 (see decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision) -- this describes operational quirks of a tool that no longer exists in this environment. Kept as historical record, not deleted. Original text preserved below.
-
----
-
-Ollama is NOT installed natively on this machine; gbrain's ollama:nomic-embed-text endpoint (127.0.0.1:11434) is served by Docker container 'gbrain-ollama'. It had no restart policy, so after a Docker/machine restart it stayed Exited(255) and gbrain syncs would silently import unembedded chunks (the exact regression the 2026-07-16 inline-embedding fix addressed). Fixed: docker update --restart unless-stopped gbrain-ollama. Health probe: curl 127.0.0.1:11434/api/tags must list nomic-embed-text.

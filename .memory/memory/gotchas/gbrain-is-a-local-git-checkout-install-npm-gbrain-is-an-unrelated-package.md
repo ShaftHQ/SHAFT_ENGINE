@@ -1,5 +1,0 @@
-SUPERSEDED 2026-07-27 memory-hygiene cleanup: gbrain was fully uninstalled 2026-07-18 (see decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision) -- this describes operational quirks of a tool that no longer exists in this environment. Kept as historical record, not deleted. Original text preserved below.
-
----
-
-gbrain (0.42.x, 4-segment versions) is installed from the local checkout C:/Users/Mohab/gbrain and built with bun; the public npm registry package named 'gbrain' (1.x, 3-segment) is a DIFFERENT project - never 'bun i -g gbrain@latest'. Update path: cd ~/gbrain && git pull && bun install, then run 'gbrain apply-migrations --yes --non-interactive' manually because bun's postinstall hook fails on Windows with a shell-redirect parse error ('expected a command or assignment but got: Redirect'), then 'gbrain doctor'. 'gbrain upgrade' automates this when its release channel is reachable. Migration 0.32.2 refuses to run while any registered source has uncommitted git changes.

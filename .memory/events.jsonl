@@ -539,3 +539,12 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.gbrain-slug-mismatch-blocks-83-shaft-userguide-pages-extract-needs-source-db-on-db-only-brains","timestamp":"2026-07-27T20:27:35+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.mcp-gbrain-put-page-write-through-can-drop-a-real-file-into-the-callers-working-directory","timestamp":"2026-07-27T20:27:35+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.verify-assistant-workflow-bug-reports-against-main-much-was-already-shipped-in-3505-3513","timestamp":"2026-07-27T20:27:35+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-embedding-backend-is-the-gbrain-ollama-docker-container-it-had-no-restart-policy","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-full-code-strategy-sync-needs-no-hard-deadline-on-repos-this-size","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-host-cli-maintenance-sync-embed-fails-while-an-mcp-gbrain-serve-session-is-connected-pglite-is-single-writer","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-is-a-local-git-checkout-install-npm-gbrain-is-an-unrelated-package","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-remote-mcp-query-needs-explicit-source-id-shaft-engine-default-and-all-return-empty","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-serve-mcp-session-lock-another-live-claude-code-session-can-hold-it-not-just-autopilot-self","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-slug-mismatch-blocks-83-shaft-userguide-pages-extract-needs-source-db-on-db-only-brains","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.mcp-gbrain-put-page-write-through-can-drop-a-real-file-into-the-callers-working-directory","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.verify-assistant-workflow-bug-reports-against-main-much-was-already-shipped-in-3505-3513","timestamp":"2026-07-27T20:32:31+03:00"}
