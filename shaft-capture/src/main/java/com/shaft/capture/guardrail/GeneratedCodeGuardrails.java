@@ -210,20 +210,32 @@ public final class GeneratedCodeGuardrails {
 
     private static boolean isSuspiciousSecretLiteral(String literal) {
         String value = literal == null ? "" : literal.trim();
-        if (value.length() < 8 || value.contains("${")) {
+        if (isTooShortOrTemplatePlaceholder(value)) {
             return false;
         }
         String lower = value.toLowerCase(Locale.ROOT);
-        if (lower.contains("example") || lower.contains("sample") || lower.contains("dummy")
-                || lower.contains("placeholder") || lower.contains("redacted") || lower.contains("changeme")
-                || lower.contains("change-me") || lower.contains("your_") || lower.contains("your-")) {
+        if (looksLikePlaceholderWord(lower)) {
             return false;
         }
         String compact = lower.replaceAll("[^a-z0-9]+", "");
+        return !isGenericSecretKeywordOnly(compact);
+    }
+
+    private static boolean isTooShortOrTemplatePlaceholder(String value) {
+        return value.length() < 8 || value.contains("${");
+    }
+
+    private static boolean looksLikePlaceholderWord(String lower) {
+        return lower.contains("example") || lower.contains("sample") || lower.contains("dummy")
+                || lower.contains("placeholder") || lower.contains("redacted") || lower.contains("changeme")
+                || lower.contains("change-me") || lower.contains("your_") || lower.contains("your-");
+    }
+
+    private static boolean isGenericSecretKeywordOnly(String compact) {
         return switch (compact) {
             case "authorization", "apikey", "token", "accesstoken", "password", "passwd", "pwd", "secret",
-                    "clientsecret" -> false;
-            default -> true;
+                    "clientsecret" -> true;
+            default -> false;
         };
     }
 

@@ -204,4 +204,18 @@ class GeneratedCodeGuardrailsTest {
         assertTrue(result.passed());
         assertTrue(result.violations().isEmpty());
     }
+
+    @Test
+    void allowsTemplatePlaceholderExampleWordAndGenericKeywordOnlySecretValues() {
+        GuardrailCheckResult result = GeneratedCodeGuardrails.check("""
+                class Config {
+                    private String token = "${SECRET_TOKEN}";
+                    private String password = "example_password_1";
+                    private String apiKey = "password";
+                }
+                """);
+
+        assertTrue(result.passed());
+        assertTrue(result.violations().stream().noneMatch(violation -> violation.kind().equals("HARDCODED_SECRET")));
+    }
 }
