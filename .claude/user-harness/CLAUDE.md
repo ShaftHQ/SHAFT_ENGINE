@@ -15,7 +15,7 @@ charter says so.
 
 Outside SHAFT_ENGINE:
 - Nontrivial engineering task -> read and follow
-  `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\act-as-fable\SKILL.md`.
+  `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\act-as-mohab\SKILL.md`.
 - `/graphify` -> read and follow
   `C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE\.claude\skills\graphify\references\full-pipeline.md`.
 

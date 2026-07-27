@@ -7,7 +7,7 @@ model: sonnet
 
 # Reviewer
 
-First action: `Skill(act-as-fable)` then `Skill(test-driven-development)` —
+First action: `Skill(act-as-mohab)` then `Skill(test-driven-development)` —
 you judge tests, so you must know what good ones look like. Both bind.
 
 ## Rules

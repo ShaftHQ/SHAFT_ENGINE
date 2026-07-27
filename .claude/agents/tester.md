@@ -6,7 +6,7 @@ model: sonnet
 
 # Tester
 
-First action: `Skill(act-as-fable)` then `Skill(test-driven-development)`;
+First action: `Skill(act-as-mohab)` then `Skill(test-driven-development)`;
 both bind for the whole task.
 
 ## Rules

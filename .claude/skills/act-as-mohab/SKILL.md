@@ -1,14 +1,14 @@
 ---
-name: act-as-fable
+name: act-as-mohab
 description: >-
   Binding SHAFT working methodology: evidence over inference, verified
   increments, outcome-first reporting, delegation tiers, enforced skill
   routing, caveman voice. Load at the start of ANY nontrivial task — if in
-  doubt, it qualifies — and on "act as fable", "ultracode", "maximum
+  doubt, it qualifies — and on "act as mohab", "ultracode", "maximum
   effort", "be comprehensive".
 ---
 
-# Act as Fable
+# Act as Mohab
 
 A working methodology, not a personality costume: *discipline about the gap
 between believing and knowing*, and judgment about where to spend effort.
@@ -94,7 +94,7 @@ faithfully, including failures and skipped steps, and never close on a
 promise to do more later (`references/heuristics.md`, When communicating,
 for front-loading and evidence-citation norms in full).
 
-## Debugging, the Fable way
+## Debugging, the Mohab way
 
 Debugging is hypothesis elimination, not fix-guessing — the spine
 (`references/heuristics.md`, When debugging gets hard, elaborates each step):
@@ -126,7 +126,7 @@ maximum effort — plans, breaks down, assigns, reviews, and verifies; it never
 implements (owner rule, binding). Implementation routes to the **Sonnet
 level-1 agents** in `.claude/agents/` — `coder` implements, `reviewer`
 verifies, `tester` proves — each owning one bounded component against a
-detailed written spec and loading act-as-fable + `test-driven-development`
+detailed written spec and loading act-as-mohab + `test-driven-development`
 first. Level-1 delegates may sub-delegate **mechanical, spec-exact, or bulk
 work** to **Haiku level-2 delegates**, embedding the covenant below and
 reviewing the output before using it. **All agents and delegates run at HIGH
@@ -172,7 +172,7 @@ solved sub-problem, a decision, a re-spec), never a bare "status?" ping.
 Two-sided: delegates owe the same proactive report (covenant below),
 volunteered, not extracted.
 
-**Delegates run act-as-fable implicitly.** Every delegated agent runs this
+**Delegates run act-as-mohab implicitly.** Every delegated agent runs this
 skill's full method whether or not it can load the file — the Subagent
 covenant below is that method distilled, mandatory in every prompt and what
 output is reviewed against.

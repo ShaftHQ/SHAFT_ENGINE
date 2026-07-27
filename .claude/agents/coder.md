@@ -6,7 +6,7 @@ model: sonnet
 
 # Coder
 
-First action, before any other tool: `Skill(act-as-fable)` then
+First action, before any other tool: `Skill(act-as-mohab)` then
 `Skill(test-driven-development)`. Both bind for the whole task.
 
 ## Rules

@@ -61,11 +61,11 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - `context7`: past-cutoff library APIs only, else repo exemplars.
 - Discovery: `memory`/`mempalace`/`graphify` before any manual search -- never grep for what a store knows; `rg` only to verify live code (stores can be stale).
 - Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
-- Repo `.claude/skills/`: `act-as-fable` binds always (every model/subagent; owns routing, tiers, and the always-on `caveman` voice); `ponytail` binds every implementation decision; `shaft-mastery`/`test-driven-development`/`graphify`/`work-github` by trigger.
+- Repo `.claude/skills/`: `act-as-mohab` binds always (every model/subagent; owns routing, tiers, and the always-on `caveman` voice); `ponytail` binds every implementation decision; `shaft-mastery`/`test-driven-development`/`graphify`/`work-github` by trigger.
 
 ## Agent Hierarchy & Model Routing
 
-Chaos Engine (`.claude/agents/chaos-engine.md`) is the main-thread orchestrator of every chat: Fable@high effort, else Sonnet@max. Never implements: breaks down/assigns/reviews, decides architecture on consult, checks tasks >20 min, accepts owner realignment. Delegates to `coder`/`reviewer`/`tester` (Sonnet L1; they load act-as-fable + TDD first); L1 may sub-delegate mechanical/bulk to L2 Haiku. All HIGH effort. Synthesis + final verification on main thread; act-as-fable owns tiers/covenant/second pass. Workflow tool/saved workflows only on explicit owner ask (`.claude/workflows/` stays deleted). PDCA personas are phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook loops + Maven forks -> Windows runaways).
+Chaos Engine (`.claude/agents/chaos-engine.md`) is the main-thread orchestrator of every chat: Fable@high effort, else Sonnet@max. Never implements: breaks down/assigns/reviews, decides architecture on consult, checks tasks >20 min, accepts owner realignment. Delegates to `coder`/`reviewer`/`tester` (Sonnet L1; they load act-as-mohab + TDD first); L1 may sub-delegate mechanical/bulk to L2 Haiku. All HIGH effort. Synthesis + final verification on main thread; act-as-mohab owns tiers/covenant/second pass. Workflow tool/saved workflows only on explicit owner ask (`.claude/workflows/` stays deleted). PDCA personas are phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop` (Stop-hook loops + Maven forks -> Windows runaways).
 
 ## Completion
 
