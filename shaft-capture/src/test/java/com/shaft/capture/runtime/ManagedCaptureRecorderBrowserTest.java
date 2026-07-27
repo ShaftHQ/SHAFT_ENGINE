@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -1421,6 +1422,185 @@ class ManagedCaptureRecorderBrowserTest {
         }
     }
 
+    /**
+     * Issue #4239 P1.0a: {@code LocatorBuilder.byRole(Role.BUTTON)} compiles to a FIXED
+     * tag/attribute XPath union ({@code //button | //input[@type='button'] | ...}, see
+     * {@code LocatorBuilder.java:144-190}) that never inspects the {@code role} attribute -- but
+     * the recorder's {@code inferredRole} prefers an explicit {@code role="..."} attribute over
+     * tag shape. A {@code <div role="button">} therefore produces a ROLE candidate whose
+     * {@code uniquenessCount} (re-deriving {@code inferredRole} across the page, issue #4025)
+     * truthfully reports 1, while the XPath {@code SHAFT.GUI.Locator.hasRole(Role.BUTTON)} will
+     * actually ship at replay time matches ZERO {@code <div>} elements -- nothing previously
+     * re-verified that before the candidate could be trusted. The recorder must self-verify the
+     * SAME fixed per-role XPath union against the live DOM and flag the mismatch, while a
+     * genuinely matching native {@code <button>} must still verify true. {@code roleXpathVerified}
+     * has no Java-side model yet (a later, separate task decides how {@code CaptureGenerator}
+     * consumes it), so it is read directly off the live in-page state via the
+     * {@code globalThis.__shaftCaptureUiState} seam rather than the persisted session file.
+     */
+    @Test
+    void roleCandidateSelfVerifiesTheXpathLocatorBuilderWillActuallyShipAtReplay(@TempDir Path temp)
+            throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("role-self-verify.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/role-self-verify",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("role-self-verify-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("custom-button")));
+
+            driver.findElement(By.id("custom-button")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Custom Button")));
+            Map<String, Object> customButtonRole = roleCandidateFromLiveState(driver, "custom-button");
+            assertEquals(1L, ((Number) customButtonRole.get("uniquenessCount")).longValue(),
+                    "inferredRole-based uniqueness truthfully reports one match for the div's role "
+                            + "attribute (issue #4025 territory, unrelated to this fix): " + customButtonRole);
+            assertEquals(Boolean.FALSE, customButtonRole.get("roleXpathVerified"),
+                    "SHAFT.GUI.Locator.hasRole(Role.BUTTON) never inspects @role, so its fixed "
+                            + "XPath union matches zero <div> elements -- the candidate must NOT be "
+                            + "flagged verified: " + customButtonRole);
+
+            driver.findElement(By.id("real-button")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Real Button")));
+            Map<String, Object> realButtonRole = roleCandidateFromLiveState(driver, "real-button");
+            assertEquals(Boolean.TRUE, realButtonRole.get("roleXpathVerified"),
+                    "a genuine <button> IS matched by hasRole(Role.BUTTON)'s XPath union and must "
+                            + "verify true: " + realButtonRole);
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #4239 P1.0b: {@code computeReplayXpath} previously had exactly one call site (the
+     * ROLE branch, {@code shaft-capture-recorder.js:505-506} pre-fix), so LABEL candidates and
+     * elements with no inferred role at all never received a self-verified fallback XPath -- only
+     * role-matched elements did. Proves both gaps are closed: a labeled text input's LABEL
+     * candidate carries a self-verified {@code replayXpath}, and a plain role-less/label-less
+     * element (a {@code <span>} whose only accessible-name signal is its own visible text) gets
+     * its own self-verified XPath candidate where previously none existed. Both recorded XPaths
+     * are then proven to resolve, uniquely, to the same element after a page reload -- exactly the
+     * replay proof {@code recordedReplayXpathResolvesTheSameElementDespiteInternalDomWhitespace}
+     * above already established for the ROLE branch.
+     */
+    @Test
+    void labelAndRoleLessCandidatesGetASelfVerifiedFallbackXpath(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("xpath-fallback.json");
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/xpath-fallback";
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                url,
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("xpath-fallback-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("labeled-input")));
+
+            driver.findElement(By.id("labeled-input")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.toLowerCase(java.util.Locale.ROOT)
+                            .contains("username")));
+            driver.findElement(By.id("roleless-text")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Click me plain span")));
+
+            CaptureSession midSession = new CaptureJsonCodec().read(output);
+            LocatorCandidate label = locatorCandidateFor(midSession, "labeled-input",
+                    LocatorCandidate.LocatorStrategy.LABEL);
+            assertFalse(label.replayXpath().isBlank(),
+                    "the recorder must self-verify a fallback replayXpath for a LABEL candidate, "
+                            + "not only for ROLE candidates: " + label);
+            List<LocatorCandidate> roleLessCandidates = clickTarget(midSession, "roleless-text")
+                    .target().locatorCandidates();
+            LocatorCandidate roleLessFallback = roleLessCandidates.stream()
+                    .filter(candidate -> !candidate.replayXpath().isBlank())
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "an element with no inferred role and no enclosing <label> must still "
+                                    + "get a self-verified fallback XPath candidate when one can be "
+                                    + "computed: " + roleLessCandidates));
+
+            // Replay proof: reload so the DOM is rebuilt fresh, then resolve each recorded
+            // replayXpath exactly as generated By.xpath(...) code would at replay time.
+            driver.navigate().refresh();
+            waitFor(() -> elementPresent(driver, By.id("labeled-input")));
+            List<WebElement> labelMatches = driver.findElements(By.xpath(label.replayXpath()));
+            assertEquals(1, labelMatches.size(),
+                    "the recorded LABEL replayXpath must resolve to exactly the recorded element "
+                            + "at replay time: " + label.replayXpath());
+            assertEquals("labeled-input", labelMatches.get(0).getAttribute("id"));
+            List<WebElement> roleLessMatches = driver.findElements(By.xpath(roleLessFallback.replayXpath()));
+            assertEquals(1, roleLessMatches.size(),
+                    "the recorded role-less fallback replayXpath must resolve to exactly the "
+                            + "recorded element at replay time: " + roleLessFallback.replayXpath());
+            assertEquals("roleless-text", roleLessMatches.get(0).getAttribute("id"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    private static CaptureEvent.ClickEvent clickTarget(CaptureSession session, String logicalElementId) {
+        return session.events().stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .filter(click -> logicalElementId.equals(click.target().logicalElementId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The click on #" + logicalElementId + " must be recorded."));
+    }
+
+    private static LocatorCandidate locatorCandidateFor(
+            CaptureSession session, String logicalElementId, LocatorCandidate.LocatorStrategy strategy) {
+        return clickTarget(session, logicalElementId).target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == strategy)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "A " + strategy + " locator candidate must be recorded for #"
+                                + logicalElementId));
+    }
+
+    /**
+     * Reads the ROLE candidate straight off the live in-page recorder state (the
+     * {@code globalThis.__shaftCaptureUiState} seam) rather than the persisted session file:
+     * {@code roleXpathVerified} (issue #4239 P1.0a) is a recorder-only signal with no Java-side
+     * {@code LocatorCandidate} field yet, so {@code CaptureEventPipeline}'s raw-map parsing drops
+     * it before anything reaches disk.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> roleCandidateFromLiveState(WebDriver driver, String logicalElementId) {
+        Object result = ((JavascriptExecutor) driver).executeScript("""
+                const state = window.__shaftCaptureUiState;
+                const actions = (state && state.actions) || [];
+                const action = actions.slice().reverse().find(item =>
+                    item.details && item.details.target
+                    && item.details.target.logicalElementId === arguments[0]);
+                if (!action) return null;
+                const locators = action.details.target.locators || [];
+                return locators.find(candidate => candidate.strategy === "ROLE") || null;
+                """, logicalElementId);
+        return (Map<String, Object>) result;
+    }
+
     private static By assertionChoice(String label) {
         return By.xpath("//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='" + label + "']");
     }
@@ -1748,6 +1928,32 @@ class ManagedCaptureRecorderBrowserTest {
                   <div id="status-banner" role="alert">Something
                     went
                     wrong</div>
+                </body>
+                </html>
+                """));
+        // Issue #4239 P1.0a: a <div role="button"> whose explicit role attribute inferredRole()
+        // prefers, next to a genuine <button> that LocatorBuilder.byRole(Role.BUTTON)'s fixed
+        // tag/attribute XPath union actually matches.
+        server.createContext("/role-self-verify", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Role Self-Verify Fixture</title></head>
+                <body>
+                  <div id="custom-button" role="button" tabindex="0">Custom Button</div>
+                  <button id="real-button">Real Button</button>
+                </body>
+                </html>
+                """));
+        // Issue #4239 P1.0b: a labeled text input (LABEL candidate) and a plain role-less,
+        // label-less element whose only accessible-name signal is its own visible text.
+        server.createContext("/xpath-fallback", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Xpath Fallback Fixture</title></head>
+                <body>
+                  <label for="labeled-input">Username</label>
+                  <input id="labeled-input" type="text" aria-label="Enter your username">
+                  <span id="roleless-text" onclick="void 0">Click me plain span</span>
                 </body>
                 </html>
                 """));
