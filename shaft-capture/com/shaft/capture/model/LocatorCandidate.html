@@ -58,6 +58,7 @@
 <ol class="toc-list">
 <li><a href="#%3Cinit%3E(com.shaft.capture.model.LocatorCandidate.LocatorStrategy,java.lang.String,int,boolean,boolean,java.util.Set)" tabindex="0">LocatorCandidate(LocatorCandidate.LocatorStrategy, String, int, boolean, boolean, Set)</a></li>
 <li><a href="#%3Cinit%3E(com.shaft.capture.model.LocatorCandidate.LocatorStrategy,java.lang.String,int,boolean,boolean,java.util.Set,java.lang.String)" tabindex="0">LocatorCandidate(LocatorCandidate.LocatorStrategy, String, int, boolean, boolean, Set, String)</a></li>
+<li><a href="#%3Cinit%3E(com.shaft.capture.model.LocatorCandidate.LocatorStrategy,java.lang.String,int,boolean,boolean,java.util.Set,java.lang.String,boolean)" tabindex="0">LocatorCandidate(LocatorCandidate.LocatorStrategy, String, int, boolean, boolean, Set, String, boolean)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -73,6 +74,7 @@
 <li><a href="#stable()" tabindex="0">stable()</a></li>
 <li><a href="#signals()" tabindex="0">signals()</a></li>
 <li><a href="#replayXpath()" tabindex="0">replayXpath()</a></li>
+<li><a href="#roleXpathVerified()" tabindex="0">roleXpathVerified()</a></li>
 </ol>
 </li>
 </ol>
@@ -100,10 +102,19 @@
                    candidate (issue #4026), or blank when none was computed. When present,
                    it is the exact string the engine resolves at replay -- record and replay
                    share one artifact instead of independently deriving the same locator twice.</dd>
+<dd><code><span id="param-roleXpathVerified">roleXpathVerified</span></code> - whether the recorder self-verified that <code>SHAFT.GUI.Locator.hasRole(...)</code>'s
+                   EXACT fixed per-role XPath union (issue #4239 P1.0a/ladder) resolves uniquely to
+                   this element in the live DOM. Only meaningful for <a href="LocatorCandidate.LocatorStrategy.html#ROLE"><code>LocatorCandidate.LocatorStrategy.ROLE</code></a>
+                   candidates: <code>uniquenessCount</code> on a ROLE candidate is derived by re-deriving
+                   <code>inferredRole</code> across the page, which can disagree with what the fixed XPath
+                   union <code>hasRole(...)</code> actually ships (e.g. a <code>&lt;div role="button"&gt;</code>
+                   truthfully has <code>uniquenessCount == 1</code> yet matches zero elements via
+                   <code>hasRole(Role.BUTTON)</code>'s tag-shape union) -- this is the only signal that
+                   tells the two apart, so codegen's rung-1 emission gate must check it explicitly.</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">LocatorCandidate</span>(<a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a>&nbsp;strategy, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression, int&nbsp;uniquenessCount, boolean&nbsp;visible, boolean&nbsp;stable, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;replayXpath)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">LocatorCandidate</span>(<a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a>&nbsp;strategy, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression, int&nbsp;uniquenessCount, boolean&nbsp;visible, boolean&nbsp;stable, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;replayXpath, boolean&nbsp;roleXpathVerified)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Locator evidence retained for deterministic ranking and review.</div>
 </div>
@@ -164,8 +175,9 @@
  boolean&nbsp;stable,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Creates immutable locator evidence with no recorded <code>replayXpath</code> (additive
-backward-compatible overload; existing 6-arg call sites keep compiling unchanged).</div>
+<div class="block">Creates immutable locator evidence with no recorded <code>replayXpath</code> and
+<code>roleXpathVerified</code> defaulted to <code>false</code> (additive backward-compatible overload;
+existing 6-arg call sites keep compiling unchanged).</div>
 </div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.shaft.capture.model.LocatorCandidate.LocatorStrategy,java.lang.String,int,boolean,boolean,java.util.Set,java.lang.String)" class="member-name-link">LocatorCandidate</a><wbr>(<a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a>&nbsp;strategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression,
@@ -175,6 +187,18 @@ backward-compatible overload; existing 6-arg call sites keep compiling unchanged
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;replayXpath)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Creates immutable locator evidence with <code>roleXpathVerified</code> defaulted to <code>false</code>
+(additive backward-compatible overload; existing 7-arg call sites keep compiling unchanged).</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.capture.model.LocatorCandidate.LocatorStrategy,java.lang.String,int,boolean,boolean,java.util.Set,java.lang.String,boolean)" class="member-name-link">LocatorCandidate</a><wbr>(<a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a>&nbsp;strategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression,
+ int&nbsp;uniquenessCount,
+ boolean&nbsp;visible,
+ boolean&nbsp;stable,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;replayXpath,
+ boolean&nbsp;roleXpathVerified)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Creates immutable locator evidence.</div>
 </div>
 </div>
@@ -211,39 +235,44 @@ backward-compatible overload; existing 6-arg call sites keep compiling unchanged
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-replayXpath"><code>replayXpath</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#score()" class="member-name-link">score</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Computes a deterministic score without model inference.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a><wbr>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#signals()" class="member-name-link">signals</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the value of the <a href="#param-signals"><code>signals</code></a> record component.</div>
-</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stable()" class="member-name-link">stable</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#roleXpathVerified()" class="member-name-link">roleXpathVerified</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the value of the <a href="#param-stable"><code>stable</code></a> record component.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#strategy()" class="member-name-link">strategy</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the value of the <a href="#param-strategy"><code>strategy</code></a> record component.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns a string representation of this record class.</div>
+<div class="block">Returns the value of the <a href="#param-roleXpathVerified"><code>roleXpathVerified</code></a> record component.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#uniquenessCount()" class="member-name-link">uniquenessCount</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#score()" class="member-name-link">score</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Computes a deterministic score without model inference.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a><wbr>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#signals()" class="member-name-link">signals</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-signals"><code>signals</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stable()" class="member-name-link">stable</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-stable"><code>stable</code></a> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#strategy()" class="member-name-link">strategy</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-strategy"><code>strategy</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a string representation of this record class.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#uniquenessCount()" class="member-name-link">uniquenessCount</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-uniquenessCount"><code>uniquenessCount</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#visible()" class="member-name-link">visible</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#visible()" class="member-name-link">visible</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-visible"><code>visible</code></a> record component.</div>
 </div>
 </div>
@@ -290,8 +319,9 @@ backward-compatible overload; existing 6-arg call sites keep compiling unchanged
  boolean&nbsp;visible,
  boolean&nbsp;stable,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals)</span></div>
-<div class="block">Creates immutable locator evidence with no recorded <code>replayXpath</code> (additive
-backward-compatible overload; existing 6-arg call sites keep compiling unchanged).</div>
+<div class="block">Creates immutable locator evidence with no recorded <code>replayXpath</code> and
+<code>roleXpathVerified</code> defaulted to <code>false</code> (additive backward-compatible overload;
+existing 6-arg call sites keep compiling unchanged).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>strategy</code> - locator strategy</dd>
@@ -315,6 +345,33 @@ backward-compatible overload; existing 6-arg call sites keep compiling unchanged
  boolean&nbsp;stable,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;replayXpath)</span></div>
+<div class="block">Creates immutable locator evidence with <code>roleXpathVerified</code> defaulted to <code>false</code>
+(additive backward-compatible overload; existing 7-arg call sites keep compiling unchanged).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>strategy</code> - locator strategy</dd>
+<dd><code>expression</code> - raw locator expression</dd>
+<dd><code>uniquenessCount</code> - number of matching elements observed</dd>
+<dd><code>visible</code> - whether the target was visible</dd>
+<dd><code>stable</code> - whether the evidence appeared stable</dd>
+<dd><code>signals</code> - additional deterministic scoring signals</dd>
+<dd><code>replayXpath</code> - self-verified replay XPath, or blank when none was computed</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(com.shaft.capture.model.LocatorCandidate.LocatorStrategy,java.lang.String,int,boolean,boolean,java.util.Set,java.lang.String,boolean)">
+<h3>LocatorCandidate</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">LocatorCandidate</span><wbr><span class="parameters">(<a href="LocatorCandidate.LocatorStrategy.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorStrategy</a>&nbsp;strategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;expression,
+ int&nbsp;uniquenessCount,
+ boolean&nbsp;visible,
+ boolean&nbsp;stable,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="LocatorCandidate.LocatorSignal.html" title="enum class in com.shaft.capture.model">LocatorCandidate.LocatorSignal</a>&gt;&nbsp;signals,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;replayXpath,
+ boolean&nbsp;roleXpathVerified)</span></div>
 <div class="block">Creates immutable locator evidence.</div>
 </div>
 </section>
@@ -474,6 +531,19 @@ backward-compatible overload; existing 6-arg call sites keep compiling unchanged
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-replayXpath"><code>replayXpath</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="roleXpathVerified()">
+<h3>roleXpathVerified</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">roleXpathVerified</span>()</div>
+<div class="block">Returns the value of the <a href="#param-roleXpathVerified"><code>roleXpathVerified</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-roleXpathVerified"><code>roleXpathVerified</code></a> record component</dd>
 </dl>
 </div>
 </section>
