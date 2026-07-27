@@ -152,35 +152,57 @@ class AssistantTranscriptViewTest {
      */
     @Test
     void monospacedFontFamilyFallsBackToLogicalMonospacedWhenApplicationExistsButEditorColorsManagerServiceIsUnavailable() {
-        com.intellij.openapi.Disposable disposable =
-                com.intellij.openapi.util.Disposer.newDisposable("editor-colors-manager-service-unavailable");
-        try {
-            com.intellij.openapi.application.ApplicationManager.setApplication(
-                    applicationWithNoRegisteredServices(), disposable);
-            assertEquals(java.awt.Font.MONOSPACED, AssistantTranscriptView.monospacedFontFamily());
-        } finally {
-            com.intellij.openapi.util.Disposer.dispose(disposable);
-        }
+        withNoRegisteredServicesApplication(() ->
+                assertEquals(java.awt.Font.MONOSPACED, AssistantTranscriptView.monospacedFontFamily()));
     }
 
     /** Same underlying issue as above, for {@code currentEditorColorsSchemeOrNull}'s twin guard. */
     @Test
     void currentEditorColorsSchemeOrNullReturnsNullWhenApplicationExistsButEditorColorsManagerServiceIsUnavailable() {
+        withNoRegisteredServicesApplication(() ->
+                assertNull(AssistantTranscriptView.currentEditorColorsSchemeOrNull()));
+    }
+
+    /**
+     * Issue #4239 (CI regression on #4233's own fix): installs {@link
+     * #applicationWithNoRegisteredServices()} as the live {@code ApplicationManager} Application for
+     * {@code body}, then restores {@code ApplicationManager} to its null pre-test state. {@code
+     * ApplicationManager.setApplication(Application, Disposable)}'s own restore-on-dispose callback
+     * only reinstates a NON-null "previous" Application -- decompiling {@code
+     * ApplicationManager.class} shows the lambda registered on the given {@code Disposable} is {@code
+     * previous -> { if (previous != null) setApplication(previous); }} -- so it silently no-ops when,
+     * as in this whole Gradle unit-test JVM, no Application existed before the test (confirmed by the
+     * gotcha that {@code ApplicationManager.getApplication() == null} is the ambient state here).
+     * Relying on {@code Disposer.dispose} alone therefore leaked this fake, mostly-null-returning
+     * Proxy {@code Application} as the JVM-wide {@code ApplicationManager.getApplication()} singleton
+     * for every later test in the same fork -- exactly what broke {@code
+     * LookAndFeelIsolationExtensionTest} and ~218 other unrelated tests in CI (each one gated on "does
+     * a live Application exist" now took the live-Application branch and NPE'd/threw against this
+     * all-null-returning proxy). The trailing {@code assertNull} makes this test self-verifying
+     * against a regression of the leak itself, independent of suite execution order.
+     */
+    private static void withNoRegisteredServicesApplication(Runnable body) {
         com.intellij.openapi.Disposable disposable =
-                com.intellij.openapi.util.Disposer.newDisposable("editor-colors-manager-service-unavailable-2");
+                com.intellij.openapi.util.Disposer.newDisposable("editor-colors-manager-service-unavailable");
         try {
             com.intellij.openapi.application.ApplicationManager.setApplication(
                     applicationWithNoRegisteredServices(), disposable);
-            assertNull(AssistantTranscriptView.currentEditorColorsSchemeOrNull());
+            body.run();
         } finally {
             com.intellij.openapi.util.Disposer.dispose(disposable);
+            // Disposer.dispose alone does not undo the setApplication call above -- see this
+            // method's class-level-adjacent javadoc: the platform's own restore-on-dispose callback
+            // no-ops for a null "previous" Application. Must null it out explicitly.
+            com.intellij.openapi.application.ApplicationManager.setApplication(null);
         }
+        assertNull(com.intellij.openapi.application.ApplicationManager.getApplication(),
+                "must not leak the fake Application into later tests sharing this JVM fork");
     }
 
     /**
      * A live {@code Application} {@link java.lang.reflect.Proxy} whose {@code getService} always
      * returns {@code null} -- the same shape {@code LiveChatToolE2ESupport#fakeApplication} builds,
-     * minimized to just what these two tests above need.
+     * minimized to just what {@link #withNoRegisteredServicesApplication} needs.
      */
     private static com.intellij.openapi.application.Application applicationWithNoRegisteredServices() {
         return (com.intellij.openapi.application.Application) java.lang.reflect.Proxy.newProxyInstance(
