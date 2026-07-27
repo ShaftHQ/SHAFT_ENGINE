@@ -170,6 +170,12 @@ public final class CaptureGenerator {
         Path reportPath = outputRoot.resolve("target/shaft-capture/generation-report.json");
         CaptureSession session = null;
         ArtifactPaths paths = null;
+        // Snapshot of paths.data() taken right before this call overwrites it, and whether that
+        // overwrite has happened yet without being resolved (issue #4202): compile/replay must
+        // still read the real, convention-based path, so unlike the staged .java source, the data
+        // JSON is restored/removed AFTER a failed validation rather than staged beforehand.
+        byte[] previousDataBytes = null;
+        boolean dataWritePendingValidation = false;
         // Names the pipeline phase reached when a RuntimeException escapes to the catch block below,
         // so a failure never collapses to a bare, stage-less message (issue #4029).
         String stage = "reading the capture session";
@@ -314,7 +320,9 @@ public final class CaptureGenerator {
             stage = "writing generated artifacts to disk";
             Path stagedSource = stagingSourcePath(outputRoot, request.packageName(), className);
             atomicWrite(stagedSource, source);
+            previousDataBytes = readDataSnapshot(paths.data());
             atomicWrite(paths.data(), dataJson);
+            dataWritePendingValidation = true;
             stage = "compiling the generated test";
             CaptureGenerationReport.Validation compilation = request.compile()
                     ? validator.compile(stagedSource, paths.classes())
@@ -347,11 +355,15 @@ public final class CaptureGenerator {
             if (successful) {
                 stage = "promoting the validated generated source to its final path";
                 atomicWrite(paths.source(), source);
-            } else if (Files.exists(paths.source())) {
-                state.warnings().add("Generated test source was not written: compilation or replay failed, "
-                        + "so the existing file at " + relative(paths.root(), paths.source())
-                        + " was left unchanged.");
+            } else {
+                if (Files.exists(paths.source())) {
+                    state.warnings().add("Generated test source was not written: compilation or replay failed, "
+                            + "so the existing file at " + relative(paths.root(), paths.source())
+                            + " was left unchanged.");
+                }
+                restoreOrRemoveDataFile(paths.data(), previousDataBytes, paths.root(), state.warnings());
             }
+            dataWritePendingValidation = false;
             deleteStagedSourceQuietly(stagedSource);
             stage = "writing the generation report";
             CaptureGenerationReport report = report(
@@ -389,6 +401,9 @@ public final class CaptureGenerator {
                     : paths;
             GenerationState failure = GenerationState.failure(
                     "Generation failed while " + stage + ": " + safeMessage(exception));
+            if (dataWritePendingValidation && paths != null) {
+                restoreOrRemoveDataFile(paths.data(), previousDataBytes, paths.root(), failure.warnings());
+            }
             CaptureGenerationReport report = report(
                     sessionId,
                     safePaths,
@@ -2464,6 +2479,47 @@ public final class CaptureGenerator {
         } catch (IOException ignored) {
             // Best-effort cleanup of an unpublished staged artifact under target/; never reaches
             // the user and is safe to leave for the next `mvn clean`.
+        }
+    }
+
+    /**
+     * Snapshot of {@code paths.data()} taken immediately before this generation overwrites it
+     * (issue #4202). {@code null} means no previous data file existed at that path -- this is the
+     * first generation for that target.
+     */
+    private static byte[] readDataSnapshot(Path dataPath) {
+        try {
+            return Files.exists(dataPath) ? Files.readAllBytes(dataPath) : null;
+        } catch (IOException exception) {
+            throw new IllegalStateException("Previous generated test data could not be read.", exception);
+        }
+    }
+
+    /**
+     * Restores the pre-generation test-data JSON after a failed compile/replay (issue #4202),
+     * mirroring how a failed regeneration leaves {@code paths.source()} untouched (issue #4166):
+     * the replay subprocess reads {@code paths.data()} by its fixed, convention-based filename, so
+     * that real path can't be staged the way the source is -- a previous file is restored
+     * byte-for-byte instead, and a first-time generation removes the unvalidated file rather than
+     * leaving it in place.
+     */
+    private static void restoreOrRemoveDataFile(
+            Path dataPath, byte[] previousBytes, Path root, List<String> warnings) {
+        try {
+            if (previousBytes != null) {
+                Files.write(dataPath, previousBytes);
+                warnings.add("Generated test data was not written: compilation or replay failed, "
+                        + "so the existing file at " + relative(root, dataPath) + " was left unchanged.");
+            } else {
+                Files.deleteIfExists(dataPath);
+                warnings.add("Generated test data was not written: compilation or replay failed, and no "
+                        + "previous data file existed, so the unvalidated file at " + relative(root, dataPath)
+                        + " was removed.");
+            }
+        } catch (IOException exception) {
+            String message = exception.getMessage();
+            warnings.add("Generated test data could not be restored after a failed compile or replay: "
+                    + (message == null || message.isBlank() ? exception.getClass().getSimpleName() : message));
         }
     }
 
