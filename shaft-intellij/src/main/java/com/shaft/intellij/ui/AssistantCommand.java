@@ -96,7 +96,7 @@ final class AssistantCommand {
                     Never start an interactive user-driven recording (capture_start, which dispatches to whichever engine -- WebDriver, Playwright, or mobile -- is active): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
                     A scripted capture_start session (its optional nested codegenOptions carries the full Playwright-codegen-compatible request) that you drive and capture_stop within this same turn is allowed.
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
-                    Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
+                    Never generate SHAFT.GUI.Locator.xpath(...); build locators with the SHAFT locator builder's ARIA-role strategy, SHAFT.GUI.Locator.hasRole(...), falling back to native By.xpath(...) only when the element exposes no ARIA role.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for Wikipedia use By.id("searchInput") for the search box and `(//div[contains(@class,'mw-search-result-heading')])[1]//a` for the first result.
                     """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
@@ -118,7 +118,7 @@ final class AssistantCommand {
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
                     - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
                     - Do not publish locators as verified unless a live browser session actually checked them.
-                    - Never generate SHAFT.GUI.Locator.xpath(...); prefer smart locators and the locator builder, then By.xpath only as a last fallback.
+                    - Never generate SHAFT.GUI.Locator.xpath(...); build locators with the SHAFT locator builder's ARIA-role strategy, SHAFT.GUI.Locator.hasRole(...), falling back to native By.xpath(...) only when the element exposes no ARIA role.
                     - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
                     - Call test_code_guardrails_check on the final Java snippet.
                     - Do not print full repository files or broad file dumps. Cite inspected files by path and include only the generated or changed code needed for the answer.
