@@ -363,7 +363,9 @@ class AssistantCommandTest {
                 () -> assertTrue(agentPrompt.contains("current open class only"), agentPrompt),
                 () -> assertEquals("autobot_provider_chat", cloud.toolName()),
                 () -> assertTrue(cloudPrompt.contains("Use only the currently open file"), cloudPrompt),
-                () -> assertTrue(cloudPrompt.contains("start a fresh session with capture_start"), cloudPrompt),
+                // Issue #4256: the cloud-chat path has no MCP tool-calling loop at all, so it must
+                // never be told to "call" a capture/replay tool it structurally cannot invoke.
+                () -> assertFalse(cloudPrompt.contains("start a fresh session with capture_start"), cloudPrompt),
                 () -> assertTrue(cloudPrompt.contains("Do not publish locators as verified"), cloudPrompt));
     }
 
@@ -690,9 +692,20 @@ class AssistantCommandTest {
      * channel, unlike the local-agent CLI path. So the cloud variant of these constants must keep
      * stating the locator policy in full, or cloud users silently lose it. Do not trim this back to
      * match the local-agent variant.
+     *
+     * <p>Issue #4256 (adjacent finding filed during P2.2): that same cloud path has no tool-calling
+     * loop at all -- {@code AutobotService.runProviderChat} sends a plain prompt string and parses a
+     * JSON completion, it never constructs an MCP client. {@code SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD}
+     * used to tell the model to "Call shaft_guide_search", "call shaft_coding_partner_plan", "start a
+     * fresh session with capture_start ... call capture_stop ... capture_generate_replay", "record
+     * with capture_api_start ... capture_api_generate", "call healer_run_failed_test", and "Call
+     * test_code_guardrails_check" -- directives the model structurally cannot act on. Those are now
+     * removed (or rewritten as plain-text output expectations, e.g. never presenting an unverified
+     * locator as replay-proven) while the locator policy and output-formatting rules -- this cloud
+     * path's only copy, per the class comment above -- stay in full.
      */
     @Test
-    void cloudPromptsRetainFullLocatorPolicyBecauseCloudNeverReceivesMcpInstructions() {
+    void cloudCodegenPromptDropsUnactionableToolCallDirectivesButKeepsLocatorPolicy() {
         AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
                 "open wikipedia and search for SHAFT Engine",
                 AssistantCommand.Selection.cloud("openai", "gpt-5"),
@@ -718,10 +731,17 @@ class AssistantCommandTest {
                 () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
                 () -> assertTrue(codegenPrompt.contains(
                         "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt),
-                () -> assertTrue(codegenPrompt.contains("start a fresh session with capture_start"), codegenPrompt),
-                () -> assertTrue(codegenPrompt.contains("capture_generate_replay"), codegenPrompt),
-                () -> assertTrue(codegenPrompt.contains("capture_api_start"), codegenPrompt),
-                () -> assertTrue(codegenPrompt.contains("healer_run_failed_test"), codegenPrompt));
+                () -> assertFalse(codegenPrompt.contains("Call shaft_guide_search"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("Call test_automation_scenarios"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("call shaft_coding_partner_plan"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("start a fresh session with capture_start"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("capture_generate_replay"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("capture_api_start"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("capture_api_generate"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("healer_run_failed_test"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("Call test_code_guardrails_check"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("MUST follow the Page Object Model"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("Return only SHAFT-syntax Java"), codegenPrompt));
     }
 
     /**
