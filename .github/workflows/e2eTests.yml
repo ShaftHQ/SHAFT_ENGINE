@@ -23,19 +23,21 @@ on:
           selector unchanged.
         required: false
         default: ''
-      enableFlutterE2E:
+      enableFlutterEmulatorE2E:
         description: >-
           Opt-in flag for the Android_Flutter_Emulator_E2E job (issue #4197).
-          Mirrors the existing -Dshaft.enableFlutterE2E Maven system property
-          that already gates FlutterTest.java (SkipException unless set,
-          FlutterTest.java:24,34-37) -- reused here as a workflow_dispatch
-          input instead of a dotted property key because GitHub Actions
-          expression syntax can't address a literal dot in an input name.
-          This job never runs on the nightly schedule (schedule triggers
-          can't supply inputs); set to 'true' on a manual dispatch to run
-          it. It only proves an Appium session opens against the real,
-          pinned demo-app on an emulator -- it does not run FlutterTest.java
-          and does not exercise the fluent Flutter API (see job comment).
+          Renamed from enableFlutterE2E (issue #4294) to stop colliding in
+          name with the unrelated -Dshaft.enableFlutterE2E Maven system
+          property that gates FlutterTest.java (FlutterTest.java:24,31-36) --
+          that property is now permanently hardcoded true in the
+          Android_Native_BrowserStack job instead of being driven by any
+          workflow input, so this input only ever means one thing: opt in to
+          THIS emulator smoke-check job. This job never runs on the nightly
+          schedule (schedule triggers can't supply inputs); set to 'true' on
+          a manual dispatch to run it. It only proves an Appium session opens
+          against the real, pinned demo-app on an emulator -- it does not run
+          FlutterTest.java and does not exercise the fluent Flutter API (see
+          job comment).
         required: false
         default: 'false'
 
@@ -594,7 +596,15 @@ jobs:
       - name: Run tests
         continue-on-error: true
         timeout-minutes: 40
-        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
+        # -Dshaft.enableFlutterE2E=true unskips FlutterTest.java's flutter-group tests
+        # (FlutterTest.java:24,31-36) so they actually execute here instead of
+        # self-skipping every run (issue #4294). This job's shaft-engine reactor
+        # module (pulled in via -am) already matches FlutterTest.* through the
+        # -Dtest selector below and already opens BrowserStack sessions strictly
+        # sequentially (TestNG defaults setParallel=NONE/setThreadCount=1, never
+        # overridden here), so adding it is a same-job subset, not a new
+        # concurrent-session risk.
+        run: mvn -pl shaft-browserstack -am -e test "-Dshaft.enableFlutterE2E=true" "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -665,20 +675,20 @@ jobs:
 
   # Issue #4197: proves a real Appium session can be opened against a Flutter
   # app built with the driver's own required server wiring, on a real CI
-  # runner -- something FlutterTest.java (permanently SkipException-gated,
-  # FlutterTest.java:24,34-37) has never had a CI leg to prove. This job
-  # deliberately does NOT touch FlutterTest.java or run it: issue #4017 is
-  # concurrently adding the fluent Flutter API and its own gated test stubs
-  # in that exact file. What this job proves: the demo-app/emulator/Appium
-  # pipeline boots and a session opens. What it does NOT prove: that any of
-  # the fluent API's calls behave correctly against a live Flutter widget
-  # tree -- wiring that is explicitly deferred to a fast-follow ticket once
-  # both this job and issue 4017 have landed. Gated behind the
-  # enableFlutterE2E workflow_dispatch input above (never runs on the
-  # nightly schedule) -- see that input's description for why it mirrors
-  # -Dshaft.enableFlutterE2E instead of duplicating the gating concept.
+  # runner. This job deliberately does NOT touch FlutterTest.java or run it
+  # -- that class is now actually enabled and running for real in the
+  # Android_Native_BrowserStack job instead (issue #4294), against a
+  # BrowserStack-hosted prebuilt APK rather than a locally-built/emulated one.
+  # What this job proves: the demo-app/emulator/Appium pipeline boots and a
+  # session opens locally. What it does NOT prove: that any of the fluent
+  # API's calls behave correctly against a live Flutter widget tree -- wiring
+  # that is explicitly deferred to a fast-follow ticket once both this job
+  # and issue 4017 have landed. Gated behind the enableFlutterEmulatorE2E
+  # workflow_dispatch input above (never runs on the nightly schedule) --
+  # see that input's description for the naming-collision history with
+  # -Dshaft.enableFlutterE2E.
   Android_Flutter_Emulator_E2E:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.enableFlutterE2E == 'true' && (github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,'))
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.enableFlutterEmulatorE2E == 'true' && (github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Flutter_Emulator_E2E,'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
