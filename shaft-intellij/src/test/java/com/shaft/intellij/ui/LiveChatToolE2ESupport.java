@@ -57,11 +57,16 @@ import static org.junit.jupiter.api.Assertions.fail;
  * {@code ShaftMcpInvocationServiceCacheTest#fakeProject}). {@code
  * ApplicationManager.setApplication(Application, Disposable)} is public platform API: it captures
  * whatever application was installed before (here, {@code null}) and registers a Disposer hook
- * that restores it once the given {@link Disposable} is disposed -- confirmed by decompiling
- * {@code ApplicationManager.class} (the two-arg overload registers a
- * {@code Disposer.register(parentDisposable, () -> ourApplication = previous)} callback before
- * swapping in the new instance). So installation here is fully reversible per test and never
- * leaks a fake {@code Application} into any other test class sharing the Gradle test JVM.</p>
+ * that restores it once the given {@link Disposable} is disposed -- but, confirmed by decompiling
+ * {@code ApplicationManager.class}, the two-arg overload's restore-on-dispose callback is {@code
+ * previous -> { if (previous != null) setApplication(previous); }}: it only reinstates a NON-null
+ * previous {@code Application}, and silently no-ops otherwise. This whole Gradle test JVM has no
+ * live {@code Application} before {@link #install} runs, so disposing {@code
+ * applicationDisposable} alone (issue #4242) would leave the fake {@code Application} installed
+ * as the JVM-wide singleton forever, corrupting every later test sharing this fork -- exactly the
+ * gap PR #4238/#4239 already hit and fixed for {@code AssistantTranscriptViewTest}. {@link #close}
+ * therefore explicitly calls {@code ApplicationManager.setApplication(null)} after disposing
+ * {@code applicationDisposable}, rather than relying on the disposer-based restore alone.</p>
  */
 final class LiveChatToolE2ESupport implements AutoCloseable {
     private static final Duration POLL_INTERVAL = Duration.ofMillis(150);
@@ -369,16 +374,22 @@ final class LiveChatToolE2ESupport implements AutoCloseable {
     }
 
     /**
-     * Restores the real (previously {@code null}) {@link Application} via {@link Disposer#dispose}
-     * and disposes the real {@link ShaftMcpInvocationService}/{@link ShaftPluginExecutor} instances
-     * so the spawned MCP server process and worker thread pool are shut down -- never left as
-     * orphaned processes/threads after the test.
+     * Disposes the real {@link ShaftMcpInvocationService}/{@link ShaftPluginExecutor} instances so
+     * the spawned MCP server process and worker thread pool are shut down -- never left as orphaned
+     * processes/threads after the test -- then restores the real (previously {@code null}) {@link
+     * Application}. {@link Disposer#dispose} alone is NOT sufficient for that last step (issue
+     * #4242): {@code ApplicationManager.setApplication(Application, Disposable)}'s restore-on-dispose
+     * callback only reinstates a NON-null previous {@code Application} (see the class-level javadoc),
+     * and this Gradle test JVM's previous {@code Application} was {@code null}, so an explicit {@code
+     * ApplicationManager.setApplication(null)} afterward is required to actually null the JVM-wide
+     * singleton back out instead of leaking the fake {@code Application} into later tests.
      */
     @Override
     public void close() {
         invocationService.dispose();
         pluginExecutor.dispose();
         Disposer.dispose(applicationDisposable);
+        ApplicationManager.setApplication(null);
     }
 
     /**
