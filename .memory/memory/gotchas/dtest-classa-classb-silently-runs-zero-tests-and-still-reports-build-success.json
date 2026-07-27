@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/dtest-classa-classb-silently-runs-zero-tests-and-still-reports-build-success.md",
-  "content_hash": "sha256:092922537c209c5d1bf0c19875443af5ea6944c982b4d4e49917ef7706eaee55",
+  "content_hash": "sha256:5677758452aca055e687493dfb9281a43cb76a615412ad65104ee32850f55b6b",
   "created_at": "2026-07-26T03:02:04+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "4034-record-gotchas-memory-scanner-testng-dtest-xml-comment"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "gotcha.surefire-dtest-multi-class-needs-commas-not",
   "tags": [
     "maven",
     "surefire",
@@ -27,5 +28,5 @@
   ],
   "title": "-Dtest=ClassA+ClassB silently runs ZERO tests and still reports BUILD SUCCESS",
   "type": "gotcha",
-  "updated_at": "2026-07-26T03:02:04+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

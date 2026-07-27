@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/editing-pr-description-does-not-change-squash-merge-commit-message-original-closes-n-still-closes-issue.md",
-  "content_hash": "sha256:b91275b2c091ba155cf3c060153237665487f4aeac1eea5fea5205b29d2dd44d",
+  "content_hash": "sha256:10ef889105c9c34e668bc5877b676d38574bd6a81f7a4d3905d11d002ad03220",
   "created_at": "2026-07-26T10:05:46+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "fix #3991: shorten over-length gotcha memory filename"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "gotcha.gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body",
   "tags": [
     "github",
     "process",
@@ -28,5 +29,5 @@
   ],
   "title": "Editing a PR's description via gh pr edit --body does NOT change what gh pr merge --squash uses as the squash commit message -- a Closes #N in the branch's original commit still auto-closes the issue",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:05:46+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

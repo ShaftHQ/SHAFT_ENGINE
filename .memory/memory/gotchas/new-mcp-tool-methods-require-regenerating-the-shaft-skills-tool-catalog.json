@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/new-mcp-tool-methods-require-regenerating-the-shaft-skills-tool-catalog.md",
-  "content_hash": "sha256:439b7d2444c599add8a272cc89d1ded3c5adf07379d7242b764f79b602c77d14",
+  "content_hash": "sha256:d97e532f35ba5d5481c552a9b02fb920f57a071dc3ea2db88589909b9bab91da",
   "created_at": "2026-07-12T16:28:50+03:00",
   "evidence": [],
   "facets": {
@@ -17,9 +17,10 @@
     "kind": "agent",
     "task": "Fix MCP tool catalog drift after #3454/#3459"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync",
   "tags": [],
   "title": "New MCP @Tool methods require regenerating the shaft-skills tool catalog",
   "type": "gotcha",
-  "updated_at": "2026-07-12T16:28:50+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/surefire-dtest-multi-class-needs-commas-not.md",
-  "content_hash": "sha256:bea5db09e5e814f42b91b8f0be8e6746dacc352309e2f69c2bcaea87ca97143e",
+  "content_hash": "sha256:1b1ff4654e88368dd946c4a6cc5a43b2d82e062c866883ffcc25cc2991fb281f",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [],
   "facets": {
@@ -26,5 +26,5 @@
   ],
   "title": "Surefire -Dtest multi-class needs commas, not +",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }
