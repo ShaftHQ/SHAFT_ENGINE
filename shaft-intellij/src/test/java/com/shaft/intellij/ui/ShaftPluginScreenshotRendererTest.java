@@ -25,6 +25,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollBar;
+import javax.swing.JTextArea;
 import javax.swing.JViewport;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
@@ -719,6 +720,80 @@ class ShaftPluginScreenshotRendererTest {
                         + "visible width at NARROW_WIDTH -- panel right edge "
                         + (boundsInView.x + boundsInView.width) + "px, viewport width "
                         + viewport.getWidth() + "px.");
+    }
+
+    /**
+     * Reproduces a visual clipping defect found while reviewing {@code
+     * intellij-plugin-assistant-approval-prompt.png} evidence: at the ORDINARY (non-narrow) tool
+     * window width this renderer already uses for {@link #renderApprovalPrompt}, the approval
+     * prompt's plain-language summary ("This will run with targetUrl: ...") and its raw-JSON
+     * arguments dump are both cut off mid-word with no ellipsis or scroll affordance -- the same
+     * silent-clip failure mode as issue #4174's welcome-bubble paragraph crop, but in {@link
+     * ToolApprovalPromptPanel} instead. {@code ToolApprovalPromptPanelTest#argumentsSummaryRendersFullJsonWithoutTruncation}
+     * only asserts the underlying {@link JTextArea#getText()} model string is never
+     * character-truncated; it never lays the panel out inside the real {@link ShaftAssistantPanel}
+     * transcript and checks whether every rendered line is actually painted within the text area's
+     * own allocated bounds, which is what this test drives instead, using the exact same {@code
+     * captureStartArguments()} payload and {@code WIDTH}/{@code HEIGHT} {@link #renderApprovalPrompt}
+     * already renders screenshot evidence for.
+     */
+    @Test
+    void toolApprovalPromptArgumentsTextIsNotVerticallyClippedAtOrdinaryWidth()
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<JTextArea> plainLanguageArea = new AtomicReference<>();
+        AtomicReference<JTextArea> argumentsArea = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(LIGHT_THEME, false);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/record-web https://example.com", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.defaultAutobotMode = "AGENT";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            selectButton(component, "Allow source edits");
+            invokeStartMcpInvocation(component, AssistantCommand.Invocation.tool(
+                    "capture_start", captureStartArguments()));
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, true);
+
+            plainLanguageArea.set(findByAccessibleName(
+                    component, "Tool approval plain-language summary", JTextArea.class));
+            argumentsArea.set(findByAccessibleName(component, "Tool approval arguments", JTextArea.class));
+        });
+
+        assertNotNull(plainLanguageArea.get(),
+                "The tool approval prompt's plain-language summary must render at ordinary tool window width");
+        assertNotNull(argumentsArea.get(),
+                "The tool approval prompt's raw-JSON arguments summary must render at ordinary tool window width");
+        assertTextAreaFullyPainted(plainLanguageArea.get(), "plain-language summary");
+        assertTextAreaFullyPainted(argumentsArea.get(), "raw-JSON arguments summary");
+    }
+
+    /**
+     * Asserts the last character of {@code area}'s full text model is painted within the text
+     * area's own allocated height -- the same {@code modelToView2D}-based technique {@link
+     * #firstRunWelcomeTrailingParagraphIsNotClippedAtNarrowWidth} already uses for a {@link
+     * JEditorPane}, applied here to a {@link JTextArea}.
+     */
+    private static void assertTextAreaFullyPainted(JTextArea area, String label) {
+        int length = area.getDocument().getLength();
+        assertTrue(length > 0, "The " + label + " text area must contain rendered text");
+        try {
+            java.awt.geom.Rectangle2D bounds2D = area.modelToView2D(length - 1);
+            assertNotNull(bounds2D, "The " + label + " text area's last character must resolve a caret rectangle");
+            Rectangle bounds = bounds2D.getBounds();
+            assertTrue(bounds.y + bounds.height <= area.getHeight(),
+                    "The " + label + " text area's final characters must be painted inside its own bounds "
+                            + "(height=" + area.getHeight() + "), not silently clipped with no ellipsis or "
+                            + "scroll affordance -- last character bottom edge was "
+                            + (bounds.y + bounds.height) + "px, full text was: " + area.getText());
+        } catch (BadLocationException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     /**
