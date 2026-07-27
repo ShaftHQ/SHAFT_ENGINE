@@ -116,7 +116,8 @@ class McpServiceHelperTest {
                 false,
                 null,
                 0,
-                false);
+                false,
+                "");
 
         InvocationTargetException failure = assertThrows(InvocationTargetException.class,
                 () -> invokeStatic(

@@ -201,6 +201,34 @@ final class McpPlaywrightRecordingService {
             boolean sensitive,
             int uniquenessCount,
             boolean stable) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive,
+                uniquenessCount, stable, "");
+    }
+
+    /**
+     * Records a Playwright action together with the live-DOM evidence {@link PlaywrightService}
+     * computed at the moment it executed, including a self-verified {@code replayXpath} (issue
+     * #4262): the 9-arg overload above still reports the unverified {@code ""} default for actions
+     * this surface has not taught to compute one yet.
+     *
+     * @param uniquenessCount number of live elements the recorded locator matched, or {@code 0} when
+     *         not applicable/unverified
+     * @param stable whether the recorded locator looks human-authored rather than framework-generated
+     * @param replayXpath a self-verified relative XPath the live driver independently confirmed
+     *         matches exactly one element, or blank when none was computed/confirmed
+     * @return the recorded action, or {@code null} when no recording is active
+     */
+    synchronized McpMobileRecordedAction record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            int uniquenessCount,
+            boolean stable,
+            String replayXpath) {
         if (recording == null) {
             return null;
         }
@@ -227,7 +255,8 @@ final class McpPlaywrightRecordingService {
                 sensitiveStored,
                 warnings,
                 uniquenessCount,
-                stable);
+                stable,
+                replayXpath);
         List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
         actions.add(recorded);
         recording = new McpMobileRecording(

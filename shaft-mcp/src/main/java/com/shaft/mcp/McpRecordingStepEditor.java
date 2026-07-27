@@ -184,7 +184,8 @@ final class McpRecordingStepEditor {
                 action.sensitiveValueStored(),
                 action.warnings(),
                 action.uniquenessCount(),
-                action.locatorStable());
+                action.locatorStable(),
+                action.replayXpath());
     }
 
     static McpMobileRecordedAction withStepId(McpMobileRecordedAction action, String stepId) {
@@ -200,7 +201,8 @@ final class McpRecordingStepEditor {
                 action.sensitiveValueStored(),
                 action.warnings(),
                 action.uniquenessCount(),
-                action.locatorStable());
+                action.locatorStable(),
+                action.replayXpath());
     }
 
     static long numericStepIdSuffix(McpMobileRecordedAction action) {
