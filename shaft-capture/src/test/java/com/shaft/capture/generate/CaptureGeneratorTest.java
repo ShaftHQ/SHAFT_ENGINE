@@ -855,6 +855,62 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"), source);
     }
 
+    /**
+     * Issue #4271: a unique, stable, human-authored id is first-class emittable evidence (tier 1).
+     * Before the unified policy it was doubly excluded -- the recorder never attaches a
+     * {@code replayXpath} to an ID candidate so it failed the rung-2 gate, and had it passed, the
+     * renderer emitted the literal {@code SHAFT.GUI.Locator.id(...)} form that the unconditional
+     * {@code NON_ARIA_LOCATOR} guardrail rejects. It now renders through the SHAFT locator builder's
+     * {@code hasId}, which is policy-clean and resolves to the optimal native XPath.
+     */
+    @Test
+    void uniqueStableIdGeneratesTheShaftLocatorBuilderIdFormAndClearsEveryGuardrail() throws Exception {
+        Path session = session(uniqueIdLocatorSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("unique-id")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"login-btn\").build()"), source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.id("), source);
+        assertTrue(CaptureGenerator.guardrailUnsupportedFindings(source).isEmpty(),
+                CaptureGenerator.guardrailUnsupportedFindings(source).toString());
+    }
+
+    private static CaptureSession uniqueIdLocatorSession() {
+        ElementSnapshot loginButton = new ElementSnapshot(
+                "login-button",
+                "button",
+                "",
+                "",
+                "",
+                Map.of("id", "login-btn"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                        "login-btn", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "unique-id-locator-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), loginButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
     private static CaptureSession roleLocatorSession() {
         ElementSnapshot loginButton = new ElementSnapshot(
                 "login-button",
@@ -958,12 +1014,19 @@ class CaptureGeneratorTest {
      * other strategy -- but {@code locatorExpression} used to switch on {@code strategy()} alone
      * for these four and always render the literal {@code SHAFT.GUI.Locator.id/name/cssSelector(...)}
      * form, which the unconditional {@code NON_ARIA_LOCATOR} guardrail bans regardless of ladder
-     * eligibility: the two gates disagreed. A genuinely rung-2-eligible ID candidate must render via
-     * its self-verified replayXpath instead, exactly like ROLE/LABEL/ACCESSIBLE_NAME already do.
+     * eligibility: the two gates disagreed.
+     *
+     * <p>Issue #4271 kept the invariant this case exists to protect -- an eligible ID candidate must
+     * never render the banned literal builder call -- but changed which form it renders. This id is
+     * unique and stable, so it is now tier 1 and renders through {@code hasId}, the SHAFT locator
+     * builder form the owner policy asks for, rather than the raw XPath. The original
+     * {@code By.xpath(...)} expectation is preserved verbatim in
+     * {@link #idStrategyCandidateThatIsNotUniqueRendersItsSelfVerifiedReplayXpath()}, which pins the
+     * case where the id genuinely cannot be trusted on its own.
      */
     @Test
     void idStrategyCandidateWithSelfVerifiedReplayXpathRendersAsByXpathNotNonAriaLocator() throws Exception {
-        Path session = session(idStrategyReplayXpathSession());
+        Path session = session(idStrategyReplayXpathSession(1));
         writeCaptureData("alice");
 
         CaptureGenerationResult result = new CaptureGenerator()
@@ -971,15 +1034,41 @@ class CaptureGeneratorTest {
 
         assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("By.xpath(\"//button[@id=\\\"login-button\\\"]\")"),
-                "a rung-2-eligible ID candidate must render its self-verified replayXpath: " + source);
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"login-button\").build()"),
+                "a unique stable id is tier 1 and renders through the SHAFT locator builder: " + source);
         assertFalse(source.contains("SHAFT.GUI.Locator.id("),
-                "must not fall back to the NON_ARIA_LOCATOR-banned literal ID builder once rung-2 "
-                        + "evidence is present: " + source);
+                "must not fall back to the NON_ARIA_LOCATOR-banned literal ID builder: " + source);
+        assertTrue(CaptureGenerator.guardrailUnsupportedFindings(source).isEmpty(),
+                CaptureGenerator.guardrailUnsupportedFindings(source).toString());
+    }
+
+    /**
+     * Issue #4264's original scenario, preserved end-to-end: an ID candidate the recorder measured as
+     * matching three elements cannot be trusted on its own, so it falls to the self-verified
+     * replayXpath tier and must render as {@code By.xpath(...)} -- never the banned literal builder
+     * call. Behaviour driven out at unit level by
+     * {@code LocatorPolicyTest#nonUniqueIdWithAVerifiedReplayXpathRendersAsNativeXpathNotTheBannedIdBuilderCall};
+     * this case keeps #4276's original assertions exercised through a full generation run.
+     */
+    @Test
+    void idStrategyCandidateThatIsNotUniqueRendersItsSelfVerifiedReplayXpath() throws Exception {
+        Path session = session(idStrategyReplayXpathSession(3));
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("id-strategy-replay-xpath-ambiguous")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//button[@id=\\\"login-button\\\"]\")"),
+                "an ID candidate that is not unique must render its self-verified replayXpath: " + source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.id("),
+                "must not fall back to the NON_ARIA_LOCATOR-banned literal ID builder once "
+                        + "self-verified XPath evidence is present: " + source);
         assertTrue(source.contains("import org.openqa.selenium.By;"));
     }
 
-    private static CaptureSession idStrategyReplayXpathSession() {
+    private static CaptureSession idStrategyReplayXpathSession(int uniquenessCount) {
         ElementSnapshot loginButton = new ElementSnapshot(
                 "login-button",
                 "button",
@@ -988,7 +1077,7 @@ class CaptureGeneratorTest {
                 "",
                 Map.of("id", "login-button"),
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
-                        "login-button", 1, true, true,
+                        "login-button", uniquenessCount, true, true,
                         java.util.Set.of(LocatorCandidate.LocatorSignal.USER_PROVIDED),
                         "//button[@id=\"login-button\"]")),
                 true,
@@ -2137,12 +2226,18 @@ class CaptureGeneratorTest {
      * ({@code //button | //input[@type='button'] | ...}) never inspects the {@code role} attribute
      * and matches ZERO {@code <div>} elements. {@code roleXpathVerified=false} is the recorder's
      * signal that this mismatch was caught, so rung 1 must be refused and generation must fall
-     * through to rung 2 (the self-verified {@code replayXpath}) instead of emitting the broken
-     * {@code hasRole(...)} -- and must never fall back further to the ID candidate that also exists.
+     * through to the self-verified {@code replayXpath} instead of emitting the broken
+     * {@code hasRole(...)}.
+     *
+     * <p>Issue #4271 reversed one clause of this case. It previously also asserted that the unique
+     * stable ID candidate must never be used; under the unified policy a unique stable id is tier 1
+     * and therefore outranks the tier-3 XPath. The rung-1 refusal itself is unchanged and still
+     * asserted here, and the XPath-fallthrough behaviour it originally covered is preserved verbatim
+     * by {@link #customRoleAttributeDivWithNoIdStillFallsThroughToTheSelfVerifiedXpath()}.
      */
     @Test
-    void customRoleAttributeDivIsRefusedForRungOneAndFallsThroughToSelfVerifiedXpath() throws Exception {
-        Path session = session(customRoleButtonSession());
+    void customRoleAttributeDivIsRefusedForRungOneAndSelectsTheUniqueStableId() throws Exception {
+        Path session = session(customRoleButtonSession(true));
         writeCaptureData("alice");
 
         CaptureGenerationResult result = new CaptureGenerator()
@@ -2150,17 +2245,45 @@ class CaptureGeneratorTest {
 
         assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("By.xpath(\"//div[normalize-space(.)=\\\"Custom Button\\\"]\")"),
-                "a role=\"button\" div whose hasRole(...) union does not verify must fall through to "
-                        + "the self-verified recorded XPath (rung 2): " + source);
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"custom-button\").build()"),
+                "a unique stable id is tier 1 and outranks the tier-3 self-verified XPath: " + source);
         assertFalse(source.contains("hasRole(Role.BUTTON)"),
                 "must never emit hasRole(...) for a ROLE candidate that failed self-verification: " + source);
-        assertFalse(source.contains(".id(\"custom-button\")"),
-                "must never fall back to the ID candidate even though it also exists and is unique: "
-                        + source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.id(\"custom-button\")"),
+                "must never emit the guardrail-banned literal id(...) form: " + source);
     }
 
-    private static CaptureSession customRoleButtonSession() {
+    /**
+     * The rung-1 refusal / XPath-fallthrough behaviour of the case above, with the competing id
+     * removed so the self-verified XPath is the best remaining evidence.
+     */
+    @Test
+    void customRoleAttributeDivWithNoIdStillFallsThroughToTheSelfVerifiedXpath() throws Exception {
+        Path session = session(customRoleButtonSession(false));
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("custom-role-button-no-id")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//div[normalize-space(.)=\\\"Custom Button\\\"]\")"),
+                "a role=\"button\" div whose hasRole(...) union does not verify must fall through to "
+                        + "the self-verified recorded XPath: " + source);
+        assertFalse(source.contains("hasRole(Role.BUTTON)"), source);
+    }
+
+    private static CaptureSession customRoleButtonSession(boolean withUniqueId) {
+        List<LocatorCandidate> candidates = new java.util.ArrayList<>(List.of(
+                new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:Custom Button", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                        "//div[normalize-space(.)=\"Custom Button\"]", false)));
+        if (withUniqueId) {
+            candidates.add(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                    "custom-button", 1, true, true,
+                    java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE)));
+        }
         ElementSnapshot customButton = new ElementSnapshot(
                 "custom-button",
                 "div",
@@ -2168,14 +2291,7 @@ class CaptureGeneratorTest {
                 "Custom Button",
                 "",
                 Map.of("role", "button"),
-                List.of(
-                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
-                                "button:Custom Button", 1, true, true,
-                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
-                                "//div[normalize-space(.)=\"Custom Button\"]", false),
-                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
-                                "custom-button", 1, true, true,
-                                java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                candidates,
                 true,
                 true,
                 false);
@@ -2198,14 +2314,18 @@ class CaptureGeneratorTest {
     }
 
     /**
-     * Issue #4239 P1.4-decision ladder, rung 3: a role-less {@code <div id="x">} with no accessible
-     * name has no ROLE candidate (no role inferred) and no self-verified {@code replayXpath} (no
-     * computable name to build one from) -- only an ID candidate. The ladder must refuse to fall
-     * back to it and must FAIL generation with an actionable message instead of silently emitting
-     * {@code SHAFT.GUI.Locator.id("x")}.
+     * Issue #4271 reversed this case. A role-less {@code <div>} with no accessible name has no ROLE
+     * candidate and no self-verified {@code replayXpath} -- only an ID candidate. Under the old hard
+     * ban that meant generation FAILED outright, which is precisely the behaviour the owner policy
+     * "keep unique ids first" replaces: a <em>unique, stable</em> id is now tier 1 and generates.
+     *
+     * <p>What must still fail is an id carrying no trustworthy evidence, so this case now pins the
+     * boundary: the same element with a <em>non-unique</em> id (three matches on the page) is still
+     * refused with an actionable message rather than silently emitting an ambiguous locator.
      */
     @Test
-    void roleLessUnlabeledDivWithNoTextFailsGenerationInsteadOfFallingBackToId() throws Exception {
+    void roleLessUnlabeledDivWithANonUniqueIdStillFailsGenerationInsteadOfFallingBackToIt()
+            throws Exception {
         ElementSnapshot plainDiv = new ElementSnapshot(
                 "plain-div",
                 "div",
@@ -2214,7 +2334,7 @@ class CaptureGeneratorTest {
                 "",
                 Map.of("id", "x"),
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
-                        "x", 1, true, true,
+                        "x", 3, true, true,
                         java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
                 true,
                 true,
@@ -2284,13 +2404,13 @@ class CaptureGeneratorTest {
      * ARIA role), the generated line must disclose that -- "no verified ARIA role, using recorded
      * XPath" -- since the F12 finding was that this information existed only in
      * {@code report.flakySteps()}, never where a human reading the generated code would see it.
-     * Triggers on rung 2 itself (a ROLE candidate that failed self-verification, per the
-     * {@code customRoleAttributeDivIsRefusedForRungOneAndFallsThroughToSelfVerifiedXpath} fixture),
-     * not on a role+index composition -- that fallback no longer exists in this design.
+     * Triggers on the XPath-fallback tier itself (a ROLE candidate that failed self-verification,
+     * per the {@link #customRoleAttributeDivWithNoIdStillFallsThroughToTheSelfVerifiedXpath()}
+     * fixture), not on a role+index composition -- that fallback no longer exists in this design.
      */
     @Test
-    void rungTwoSelectionEmitsLowTrustMarkerCommentDisclosingNoVerifiedAriaRole() throws Exception {
-        Path session = session(customRoleButtonSession());
+    void xpathFallbackSelectionEmitsLowTrustMarkerCommentDisclosingNoVerifiedAriaRole() throws Exception {
+        Path session = session(customRoleButtonSession(false));
         writeCaptureData("alice");
 
         CaptureGenerationResult result = new CaptureGenerator()
@@ -2299,6 +2419,25 @@ class CaptureGeneratorTest {
         assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("// SHAFT: no verified ARIA role, using recorded XPath"), source);
+    }
+
+    /**
+     * Issue #4271: the low-trust marker discloses a fall back to a raw recorded XPath. A tier-1
+     * unique stable id is the most-preferred evidence there is, not a degradation, and it does not
+     * use a recorded XPath at all -- so labelling it "using recorded XPath" would be plainly false
+     * and would turn the marker into noise on ordinary generated lines.
+     */
+    @Test
+    void uniqueIdSelectionEmitsNoLowTrustMarker() throws Exception {
+        Path session = session(uniqueIdLocatorSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("unique-id-marker")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertFalse(source.contains("// SHAFT: no verified ARIA role, using recorded XPath"), source);
     }
 
     /**
