@@ -271,7 +271,8 @@ public final class HealingLocatorProposalService {
             }
         }
         throw new IllegalArgumentException(
-                "No candidate passed uniqueness/context-match preconditions for an advisory proposal.");
+                "No candidate passed uniqueness/context-match/interactability preconditions"
+                        + " for an advisory proposal.");
     }
 
     private static JsonNode selectedCandidate(JsonNode report) {
