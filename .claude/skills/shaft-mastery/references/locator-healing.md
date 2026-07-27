@@ -7,14 +7,21 @@ never index- or style-class-based). SHAFT's `By`-based APIs and
 aria-snapshot assertions (`matchesAriaSnapshot`, partial-subset semantics)
 reward the role+name rung heavily.
 
-For SHAFT-generated/codegen output specifically, this collapses to two legal
-rungs (`choosing-shaft-locators` owns the full policy): ARIA-role-powered
-XPath via the SHAFT locator builder (`hasRole(...)`, folding a `test id`
-signal in as `hasAttribute("data-testid", ...)` on the same chain rather than
-a separate rung) first, native `By.xpath(...)` fallback only when no ARIA
-role exists. Smart Locator (`inputField`/`clickableField`) is never emitted
-into generated code — `test_code_guardrails_check` flags it (`SMART_LOCATOR`)
-— and is legitimate only for a human's own throwaway exploration snippet.
+For SHAFT-generated/codegen output specifically, this collapses to three
+legal tiers (`choosing-shaft-locators` owns the full policy; enforced
+mechanically by `shaft-capture`'s `LocatorPolicy`, issue #4271): (1) a
+unique, author-written `id` through the SHAFT locator builder
+(`hasAnyTagName().hasId(...)`) — never a framework-recycled id such as
+`:r1:`, `mat-input-3`, `cdk-overlay-0`, `ember1234`, `j_idt42`, `ctl00_...`
+or `sc-bdVaJa`; (2) ARIA-role-powered XPath via the same builder
+(`hasRole(...)`, chained with `hasNormalizedText`/`hasAttribute`/context);
+(3) native relative `By.xpath(...)` only when the element has neither. An
+element matching no tier fails generation rather than degrading. Never emit
+`SHAFT.GUI.Locator.xpath(...)` or the raw
+`SHAFT.GUI.Locator.id/name/cssSelector/className/tagName(...)` factories.
+Smart Locator (`inputField`/`clickableField`) is never emitted into generated
+code — `test_code_guardrails_check` flags it (`SMART_LOCATOR`) — and is
+legitimate only for a human's own throwaway exploration snippet.
 
 ## Recorder truth rules (SHAFT-specific, hard-won)
 - Recorded locators must map 1:1 to real user actions; suppress

@@ -226,10 +226,14 @@ driver.assertThat().browser().title().contains("Success");
 
 ### Locators
 
-Generated code has two legal rungs: ARIA-role-powered XPath via the SHAFT
-locator builder (`hasRole(...)`, chained with `hasText`/`hasAttribute`/
-context) first, native `By.xpath(...)` only as a last resort when the
-element exposes no ARIA role — never generate `SHAFT.GUI.Locator.xpath(...)`.
+Generated code has three legal tiers: a unique, author-written `id` through
+the SHAFT locator builder (`hasAnyTagName().hasId(...)`) first — never a
+framework-recycled id like `:r1:`/`mat-input-3`/`sc-bdVaJa`; then
+ARIA-role-powered XPath via the same builder (`hasRole(...)`, chained with
+`hasNormalizedText`/`hasAttribute`/context); then native relative
+`By.xpath(...)` only as a last resort when the element has neither — never
+generate `SHAFT.GUI.Locator.xpath(...)` or the raw
+`SHAFT.GUI.Locator.id/name/cssSelector/className/tagName(...)` factories.
 Smart Locator (`inputField`/`clickableField`) is excluded from generated
 code; it's for a human's own throwaway, DOM-unexplored snippet only. Full
 detail, examples, and MCP verification steps live in the

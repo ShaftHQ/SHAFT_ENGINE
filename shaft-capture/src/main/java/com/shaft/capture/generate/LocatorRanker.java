@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 
 /**
@@ -44,12 +45,40 @@ public final class LocatorRanker {
         }
         List<ScoredLocator> ranked = target.locatorCandidates().stream()
                 .map(candidate -> score(candidate, target, context, interaction))
-                .sorted(Comparator.comparingInt(ScoredLocator::score).reversed()
-                        .thenComparingInt(item -> -STRATEGY_PRIORITY.get(item.candidate().strategy()))
-                        .thenComparing(item -> item.candidate().strategy().name())
-                        .thenComparing(item -> item.candidate().expression()))
+                .sorted(BEST_FIRST)
                 .toList();
         return new LocatorSelection(ranked.getFirst(), ranked.subList(1, ranked.size()));
+    }
+
+    /**
+     * The one total, deterministic best-first ordering over scored candidates: lexicographic on
+     * (tier, score, strategy priority, strategy name, expression).
+     *
+     * <p>Issue #4271 review finding 2: this is public and shared because {@code CaptureGenerator}
+     * also has to order selections -- when one logical element is seen on several events it keeps
+     * the better sighting -- and it previously did so by raw {@link ScoredLocator#score()} alone.
+     * That reintroduced issue #4239's F2 defect across event boundaries: a {@code USER_PROVIDED}
+     * signal worth +1000 let a tier-3 selection displace a tier-1 one. A second hand-maintained copy
+     * of an ordering rule is exactly the drift this redesign exists to remove, so there is now one
+     * comparator and both callers use it.
+     */
+    public static final Comparator<ScoredLocator> BEST_FIRST =
+            Comparator.comparingInt(LocatorRanker::tierRank)
+                    .thenComparing(Comparator.comparingInt(ScoredLocator::score).reversed())
+                    .thenComparingInt(item -> -STRATEGY_PRIORITY.get(item.candidate().strategy()))
+                    .thenComparing(item -> item.candidate().strategy().name())
+                    .thenComparing(item -> item.candidate().expression());
+
+    /**
+     * Issue #4271: the primary, lexicographic sort key -- {@link LocatorPolicy.Tier} ordinal for
+     * emittable evidence, and a rank past every tier for evidence with no plan. Because this key is
+     * compared before {@link ScoredLocator#score()}, the additive score can only ever reorder
+     * candidates <em>within</em> one tier. No signal weight can promote a candidate across a tier
+     * boundary, which is the defect shape issue #4239 F2 recorded (a {@code USER_PROVIDED} signal
+     * worth +1000 outvoting a policy-mandated preference outright).
+     */
+    private static int tierRank(ScoredLocator scored) {
+        return scored.plan().map(plan -> plan.tier().ordinal()).orElse(LocatorPolicy.Tier.values().length);
     }
 
     private static ScoredLocator score(
@@ -69,7 +98,8 @@ public final class LocatorRanker {
         return new ScoredLocator(candidate, components.values().stream().mapToInt(Integer::intValue).sum(),
                 components.entrySet().stream()
                         .map(entry -> entry.getKey() + "=" + signed(entry.getValue()))
-                        .toList());
+                        .toList(),
+                LocatorPolicy.plan(target, candidate));
     }
 
     private static int uniqueness(int count) {
@@ -175,15 +205,31 @@ public final class LocatorRanker {
      * One scored candidate.
      *
      * @param candidate captured candidate
-     * @param score deterministic score
+     * @param score deterministic score, only ever compared within one tier
      * @param breakdown ordered score explanation
+     * @param plan how {@link LocatorPolicy} would emit this candidate, empty when it is not
+     *             trustworthy enough to emit at all
      */
-    public record ScoredLocator(LocatorCandidate candidate, int score, List<String> breakdown) {
+    public record ScoredLocator(
+            LocatorCandidate candidate,
+            int score,
+            List<String> breakdown,
+            Optional<LocatorPolicy.LocatorPlan> plan) {
         /**
          * Creates an immutable score.
          */
         public ScoredLocator {
             breakdown = breakdown == null ? List.of() : List.copyOf(new ArrayList<>(breakdown));
+            plan = plan == null ? Optional.empty() : plan;
+        }
+
+        /**
+         * The tier that admitted this candidate.
+         *
+         * @return the tier, or empty when this candidate is not emittable
+         */
+        public Optional<LocatorPolicy.Tier> tier() {
+            return plan.map(LocatorPolicy.LocatorPlan::tier);
         }
     }
 }

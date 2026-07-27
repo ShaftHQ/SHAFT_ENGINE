@@ -24,8 +24,6 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.healing.HealingFingerprintObservation;
 import com.shaft.gui.internal.healing.HealingFingerprintSeed;
 import com.shaft.gui.internal.healing.HealingManager;
-import com.shaft.gui.internal.locator.Locator;
-import com.shaft.gui.internal.locator.Role;
 import org.openqa.selenium.By;
 
 import java.io.IOException;
@@ -202,6 +200,18 @@ public final class CaptureGenerator {
             GenerationState state = analyze(session, sessionPath, targetBackend);
             reporter.accept(0.3, "Analyzed " + session.events().size() + " captured event(s)");
             Map<String, String> elementNames = defaultElementNames(state.targets());
+            // Issue #4271 review round 2, finding 1: analysis-stage findings are already blocking, so
+            // refuse BEFORE any rendering -- including this fingerprint render. Rendering a refused
+            // element is not merely wasted work: locatorReference throws on an element with no
+            // planned locator by design, and that throw is caught by the outer handler, which
+            // replaces the whole GenerationState with one generic "SHAFT codegen defect" message --
+            // discarding every actionable "re-record with X" finding and every unrelated warning in
+            // the same session. Findings derived FROM a rendered source (privacy, guardrails, output
+            // paths) are still gated after the final renderSource below.
+            if (!state.unsupported().isEmpty()) {
+                return failedBeforeCompilation(session, paths, state,
+                        CaptureGenerationReport.Enrichment.notRequested(), reportPath, request, reporter);
+            }
             stage = "rendering deterministic test source";
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
                     deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
@@ -311,18 +321,7 @@ public final class CaptureGenerator {
             validateOutputs(paths, request.overwrite(), state.unsupported());
 
             if (!state.unsupported().isEmpty()) {
-                CaptureGenerationReport report = report(
-                        session,
-                        paths,
-                        state,
-                        CaptureGenerationReport.Status.FAILED,
-                        CaptureGenerationReport.Validation.skipped("Generation failed before compilation."),
-                        CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
-                        enrichment);
-                writeReportIfPossible(reportPath, report);
-                reporter.accept(1.0, "Generation complete: FAILED");
-                return result(paths.source(), paths.data(), reportPath,
-                        request.enrichmentPreviewPath(), report);
+                return failedBeforeCompilation(session, paths, state, enrichment, reportPath, request, reporter);
             }
 
             // Issue #4166: compile() and replay() run against a STAGED copy of the source, never
@@ -495,14 +494,12 @@ public final class CaptureGenerator {
                 }
                 Optional<LocatorRanker.LocatorSelection> laddered = ladderSelection(selection);
                 if (laddered.isEmpty()) {
-                    // Issue #4239 P1.4-decision ladder, rung 3: nothing in the recorded evidence is a
-                    // self-verified ARIA role (rung 1) or a self-verified XPath (rung 2) -- refuse to
-                    // fall back to .id/.name/.cssSelector rather than silently emitting a locator this
-                    // policy no longer trusts.
+                    // Issue #4271: nothing in the recorded evidence clears any LocatorPolicy tier --
+                    // refuse to fall back to an untrusted locator rather than silently emitting one.
                     unsupported.add(eventId + ": element " + target.logicalElementId()
-                            + " has no rung-1 (self-verified ARIA role) or rung-2 (self-verified XPath) "
-                            + "locator evidence. Re-record with a stable ARIA role or accessible name/label "
-                            + "so the recorder can compute a self-verified locator.");
+                            + " has no unique stable id, no self-verified ARIA role, and no self-verified "
+                            + "relative XPath. Re-record with a stable id or ARIA role/accessible name so "
+                            + "the recorder can compute a trustworthy locator.");
                     return;
                 }
                 LocatorRanker.LocatorSelection ladderedSelection = laddered.get();
@@ -510,7 +507,11 @@ public final class CaptureGenerator {
                         target.logicalElementId(),
                         ignored -> new MutableTargetPlan(target, event.context(), ladderedSelection));
                 existing.eventIds.add(eventId);
-                if (ladderedSelection.selected().score() > existing.selection.selected().score()) {
+                // Issue #4271 review finding 2: ordered by the ranker's own lexicographic (tier,
+                // score) comparator, never by raw score -- a later sighting with a +1000
+                // USER_PROVIDED boost must not displace a higher-tier selection.
+                if (LocatorRanker.BEST_FIRST.compare(
+                        ladderedSelection.selected(), existing.selection.selected()) < 0) {
                     existing.target = target;
                     existing.context = event.context();
                     existing.selection = ladderedSelection;
@@ -708,23 +709,27 @@ public final class CaptureGenerator {
     }
 
     /**
-     * Issue #4239 P1.4-decision ladder: filters {@code raw}'s fully-ranked candidate list (selected
-     * candidate plus alternatives, already deterministically ordered by {@link LocatorRanker}) down
-     * to only rung-1 (self-verified ARIA role) or rung-2 (self-verified XPath) eligible candidates,
-     * preserving relative order, and returns the highest-ranked survivor as the new selection. Empty
-     * when nothing in the recorded evidence clears either rung -- callers must treat that as
-     * generation-blocking (rung 3: {@code state.unsupported()}), never fall back to the raw
-     * ranker output.
+     * Issue #4271: filters {@code raw}'s fully-ranked candidate list (selected candidate plus
+     * alternatives, already deterministically ordered by {@link LocatorRanker}) down to the
+     * candidates {@link LocatorPolicy} can actually emit, preserving relative order, and returns the
+     * highest-ranked survivor as the new selection. Empty when nothing in the recorded evidence is
+     * emittable -- callers must treat that as generation-blocking ({@code state.unsupported()}),
+     * never fall back to the raw ranker output.
+     *
+     * <p>The eligibility test is literally "the policy produced a plan", and every renderer below
+     * emits that same plan's {@code source()}. Gate and renderer are therefore the one function,
+     * which is what makes issue #4264's defect class -- a gate and a renderer disagreeing about which
+     * candidates are acceptable -- unrepresentable rather than merely fixed.
      *
      * @param raw the ranker's unfiltered selection
-     * @return the ladder-filtered selection, or empty when no candidate is rung-1/rung-2 eligible
+     * @return the policy-filtered selection, or empty when no candidate is emittable
      */
     private static Optional<LocatorRanker.LocatorSelection> ladderSelection(LocatorRanker.LocatorSelection raw) {
         List<LocatorRanker.ScoredLocator> ranked = new ArrayList<>();
         ranked.add(raw.selected());
         ranked.addAll(raw.alternatives());
         List<LocatorRanker.ScoredLocator> eligible = ranked.stream()
-                .filter(CaptureGenerator::isLadderEligible)
+                .filter(scored -> scored.plan().isPresent())
                 .toList();
         if (eligible.isEmpty()) {
             return Optional.empty();
@@ -734,32 +739,22 @@ public final class CaptureGenerator {
     }
 
     /**
-     * True when {@code scored}'s candidate clears rung 1 (a ROLE candidate whose recorder-verified
-     * {@code roleXpathVerified} flag confirms {@code SHAFT.GUI.Locator.hasRole(...)}'s fixed XPath
-     * union will actually resolve uniquely to this element -- see {@link LocatorCandidate#roleXpathVerified()})
-     * or rung 2 (any candidate carrying a non-blank self-verified {@code replayXpath}). Every other
-     * strategy -- TEST_ID, ID, NAME, CSS, or a ROLE/LABEL/ACCESSIBLE_NAME candidate with neither
-     * signal -- is never ladder-eligible, regardless of its ranker score or uniqueness count.
+     * Issue #4271 review finding 3: this inspected {@code candidate.expression()}, but since the
+     * tiered policy an emitted locator is the plan's rendered source -- a tier-3 selection ships its
+     * {@code replayXpath}, not its expression -- so an indexed, positional XPath was emitted with no
+     * warning whenever the candidate's own expression happened to look clean. Inspect what is
+     * actually shipped. (Absolute XPath is no longer checked here: {@link LocatorPolicy} refuses it
+     * at the tier boundary, so it can no longer reach rendering at all.)
      */
-    private static boolean isLadderEligible(LocatorRanker.ScoredLocator scored) {
-        LocatorCandidate candidate = scored.candidate();
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE && candidate.roleXpathVerified()) {
-            return true;
-        }
-        return !candidate.replayXpath().isBlank();
-    }
-
     private static Optional<String> brittleLocatorWarning(TargetPlan target) {
         LocatorCandidate candidate = target.selection().selected().candidate();
-        String expression = candidate.expression();
-        boolean xpath = candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH;
-        boolean brittle = (xpath && isAbsoluteXpath(expression)) || INDEXED_LOCATOR.matcher(expression).find();
-        if (!brittle) {
+        String rendered = selectedPlan(target).source();
+        if (!INDEXED_LOCATOR.matcher(rendered).find()) {
             return Optional.empty();
         }
         String evidence = String.join(",", target.eventIds());
         String summary = "Brittle " + candidate.strategy() + " locator selected for "
-                + target.logicalElementId() + ": " + expression + ".";
+                + target.logicalElementId() + ": " + rendered + ".";
         return Optional.of(reviewWarning(
                 "LOCATOR",
                 "WARNING",
@@ -1236,11 +1231,11 @@ public final class CaptureGenerator {
         if (!userDescription.isBlank()) {
             line(source, "        // Captured step: " + safeComment(userDescription));
         }
-        // Issue #4239 P1.5 (F12): a rung-2 selection (self-verified XPath, no verified ARIA role)
-        // is still ladder-eligible and gets generated, but the trust degradation was previously
+        // Issue #4239 P1.5 (F12): an XPath-fallback selection (self-verified XPath, no verified ARIA
+        // role) is still emittable and gets generated, but the trust degradation was previously
         // visible only in report.flakySteps() -- never where a human reading the generated code
         // would see it. Disclose it right on the line that uses the degraded locator.
-        target(event).filter(target -> isRungTwoSelection(target, targets)).ifPresent(ignored ->
+        target(event).filter(target -> isXpathFallbackSelection(target, targets)).ifPresent(ignored ->
                 line(source, "        // SHAFT: no verified ARIA role, using recorded XPath"));
         if (optionalGuardSequences.contains(event.context().sequence())
                 && event instanceof CaptureEvent.ClickEvent value) {
@@ -1587,82 +1582,58 @@ public final class CaptureGenerator {
 
     /**
      * Builds the exact runtime {@link By} the generated code will resolve at replay time (issue
-     * #4172): mirrors {@link #locatorExpression(ElementSnapshot, LocatorCandidate)}/{@link
-     * #semanticLocator(ElementSnapshot, String, LocatorCandidate)} branch-for-branch, using the real
-     * {@link Locator}/{@code By} APIs instead of rendering source text.
+     * #4172). Since issue #4271 this no longer mirrors
+     * {@link #locatorExpression(ElementSnapshot, LocatorCandidate)} branch-for-branch: both read the
+     * same {@link LocatorPolicy.LocatorPlan}, so the rendered source text and the runtime locator
+     * cannot drift apart.
      */
     private static By runtimeLocator(TargetPlan plan) {
-        return runtimeLocator(plan.target(), plan.selection().selected().candidate());
-    }
-
-    private static By runtimeLocator(ElementSnapshot target, LocatorCandidate candidate) {
-        String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
-        return switch (candidate.strategy()) {
-            case ROLE, ACCESSIBLE_NAME, LABEL -> runtimeSemanticLocator(target, name, candidate);
-            case TEST_ID, CSS -> Locator.cssSelector(candidate.expression());
-            case ID -> Locator.id(candidate.expression());
-            case NAME -> Locator.name(candidate.expression());
-            case XPATH -> By.xpath(candidate.expression());
-        };
-    }
-
-    private static By runtimeSemanticLocator(ElementSnapshot target, String name, LocatorCandidate candidate) {
-        String semanticName = semanticName(name, candidate);
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE && candidate.roleXpathVerified()) {
-            Role ariaRole = ariaRole(target.role());
-            if (ariaRole != null) {
-                return semanticName.isBlank() || !tagCanCarryOwnText(target.tagName())
-                        ? Locator.hasRole(ariaRole).build()
-                        : Locator.hasRole(ariaRole).hasNormalizedText(semanticName).build();
-            }
-        }
-        if (!candidate.replayXpath().isBlank()) {
-            return By.xpath(candidate.replayXpath());
-        }
-        if (semanticName.isBlank()) {
-            return By.xpath(candidate.expression());
-        }
-        String tagName = target.tagName().isBlank() ? "*" : target.tagName();
-        return candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL
-                ? Locator.hasTagName(tagName).containsText(semanticName).build()
-                : Locator.hasTagName(tagName).hasAttribute("aria-label", semanticName).build();
-    }
-
-    private static String locatorExpression(TargetPlan plan) {
-        LocatorCandidate candidate = plan.selection().selected().candidate();
-        return locatorExpression(plan.target(), candidate);
-    }
-
-    private static String locatorExpression(ElementSnapshot target, LocatorCandidate candidate) {
-        String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
-        return switch (candidate.strategy()) {
-            case ROLE, ACCESSIBLE_NAME, LABEL -> semanticLocator(target, name, candidate);
-            case TEST_ID, CSS, ID, NAME -> nonAriaLocatorExpression(candidate);
-            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
-        };
+        return selectedPlan(plan).runtimeLocator();
     }
 
     /**
-     * Issue #4264: {@code isLadderEligible} (see below) admits a TEST_ID/CSS/ID/NAME candidate as
-     * rung-2 eligible whenever it carries a non-blank self-verified {@code replayXpath}, exactly
-     * like any other strategy. But rendering used to switch on {@code strategy()} alone for these
-     * four and always emit the literal {@code SHAFT.GUI.Locator.id/name/cssSelector(...)} form,
-     * which the unconditional {@code NON_ARIA_LOCATOR} guardrail (GeneratedCodeGuardrails) bans
-     * regardless of ladder eligibility -- the two gates disagreed. A genuinely rung-2-eligible
-     * candidate must render via its self-verified replayXpath instead, exactly like
-     * {@link #semanticLocator} already does for ROLE/LABEL/ACCESSIBLE_NAME.
+     * Issue #4271 review finding 6: {@link LocatorRanker.ScoredLocator} already carries the plan the
+     * ranker computed, so every caller below reads that cached value instead of recomputing
+     * {@link LocatorPolicy#plan} four more times per target.
      */
-    private static String nonAriaLocatorExpression(LocatorCandidate candidate) {
-        if (!candidate.replayXpath().isBlank()) {
-            return "By.xpath(\"" + javaString(candidate.replayXpath()) + "\")";
-        }
-        return switch (candidate.strategy()) {
-            case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(candidate.expression()) + "\")";
-            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(candidate.expression()) + "\")";
-            case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(candidate.expression()) + "\")";
-            default -> throw new IllegalStateException(
-                    "nonAriaLocatorExpression only handles TEST_ID/CSS/ID/NAME, got " + candidate.strategy());
-        };
+    private static LocatorPolicy.LocatorPlan selectedPlan(TargetPlan plan) {
+        return plan.selection().selected().plan().orElseThrow(() -> unplannable(
+                plan.target(), plan.selection().selected().candidate()));
+    }
+
+    static By runtimeLocator(ElementSnapshot target, LocatorCandidate candidate) {
+        return LocatorPolicy.plan(target, candidate)
+                .map(LocatorPolicy.LocatorPlan::runtimeLocator)
+                .orElseThrow(() -> unplannable(target, candidate));
+    }
+
+    private static String locatorExpression(TargetPlan plan) {
+        return selectedPlan(plan).source();
+    }
+
+    /**
+     * Issue #4271: renders exactly what {@link LocatorPolicy} planned. A candidate with no plan
+     * cannot reach here through {@code generate()} -- {@link #ladderSelection} refuses the whole
+     * element first.
+     */
+    static String locatorExpression(ElementSnapshot target, LocatorCandidate candidate) {
+        return LocatorPolicy.plan(target, candidate)
+                .map(LocatorPolicy.LocatorPlan::source)
+                .orElseThrow(() -> unplannable(target, candidate));
+    }
+
+    /**
+     * Issue #4271 review finding 4: rendering a refused candidate used to fall through to
+     * {@code By.xpath("//*")}, which matches the first element in the whole document and is also fed
+     * to {@code HealingManager.observeFingerprint} -- silently shipping a wrong locator and poisoning
+     * SHAFT Heal with a garbage fingerprint. The generation gate makes this unreachable, so reaching
+     * it means the gate/render invariant is broken; fail loudly rather than emit something wrong.
+     */
+    private static IllegalStateException unplannable(ElementSnapshot target, LocatorCandidate candidate) {
+        return new IllegalStateException(
+                "No LocatorPolicy plan for element " + target.logicalElementId() + " candidate "
+                        + candidate.strategy() + " '" + candidate.expression() + "'. Generation must "
+                        + "refuse an unplannable element before rendering; this is a SHAFT codegen defect.");
     }
 
     private static boolean needsByImport(List<TargetPlan> targets, boolean fallbackReplay) {
@@ -1670,94 +1641,42 @@ public final class CaptureGenerator {
     }
 
     /**
-     * True when {@link #semanticLocator} will render at least one {@code Role.<NAME>} literal
-     * (issue #3905): mirrors the exact condition under which {@code semanticLocator} takes its ROLE
-     * branch, so the emitted {@code import com.shaft.gui.internal.locator.Role;} appears if and only
-     * if the generated source actually references {@link Role}.
+     * True when at least one target renders a {@code Role.<NAME>} literal (issue #3905). Since the
+     * role literal is emitted by exactly one tier, this is now the tier test itself rather than a
+     * hand-mirrored copy of the renderer's branch condition -- the emitted
+     * {@code import com.shaft.gui.internal.locator.Role;} therefore appears if and only if the
+     * generated source actually references it.
      */
     private static boolean needsRoleImport(List<TargetPlan> targets) {
-        return targets.stream().anyMatch(plan -> isVerifiedRoleCandidate(plan.selection().selected().candidate())
-                && ariaRole(plan.target().role()) != null);
+        return targets.stream().anyMatch(plan -> tier(plan) == LocatorPolicy.Tier.VERIFIED_ROLE);
     }
 
     /**
-     * True only for a ROLE candidate that cleared rung 1's self-verification (issue #4239 ladder):
-     * {@code roleXpathVerified() == true}. A ROLE-strategy candidate can still be ladder-eligible via
-     * rung 2 (its self-verified {@code replayXpath}) when its role failed self-verification -- e.g. a
-     * {@code <div role="button">} -- in which case it must render as {@code By.xpath(...)}, never
-     * {@code hasRole(...)}, even though its {@code strategy()} is still {@code ROLE}.
+     * Issue #4271: the tier {@link LocatorPolicy} admitted this target's selected candidate under.
+     * {@code null} only for the defensive no-plan case {@link #ladderSelection} already excludes.
      */
-    private static boolean isVerifiedRoleCandidate(LocatorCandidate candidate) {
-        return candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE && candidate.roleXpathVerified();
-    }
-
-    private static final Set<String> TAGS_WITHOUT_OWN_TEXT = Set.of("input", "textarea", "select");
-
-    /**
-     * Issue #4239 P1.4a follow-up: true unless {@code tagName} is a void-of-text-children HTML form
-     * control (input/textarea/select). These tags can never carry their own visible text content, so
-     * pairing a verified ROLE locator with {@code hasNormalizedText(...)} -- which compiles to a
-     * literal {@code normalize-space(.)} predicate on the matched element itself, per {@link
-     * com.shaft.gui.internal.locator.LocatorBuilder#hasNormalizedText} -- is unconditionally
-     * unsatisfiable for them, regardless of where their accessible name actually came from (an
-     * associated {@code <label>}, {@code aria-label}, {@code placeholder}, ...): the generated code
-     * would compile fine but throw {@code NoSuchElementException} at replay, every time. {@code
-     * roleXpathVerified} alone already proves the bare role union matches this element uniquely
-     * (see {@link LocatorCandidate#roleXpathVerified()}), so omitting the name predicate for these
-     * tags costs only extra future-drift resilience -- never today's correctness -- while a
-     * button/link/heading/etc. (own text IS a legitimate name source) keeps the narrower locator.
-     */
-    private static boolean tagCanCarryOwnText(String tagName) {
-        return !TAGS_WITHOUT_OWN_TEXT.contains(tagName.toLowerCase(Locale.ROOT));
+    private static LocatorPolicy.Tier tier(TargetPlan plan) {
+        return plan.selection().selected().tier().orElse(null);
     }
 
     /**
-     * Issue #4239 P1.5 (F12): true when {@code target}'s emitted locator is a rung-2 selection --
-     * ladder-eligible (it survived {@link #isLadderEligible}) but not a verified ARIA role. Looks up
-     * the already-selected candidate on {@code targets} rather than re-deriving it, mirroring {@link
-     * #locatorReference}; a target absent from {@code targets} (defensive fallback only) is treated
-     * as not degraded since no selection was made for it.
+     * Issue #4239 P1.5 (F12), re-expressed against tiers by issue #4271: true only when
+     * {@code target}'s emitted locator fell all the way back to a raw recorded XPath. A tier-1
+     * unique stable id is the most-preferred evidence, not a degradation, and uses no recorded
+     * XPath -- marking it would be false. A target absent from {@code targets} (defensive fallback
+     * only) is treated as not degraded since no selection was made for it.
      */
-    private static boolean isRungTwoSelection(ElementSnapshot target, List<TargetPlan> targets) {
+    private static boolean isXpathFallbackSelection(ElementSnapshot target, List<TargetPlan> targets) {
         return targets.stream()
                 .filter(plan -> plan.logicalElementId().equals(target.logicalElementId()))
                 .findFirst()
-                .map(plan -> !isVerifiedRoleCandidate(plan.selection().selected().candidate()))
+                .map(plan -> tier(plan) == LocatorPolicy.Tier.VERIFIED_XPATH)
                 .orElse(false);
     }
 
     private static boolean usesNativeBy(TargetPlan plan) {
-        LocatorCandidate candidate = plan.selection().selected().candidate();
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH) {
-            return true;
-        }
-        // Issue #4264: must agree with nonAriaLocatorExpression() -- a TEST_ID/CSS/ID/NAME candidate
-        // with a self-verified replayXpath renders as By.xpath(...) there too, so the "import
-        // org.openqa.selenium.By;" line must be added or the generated source fails to compile.
-        if ((candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID
-                || candidate.strategy() == LocatorCandidate.LocatorStrategy.CSS
-                || candidate.strategy() == LocatorCandidate.LocatorStrategy.ID
-                || candidate.strategy() == LocatorCandidate.LocatorStrategy.NAME)
-                && !candidate.replayXpath().isBlank()) {
-            return true;
-        }
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
-                || candidate.strategy() == LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME
-                || candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL) {
-            if (isVerifiedRoleCandidate(candidate) && ariaRole(plan.target().role()) != null) {
-                // Resolves to SHAFT.GUI.Locator.hasRole(...), not By.xpath -- see semanticLocator().
-                return false;
-            }
-            if (!candidate.replayXpath().isBlank()) {
-                // Resolves to the recorded replayXpath via By.xpath(...) -- see semanticLocator().
-                return true;
-            }
-            String name = !plan.target().accessibleName().isBlank()
-                    ? plan.target().accessibleName()
-                    : plan.target().label();
-            return semanticName(name, candidate).isBlank();
-        }
-        return false;
+        LocatorPolicy.Tier tier = tier(plan);
+        return tier != LocatorPolicy.Tier.UNIQUE_ID && tier != LocatorPolicy.Tier.VERIFIED_ROLE;
     }
 
     private static String locatorReference(
@@ -1768,9 +1687,11 @@ public final class CaptureGenerator {
                 .filter(plan -> plan.logicalElementId().equals(target.logicalElementId()))
                 .findFirst()
                 .map(plan -> locatorExpression(plan, fallbackReplay))
-                .orElseGet(() -> target.locatorCandidates().isEmpty()
-                        ? "By.xpath(\"//*\")"
-                        : locatorExpression(target, target.locatorCandidates().getFirst()));
+                // Issue #4271 review finding 4: no silent degenerate fallback -- an element that was
+                // never planned must never be rendered from its raw, unranked first candidate.
+                .orElseThrow(() -> new IllegalStateException(
+                        "Element " + target.logicalElementId() + " was rendered without a planned "
+                                + "locator selection. This is a SHAFT codegen defect."));
     }
 
     private static String locatorExpression(TargetPlan plan, boolean fallbackReplay) {
@@ -1786,81 +1707,6 @@ public final class CaptureGenerator {
             return primary;
         }
         return "captureReplayLocator(" + primary + ", " + alternatives + ")";
-    }
-
-    // Priority order (per generation policy): role-based locators first, then the SHAFT XPath
-    // LocatorBuilder, then a plain Selenium By only as a last resort. Intent-based smart locators
-    // (SHAFT.GUI.Locator.clickableField/inputField, backed by SmartLocators' heuristic XPath
-    // fallback chain) are never generated here.
-    private static String semanticLocator(
-            ElementSnapshot target,
-            String name,
-            LocatorCandidate candidate) {
-        String semanticName = semanticName(name, candidate);
-        if (isVerifiedRoleCandidate(candidate)) {
-            Role ariaRole = ariaRole(target.role());
-            if (ariaRole != null) {
-                String roleLocator = "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ")";
-                return semanticName.isBlank() || !tagCanCarryOwnText(target.tagName())
-                        ? roleLocator + ".build()"
-                        : roleLocator + ".hasNormalizedText(\"" + javaString(semanticName) + "\").build()";
-            }
-        }
-        // Issue #4026: the in-page recorder knows which DOM signal (an attribute, or the element's
-        // own text) actually produced the recorded name, and already self-verified an XPath against
-        // the live DOM using normalize-space() so internal/surrounding whitespace cannot break the
-        // match. Java cannot know that source (ElementSnapshot carries no source tag) and can only
-        // guess -- guessing wrong emits a locator that matches nothing (e.g. .hasAttribute("aria-label",
-        // ...) against an element with no such attribute). Emit the recorded replayXpath verbatim
-        // instead of reconstructing a predicate: record and replay then resolve the same string.
-        if (!candidate.replayXpath().isBlank()) {
-            return "By.xpath(\"" + javaString(candidate.replayXpath()) + "\")";
-        }
-        if (semanticName.isBlank()) {
-            return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
-        }
-        String tagName = target.tagName().isBlank() ? "*" : target.tagName();
-        String predicate = candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL
-                ? ".containsText(\"" + javaString(semanticName) + "\")"
-                : ".hasAttribute(\"aria-label\", \"" + javaString(semanticName) + "\")";
-        return "SHAFT.GUI.Locator.hasTagName(\"" + javaString(tagName) + "\")" + predicate + ".build()";
-    }
-
-    /**
-     * Maps a raw ARIA role string (as captured on {@link ElementSnapshot#role()}) to one of the
-     * 14 {@link Role} enum constants, case-insensitively, including the known ARIA-role-name vs.
-     * enum-constant-name mismatches ("img" -&gt; IMAGE, "row" -&gt; TABLE_ROW, "cell"/"gridcell"
-     * -&gt; TABLE_CELL, "columnheader" -&gt; TABLE_COLUMNHEADER, "grid" -&gt; TABLE). Returns
-     * {@code null} when the role has no equivalent so callers can fall back to the SHAFT XPath
-     * locator builder instead of failing. Mirrors {@code BrowserService#ariaRole} in shaft-mcp.
-     */
-    private static Role ariaRole(String rawRole) {
-        String normalized = rawRole == null ? "" : rawRole.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "button" -> Role.BUTTON;
-            case "link" -> Role.LINK;
-            case "textbox" -> Role.TEXTBOX;
-            case "checkbox" -> Role.CHECKBOX;
-            case "radio" -> Role.RADIO;
-            case "combobox" -> Role.COMBOBOX;
-            case "heading" -> Role.HEADING;
-            case "img", "image" -> Role.IMAGE;
-            case "list" -> Role.LIST;
-            case "listitem" -> Role.LISTITEM;
-            case "table", "grid" -> Role.TABLE;
-            case "row" -> Role.TABLE_ROW;
-            case "cell", "gridcell" -> Role.TABLE_CELL;
-            case "columnheader" -> Role.TABLE_COLUMNHEADER;
-            default -> null;
-        };
-    }
-
-    private static String semanticName(String name, LocatorCandidate candidate) {
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
-                && candidate.expression().contains(":")) {
-            return candidate.expression().substring(candidate.expression().indexOf(':') + 1);
-        }
-        return name.isBlank() ? candidate.expression() : name;
     }
 
     private static String dataExpression(ExternalTestDataReference reference, DataPlan data) {
@@ -2245,6 +2091,33 @@ public final class CaptureGenerator {
         if (Files.exists(path) && !overwrite) {
             throw new IllegalStateException("Enrichment preview already exists and overwrite was not approved.");
         }
+    }
+
+    /**
+     * Reports a generation that was refused before any compilation could run, either at the analysis
+     * stage or from findings derived from the rendered source. Extracted so both gates report failure
+     * identically -- a second hand-maintained copy of the failure-reporting rule is the same drift
+     * this redesign exists to remove.
+     */
+    private CaptureGenerationResult failedBeforeCompilation(
+            CaptureSession session,
+            ArtifactPaths paths,
+            GenerationState state,
+            CaptureGenerationReport.Enrichment enrichment,
+            Path reportPath,
+            CaptureGenerationRequest request,
+            BiConsumer<Double, String> reporter) {
+        CaptureGenerationReport report = report(
+                session,
+                paths,
+                state,
+                CaptureGenerationReport.Status.FAILED,
+                CaptureGenerationReport.Validation.skipped("Generation failed before compilation."),
+                CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
+                enrichment);
+        writeReportIfPossible(reportPath, report);
+        reporter.accept(1.0, "Generation complete: FAILED");
+        return result(paths.source(), paths.data(), reportPath, request.enrichmentPreviewPath(), report);
     }
 
     private static void writeReportIfPossible(Path reportPath, CaptureGenerationReport report) {

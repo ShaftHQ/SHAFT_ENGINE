@@ -48,7 +48,7 @@ Bring only evidence back into SHAFT: command transcript, page snapshot, locator 
 - Move stable locators/actions into page objects; do not paste a generic generated class when the repo has existing structure.
 - Treat `shaft_coding_partner_plan.reuseMatches` as the insertion shortlist and `missingCodeItems` as the only code that still needs to be created.
 - Record the complete user flow before codegen when requested actions or locators are missing, then insert only the missing locators/actions into the existing source anchor.
-- Do not generate `SHAFT.GUI.Locator.xpath(...)` or a Smart Locator (`inputField`/`clickableField`); build locators through the SHAFT locator builder's ARIA role (`hasRole(...)`), falling back to native `By.xpath(...)` only when the element exposes no ARIA role. See `choosing-shaft-locators` for the full ladder.
+- Do not generate `SHAFT.GUI.Locator.xpath(...)`, `SHAFT.GUI.Locator.id/name/cssSelector/className/tagName(...)`, or a Smart Locator (`inputField`/`clickableField`). Build locators through the SHAFT locator builder in tier order: a unique author-written id (`hasAnyTagName().hasId(...)`), then an ARIA role (`hasRole(...)`), then native relative `By.xpath(...)` only when the element has neither. See `choosing-shaft-locators` for the full ladder.
 - Keep recording artifacts as evidence, not as source.
 - Do not paste Playwright TypeScript tests into Java projects; translate the proven behavior into SHAFT syntax and the existing Java design pattern.
 - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.

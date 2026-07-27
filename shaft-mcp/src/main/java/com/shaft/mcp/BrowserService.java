@@ -897,8 +897,14 @@ public class BrowserService {
                     ranker.select(snapshot, context, true)));
         }
         return scored.stream()
+                // Issue #4271: intent match stays the primary key, but the tiebreak orders by the
+                // ranker's lexicographic (tier, score) comparator rather than raw score. Comparing
+                // raw scores across elements whose selections come from different policy tiers is
+                // the same defect as the cross-event merge this issue already fixed: an element
+                // whose best locator is not emittable at all could outrank one with a unique stable
+                // id purely on additive score.
                 .sorted(Comparator.comparingInt(ScoredElement::intentScore).reversed()
-                        .thenComparing(item -> item.selection().selected().score(), Comparator.reverseOrder()))
+                        .thenComparing(item -> item.selection().selected(), LocatorRanker.BEST_FIRST))
                 .limit(maxElements)
                 .map(BrowserService::elementCandidate)
                 .toList();
@@ -1034,7 +1040,13 @@ public class BrowserService {
             }
             case ACCESSIBLE_NAME, LABEL -> xpathLocatorCode(candidate.strategy(), target, expression);
             case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(expression) + "\")";
-            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(expression) + "\")";
+            // Issue #4271: emit the locator builder's hasId, matching what LocatorPolicy's tier 1
+            // generates, instead of the raw SHAFT.GUI.Locator.id(...) factory that
+            // GeneratedCodeGuardrails rejects as NON_ARIA_LOCATOR (ERROR). A unique stable id is now
+            // the top-priority strategy, so this branch is recommended far more often than before and
+            // would otherwise hand an LLM a snippet its own lint refuses. The remaining raw factories
+            // in this switch are tracked separately as BrowserService's duplicate locator logic.
+            case ID -> "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"" + javaString(expression) + "\").build()";
             case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(expression) + "\")";
             case XPATH -> "By.xpath(\"" + javaString(expression) + "\")";
         };
