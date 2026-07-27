@@ -97,8 +97,12 @@ jobs:
               - 'shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java'
               - 'shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java'
             # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
-            # its downstream Pilot-family modules. shaft-capture/shaft-cli/shaft-intellij
-            # already have dedicated legs above and are intentionally not repeated here.
+            # its downstream Pilot-family modules. shaft-cli/shaft-intellij already have
+            # dedicated legs above and are intentionally not repeated here. shaft-capture
+            # is deliberately NOT listed here even though it has its own unit-test matrix
+            # entry below (issue #4280) -- it already has a dedicated `capture` filter
+            # above (used by capture-e2e), and the unit-tests job's `if` condition also
+            # checks that filter directly rather than duplicating its paths into javacore.
             javacore:
               - 'shaft-engine/**'
               - 'shaft-pilot-core/**'
@@ -266,11 +270,13 @@ jobs:
   # gets its dependencies installed first (mirrors capture-e2e's install-step
   # pattern above) because pr-gate has no earlier install step for this set.
   #
-  # shaft-pilot-core/shaft-doctor/shaft-ai/shaft-heal/shaft-mcp run their full
-  # `mvn test` suite unfiltered -- the same invocation shaft-pilot-release.yml
-  # already runs on every release-relevant PR and calls "deterministic" (no
-  # live browser/grid/device; the one opt-in browser suite, shaft-capture's,
-  # stays gated behind -DincludeCaptureBrowserE2E and is not part of this set).
+  # shaft-pilot-core/shaft-doctor/shaft-ai/shaft-heal/shaft-mcp/shaft-capture run
+  # their full `mvn test` suite unfiltered -- the same invocation
+  # shaft-pilot-release.yml already runs on every release-relevant PR and calls
+  # "deterministic" (no live browser/grid/device). shaft-capture's own opt-in
+  # browser suite stays excluded by default (its pom's `excludedGroups`
+  # setting) and is gated separately behind -DincludeCaptureBrowserE2E in the
+  # capture-e2e job above -- not part of this set (issue #4280).
   #
   # shaft-engine cannot reuse that unfiltered pattern: outside its own
   # `testPackage.unitTests` package it also has nightly-only live-browser
@@ -292,13 +298,15 @@ jobs:
   unit-tests:
     name: Unit Tests (${{ matrix.module }})
     needs: changes
-    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.infra == 'true'
+    if: >-
+      needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
+      || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        module: [ shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp ]
+        module: [ shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7

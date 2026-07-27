@@ -1316,8 +1316,8 @@ public final class CaptureGenerator {
             } else if (value.target() != null) {
                 line(source, "        driver.element().switchToIframe(" + locator + ");");
             } else {
-                line(source, "        driver.element().switchToIframe(SHAFT.GUI.Locator.id(\""
-                        + javaString(value.logicalFrameId()) + "\"));");
+                line(source, "        driver.element().switchToIframe(SHAFT.GUI.Locator.hasAnyTagName().hasId(\""
+                        + javaString(value.logicalFrameId()) + "\").build());");
             }
         } else if (event instanceof CaptureEvent.AlertEvent value) {
             renderAlert(source, value, data, backend);
