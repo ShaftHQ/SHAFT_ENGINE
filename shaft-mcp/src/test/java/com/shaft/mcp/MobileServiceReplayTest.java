@@ -117,6 +117,9 @@ class MobileServiceReplayTest {
         }
 
         assertEquals(15, replay.replayedActionCount());
+        // #4239 F4: successful must be computed from replayed-vs-total, not a hardcoded literal;
+        // this full run is the one reachable case where that computation evaluates true today.
+        assertTrue(replay.successful());
         verify(touch).tap(any(By.class));
         verify(touch).doubleTap(any(By.class));
         verify(touch).longTap(any(By.class));
