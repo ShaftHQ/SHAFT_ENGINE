@@ -239,6 +239,54 @@ class PlaywrightServiceDriverBackedTest {
     }
 
     @Test
+    void cssStrategyLocatorRecordingWarnsThatCodegenWillFailButStillSucceeds() throws Exception {
+        // Issue #4291: LocatorPolicy (shaft-capture) has no admission path for CSS-strategy
+        // locators, so codegen honestly refuses CSS recordings later, deep inside CaptureGenerator
+        // (#4262). Recording a CSS-strategy action must surface that fact immediately as a
+        // non-blocking warning -- same contract as the existing coordinate-fallback warning -- not
+        // change whether the action itself succeeds.
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        service.recordStart(temp.resolve("recordings/css.json").toString(), "playwright", false);
+
+        McpMobileActionResult click = service.click(locatorStrategy.CSS, "#login");
+        McpMobileActionResult clickCssSelector = service.click(locatorStrategy.CSSSELECTOR, "#login");
+        McpMobileActionResult clickSelector = service.click(locatorStrategy.SELECTOR, "#login");
+
+        assertTrue(click.recorded());
+        assertTrue(click.warnings().stream().anyMatch(warning -> warning.contains("codegen")),
+                click.warnings().toString());
+        assertTrue(clickCssSelector.recorded());
+        assertTrue(clickCssSelector.warnings().stream().anyMatch(warning -> warning.contains("codegen")),
+                clickCssSelector.warnings().toString());
+        assertTrue(clickSelector.recorded());
+        assertTrue(clickSelector.warnings().stream().anyMatch(warning -> warning.contains("codegen")),
+                clickSelector.warnings().toString());
+    }
+
+    @Test
+    void nonCssStrategyLocatorRecordingDoesNotCarryTheCssCodegenWarning() throws Exception {
+        // No false positives (#4291): ID/NAME/XPATH-strategy and semantic (role-based, null
+        // strategy) actions have a genuine LocatorPolicy admission path, so they must never carry
+        // the CSS-only codegen warning.
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        service.recordStart(temp.resolve("recordings/non-css.json").toString(), "playwright", false);
+
+        McpMobileActionResult id = service.click(locatorStrategy.ID, "submit");
+        McpMobileActionResult name = service.click(locatorStrategy.NAME, "submit");
+        McpMobileActionResult xpath = service.click(locatorStrategy.XPATH, "//button");
+
+        assertFalse(id.warnings().stream().anyMatch(warning -> warning.contains("codegen")), id.warnings().toString());
+        assertFalse(name.warnings().stream().anyMatch(warning -> warning.contains("codegen")),
+                name.warnings().toString());
+        assertFalse(xpath.warnings().stream().anyMatch(warning -> warning.contains("codegen")),
+                xpath.warnings().toString());
+    }
+
+    @Test
     void driverBackedIsDisplayedAndIsEnabledResolvePlaywrightLocator() throws Exception {
         PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
         Page page = mock(Page.class);

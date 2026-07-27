@@ -247,11 +247,14 @@ final class McpPlaywrightCaptureAdapter {
      * constructed {@code //*[@name="..."]} expression, independently re-verified live) locators, so
      * {@code LocatorPolicy}'s {@code Tier.VERIFIED_XPATH} admits those two strategies as well. {@code
      * CSS}-strategy recordings still hard-fail codegen -- a general CSS-to-XPath conversion is a
-     * separate, larger change, tracked as a follow-up issue. This adapter simply relays whatever
-     * genuine evidence {@link PlaywrightService} computed instead of fabricating it -- unverified
-     * actions (non-Playwright models, CSS/other unhandled strategies, or recordings captured before
-     * this evidence existed) still carry the honest {@code 0}/{@code false}/{@code ""} default, so
-     * {@code LocatorPolicy} admits only what was actually observed live.
+     * separate, larger change, deliberately not pursued here (issue #4291). This adapter simply
+     * relays whatever genuine evidence {@link PlaywrightService} computed instead of fabricating it
+     * -- unverified actions (non-Playwright models, CSS/other unhandled strategies, or recordings
+     * captured before this evidence existed) still carry the honest {@code 0}/{@code false}/{@code ""}
+     * default, so {@code LocatorPolicy} admits only what was actually observed live. Issue #4291 does
+     * not change that refusal, but ensures the caller learns about it immediately instead of only
+     * when codegen runs: {@link PlaywrightService} now surfaces a non-blocking warning the moment a
+     * CSS-strategy locator is recorded.
      */
     private LocatorCandidate locator(McpMobileRecordedAction action, String name, boolean semantic) {
         LocatorCandidate.LocatorStrategy strategy = locatorStrategy(action.locatorStrategy(), semantic);
