@@ -548,3 +548,6 @@
 {"actor":"agent","event":"memory.deleted","id":"gotcha.gbrain-slug-mismatch-blocks-83-shaft-userguide-pages-extract-needs-source-db-on-db-only-brains","timestamp":"2026-07-27T20:32:31+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.mcp-gbrain-put-page-write-through-can-drop-a-real-file-into-the-callers-working-directory","timestamp":"2026-07-27T20:32:31+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.verify-assistant-workflow-bug-reports-against-main-much-was-already-shipped-in-3505-3513","timestamp":"2026-07-27T20:32:31+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.markdown-link-checkers-miss-bare-filenames-in-table-cells-check-both-directions-against-disk","timestamp":"2026-07-28T00:15:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.io-github-shafthq-shaft-engine-is-the-legacy-relocation-pom-shaft-engine-is-the-live-artifact","timestamp":"2026-07-28T00:15:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only","timestamp":"2026-07-28T00:15:42+03:00"}
