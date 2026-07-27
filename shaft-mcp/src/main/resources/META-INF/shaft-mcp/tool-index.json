@@ -1084,16 +1084,16 @@
         {
           "name": "allowLocalAi",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "explicit approval for local inference"
         },
         {
           "name": "allowRemoteAi",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "explicit approval for remote inference"
         },
         {
           "name": "backend",
@@ -1105,44 +1105,44 @@
         {
           "name": "className",
           "type": "string",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "generated Java class name; blank derives a name from the recorded session (its goal, or a seeded name), suffixed Test"
         },
         {
           "name": "driverVariableName",
           "type": "string",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "Java driver variable name used in extracted snippets; blank defaults to driver"
         },
         {
           "name": "outputDirectory",
           "type": "string",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "generated project root inside the MCP workspace; blank defaults to generated-tests under the workspace"
         },
         {
           "name": "overwrite",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "whether existing generated source and test-data files may be replaced; status reports are always refreshed; defaults to false"
         },
         {
           "name": "packageName",
           "type": "string",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "generated Java package; blank defaults to generated.capture"
         },
         {
           "name": "replay",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "whether to compile AND execute the generated test, replay-proving it: true is required for the report status to be SUCCESS (the replay actually passed); false -- or any replay that never runs, e.g. after a compilation failure -- yields codegen-only output the report marks UNCONFIRMED, never SUCCESS; defaults to false"
         },
         {
           "name": "sessionPath",
@@ -1154,9 +1154,9 @@
         {
           "name": "useAi",
           "type": "boolean",
-          "required": true,
+          "required": false,
           "default": null,
-          "description": null
+          "description": "whether to request optional AI enrichment preview"
         }
       ],
       "mutation": true,
@@ -1285,7 +1285,7 @@
     {
       "name": "capture_start",
       "service": "CaptureService",
-      "description": "starts a recording, dispatching to the active engine: WEB (or no active session) always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while it is active, element_* tools drive the recorded browser directly (no driver_initialize needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver (targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only",
+      "description": "starts a recording, dispatching to the active engine: WEB (or no active session) always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while it is active, element_* tools drive the recorded browser directly (no driver_initialize needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver (targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only. IMPORTANT: this tool takes no engine/platform argument of its own -- with no active session (the default), it ALWAYS launches a desktop Chrome/Edge browser, never a mobile app, even when the caller's intent is to record on a mobile device or emulator; to record a mobile app, call driver_initialize(engine=mobile_native) or driver_initialize(engine=mobile_web) FIRST to make that engine active, then call capture_start (with no WEB-only args) so it dispatches to the mobile recorder instead",
       "params": [
         {
           "name": "browser",
