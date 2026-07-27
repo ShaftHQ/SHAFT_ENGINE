@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 
 @Test(singleThreaded = true)
@@ -249,6 +250,24 @@ public class OptionsManagerCoverageUnitTest {
         Assert.assertEquals(String.valueOf(manager.getAppiumCapabilities().getCapability(CapabilityType.PLATFORM_NAME)).toLowerCase(), "windows");
         Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:automationName"), "Windows");
         Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:app"), "C:\\Windows\\System32\\notepad.exe");
+    }
+
+    @Test
+    public void shouldBuildTypedFlutterDriverOptionsForFlutterSessions() {
+        SHAFT.Properties.platform.set().targetPlatform("android");
+        SHAFT.Properties.mobile.set().browserName("")
+                .flutterElementWaitTimeout(5)
+                .flutterServerLaunchTimeout(20)
+                .flutterSystemPort(8300)
+                .flutterEnableMockCamera(true);
+
+        OptionsManager manager = new OptionsManager();
+        manager.setDriverOptions(DriverFactory.DriverType.APPIUM_FLUTTER, new MutableCapabilities());
+
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterElementWaitTimeout"), Duration.ofSeconds(5).toMillis());
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterServerLaunchTimeout"), Duration.ofSeconds(20).toMillis());
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterSystemPort"), 8300);
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterEnableMockCamera"), true);
     }
 
 }

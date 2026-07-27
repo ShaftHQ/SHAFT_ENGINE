@@ -71,6 +71,22 @@ public interface Mobile extends EngineProperties<Mobile> {
     @DefaultValue("")
     String bundleId();
 
+    @Key("mobile_flutterElementWaitTimeout")
+    @DefaultValue("0")
+    int flutterElementWaitTimeout();
+
+    @Key("mobile_flutterServerLaunchTimeout")
+    @DefaultValue("0")
+    int flutterServerLaunchTimeout();
+
+    @Key("mobile_flutterSystemPort")
+    @DefaultValue("0")
+    int flutterSystemPort();
+
+    @Key("mobile_flutterEnableMockCamera")
+    @DefaultValue("false")
+    boolean flutterEnableMockCamera();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -142,6 +158,26 @@ public interface Mobile extends EngineProperties<Mobile> {
 
         public SetProperty bundleId(String value) {
             setProperty("mobile_bundleId", value);
+            return this;
+        }
+
+        public SetProperty flutterElementWaitTimeout(int value) {
+            setProperty("mobile_flutterElementWaitTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flutterServerLaunchTimeout(int value) {
+            setProperty("mobile_flutterServerLaunchTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flutterSystemPort(int value) {
+            setProperty("mobile_flutterSystemPort", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flutterEnableMockCamera(boolean value) {
+            setProperty("mobile_flutterEnableMockCamera", String.valueOf(value));
             return this;
         }
     }
