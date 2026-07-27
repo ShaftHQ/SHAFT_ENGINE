@@ -1357,7 +1357,7 @@ class CaptureGeneratorTest {
                     Path resourcesDirectory,
                     Path workDirectory,
                     Duration timeout) {
-                throw new RuntimeException("Simulated malformed Allure-results parse failure.");
+                throw new IllegalStateException("Simulated malformed Allure-results parse failure.");
             }
         };
         CaptureGenerationResult result = new CaptureGenerator(
