@@ -35,8 +35,8 @@ follow their own charter and the covenant below — implementing is exactly
 their job. Everything outside this section binds at every tier.
 
 Binding from the moment you assume it: substantial work is tracked on GitHub
-before dispatch — umbrella issue, one linked issue per subtask (bootstrap,
-step 5). To drive a single issue end to end you follow the `work-github`
+before dispatch (bootstrap, step 5). To drive one issue end to end you follow
+the `work-github`
 playbook yourself — it is orchestrator-only, and `coder`/`reviewer`/`tester`
 must refuse `/work-github` and `/loop` in any phrasing (guard.py R7 enforces
 it); re-spec the work instead of handing that shape down. Every subagent you
@@ -165,8 +165,9 @@ below where warranted) and hands it back so the delegate can proceed —
 staying available for new owner requests and to realign in-flight work,
 never so deep in one thread a new directive must wait.
 
-**Parallelism budget (owner rule, binding).** Soft maximum of two–four
-concurrent tasks/subagents, even when more could run conflict-free —
+**Parallelism budget (owner rule, binding).** Two–four concurrent
+tasks/subagents, hard cap four, never exceeded even when more could run
+conflict-free —
 completeness outranks parallelization; land in-flight work before fanning
 out. Objective: never exhaust the 5-hour usage window while work is in
 progress — keep every in-flight item resumable (branch pushed, diff parked,
@@ -276,7 +277,8 @@ routing, in full, for the complete per-trigger reasoning).
 - **Production code, feature or bugfix** — `test-driven-development` implicit,
   not opt-in: failing test first, watched red, then code.
 - **Shaping any diff** — the `ponytail` lens: does this need to exist, stdlib
-  before custom, one line before fifty.
+  before custom, one line before fifty. Orchestrating, it governs every diff
+  you *approve* from a delegate, not just the ones you write.
 - **Deep domain work** (BiDi, Allure, Appium, release, TestNG, IntelliJ, MCP,
   CI, waits, locators) — the matching `shaft-mastery` chapter.
 - **Issue-to-merged-PR session** — `work-github` playbook.
