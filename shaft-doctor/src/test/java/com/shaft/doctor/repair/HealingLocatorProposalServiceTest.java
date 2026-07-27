@@ -239,7 +239,7 @@ class HealingLocatorProposalServiceTest {
         // off-context; the advisory must mirror HealingDecisionEngine's own eligibility gate
         // (unique && contextMatched) before picking a candidate to suggest.
         source(repository, "private static final By LOGIN = By.id(\"old-login\");");
-        Path report = multiCandidateReport(repository,
+        Path report = multiCandidateReport(repository, true,
                 candidateJson("candidate-top", "By.id: duplicate-login", false, true, true),
                 candidateJson("candidate-eligible", "By.id: new-login", true, true, true));
 
@@ -259,7 +259,7 @@ class HealingLocatorProposalServiceTest {
     void advisoryProposalRejectsAReportWhereNoCandidateIsEligible(@TempDir Path repository)
             throws Exception {
         source(repository, "private static final By LOGIN = By.id(\"old-login\");");
-        Path report = multiCandidateReport(repository,
+        Path report = multiCandidateReport(repository, true,
                 candidateJson("candidate-a", "By.id: duplicate-login", false, true, true),
                 candidateJson("candidate-b", "By.id: wrong-context", true, false, true));
 
@@ -275,14 +275,12 @@ class HealingLocatorProposalServiceTest {
     @Test
     void advisoryProposalSkipsANonInteractableTopScoredCandidateForAnInteractableOne(
             @TempDir Path repository) throws Exception {
-        // Issue #4209 (round 2): HealingDecisionEngine's eligible list also filters on
-        // interactable whenever visibilityRequired=true (the common case for real callers), so a
-        // higher-scored candidate that is unique/contextMatched but not interactable can still
-        // mismatch the persisted decision.confidence. Require interactable too, unconditionally --
-        // a deliberate approximation since the report never records whether visibilityRequired
-        // applied to this attempt.
+        // Issue #4209 (round 2) / #4215: HealingDecisionEngine's eligible list only filters on
+        // interactable when visibilityRequired=true. This report's attempt had
+        // visibilityRequired=true, so a higher-scored candidate that is unique/contextMatched but
+        // not interactable must still be skipped in favor of the interactable one.
         source(repository, "private static final By LOGIN = By.id(\"old-login\");");
-        Path report = multiCandidateReport(repository,
+        Path report = multiCandidateReport(repository, true,
                 candidateJson("candidate-top", "By.id: not-interactable-login", true, true, false),
                 candidateJson("candidate-eligible", "By.id: new-login", true, true, true));
 
@@ -299,6 +297,31 @@ class HealingLocatorProposalServiceTest {
                         + " non-interactable one.");
     }
 
+    @Test
+    void advisoryProposalAcceptsANonInteractableCandidateWhenVisibilityWasNotRequired(
+            @TempDir Path repository) throws Exception {
+        // Issue #4215: when the original attempt had visibilityRequired=false,
+        // HealingDecisionEngine's own eligible list (HealingDecisionEngine.java:29-33) never
+        // required interactable for that attempt. The advisory must branch on the persisted
+        // visibilityRequired flag exactly the same way, instead of unconditionally requiring
+        // interactable (the safe-direction approximation from #4209 round 2).
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path report = multiCandidateReport(repository, false,
+                candidateJson("candidate-top", "By.id: new-login", true, true, false));
+
+        HealingLocatorProposal proposal = new HealingLocatorProposalService().proposeAdvisory(
+                new HealingLocatorProposalRequest(
+                        repository,
+                        report,
+                        "src/test/java/example/LoginTest.java",
+                        true,
+                        repository.resolve("target/advisory-visibility-not-required")));
+
+        assertEquals("By.id(\"new-login\")", proposal.proposedExpression(),
+                "When visibilityRequired=false, a unique+contextMatched candidate must be accepted"
+                        + " even when not interactable, exactly mirroring HealingDecisionEngine.");
+    }
+
     private static ObjectNode candidateJson(
             String candidateId, String proposedLocator, boolean unique, boolean contextMatched,
             boolean interactable) {
@@ -312,11 +335,13 @@ class HealingLocatorProposalServiceTest {
         return candidate;
     }
 
-    private static Path multiCandidateReport(Path repository, ObjectNode... candidates) throws Exception {
+    private static Path multiCandidateReport(
+            Path repository, boolean visibilityRequired, ObjectNode... candidates) throws Exception {
         ObjectNode report = JSON.createObjectNode();
         report.put("schemaVersion", "2.0");
         report.put("attemptId", "attempt-multi");
         report.put("originalLocator", "By.id: old-login");
+        report.put("visibilityRequired", visibilityRequired);
         var candidatesArray = report.putArray("candidates");
         for (ObjectNode candidate : candidates) {
             candidatesArray.add(candidate);

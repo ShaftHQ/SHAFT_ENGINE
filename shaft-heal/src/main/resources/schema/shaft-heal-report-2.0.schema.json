@@ -6,7 +6,8 @@
   "required": [
     "schemaVersion", "attemptId", "timestamp", "originalLocator",
     "failureCategory", "pageKey", "context", "contextMetadata",
-    "candidates", "decision", "provider", "privacy", "action", "ladder"
+    "candidates", "decision", "provider", "privacy", "action", "ladder",
+    "visibilityRequired"
   ],
   "properties": {
     "schemaVersion": {"const": "2.0"},
@@ -61,7 +62,8 @@
     "ladder": {
       "type": "object",
       "required": ["rungsAttempted", "elapsedMillis", "budgetSeconds"]
-    }
+    },
+    "visibilityRequired": {"type": "boolean"}
   },
   "additionalProperties": false
 }

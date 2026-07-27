@@ -20,6 +20,9 @@ import java.util.Objects;
  * @param privacy minimization and redaction metadata
  * @param action action and post-action metadata
  * @param ladder re-suggestion ladder metadata (issue #4027)
+ * @param visibilityRequired whether this attempt required the selected candidate to be visible
+ *                            and enabled, mirroring {@code HealingDecisionEngine}'s own
+ *                            eligibility gate (issue #4215)
  */
 public record HealingReport(
         String schemaVersion,
@@ -35,7 +38,8 @@ public record HealingReport(
         ProviderMetadata provider,
         PrivacyMetadata privacy,
         ActionMetadata action,
-        LadderMetadata ladder) {
+        LadderMetadata ladder,
+        boolean visibilityRequired) {
     public static final String CURRENT_SCHEMA_VERSION = "2.0";
 
     /**
@@ -90,6 +94,31 @@ public record HealingReport(
         this(schemaVersion, attemptId, timestamp, originalLocator, failureCategory, pageKey,
                 context, contextMetadata, candidates, decision, provider, privacy, action,
                 LadderMetadata.disabled());
+    }
+
+    /**
+     * Creates a backward-compatible report without a persisted visibility-required flag
+     * (issue #4215); defaults to {@code true}, preserving the previous safe-direction assumption
+     * that a candidate must be interactable.
+     */
+    public HealingReport(
+            String schemaVersion,
+            String attemptId,
+            String timestamp,
+            String originalLocator,
+            String failureCategory,
+            String pageKey,
+            String context,
+            HealingContext contextMetadata,
+            List<HealingCandidate> candidates,
+            HealingDecision decision,
+            ProviderMetadata provider,
+            PrivacyMetadata privacy,
+            ActionMetadata action,
+            LadderMetadata ladder) {
+        this(schemaVersion, attemptId, timestamp, originalLocator, failureCategory, pageKey,
+                context, contextMetadata, candidates, decision, provider, privacy, action, ladder,
+                true);
     }
 
     /**
