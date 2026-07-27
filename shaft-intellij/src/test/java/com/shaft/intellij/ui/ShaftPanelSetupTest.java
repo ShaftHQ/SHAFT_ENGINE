@@ -4688,6 +4688,119 @@ class ShaftPanelSetupTest {
     }
 
     /**
+     * Issue #3962 (third-review finding 2a): capturing an {@code int} index at render time (rather
+     * than the {@link ShaftAssistantChatState.Message} object itself) goes stale the moment ANY later
+     * append trims the session again -- even one completely unrelated to this run, like the user's
+     * next message. At {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION}, every append shifts
+     * every earlier index down by one. The recovered answer must still land correctly even after such
+     * a shift happens between the synchronous cancelled render and the companion resolving.
+     */
+    @Test
+    void assistantCancelUpgradeStillLandsAfterAnUnrelatedAppendShiftsItsIndexAtTheCap() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        for (int i = 0; i < ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            chatState.append("assistant", "filler " + i, "");
+        }
+
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 410);
+        appendLocalAgentOutput(panel, 410, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 410, null, new CancellationException("cancelled"));
+
+        // Before the companion resolves, an unrelated later message is appended (e.g. the user's next
+        // prompt) -- at the cap, this trims the oldest message, shifting the just-cancelled bubble's
+        // real position down by one from wherever it landed right after the synchronous render.
+        chatState.append("user", "an unrelated later message", "");
+        assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION, chatState.activeSession().messages.size());
+
+        pendingTerminalAnswer.complete("The recovered final answer despite the later shift.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.contains("The recovered final answer despite the later shift."),
+                "the recovered answer must still land after an unrelated append shifts its real index "
+                        + "out from under a captured int: " + markdown);
+    }
+
+    /**
+     * Issue #3962 (third-review finding 2b -- a genuinely new defect introduced by the F2/F3 fix, not
+     * merely an old symptom recurring): two runs cancelled back-to-back at the session cap. Run A's
+     * companion stays unresolved while run B starts, streams, and is itself cancelled -- run B's own
+     * cancelled-bubble append trims the session again, shifting run A's already-captured index. If
+     * that capture is a stale {@code int}, run A's late-resolving companion would target whatever
+     * message now sits at that index -- run B's own cancelled bubble -- and silently overwrite it
+     * with run A's answer: wrong content landing in the wrong bubble, not just a lost update. Each
+     * run's recovered answer must land only in its own bubble, exactly once, never the other's.
+     */
+    @Test
+    void assistantTwoCancelledRunsAtTheCapNeverCrossContaminateEachOthersBubble() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        for (int i = 0; i < ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            chatState.append("assistant", "filler " + i, "");
+        }
+
+        // Run A: starts, streams, is cancelled -- its companion is deliberately left unresolved,
+        // simulating a slow CLI that hasn't produced a terminal event yet.
+        ShaftMcpInvocation invocationA = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocationA);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 411);
+        appendLocalAgentOutput(panel, 411, "run A streamed line");
+        CompletableFuture<String> pendingA = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingA);
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 411, null, new CancellationException("cancelled"));
+
+        // Run B: a new prompt sent right after cancelling A, also streamed and cancelled -- at the
+        // cap, its own cancelled-bubble append trims the session again, shifting A's bubble down by
+        // one more from wherever it was captured.
+        ShaftMcpInvocation invocationB = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocationB);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 412);
+        appendLocalAgentOutput(panel, 412, "run B streamed line");
+        CompletableFuture<String> pendingB = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingB);
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 412, null, new CancellationException("cancelled"));
+
+        // Run A's companion resolves LATE, after run B has already landed its own cancelled bubble.
+        pendingA.complete("Run A's recovered answer.");
+        pumpEdt();
+        pendingB.complete("Run B's recovered answer.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Run A's recovered answer."), markdown),
+                () -> assertTrue(markdown.contains("Run B's recovered answer."), markdown),
+                () -> assertEquals(1, countOccurrences(markdown, "Run A's recovered answer."),
+                        "run A's answer must land exactly once, in its own bubble: " + markdown),
+                () -> assertEquals(1, countOccurrences(markdown, "Run B's recovered answer."),
+                        "run B's answer must land exactly once, in its own bubble, never overwritten "
+                                + "by run A's late-resolving companion: " + markdown));
+    }
+
+    /**
      * Issue #3962, Kill side: unlike Cancel, {@code stopLocalAgentStreaming} finalizes the "_Killed._"
      * bubble synchronously at button-click time -- before {@code ShaftMcpInvocation#kill()} even runs
      * -- so the companion cannot be waited on there without delaying the existing instant feedback.
