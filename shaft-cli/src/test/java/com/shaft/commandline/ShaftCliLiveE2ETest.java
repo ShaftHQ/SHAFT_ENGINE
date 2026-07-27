@@ -35,10 +35,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * environment variable ({@code McpLauncherLocator.tryEnvOverride}, checked first, before the
  * per-user installed-versions directory). Skipping that override matters: this machine has a
  * pre-existing {@code %LOCALAPPDATA%\ShaftHQ\shaft-mcp\versions\} installation from BEFORE the
- * 89-tool sweep (confirmed by inspecting its {@code tools} output -- it still lists deleted names
+ * 90-tool sweep (confirmed by inspecting its {@code tools} output -- it still lists deleted names
  * like {@code natural_act}/{@code playwright_initialize} as separate tools), so leaving {@code
  * SHAFT_MCP_JAR} unset would silently validate a stale catalog instead of this PR's current
- * 89-tool build.
+ * 90-tool build.
  */
 class ShaftCliLiveE2ETest {
 
@@ -52,7 +52,7 @@ class ShaftCliLiveE2ETest {
         ProcessResult result = runShaftCli(tempDir, Map.of(), "tools", "--cached");
         assertEquals(0, result.exitCode, "tools --cached should succeed: " + result.stderr);
         assertTrue(result.stdout.contains("browser_navigate"),
-                "tools --cached should list the current 89-tool catalog: " + result.stdout);
+                "tools --cached should list the current 90-tool catalog: " + result.stdout);
 
         recordExample(tempDir, "tools-cached", "tools --cached", result);
     }
@@ -65,7 +65,7 @@ class ShaftCliLiveE2ETest {
         ProcessResult result = runShaftCli(tempDir, serverEnv, "tools");
         assertEquals(0, result.exitCode, "tools should succeed against the live server: " + result.stderr);
         assertTrue(result.stdout.contains("browser_navigate") && result.stdout.contains("element_click"),
-                "tools (live) should list the current 89-tool catalog: " + result.stdout);
+                "tools (live) should list the current 90-tool catalog: " + result.stdout);
         assertTrue(!result.stdout.contains("natural_act") && !result.stdout.contains("mobile_natural_act"),
                 "tools (live) must not list the tools deleted by the sweep: " + result.stdout);
 

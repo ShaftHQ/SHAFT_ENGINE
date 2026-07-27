@@ -1919,7 +1919,7 @@ final class AssistantCommand {
 
     // Deterministic-first routing (design doc Decision 5, issue #3870/#3866 T4 goal 3-4): a call
     // verb is optional -- "element_click ..." and "call element_click ..." both resolve -- so every
-    // one of the 89 surviving tools is directly addressable by name, not only the handful with a
+    // one of the 90 surviving tools is directly addressable by name, not only the handful with a
     // bespoke natural-language recognizer elsewhere in this file.
     private static final List<String> EXPLICIT_TOOL_CALL_VERBS =
             List.of("call ", "run ", "invoke ", "use ", "execute ");
