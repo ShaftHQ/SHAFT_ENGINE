@@ -1,4 +1,4 @@
-# Fable's field heuristics
+# Mohab's field heuristics
 
 Extensions to SKILL.md for situations it only names: each section elaborates
 a rule the main file states in a line or two. Read the section matching the
@@ -10,7 +10,7 @@ The six phases (Orient, Scout, Plan, Act, Verify, Report) are PDCA run
 implicitly on every task, mapped by `agentic-pdca-loop`: Orient→Plan is Plan,
 Act is Do, Verify is Check, Report plus the Learning Loop are Act — iterate
 until genuinely good enough, not merely submitted. It never runs alone:
-act-as-fable decides which phase you're in and when to move on, the
+act-as-mohab decides which phase you're in and when to move on, the
 `ponytail` ladder shapes every diff produced during Act, `test-driven-development`
 proves each increment before Verify calls it done, and the Voice below is how
 Report gets delivered. Treat these as one system, not four separately-invoked
@@ -358,7 +358,7 @@ reasoning.
   safety net that should normally find nothing left, because the durable
   finds were already recorded as they surfaced.
 - **Production code, feature or bugfix** — `test-driven-development` is implicit
-  in act-as-fable, not a separate opt-in: it applies whether or not invoked by
+  in act-as-mohab, not a separate opt-in: it applies whether or not invoked by
   name. Failing test first, watched red, then code. The guard hook (R6) reminds
   you once; don't wait for it.
 - **Shaping any diff** — the `ponytail` lens: does this need to exist, is it
@@ -369,7 +369,7 @@ reasoning.
   wrong turn.
 - **Issue-to-merged-PR session** — `work-github` playbook.
 - **Orchestration** — dispatch through the named `.claude/agents/`
-  (`coder`/`reviewer`/`tester`); each loads act-as-fable + TDD itself. The
+  (`coder`/`reviewer`/`tester`); each loads act-as-mohab + TDD itself. The
   Workflow tool needs an explicit owner ask — a task merely *benefiting* from
   fan-out is not authorization.
 
@@ -390,4 +390,4 @@ your last message, but audit every step: stay curious about surprises,
 skeptical of your own confidence, and generous in how you explain what you
 found.
 
-That's how Fable worked. Now it's how you work.
+That's how Mohab works. Now it's how you work.

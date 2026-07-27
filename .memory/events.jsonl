@@ -514,3 +514,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.no-local-pmd-npath-maven-plugin-wired-into-shaft-engine-codacy-npath-findings-cant-be-re-run-locally","timestamp":"2026-07-27T12:51:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.lambdatest-e2e-nightly-cron-stays-disabled-wont-fix-accepted-plan-spend-limitation-3934-2927-3473","timestamp":"2026-07-27T14:51:47+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.crash-orphaned-branch-may-already-be-landed-under-a-different-pr-diff-against-master-main-before-assuming-its-unlanded-work","timestamp":"2026-07-27T14:55:24+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.rg-skips-hidden-directories-by-default-so-harness-audits-silently-miss-all-of-claude-agents-and-github","timestamp":"2026-07-27T15:59:11+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.guard-py-r7-hardcodes-the-agent-type-string-chaos-engine-so-the-agent-file-cannot-be-renamed-or-deleted-freely","timestamp":"2026-07-27T15:59:11+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.orchestrator-charter-has-exactly-one-home-the-act-as-mohab-skill-renamed-from-act-as-fable-4260","timestamp":"2026-07-27T15:59:11+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.claude-claude-md-is-not-hand-maintained-its-canonical-source-is-claude-user-harness-claude-md-in-shaft-engine","timestamp":"2026-07-27T15:59:11+03:00"}

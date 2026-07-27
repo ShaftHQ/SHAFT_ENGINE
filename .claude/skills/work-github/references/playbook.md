@@ -2,9 +2,9 @@
 
 A session-shaped methodology for taking one GitHub issue (or a small set of
 open issues) from "filed" to "merged," doing as much of the middle
-unattended as the user allows. Load `act-as-fable` alongside this skill and
+unattended as the user allows. Load `act-as-mohab` alongside this skill and
 every subagent you dispatch — this skill governs the *shape* of the session,
-`act-as-fable` governs how each step inside it gets done.
+`act-as-mohab` governs how each step inside it gets done.
 
 ## 0. Ground the scope before asking anything
 
@@ -56,7 +56,7 @@ honor that by not manufacturing more checkpoints than the one they granted.
 
 ### Mid-session realignment: named HALT conditions
 
-Per act-as-fable's Ownership, a new ask mid-run joins the same owned plan —
+Per act-as-mohab's Ownership, a new ask mid-run joins the same owned plan —
 absorb and keep going, in most cases. But absorbing on missing evidence is
 how a session drifts silently off the owner's actual intent. HALT and ask,
 by name, when any of these hold (adapted from bmad-method's
@@ -75,7 +75,7 @@ not its PRD/epic machinery, which doesn't apply here):
   scope, contradictory requirement, or it obsoletes a sub-item mid-commit).
   Surface the conflict and the two options; don't quietly drop either side.
 - **HALT if merge authority for the newly-added scope was never granted.**
-  Authorization doesn't transfer (act-as-fable, When judging risk) — an
+  Authorization doesn't transfer (act-as-mohab, When judging risk) — an
   auto-merge mandate for the original item set doesn't extend to scope
   added after the fact.
 
@@ -92,7 +92,7 @@ not its PRD/epic machinery, which doesn't apply here):
 ## 3. Work items in dependency order, front-loading risk
 
 Order sub-items so the riskiest/least-understood one goes first (per
-`act-as-fable`'s "front-load the riskiest unknown") — if it invalidates an
+`act-as-mohab`'s "front-load the riskiest unknown") — if it invalidates an
 assumption, better to learn that before three other items are built on top
 of it.
 
@@ -109,7 +109,7 @@ For each item, decide dispatch shape:
   what's explicitly out of scope, what tests to add and where, and the exact
   validation command to run. A vague spec produces a vague implementation —
   the spec is where your scouting work pays off.
-- Every subagent prompt must open with: load `act-as-fable`, then follow it.
+- Every subagent prompt must open with: load `act-as-mohab`, then follow it.
 - **Sequential, not parallel, when file scopes overlap.** Two subagents
   editing the same file concurrently in a shared working tree will race or
   corrupt each other's edits — check each spec's file list against the
