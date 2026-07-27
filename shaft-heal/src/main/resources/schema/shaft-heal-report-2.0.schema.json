@@ -6,7 +6,7 @@
   "required": [
     "schemaVersion", "attemptId", "timestamp", "originalLocator",
     "failureCategory", "pageKey", "context", "contextMetadata",
-    "candidates", "decision", "provider", "privacy", "action"
+    "candidates", "decision", "provider", "privacy", "action", "ladder"
   ],
   "properties": {
     "schemaVersion": {"const": "2.0"},
@@ -57,6 +57,10 @@
       "required": [
         "name", "recoveryUsed", "outcome", "postActionVerification", "failure"
       ]
+    },
+    "ladder": {
+      "type": "object",
+      "required": ["rungsAttempted", "elapsedMillis", "budgetSeconds"]
     }
   },
   "additionalProperties": false

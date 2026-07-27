@@ -103,6 +103,9 @@ class CaptureGeneratorHealingSeedingTest {
         Path expectedHistoryPath = output.resolve(".shaft-heal/history.json").normalize();
         assertTrue(source.contains(".strategy(\"shaft-heal\")"), source);
         assertTrue(source.contains(".aiTrigger(\"below-threshold\")"), source);
+        // Issue #4027: generated tests get the deterministic re-suggestion ladder always-on (60s
+        // hard budget) without touching the engine-wide healing.ladder.budgetSeconds default (0).
+        assertTrue(source.contains(".ladderBudgetSeconds(60)"), source);
         assertTrue(Files.exists(expectedHistoryPath), "seeded history file should exist at the absolute path");
 
         // The SAME absolute path a later real run's setUp() would configure -- proves the history

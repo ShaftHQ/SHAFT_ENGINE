@@ -18,12 +18,14 @@ import com.shaft.heal.model.LocatorFingerprint;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Default deterministic SHAFT Heal provider.
@@ -33,12 +35,27 @@ import java.util.concurrent.ConcurrentHashMap;
  * outcome through {@link #recordOutcome(HealingActionOutcome)}.</p>
  */
 public class ShaftHealingProvider implements HealingProvider {
+    // Issue #4027: delay between re-suggestion rungs once the hard total budget is engaged. Only
+    // relevant when healing.ladder.budgetSeconds > 0; the default (0) never reaches this loop.
+    private static final Duration LADDER_POLL_INTERVAL = Duration.ofSeconds(1);
     private final Map<String, PendingRecovery> pendingRecoveries = new ConcurrentHashMap<>();
+    private final ResuggestionLadder ladder;
 
     /**
      * Creates the ServiceLoader provider.
      */
     public ShaftHealingProvider() {
+        this(ResuggestionLadder.system());
+    }
+
+    /**
+     * Creates a provider with an injectable re-suggestion ladder (issue #4027), letting tests
+     * control the clock driving the hard total budget.
+     *
+     * @param ladder re-suggestion ladder
+     */
+    ShaftHealingProvider(ResuggestionLadder ladder) {
+        this.ladder = ladder;
     }
 
     @Override
@@ -73,26 +90,14 @@ public class ShaftHealingProvider implements HealingProvider {
                             false),
                     HealingReport.ProviderMetadata.disabled(),
                     false,
-                    false));
+                    false,
+                    HealingReport.LadderMetadata.disabled()));
             return Optional.empty();
         }
 
-        List<RankedCandidate> candidates = new CandidateExtractor(configuration)
-                .extract(
-                        request.driver(),
-                        retained.get().fingerprint(),
-                        request.frameLocator(),
-                        request.shadowHostLocator());
-        candidates = new VisualEvidenceService(configuration)
-                .apply(candidates, retained.get().visualReference());
-        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
-                candidates, configuration, request.visibilityRequired());
-        AiCandidateReranker.RerankResult reranked = rerankIfTriggered(
-                candidates, configuration, result.decision());
-        if (reranked.applied()) {
-            result = HealingDecisionEngine.decide(
-                    reranked.candidates(), configuration, request.visibilityRequired());
-        }
+        LadderRun run = runLadder(request, configuration, retained.get());
+        HealingDecisionEngine.DecisionResult result = run.attempt().result();
+        AiCandidateReranker.RerankResult reranked = run.attempt().reranked();
         HealingReport report = report(
                 attemptId,
                 request,
@@ -103,7 +108,9 @@ public class ShaftHealingProvider implements HealingProvider {
                 result.decision(),
                 reranked.metadata(),
                 reranked.remoteEvidenceSent(),
-                result.selected() != null);
+                result.selected() != null,
+                new HealingReport.LadderMetadata(
+                        run.rungs(), run.elapsed().toMillis(), configuration.ladderBudget().toSeconds()));
         writer.publish(report);
         if (result.selected() == null) {
             return Optional.empty();
@@ -119,6 +126,61 @@ public class ShaftHealingProvider implements HealingProvider {
                 attemptId,
                 List.of(result.selected().element()),
                 result.selected().locator()));
+    }
+
+    /**
+     * Runs the deterministic candidate-extraction-and-decision pass once, or -- when
+     * {@code healing.ladder.budgetSeconds} is positive -- repeatedly across
+     * {@link ResuggestionLadder} rungs until a candidate is accepted or the hard total budget is
+     * exhausted (issue #4027). {@code Duration#ZERO} (the default) never engages the ladder,
+     * preserving today's exact single-attempt behavior for every existing caller.
+     */
+    private LadderRun runLadder(
+            HealingRequest request, HealingConfiguration configuration, HistoryRecord retained) {
+        Duration budget = configuration.ladderBudget();
+        if (budget.isZero()) {
+            return new LadderRun(attempt(request, configuration, retained), 1, Duration.ZERO);
+        }
+        AtomicReference<AttemptResult> lastAttempt = new AtomicReference<>();
+        ResuggestionLadder.Result<AttemptResult> ladderResult = ladder.run(budget, LADDER_POLL_INTERVAL, () -> {
+            AttemptResult attemptResult = attempt(request, configuration, retained);
+            lastAttempt.set(attemptResult);
+            return attemptResult.result().selected() != null ? Optional.of(attemptResult) : Optional.empty();
+        });
+        AttemptResult finalAttempt = ladderResult.value().orElseGet(lastAttempt::get);
+        return new LadderRun(finalAttempt, ladderResult.rungs(), ladderResult.elapsed());
+    }
+
+    /**
+     * Runs exactly one deterministic re-suggestion rung: extract candidates from the retained
+     * fingerprint, apply optional visual evidence, decide, and rerank when triggered.
+     */
+    private static AttemptResult attempt(
+            HealingRequest request, HealingConfiguration configuration, HistoryRecord retained) {
+        List<RankedCandidate> candidates = new CandidateExtractor(configuration)
+                .extract(
+                        request.driver(),
+                        retained.fingerprint(),
+                        request.frameLocator(),
+                        request.shadowHostLocator());
+        candidates = new VisualEvidenceService(configuration)
+                .apply(candidates, retained.visualReference());
+        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
+                candidates, configuration, request.visibilityRequired());
+        AiCandidateReranker.RerankResult reranked = rerankIfTriggered(
+                candidates, configuration, result.decision());
+        if (reranked.applied()) {
+            result = HealingDecisionEngine.decide(
+                    reranked.candidates(), configuration, request.visibilityRequired());
+        }
+        return new AttemptResult(result, reranked);
+    }
+
+    private record AttemptResult(
+            HealingDecisionEngine.DecisionResult result, AiCandidateReranker.RerankResult reranked) {
+    }
+
+    private record LadderRun(AttemptResult attempt, int rungs, Duration elapsed) {
     }
 
     @Override
@@ -239,7 +301,8 @@ public class ShaftHealingProvider implements HealingProvider {
                 previous.decision(),
                 previous.provider(),
                 previous.privacy(),
-                action);
+                action,
+                previous.ladder());
         new HealingReportWriter(pending.configuration()).publish(updated);
         if (outcome.successful()) {
             HealingHistoryStore store = new HealingHistoryStore(pending.configuration());
@@ -276,7 +339,8 @@ public class ShaftHealingProvider implements HealingProvider {
             HealingDecision decision,
             HealingReport.ProviderMetadata provider,
             boolean remoteEvidenceSent,
-            boolean recoveryUsed) {
+            boolean recoveryUsed,
+            HealingReport.LadderMetadata ladder) {
         HealingReport.ActionMetadata action = new HealingReport.ActionMetadata(
                 request.action(),
                 recoveryUsed,
@@ -299,7 +363,8 @@ public class ShaftHealingProvider implements HealingProvider {
                         "Whitelist-only semantic evidence; values, cookies, authorization data, and full DOM are excluded.",
                         0,
                         remoteEvidenceSent),
-                action);
+                action,
+                ladder);
     }
 
     private static List<com.shaft.heal.model.HealingCandidate> rankedReports(List<RankedCandidate> candidates) {

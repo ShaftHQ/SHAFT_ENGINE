@@ -311,6 +311,92 @@ public class ShaftHealingProviderTest {
         Assert.assertTrue(resolution.get().selectedLocator().toString().contains("new-id-test"));
     }
 
+    @Test
+    public void zeroBudgetPreservesTodaysSingleAttemptBehavior() {
+        // Issue #4027: healing.ladder.budgetSeconds defaults to 0, which must keep every existing
+        // healing user on today's exact one-shot resolve() -- never a retry loop.
+        WebDriver driver = driver();
+        WebElement original = element("old-id", "Username");
+        WebElement candidate = element("new-id", "Username");
+        configureSearch(driver, List.of(candidate));
+        when(candidate.isEnabled()).thenReturn(false);
+        ShaftHealingProvider provider = new ShaftHealingProvider();
+        By originalLocator = By.id("old-id");
+        provider.observe(new HealingObservation(driver, originalLocator, original, "TYPE", null, null, null));
+
+        Optional<HealingResolution> resolution = provider.resolve(new HealingRequest(
+                driver, originalLocator, "TYPE", true, null, null, null));
+
+        Assert.assertTrue(resolution.isEmpty());
+        Assert.assertEquals(
+                ShaftHeal.lastReport().orElseThrow().decision().status(),
+                HealingDecision.Status.REJECTED_PRECONDITION);
+        com.shaft.heal.model.HealingReport.LadderMetadata ladder =
+                ShaftHeal.lastReport().orElseThrow().ladder();
+        Assert.assertEquals(ladder.rungsAttempted(), 1);
+        Assert.assertEquals(ladder.elapsedMillis(), 0L);
+        Assert.assertEquals(ladder.budgetSeconds(), 0L);
+    }
+
+    @Test
+    public void positiveBudgetRetriesUntilCandidateBecomesInteractable() {
+        // Issue #4027: a positive hard budget must retry the deterministic re-suggestion pass
+        // until the candidate is found interactable, using an injected clock so the retry/poll
+        // timing is proven without any real sleep.
+        SHAFT.Properties.healing.set().ladderBudgetSeconds(60);
+        WebDriver driver = driver();
+        WebElement original = element("old-id", "Username");
+        WebElement candidate = element("new-id", "Username");
+        configureSearch(driver, List.of(candidate));
+        MutableClock clock = new MutableClock(java.time.Instant.EPOCH);
+        when(candidate.isEnabled()).thenAnswer(invocation ->
+                !clock.instant().isBefore(java.time.Instant.EPOCH.plusSeconds(2)));
+        ResuggestionLadder ladder = new ResuggestionLadder(clock, millis -> clock.advance(java.time.Duration.ofMillis(millis)));
+        ShaftHealingProvider provider = new ShaftHealingProvider(ladder);
+        By originalLocator = By.id("old-id");
+        provider.observe(new HealingObservation(driver, originalLocator, original, "TYPE", null, null, null));
+
+        Optional<HealingResolution> resolution = provider.resolve(new HealingRequest(
+                driver, originalLocator, "TYPE", true, null, null, null));
+
+        Assert.assertTrue(resolution.isPresent());
+        com.shaft.heal.model.HealingReport.LadderMetadata ladderMetadata =
+                ShaftHeal.lastReport().orElseThrow().ladder();
+        Assert.assertTrue(ladderMetadata.rungsAttempted() >= 2,
+                "rungsAttempted was " + ladderMetadata.rungsAttempted());
+        Assert.assertEquals(ladderMetadata.budgetSeconds(), 60L);
+    }
+
+    @Test
+    public void positiveBudgetNeverExceedsTheHardTotalBudgetWhenCandidateNeverBecomesReady() {
+        // Issue #4027 acceptance: total elapsed time across all rungs is bounded at 60s, proven by
+        // a test with an injected clock -- the equivalent of ResuggestionLadderTest's own proof,
+        // one layer up through resolve() rather than the ladder in isolation.
+        SHAFT.Properties.healing.set().ladderBudgetSeconds(60);
+        WebDriver driver = driver();
+        WebElement original = element("old-id", "Username");
+        WebElement candidate = element("new-id", "Username");
+        configureSearch(driver, List.of(candidate));
+        when(candidate.isEnabled()).thenReturn(false);
+        MutableClock clock = new MutableClock(java.time.Instant.EPOCH);
+        ResuggestionLadder ladder = new ResuggestionLadder(clock, millis -> clock.advance(java.time.Duration.ofMillis(millis)));
+        ShaftHealingProvider provider = new ShaftHealingProvider(ladder);
+        By originalLocator = By.id("old-id");
+        provider.observe(new HealingObservation(driver, originalLocator, original, "TYPE", null, null, null));
+
+        Optional<HealingResolution> resolution = provider.resolve(new HealingRequest(
+                driver, originalLocator, "TYPE", true, null, null, null));
+
+        Assert.assertTrue(resolution.isEmpty());
+        com.shaft.heal.model.HealingReport.LadderMetadata ladderMetadata =
+                ShaftHeal.lastReport().orElseThrow().ladder();
+        Assert.assertTrue(ladderMetadata.elapsedMillis() <= 60_000L,
+                "elapsed was " + ladderMetadata.elapsedMillis());
+        Assert.assertEquals(ladderMetadata.budgetSeconds(), 60L);
+        Assert.assertTrue(ladderMetadata.rungsAttempted() >= 2,
+                "rungsAttempted was " + ladderMetadata.rungsAttempted());
+    }
+
     @Test(dataProvider = "nativePlatforms")
     public void nativeAccessibilityChangesShouldRecoverDeterministically(
             String platformName,

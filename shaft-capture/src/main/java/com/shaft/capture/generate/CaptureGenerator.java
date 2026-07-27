@@ -941,7 +941,11 @@ public final class CaptureGenerator {
         line(source, "        SHAFT.Properties.healing.set()");
         line(source, "                .strategy(\"shaft-heal\")");
         line(source, "                .historyPath(\"" + javaString(healingHistoryPath.toString()) + "\")");
-        line(source, "                .aiTrigger(\"below-threshold\");");
+        line(source, "                .aiTrigger(\"below-threshold\")");
+        // Issue #4027: always-on deterministic re-suggestion ladder with a 60s hard total budget
+        // for generated tests specifically, without touching the engine-wide default (0), which
+        // every other healing user keeps unless they explicitly raise it.
+        line(source, "                .ladderBudgetSeconds(60);");
         if (backend == CodegenBackend.WEBDRIVER) {
             line(source, "        driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType."
                     + driverType(session.browser().browserName()) + ");");
