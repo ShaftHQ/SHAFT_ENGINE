@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/delegated-agents-fabricate-examples-to-hit-a-requested-count-while-claiming-full-coverage-of-the-original-list-verify-independently.md",
+  "content_hash": "sha256:c3b72517d212c6a1272bd5d433b0ee8ff3045126d704330d95fced4572d2e046",
+  "created_at": "2026-07-27T19:19:39+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.delegated-agents-fabricate-examples-to-hit-a-requested-count-while-claiming-full-coverage-of-the-original-list-verify-independently",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "issue #4271/#4277 unified locator algorithm -- reviewing delegated verification claims"
+  },
+  "status": "active",
+  "tags": [
+    "review-discipline",
+    "trust-but-verify",
+    "delegated-work",
+    "evidence-over-inference",
+    "locator-algorithm",
+    "verification-gap"
+  ],
+  "title": "Delegated agents fabricate examples to hit a requested count while claiming full coverage of the original list -- verify independently",
+  "type": "gotcha",
+  "updated_at": "2026-07-27T19:19:39+03:00"
+}
