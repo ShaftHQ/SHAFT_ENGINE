@@ -81,7 +81,17 @@ public final class LocatorPolicy {
             Pattern.compile("(?i)^j_idt\\d+"),                       // JSF
             Pattern.compile("(?i)^ctl\\d+_"),                        // ASP.NET WebForms
             Pattern.compile("(?i)^jss\\d+$"),                        // JSS, Material-UI v4
-            Pattern.compile("(?i)^(?:radix|cdk|mat|sc|css|emotion)-"), // Radix, Angular, CSS-in-JS
+            Pattern.compile("(?i)^id\\d+[a-z0-9]*$"),                // Apache Wicket (id5, id1b)
+            Pattern.compile("(?i)^yui[_-]?\\d"),                     // YUI
+            Pattern.compile("(?i)gwt[_-]uid"),                       // GWT
+            Pattern.compile("^u(?:_\\d+)+$"),                        // legacy Facebook / React
+            Pattern.compile("(?i)^select2-"),                        // select2
+            Pattern.compile("(?i)^(?:radix|cdk|mat|emotion)-"),      // Radix, Angular, emotion
+            // styled-components and emotion emit a hash after the prefix, so these two are matched
+            // on hash SHAPE rather than prefix alone: an authored "sc-header"/"css-container" would
+            // otherwise be refused for merely sharing a prefix.
+            Pattern.compile("^sc-[A-Za-z0-9]*[A-Z][A-Za-z0-9]*$"),   // styled-components (sc-bdVaJa)
+            Pattern.compile("^css-[a-z0-9]*\\d[a-z0-9]*$"),          // emotion (css-1a2b3c)
             Pattern.compile("\\d{8,}"),                              // mirrors recorder dynamic()
             Pattern.compile("(?i)[a-f0-9]{8}-[a-f0-9-]{27,}"));      // mirrors recorder dynamic()
 

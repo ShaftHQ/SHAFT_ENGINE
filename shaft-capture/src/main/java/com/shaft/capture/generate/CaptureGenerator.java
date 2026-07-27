@@ -200,6 +200,18 @@ public final class CaptureGenerator {
             GenerationState state = analyze(session, sessionPath, targetBackend);
             reporter.accept(0.3, "Analyzed " + session.events().size() + " captured event(s)");
             Map<String, String> elementNames = defaultElementNames(state.targets());
+            // Issue #4271 review round 2, finding 1: analysis-stage findings are already blocking, so
+            // refuse BEFORE any rendering -- including this fingerprint render. Rendering a refused
+            // element is not merely wasted work: locatorReference throws on an element with no
+            // planned locator by design, and that throw is caught by the outer handler, which
+            // replaces the whole GenerationState with one generic "SHAFT codegen defect" message --
+            // discarding every actionable "re-record with X" finding and every unrelated warning in
+            // the same session. Findings derived FROM a rendered source (privacy, guardrails, output
+            // paths) are still gated after the final renderSource below.
+            if (!state.unsupported().isEmpty()) {
+                return failedBeforeCompilation(session, paths, state,
+                        CaptureGenerationReport.Enrichment.notRequested(), reportPath, request, reporter);
+            }
             stage = "rendering deterministic test source";
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
                     deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
@@ -309,18 +321,7 @@ public final class CaptureGenerator {
             validateOutputs(paths, request.overwrite(), state.unsupported());
 
             if (!state.unsupported().isEmpty()) {
-                CaptureGenerationReport report = report(
-                        session,
-                        paths,
-                        state,
-                        CaptureGenerationReport.Status.FAILED,
-                        CaptureGenerationReport.Validation.skipped("Generation failed before compilation."),
-                        CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
-                        enrichment);
-                writeReportIfPossible(reportPath, report);
-                reporter.accept(1.0, "Generation complete: FAILED");
-                return result(paths.source(), paths.data(), reportPath,
-                        request.enrichmentPreviewPath(), report);
+                return failedBeforeCompilation(session, paths, state, enrichment, reportPath, request, reporter);
             }
 
             // Issue #4166: compile() and replay() run against a STAGED copy of the source, never
@@ -2090,6 +2091,33 @@ public final class CaptureGenerator {
         if (Files.exists(path) && !overwrite) {
             throw new IllegalStateException("Enrichment preview already exists and overwrite was not approved.");
         }
+    }
+
+    /**
+     * Reports a generation that was refused before any compilation could run, either at the analysis
+     * stage or from findings derived from the rendered source. Extracted so both gates report failure
+     * identically -- a second hand-maintained copy of the failure-reporting rule is the same drift
+     * this redesign exists to remove.
+     */
+    private CaptureGenerationResult failedBeforeCompilation(
+            CaptureSession session,
+            ArtifactPaths paths,
+            GenerationState state,
+            CaptureGenerationReport.Enrichment enrichment,
+            Path reportPath,
+            CaptureGenerationRequest request,
+            BiConsumer<Double, String> reporter) {
+        CaptureGenerationReport report = report(
+                session,
+                paths,
+                state,
+                CaptureGenerationReport.Status.FAILED,
+                CaptureGenerationReport.Validation.skipped("Generation failed before compilation."),
+                CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
+                enrichment);
+        writeReportIfPossible(reportPath, report);
+        reporter.accept(1.0, "Generation complete: FAILED");
+        return result(paths.source(), paths.data(), reportPath, request.enrichmentPreviewPath(), report);
     }
 
     private static void writeReportIfPossible(Path reportPath, CaptureGenerationReport report) {

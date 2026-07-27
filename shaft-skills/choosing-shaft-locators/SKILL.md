@@ -37,7 +37,7 @@ This ordering is enforced mechanically in `shaft-capture`'s `LocatorPolicy` (iss
 - Verify login, form, and navigation locators with real MCP actions before publishing them.
 - Keep generated `SHAFT.GUI.Locator.*` locators inline only for throwaway snippets; move stable locators into page objects for repo insertion.
 - Reuse locator summaries returned by `shaft_coding_partner_plan` and add only missing fields that the current DOM proves are needed.
-- Preserve user-provided locator choices from Capture when the recorder marks them as intentional.
+- A user-provided locator pin from Capture is honored only when that locator independently qualifies for a tier above. A pin is a preference between equally-eligible candidates, never a bypass: letting a signal override tier eligibility is exactly the defect issue #4239 F2 recorded. A pinned locator that qualifies for no tier is refused with the same actionable re-record message as any other untrusted evidence (issue #4281).
 - Build every generated locator through the SHAFT locator builder, in tier order: a unique author-written id (`hasAnyTagName().hasId(...)`), then an ARIA role (`hasRole(...)`); use a native relative Selenium `By.xpath(...)` object only when the element has neither.
 - For SHAFT Playwright code, use native Playwright locators only as the same last fallback.
 - Do not use coordinate-only actions while a locator candidate exists.

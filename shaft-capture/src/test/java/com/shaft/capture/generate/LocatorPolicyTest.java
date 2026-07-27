@@ -64,7 +64,13 @@ class LocatorPolicyTest {
                 "sc-bdVaJa",                         // styled-components
                 "css-1a2b3c",                        // emotion
                 "jss42",                             // JSS / Material-UI v4
-                "emotion-css-7f8g9h")) {             // emotion, prefixed
+                "emotion-css-7f8g9h",                // emotion, prefixed
+                "id5",                               // Apache Wicket
+                "id1b",                              // Apache Wicket, hex counter
+                "yui_3_18_1_1_1",                    // YUI
+                "GWT_uid_9",                         // GWT
+                "u_0_3",                             // legacy Facebook / React
+                "select2-country-container")) {      // select2
             LocatorCandidate candidate = new LocatorCandidate(
                     LocatorCandidate.LocatorStrategy.ID, generatedId, 1, true, true, Set.of());
 
@@ -81,7 +87,10 @@ class LocatorPolicyTest {
     void genuinelyAuthoredIdsAreStillAdmittedToTheIdTier() {
         for (String authoredId : List.of(
                 "username", "login-btn", "login-button", "custom-button", "submit", "x",
-                "email_address", "checkout-form", "primaryNavigation")) {
+                "email_address", "checkout-form", "primaryNavigation",
+                // Review round 2: the ^sc-/^css- prefixes over-refused these plausible authored ids,
+                // so those two rules are now narrowed to the hash-shaped forms the libraries emit.
+                "sc-header", "css-container", "search-results")) {
             LocatorCandidate candidate = new LocatorCandidate(
                     LocatorCandidate.LocatorStrategy.ID, authoredId, 1, true, true, Set.of());
 

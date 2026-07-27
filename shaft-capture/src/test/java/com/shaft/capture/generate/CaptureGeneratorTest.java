@@ -2499,9 +2499,84 @@ class CaptureGeneratorTest {
 
         assertFalse(result.successful());
         assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        // Issue #4271 review round 2, finding 1: assert the EXACT actionable text, not merely that
+        // the element id appears somewhere. Both the real message and the generic "this is a SHAFT
+        // codegen defect" crash message contain "plain-div", so the weaker assertion could not tell
+        // an actionable user-facing failure apart from an internal-invariant crash.
         assertTrue(result.report().unsupportedEvents().stream()
-                        .anyMatch(message -> message.contains("plain-div")),
+                        .anyMatch(message -> message.contains("plain-div")
+                                && message.contains("has no unique stable id, no self-verified ARIA role")
+                                && message.contains("Re-record with a stable id")),
                 result.report().unsupportedEvents().toString());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .noneMatch(message -> message.contains("SHAFT codegen defect")),
+                "an ordinary un-plannable recording is bad input, not an internal invariant "
+                        + "violation: " + result.report().unsupportedEvents());
+    }
+
+    /**
+     * Issue #4271 review round 2, finding 1: {@code renderSource} ran before the
+     * {@code state.unsupported()} gate, so an element the gate had already refused was still
+     * rendered -- and once rendering a refused candidate began throwing
+     * {@code IllegalStateException}, the outer catch replaced the whole {@code GenerationState} with
+     * one generic failure, discarding every actionable finding AND every unrelated warning in the
+     * session. Analysis-stage findings must therefore short-circuit before rendering.
+     */
+    @Test
+    void anUnplannableElementFailsWithoutDiscardingTheOtherFindingsInTheSameSession() throws Exception {
+        Path session = session(oneGoodOneUnplannableElementSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("mixed-unplannable")));
+
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .anyMatch(message -> message.contains("plain-div")
+                                && message.contains("has no unique stable id, no self-verified ARIA role")),
+                result.report().unsupportedEvents().toString());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .noneMatch(message -> message.contains("SHAFT codegen defect")),
+                result.report().unsupportedEvents().toString());
+        assertFalse(result.report().warnings().isEmpty(),
+                "warnings gathered before the refusal must survive, not be replaced by one generic "
+                        + "failure state");
+    }
+
+    /**
+     * One perfectly good tier-1 element and one element with no plannable evidence, in one session.
+     */
+    private static CaptureSession oneGoodOneUnplannableElementSession() {
+        ElementSnapshot good = new ElementSnapshot(
+                "login-button", "button", "", "", "", Map.of("id", "login-btn"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                        "login-btn", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true, true, false);
+        ElementSnapshot unplannable = new ElementSnapshot(
+                "plain-div", "div", "", "", "", Map.of("id", "x"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                        "x", 3, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true, true, false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "mixed-unplannable-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(4),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), good,
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(3), unplannable,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
     }
 
     /**
