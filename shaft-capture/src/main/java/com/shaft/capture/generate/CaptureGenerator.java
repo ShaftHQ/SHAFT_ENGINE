@@ -18,7 +18,13 @@ import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.ExternalTestDataReference;
 import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.healing.HealingFingerprintObservation;
+import com.shaft.gui.internal.healing.HealingFingerprintSeed;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.locator.Locator;
 import com.shaft.gui.internal.locator.Role;
+import org.openqa.selenium.By;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -75,6 +81,15 @@ public final class CaptureGenerator {
             .build();
     private static final DefaultPrettyPrinter PRINTER = printer();
     private static final BiConsumer<Double, String> NO_OP_PROGRESS = (fraction, message) -> { };
+    // The deterministic-source render is fingerprinted (SHA-256) to detect drift between a
+    // control-flow/enrichment PREVIEW and its later APPLY (issue #4172 introduced the only
+    // outputRoot-dependent line: the absolute healing.history.path). PREVIEW and APPLY are
+    // legitimately allowed to target different output directories (see
+    // CaptureGeneratorTest#approvedControlFlowPreviewGeneratesOptionalGuard), so the fingerprint
+    // must stay independent of outputRoot -- a stable placeholder is rendered here instead of the
+    // real absolute path; only the FINAL written source uses the true per-call healingHistoryPath.
+    private static final Path FINGERPRINT_HEALING_HISTORY_PATH =
+            Path.of("fingerprint-placeholder", ".shaft-heal", "history.json");
 
     private final CaptureJsonCodec codec;
     private final LocatorRanker locatorRanker;
@@ -147,6 +162,10 @@ public final class CaptureGenerator {
         CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
         Path sessionPath = request.sessionPath().toAbsolutePath().normalize();
         Path outputRoot = request.outputDirectory().toAbsolutePath().normalize();
+        // Absolute, NOT under target/ -- issue #4172: mvn clean wipes target/, and the default
+        // healing.history.path is relative (resolved against whatever CWD a later run happens to
+        // have), so seeded evidence would be orphaned instead of found by that later run.
+        Path healingHistoryPath = outputRoot.resolve(".shaft-heal/history.json").normalize();
         Path privacyRoot = privacyAllowedRoot(sessionPath, outputRoot);
         Path reportPath = outputRoot.resolve("target/shaft-capture/generation-report.json");
         CaptureSession session = null;
@@ -167,7 +186,7 @@ public final class CaptureGenerator {
             Map<String, String> elementNames = defaultElementNames(state.targets());
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
                     deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
-                    request.fallbackLocators(), Set.of());
+                    request.fallbackLocators(), Set.of(), FINGERPRINT_HEALING_HISTORY_PATH);
             reporter.accept(0.5, "Generated deterministic test source for " + deterministicClassName);
             String fingerprint = fingerprint(codec.write(session), deterministicSource);
             Set<Long> appliedControlFlowGuards = Set.of();
@@ -251,7 +270,7 @@ public final class CaptureGenerator {
             }
             String source = renderSource(session, request.packageName(), className, methodName,
                     state.targets(), state.data(), finalElementNames, appliedProposal.assertions(), targetBackend,
-                    request.fallbackLocators(), appliedControlFlowGuards);
+                    request.fallbackLocators(), appliedControlFlowGuards, healingHistoryPath);
             String dataJson = writeJson(state.data().root());
 
             List<String> privacy = new ArrayList<>();
@@ -291,6 +310,9 @@ public final class CaptureGenerator {
                         outputRoot,
                         request.replayTimeout());
                 reporter.accept(0.9, "Replayed generated test: " + replay.status());
+                if (replay.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED) {
+                    seedHealingHistory(state.targets(), healingHistoryPath);
+                }
             } else if (request.replay()) {
                 replay = CaptureGenerationReport.Validation.skipped(
                         "Replay was skipped because compilation failed.");
@@ -874,7 +896,8 @@ public final class CaptureGenerator {
             List<CaptureEnrichmentPreview.AssertionSuggestion> extraAssertions,
             CodegenBackend backend,
             boolean fallbackLocators,
-            Set<Long> optionalGuardSequences) {
+            Set<Long> optionalGuardSequences,
+            Path healingHistoryPath) {
         boolean fallbackReplay = fallbackLocators && hasFallbackTargets(targets);
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
@@ -913,6 +936,14 @@ public final class CaptureGenerator {
         line(source, "");
         line(source, "    @BeforeMethod");
         line(source, "    public void setUp() {");
+        // Issue #4172: points a later real run at the SAME absolute history file generation-time
+        // seeding wrote to, and re-enables SHAFT Heal so it is actually consulted. Emitted
+        // unconditionally, even under healing.strategy=disabled/maximumPerformanceMode -- an
+        // intentional, accepted side effect of using a SHAFT-Assistant-generated test (see PR body).
+        line(source, "        SHAFT.Properties.healing.set()");
+        line(source, "                .strategy(\"shaft-heal\")");
+        line(source, "                .historyPath(\"" + javaString(healingHistoryPath.toString()) + "\")");
+        line(source, "                .aiTrigger(\"below-threshold\");");
         if (backend == CodegenBackend.WEBDRIVER) {
             line(source, "        driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType."
                     + driverType(session.browser().browserName()) + ");");
@@ -1300,6 +1331,109 @@ public final class CaptureGenerator {
         String locator = locatorReference(target.get(), targets, fallbackReplay);
         renderVerification(source, verification, target.get(), null, suggestion.negated(),
                 event.context(), locator, null, backend);
+    }
+
+    /**
+     * Seeds SHAFT Heal history with every target's already-recorded evidence right after a PASSED
+     * replay (issue #4172/#4161): no live driver or element required, and shaft-capture never
+     * itself depends on shaft-heal -- the optional runtime {@link HealingManager#observeFingerprint}
+     * seam swallows this silently when shaft-heal is not on the classpath, matching every other
+     * {@code HealingManager} entry point. Deliberately ungated on {@code healing.strategy}, mirroring
+     * {@code HealingManager.recordOutcome()}'s existing precedent rather than {@code resolve()}'s
+     * gated one -- see the PR body for the consequence this accepts.
+     */
+    private static void seedHealingHistory(List<TargetPlan> targets, Path healingHistoryPath) {
+        SHAFT.Properties.healing.set().historyPath(healingHistoryPath.toString());
+        for (TargetPlan target : targets) {
+            HealingManager.observeFingerprint(new HealingFingerprintObservation(
+                    target.context().page().url(),
+                    runtimeLocator(target),
+                    "ELEMENT_RESOLUTION",
+                    fingerprintSeed(target.target())));
+        }
+    }
+
+    /**
+     * Maps shaft-capture's already-computed per-element DOM evidence onto shaft-heal's fingerprint
+     * fields (issue #4172): {@link ElementSnapshot}'s recorded attributes line up almost one-to-one
+     * with {@link HealingFingerprintSeed}.
+     */
+    private static HealingFingerprintSeed fingerprintSeed(ElementSnapshot target) {
+        Map<String, String> attributes = target.normalizedAttributes();
+        Map<String, String> testIds = new LinkedHashMap<>();
+        for (String attribute : SHAFT.Properties.healing.testIdAttributes().split(",")) {
+            String key = attribute.trim();
+            String value = attributes.getOrDefault(key, "");
+            if (!key.isEmpty() && !value.isBlank()) {
+                testIds.put(key, value);
+            }
+        }
+        Map<String, String> semanticAttributes = new LinkedHashMap<>();
+        for (String key : List.of("aria-label", "aria-labelledby", "alt", "autocomplete")) {
+            String value = attributes.getOrDefault(key, "");
+            if (!value.isBlank()) {
+                semanticAttributes.put(key, value);
+            }
+        }
+        return new HealingFingerprintSeed(
+                target.tagName(),
+                target.accessibleName(),
+                target.label(),
+                "",
+                attributes.getOrDefault("id", ""),
+                attributes.getOrDefault("name", ""),
+                target.role(),
+                attributes.getOrDefault("type", ""),
+                attributes.getOrDefault("placeholder", ""),
+                attributes.getOrDefault("title", ""),
+                testIds,
+                semanticAttributes,
+                target.visible(),
+                target.enabled(),
+                target.selected());
+    }
+
+    /**
+     * Builds the exact runtime {@link By} the generated code will resolve at replay time (issue
+     * #4172): mirrors {@link #locatorExpression(ElementSnapshot, LocatorCandidate)}/{@link
+     * #semanticLocator(ElementSnapshot, String, LocatorCandidate)} branch-for-branch, using the real
+     * {@link Locator}/{@code By} APIs instead of rendering source text.
+     */
+    private static By runtimeLocator(TargetPlan plan) {
+        return runtimeLocator(plan.target(), plan.selection().selected().candidate());
+    }
+
+    private static By runtimeLocator(ElementSnapshot target, LocatorCandidate candidate) {
+        String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
+        return switch (candidate.strategy()) {
+            case ROLE, ACCESSIBLE_NAME, LABEL -> runtimeSemanticLocator(target, name, candidate);
+            case TEST_ID, CSS -> Locator.cssSelector(candidate.expression());
+            case ID -> Locator.id(candidate.expression());
+            case NAME -> Locator.name(candidate.expression());
+            case XPATH -> By.xpath(candidate.expression());
+        };
+    }
+
+    private static By runtimeSemanticLocator(ElementSnapshot target, String name, LocatorCandidate candidate) {
+        String semanticName = semanticName(name, candidate);
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE) {
+            Role ariaRole = ariaRole(target.role());
+            if (ariaRole != null) {
+                return semanticName.isBlank()
+                        ? Locator.hasRole(ariaRole).build()
+                        : Locator.hasRole(ariaRole).hasNormalizedText(semanticName).build();
+            }
+        }
+        if (!candidate.replayXpath().isBlank()) {
+            return By.xpath(candidate.replayXpath());
+        }
+        if (semanticName.isBlank()) {
+            return By.xpath(candidate.expression());
+        }
+        String tagName = target.tagName().isBlank() ? "*" : target.tagName();
+        return candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL
+                ? Locator.hasTagName(tagName).containsText(semanticName).build()
+                : Locator.hasTagName(tagName).hasAttribute("aria-label", semanticName).build();
     }
 
     private static String locatorExpression(TargetPlan plan) {

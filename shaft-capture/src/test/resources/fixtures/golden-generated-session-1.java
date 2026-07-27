@@ -18,6 +18,10 @@ public class FormCompletedTest {
 
     @BeforeMethod
     public void setUp() {
+        SHAFT.Properties.healing.set()
+                .strategy("shaft-heal")
+                .historyPath("PLACEHOLDER")
+                .aiTrigger("below-threshold");
         driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType.CHROME);
         testData = new SHAFT.TestData.JSON("form-completed-test.json");
         windows.put("window-1", driver.browser().getWindowHandle());

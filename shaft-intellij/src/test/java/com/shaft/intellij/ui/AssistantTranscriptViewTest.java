@@ -117,6 +117,23 @@ class AssistantTranscriptViewTest {
         assertEquals(java.awt.Font.MONOSPACED, AssistantTranscriptView.monospacedFontFamily());
     }
 
+    /**
+     * Issue #4175: {@code highlightedByLexer}'s {@code EditorColorsScheme} lookup guarded itself with
+     * {@code EditorColorsManager.getInstance() == null ? null : ...} -- dead code, since {@code
+     * EditorColorsManager.getInstance()} unconditionally dereferences {@code
+     * ApplicationManager.getApplication()} with no null guard of its own, so it throws rather than
+     * ever returning {@code null} for the {@code == null} check to catch. This module builds no live
+     * {@code Application} in its tests (same rationale as {@code
+     * monospacedFontFamilyFallsBackToLogicalMonospacedWithoutALiveEditorColorsScheme} above), so
+     * calling the guarded lookup here must return {@code null} instead of throwing -- mirroring
+     * {@code monospacedFontFamily()}'s corrected {@code ApplicationManager.getApplication() == null}
+     * guard shape.
+     */
+    @Test
+    void currentEditorColorsSchemeOrNullReturnsNullWithoutALiveApplicationInsteadOfThrowing() {
+        assertNull(AssistantTranscriptView.currentEditorColorsSchemeOrNull());
+    }
+
     @Test
     void rawEvidenceNeverLeaksIntoTranscriptMarkdown() {
         AssistantTranscriptView view = new AssistantTranscriptView();

@@ -1225,13 +1225,14 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             scheduleNextStatusPoll();
             return;
         }
-        JsonObject status = unwrapCaptureStatus(AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
+        JsonObject status = AssistantMarkdown.unwrapCaptureStatus(
+                AssistantMarkdown.jsonObjectFromMcpOutput(result.output()));
         // Issue #3639: the steps list is a pure projection of this same polled status, refreshed on
         // every poll (active or the final post-stop poll) -- there is no separate client-side state
         // store. A capture_status payload (WebDriver) has no "steps" key, so this naturally renders
         // an empty list for that backend, matching updateFieldRelevance() disabling the controls.
         renderStepsFromStatus(status);
-        boolean active = isRecorderActive(status);
+        boolean active = AssistantMarkdown.isRecorderActive(status);
         // Feeds the shared readiness strip's recording badge (issue #3500 A4).
         if (active) {
             ShaftRecordingActivity.started(recordingKey);
@@ -1250,11 +1251,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             String state = status != null && status.has("state") ? status.get("state").getAsString() : "";
             if ("INCOMPLETE".equalsIgnoreCase(state) || "FAILED".equalsIgnoreCase(state)) {
                 setRecorderStatus("Recording ended unexpectedly (" + state.toUpperCase(java.util.Locale.ROOT)
-                        + ") - " + countText(status)
+                        + ") - " + AssistantMarkdown.countText(status)
                         + ". The browser or recorder died before Stop; re-record the flow before generating code.");
                 return;
             }
-            setRecorderStatus("Recording finished - " + countText(status)
+            setRecorderStatus("Recording finished - " + AssistantMarkdown.countText(status)
                     + ". Use Review code to generate the reviewed test.");
             return;
         }
@@ -1404,51 +1405,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         }
     }
 
-    /**
-     * Unwraps a {@code capture_status}/{@code capture_api_status} union response ({@code
-     * McpCaptureUnionStatus}/{@code McpCaptureApiUnionStatus}, design doc amendment A3, landed by
-     * #3881) down to whichever of {@code webStatus}/{@code playwrightStatus}/{@code mobileStatus}
-     * the active engine populated -- mirrors {@code GuidedWorkflowLiveE2ETest}'s {@code
-     * webStatus()}/{@code mobileStatus()} helpers, which confirmed this wire shape against a live
-     * server (issue #3949): {@code state}/{@code active}/{@code actionCount}/{@code steps} live on
-     * that nested section, not at the union's top level. The union guarantees exactly one section is
-     * populated, so returning the first populated section is equivalent to dispatching on the
-     * union's {@code engine} field. A payload with none of these keys (already unwrapped, or a
-     * non-union shape) is returned unchanged.
-     *
-     * @param status the raw parsed tool output, or null
-     * @return the unwrapped engine-specific status section, or {@code status} itself when it has no
-     *         union section to unwrap
-     */
-    private static JsonObject unwrapCaptureStatus(JsonObject status) {
-        if (status == null) {
-            return null;
-        }
-        for (String section : new String[]{"webStatus", "playwrightStatus", "mobileStatus"}) {
-            if (status.has(section) && status.get(section).isJsonObject()) {
-                return status.getAsJsonObject(section);
-            }
-        }
-        return status;
-    }
-
-    private static boolean isRecorderActive(JsonObject status) {
-        if (status == null) {
-            return false;
-        }
-        if (status.has("active")) {
-            return status.get("active").getAsBoolean();
-        }
-        String state = status.has("state") ? status.get("state").getAsString() : "";
-        return "ACTIVE".equalsIgnoreCase(state) || "STARTING".equalsIgnoreCase(state)
-                || "STOPPING".equalsIgnoreCase(state);
-    }
-
     // Mirrors the overlay's pill glossary (#3496 B7): mode, steps count, and human-cased
     // readiness read identically in both surfaces, and either surface can stop safely.
     private static String activeStatusText(JsonObject status) {
-        StringBuilder text = new StringBuilder("Recording · ").append(countText(status));
-        String readiness = readinessLabel(status);
+        StringBuilder text = new StringBuilder("Recording · ").append(AssistantMarkdown.countText(status));
+        String readiness = AssistantMarkdown.readinessLabel(status);
         if (!readiness.isBlank()) {
             text.append(" · ").append(readiness);
         }
@@ -1457,32 +1418,6 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             text.append(" · ").append(displayUrl(status.get("currentUrl").getAsString()));
         }
         return text.append(". Stop here or in the browser overlay - both save the session.").toString();
-    }
-
-    private static String readinessLabel(JsonObject status) {
-        if (status == null || !status.has("readiness")) {
-            return "";
-        }
-        return switch (status.get("readiness").getAsString().toUpperCase(java.util.Locale.ROOT)) {
-            case "READY" -> "Ready";
-            case "RISKY" -> "Risky";
-            case "BLOCKED" -> "Blocked";
-            default -> "";
-        };
-    }
-
-    // Recorded units read "steps" in every user-facing surface (shared authoring glossary,
-    // #3496/#3501) even though the wire fields keep their eventCount/actionCount names.
-    private static String countText(JsonObject status) {
-        if (status == null) {
-            return "0 steps";
-        }
-        int steps = status.has("actionCount")
-                ? status.get("actionCount").getAsInt()
-                : status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
-        int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
-        String base = steps + (steps == 1 ? " step" : " steps");
-        return pending > 0 ? base + " (+" + pending + " pending)" : base;
     }
 
     private static String displayUrl(String url) {

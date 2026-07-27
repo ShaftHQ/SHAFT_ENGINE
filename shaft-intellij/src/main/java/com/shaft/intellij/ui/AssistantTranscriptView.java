@@ -51,6 +51,7 @@ import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Insets;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -846,12 +847,32 @@ final class AssistantTranscriptView extends JPanel {
      * use — regardless of how wide its own content wants to be. Without this, a {@code BorderLayout}
      * row sizes itself to the widget's unconstrained preferred width, letting it extend past the
      * transcript's right edge instead of wrapping or shrinking with the viewport.
+     *
+     * <p>Issue #4174's actual root cause (not a font or platform artifact -- confirmed with the
+     * exact numbers below): {@link #fallbackBubbleContentWidth()} already returns a bubble's
+     * *content* width, i.e. after subtracting that bubble's own left/right border insets (see its
+     * {@code bubblePadding} subtraction). {@link #assistantBubbleWithActions} bubbles have their own
+     * non-zero left/right insets ({@code JBUI.Borders.empty(9, 11, ...)}), so capping the *outer*
+     * wrapper here to that same already-reduced number subtracted those insets a second time once
+     * the wrapper's real assigned width propagated down through the bubble's own {@code
+     * BorderLayout} -- confirmed empirically: {@code cappedWidth=257}, the bubble's natural {@code
+     * preferredSize.width=279}, insets {@code left=11, right=11} (279-257=22=11+11 exactly). The
+     * htmlPane inside the bubble therefore measured its own preferred HEIGHT (for word-wrap
+     * purposes) at a 22px-too-wide 257px, then was actually laid out 22px narrower at 235px --
+     * meaning more lines really wrap than the height measurement accounted for, which is the
+     * mechanism behind the trailing-paragraph crop. Adding {@code component}'s own insets back
+     * before capping makes the cap outer-width-correct for bubble-shaped components (nonzero
+     * insets) while leaving flat, zero-inset widgets like {@link ToolApprovalPromptPanel} unchanged.
      */
     private JComponent widthCappedWidget(JComponent component) {
         JPanel wrapper = new JPanel(new BorderLayout()) {
             @Override
             public Dimension getPreferredSize() {
-                int cappedWidth = fallbackBubbleContentWidth();
+                int contentWidth = fallbackBubbleContentWidth();
+                Insets componentInsets = component.getInsets();
+                int cappedWidth = contentWidth > 0
+                        ? contentWidth + componentInsets.left + componentInsets.right
+                        : 0;
                 Dimension preferred = super.getPreferredSize();
                 if (cappedWidth > 0 && preferred.width > cappedWidth) {
                     setSize(new Dimension(cappedWidth, Short.MAX_VALUE));
@@ -1171,7 +1192,13 @@ final class AssistantTranscriptView extends JPanel {
         // JEditorPane under-reports the preferred height of a trailing HTML list by roughly its last
         // item's bottom margin, which cropped the final "Review code into a test" step against the
         // actions row below. Reserve extra bottom room so BorderLayout gives the pane enough height.
-        htmlPane.setBorder(JBUI.Borders.emptyBottom(JBUI.scale(10)));
+        // Issue #4174's trailing-plain-paragraph crop at narrow widths turned out to be a different,
+        // larger bug entirely (see widthCappedWidget()'s javadoc for the real root cause -- a
+        // double-subtracted width, not this reservation), so this stays a small, fixed constant; two
+        // earlier attempts to fix #4174 by growing *this* value instead (first to a flat 30px, then
+        // to a font-metrics-derived 3 body lines) both failed on CI because they were compensating
+        // for the width bug's variable-sized error rather than fixing it.
+        htmlPane.setBorder(JBUI.Borders.emptyBottom(JBUI.scale(20)));
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, UNKNOWN_ROLE);
         // Unlike a persisted fallbackMessage() pane, this one can exist in the tree of a freshly
         // constructed, otherwise message-less panel (the welcome shows before any real message
@@ -1700,9 +1727,7 @@ final class AssistantTranscriptView extends JPanel {
         Lexer lexer = highlighter.getHighlightingLexer();
         lexer.start(code);
         StringBuilder highlighted = new StringBuilder();
-        EditorColorsScheme scheme = EditorColorsManager.getInstance() == null
-                ? null
-                : EditorColorsManager.getInstance().getGlobalScheme();
+        EditorColorsScheme scheme = currentEditorColorsSchemeOrNull();
         boolean styled = false;
         while (lexer.getTokenType() != null) {
             String token = code.substring(lexer.getTokenStart(), lexer.getTokenEnd());
@@ -1720,6 +1745,21 @@ final class AssistantTranscriptView extends JPanel {
             lexer.advance();
         }
         return styled ? highlighted.toString() : "";
+    }
+
+    /**
+     * Issue #4175: {@code EditorColorsManager.getInstance()} unconditionally dereferences {@code
+     * ApplicationManager.getApplication()} with no null guard of its own, so it throws rather than
+     * returning {@code null} once there is no live {@code Application} -- guarding on its own return
+     * value (the previous shape here) was dead code that could never catch anything. Mirrors {@link
+     * #monospacedFontFamily()}'s corrected guard: check {@link ApplicationManager#getApplication()}
+     * itself first, and only call {@code EditorColorsManager.getInstance()} once an {@code
+     * Application} actually exists.
+     */
+    static EditorColorsScheme currentEditorColorsSchemeOrNull() {
+        return ApplicationManager.getApplication() == null
+                ? null
+                : EditorColorsManager.getInstance().getGlobalScheme();
     }
 
     private static TextAttributes attributesFor(TextAttributesKey[] keys, EditorColorsScheme scheme) {
