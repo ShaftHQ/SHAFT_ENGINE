@@ -1539,4 +1539,118 @@ class CaptureGeneratorTest {
                 List.of(),
                 Map.of());
     }
+
+    /**
+     * Issue #4029: a recording broken deep enough to trip an unexpected {@link RuntimeException}
+     * (here, a malformed capture file that fails schema validation on its THIRD event) must not
+     * collapse to a generic, stage-less "Generation failed." string -- the failure must name which
+     * pipeline stage was reached.
+     */
+    @Test
+    void malformedRecordingReportsWhichPipelineStageFailed() throws Exception {
+        CaptureSession valid = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "broken-recording-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(3), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        String json = new CaptureJsonCodec().write(valid);
+        var tree = JSON.readTree(json);
+        // Strip the required "context" object from the THIRD recorded event (index 2) -- schema
+        // validation names it "$.events[2].context is required.", so the corruption is scoped to
+        // one specific recorded step rather than the whole file.
+        ((tools.jackson.databind.node.ObjectNode) tree.path("events").get(2)).remove("context");
+        Path brokenSession = temp.resolve("broken-recording.json");
+        Files.writeString(brokenSession,
+                JSON.writerWithDefaultPrettyPrinter().writeValueAsString(tree), StandardCharsets.UTF_8);
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(request(brokenSession, temp.resolve("out")));
+
+        assertFalse(result.successful());
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .anyMatch(message -> message.contains("reading the capture session")
+                                && message.contains("events[2]")),
+                result.report().unsupportedEvents().toString());
+    }
+
+    /**
+     * Issue #4029: when a recorded step's element evidence is corrupt enough to trip an unexpected
+     * exception during locator analysis, the failure must identify WHICH recorded step (event)
+     * broke -- not just re-surface a bare, step-less exception message.
+     */
+    @Test
+    void brokenLocatorEvidenceReportsWhichRecordedStepFailed() throws Exception {
+        ElementSnapshot workingTarget = CaptureFixtures.target();
+        ElementSnapshot corruptTarget = new ElementSnapshot(
+                "checkout-button",
+                "button",
+                "button",
+                "Checkout",
+                "Checkout",
+                Map.of(),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
+                        "button.checkout", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                true,
+                true,
+                false);
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "broken-locator-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), workingTarget,
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(3), corruptTarget,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path sessionPath = session(session);
+        LocatorRanker realRanker = new LocatorRanker();
+        LocatorRanker ranker = org.mockito.Mockito.mock(LocatorRanker.class);
+        org.mockito.Mockito.when(ranker.select(
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenAnswer(invocation -> {
+                    ElementSnapshot target = invocation.getArgument(0);
+                    if ("checkout-button".equals(target.logicalElementId())) {
+                        throw new IllegalStateException("simulated corrupted locator evidence");
+                    }
+                    return realRanker.select(
+                            invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2));
+                });
+
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), ranker, new GeneratedTestValidator(), new CaptureEnrichmentService())
+                .generate(request(sessionPath, temp.resolve("out")));
+
+        assertFalse(result.successful());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .anyMatch(message -> message.contains("event-3") && message.contains("checkout-button")),
+                result.report().unsupportedEvents().toString());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .noneMatch(message -> message.contains("event-2")),
+                result.report().unsupportedEvents().toString());
+    }
 }
