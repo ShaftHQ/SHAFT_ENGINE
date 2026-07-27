@@ -18,7 +18,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("10.3.20260722")
+    @DefaultValue("10.3.20260727")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -51,7 +51,7 @@ public interface Internal extends EngineProperties<Internal> {
      * a local Appium server without requiring administrator-installed tools.
      */
     @Key("appiumServerVersion")
-    @DefaultValue("3.5.2")
+    @DefaultValue("3.6.0")
     String appiumServerVersion();
 
     /**
@@ -59,14 +59,14 @@ public interface Internal extends EngineProperties<Internal> {
      * mobile recording sessions.
      */
     @Key("appiumInspectorPluginVersion")
-    @DefaultValue("2026.5.1")
+    @DefaultValue("2026.7.1")
     String appiumInspectorPluginVersion();
 
     /**
      * Appium UiAutomator2 driver npm package version used by SHAFT MCP for Android.
      */
     @Key("appiumUiAutomator2DriverVersion")
-    @DefaultValue("8.1.1")
+    @DefaultValue("8.2.0")
     String appiumUiAutomator2DriverVersion();
 
     /**
@@ -74,7 +74,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("11.17.7")
+    @DefaultValue("12.1.0")
     String appiumXcuitestDriverVersion();
 
     /**
