@@ -1033,19 +1033,22 @@ class AssistantMarkdownTest {
      * Issue #4239 (Phase 0, item P0.1b): two more occurrences of the same "smart locators" fallback
      * recommendation fixed by P0.1/#4240 were flagged out of that PR's scope -- one of them is this
      * user-facing rejection message shown when generated Java uses native Selenium or a rejected
-     * SHAFT locator fallback. Same policy as the rest of the codebase: SHAFT locator builder
-     * ARIA-role strategy ({@code SHAFT.GUI.Locator.hasRole(...)}) first, native {@code By.xpath(...)}
-     * only when the element exposes no ARIA role, never Smart Locators.
+     * SHAFT locator fallback. Issue #4271/#4277 replaced that two-rung policy with the unified
+     * three-tier one: a unique, stable, author-written id ({@code
+     * SHAFT.GUI.Locator.hasAnyTagName().hasId(...)}) first, the ARIA-role strategy ({@code
+     * SHAFT.GUI.Locator.hasRole(...)}) second, native {@code By.xpath(...)} only when the element
+     * has neither, never Smart Locators (#4275).
      */
     @Test
-    void nativeSeleniumRejectionMarkdownStatesAriaRoleFirstLocatorPolicyAndNeverRecommendsSmartLocators() {
+    void nativeSeleniumRejectionMarkdownStatesTieredLocatorPolicyAndNeverRecommendsSmartLocators() {
         String markdown = AssistantMarkdown.nativeSeleniumRejectionMarkdown();
 
         assertAll(
                 () -> assertFalse(markdown.toLowerCase(Locale.ROOT).contains("smart locator"), markdown),
+                () -> assertTrue(markdown.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId("), markdown),
                 () -> assertTrue(markdown.contains("SHAFT.GUI.Locator.hasRole("), markdown),
                 () -> assertTrue(markdown.contains("By.xpath(...)"), markdown),
-                () -> assertTrue(markdown.contains("only when the element exposes no ARIA role"), markdown));
+                () -> assertTrue(markdown.contains("only when the element has neither"), markdown));
     }
 
     private static String mcpText(String text) {
