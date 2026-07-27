@@ -760,9 +760,10 @@ class AssistantCommandTest {
                 () -> assertFalse(nonCodegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"),
                         nonCodegenPrompt),
                 () -> assertFalse(codegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId("), codegenPrompt),
                 () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
                 () -> assertTrue(codegenPrompt.contains(
-                        "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt),
+                        "By.xpath(...) only when the element has neither"), codegenPrompt),
                 () -> assertFalse(codegenPrompt.contains("Call shaft_guide_search"), codegenPrompt),
                 () -> assertFalse(codegenPrompt.contains("Call test_automation_scenarios"), codegenPrompt),
                 () -> assertFalse(codegenPrompt.contains("call shaft_coding_partner_plan"), codegenPrompt),
