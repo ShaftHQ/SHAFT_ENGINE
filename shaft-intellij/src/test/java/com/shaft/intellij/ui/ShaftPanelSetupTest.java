@@ -4523,6 +4523,378 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(markdown.contains("Killed"), markdown));
     }
 
+    /**
+     * Issue #3962 (hostile-review finding): a soft Cancel renders the "_Cancelled._" bubble
+     * synchronously (matching Kill's shape -- neither one waits on the companion before the FIRST
+     * render, since the run may already have streamed content the user must see immediately). The
+     * companion is only ever consulted afterward, to upgrade that exact already-rendered message in
+     * place once (if) it resolves with a real answer -- mirroring {@link
+     * #assistantKillUpgradesTheSameFinalizedMessageOnceTerminalAnswerArrives}. Streams a line BEFORE
+     * cancelling (the earlier version of this test never did, so it could not distinguish an in-place
+     * replace from an appended duplicate) and asserts the message count never grows across the
+     * upgrade -- the exact regression a broken token re-read inside the deferred callback produced.
+     */
+    @Test
+    void assistantCancelUpgradesTheSameFinalizedMessageOnceTerminalAnswerArrives() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 401);
+        appendLocalAgentOutput(panel, 401, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 401, null, new CancellationException("cancelled"));
+
+        String immediately = transcriptMarkdown(panel);
+        assertTrue(immediately.contains("Cancelled"), immediately);
+        int messageCountAfterCancel = currentSessionMessageCount(panel);
+
+        pendingTerminalAnswer.complete("The finished answer, parsed before cancel won the race.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The finished answer, parsed before cancel won the race."),
+                        markdown),
+                () -> assertEquals(messageCountAfterCancel, currentSessionMessageCount(panel),
+                        "the upgrade must replace the same message in place, never append a second one"),
+                () -> assertEquals(1,
+                        countOccurrences(markdown, "The finished answer, parsed before cancel won the race."),
+                        "the terminal answer must render exactly once: " + markdown));
+    }
+
+    /**
+     * Same regression as above, for the case the companion resolves with {@code null} (the run never
+     * produced a terminal event -- e.g. it failed before completing). The message count must still
+     * never grow: no upgrade should happen, and critically no *second* rendering attempt either.
+     */
+    @Test
+    void assistantCancelAfterStreamingDoesNotDuplicateWhenCompanionResolvesWithNoAnswer() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 403);
+        appendLocalAgentOutput(panel, 403, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 403, null, new CancellationException("cancelled"));
+        int messageCountAfterCancel = currentSessionMessageCount(panel);
+
+        pendingTerminalAnswer.complete(null);
+        pumpEdt();
+
+        assertEquals(messageCountAfterCancel, currentSessionMessageCount(panel),
+                "resolving with no answer must never append (or otherwise duplicate) a message");
+    }
+
+    /**
+     * Issue #3962 (second-review finding F1): the recovered terminal answer written by the Cancel
+     * upgrade must still carry the same "**Token usage:**..." disclaimer every other terminal
+     * local-agent response gets (see the pinned {@code
+     * assistantLocalAgentCancelledWithoutUsageMetadataStatesTokenUsageNotAvailable}, which never
+     * resolves a companion so it could not catch this regression) -- the upgrade must route through
+     * {@code withLocalAgentTokenUsage} exactly like {@code finishLocalAgentResponse} already does for
+     * the ordinary (non-recovered) cancelled/killed text.
+     */
+    @Test
+    void assistantCancelUpgradeStillIncludesTokenUsageStatement() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 405);
+        appendLocalAgentOutput(panel, 405, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 405, null, new CancellationException("cancelled"));
+
+        pendingTerminalAnswer.complete("The recovered final answer.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The recovered final answer."), markdown),
+                () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token usage"),
+                        "the token-usage disclaimer must survive the upgrade, not just the original "
+                                + "bare marker: " + markdown));
+    }
+
+    /**
+     * Issue #3962 (second-review finding F2/F3): reproduces the exact scenario the reviewer found --
+     * at {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION}, appending the run's own cancelled
+     * bubble trips {@code trim()}'s {@code remove(0)}, shifting that bubble's real index down by one
+     * from wherever a caller predicted it would land ahead of time. The fix (recording the REAL
+     * post-trim index {@code replaceLocalAgentStreamPlaceholder} used, instead of predicting it
+     * beforehand) must land the recovered answer correctly even here -- not silently no-op and leave
+     * the bare "_Cancelled._" marker forever, which would reproduce #3962's own original symptom.
+     */
+    @Test
+    void assistantCancelUpgradeStillLandsWhenTheStreamedBubbleTripsTheSessionCap() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        for (int i = 0; i < ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            chatState.append("assistant", "filler " + i, "");
+        }
+        assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION, chatState.activeSession().messages.size());
+
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 406);
+        // Non-verbose: lands as its own compact milestone message (see appendLocalAgentOutput), which
+        // alone already trips the cap's trim() once.
+        appendLocalAgentOutput(panel, 406, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 406, null, new CancellationException("cancelled"));
+
+        assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION, chatState.activeSession().messages.size(),
+                "the session must still be capped after the cancelled bubble's own append/trim");
+
+        pendingTerminalAnswer.complete("The recovered final answer despite the cap trim.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.contains("The recovered final answer despite the cap trim."),
+                "the recovered answer must land even when trim() shifted the cancelled bubble's real "
+                        + "index out from under a beforehand prediction: " + markdown);
+    }
+
+    /**
+     * Issue #3962 (third-review finding 2a): capturing an {@code int} index at render time (rather
+     * than the {@link ShaftAssistantChatState.Message} object itself) goes stale the moment ANY later
+     * append trims the session again -- even one completely unrelated to this run, like the user's
+     * next message. At {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION}, every append shifts
+     * every earlier index down by one. The recovered answer must still land correctly even after such
+     * a shift happens between the synchronous cancelled render and the companion resolving.
+     */
+    @Test
+    void assistantCancelUpgradeStillLandsAfterAnUnrelatedAppendShiftsItsIndexAtTheCap() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        for (int i = 0; i < ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            chatState.append("assistant", "filler " + i, "");
+        }
+
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 410);
+        appendLocalAgentOutput(panel, 410, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 410, null, new CancellationException("cancelled"));
+
+        // Before the companion resolves, an unrelated later message is appended (e.g. the user's next
+        // prompt) -- at the cap, this trims the oldest message, shifting the just-cancelled bubble's
+        // real position down by one from wherever it landed right after the synchronous render.
+        chatState.append("user", "an unrelated later message", "");
+        assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION, chatState.activeSession().messages.size());
+
+        pendingTerminalAnswer.complete("The recovered final answer despite the later shift.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.contains("The recovered final answer despite the later shift."),
+                "the recovered answer must still land after an unrelated append shifts its real index "
+                        + "out from under a captured int: " + markdown);
+    }
+
+    /**
+     * Issue #3962 (third-review finding 2b -- a genuinely new defect introduced by the F2/F3 fix, not
+     * merely an old symptom recurring): two runs cancelled back-to-back at the session cap. Run A's
+     * companion stays unresolved while run B starts, streams, and is itself cancelled -- run B's own
+     * cancelled-bubble append trims the session again, shifting run A's already-captured index. If
+     * that capture is a stale {@code int}, run A's late-resolving companion would target whatever
+     * message now sits at that index -- run B's own cancelled bubble -- and silently overwrite it
+     * with run A's answer: wrong content landing in the wrong bubble, not just a lost update. Each
+     * run's recovered answer must land only in its own bubble, exactly once, never the other's.
+     */
+    @Test
+    void assistantTwoCancelledRunsAtTheCapNeverCrossContaminateEachOthersBubble() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        for (int i = 0; i < ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            chatState.append("assistant", "filler " + i, "");
+        }
+
+        // Run A: starts, streams, is cancelled -- its companion is deliberately left unresolved,
+        // simulating a slow CLI that hasn't produced a terminal event yet.
+        ShaftMcpInvocation invocationA = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocationA);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 411);
+        appendLocalAgentOutput(panel, 411, "run A streamed line");
+        CompletableFuture<String> pendingA = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingA);
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 411, null, new CancellationException("cancelled"));
+
+        // Run B: a new prompt sent right after cancelling A, also streamed and cancelled -- at the
+        // cap, its own cancelled-bubble append trims the session again, shifting A's bubble down by
+        // one more from wherever it was captured.
+        ShaftMcpInvocation invocationB = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocationB);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 412);
+        appendLocalAgentOutput(panel, 412, "run B streamed line");
+        CompletableFuture<String> pendingB = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingB);
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 412, null, new CancellationException("cancelled"));
+
+        // Run A's companion resolves LATE, after run B has already landed its own cancelled bubble.
+        pendingA.complete("Run A's recovered answer.");
+        pumpEdt();
+        pendingB.complete("Run B's recovered answer.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Run A's recovered answer."), markdown),
+                () -> assertTrue(markdown.contains("Run B's recovered answer."), markdown),
+                () -> assertEquals(1, countOccurrences(markdown, "Run A's recovered answer."),
+                        "run A's answer must land exactly once, in its own bubble: " + markdown),
+                () -> assertEquals(1, countOccurrences(markdown, "Run B's recovered answer."),
+                        "run B's answer must land exactly once, in its own bubble, never overwritten "
+                                + "by run A's late-resolving companion: " + markdown));
+    }
+
+    /**
+     * Issue #3962, Kill side: unlike Cancel, {@code stopLocalAgentStreaming} finalizes the "_Killed._"
+     * bubble synchronously at button-click time -- before {@code ShaftMcpInvocation#kill()} even runs
+     * -- so the companion cannot be waited on there without delaying the existing instant feedback.
+     * Instead the same already-finalized message is upgraded in place once the companion resolves.
+     * Proves both halves of the anti-duplication requirement: the message count never grows (no
+     * second bubble) and the upgrade only fires once real content exists.
+     */
+    @Test
+    void assistantKillUpgradesTheSameFinalizedMessageOnceTerminalAnswerArrives() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 402);
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel); // Cancel
+        cancelOrKillCurrent(panel); // escalate to Kill -- calls stopLocalAgentStreaming synchronously
+
+        String immediately = transcriptMarkdown(panel);
+        assertTrue(immediately.contains("Killed"), immediately);
+        int messageCountAfterKill = currentSessionMessageCount(panel);
+
+        pendingTerminalAnswer.complete("The finished answer, parsed before kill won the race.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The finished answer, parsed before kill won the race."),
+                        markdown),
+                () -> assertEquals(messageCountAfterKill, currentSessionMessageCount(panel),
+                        "the upgrade must replace the same message in place, never append a second one"),
+                () -> assertEquals(1,
+                        countOccurrences(markdown, "The finished answer, parsed before kill won the race."),
+                        "the terminal answer must render exactly once: " + markdown));
+    }
+
+    /**
+     * Issue #3962 (hostile-review finding 3): {@code setRunning(false, ...)} re-enables chat
+     * switching before the deferred upgrade runs, so a user who switches to a different chat in that
+     * window must never have the recovered terminal answer land there. Deliberately fabricates the
+     * worst case the reviewer described: the now-active OTHER session's message at the exact same
+     * index also happens to carry the "_Killed._" marker -- so an index-and-marker check alone (with
+     * no session identity check) would be fooled into overwriting it. The upgrade must guard on the
+     * session id captured at schedule time, not whatever session happens to be active when the
+     * companion resolves.
+     */
+    @Test
+    void assistantKillTerminalAnswerUpgradeIsSkippedIfTheUserSwitchedSessionsMeanwhile() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 404);
+        appendLocalAgentOutput(panel, 404, "a line streamed before kill");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel); // Cancel
+        cancelOrKillCurrent(panel); // escalate to Kill
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        int killedMessageIndex = chatState.activeSession().messages.size() - 1;
+        assertTrue(chatState.activeSession().messages.get(killedMessageIndex).markdown.contains("_Killed._"));
+
+        // The user leaves this chat for a different one whose message at that SAME index also
+        // happens to carry the "_Killed._" marker -- a coincidence the fix must not be fooled by.
+        chatState.newSession();
+        for (int i = 0; i < killedMessageIndex; i++) {
+            chatState.append("assistant", "filler message " + i, "");
+        }
+        chatState.append("assistant", "_Killed._", "");
+        String otherSessionId = chatState.activeSession().id;
+
+        pendingTerminalAnswer.complete("The finished answer, arriving after the user left this chat.");
+        pumpEdt();
+
+        ShaftAssistantChatState.Session otherSessionAfter = chatState.activeSession();
+        assertAll(
+                () -> assertEquals(otherSessionId, otherSessionAfter.id),
+                () -> assertEquals("_Killed._", otherSessionAfter.messages.get(killedMessageIndex).markdown,
+                        "the recovered answer must never overwrite a different session's message, even one "
+                                + "coincidentally shaped like the finalized marker"));
+    }
+
     @Test
     void assistantKillRequestTerminalEntryIsKilledNotCancelled() throws Exception {
         // Issue #3919: no "Killing..."/terminal "Killed (Ns)" milestone bubbles in the transcript any
@@ -7165,6 +7537,23 @@ class ShaftPanelSetupTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    private static int currentSessionMessageCount(ShaftAssistantPanel panel) throws Exception {
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        return chatState.activeSession().messages.size();
+    }
+
+    /** Flushes the real AWT Event Dispatch Thread's queue: a no-op {@code invokeAndWait} only returns
+     * once every {@code invokeLater}/{@code runOnEdt} action already queued ahead of it has run,
+     * making otherwise-async EDT continuations (e.g. a {@code CompletableFuture.whenComplete} callback
+     * that hops onto the EDT via {@code runOnEdt}) observable deterministically in a headless test. */
+    private static void pumpEdt() {
+        try {
+            SwingUtilities.invokeAndWait(() -> { });
+        } catch (Exception pumpFailure) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 
