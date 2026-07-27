@@ -46,7 +46,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult first = new CaptureGenerator().generate(request(session, temp.resolve("first")));
         CaptureGenerationResult second = new CaptureGenerator().generate(request(session, temp.resolve("second")));
 
-        assertTrue(first.successful(), first.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(first);
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 first.report().compilation().status());
         assertTrue(Files.isRegularFile(first.reviewPath()));
@@ -114,7 +114,7 @@ class CaptureGeneratorTest {
                     messages.add(message);
                 });
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(fractions.size() >= 2,
                 "expected at least two progress milestones, got: " + messages);
         assertTrue(messages.stream().anyMatch(message -> !message.isBlank()));
@@ -236,7 +236,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session(capture), temp.resolve("intent-names")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(result.sourcePath().getFileName().toString().contains("CheckoutHappyPathTest.java"));
         assertTrue(source.contains("public class CheckoutHappyPathTest"));
@@ -265,7 +265,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session, temp.resolve("goal-session")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("// Capture review: readiness="));
         assertTrue(source.contains("// Capture goal: record checkout happy path"));
@@ -294,7 +294,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session, temp.resolve("goal-naming")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("public class LogInAsAValidUserTest"), source);
         assertTrue(source.contains("public void logInAsAValidUser()"), source);
@@ -329,7 +329,7 @@ class CaptureGeneratorTest {
         assertTrue(result.report().unsupportedEvents().stream()
                         .noneMatch(message -> message.startsWith("privacy:")),
                 result.report().unsupportedEvents().toString());
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
     }
 
     @Test
@@ -372,7 +372,7 @@ class CaptureGeneratorTest {
         new CaptureJsonCodec().write(path, recorded);
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(path, temp.resolve(outputName)));
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         return Files.readString(result.sourcePath());
     }
 
@@ -502,7 +502,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session, temp.resolve("segmented")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("        loginAsAdmin();"));
         assertTrue(source.contains("    private void loginAsAdmin() throws Exception {"));
@@ -535,7 +535,7 @@ class CaptureGeneratorTest {
                 request(session, temp.resolve("playwright")),
                 CaptureGenerator.CodegenBackend.PLAYWRIGHT);
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 result.report().compilation().status());
         String source = Files.readString(result.sourcePath());
@@ -579,7 +579,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session, temp.resolve("verification")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\"));"));
         assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\"));"));
@@ -616,7 +616,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session, temp.resolve("aria-screenshot-verification")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
                 "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build())"
@@ -704,7 +704,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result = new CaptureGenerator()
                 .generate(request(session, temp.resolve("attribute-assertion")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
                 "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).attribute(\"autocomplete\")"
@@ -722,7 +722,7 @@ class CaptureGeneratorTest {
                 CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
                 ApprovalPolicy.denyAll(), true));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("import org.openqa.selenium.By;"));
         assertTrue(source.contains("private By captureReplayLocator(By primary, By... alternatives)"));
@@ -752,8 +752,7 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("import com.shaft.gui.internal.locator.Role;"),
                 "generated source uses Role.BUTTON but never imports Role: " + source);
         assertTrue(source.contains("Role.BUTTON"), source);
-        assertTrue(result.successful(),
-                "generation must compile a ROLE-strategy locator: " + result.report().compilation());
+        assertGeneratedUnconfirmed(result);
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 result.report().compilation().status(),
                 result.report().compilation().diagnostics().toString());
@@ -786,7 +785,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result = new CaptureGenerator()
                 .generate(request(session, temp.resolve("role-name")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).hasNormalizedText(\"Log in\").build()"),
                 "generated ROLE locator must chain the recorded accessible name via hasNormalizedText so "
@@ -809,7 +808,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result = new CaptureGenerator()
                 .generate(request(session, temp.resolve("role-blank-name")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.BUTTON).build()"), source);
     }
@@ -867,7 +866,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result = new CaptureGenerator()
                 .generate(request(session, temp.resolve("unmapped-role-replay-xpath")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
                         "By.xpath(\"//div[normalize-space(.)=\\\"Something  went wrong\\\"]\")"),
@@ -956,7 +955,7 @@ class CaptureGeneratorTest {
                 ApprovalPolicy.denyAll(), false,
                 CaptureGenerationRequest.ControlFlowMode.PREVIEW, preview));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(Files.isRegularFile(preview));
         List<CaptureGenerationReport.ControlFlowKind> kinds = result.report().controlFlowSuggestions().stream()
                 .map(CaptureGenerationReport.ControlFlowSuggestion::kind)
@@ -991,7 +990,7 @@ class CaptureGeneratorTest {
                 ApprovalPolicy.denyAll(), false,
                 CaptureGenerationRequest.ControlFlowMode.APPLY, preview));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("if (driver.element().getElementsCount(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\")) > 0)"));
         assertFalse(source.contains("private boolean isCaptureElementDisplayed(By locator)"));
@@ -1064,7 +1063,7 @@ class CaptureGeneratorTest {
         CaptureGenerationResult result =
                 new CaptureGenerator().generate(request(session, temp.resolve("review")));
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         var review = JSON.readTree(result.reviewPath().toFile());
         List<String> categories = new java.util.ArrayList<>();
         review.path("findings").forEach(finding -> categories.add(finding.path("category").asText()));
@@ -1179,7 +1178,7 @@ class CaptureGeneratorTest {
                 true, false, Duration.ofMinutes(1),
                 CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
                 ApprovalPolicy.denyAll()));
-        assertTrue(first.successful(), first.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(first);
         String originalSource = Files.readString(first.sourcePath());
 
         // Same events (so analysis/compile would still be valid) but a different sessionGoal, so
@@ -1243,7 +1242,7 @@ class CaptureGeneratorTest {
                 true, false, Duration.ofMinutes(1),
                 CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
                 ApprovalPolicy.denyAll()));
-        assertTrue(first.successful(), first.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(first);
         String originalDataJson = Files.readString(first.testDataPath());
 
         // Same session (so analysis/compile would still be valid), but the referenced
@@ -1405,7 +1404,7 @@ class CaptureGeneratorTest {
         assertTrue(result.report().unsupportedEvents().stream()
                         .noneMatch(message -> message.startsWith("privacy:")),
                 result.report().unsupportedEvents().toString());
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
     }
 
     @Test
@@ -1440,7 +1439,7 @@ class CaptureGeneratorTest {
         assertTrue(result.report().unsupportedEvents().stream()
                         .noneMatch(message -> message.startsWith("privacy:")),
                 result.report().unsupportedEvents().toString());
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
     }
 
     @Test
@@ -1539,8 +1538,8 @@ class CaptureGeneratorTest {
         CaptureGenerationResult retried =
                 new CaptureGenerator().generate(request(healthySession, output));
 
-        assertTrue(retried.successful(), retried.report().unsupportedEvents().toString());
-        assertEquals("SUCCESS", JSON.readTree(retried.reportPath().toFile()).path("status").asText(),
+        assertGeneratedUnconfirmed(retried);
+        assertEquals("UNCONFIRMED", JSON.readTree(retried.reportPath().toFile()).path("status").asText(),
                 "Retry must refresh the status report");
     }
 
@@ -1584,7 +1583,7 @@ class CaptureGeneratorTest {
                 true, false, Duration.ofMinutes(1),
                 CaptureGenerationRequest.EnrichmentMode.PREVIEW, preview, false,
                 new ApprovalPolicy(true, true, java.util.Set.of(com.shaft.pilot.ai.EvidenceCategory.TEXT))));
-        assertTrue(previewResult.successful());
+        assertGeneratedUnconfirmed(previewResult);
         assertTrue(Files.readString(preview).contains("EnrichedJourneyTest"));
 
         CaptureGenerationResult applied = generator.generate(new CaptureGenerationRequest(
@@ -1593,7 +1592,7 @@ class CaptureGeneratorTest {
                 CaptureGenerationRequest.EnrichmentMode.APPLY, preview, true,
                 ApprovalPolicy.denyAll()));
 
-        assertTrue(applied.successful(), applied.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(applied);
         assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.APPLIED,
                 applied.report().enrichment().status());
         String source = Files.readString(applied.sourcePath());
@@ -1659,6 +1658,34 @@ class CaptureGeneratorTest {
                 Map.of("username-input", "USERNAME_INPUT_LOCATOR"),
                 new ApprovalPolicy(true, true,
                         java.util.Set.of(com.shaft.pilot.ai.EvidenceCategory.TEXT))));
+    }
+
+    /**
+     * Issue #4029: {@code CaptureGenerator} must never report {@code successful=true} when replay
+     * was never requested -- a compiled-but-unreplayed generation is a distinct, honest
+     * {@code UNCONFIRMED} status, not folded into bare {@code SUCCESS}.
+     */
+    @Test
+    void generateWithSkippedReplayIsNotReportedSuccessful() throws Exception {
+        Path session = session(CaptureFixtures.representativeSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("unconfirmed")));
+
+        assertFalse(result.successful(), "a skipped replay must never report successful=true");
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                result.report().compilation().status());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.SKIPPED,
+                result.report().replay().status());
+        assertTrue(Files.isRegularFile(result.sourcePath()),
+                "compiled-but-unconfirmed generation must still write the generated source");
+    }
+
+    private static void assertGeneratedUnconfirmed(CaptureGenerationResult result) {
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
+                result.report().unsupportedEvents().toString());
     }
 
     private CaptureGenerationRequest request(Path session, Path output) {

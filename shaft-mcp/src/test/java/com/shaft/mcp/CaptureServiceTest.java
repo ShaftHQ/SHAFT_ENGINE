@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
@@ -59,7 +60,7 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(Files.isRegularFile(result.sourcePath()));
         assertTrue(Files.isRegularFile(result.reviewUiPath()));
         assertTrue(result.codeBlocks().stream()
@@ -108,7 +109,7 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertFalse(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
         assertTrue(result.codeBlocks().stream()
@@ -144,7 +145,7 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(Files.readString(result.sourcePath()).contains("SHAFT.GUI.Playwright"));
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.id().equals("capture-test-method")
@@ -173,7 +174,7 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/LOCATOR")),
                 result.warnings().toString());
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/ASSERTION")),
@@ -526,8 +527,7 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(),
-                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
                         && block.code().contains("class DefaultSessionTest")));
@@ -556,9 +556,48 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(),
-                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(Files.isRegularFile(result.sourcePath()));
+    }
+
+    /**
+     * Issue #4029: {@code capture_generate_replay} is named and documented as the "replay-proven"
+     * tool (as opposed to its sibling {@code capture_code_blocks}'s "faster, unproven draft") --
+     * a caller-supplied {@code replay=false} on THIS tool must resolve to {@code UNCONFIRMED}, not
+     * silent {@code successful=true}, closing the "no server-side floor" gap the issue named.
+     */
+    @Test
+    void generateReplayToolWithReplayFalseReportsUnconfirmedNotSuccess() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.generateReplay(
+                    session.toString(),
+                    temp.resolve("generated-replay-false").toString(),
+                    "generated.capture",
+                    "GoldenSessionTest",
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    "driver");
+        } finally {
+            service.close();
+        }
+
+        assertFalse(result.successful(),
+                "capture_generate_replay must never report successful=true when replay=false: "
+                        + result.report());
+        assertGeneratedUnconfirmed(result);
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.SKIPPED,
+                result.report().replay().status());
+        assertTrue(Files.isRegularFile(result.sourcePath()),
+                "compiled-but-unconfirmed generation must still return a usable source file");
     }
 
     @Test
@@ -600,7 +639,7 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(Files.isRegularFile(result.sourcePath()));
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
@@ -634,13 +673,23 @@ class CaptureServiceTest {
             service.close();
         }
 
-        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertGeneratedUnconfirmed(result);
         assertTrue(Files.isRegularFile(result.sourcePath()));
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
                         && block.code().contains("class RecordedFlowTest")
                         && block.code().contains("package tests.generated")),
                 "Generated code should contain default class RecordedFlowTest and package tests.generated when blank strings provided");
+    }
+
+    /**
+     * Issue #4029: {@code capture_code_blocks} never replays by design (it is the deliberately
+     * fast, unproven-draft sibling of {@code capture_generate_replay}), so its result must report
+     * {@code UNCONFIRMED}, never bare {@code SUCCESS}.
+     */
+    private static void assertGeneratedUnconfirmed(McpCaptureReplayResult result) {
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
+                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
     }
 
     private CaptureService service() {

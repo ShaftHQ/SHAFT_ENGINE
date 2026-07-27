@@ -80,7 +80,11 @@ class GuidedWorkflowLiveE2ETest {
 
             JsonObject generated = mcp.invoke(panel.click("Review code"), TOOL_TIMEOUT);
             String code = generated.toString();
-            assertTrue(generated.get("successful").getAsBoolean(), code);
+            // Issue #4029: "Review code" dispatches to capture_code_blocks, which never replays by
+            // design (it is the deliberately fast, unproven-draft sibling of capture_generate_replay)
+            // -- a genuinely working generation now reports report.status=UNCONFIRMED, never bare
+            // successful=true, since replay was never proven to run.
+            assertEquals("UNCONFIRMED", generated.get("report").getAsJsonObject().get("status").getAsString(), code);
             assertTrue(code.contains("GeneratedShaftTest"), code);
             assertTrue(code.contains("driver.element()"), code);
             assertTrue(code.contains("typeSecure"),

@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.control.CaptureControlClient;
 import com.shaft.capture.control.CaptureControlFiles;
 import com.shaft.capture.control.CaptureControlServer;
+import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
@@ -227,12 +228,22 @@ public final class CaptureCli {
                         controlFlowMode,
                         controlFlowPreview),
                 generationBackend(options));
+        CaptureGenerationReport.Status status = result.report() == null
+                ? CaptureGenerationReport.Status.FAILED
+                : result.report().status();
+        if (status == CaptureGenerationReport.Status.UNCONFIRMED) {
+            // Issue #4029: the default (no --replay) quick-start flow keeps its fast, exit-0
+            // contract -- but must never let that read as a proven-working test. Loud and
+            // impossible to miss in the human-facing output, not buried in the JSON status field.
+            OUTPUT.println("UNCONFIRMED: the generated test compiled but replay was not requested, "
+                    + "so the recorded scenario was NOT proven to run. Pass --replay to confirm it.");
+        }
         if (options.values().containsKey("target-source") || options.values().containsKey("insert-after")) {
             if (!options.values().containsKey("target-source") || !options.values().containsKey("insert-after")) {
                 throw new IllegalArgumentException(
                         "Capture record-at-target requires both --target-source and --insert-after.");
             }
-            CaptureTargetInsertionPlan insertion = result.successful()
+            CaptureTargetInsertionPlan insertion = status != CaptureGenerationReport.Status.FAILED
                     ? new CaptureTargetInsertionPlanner().plan(
                             result.sourcePath(),
                             options.pathRequired("target-source"),
@@ -244,7 +255,7 @@ public final class CaptureCli {
         } else {
             print(result);
         }
-        return result.successful() ? 0 : 1;
+        return status == CaptureGenerationReport.Status.FAILED ? 1 : 0;
     }
 
     private static int features() {

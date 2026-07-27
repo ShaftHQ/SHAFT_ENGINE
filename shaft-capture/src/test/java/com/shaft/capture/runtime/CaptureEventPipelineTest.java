@@ -124,7 +124,11 @@ class CaptureEventPipelineTest {
                 false, false, Duration.ofMinutes(1),
                 CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
                 ApprovalPolicy.denyAll()));
-        assertTrue(generated.successful(),
+        // Issue #4029: replay was not requested, so a genuinely working generation now reports
+        // UNCONFIRMED, never bare SUCCESS -- this test's own intent (the pipeline output is valid
+        // for this session shape) is what UNCONFIRMED-not-FAILED proves.
+        assertEquals(com.shaft.capture.generate.CaptureGenerationReport.Status.UNCONFIRMED,
+                generated.report().status(),
                 "Codegen must succeed for a single-tab async-typed session: "
                         + generated.report().unsupportedEvents());
     }

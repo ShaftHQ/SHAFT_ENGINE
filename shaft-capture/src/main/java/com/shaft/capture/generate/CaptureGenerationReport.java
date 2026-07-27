@@ -90,6 +90,12 @@ public record CaptureGenerationReport(
      */
     public enum Status {
         SUCCESS,
+        /**
+         * Compilation passed but replay was never requested or was skipped (issue #4029): the
+         * recorded scenario was never proven to actually run, so this must never be treated as
+         * {@code SUCCESS} by any caller.
+         */
+        UNCONFIRMED,
         FAILED
     }
 

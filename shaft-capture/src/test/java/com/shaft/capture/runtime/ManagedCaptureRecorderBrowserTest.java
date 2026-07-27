@@ -751,7 +751,12 @@ class ManagedCaptureRecorderBrowserTest {
                                 com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode.NONE,
                                 null, false,
                                 com.shaft.pilot.ai.ApprovalPolicy.denyAll()));
-        assertTrue(generated.successful(),
+        // Issue #4029: replay was not requested (compile wasn't either, here), so a genuinely
+        // working generation now reports UNCONFIRMED, never bare SUCCESS -- this test's own intent
+        // (recorded-event/navigation-dedup correctness, proven below via navigateCalls) is what
+        // UNCONFIRMED-not-FAILED verifies, not replay confirmation.
+        assertEquals(com.shaft.capture.generate.CaptureGenerationReport.Status.UNCONFIRMED,
+                generated.report().status(),
                 "Codegen must succeed for the recorded search journey: "
                         + generated.report().unsupportedEvents());
         String source = Files.readString(generated.sourcePath(), StandardCharsets.UTF_8);
