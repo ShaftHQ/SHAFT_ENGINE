@@ -296,6 +296,16 @@ class CaptureCliTest {
         assertEquals(0, process.exitValue(), "a skipped replay must keep the exit-0 quick-start contract: " + stdout);
         assertTrue(stdout.contains("UNCONFIRMED"),
                 "stdout must loudly state the result is unconfirmed/not replay-verified: " + stdout);
+
+        // Issue #4225: whatever prints LAST is what stays visible in a real terminal without
+        // scrolling back. The JSON dump of CaptureGenerationReport is one large unstructured line,
+        // so the banner must come after it -- not before it -- to stay unmissable.
+        int jsonIndex = stdout.indexOf("{");
+        int bannerIndex = stdout.indexOf("UNCONFIRMED:");
+        assertTrue(jsonIndex >= 0, "expected a JSON result dump in stdout: " + stdout);
+        assertTrue(bannerIndex > jsonIndex,
+                "UNCONFIRMED banner must print AFTER the JSON dump so it's the last line a developer "
+                        + "sees without scrolling: " + stdout);
     }
 
     private static Path repositoryRoot() {
