@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Covers issue #3870/#3866 T4: {@link AssistantCommand}'s routing wired to the canonical
  * {@link ToolCatalogIndex} instead of a second hand-maintained keyword table (design doc
  * Decision 5, amendment A7), plus the deterministic-first "explicit tool mention" routing this
- * task adds so every one of the 89 surviving tools -- not just the handful with a bespoke
+ * task adds so every one of the 90 surviving tools -- not just the handful with a bespoke
  * natural-language recognizer -- is directly addressable without falling back to the local-AI
  * agent (design doc Decision 5 / goal 3-4).
  */
@@ -202,10 +202,10 @@ class AssistantCommandToolIndexRoutingTest {
     }
 
     // ---- Routing-accuracy suite (design doc Decision 5 last bullet): parameterized from the real
-    // bundled index, not a hand-picked sample, across every surviving tool in the 89-tool catalog. ----
+    // bundled index, not a hand-picked sample, across every surviving tool in the 90-tool catalog. ----
 
     // Named exception allowlist for any future, deliberately-accepted exclusion from 100% explicit
-    // -tool-mention routing (PR #3882 review, Finding 2). Empty today: the full 89-tool catalog
+    // -tool-mention routing (PR #3882 review, Finding 2). Empty today: the full 90-tool catalog
     // routes deterministically with no exceptions. Add a tool name here only with a comment
     // explaining why it cannot route deterministically -- never to silence a real regression.
     private static final Set<String> TOOL_MENTION_ROUTING_EXCEPTIONS = Set.of();

@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Prompts use the {@code /mcp <toolName> [json]} slash command (issue #3870/#3866 T4, {@code
  * AssistantCommand#rawMcp}): it is the one deterministic router that reaches every one of the
- * 89 surviving tools directly, so a representative call per service group needs no guessing at
+ * 90 surviving tools directly, so a representative call per service group needs no guessing at
  * natural-language phrasing -- {@code AssistantCommand#fromPrompt} parses it into an {@code
  * Invocation.tool(toolName, parsedJson)} with zero ambiguity, verified separately and exhaustively
  * by {@code AssistantCommandRoutingTest}/{@code ShaftAssistantPromptRoutingTest}. This class exists
