@@ -861,8 +861,19 @@ final class AssistantTranscriptView extends JPanel {
      * purposes) at a 22px-too-wide 257px, then was actually laid out 22px narrower at 235px --
      * meaning more lines really wrap than the height measurement accounted for, which is the
      * mechanism behind the trailing-paragraph crop. Adding {@code component}'s own insets back
-     * before capping makes the cap outer-width-correct for bubble-shaped components (nonzero
-     * insets) while leaving flat, zero-inset widgets like {@link ToolApprovalPromptPanel} unchanged.
+     * before capping makes the cap outer-width-correct for bubble-shaped components.
+     *
+     * <p>Issue #4191: this cap-widening is <b>not</b> limited to bubble-shaped components with
+     * large insets -- every inset-bearing caller of {@link #widgetRow} widens by its own real
+     * measured insets, not zero. {@link ToolApprovalPromptPanel}'s border ({@code
+     * createEtchedBorder()} composed with {@code JBUI.Borders.empty(8)}) measures {@code
+     * (10,10,10,10)}, widening its cap by ~20px; {@link AssistantQuestionOptionsPanel}'s border
+     * ({@code createEmptyBorder(4, 0, 0, 0)} composed with {@code JBUI.Borders.empty(2)}) measures
+     * {@code (6,2,2,2)}, widening its cap by ~4px. Neither is a no-op. Both are covered at a narrow
+     * tool-window width by {@code ShaftPluginScreenshotRendererTest#
+     * toolApprovalPromptFitsWithinTranscriptWidthAtNarrowToolWindowWidth} and {@code
+     * #assistantQuestionOptionsFitWithinTranscriptWidthAtNarrowToolWindowWidth}, which confirmed the
+     * extra width does not push either widget past the transcript viewport's visible width.
      */
     private JComponent widthCappedWidget(JComponent component) {
         JPanel wrapper = new JPanel(new BorderLayout()) {
