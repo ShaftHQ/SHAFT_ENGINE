@@ -1,0 +1,34 @@
+{
+  "body_path": "memory/decisions/lambdatest-e2e-nightly-cron-stays-disabled-wont-fix-accepted-plan-spend-limitation-3934-2927-3473.md",
+  "content_hash": "sha256:b62576e9ed13c767e1f97266ad9370d870c6884ed6882b047b70198ad5080411",
+  "created_at": "2026-07-27T14:51:47+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.lambdatest-e2e-nightly-cron-stays-disabled-wont-fix-accepted-plan-spend-limitation-3934-2927-3473",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Close issue #3934 (LambdaTest nightly cron re-enable) as won't-fix per owner decision to limit LambdaTest license/plan spend"
+  },
+  "status": "active",
+  "tags": [
+    "lambdatest",
+    "ci",
+    "wontfix",
+    "decision",
+    "issue-3934",
+    "issue-2927",
+    "issue-3473",
+    "e2e"
+  ],
+  "title": "LambdaTest E2E nightly cron stays disabled — won't-fix, accepted plan-spend limitation (#3934, #2927, #3473)",
+  "type": "decision",
+  "updated_at": "2026-07-27T14:51:47+03:00"
+}
