@@ -724,6 +724,10 @@ public class PlaywrightService {
                 warnings);
     }
 
+    static final String CSS_LOCATOR_CODEGEN_WARNING = "CSS-strategy locators cannot be used for SHAFT "
+            + "test-code generation; codegen will fail for this action later. Use an ID, NAME, XPath, or "
+            + "role-based locator strategy instead if you need generated code.";
+
     private static List<String> actionWarnings(
             String action,
             locatorStrategy locatorStrategy,
@@ -732,6 +736,9 @@ public class PlaywrightService {
         if (McpAppiumLocatorSuggester.isCoordinateFallback(action, locatorStrategy)) {
             warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
         }
+        if (isCssLocatorStrategy(locatorStrategy)) {
+            warnings.add(CSS_LOCATOR_CODEGEN_WARNING);
+        }
         if (recorded == null) {
             warnings.add("Ignored: recording is not active — call capture_start (with the Playwright engine "
                     + "active) to capture this step.");
@@ -739,6 +746,19 @@ public class PlaywrightService {
             warnings.addAll(recorded.warnings());
         }
         return List.copyOf(warnings);
+    }
+
+    /**
+     * True for the locator strategies {@link McpPlaywrightCaptureAdapter#locator} maps to CSS for
+     * codegen purposes ({@code CSS}/{@code CSSSELECTOR}/{@code SELECTOR}). {@code LocatorPolicy}
+     * (shaft-capture) has no admission path for CSS-strategy locators, so recording one always
+     * fails codegen later (issue #4291) -- surfacing that immediately here, instead of leaving the
+     * caller to discover it only when they later call codegen, is this method's entire purpose.
+     */
+    private static boolean isCssLocatorStrategy(locatorStrategy strategy) {
+        return strategy == locatorStrategy.CSS
+                || strategy == locatorStrategy.CSSSELECTOR
+                || strategy == locatorStrategy.SELECTOR;
     }
 
     private McpCodeBlock actionBlock(String action, String javaCode) {
