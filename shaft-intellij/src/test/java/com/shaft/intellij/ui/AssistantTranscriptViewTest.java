@@ -134,6 +134,79 @@ class AssistantTranscriptViewTest {
         assertNull(AssistantTranscriptView.currentEditorColorsSchemeOrNull());
     }
 
+    /**
+     * Issue #4233 (nightly live-tools E2E: {@code java.lang.NullPointerException: Cannot invoke
+     * "com.intellij.openapi.editor.colors.EditorColorsManager.getGlobalScheme()" because the return
+     * value of "com.intellij.openapi.editor.colors.EditorColorsManager.getInstance()" is null} at
+     * {@code AssistantTranscriptView.monospacedFontFamily}). {@code
+     * monospacedFontFamilyFallsBackToLogicalMonospacedWithoutALiveEditorColorsScheme}'s guard
+     * ({@code ApplicationManager.getApplication() == null}) only covers the case of no live {@code
+     * Application} at all; it does not hold once one exists, since {@code
+     * EditorColorsManager.getInstance()} is itself just {@code
+     * ApplicationManager.getApplication().getService(EditorColorsManager.class)}, which -- confirmed
+     * by the CI stack trace above -- CAN return {@code null} for a live {@code Application} that has
+     * no {@code EditorColorsManager} service registered (exactly {@code
+     * LiveChatToolE2ESupport#fakeApplication}'s shape: a real {@code Proxy} {@code Application} that
+     * only stubs the couple of services shaft-intellij's own code needs). Reproduces that shape
+     * directly instead of via the full live-tool-E2E harness.
+     */
+    @Test
+    void monospacedFontFamilyFallsBackToLogicalMonospacedWhenApplicationExistsButEditorColorsManagerServiceIsUnavailable() {
+        com.intellij.openapi.Disposable disposable =
+                com.intellij.openapi.util.Disposer.newDisposable("editor-colors-manager-service-unavailable");
+        try {
+            com.intellij.openapi.application.ApplicationManager.setApplication(
+                    applicationWithNoRegisteredServices(), disposable);
+            assertEquals(java.awt.Font.MONOSPACED, AssistantTranscriptView.monospacedFontFamily());
+        } finally {
+            com.intellij.openapi.util.Disposer.dispose(disposable);
+        }
+    }
+
+    /** Same underlying issue as above, for {@code currentEditorColorsSchemeOrNull}'s twin guard. */
+    @Test
+    void currentEditorColorsSchemeOrNullReturnsNullWhenApplicationExistsButEditorColorsManagerServiceIsUnavailable() {
+        com.intellij.openapi.Disposable disposable =
+                com.intellij.openapi.util.Disposer.newDisposable("editor-colors-manager-service-unavailable-2");
+        try {
+            com.intellij.openapi.application.ApplicationManager.setApplication(
+                    applicationWithNoRegisteredServices(), disposable);
+            assertNull(AssistantTranscriptView.currentEditorColorsSchemeOrNull());
+        } finally {
+            com.intellij.openapi.util.Disposer.dispose(disposable);
+        }
+    }
+
+    /**
+     * A live {@code Application} {@link java.lang.reflect.Proxy} whose {@code getService} always
+     * returns {@code null} -- the same shape {@code LiveChatToolE2ESupport#fakeApplication} builds,
+     * minimized to just what these two tests above need.
+     */
+    private static com.intellij.openapi.application.Application applicationWithNoRegisteredServices() {
+        return (com.intellij.openapi.application.Application) java.lang.reflect.Proxy.newProxyInstance(
+                com.intellij.openapi.application.Application.class.getClassLoader(),
+                new Class<?>[]{com.intellij.openapi.application.Application.class},
+                (proxy, method, arguments) -> {
+                    switch (method.getName()) {
+                        case "equals":
+                            return proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
+                        case "hashCode":
+                            return System.identityHashCode(proxy);
+                        case "getService":
+                            return null;
+                        default:
+                            Class<?> returnType = method.getReturnType();
+                            if (!returnType.isPrimitive()) {
+                                return null;
+                            }
+                            if (returnType == boolean.class) {
+                                return false;
+                            }
+                            return 0;
+                    }
+                });
+    }
+
     @Test
     void rawEvidenceNeverLeaksIntoTranscriptMarkdown() {
         AssistantTranscriptView view = new AssistantTranscriptView();

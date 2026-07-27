@@ -1105,16 +1105,24 @@ final class AssistantTranscriptView extends JPanel {
      * Font#MONOSPACED}, which ignores them and renders inconsistently across platforms. Falls back to
      * {@code Font.MONOSPACED} when no live {@code Application} exists -- this module's tests construct
      * none (no {@code BasePlatformTestCase} fixture) -- guarding on {@link
-     * ApplicationManager#getApplication()} itself rather than on {@code EditorColorsManager
-     * .getInstance()}'s return value: that call unconditionally dereferences {@code
-     * ApplicationManager.getApplication().getService(...)} with no null guard of its own, so it
-     * throws (never returns {@code null}) once there is no live {@code Application} to ask.
+     * ApplicationManager#getApplication()} itself first. Issue #4233 (nightly live-tools E2E):
+     * {@code EditorColorsManager.getInstance()} is itself just {@code
+     * ApplicationManager.getApplication().getService(EditorColorsManager.class)}, so it CAN still
+     * return {@code null} once an {@code Application} exists but has no {@code EditorColorsManager}
+     * service registered (confirmed by the CI stack trace this issue was filed from, and reproduced
+     * by {@code AssistantTranscriptViewTest
+     * #monospacedFontFamilyFallsBackToLogicalMonospacedWhenApplicationExistsButEditorColorsManagerServiceIsUnavailable}
+     * against exactly {@code LiveChatToolE2ESupport#fakeApplication}'s shape) -- the earlier fix's
+     * premise that it "throws (never returns null) once there is no live Application" does not
+     * extend to "always non-null whenever an Application exists", so {@code getInstance()}'s own
+     * return value needs its own null guard too.
      */
     static String monospacedFontFamily() {
         if (ApplicationManager.getApplication() == null) {
             return Font.MONOSPACED;
         }
-        EditorColorsScheme scheme = EditorColorsManager.getInstance().getGlobalScheme();
+        EditorColorsManager colorsManager = EditorColorsManager.getInstance();
+        EditorColorsScheme scheme = colorsManager == null ? null : colorsManager.getGlobalScheme();
         Font editorFont = scheme == null ? null : scheme.getFont(EditorFontType.PLAIN);
         return editorFont == null ? Font.MONOSPACED : editorFont.getFamily();
     }
@@ -1765,12 +1773,15 @@ final class AssistantTranscriptView extends JPanel {
      * value (the previous shape here) was dead code that could never catch anything. Mirrors {@link
      * #monospacedFontFamily()}'s corrected guard: check {@link ApplicationManager#getApplication()}
      * itself first, and only call {@code EditorColorsManager.getInstance()} once an {@code
-     * Application} actually exists.
+     * Application} actually exists. Issue #4233: {@code getInstance()}'s own return value still needs
+     * its own null guard too -- see {@link #monospacedFontFamily()}'s updated javadoc for why.
      */
     static EditorColorsScheme currentEditorColorsSchemeOrNull() {
-        return ApplicationManager.getApplication() == null
-                ? null
-                : EditorColorsManager.getInstance().getGlobalScheme();
+        if (ApplicationManager.getApplication() == null) {
+            return null;
+        }
+        EditorColorsManager colorsManager = EditorColorsManager.getInstance();
+        return colorsManager == null ? null : colorsManager.getGlobalScheme();
     }
 
     private static TextAttributes attributesFor(TextAttributesKey[] keys, EditorColorsScheme scheme) {
