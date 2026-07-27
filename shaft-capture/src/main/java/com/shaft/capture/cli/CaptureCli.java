@@ -231,13 +231,6 @@ public final class CaptureCli {
         CaptureGenerationReport.Status status = result.report() == null
                 ? CaptureGenerationReport.Status.FAILED
                 : result.report().status();
-        if (status == CaptureGenerationReport.Status.UNCONFIRMED) {
-            // Issue #4029: the default (no --replay) quick-start flow keeps its fast, exit-0
-            // contract -- but must never let that read as a proven-working test. Loud and
-            // impossible to miss in the human-facing output, not buried in the JSON status field.
-            OUTPUT.println("UNCONFIRMED: the generated test compiled but replay was not requested, "
-                    + "so the recorded scenario was NOT proven to run. Pass --replay to confirm it.");
-        }
         if (options.values().containsKey("target-source") || options.values().containsKey("insert-after")) {
             if (!options.values().containsKey("target-source") || !options.values().containsKey("insert-after")) {
                 throw new IllegalArgumentException(
@@ -254,6 +247,17 @@ public final class CaptureCli {
                     "Capture record-at-target result could not be serialized.");
         } else {
             print(result);
+        }
+        if (status == CaptureGenerationReport.Status.UNCONFIRMED) {
+            // Issue #4029: the default (no --replay) quick-start flow keeps its fast, exit-0
+            // contract -- but must never let that read as a proven-working test. Loud and
+            // impossible to miss in the human-facing output, not buried in the JSON status field.
+            // Issue #4225: printed AFTER the JSON dump -- whatever prints last is what stays
+            // visible in a real terminal without scrolling back, and the JSON dump of a
+            // non-trivial CaptureGenerationReport can be long enough to push an earlier banner
+            // off-screen.
+            OUTPUT.println("UNCONFIRMED: the generated test compiled but replay was not requested, "
+                    + "so the recorded scenario was NOT proven to run. Pass --replay to confirm it.");
         }
         return status == CaptureGenerationReport.Status.FAILED ? 1 : 0;
     }
