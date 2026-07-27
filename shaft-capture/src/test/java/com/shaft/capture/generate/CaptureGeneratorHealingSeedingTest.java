@@ -125,4 +125,85 @@ class CaptureGeneratorHealingSeedingTest {
                 HealingDecision.Status.NO_HISTORY,
                 ShaftHeal.lastReport().orElseThrow().decision().status());
     }
+
+    /**
+     * Issue #4188 gap B: {@code runtimeLocator(TargetPlan)} seeded history only under the primary
+     * candidate's {@code By.toString()}, never the fallback chain. But when {@code
+     * request.fallbackLocators()==true}, the generated code calls {@code
+     * captureReplayLocator(primary, alt1, ...)}, which can resolve to an alternate at runtime if the
+     * primary degrades -- and {@code HealingSupport.locator()} keys its history lookup by exact
+     * {@code By.toString()}. {@link CaptureFixtures#target()} carries two locator candidates (a
+     * higher-scored LABEL one and a lower-scored CSS one), so the CSS one is always the unselected
+     * fallback alternative here. This proves seeding now covers that alternate, not just the primary.
+     */
+    @Test
+    void fallbackCandidateAlsoLeavesFingerprintHistoryASubsequentReplayLookupFinds() throws Exception {
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "healing-seed-fallback-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                RedactionSummary.empty(),
+                Map.of());
+        Path sessionPath = temp.resolve("capture.json");
+        new CaptureJsonCodec().write(sessionPath, session);
+        Path output = temp.resolve("gen");
+
+        GeneratedTestValidator fakePassingReplay = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 1);
+            }
+        };
+
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), fakePassingReplay, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        sessionPath, output, "generated.capture", "HealingSeedFallbackTest", false,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll(), true));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        Path expectedHistoryPath = output.resolve(".shaft-heal/history.json").normalize();
+        assertTrue(Files.exists(expectedHistoryPath), "seeded history file should exist at the absolute path");
+
+        SHAFT.Properties.healing.set()
+                .strategy("shaft-heal")
+                .historyPath(expectedHistoryPath.toString());
+        WebDriver driver = mock(WebDriver.class);
+        when(driver.getCurrentUrl()).thenReturn("https://example.test/form");
+        // The lower-scored CSS candidate from CaptureFixtures#target() -- never the primary
+        // (LABEL) By, but exactly what captureReplayLocator() falls back to at replay time if the
+        // primary degrades. Mirrors runtimeLocator()'s own CSS branch: Locator.cssSelector(expression).
+        By alternateLocator = Locator.cssSelector("form input:nth-child(1)");
+        ShaftHealingProvider provider = new ShaftHealingProvider();
+
+        provider.resolve(new HealingRequest(driver, alternateLocator, "TYPE", true, null, null, null));
+
+        assertNotEquals(
+                HealingDecision.Status.NO_HISTORY,
+                ShaftHeal.lastReport().orElseThrow().decision().status());
+    }
 }

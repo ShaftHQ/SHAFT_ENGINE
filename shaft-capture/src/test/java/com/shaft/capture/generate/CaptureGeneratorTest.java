@@ -161,6 +161,25 @@ class CaptureGeneratorTest {
         }
     }
 
+    /**
+     * Issue #4188 gap A: {@code fingerprintSeed()} reads {@code title} from {@code
+     * normalizedAttributes} and folds {@code alt}/{@code aria-labelledby} into {@code
+     * semanticAttributes}, but the recorder never preserved those as raw attributes -- only as a
+     * name-computation fallback -- so every real capture session left them structurally blank.
+     */
+    @Test
+    void recorderAttributeAllowlistCapturesTitleAltAndAriaLabelledby() throws Exception {
+        try (InputStream stream = CaptureGeneratorTest.class
+                .getResourceAsStream("/browser/shaft-capture-recorder.js")) {
+            assertTrue(stream != null, "Recorder resource should be available on the test classpath.");
+            String recorder = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertTrue(recorder.contains(
+                    "\"aria-label\", \"role\", \"title\", \"alt\", \"aria-labelledby\"].forEach(name => {"),
+                    recorder);
+        }
+    }
+
     @Test
     void generatedNamesAndCommentsUseRecorderIntentBeforeOpaqueSessionIds() throws Exception {
         EventContext navigation = new EventContext(
