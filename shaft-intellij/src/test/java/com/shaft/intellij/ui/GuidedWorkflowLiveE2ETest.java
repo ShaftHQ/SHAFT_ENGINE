@@ -201,7 +201,11 @@ class GuidedWorkflowLiveE2ETest {
 
                 JsonObject generated = mcp.invoke(apiGenerate(outputPath), TOOL_TIMEOUT);
                 String code = generated.toString();
-                assertTrue(generated.get("successful").getAsBoolean(), code);
+                // Issue #4220 (adjacent finding from #4029): capture_api_generate defaults to
+                // replay=false (unsafe to auto-replay non-idempotent HTTP methods) -- a genuinely
+                // working generation now reports report.status=UNCONFIRMED, never bare
+                // successful=true, since replay was never proven to run.
+                assertEquals("UNCONFIRMED", generated.get("report").getAsJsonObject().get("status").getAsString(), code);
                 assertTrue(code.contains("new SHAFT.API("), code);
                 assertTrue(code.contains("setTargetStatusCode(200)"), code);
                 assertTrue(code.contains("assertThatResponse().matchesSchema("), code);

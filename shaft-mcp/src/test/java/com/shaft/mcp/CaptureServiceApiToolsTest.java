@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import com.shaft.capture.control.CaptureControlFiles;
 import com.shaft.capture.control.CaptureControlServer;
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
@@ -208,7 +209,7 @@ class CaptureServiceApiToolsTest {
                     "recordings/session-mcp.json", "generated", "tests.generated", "",
                     "SCENARIO", "STATUS", true, false, "openapi.json", List.of(), List.of());
 
-            assertTrue(result.successful(), "Generation report: " + result.report());
+            assertGeneratedUnconfirmed(result);
             assertNotNull(result.report().openApiCoverage());
             assertTrue(result.report().openApiCoverage().loadable(),
                     "Coverage load failure: " + result.report().openApiCoverage().loadFailureReason());
@@ -231,7 +232,7 @@ class CaptureServiceApiToolsTest {
                     "recordings/session-mcp.json", "generated", "tests.generated", "",
                     "SCENARIO", "STATUS", true, false, "", List.of(), List.of());
 
-            assertTrue(result.successful(), "Generation report: " + result.report());
+            assertGeneratedUnconfirmed(result);
             assertFalse(result.report().openApiCoverage().loadable());
         } finally {
             service.close();
@@ -253,7 +254,7 @@ class CaptureServiceApiToolsTest {
                     "recordings/session-mcp-two.json", "generated-excluded", "tests.generated", "",
                     "SCENARIO", "STATUS", true, false, "", List.of("tx-2"), List.of());
 
-            assertTrue(result.successful(), "Generation report: " + result.report());
+            assertGeneratedUnconfirmed(result);
             String source = Files.readString(result.sourcePath());
             assertTrue(source.contains("/orders"), "Included transaction missing from generated source: " + source);
             assertFalse(source.contains("/admin"), "Excluded transaction leaked into generated source: " + source);
@@ -280,7 +281,7 @@ class CaptureServiceApiToolsTest {
                     "recordings/session-mcp-two.json", "generated-pinned", "tests.generated", "",
                     "SCENARIO", "BUSINESS", true, false, "", List.of(), List.of("$.id"));
 
-            assertTrue(result.successful(), "Generation report: " + result.report());
+            assertGeneratedUnconfirmed(result);
             String source = Files.readString(result.sourcePath());
             assertTrue(source.contains("/orders"), "Generated source missing recorded transaction: " + source);
         } finally {
@@ -430,6 +431,16 @@ class CaptureServiceApiToolsTest {
         Map<String, String> headers = new TreeMap<>();
         headers.put("content-type", "application/json");
         return headers;
+    }
+
+    /**
+     * Issue #4220 (adjacent finding from #4029): {@code capture_api_generate} never replays by
+     * default (unsafe to do automatically for non-idempotent HTTP methods), so a caller-supplied
+     * {@code replay=false} must resolve to {@code UNCONFIRMED}, never bare {@code SUCCESS}.
+     */
+    private static void assertGeneratedUnconfirmed(McpCaptureReplayResult result) {
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
+                "Generation report: " + result.report());
     }
 
     @Test

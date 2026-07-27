@@ -53,7 +53,7 @@ class ApiCaptureGeneratorTest {
                 sessionPath, outputRoot, "tests.generated", "",
                 ApiCodegenStyle.SCENARIO, ApiValidationDepth.SCHEMA, true, false, true));
 
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status(),
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
                 "Unsupported events: " + result.report().unsupportedEvents());
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED, result.report().compilation().status(),
                 "Compile diagnostics: " + result.report().compilation().diagnostics());
@@ -62,6 +62,32 @@ class ApiCaptureGeneratorTest {
         assertTrue(Files.isDirectory(result.testDataDirectory()));
         assertTrue(Files.list(result.testDataDirectory()).findAny().isPresent(), "Schema artifacts should be written");
         assertTrue(Files.exists(result.reportPath()));
+    }
+
+    /**
+     * Issue #4220 (adjacent finding from #4029): {@code ApiCaptureGenerator} must never report
+     * {@code Status.SUCCESS} when replay was never requested -- a compiled-but-unreplayed
+     * generation is a distinct, honest {@code UNCONFIRMED} status, mirroring the fix #4029 applied
+     * to {@code CaptureGenerator}.
+     */
+    @Test
+    void generateWithSkippedReplayIsNotReportedSuccessful() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-unconfirmed"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-api-unconfirmed");
+
+        ApiCaptureGenerationResult result = new ApiCaptureGenerator().generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.SCHEMA, true, false, true));
+
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
+                "a skipped replay must never report bare Status.SUCCESS");
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                result.report().compilation().status(),
+                "Compile diagnostics: " + result.report().compilation().diagnostics());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.SKIPPED,
+                result.report().replay().status());
+        assertTrue(Files.isRegularFile(result.sourcePath()),
+                "compiled-but-unconfirmed generation must still write the generated source");
     }
 
     @Test
@@ -78,7 +104,7 @@ class ApiCaptureGeneratorTest {
                 sessionPath, outputRoot, "tests.generated", "",
                 ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS, true, false, true, specPath));
 
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status());
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status());
         CaptureGenerationReport.OpenApiCoverage coverage = result.report().openApiCoverage();
         assertTrue(coverage.loadable(), "Coverage load failure: " + coverage.loadFailureReason());
         assertEquals(3, coverage.totalDeclaredOperations());
@@ -115,7 +141,7 @@ class ApiCaptureGeneratorTest {
                 ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
                 CaptureGenerationRequest.EnrichmentMode.NONE, null, false, null));
 
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status(),
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
                 "Unsupported: " + result.report().unsupportedEvents());
         assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.NOT_REQUESTED,
                 result.report().enrichment().status());
@@ -137,7 +163,7 @@ class ApiCaptureGeneratorTest {
                 CaptureGenerationRequest.EnrichmentMode.PREVIEW, previewPath, false,
                 new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
 
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status(),
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
                 "Unsupported: " + result.report().unsupportedEvents());
         assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
                 result.report().enrichment().status());
@@ -161,14 +187,14 @@ class ApiCaptureGeneratorTest {
                 ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
                 CaptureGenerationRequest.EnrichmentMode.PREVIEW, previewPath, false,
                 new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, previewResult.report().status());
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, previewResult.report().status());
 
         ApiCaptureGenerationResult applied = generator.generate(new ApiCaptureGenerationRequest(
                 sessionPath, outputRoot, "tests.generated", "",
                 ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
                 CaptureGenerationRequest.EnrichmentMode.APPLY, previewPath, true, ApprovalPolicy.denyAll()));
 
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, applied.report().status(),
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, applied.report().status(),
                 "Unsupported: " + applied.report().unsupportedEvents());
         assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.APPLIED,
                 applied.report().enrichment().status());
@@ -215,7 +241,7 @@ class ApiCaptureGeneratorTest {
                 outputRoot.resolve("preview.json"), false,
                 new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
 
-        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status());
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status());
         assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.NOT_REQUESTED,
                 result.report().enrichment().status());
     }
