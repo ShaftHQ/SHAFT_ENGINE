@@ -1226,6 +1226,111 @@ class CaptureGeneratorTest {
                 second.report().warnings().toString());
     }
 
+    // Issue #4202: the same overwrite-before-validate exposure #4166/PR #4201 fixed for the
+    // generated .java source is also present for the generated test-data JSON -- a failed
+    // compile/replay must never leave unvalidated data at paths.data() either. Staging under a
+    // temp name (as #4166 did for source) is not viable here: the replay subprocess loads test
+    // data from paths.data() by the fixed SHAFT.TestData.JSON(dataFileName(className)) convention
+    // baked into the generated test itself, so the fix is snapshot/restore instead.
+    @Test
+    void failedReplayLeavesPreviouslyGeneratedDataUnchanged() throws Exception {
+        CaptureSession baseline = CaptureFixtures.representativeSession();
+        writeCaptureData("alice");
+        Path output = temp.resolve("data-overwrite-protection");
+
+        CaptureGenerationResult first = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session(baseline), output, "generated.capture", "DataOverwriteProtectionTest", true,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll()));
+        assertTrue(first.successful(), first.report().unsupportedEvents().toString());
+        String originalDataJson = Files.readString(first.testDataPath());
+
+        // Same session (so analysis/compile would still be valid), but the referenced
+        // capture-data.json now has a different username value, so the regenerated dataJson is
+        // provably different text from the original -- otherwise a byte-identical regeneration
+        // could pass even with the bug still present.
+        writeCaptureData("bob");
+
+        GeneratedTestValidator failingReplayValidator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("Simulated replay failure for regression coverage."), 1);
+            }
+        };
+        CaptureGenerationResult second = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), failingReplayValidator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session(baseline), output, "generated.capture", "DataOverwriteProtectionTest", true,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertFalse(second.successful());
+        assertEquals(first.testDataPath(), second.testDataPath());
+        assertEquals(originalDataJson, Files.readString(second.testDataPath()));
+        assertTrue(second.report().warnings().stream()
+                        .anyMatch(warning -> warning.contains("test data") && warning.contains("left unchanged")),
+                second.report().warnings().toString());
+    }
+
+    // Issue #4202: a FIRST generation that fails compile/replay has no previous data file to
+    // restore, so the just-written, unvalidated data file must be removed instead of left in
+    // place.
+    @Test
+    void failedReplayOnFirstGenerationRemovesUnvalidatedDataFile() throws Exception {
+        CaptureSession baseline = CaptureFixtures.representativeSession();
+        writeCaptureData("alice");
+        Path output = temp.resolve("data-first-generation-failure");
+
+        GeneratedTestValidator failingReplayValidator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("Simulated replay failure for regression coverage."), 1);
+            }
+        };
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), failingReplayValidator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session(baseline), output, "generated.capture", "FirstGenerationFailureTest", true,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertFalse(result.successful());
+        assertFalse(Files.exists(result.testDataPath()),
+                "Unvalidated first-generation data file should have been removed.");
+        assertTrue(result.report().warnings().stream()
+                        .anyMatch(warning -> warning.contains("test data") && warning.contains("removed")),
+                result.report().warnings().toString());
+    }
+
     @Test
     void workspaceContainedFileUrlRecordingIsNotAPrivacyBlocker() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();
