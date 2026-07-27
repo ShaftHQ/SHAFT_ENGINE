@@ -151,21 +151,28 @@ final class AssistantCommand {
                     - Put every code snippet in fenced code blocks with the correct language.
                     - Return only SHAFT-syntax Java; never return raw Selenium code.
                     """.stripIndent().trim();
-    // Issue #4239 P2.2: kept in full (identical to the pre-split SHAFT_CODEGEN_TOOL_GUIDANCE) for
+    // Issue #4239 P2.2: kept (identical to the pre-split SHAFT_CODEGEN_TOOL_GUIDANCE at first) for
     // the same reason as SHAFT_MCP_USAGE_HINT_CLOUD above -- cloud chat never receives the P2.1 MCP
-    // instructions, so this is its only copy of the ordering and tool-routing guidance. Do NOT trim.
+    // instructions, so this is its only copy of the locator, POM-structure, and output-formatting
+    // guidance. Do NOT trim those parts back to match the local-agent variant.
+    //
+    // Issue #4256 (adjacent finding filed during P2.2): unlike that guidance, the tool-invocation
+    // directives this constant used to carry verbatim from SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT
+    // ("Call shaft_guide_search", "call shaft_coding_partner_plan", "start a fresh session with
+    // capture_start ... capture_generate_replay", "record with capture_api_start ...
+    // capture_api_generate", "call healer_run_failed_test", "Call test_code_guardrails_check") were
+    // never actionable here: AutobotService.runProviderChat (shaft-mcp/.../AutobotService.java) is a
+    // plain text-completion call with no MCP client construction and no tool-calling loop, so the
+    // cloud model receiving this text cannot invoke any shaft-mcp tool through this path, ever. Those
+    // directives are removed below (or, where they also shaped the *returned code* -- e.g. routing
+    // API requests to SHAFT.API instead of UI locators -- rewritten as plain-text expectations that
+    // do not name a tool to call).
     private static final String SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD =
             """
                     This is a code-generation request. Before returning Java:
-                    - Call shaft_guide_search for the relevant SHAFT guide examples and cite the official guide URLs.
-                    - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
-                    - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
-                    - Reuse existing tests, page objects, locator fields, and action methods first.
-                    - If the user provided a recording JSON path, generate from it with capture_generate_replay (replay true, useAi false); it re-executes the recording headless, compiles the generated test, and proves every locator live. No active capture session is required and none should be demanded.
-                    - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start, perform the described actions live (element_type, element_click), call capture_stop, then pass the persisted recording to capture_generate_replay (replay true, useAi false) so the returned code ships with replay-proven locators.
-                    - Choose the engine that matches the description before starting: driver_initialize with engine=web (default), engine=playwright, engine=mobile_native, or engine=mobile_web; capture_start/capture_stop/capture_generate_replay then dispatch to whichever engine is active, and mobile actions use the same element_click/element_type tools as web.
-                    - If the user asks for an API/HTTP test (SHAFT.API / RestActions) rather than a UI flow, record with capture_api_start (networkOptions capturing request/response bodies), browse the flow live, call capture_api_stop, then capture_api_generate (style SCENARIO by default) to return SHAFT.API code; do not force capture_start's UI-locator tools onto an API-only request.
-                    - If capture_generate_replay reports a broken or unhealed locator, call healer_run_failed_test (optional backend=playwright param for a Playwright flow) to self-heal it before returning code, instead of returning a known-broken locator.
+                    - Inspect existing project code before creating tests, page objects, locators, or actions, and reuse existing tests, page objects, locator fields, and action methods first.
+                    - This chat has no way to record a live session, drive a browser, or self-heal a locator: never claim a recording, live verification, or automated healing pass happened, and never present a locator as replay-proven or self-healed. If a locator or flow could not be checked live, say so plainly instead of guessing.
+                    - If the user asks for an API/HTTP test (SHAFT.API / RestActions) rather than a UI flow, return SHAFT.API code, not UI-locator-based code.
                     - MUST follow the Page Object Model: one Page Object Model class per described flow, holding all locators and action methods, matching this project's existing package/module layout and SHAFT syntax; do not put driver.element()/locator calls directly in a @Test method body -- extract them into a page class. Keep the returned code minimal and project-structure-compliant; do not repeat this guidance text back to the user or paste unrelated boilerplate.
                     - Write in SHAFT's fluent design and action chaining style: chain calls on the same element/actions object (for example driver.element().click(locator).type(otherLocator, "value")) instead of a separate statement per action; only break the chain when the next step needs a different receiver.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
@@ -174,7 +181,6 @@ final class AssistantCommand {
                     - Do not publish locators as verified unless a live browser session actually checked them.
                     - Never generate SHAFT.GUI.Locator.xpath(...); build locators with the SHAFT locator builder's ARIA-role strategy, SHAFT.GUI.Locator.hasRole(...), falling back to native By.xpath(...) only when the element exposes no ARIA role.
                     - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
-                    - Call test_code_guardrails_check on the final Java snippet.
                     - Do not print full repository files or broad file dumps. Cite inspected files by path and include only the generated or changed code needed for the answer.
                     - Put every code snippet in fenced code blocks with the correct language.
                     - Return only SHAFT-syntax Java; never return raw Selenium code.
@@ -2895,9 +2901,11 @@ final class AssistantCommand {
      * silently drops the rest of the description (the assertion, the generated test). Routing this
      * intent through {@link #isCodeGenerationRequest} instead sends it to the underlying agent with
      * the full record -&gt; act -&gt; stop -&gt; codegen -&gt; self-heal pipeline, matching what the
-     * description actually asked for -- stated in {@link #SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD} for
-     * cloud chat, and delivered to local-agent CLI runs via the P2.1 MCP {@code instructions}
-     * channel instead of {@link #SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT} (issue #4239 P2.2).
+     * description actually asked for -- delivered to local-agent CLI runs (which really are MCP
+     * clients of shaft-mcp) via the P2.1 MCP {@code instructions} channel and
+     * {@link #SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT} (issue #4239 P2.2). The cloud-chat path has no
+     * such pipeline to state: {@link #SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD} no longer names any
+     * shaft-mcp tool to call, since {@code autobot_provider_chat} cannot invoke one (issue #4256).
      *
      * <p>{@link #isStartRecording}/{@link #isRecordScenarioIntent}/{@link #isReRecord} are
      * excluded so the narrow, deliberately exact-match deterministic triggers they own (issue
