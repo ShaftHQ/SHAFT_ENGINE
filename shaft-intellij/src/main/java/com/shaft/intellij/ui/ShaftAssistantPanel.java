@@ -2728,26 +2728,25 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    // Issue #4210: subtle caption shown on a Cancelled/Killed bubble for as long as its companion
-    // terminal-answer future is still pending, so the user can tell an in-place change may still
-    // land instead of the bubble looking indistinguishable from a genuinely final state.
-    private static final String PENDING_ANSWER_INDICATOR = "\n\n_Recovering final answer..._";
-
     /**
      * Issue #4210 (fast-follow to #3962): a purely observational UI affordance layered on top of the
      * identity-based upgrade mechanism above -- never touches {@link #upgradeFinalizedLocalAgentMessage}'s
      * guard clauses or control flow, only watches the SAME {@code pending} future via a second,
      * independent {@code whenComplete} (registered separately from {@link
      * #scheduleTerminalAnswerUpgrade}'s own {@code thenAccept}). Shows {@link
-     * #PENDING_ANSWER_INDICATOR} on {@code message} immediately, then clears it once {@code pending}
-     * resolves -- however it resolves: a real answer (folded into the upgraded content by the
-     * mechanism above, which already overwrites this caption along with the rest of the bubble), a
-     * {@code null} answer (the upgrade above intentionally no-ops, so this clears the caption on its
-     * own), or the run's own process-timeout path -- {@code AssistantLocalAgentRunner#run}'s {@code
-     * finally} block notifies this companion from every exit path (issue #3962), so {@code pending}
-     * always eventually completes and bounds how long the caption can show without any separate
-     * timer. A {@code null} message/pending, or a future already resolved by the time this runs, is a
-     * no-op (nothing to show).
+     * ShaftAssistantChatState#PENDING_ANSWER_INDICATOR} on {@code message} immediately, then clears it
+     * once {@code pending} resolves -- however it resolves: a real answer (folded into the upgraded
+     * content by the mechanism above, which already overwrites this caption along with the rest of
+     * the bubble), a {@code null} answer (the upgrade above intentionally no-ops, so this clears the
+     * caption on its own), or the run's own process-timeout path -- {@code
+     * AssistantLocalAgentRunner#run}'s {@code finally} block notifies this companion from every exit
+     * path (issue #3962), so {@code pending} always eventually completes and bounds how long the
+     * caption can show without any separate timer. A {@code null} message/pending, or a future already
+     * resolved by the time this runs, is a no-op (nothing to show). Note this caption is gated purely
+     * by this in-memory future, which does not survive a project/IDE restart -- {@code
+     * ShaftAssistantChatState}'s {@code normalizeMessage} is the backstop that strips any surviving
+     * copy at every persisted load/save round-trip, so a restart mid-wait can never bake in a
+     * permanently stale claim.
      */
     private void schedulePendingAnswerIndicator(
             ShaftAssistantChatState.Message message, CompletableFuture<String> pending) {
@@ -2772,13 +2771,13 @@ final class ShaftAssistantPanel extends JPanel {
         if (index < 0 || message.markdown == null) {
             return;
         }
-        boolean showing = message.markdown.contains(PENDING_ANSWER_INDICATOR);
+        boolean showing = message.markdown.contains(ShaftAssistantChatState.PENDING_ANSWER_INDICATOR);
         if (visible == showing) {
             return;
         }
         message.markdown = visible
-                ? message.markdown + PENDING_ANSWER_INDICATOR
-                : message.markdown.replace(PENDING_ANSWER_INDICATOR, "");
+                ? message.markdown + ShaftAssistantChatState.PENDING_ANSWER_INDICATOR
+                : message.markdown.replace(ShaftAssistantChatState.PENDING_ANSWER_INDICATOR, "");
         if (index == active.messages.size() - 1) {
             transcript.replaceLast(message.role, message.markdown, message.kind);
         } else {

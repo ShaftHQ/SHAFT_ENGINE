@@ -4764,6 +4764,60 @@ class ShaftPanelSetupTest {
     }
 
     /**
+     * Issue #4210 (independent-review finding): the pending-answer indicator above is gated purely by
+     * an in-memory {@code CompletableFuture} that does NOT survive a project/IDE restart. If IntelliJ's
+     * workspace autosave calls {@code getState()} while the companion is still unresolved -- entirely
+     * plausible during a run's up-to-several-minutes process-timeout window -- and the project is then
+     * reopened (simulated here by feeding that {@code StateData} into a brand-new {@code
+     * ShaftAssistantChatState}, standing in for a fresh IDE instance with no live future for the old
+     * run), nothing must leave the caption baked into the reloaded transcript permanently: the run it
+     * refers to structurally can never resolve after reload, so the caption would otherwise become a
+     * permanent, false claim. The underlying terminal marker itself must still survive the round-trip.
+     */
+    @Test
+    void assistantCancelledBubblePendingAnswerIndicatorDoesNotSurviveAStateRoundTripWhileCompanionIsUnresolved()
+            throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 423);
+        appendLocalAgentOutput(panel, 423, "a line streamed before cancel");
+
+        // Deliberately never completed -- the companion is still pending when the "restart" below
+        // happens, exactly like the real up-to-several-minutes process-timeout window.
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 423, null, new CancellationException("cancelled"));
+        assertTrue(transcriptMarkdown(panel).toLowerCase(java.util.Locale.ROOT)
+                .contains("recovering final answer"),
+                "sanity: the indicator must be showing before the simulated restart");
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        // Simulates IntelliJ's workspace autosave firing while the companion is still unresolved.
+        ShaftAssistantChatState.StateData persisted = chatState.getState();
+
+        // Simulates a fresh IDE/project instance after restart: a new ShaftAssistantChatState has no
+        // live pendingTerminalAnswer field tied to the old run at all.
+        ShaftAssistantChatState reloaded = new ShaftAssistantChatState();
+        reloaded.loadState(persisted);
+
+        String reloadedMarkdown = reloaded.activeMarkdown();
+        assertAll(
+                () -> assertTrue(reloadedMarkdown.contains("Cancelled"),
+                        "the underlying terminal marker must survive the round-trip: " + reloadedMarkdown),
+                () -> assertFalse(reloadedMarkdown.toLowerCase(java.util.Locale.ROOT)
+                                .contains("recovering final answer"),
+                        "a stray pending-answer caption must never survive a save/reload round-trip -- "
+                                + "the run it refers to can never resolve after reload: " + reloadedMarkdown));
+    }
+
+    /**
      * Issue #3962 (second-review finding F2/F3): reproduces the exact scenario the reviewer found --
      * at {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION}, appending the run's own cancelled
      * bubble trips {@code trim()}'s {@code remove(0)}, shifting that bubble's real index down by one
