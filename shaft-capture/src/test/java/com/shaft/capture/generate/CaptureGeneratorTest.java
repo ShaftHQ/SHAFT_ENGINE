@@ -1377,6 +1377,57 @@ class CaptureGeneratorTest {
                 "staged source file should have been cleaned up after a RuntimeException from replay()");
     }
 
+    // Issue #4217: dataWritePendingValidation must be reset as soon as compile+replay determine
+    // `successful`, not after the later, unrelated atomicWrite(paths.source(), source) promotion
+    // write -- otherwise an I/O failure on that unrelated write (disk full, permission race) AFTER
+    // a fully successful validation reaches the outer catch block with the flag still true, which
+    // wrongly restores/removes the just-validated, correct data file as if compile/replay had
+    // failed.
+    @Test
+    void promotionWriteFailureAfterSuccessfulValidationDoesNotDiscardValidatedDataFile() throws Exception {
+        CaptureSession baseline = CaptureFixtures.representativeSession();
+        writeCaptureData("alice");
+        Path output = temp.resolve("promotion-write-failure");
+
+        // Block the directory the validated source would be promoted into, so the atomicWrite()
+        // call AFTER a successful compile+replay throws, while compile/replay themselves report
+        // PASSED -- isolating the promotion-write failure from an actual validation failure.
+        Files.createDirectories(output.resolve("src/test/java"));
+        Files.writeString(output.resolve("src/test/java/generated"), "not a directory");
+
+        GeneratedTestValidator passingValidator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+        };
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), passingValidator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session(baseline), output, "generated.capture", "PromotionWriteFailureTest", true,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertFalse(result.successful());
+        assertTrue(Files.isRegularFile(result.testDataPath()),
+                "a validated data file must not be discarded by an unrelated later promotion-write failure");
+        assertTrue(Files.readString(result.testDataPath()).contains("\"username\" : \"alice\""),
+                Files.readString(result.testDataPath()));
+    }
+
     @Test
     void workspaceContainedFileUrlRecordingIsNotAPrivacyBlocker() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();

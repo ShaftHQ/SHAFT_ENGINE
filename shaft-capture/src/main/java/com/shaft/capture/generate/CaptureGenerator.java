@@ -367,6 +367,11 @@ public final class CaptureGenerator {
                     : replay.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED
                     ? CaptureGenerationReport.Status.SUCCESS
                     : CaptureGenerationReport.Status.UNCONFIRMED;
+            // Issue #4217: reset the moment `generationOk` is known -- restoring/removing the data
+            // snapshot is only ever warranted by a compile/replay FAILURE, never by the unrelated
+            // source-promotion write below, so the flag must not still be true if that write throws
+            // and reaches the outer catch block.
+            dataWritePendingValidation = false;
             if (generationOk) {
                 stage = "promoting the validated generated source to its final path";
                 atomicWrite(paths.source(), source);
@@ -378,7 +383,6 @@ public final class CaptureGenerator {
                 }
                 restoreOrRemoveDataFile(paths.data(), previousDataBytes, paths.root(), state.warnings());
             }
-            dataWritePendingValidation = false;
             deleteStagedSourceQuietly(stagedSource);
             stage = "writing the generation report";
             CaptureGenerationReport report = report(
