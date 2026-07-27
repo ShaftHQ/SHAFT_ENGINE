@@ -52,6 +52,7 @@
 <li><a href="#enum-constant-detail" tabindex="0">Enum Constant Details</a>
 <ol class="toc-list">
 <li><a href="#SUCCESS" tabindex="0">SUCCESS</a></li>
+<li><a href="#UNCONFIRMED" tabindex="0">UNCONFIRMED</a></li>
 <li><a href="#FAILED" tabindex="0">FAILED</a></li>
 </ol>
 </li>
@@ -112,6 +113,12 @@
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code><a href="#SUCCESS" class="member-name-link">SUCCESS</a></code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-first even-row-color"><code><a href="#UNCONFIRMED" class="member-name-link">UNCONFIRMED</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Compilation passed but replay was never requested or was skipped (issue #4029): the
+recorded scenario was never proven to actually run, so this must never be treated as
+<code>SUCCESS</code> by any caller.</div>
+</div>
 </div>
 </section>
 </li>
@@ -162,6 +169,17 @@ the order they are declared.</div>
 <h3>SUCCESS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CaptureGenerationReport.Status.html" title="enum class in com.shaft.capture.generate">CaptureGenerationReport.Status</a></span>&nbsp;<span class="element-name">SUCCESS</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="UNCONFIRMED">
+<h3>UNCONFIRMED</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CaptureGenerationReport.Status.html" title="enum class in com.shaft.capture.generate">CaptureGenerationReport.Status</a></span>&nbsp;<span class="element-name">UNCONFIRMED</span></div>
+<div class="block">Compilation passed but replay was never requested or was skipped (issue #4029): the
+recorded scenario was never proven to actually run, so this must never be treated as
+<code>SUCCESS</code> by any caller.</div>
 </div>
 </section>
 </li>
