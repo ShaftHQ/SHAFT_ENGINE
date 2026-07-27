@@ -170,9 +170,13 @@ public final class CaptureGenerator {
         Path reportPath = outputRoot.resolve("target/shaft-capture/generation-report.json");
         CaptureSession session = null;
         ArtifactPaths paths = null;
+        // Names the pipeline phase reached when a RuntimeException escapes to the catch block below,
+        // so a failure never collapses to a bare, stage-less message (issue #4029).
+        String stage = "reading the capture session";
         try {
             session = codec.read(sessionPath);
             reporter.accept(0.1, "Read capture session " + sessionPath.getFileName());
+            stage = "validating generation request inputs";
             validatePackage(request.packageName());
             String deterministicClassName = request.className().isBlank()
                     ? defaultClassName(session)
@@ -181,15 +185,19 @@ public final class CaptureGenerator {
             String deterministicMethodName = defaultMethodName(session);
             paths = artifactPaths(outputRoot, request.packageName(), deterministicClassName);
 
+            stage = "analyzing captured events";
             GenerationState state = analyze(session, sessionPath, targetBackend);
             reporter.accept(0.3, "Analyzed " + session.events().size() + " captured event(s)");
             Map<String, String> elementNames = defaultElementNames(state.targets());
+            stage = "rendering deterministic test source";
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
                     deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
                     request.fallbackLocators(), Set.of(), FINGERPRINT_HEALING_HISTORY_PATH);
             reporter.accept(0.5, "Generated deterministic test source for " + deterministicClassName);
+            stage = "computing the drift-detection fingerprint";
             String fingerprint = fingerprint(codec.write(session), deterministicSource);
             Set<Long> appliedControlFlowGuards = Set.of();
+            stage = "processing the control-flow preview/apply request";
             if (request.controlFlowMode() == CaptureGenerationRequest.ControlFlowMode.PREVIEW) {
                 writeControlFlowPreview(
                         request.controlFlowPreviewPath().toAbsolutePath().normalize(),
@@ -213,6 +221,7 @@ public final class CaptureGenerator {
 
             CaptureGenerationReport.Enrichment enrichment = CaptureGenerationReport.Enrichment.notRequested();
             CaptureEnrichmentPreview.Proposal appliedProposal = CaptureEnrichmentPreview.Proposal.empty();
+            stage = "processing the enrichment preview/apply request";
             if (request.enrichmentMode() == CaptureGenerationRequest.EnrichmentMode.PREVIEW) {
                 CaptureEnrichmentPreview preview = enrichmentService.preview(
                         session,
@@ -268,11 +277,13 @@ public final class CaptureGenerator {
             if (!className.equals(deterministicClassName)) {
                 paths = artifactPaths(outputRoot, request.packageName(), className);
             }
+            stage = "rendering the final test source";
             String source = renderSource(session, request.packageName(), className, methodName,
                     state.targets(), state.data(), finalElementNames, appliedProposal.assertions(), targetBackend,
                     request.fallbackLocators(), appliedControlFlowGuards, healingHistoryPath);
             String dataJson = writeJson(state.data().root());
 
+            stage = "checking generated artifacts for privacy findings and validating output paths";
             List<String> privacy = new ArrayList<>();
             privacy.addAll(privacyFindings(codec.write(session), privacyRoot));
             privacy.addAll(privacyFindings(source, privacyRoot));
@@ -295,12 +306,15 @@ public final class CaptureGenerator {
                         request.enrichmentPreviewPath(), report);
             }
 
+            stage = "writing generated artifacts to disk";
             atomicWrite(paths.source(), source);
             atomicWrite(paths.data(), dataJson);
+            stage = "compiling the generated test";
             CaptureGenerationReport.Validation compilation = request.compile()
                     ? validator.compile(paths.source(), paths.classes())
                     : CaptureGenerationReport.Validation.skipped("Compilation was not requested.");
             reporter.accept(request.replay() ? 0.75 : 0.9, "Compiled generated test: " + compilation.status());
+            stage = "replaying the generated test";
             CaptureGenerationReport.Validation replay = CaptureGenerationReport.Validation.skipped(
                     "Replay was not requested.");
             if (request.replay()
@@ -320,6 +334,7 @@ public final class CaptureGenerator {
                         "Replay was skipped because compilation failed.");
                 reporter.accept(0.9, "Replay skipped: compilation failed");
             }
+            stage = "writing the generation report";
             boolean successful = compilation.status()
                     != CaptureGenerationReport.Validation.ValidationStatus.FAILED
                     && replay.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED;
@@ -356,7 +371,8 @@ public final class CaptureGenerator {
             ArtifactPaths safePaths = paths == null
                     ? artifactPaths(outputRoot, "generated.capture", "CapturedJourneyTest")
                     : paths;
-            GenerationState failure = GenerationState.failure(safeMessage(exception));
+            GenerationState failure = GenerationState.failure(
+                    "Generation failed while " + stage + ": " + safeMessage(exception));
             CaptureGenerationReport report = report(
                     sessionId,
                     safePaths,
@@ -404,8 +420,18 @@ public final class CaptureGenerator {
                             + " has no locator evidence. Re-record the step with a visible target.");
                     return;
                 }
-                LocatorRanker.LocatorSelection selection =
-                        locatorRanker.select(target, event.context(), interaction(event));
+                LocatorRanker.LocatorSelection selection;
+                try {
+                    selection = locatorRanker.select(target, event.context(), interaction(event));
+                } catch (RuntimeException cause) {
+                    // Names the failing recorded step and element (issue #4029) instead of letting a
+                    // bare, step-less exception message reach the generation report.
+                    throw new IllegalStateException(
+                            "Locator analysis failed for " + eventId + " (element "
+                                    + target.logicalElementId() + "). Re-record the step or report this as a "
+                                    + "SHAFT codegen defect: " + safeMessage(cause),
+                            cause);
+                }
                 MutableTargetPlan existing = targets.computeIfAbsent(
                         target.logicalElementId(),
                         ignored -> new MutableTargetPlan(target, event.context(), selection));
@@ -2800,7 +2826,9 @@ public final class CaptureGenerator {
 
     private static String safeMessage(RuntimeException exception) {
         String message = exception.getMessage();
-        return message == null || message.isBlank() ? "Generation failed." : message;
+        return message == null || message.isBlank()
+                ? "an unhandled " + exception.getClass().getSimpleName() + " with no further detail"
+                : message;
     }
 
     private static void line(StringBuilder source, String value) {
