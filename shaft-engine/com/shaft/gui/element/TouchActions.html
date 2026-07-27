@@ -92,6 +92,15 @@
 <li><a href="#swipeElementIntoView(java.lang.String,java.lang.String)" tabindex="0">swipeElementIntoView(String, String)</a></li>
 <li><a href="#rotate(org.openqa.selenium.ScreenOrientation)" tabindex="0">rotate(ScreenOrientation)</a></li>
 <li><a href="#rotate(java.lang.String)" tabindex="0">rotate(String)</a></li>
+<li><a href="#waitForVisible(org.openqa.selenium.By)" tabindex="0">waitForVisible(By)</a></li>
+<li><a href="#waitForVisible(org.openqa.selenium.By,java.time.Duration)" tabindex="0">waitForVisible(By, Duration)</a></li>
+<li><a href="#waitForAbsent(org.openqa.selenium.By)" tabindex="0">waitForAbsent(By)</a></li>
+<li><a href="#waitForAbsent(org.openqa.selenium.By,java.time.Duration)" tabindex="0">waitForAbsent(By, Duration)</a></li>
+<li><a href="#performDoubleClick(org.openqa.selenium.By)" tabindex="0">performDoubleClick(By)</a></li>
+<li><a href="#performLongPress(org.openqa.selenium.By)" tabindex="0">performLongPress(By)</a></li>
+<li><a href="#performDragAndDrop(org.openqa.selenium.By,org.openqa.selenium.By)" tabindex="0">performDragAndDrop(By, By)</a></li>
+<li><a href="#injectMockImage(java.io.File)" tabindex="0">injectMockImage(File)</a></li>
+<li><a href="#activateInjectedImage(java.lang.String)" tabindex="0">activateInjectedImage(String)</a></li>
 <li><a href="#saveSessionCapabilities(java.lang.String)" tabindex="0">saveSessionCapabilities(String)</a></li>
 <li><a href="#loadSessionCapabilities(java.lang.String)" tabindex="0">loadSessionCapabilities(String)</a></li>
 <li><a href="#saveAppState(java.lang.String)" tabindex="0">saveAppState(String)</a></li>
@@ -199,22 +208,34 @@ native, hybrid, and mobile-web applications.
 <div class="block">Activates an app that has been previously deactivated or sent to the background.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#and()" class="member-name-link">and</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#activateInjectedImage(java.lang.String)" class="member-name-link">activateInjectedImage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;imageId)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns this instance to allow fluent (method-chaining) syntax between successive actions.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertThat(org.openqa.selenium.By)" class="member-name-link">assertThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doubleTap(org.openqa.selenium.By)" class="member-name-link">doubleTap</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Double-Taps an element on a touch-enabled screen</div>
+<div class="block">Activates a previously injected mock camera image, using
+<code>SupportsFlutterCameraMocking.activateInjectedImage(String)</code>.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hideNativeKeyboard()" class="member-name-link">hideNativeKeyboard</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#and()" class="member-name-link">and</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns this instance to allow fluent (method-chaining) syntax between successive actions.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertThat(org.openqa.selenium.By)" class="member-name-link">assertThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doubleTap(org.openqa.selenium.By)" class="member-name-link">doubleTap</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Double-Taps an element on a touch-enabled screen</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hideNativeKeyboard()" class="member-name-link">hideNativeKeyboard</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hides the device native soft keyboard.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#injectMockImage(java.io.File)" class="member-name-link">injectMockImage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;image)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Injects a mock camera image into the Flutter application, using
+<code>SupportsFlutterCameraMocking.injectMockImage(File)</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#loadAppState(java.lang.String)" class="member-name-link">loadAppState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
@@ -244,176 +265,222 @@ touch-enabled screen</div>
 <div class="block">Sends a key-press via the device soft keyboard.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pinchToZoom(com.shaft.gui.element.TouchActions.ZoomDirection)" class="member-name-link">pinchToZoom</a><wbr>(<a href="TouchActions.ZoomDirection.html" title="enum class in com.shaft.gui.element">TouchActions.ZoomDirection</a>&nbsp;zoomDirection)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performDoubleClick(org.openqa.selenium.By)" class="member-name-link">performDoubleClick</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Performs a Flutter-native double-click on the target widget, using
+<code>SupportsGestureOnFlutterElements.performDoubleClick(DoubleClickParameter)</code>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performDragAndDrop(org.openqa.selenium.By,org.openqa.selenium.By)" class="member-name-link">performDragAndDrop</a><wbr>(org.openqa.selenium.By&nbsp;sourceElementLocator,
+ org.openqa.selenium.By&nbsp;targetElementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Performs a Flutter-native drag-and-drop between two widgets, using
+<code>SupportsGestureOnFlutterElements.performDragAndDrop(DragAndDropParameter)</code>.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performLongPress(org.openqa.selenium.By)" class="member-name-link">performLongPress</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Performs a Flutter-native long-press on the target widget, using
+<code>SupportsGestureOnFlutterElements.performLongPress(LongPressParameter)</code>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pinchToZoom(com.shaft.gui.element.TouchActions.ZoomDirection)" class="member-name-link">pinchToZoom</a><wbr>(<a href="TouchActions.ZoomDirection.html" title="enum class in com.shaft.gui.element">TouchActions.ZoomDirection</a>&nbsp;zoomDirection)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to zoom the current screen IN/ OUT in case of zoom enabled screen.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pullFile(java.lang.String,java.lang.String)" class="member-name-link">pullFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceFilePath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pullFile(java.lang.String,java.lang.String)" class="member-name-link">pullFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;localFilePath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Downloads a file from the device or simulator/emulator to the local machine.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pushFile(java.lang.String,java.io.File)" class="member-name-link">pushFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceFilePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pushFile(java.lang.String,java.io.File)" class="member-name-link">pushFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;localFile)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Uploads a file to the device or simulator/emulator using a File object.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pushFile(java.lang.String,java.lang.String)" class="member-name-link">pushFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceFilePath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pushFile(java.lang.String,java.lang.String)" class="member-name-link">pushFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deviceFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;localFilePath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Uploads a file to the device or simulator/emulator.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rotate(java.lang.String)" class="member-name-link">rotate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;orientation)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rotate(java.lang.String)" class="member-name-link">rotate</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;orientation)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Rotate between portrait and landscape modes.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rotate(org.openqa.selenium.ScreenOrientation)" class="member-name-link">rotate</a><wbr>(org.openqa.selenium.ScreenOrientation&nbsp;orientation)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rotate(org.openqa.selenium.ScreenOrientation)" class="member-name-link">rotate</a><wbr>(org.openqa.selenium.ScreenOrientation&nbsp;orientation)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Rotate between portrait and landscape modes</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveAppState(java.lang.String)" class="member-name-link">saveAppState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveAppState(java.lang.String)" class="member-name-link">saveAppState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Saves a snapshot of the current mobile app state (active app, context, orientation, window size)
 to a JSON file.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveSessionCapabilities(java.lang.String)" class="member-name-link">saveSessionCapabilities</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveSessionCapabilities(java.lang.String)" class="member-name-link">saveSessionCapabilities</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Saves the active Appium session capabilities to a JSON file, so a later test run can reuse
 the same device/app configuration without re-resolving it.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sendAppToBackground()" class="member-name-link">sendAppToBackground</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sendAppToBackground()" class="member-name-link">sendAppToBackground</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Send the currently active app to the background and leave the app deactivated.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sendAppToBackground(int)" class="member-name-link">sendAppToBackground</a><wbr>(int&nbsp;secondsToSpendInTheBackground)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sendAppToBackground(int)" class="member-name-link">sendAppToBackground</a><wbr>(int&nbsp;secondsToSpendInTheBackground)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Send the currently active app to the background, and return after a certain number of seconds.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeByCoordinates(int,int,int,int,int)" class="member-name-link">swipeByCoordinates</a><wbr>(int&nbsp;startX,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeByCoordinates(int,int,int,int,int)" class="member-name-link">swipeByCoordinates</a><wbr>(int&nbsp;startX,
  int&nbsp;startY,
  int&nbsp;endX,
  int&nbsp;endY,
  int&nbsp;durationMillis)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Swipes between viewport coordinates on a touch-enabled screen.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeByOffset(org.openqa.selenium.By,int,int)" class="member-name-link">swipeByOffset</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeByOffset(org.openqa.selenium.By,int,int)" class="member-name-link">swipeByOffset</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  int&nbsp;xOffset,
  int&nbsp;yOffset)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Swipes an element with the desired x and y offset.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll element into view using androidUIAutomator</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot,
  <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String,com.shaft.gui.element.TouchActions.SwipeMovement)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String,com.shaft.gui.element.TouchActions.SwipeMovement)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText,
  <a href="TouchActions.SwipeMovement.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeMovement</a>&nbsp;movement)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll element into view using androidUIAutomator</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String,java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String,java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;movement)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll Android text into view using androidUIAutomator.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;targetElementLocator,
- <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Attempts to scroll the element into view in case of native mobile elements.</div>
-</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;targetElementLocator,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;swipeDirection)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;targetElementLocator,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll the element into view in case of native mobile elements.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,java.lang.String,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;targetElementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;swipeDirection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Attempts to scroll the element into view in case of native mobile elements.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,java.lang.String,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot,
  <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
  org.openqa.selenium.By&nbsp;targetElementLocator,
  <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll element into view using the new W3C compliant actions for android and ios</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeToElement(org.openqa.selenium.By,org.openqa.selenium.By)" class="member-name-link">swipeToElement</a><wbr>(org.openqa.selenium.By&nbsp;sourceElementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeToElement(org.openqa.selenium.By,org.openqa.selenium.By)" class="member-name-link">swipeToElement</a><wbr>(org.openqa.selenium.By&nbsp;sourceElementLocator,
  org.openqa.selenium.By&nbsp;destinationElementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Swipes the sourceElement onto the destinationElement on a touch-enabled
 screen</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeToEndOfView(com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeToEndOfView</a><wbr>(<a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeToEndOfView(com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeToEndOfView</a><wbr>(<a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Swipes until the current view can no longer scroll in the requested direction.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeToEndOfView(org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeToEndOfView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeToEndOfView(org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeToEndOfView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
  <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Swipes inside a scrollable element until it can no longer scroll in the requested direction.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(java.lang.String)" class="member-name-link">tap</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Taps an element once on a touch-enabled screen</div>
-</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(org.openqa.selenium.By)" class="member-name-link">tap</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(java.lang.String)" class="member-name-link">tap</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Taps an element once on a touch-enabled screen</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tapByCoordinates(int,int)" class="member-name-link">tapByCoordinates</a><wbr>(int&nbsp;x,
- int&nbsp;y)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(org.openqa.selenium.By)" class="member-name-link">tap</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Taps an element once on a touch-enabled screen</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tapByCoordinates(int,int)" class="member-name-link">tapByCoordinates</a><wbr>(int&nbsp;x,
+ int&nbsp;y)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Taps viewport coordinates once on a touch-enabled screen.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(java.lang.String,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(java.lang.String,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Taps an element found by reference image, then types into the active field.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat(org.openqa.selenium.By)" class="member-name-link">verifyThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat(org.openqa.selenium.By)" class="member-name-link">verifyThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForAbsent(org.openqa.selenium.By)" class="member-name-link">waitForAbsent</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits for a Flutter widget to become absent, using <code>SupportsWaitingForFlutterElements.waitForInVisible(WaitParameter)</code>
+against the Flutter integration driver's own widget tree.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilElementIsNotVisible(java.lang.String)" class="member-name-link">waitUntilElementIsNotVisible</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForAbsent(org.openqa.selenium.By,java.time.Duration)" class="member-name-link">waitForAbsent</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Waits until a specific reference image is no longer visible on the current screen.</div>
+<div class="block">Waits for a Flutter widget to become absent within the given timeout, using
+<code>SupportsWaitingForFlutterElements.waitForInVisible(WaitParameter)</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilElementIsVisible(java.lang.String)" class="member-name-link">waitUntilElementIsVisible</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForVisible(org.openqa.selenium.By)" class="member-name-link">waitForVisible</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits for a Flutter widget to become visible, using <code>SupportsWaitingForFlutterElements.waitForVisible(WaitParameter)</code>
+against the Flutter integration driver's own widget tree -- unlike native visibility waits, this works
+against a bare FlutterView with no native scrollable/overlay.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForVisible(org.openqa.selenium.By,java.time.Duration)" class="member-name-link">waitForVisible</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits for a Flutter widget to become visible within the given timeout, using
+<code>SupportsWaitingForFlutterElements.waitForVisible(WaitParameter)</code>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilElementIsNotVisible(java.lang.String)" class="member-name-link">waitUntilElementIsNotVisible</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits until a specific reference image is no longer visible on the current screen.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilElementIsVisible(java.lang.String)" class="member-name-link">waitUntilElementIsVisible</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Waits until a specific element is now visible on the current screen</div>
 </div>
 </div>
@@ -1078,6 +1145,170 @@ is determined by the value of the offset.</div>
 <dd>a self-reference to be used to chain actions</dd>
 <dt>Throws:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - when the orientation is blank or unsupported</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="waitForVisible(org.openqa.selenium.By)">
+<h3>waitForVisible</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">waitForVisible</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Waits for a Flutter widget to become visible, using <code>SupportsWaitingForFlutterElements.waitForVisible(WaitParameter)</code>
+against the Flutter integration driver's own widget tree -- unlike native visibility waits, this works
+against a bare FlutterView with no native scrollable/overlay. Requires both a Flutter integration driver
+session and an <code>AppiumBy.FlutterBy</code> locator; anything else fails the action.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - an <code>AppiumBy.FlutterBy</code> locator identifying the target Flutter widget</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="waitForVisible(org.openqa.selenium.By,java.time.Duration)">
+<h3>waitForVisible</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">waitForVisible</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</span></div>
+<div class="block">Waits for a Flutter widget to become visible within the given timeout, using
+<code>SupportsWaitingForFlutterElements.waitForVisible(WaitParameter)</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - an <code>AppiumBy.FlutterBy</code> locator identifying the target Flutter widget</dd>
+<dd><code>timeout</code> - the maximum duration to wait, or <code>null</code> to use the Flutter driver default</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="waitForAbsent(org.openqa.selenium.By)">
+<h3>waitForAbsent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">waitForAbsent</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Waits for a Flutter widget to become absent, using <code>SupportsWaitingForFlutterElements.waitForInVisible(WaitParameter)</code>
+against the Flutter integration driver's own widget tree. Requires both a Flutter integration driver
+session and an <code>AppiumBy.FlutterBy</code> locator; anything else fails the action.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - an <code>AppiumBy.FlutterBy</code> locator identifying the target Flutter widget</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="waitForAbsent(org.openqa.selenium.By,java.time.Duration)">
+<h3>waitForAbsent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">waitForAbsent</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</span></div>
+<div class="block">Waits for a Flutter widget to become absent within the given timeout, using
+<code>SupportsWaitingForFlutterElements.waitForInVisible(WaitParameter)</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - an <code>AppiumBy.FlutterBy</code> locator identifying the target Flutter widget</dd>
+<dd><code>timeout</code> - the maximum duration to wait, or <code>null</code> to use the Flutter driver default</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="performDoubleClick(org.openqa.selenium.By)">
+<h3>performDoubleClick</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">performDoubleClick</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Performs a Flutter-native double-click on the target widget, using
+<code>SupportsGestureOnFlutterElements.performDoubleClick(DoubleClickParameter)</code>. Unlike <a href="#doubleTap(org.openqa.selenium.By)"><code>doubleTap(By)</code></a>, this drives
+Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+FlutterView. Requires a Flutter integration driver session; anything else fails the action.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - the locator of the target Flutter widget</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="performLongPress(org.openqa.selenium.By)">
+<h3>performLongPress</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">performLongPress</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Performs a Flutter-native long-press on the target widget, using
+<code>SupportsGestureOnFlutterElements.performLongPress(LongPressParameter)</code>. Unlike <a href="#longTap(org.openqa.selenium.By)"><code>longTap(By)</code></a>, this drives
+Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+FlutterView. Requires a Flutter integration driver session; anything else fails the action.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - the locator of the target Flutter widget</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="performDragAndDrop(org.openqa.selenium.By,org.openqa.selenium.By)">
+<h3>performDragAndDrop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">performDragAndDrop</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;sourceElementLocator,
+ org.openqa.selenium.By&nbsp;targetElementLocator)</span></div>
+<div class="block">Performs a Flutter-native drag-and-drop between two widgets, using
+<code>SupportsGestureOnFlutterElements.performDragAndDrop(DragAndDropParameter)</code>. Unlike <a href="#swipeToElement(org.openqa.selenium.By,org.openqa.selenium.By)"><code>swipeToElement(By, By)</code></a>, this
+drives Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+FlutterView. Requires a Flutter integration driver session; anything else fails the action.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>sourceElementLocator</code> - the locator of the widget to drag</dd>
+<dd><code>targetElementLocator</code> - the locator of the widget to drop onto</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="injectMockImage(java.io.File)">
+<h3>injectMockImage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">injectMockImage</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/File.html" title="class or interface in java.io" class="external-link">File</a>&nbsp;image)</span></div>
+<div class="block">Injects a mock camera image into the Flutter application, using
+<code>SupportsFlutterCameraMocking.injectMockImage(File)</code>. Useful for QR/scanner flow testing. Requires a
+Flutter integration driver session; anything else fails the action and returns <code>null</code>.
+<p>
+Intentionally breaks the fluent chain (like <a href="AlertActions.html#getAlertText()"><code>AlertActions.getAlertText()</code></a>):
+the returned image id is required by <a href="#activateInjectedImage(java.lang.String)"><code>activateInjectedImage(String)</code></a>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>image</code> - the image file to inject (must be in PNG format)</dd>
+<dt>Returns:</dt>
+<dd>a unique id for the injected image, or <code>null</code> if the action failed</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="activateInjectedImage(java.lang.String)">
+<h3>activateInjectedImage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">activateInjectedImage</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;imageId)</span></div>
+<div class="block">Activates a previously injected mock camera image, using
+<code>SupportsFlutterCameraMocking.activateInjectedImage(String)</code>. Requires a Flutter integration driver
+session; anything else fails the action.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>imageId</code> - the id returned by <a href="#injectMockImage(java.io.File)"><code>injectMockImage(File)</code></a></dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
 </dl>
 </div>
 </section>
