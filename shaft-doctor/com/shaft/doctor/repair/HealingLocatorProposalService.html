@@ -55,6 +55,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#propose(com.shaft.doctor.repair.HealingLocatorProposalRequest)" tabindex="0">propose(HealingLocatorProposalRequest)</a></li>
+<li><a href="#proposeAdvisory(com.shaft.doctor.repair.HealingLocatorProposalRequest)" tabindex="0">proposeAdvisory(HealingLocatorProposalRequest)</a></li>
 <li><a href="#isSourceCurrent(java.nio.file.Path,com.shaft.doctor.repair.HealingLocatorProposal)" tabindex="0">isSourceCurrent(Path, HealingLocatorProposal)</a></li>
 </ol>
 </li>
@@ -116,6 +117,12 @@ separate explicitly invoked <a href="DoctorRepairService.html" title="class in c
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Creates and persists a proposal-only artifact.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="HealingLocatorProposal.html" title="class in com.shaft.doctor.repair">HealingLocatorProposal</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeAdvisory(com.shaft.doctor.repair.HealingLocatorProposalRequest)" class="member-name-link">proposeAdvisory</a><wbr>(<a href="HealingLocatorProposalRequest.html" title="class in com.shaft.doctor.repair">HealingLocatorProposalRequest</a>&nbsp;request)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Creates and persists an advisory-only, unconfirmed review proposal from a low-trust
+SHAFT Heal ladder outcome (issue #4194).</div>
+</div>
 </div>
 </div>
 </div>
@@ -160,6 +167,29 @@ separate explicitly invoked <a href="DoctorRepairService.html" title="class in c
 <dd><code>request</code> - explicit proposal request</dd>
 <dt>Returns:</dt>
 <dd>reviewable proposal and structured Doctor patch</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="proposeAdvisory(com.shaft.doctor.repair.HealingLocatorProposalRequest)">
+<h3>proposeAdvisory</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="HealingLocatorProposal.html" title="class in com.shaft.doctor.repair">HealingLocatorProposal</a></span>&nbsp;<span class="element-name">proposeAdvisory</span><wbr><span class="parameters">(<a href="HealingLocatorProposalRequest.html" title="class in com.shaft.doctor.repair">HealingLocatorProposalRequest</a>&nbsp;request)</span></div>
+<div class="block">Creates and persists an advisory-only, unconfirmed review proposal from a low-trust
+SHAFT Heal ladder outcome (issue #4194).
+
+<p>Unlike <a href="#propose(com.shaft.doctor.repair.HealingLocatorProposalRequest)"><code>propose(HealingLocatorProposalRequest)</code></a>, this never requires a confirmed
+<code>RECOVERED</code> decision or a passed action outcome -- a <code>BELOW_THRESHOLD</code> decision
+is exactly the "low trust" signal this exists for. The resulting patch only adds a review
+comment near the original locator; it never replaces or otherwise edits the locator itself,
+matching issue #2885's closed acceptance criteria that runtime healing never silently
+modifies source.</p></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>request</code> - explicit proposal request</dd>
+<dt>Returns:</dt>
+<dd>reviewable advisory proposal and structured Doctor patch</dd>
 </dl>
 </div>
 </section>

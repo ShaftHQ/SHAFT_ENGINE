@@ -59,6 +59,7 @@
 <li><a href="#analyze(java.util.List,java.util.List,java.util.List,java.lang.String,boolean,boolean,int)" tabindex="0">analyze(List, List, List, String, boolean, boolean, int)</a></li>
 <li><a href="#proposeFix(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,boolean,java.lang.String,boolean)" tabindex="0">proposeFix(String, String, String, String, String, List, List, List, boolean, String, boolean)</a></li>
 <li><a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">proposeHealedLocator(String, String, String, boolean, String)</a></li>
+<li><a href="#proposeAdvisoryLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">proposeAdvisoryLocator(String, String, String, boolean, String)</a></li>
 <li><a href="#publishDraftPr(java.lang.String,boolean,java.lang.String,boolean,java.lang.String,java.lang.String)" tabindex="0">publishDraftPr(String, boolean, String, boolean, String, String)</a></li>
 </ol>
 </li>
@@ -137,8 +138,18 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Analyzes failed Allure evidence and returns deterministic remediation plus optional AI advisory snippets.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.DoctorRepairProposalResult</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeFix(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,boolean,java.lang.String,boolean)" class="member-name-link">proposeFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.HealingLocatorProposal</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeAdvisoryLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">proposeAdvisoryLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healingReportPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourcePath,
+ boolean&nbsp;sourcePatchConsent,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Creates an advisory-only, unconfirmed locator patch proposal from a low-trust
+(<code>BELOW_THRESHOLD</code>) SHAFT Heal report (issue #4194).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.DoctorRepairProposalResult</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeFix(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,boolean,java.lang.String,boolean)" class="member-name-link">proposeFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;baseSha,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;diagnosisPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;evidenceBundlePath,
@@ -149,30 +160,30 @@
  boolean&nbsp;networkValidationApproved,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  boolean&nbsp;useAi)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Creates a repair proposal in an isolated worktree without writing to GitHub.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.HealingLocatorProposal</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">proposeHealedLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.HealingLocatorProposal</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">proposeHealedLocator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healingReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourcePath,
  boolean&nbsp;sourcePatchConsent,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Creates a proposal-only locator patch from a verified SHAFT Heal report.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.RepairPublicationResult</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#publishDraftPr(java.lang.String,boolean,java.lang.String,boolean,java.lang.String,java.lang.String)" class="member-name-link">publishDraftPr</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;manifestPath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.doctor.repair.RepairPublicationResult</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#publishDraftPr(java.lang.String,boolean,java.lang.String,boolean,java.lang.String,java.lang.String)" class="member-name-link">publishDraftPr</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;manifestPath,
  boolean&nbsp;approved,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvalToken,
  boolean&nbsp;overrideFailedValidation,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;overrideRationale,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Publishes an approved proposal as a draft pull request only.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)" class="member-name-link">suggestFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#suggestFix(java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean,java.lang.String,java.lang.String)" class="member-name-link">suggestFix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,
  boolean&nbsp;useAi,
@@ -180,7 +191,7 @@
  boolean&nbsp;allowRemoteAi,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;driverVariableName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;backend)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Rebuilds MCP remediation actions and code blocks from an existing Doctor JSON report.</div>
 </div>
 </div>
@@ -373,6 +384,36 @@
 <dd><code>outputDirectory</code> - proposal artifact directory</dd>
 <dt>Returns:</dt>
 <dd>reviewable locator proposal and structured Doctor patch</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="proposeAdvisoryLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)">
+<h3>proposeAdvisoryLocator</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="doctor_propose_advisory_locator",
+      description="maps a low-trust SHAFT Heal report to one reviewable advisory locator comment proposal without editing, replacing, or publishing")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.doctor.repair.HealingLocatorProposal</span>&nbsp;<span class="element-name">proposeAdvisoryLocator</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;healingReportPath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourcePath,
+ boolean&nbsp;sourcePatchConsent,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory)</span></div>
+<div class="block">Creates an advisory-only, unconfirmed locator patch proposal from a low-trust
+(<code>BELOW_THRESHOLD</code>) SHAFT Heal report (issue #4194).
+
+<p>Unlike <a href="#proposeHealedLocator(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)"><code>proposeHealedLocator(String, String, String, boolean, String)</code></a>, this never requires a confirmed recovery -- a
+low-confidence best candidate is exactly the signal this exists for. The resulting patch
+only adds a review comment; it never replaces the existing locator.</p></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>repositoryRoot</code> - approved Git repository root</dd>
+<dd><code>healingReportPath</code> - low-trust SHAFT Heal report JSON</dd>
+<dd><code>sourcePath</code> - repository-relative Java source file</dd>
+<dd><code>sourcePatchConsent</code> - explicit proposal consent</dd>
+<dd><code>outputDirectory</code> - proposal artifact directory</dd>
+<dt>Returns:</dt>
+<dd>reviewable advisory proposal and structured Doctor patch</dd>
 </dl>
 </div>
 </section>
