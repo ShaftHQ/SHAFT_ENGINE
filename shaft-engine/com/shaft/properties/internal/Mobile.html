@@ -60,6 +60,10 @@
 <li><a href="#appPackage()" tabindex="0">appPackage()</a></li>
 <li><a href="#appActivity()" tabindex="0">appActivity()</a></li>
 <li><a href="#bundleId()" tabindex="0">bundleId()</a></li>
+<li><a href="#flutterElementWaitTimeout()" tabindex="0">flutterElementWaitTimeout()</a></li>
+<li><a href="#flutterServerLaunchTimeout()" tabindex="0">flutterServerLaunchTimeout()</a></li>
+<li><a href="#flutterSystemPort()" tabindex="0">flutterSystemPort()</a></li>
+<li><a href="#flutterEnableMockCamera()" tabindex="0">flutterEnableMockCamera()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
 </ol>
 </li>
@@ -142,6 +146,18 @@ Controls device name, platform version, app path, automation engine, and Appium 
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#deviceName()" class="member-name-link">deviceName</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#flutterElementWaitTimeout()" class="member-name-link">flutterElementWaitTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#flutterEnableMockCamera()" class="member-name-link">flutterEnableMockCamera</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#flutterServerLaunchTimeout()" class="member-name-link">flutterServerLaunchTimeout</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#flutterSystemPort()" class="member-name-link">flutterSystemPort</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#platformName()" class="member-name-link">platformName</a>()</code></div>
@@ -279,6 +295,46 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("mobile_bundleId")
 @DefaultValue("")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">bundleId</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterElementWaitTimeout()">
+<h3>flutterElementWaitTimeout</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_flutterElementWaitTimeout")
+@DefaultValue("0")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">flutterElementWaitTimeout</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterServerLaunchTimeout()">
+<h3>flutterServerLaunchTimeout</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_flutterServerLaunchTimeout")
+@DefaultValue("0")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">flutterServerLaunchTimeout</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterSystemPort()">
+<h3>flutterSystemPort</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_flutterSystemPort")
+@DefaultValue("0")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">flutterSystemPort</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="flutterEnableMockCamera()">
+<h3>flutterEnableMockCamera</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_flutterEnableMockCamera")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">flutterEnableMockCamera</span>()</div>
 </div>
 </section>
 </li>
