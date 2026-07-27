@@ -10,6 +10,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.TraceEventRecorder;
+import io.appium.java_client.flutter.FlutterDriverOptions;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import lombok.Getter;
 import lombok.Setter;
@@ -189,7 +190,27 @@ public class OptionsManager {
                 applyRemoteVideoCapabilities(sfOptions);
                 ReportManager.logDiscrete(sfOptions.toString());
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_FLUTTER, APPIUM_WINDOWS ->
+            case APPIUM_FLUTTER -> {
+                var flutterOptions = new FlutterDriverOptions();
+                if (SHAFT.Properties.mobile.flutterElementWaitTimeout() > 0) {
+                    flutterOptions.setFlutterElementWaitTimeout(Duration.ofSeconds(SHAFT.Properties.mobile.flutterElementWaitTimeout()));
+                }
+                if (SHAFT.Properties.mobile.flutterServerLaunchTimeout() > 0) {
+                    flutterOptions.setFlutterServerLaunchTimeout(Duration.ofSeconds(SHAFT.Properties.mobile.flutterServerLaunchTimeout()));
+                }
+                if (SHAFT.Properties.mobile.flutterSystemPort() > 0) {
+                    flutterOptions.setFlutterSystemPort(SHAFT.Properties.mobile.flutterSystemPort());
+                }
+                flutterOptions.setFlutterEnableMockCamera(SHAFT.Properties.mobile.flutterEnableMockCamera());
+                //merge customWebDriverCapabilities.properties
+                flutterOptions = flutterOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
+                //merge hardcoded custom options
+                if (customDriverOptions != null) {
+                    flutterOptions = flutterOptions.merge(customDriverOptions);
+                }
+                appiumCapabilities = new DesiredCapabilities(flutterOptions);
+            }
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_WINDOWS ->
                     appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     DriverFactoryHelper.failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
