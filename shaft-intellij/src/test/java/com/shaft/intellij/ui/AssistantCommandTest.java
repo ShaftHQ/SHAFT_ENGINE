@@ -411,9 +411,41 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
                 // "element_type, element_click" (comma-joined) used to also match the ordering
                 // bullet trimmed by issue #4239 P2.2; the real source of this phrase is
-                // SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE's "or"-joined wording, asserted here directly.
+                // SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT's "or"-joined wording (issue #4258
+                // split this constant into local-agent/cloud variants), asserted here directly.
                 () -> assertTrue(prompt.contains("element_type or element_click"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
+    }
+
+    /**
+     * Issue #4258 (adjacent finding filed during #4256): {@code SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE}
+     * used to be shared verbatim between the local-agent and cloud-chat codegen prompts regardless
+     * of the {@code cloud} flag passed to {@code codeGenerationGuidance}, unlike the
+     * {@code SHAFT_MCP_USAGE_HINT_*}/{@code SHAFT_CODEGEN_TOOL_GUIDANCE_*} pair split by issue #4239
+     * P2.2. The cloud-chat path ({@code autobot_provider_chat} /
+     * {@code AutobotService.runProviderChat}) is a plain text-completion call with no tool-calling
+     * loop at all, so it was being told to "call driver_initialize and browser_open_intent" and
+     * verify locators "with shaft-mcp element_type or element_click" -- directives it structurally
+     * cannot act on, the same class of bug as #4256's {@code SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD} fix.
+     */
+    @Test
+    void cloudCodegenPromptWithLiveVerificationRequestDoesNotNameToolsToCall() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate code to login to https://example.com and verify locators live",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(prompt.contains("Live browser verification was explicitly requested"), prompt),
+                () -> assertFalse(prompt.contains("call driver_initialize"), prompt),
+                () -> assertFalse(prompt.contains("browser_open_intent"), prompt),
+                () -> assertFalse(prompt.contains("element_type or element_click"), prompt),
+                () -> assertTrue(prompt.contains("never present a returned locator as live-verified"), prompt));
     }
 
     @Test
@@ -741,7 +773,13 @@ class AssistantCommandTest {
                 () -> assertFalse(codegenPrompt.contains("healer_run_failed_test"), codegenPrompt),
                 () -> assertFalse(codegenPrompt.contains("Call test_code_guardrails_check"), codegenPrompt),
                 () -> assertTrue(codegenPrompt.contains("MUST follow the Page Object Model"), codegenPrompt),
-                () -> assertTrue(codegenPrompt.contains("Return only SHAFT-syntax Java"), codegenPrompt));
+                () -> assertTrue(codegenPrompt.contains("Return only SHAFT-syntax Java"), codegenPrompt),
+                // Issue #4258: SHAFT_MCP_USAGE_HINT_CLOUD's own "call driver_initialize before
+                // browser_* tools" directive has the same unactionable-tool-call problem as the
+                // SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD directives above; the WebDriver-vs-Playwright
+                // engine preference it conveys stays, restated without naming a tool to call.
+                () -> assertFalse(codegenPrompt.contains("call driver_initialize"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("do not use Playwright unless requested"), codegenPrompt));
     }
 
     /**
