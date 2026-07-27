@@ -236,6 +236,15 @@ final class ShaftAssistantPanel extends JPanel {
      * unlike a plain "replace the last message", which those milestone bubbles would otherwise
      * shadow. -1 while no local-agent stream is active. */
     private int localAgentStreamPlaceholderMessageIndex = -1;
+    /** Issue #3962 (second-review finding F2/F3): the REAL index {@link #finishLocalAgentResponse} or
+     * {@link #persistAndAppendResponse} just wrote a terminal local-agent response to, captured right
+     * as it becomes known (after {@code ShaftAssistantChatState}'s own {@code trim()} at the {@code
+     * MAX_MESSAGES_PER_SESSION} cap has already run, not predicted beforehand -- a prediction cannot
+     * know in advance whether THIS call's own append will trip the cap and shift the landing index).
+     * {@code showAgentResult}'s cancelled branch reads this immediately after calling {@link
+     * #showAgentCancelled}, before anything else on the (single-threaded EDT) call stack can overwrite
+     * it, to schedule the terminal-answer upgrade against the message that was actually written. */
+    private int lastLocalAgentFinalizedMessageIndex = -1;
     private StringBuilder localAgentOutput;
     /** Issue #3918: false for a buffered/custom-command local-agent run (Copilot's default command, or
      * any hand-typed custom command) -- such a run's entire live stream is raw CLI passthrough with no
@@ -2086,26 +2095,23 @@ final class ShaftAssistantPanel extends JPanel {
         if (cancelled) {
             String terminalStep = killed ? "Killed" : "Cancelled";
             setStatus(terminalStep);
-            // Issue #3962 (hostile-review correction): render the "_Cancelled._"/partial-buffer bubble
-            // synchronously, exactly like before this fix -- mirrors stopLocalAgentStreaming's Kill
-            // path, which never waited on the companion either. Waiting here would (a) leave the user
-            // with no terminal bubble at all for as long as AssistantLocalAgentRunner#run's own
-            // finally takes to run (unbounded from this method's perspective -- up to the process
-            // timeout/approval extension), and (b) re-reading activeLocalAgentStreamToken inside a
-            // deferred callback after this same method already reset it to -1 a few lines above is
-            // unconditionally false, silently routing the deferred render down
-            // persistAndAppendResponse's append-a-new-message path instead of replacing this one --
-            // rendering the run twice. Capture the index/session this synchronous render just wrote to
-            // -- BEFORE calling it, since a currentStream reply replaces
-            // localAgentStreamPlaceholderMessageIndex and then resets it to -1 -- and schedule a
-            // guarded, in-place-only upgrade for later (see scheduleTerminalAnswerUpgrade), the same
-            // pattern already used for Kill.
-            ShaftAssistantChatState.Session activeBeforeRender = chatState.activeSession();
-            String sessionId = activeBeforeRender == null ? null : activeBeforeRender.id;
-            int targetMessageIndex = currentStream
-                    ? nextLocalAgentStreamPlaceholderTargetIndex()
-                    : currentSessionMessageCount();
+            // Issue #3962 (hostile-review correction; refined again per second review F2/F3): render
+            // the "_Cancelled._"/partial-buffer bubble synchronously, exactly like before this fix --
+            // mirrors stopLocalAgentStreaming's Kill path, which never waited on the companion either.
+            // Waiting here would leave the user with no terminal bubble at all for as long as
+            // AssistantLocalAgentRunner#run's own finally takes to run. Read the REAL index/session
+            // this synchronous render just wrote to -- AFTER calling it, from {@link
+            // #lastLocalAgentFinalizedMessageIndex} (stashed by finishLocalAgentResponse/
+            // persistAndAppendResponse the moment each knows its own post-trim value) -- rather than
+            // predicting it beforehand: a beforehand prediction cannot know whether THIS call's own
+            // append will trip ShaftAssistantChatState's MAX_MESSAGES_PER_SESSION trim() and shift the
+            // landing index down by one, which silently dropped the recovered answer at the cap.
+            // Schedule a guarded, in-place-only upgrade for later (see scheduleTerminalAnswerUpgrade),
+            // the same pattern already used for Kill.
             showAgentCancelled(streamToken, currentStream, killed, partialOutput);
+            int targetMessageIndex = lastLocalAgentFinalizedMessageIndex;
+            ShaftAssistantChatState.Session activeAfterRender = chatState.activeSession();
+            String sessionId = activeAfterRender == null ? null : activeAfterRender.id;
             scheduleTerminalAnswerUpgrade(targetMessageIndex, sessionId, killed ? "_Killed._" : "_Cancelled._");
             return;
         }
@@ -2325,27 +2331,6 @@ final class ShaftAssistantPanel extends JPanel {
         return active == null || active.messages == null ? 0 : active.messages.size();
     }
 
-    /**
-     * The exact index {@link #replaceLocalAgentStreamPlaceholder} is about to write to, computed the
-     * same way it decides internally: {@link #localAgentStreamPlaceholderMessageIndex} when it still
-     * points inside the active session's current message list (a live placeholder bubble exists to
-     * replace in place), otherwise {@link #currentSessionMessageCount()} (its append-fresh fallback
-     * appends there). Needed by {@link #showAgentResult}'s cancelled branch (issue #3962) to capture
-     * -- BEFORE calling {@link #showAgentCancelled}, which is what actually resets {@link
-     * #localAgentStreamPlaceholderMessageIndex} -- exactly where the cancelled bubble is about to
-     * land, since a non-Verbose run with no live placeholder yet (only compact milestone bubbles
-     * appended so far, see {@link #appendLocalAgentOutput}) leaves {@link
-     * #localAgentStreamPlaceholderMessageIndex} at {@code -1} right up until this same call appends
-     * fresh -- naively trusting a {@code -1}/stale value here would point the later terminal-answer
-     * upgrade at the wrong message (or no message at all).
-     */
-    private int nextLocalAgentStreamPlaceholderTargetIndex() {
-        int currentCount = currentSessionMessageCount();
-        return localAgentStreamPlaceholderMessageIndex >= 0 && localAgentStreamPlaceholderMessageIndex < currentCount
-                ? localAgentStreamPlaceholderMessageIndex
-                : currentCount;
-    }
-
     private void appendLocalAgentOutput(int streamToken, String line) {
         if (streamToken != activeLocalAgentStreamToken || localAgentOutput == null) {
             return;
@@ -2505,6 +2490,12 @@ final class ShaftAssistantPanel extends JPanel {
         String displayResponse = withLocalAgentTokenUsage(response, rawResponse);
         ResolvedQuestion resolved = resolveQuestion(displayResponse, rawResponse);
         replaceLocalAgentStreamPlaceholder("assistant", resolved.toPersist(), true, kind);
+        // Issue #3962 (F2/F3): stash the REAL index replaceLocalAgentStreamPlaceholder just used --
+        // already correct post-trim whether it replaced in place or appended fresh -- before resetting
+        // the placeholder-tracking field below. A caller (showAgentResult's cancelled branch) that
+        // needs to know where this exact response landed reads lastLocalAgentFinalizedMessageIndex
+        // right after this call returns, instead of trying to predict it beforehand.
+        lastLocalAgentFinalizedMessageIndex = localAgentStreamPlaceholderMessageIndex;
         localAgentStreamPlaceholderMessageIndex = -1;
         lastResponse = resolved.toPersist();
         lastRawResponse = rawResponse == null ? "" : rawResponse;
@@ -2698,9 +2689,14 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String label = terminalMarker.contains("Killed") ? "Killed" : "Cancelled";
-        String upgraded = AssistantMarkdown.normalizeMarkdown(
+        String composed = AssistantMarkdown.normalizeMarkdown(
                 AssistantLocalAgentRunner.stripTrailingUsageMetadata(terminalAnswer))
                 + "\n\n_" + label + "._ (the run had already finished)";
+        // Issue #3962 (second-review finding F1): every other terminal local-agent response is routed
+        // through withLocalAgentTokenUsage (see finishLocalAgentResponse) -- bypassing it here silently
+        // dropped the "**Token usage:**..." disclaimer the moment a recovered answer upgraded the
+        // bubble in place, even though the pinned no-companion cancelled/killed path still carried it.
+        String upgraded = withLocalAgentTokenUsage(composed, "");
         target.markdown = upgraded;
         if (messageIndex == active.messages.size() - 1) {
             transcript.replaceLast(target.role, upgraded, target.kind);
@@ -2868,6 +2864,10 @@ final class ShaftAssistantPanel extends JPanel {
         // append() clears any showing widget first, so a detected question's answer chips are only
         // shown AFTER the persisted append -- otherwise this call would immediately wipe them again.
         append("assistant", resolved.toPersist(), rawResponse, kind);
+        // Issue #3962 (F2/F3): mirrors finishLocalAgentResponse's own capture -- the just-appended
+        // message's real, post-trim index (append() -> chatState.append() -> trim() already ran by the
+        // time currentSessionMessageCount() is read here).
+        lastLocalAgentFinalizedMessageIndex = currentSessionMessageCount() - 1;
         if (resolved.question() != null) {
             showAssistantQuestionOptions(resolved.question());
         }

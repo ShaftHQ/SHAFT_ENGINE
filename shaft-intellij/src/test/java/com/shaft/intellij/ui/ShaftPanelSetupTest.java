@@ -4602,6 +4602,92 @@ class ShaftPanelSetupTest {
     }
 
     /**
+     * Issue #3962 (second-review finding F1): the recovered terminal answer written by the Cancel
+     * upgrade must still carry the same "**Token usage:**..." disclaimer every other terminal
+     * local-agent response gets (see the pinned {@code
+     * assistantLocalAgentCancelledWithoutUsageMetadataStatesTokenUsageNotAvailable}, which never
+     * resolves a companion so it could not catch this regression) -- the upgrade must route through
+     * {@code withLocalAgentTokenUsage} exactly like {@code finishLocalAgentResponse} already does for
+     * the ordinary (non-recovered) cancelled/killed text.
+     */
+    @Test
+    void assistantCancelUpgradeStillIncludesTokenUsageStatement() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 405);
+        appendLocalAgentOutput(panel, 405, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 405, null, new CancellationException("cancelled"));
+
+        pendingTerminalAnswer.complete("The recovered final answer.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The recovered final answer."), markdown),
+                () -> assertTrue(markdown.toLowerCase(java.util.Locale.ROOT).contains("token usage"),
+                        "the token-usage disclaimer must survive the upgrade, not just the original "
+                                + "bare marker: " + markdown));
+    }
+
+    /**
+     * Issue #3962 (second-review finding F2/F3): reproduces the exact scenario the reviewer found --
+     * at {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION}, appending the run's own cancelled
+     * bubble trips {@code trim()}'s {@code remove(0)}, shifting that bubble's real index down by one
+     * from wherever a caller predicted it would land ahead of time. The fix (recording the REAL
+     * post-trim index {@code replaceLocalAgentStreamPlaceholder} used, instead of predicting it
+     * beforehand) must land the recovered answer correctly even here -- not silently no-op and leave
+     * the bare "_Cancelled._" marker forever, which would reproduce #3962's own original symptom.
+     */
+    @Test
+    void assistantCancelUpgradeStillLandsWhenTheStreamedBubbleTripsTheSessionCap() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        for (int i = 0; i < ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION; i++) {
+            chatState.append("assistant", "filler " + i, "");
+        }
+        assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION, chatState.activeSession().messages.size());
+
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 406);
+        // Non-verbose: lands as its own compact milestone message (see appendLocalAgentOutput), which
+        // alone already trips the cap's trim() once.
+        appendLocalAgentOutput(panel, 406, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 406, null, new CancellationException("cancelled"));
+
+        assertEquals(ShaftAssistantChatState.MAX_MESSAGES_PER_SESSION, chatState.activeSession().messages.size(),
+                "the session must still be capped after the cancelled bubble's own append/trim");
+
+        pendingTerminalAnswer.complete("The recovered final answer despite the cap trim.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.contains("The recovered final answer despite the cap trim."),
+                "the recovered answer must land even when trim() shifted the cancelled bubble's real "
+                        + "index out from under a beforehand prediction: " + markdown);
+    }
+
+    /**
      * Issue #3962, Kill side: unlike Cancel, {@code stopLocalAgentStreaming} finalizes the "_Killed._"
      * bubble synchronously at button-click time -- before {@code ShaftMcpInvocation#kill()} even runs
      * -- so the companion cannot be waited on there without delaying the existing instant feedback.
