@@ -252,8 +252,27 @@ public final class HealingLocatorProposalService {
         if (!candidates.isArray() || candidates.isEmpty()) {
             throw new IllegalArgumentException("An advisory proposal requires at least one scored candidate.");
         }
-        // The report's candidates are already ranked highest score first (ShaftHealingProvider).
-        return candidates.get(0);
+        // The report's candidates are already ranked highest score first (ShaftHealingProvider),
+        // but that ranking alone doesn't re-derive HealingDecisionEngine's own eligibility gate --
+        // the persisted decision.confidence came from that engine's pre-filtered `eligible` list,
+        // so the advisory must approximate it before picking a candidate (issue #4209). This
+        // requires `interactable` unconditionally, even though the engine only applies it when
+        // visibilityRequired=true (the common case for real callers): the report has no field
+        // recording whether visibilityRequired applied to this attempt, so the advisory can't
+        // perfectly reconstruct the engine's exact gate. When the original attempt had
+        // visibilityRequired=false, this makes the advisory slightly more conservative than the
+        // engine -- a missed suggestion rather than a mismatched-confidence one, the safe
+        // direction to be wrong in.
+        for (JsonNode candidate : candidates) {
+            if (candidate.path("unique").asBoolean()
+                    && candidate.path("contextMatched").asBoolean()
+                    && candidate.path("interactable").asBoolean()) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException(
+                "No candidate passed uniqueness/context-match/interactability preconditions"
+                        + " for an advisory proposal.");
     }
 
     private static JsonNode selectedCandidate(JsonNode report) {
