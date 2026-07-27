@@ -89,9 +89,29 @@ class CaptureGeneratedReplayBrowserTest {
     private CaptureSession session(String url) {
         ExternalTestDataReference username = reference("data.username", "username");
         ExternalTestDataReference expected = reference("data.expected-message", "expected-message");
-        ElementSnapshot input = target("username", "input", "textbox", "Username");
-        ElementSnapshot button = target("submit", "button", "button", "Submit");
-        ElementSnapshot message = target("message", "p", "", "");
+        // Issue #4239 P1.4-decision ladder: this fixture drives a REAL generate+replay against the
+        // HTML above, so each ElementSnapshot's locator evidence must mirror what the real recorder
+        // would actually capture for that markup, not just an ID candidate the ladder now refuses to
+        // emit. <input id="username"> has a genuine <label for="username">, so a real recorder infers
+        // role=textbox and self-verifies SHAFT.GUI.Locator.hasRole(Role.TEXTBOX) resolves uniquely
+        // (rung 1); <button id="submit">Submit</button> similarly self-verifies role=button (rung 1).
+        // <p id="message"> has no ARIA role and no label, but by verification time its text content is
+        // the replayed username ("Alice", per writeData() below) -- a real recorder would self-verify
+        // a text-based XPath fallback (rung 2) exactly like this.
+        ElementSnapshot input = target("username", "input", "textbox", "Username",
+                new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "textbox:Username", 1, true, true,
+                        Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true));
+        ElementSnapshot button = target("submit", "button", "button", "Submit",
+                new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:Submit", 1, true, true,
+                        Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                        "//button[normalize-space(.)=\"Submit\"]", true));
+        ElementSnapshot message = target("message", "p", "", "",
+                new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
+                        "//p[normalize-space(.)=\"Alice\"]", 1, true, true,
+                        Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                        "//p[normalize-space(.)=\"Alice\"]"));
         List<CaptureEvent> events = List.of(
                 new CaptureEvent.NavigationEvent(
                         CaptureFixtures.context(1),
@@ -132,7 +152,8 @@ class CaptureGeneratedReplayBrowserTest {
             String id,
             String tag,
             String role,
-            String accessibleName) {
+            String accessibleName,
+            LocatorCandidate primaryCandidate) {
         return new ElementSnapshot(
                 id,
                 tag,
@@ -140,7 +161,7 @@ class CaptureGeneratedReplayBrowserTest {
                 accessibleName,
                 accessibleName,
                 Map.of("id", id),
-                List.of(new LocatorCandidate(
+                List.of(primaryCandidate, new LocatorCandidate(
                         LocatorCandidate.LocatorStrategy.ID,
                         id,
                         1,

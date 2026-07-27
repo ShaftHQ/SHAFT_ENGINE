@@ -298,6 +298,16 @@
     if (alt) return {name: alt, source: "alt"};
     const title = text(element.getAttribute("title"));
     if (title) return {name: title, source: "title"};
+    // Issue #4239 P1.4a follow-up: an unlabeled form control's placeholder is a real, if weaker,
+    // accessible-name source (WAI-ARIA Accessible Name and Description Computation 1.2, step 2F) --
+    // browsers' own accessibility trees already expose it. Without this, every plain
+    // <input placeholder="Search"> with no <label>/aria-label (a very common real-world search-box
+    // shape) had NO accessible name at all, so the ROLE candidate below never got recorded and the
+    // hard-ban ladder had nothing to select -- not because no legitimate locator existed, but because
+    // this signal was missing. Checked below "title" and above plain text content, mirroring its
+    // fallback standing in the AccName algorithm.
+    const placeholder = text(element.getAttribute("placeholder"));
+    if (placeholder) return {name: placeholder, source: "placeholder"};
     const innerText = text(element.innerText);
     if (innerText) return {name: innerText, source: "text"};
     return {name: "", source: ""};
@@ -314,6 +324,7 @@
     "aria-label": name => `normalize-space(@aria-label)=${xpathLiteral(name)}`,
     "alt": name => `normalize-space(@alt)=${xpathLiteral(name)}`,
     "title": name => `normalize-space(@title)=${xpathLiteral(name)}`,
+    "placeholder": name => `normalize-space(@placeholder)=${xpathLiteral(name)}`,
     "text": name => `normalize-space(.)=${xpathLiteral(name)}`
   };
   // Computes and self-verifies a literal XPath for a ROLE candidate against the LIVE DOM (issue

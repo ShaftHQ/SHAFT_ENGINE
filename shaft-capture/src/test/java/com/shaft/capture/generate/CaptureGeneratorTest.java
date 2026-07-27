@@ -80,8 +80,8 @@ class CaptureGeneratorTest {
         assertEquals(normalizeLineEndings(golden), normalizeLineEndings(withStableHealingHistoryPath(source)));
         assertTrue(source.contains("@AfterMethod(alwaysRun = true)"));
         assertTrue(source.contains("driver.quit();"));
-        assertTrue(source.contains("SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).text()"));
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()).text()"));
         assertFalse(source.contains("alice"));
         assertTrue(data.contains("\"username\" : \"alice\""));
         assertFalse(data.toLowerCase().contains("password"));
@@ -209,9 +209,10 @@ class CaptureGeneratorTest {
                 "Pay now",
                 "",
                 Map.of("type", "submit"),
-                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
-                        "button[type='submit']", 1, true, true,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:Pay now", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                        "", true)),
                 true,
                 true,
                 false);
@@ -506,7 +507,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("        loginAsAdmin();"));
         assertTrue(source.contains("    private void loginAsAdmin() throws Exception {"));
-        assertEquals(1, count(source, "driver.element().type(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
+        assertEquals(1, count(source, "driver.element().type(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()"));
         assertTrue(source.indexOf("        loginAsAdmin();")
                 < source.indexOf("    private void loginAsAdmin() throws Exception {"));
         assertFalse(source.contains("FLOW_START"));
@@ -541,7 +542,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("private SHAFT.GUI.Playwright driver;"));
         assertTrue(source.contains("driver = new SHAFT.GUI.Playwright();"));
-        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build());"));
+        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build());"));
         assertFalse(source.contains("DriverFactory"));
         assertFalse(source.contains("ExpectedConditions"));
     }
@@ -583,8 +584,8 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\"));"));
         assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\"));"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).matchesReferenceImage();"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).doesNotMatchReferenceImage();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()).matchesReferenceImage();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()).doesNotMatchReferenceImage();"));
     }
 
     @Test
@@ -619,10 +620,10 @@ class CaptureGeneratorTest {
         assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build())"
+                "driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build())"
                         + ".matchesAriaSnapshot(requiredData(\"username\"));"));
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).matchesScreenshot();"));
+                "driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()).matchesScreenshot();"));
     }
 
     @Test
@@ -707,14 +708,54 @@ class CaptureGeneratorTest {
         assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
-                "driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).attribute(\"autocomplete\")"
+                "driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()).attribute(\"autocomplete\")"
                         + ".isEqualTo(requiredData(\"username\"));"));
     }
 
+    /**
+     * Issue #4239 P1.4-decision ladder: a fallback ALTERNATIVE must clear rung 1 or rung 2 exactly
+     * like the primary candidate does -- the ladder filters {@code target.locatorCandidates()} down
+     * to only eligible entries before ranking, so a genuinely fallback-worthy element needs a SECOND
+     * independently ladder-eligible candidate (here, a distinct {@code ACCESSIBLE_NAME} candidate
+     * carrying its own self-verified {@code replayXpath}), not merely a second recorded strategy.
+     */
     @Test
     void fallbackLocatorReplayOptionEmitsCompactHelperOnlyWhenFallbacksExist() throws Exception {
-        Path session = session(CaptureFixtures.representativeSession());
-        writeCaptureData("alice");
+        ElementSnapshot usernameInput = new ElementSnapshot(
+                "username-input",
+                "input",
+                "textbox",
+                "Username",
+                "Username",
+                Map.of("autocomplete", "username", "name", "username"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "textbox:Username", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME,
+                                "Username", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//input[normalize-space(@aria-label)=\"Username\"]")),
+                true,
+                true,
+                false);
+        CaptureSession fallbackSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "fallback-locator-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), usernameInput,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(fallbackSession);
 
         CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
                 session, temp.resolve("fallback-replay"), "generated.capture", "", false,
@@ -726,7 +767,8 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("import org.openqa.selenium.By;"));
         assertTrue(source.contains("private By captureReplayLocator(By primary, By... alternatives)"));
-        assertTrue(source.contains("captureReplayLocator(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()"));
+        assertTrue(source.contains("captureReplayLocator(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()"),
+                source);
         assertTrue(result.report().fallbackLocators().stream()
                 .anyMatch(fallback -> fallback.contains("username-input")));
     }
@@ -823,7 +865,7 @@ class CaptureGeneratorTest {
                 Map.of(),
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
                         "button:Log in", 1, true, true,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true)),
                 true,
                 true,
                 false);
@@ -920,7 +962,7 @@ class CaptureGeneratorTest {
                 Map.of(),
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
                         "button:", 1, true, true,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true)),
                 true,
                 true,
                 false);
@@ -967,8 +1009,12 @@ class CaptureGeneratorTest {
                 .anyMatch(warning -> warning.contains("review/CONTROL_FLOW")), result.report().warnings().toString());
 
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\"));"));
-        assertFalse(source.contains("if (driver.element().getElementsCount(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\")) > 0)"));
+        assertTrue(source.contains(
+                "driver.element().click(SHAFT.GUI.Locator.hasRole(Role.BUTTON)"
+                        + ".hasNormalizedText(\"Close cookie banner\").build());"));
+        assertFalse(source.contains(
+                "if (driver.element().getElementsCount(SHAFT.GUI.Locator.hasRole(Role.BUTTON)"
+                        + ".hasNormalizedText(\"Close cookie banner\").build()) > 0)"));
     }
 
     @Test
@@ -992,7 +1038,9 @@ class CaptureGeneratorTest {
 
         assertGeneratedUnconfirmed(result);
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("if (driver.element().getElementsCount(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\")) > 0)"));
+        assertTrue(source.contains(
+                "if (driver.element().getElementsCount(SHAFT.GUI.Locator.hasRole(Role.BUTTON)"
+                        + ".hasNormalizedText(\"Close cookie banner\").build()) > 0)"));
         assertFalse(source.contains("private boolean isCaptureElementDisplayed(By locator)"));
         assertTrue(result.report().controlFlowSuggestions().stream()
                 .anyMatch(suggestion -> suggestion.kind() == CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD
@@ -1016,8 +1064,9 @@ class CaptureGeneratorTest {
                 "Card number",
                 Map.of("name", "card"),
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
-                        "/html/body/div[3]/form/input[1]", 1, true, false,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.POSITIONAL))),
+                        "//div[3]/form/input[1]", 1, true, false,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.POSITIONAL),
+                        "//div[3]/form/input[1]")),
                 true,
                 true,
                 false);
@@ -1029,8 +1078,9 @@ class CaptureGeneratorTest {
                 "",
                 Map.of("type", "submit"),
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
-                        "/html/body/div[3]/form/button[2]", 1, true, false,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.POSITIONAL))),
+                        "//div[3]/form/button[2]", 1, true, false,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.POSITIONAL),
+                        "//div[3]/form/button[2]")),
                 true,
                 true,
                 false);
@@ -1650,7 +1700,7 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("public class EnrichedJourneyTest"));
         assertTrue(source.contains("public void completeCheckout()"));
         assertFalse(source.contains("private static final By USERNAME_FIELD"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasTagName(\"input\").containsText(\"Username\").build()).isVisible();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.hasRole(Role.TEXTBOX).build()).isVisible();"));
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 applied.report().compilation().status());
     }
@@ -1789,9 +1839,9 @@ class CaptureGeneratorTest {
                 "Close cookie banner",
                 "Close",
                 Map.of("aria-label", "Close cookie banner", "class", "cookie-banner-close"),
-                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
-                        "[aria-label='Close cookie banner']", 1, true, true,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:Close cookie banner", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true)),
                 true,
                 true,
                 false);
@@ -1802,9 +1852,9 @@ class CaptureGeneratorTest {
                 "Submit",
                 "",
                 Map.of("type", "submit"),
-                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
-                        "button[type='submit']", 1, true, true,
-                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                        "button:Submit", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true)),
                 true,
                 true,
                 false);
@@ -1962,5 +2012,194 @@ class CaptureGeneratorTest {
         assertTrue(result.report().unsupportedEvents().stream()
                         .noneMatch(message -> message.contains("event-2")),
                 result.report().unsupportedEvents().toString());
+    }
+
+    /**
+     * Issue #4239 P1.4-decision ladder, rung 1 refusal: {@code inferredRole()} prefers an explicit
+     * {@code role="button"} attribute over tag shape, so a {@code <div role="button">} produces a
+     * ROLE candidate whose {@code uniquenessCount} (re-derived via {@code inferredRole}) truthfully
+     * reports 1 -- but {@code SHAFT.GUI.Locator.hasRole(Role.BUTTON)}'s fixed XPath union
+     * ({@code //button | //input[@type='button'] | ...}) never inspects the {@code role} attribute
+     * and matches ZERO {@code <div>} elements. {@code roleXpathVerified=false} is the recorder's
+     * signal that this mismatch was caught, so rung 1 must be refused and generation must fall
+     * through to rung 2 (the self-verified {@code replayXpath}) instead of emitting the broken
+     * {@code hasRole(...)} -- and must never fall back further to the ID candidate that also exists.
+     */
+    @Test
+    void customRoleAttributeDivIsRefusedForRungOneAndFallsThroughToSelfVerifiedXpath() throws Exception {
+        Path session = session(customRoleButtonSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("custom-role-button")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//div[normalize-space(.)=\\\"Custom Button\\\"]\")"),
+                "a role=\"button\" div whose hasRole(...) union does not verify must fall through to "
+                        + "the self-verified recorded XPath (rung 2): " + source);
+        assertFalse(source.contains("hasRole(Role.BUTTON)"),
+                "must never emit hasRole(...) for a ROLE candidate that failed self-verification: " + source);
+        assertFalse(source.contains(".id(\"custom-button\")"),
+                "must never fall back to the ID candidate even though it also exists and is unique: "
+                        + source);
+    }
+
+    private static CaptureSession customRoleButtonSession() {
+        ElementSnapshot customButton = new ElementSnapshot(
+                "custom-button",
+                "div",
+                "button",
+                "Custom Button",
+                "",
+                Map.of("role", "button"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "button:Custom Button", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//div[normalize-space(.)=\"Custom Button\"]", false),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                                "custom-button", 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "custom-role-button-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), customButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    /**
+     * Issue #4239 P1.4-decision ladder, rung 3: a role-less {@code <div id="x">} with no accessible
+     * name has no ROLE candidate (no role inferred) and no self-verified {@code replayXpath} (no
+     * computable name to build one from) -- only an ID candidate. The ladder must refuse to fall
+     * back to it and must FAIL generation with an actionable message instead of silently emitting
+     * {@code SHAFT.GUI.Locator.id("x")}.
+     */
+    @Test
+    void roleLessUnlabeledDivWithNoTextFailsGenerationInsteadOfFallingBackToId() throws Exception {
+        ElementSnapshot plainDiv = new ElementSnapshot(
+                "plain-div",
+                "div",
+                "",
+                "",
+                "",
+                Map.of("id", "x"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.ID,
+                        "x", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE))),
+                true,
+                true,
+                false);
+        CaptureSession captureSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "role-less-div-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), plainDiv,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(captureSession);
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("role-less-div")));
+
+        assertFalse(result.successful());
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .anyMatch(message -> message.contains("plain-div")),
+                result.report().unsupportedEvents().toString());
+    }
+
+    /**
+     * Issue #4239 P1.3: {@code GeneratedCodeGuardrails} (the P1.2 extraction) is wired into
+     * {@code CaptureGenerator.generate}'s existing {@code state.unsupported()} gate as
+     * belt-and-braces. The P1.4-decision ladder makes locator-strategy guardrail violations
+     * unreachable by construction (rung 3 refuses generation before any {@code .id/.name/.cssSelector}
+     * could ever be rendered), so this is a regression-catcher for the OTHER rules the shared
+     * guardrail library also enforces (e.g. {@code Thread.sleep}), tested here directly against the
+     * wiring helper rather than through a full {@code generate()} call that no legitimate input can
+     * reach a violation through.
+     */
+    @Test
+    void guardrailUnsupportedFindingsFlagsErrorSeverityViolationsOnly() {
+        List<String> errorFindings = CaptureGenerator.guardrailUnsupportedFindings("""
+                class GeneratedTest {
+                    void step() throws InterruptedException {
+                        Thread.sleep(1000);
+                    }
+                }
+                """);
+        assertFalse(errorFindings.isEmpty(), errorFindings.toString());
+        assertTrue(errorFindings.stream().anyMatch(message -> message.contains("THREAD_SLEEP")), errorFindings.toString());
+
+        List<String> warningOnlyFindings = CaptureGenerator.guardrailUnsupportedFindings("""
+                class GeneratedTest {
+                    void step(org.openqa.selenium.WebDriver driver) {
+                        driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(5));
+                    }
+                }
+                """);
+        assertTrue(warningOnlyFindings.isEmpty(), warningOnlyFindings.toString());
+    }
+
+    /**
+     * Issue #4239 P1.5 (F12): once a target degrades to rung 2 (self-verified XPath, no verified
+     * ARIA role), the generated line must disclose that -- "no verified ARIA role, using recorded
+     * XPath" -- since the F12 finding was that this information existed only in
+     * {@code report.flakySteps()}, never where a human reading the generated code would see it.
+     * Triggers on rung 2 itself (a ROLE candidate that failed self-verification, per the
+     * {@code customRoleAttributeDivIsRefusedForRungOneAndFallsThroughToSelfVerifiedXpath} fixture),
+     * not on a role+index composition -- that fallback no longer exists in this design.
+     */
+    @Test
+    void rungTwoSelectionEmitsLowTrustMarkerCommentDisclosingNoVerifiedAriaRole() throws Exception {
+        Path session = session(customRoleButtonSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("rung-two-marker")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("// SHAFT: no verified ARIA role, using recorded XPath"), source);
+    }
+
+    /**
+     * Issue #4239 P1.5: a rung-1 (verified ARIA role) selection with a healthy score must NOT carry
+     * the rung-2 disclosure -- the marker is signal, not noise on every generated line.
+     */
+    @Test
+    void rungOneSelectionWithHealthyScoreEmitsNoLowTrustMarker() throws Exception {
+        Path session = session(CaptureFixtures.representativeSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("rung-one-no-marker")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertFalse(source.contains("// SHAFT: no verified ARIA role"), source);
     }
 }
