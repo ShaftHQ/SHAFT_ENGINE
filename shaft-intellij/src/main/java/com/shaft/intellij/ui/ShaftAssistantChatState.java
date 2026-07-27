@@ -45,6 +45,17 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     public static final String KIND_RAW_VERBOSE = "raw-verbose";
     public static final String KIND_MILESTONE = "milestone";
     public static final String KIND_USER = "user";
+    // Issue #4210: the pending-answer caption ShaftAssistantPanel stapled onto a live Cancelled/Killed
+    // Message#markdown is gated only by an in-memory CompletableFuture that does NOT survive a
+    // project/IDE restart -- if a save (getState(), fired by IntelliJ's periodic workspace autosave,
+    // not just an explicit user action) lands while that future is still unresolved, nothing would
+    // otherwise ever strip the caption back out, leaving a permanent, false "still recovering" claim
+    // on a run that structurally can never resolve after reload. Declared here (not in
+    // ShaftAssistantPanel) so the single literal is shared between the panel (which appends/removes it
+    // on the LIVE message while a real future is pending) and normalizeMessage below (which strips any
+    // surviving copy at every load/save round-trip, exactly like redactSecrets already does for
+    // secrets).
+    static final String PENDING_ANSWER_INDICATOR = "\n\n_Recovering final answer..._";
     private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
     private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
             "(?iu)([\"']?\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|set-cookie)\\b[\"']?\\s*[:=]\\s*)([\"']?)[^\\s`'\",}]+([\"']?)");
@@ -300,9 +311,20 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         Message copy = new Message();
         copy.role = source.role == null ? "" : source.role;
         copy.kind = resolveKind(source.kind, copy.role);
-        copy.markdown = redactSecrets(source.markdown);
+        copy.markdown = redactSecrets(stripPendingAnswerIndicator(source.markdown));
         copy.createdAt = source.createdAt == null ? "" : source.createdAt;
         return copy;
+    }
+
+    /**
+     * Issue #4210: strips a surviving {@link #PENDING_ANSWER_INDICATOR} caption from a message at
+     * every load/save round-trip -- the in-memory {@code CompletableFuture} gating that caption on
+     * the live panel does not survive a project/IDE restart, so this is the only place guaranteed to
+     * run regardless of what happened to that future (mirrors {@link #redactSecrets}'s own
+     * at-load/at-save enforcement, right beside it).
+     */
+    private static String stripPendingAnswerIndicator(String value) {
+        return value.contains(PENDING_ANSWER_INDICATOR) ? value.replace(PENDING_ANSWER_INDICATOR, "") : value;
     }
 
     /**

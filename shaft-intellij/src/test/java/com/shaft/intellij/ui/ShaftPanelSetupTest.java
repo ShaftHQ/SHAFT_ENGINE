@@ -4640,6 +4640,184 @@ class ShaftPanelSetupTest {
     }
 
     /**
+     * Issue #4210 (fast-follow to #3962/PR #4204): while a Cancelled bubble's companion terminal-
+     * answer future is still unresolved, the bubble must carry a subtle "recovering final answer"
+     * caption so the user can tell a change may still land -- today it sits indistinguishable from a
+     * genuinely final Cancelled state for as long as the run takes to actually finish shutting down.
+     * The caption must disappear the moment the companion resolves with a real answer (folded into
+     * the upgraded content, never left stapled on).
+     */
+    @Test
+    void assistantCancelledBubbleShowsPendingAnswerIndicatorWhileCompanionIsUnresolved() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 420);
+        appendLocalAgentOutput(panel, 420, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 420, null, new CancellationException("cancelled"));
+
+        String whilePending = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(whilePending.contains("Cancelled"), whilePending),
+                () -> assertTrue(whilePending.toLowerCase(java.util.Locale.ROOT)
+                                .contains("recovering final answer"),
+                        "an unresolved companion must show a pending-answer indicator: " + whilePending));
+
+        pendingTerminalAnswer.complete("The finished answer.");
+        pumpEdt();
+
+        String afterResolve = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(afterResolve.contains("The finished answer."), afterResolve),
+                () -> assertFalse(afterResolve.toLowerCase(java.util.Locale.ROOT)
+                                .contains("recovering final answer"),
+                        "the indicator must be gone once the upgrade lands: " + afterResolve));
+    }
+
+    /**
+     * Same as above for the case the companion resolves with no answer at all (the run never
+     * produced a terminal event -- e.g. it failed before completing): {@link
+     * #upgradeFinalizedLocalAgentMessage} intentionally no-ops here (nothing to upgrade to), but the
+     * pending-answer indicator must still clear -- the companion HAS resolved, so there is nothing
+     * left to wait for, and the bubble must not be stuck advertising a change that will never come.
+     */
+    @Test
+    void assistantCancelledBubblePendingAnswerIndicatorClearsWhenCompanionResolvesWithNoAnswer() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 421);
+        appendLocalAgentOutput(panel, 421, "a line streamed before cancel");
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 421, null, new CancellationException("cancelled"));
+        assertTrue(transcriptMarkdown(panel).toLowerCase(java.util.Locale.ROOT)
+                .contains("recovering final answer"));
+
+        pendingTerminalAnswer.complete(null);
+        pumpEdt();
+
+        String after = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(after.contains("Cancelled"), after),
+                () -> assertFalse(after.toLowerCase(java.util.Locale.ROOT).contains("recovering final answer"),
+                        "resolving with no answer must still clear the indicator: " + after));
+    }
+
+    /**
+     * Kill-side counterpart of {@link
+     * #assistantCancelledBubbleShowsPendingAnswerIndicatorWhileCompanionIsUnresolved} (issue #4210):
+     * {@code stopLocalAgentStreaming} finalizes the "_Killed._" bubble synchronously, before {@code
+     * ShaftMcpInvocation#kill()} even runs, so its companion is essentially guaranteed unresolved at
+     * that point -- the indicator must show there too, and clear once the upgrade lands.
+     */
+    @Test
+    void assistantKilledBubbleShowsPendingAnswerIndicatorWhileCompanionIsUnresolved() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 422);
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel); // Cancel
+        cancelOrKillCurrent(panel); // escalate to Kill -- calls stopLocalAgentStreaming synchronously
+
+        String whilePending = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(whilePending.contains("Killed"), whilePending),
+                () -> assertTrue(whilePending.toLowerCase(java.util.Locale.ROOT)
+                                .contains("recovering final answer"),
+                        "an unresolved companion must show a pending-answer indicator: " + whilePending));
+
+        pendingTerminalAnswer.complete("The finished answer, parsed before kill won the race.");
+        pumpEdt();
+
+        String afterResolve = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(afterResolve.contains("The finished answer, parsed before kill won the race."),
+                        afterResolve),
+                () -> assertFalse(afterResolve.toLowerCase(java.util.Locale.ROOT)
+                                .contains("recovering final answer"),
+                        "the indicator must be gone once the upgrade lands: " + afterResolve));
+    }
+
+    /**
+     * Issue #4210 (independent-review finding): the pending-answer indicator above is gated purely by
+     * an in-memory {@code CompletableFuture} that does NOT survive a project/IDE restart. If IntelliJ's
+     * workspace autosave calls {@code getState()} while the companion is still unresolved -- entirely
+     * plausible during a run's up-to-several-minutes process-timeout window -- and the project is then
+     * reopened (simulated here by feeding that {@code StateData} into a brand-new {@code
+     * ShaftAssistantChatState}, standing in for a fresh IDE instance with no live future for the old
+     * run), nothing must leave the caption baked into the reloaded transcript permanently: the run it
+     * refers to structurally can never resolve after reload, so the caption would otherwise become a
+     * permanent, false claim. The underlying terminal marker itself must still survive the round-trip.
+     */
+    @Test
+    void assistantCancelledBubblePendingAnswerIndicatorDoesNotSurviveAStateRoundTripWhileCompanionIsUnresolved()
+            throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 423);
+        appendLocalAgentOutput(panel, 423, "a line streamed before cancel");
+
+        // Deliberately never completed -- the companion is still pending when the "restart" below
+        // happens, exactly like the real up-to-several-minutes process-timeout window.
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 423, null, new CancellationException("cancelled"));
+        assertTrue(transcriptMarkdown(panel).toLowerCase(java.util.Locale.ROOT)
+                .contains("recovering final answer"),
+                "sanity: the indicator must be showing before the simulated restart");
+
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        // Simulates IntelliJ's workspace autosave firing while the companion is still unresolved.
+        ShaftAssistantChatState.StateData persisted = chatState.getState();
+
+        // Simulates a fresh IDE/project instance after restart: a new ShaftAssistantChatState has no
+        // live pendingTerminalAnswer field tied to the old run at all.
+        ShaftAssistantChatState reloaded = new ShaftAssistantChatState();
+        reloaded.loadState(persisted);
+
+        String reloadedMarkdown = reloaded.activeMarkdown();
+        assertAll(
+                () -> assertTrue(reloadedMarkdown.contains("Cancelled"),
+                        "the underlying terminal marker must survive the round-trip: " + reloadedMarkdown),
+                () -> assertFalse(reloadedMarkdown.toLowerCase(java.util.Locale.ROOT)
+                                .contains("recovering final answer"),
+                        "a stray pending-answer caption must never survive a save/reload round-trip -- "
+                                + "the run it refers to can never resolve after reload: " + reloadedMarkdown));
+    }
+
+    /**
      * Issue #3962 (second-review finding F2/F3): reproduces the exact scenario the reviewer found --
      * at {@link ShaftAssistantChatState#MAX_MESSAGES_PER_SESSION}, appending the run's own cancelled
      * bubble trips {@code trim()}'s {@code remove(0)}, shifting that bubble's real index down by one

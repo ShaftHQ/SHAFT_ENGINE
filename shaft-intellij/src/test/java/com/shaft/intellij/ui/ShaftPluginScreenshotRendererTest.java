@@ -164,6 +164,8 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantToolResultRawOutputScreenshot = outputPath.resolve("intellij-plugin-assistant-tool-result-raw-output.png");
         Path assistantCancelledScreenshot = outputPath.resolve("intellij-plugin-assistant-cancelled.png");
         Path assistantKilledScreenshot = outputPath.resolve("intellij-plugin-assistant-killed.png");
+        Path assistantCancelledPendingAnswerScreenshot =
+                outputPath.resolve("intellij-plugin-assistant-cancelled-pending-answer.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
         Path assistantModelFallbackScreenshot = outputPath.resolve("intellij-plugin-assistant-model-fallback.png");
         Path assistantSlashCommandsScreenshot = outputPath.resolve("intellij-plugin-assistant-slash-commands.png");
@@ -209,6 +211,7 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantToolResultRawOutputScreenshot, renderAssistantToolResultRawOutput(LIGHT_THEME, false));
         write(assistantCancelledScreenshot, renderAssistantCancelled(LIGHT_THEME, false));
         write(assistantKilledScreenshot, renderAssistantKilled(LIGHT_THEME, false));
+        write(assistantCancelledPendingAnswerScreenshot, renderAssistantCancelledPendingAnswer(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
         write(assistantModelFallbackScreenshot, renderAssistantModelFallback(LIGHT_THEME, false));
         write(assistantSlashCommandsScreenshot, renderAssistantSlashCommands(LIGHT_THEME, false));
@@ -255,6 +258,8 @@ class ShaftPluginScreenshotRendererTest {
                         assistantFailureRecoveryCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantCancelledScreenshot) > 0, assistantCancelledScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantKilledScreenshot) > 0, assistantKilledScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantCancelledPendingAnswerScreenshot) > 0,
+                        assistantCancelledPendingAnswerScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantModelFallbackScreenshot) > 0, assistantModelFallbackScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantSlashCommandsScreenshot) > 0, assistantSlashCommandsScreenshot + " should be non-empty"),
@@ -1022,6 +1027,37 @@ class ShaftPluginScreenshotRendererTest {
     private static BufferedImage renderAssistantKilled(String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
         return renderAssistantTerminalState(lookAndFeelClassName, dark, "Killed");
+    }
+
+    /**
+     * Issue #4210: same "Cancelled" composition as {@link #renderAssistantCancelled}, plus the
+     * subtle pending-answer caption {@code ShaftAssistantPanel#PENDING_ANSWER_INDICATOR} appends
+     * while the run's companion terminal-answer future is still unresolved -- visual evidence the
+     * caption reads as a legible, non-intrusive aside rather than crowding the terminal marker.
+     */
+    private static BufferedImage renderAssistantCancelledPendingAnswer(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/codegen recordings/demo-recording.json", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            String partialOutput = "Reading pom.xml...\nAnalyzing dependency tree for shaft-mcp...";
+            String markdown = "```text\n" + partialOutput + "\n```\n\n_Cancelled._ (partial output above)"
+                    + "\n\n_Recovering final answer..._";
+            component.simulateAppendForTest("assistant", markdown, "");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
     }
 
     private static BufferedImage renderAssistantTerminalState(String lookAndFeelClassName, boolean dark, String label)
