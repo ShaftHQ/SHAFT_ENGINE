@@ -250,6 +250,11 @@ final class McpPlaywrightRecordingService {
         warnings.addAll(capture.warnings());
         if (generation.report() != null) {
             warnings.addAll(generation.report().warnings());
+            // Issue #4262 P1: the #4239 P1.4a locator ladder rejects a target by recording its
+            // rejection reason in unsupportedEvents(), not warnings() -- surface it here too, so a
+            // caller whose codegen call failed the ladder gate sees an honest, actionable reason
+            // instead of a bare successful=false.
+            warnings.addAll(generation.report().unsupportedEvents());
         }
         return new McpMobileReplayResult(
                 path,
