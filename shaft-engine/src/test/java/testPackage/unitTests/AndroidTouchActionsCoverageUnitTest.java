@@ -9,7 +9,11 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.commands.DoubleClickParameter;
+import io.appium.java_client.flutter.commands.DragAndDropParameter;
+import io.appium.java_client.flutter.commands.LongPressParameter;
 import io.appium.java_client.flutter.commands.ScrollParameter;
+import io.appium.java_client.flutter.commands.WaitParameter;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -28,6 +32,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -730,6 +735,140 @@ public class AndroidTouchActionsCoverageUnitTest {
 
         Files.deleteIfExists(capabilitiesFile);
         Files.deleteIfExists(appStateFile);
+    }
+
+    // Issue #4017: fluent wait/gesture/camera API over java-client's Flutter driver. These delegate to the
+    // typed Supports* interface methods directly (not raw executeScript), branching on `driver instanceof
+    // Supports*`, now that #4001 constructs a real FlutterAndroidDriver/FlutterIOSDriver for Flutter sessions.
+
+    @Test
+    public void waitForVisibleAndWaitForAbsentShouldDelegateToFlutterWaitingInterfaceWithLocatorAndTimeout() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+
+        var visibleLocator = AppiumBy.flutterKey("submit-button");
+        var absentLocator = AppiumBy.flutterKey("loading-spinner");
+
+        touchActions.waitForVisible(visibleLocator)
+                .waitForAbsent(absentLocator, Duration.ofSeconds(5));
+
+        ArgumentCaptor<WaitParameter> visibleCaptor = ArgumentCaptor.forClass(WaitParameter.class);
+        verify(driver).waitForVisible(visibleCaptor.capture());
+        SHAFT.Validations.assertThat().object(visibleCaptor.getValue().getLocator()).isEqualTo(visibleLocator).perform();
+        SHAFT.Validations.assertThat().object(visibleCaptor.getValue().getTimeout()).isEqualTo(null).perform();
+
+        ArgumentCaptor<WaitParameter> absentCaptor = ArgumentCaptor.forClass(WaitParameter.class);
+        verify(driver).waitForInVisible(absentCaptor.capture());
+        SHAFT.Validations.assertThat().object(absentCaptor.getValue().getLocator()).isEqualTo(absentLocator).perform();
+        SHAFT.Validations.assertThat().object(absentCaptor.getValue().getTimeout()).isEqualTo(Duration.ofSeconds(5)).perform();
+    }
+
+    @Test
+    public void waitForVisibleWithNonFlutterDriverOrLocatorShouldFailActionWithoutCallingFlutterInterface() throws Exception {
+        AndroidDriver nativeDriver = createMockAndroidDriver();
+        TouchActions nativeTouchActions = new TouchActions(nativeDriver);
+        ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
+
+        nativeTouchActions.waitForVisible(By.id("native-element"));
+        verify(nativeElementActionsHelper).failAction(eq(nativeDriver), anyString(), eq(By.id("native-element")));
+
+        io.appium.java_client.flutter.android.FlutterAndroidDriver flutterDriver = createMockFlutterAndroidDriver();
+        TouchActions flutterTouchActions = new TouchActions(flutterDriver);
+        ElementActionsHelper flutterElementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(flutterTouchActions, flutterElementActionsHelper);
+
+        flutterTouchActions.waitForAbsent(By.id("native-element-on-flutter-driver"));
+        verify(flutterElementActionsHelper).failAction(eq(flutterDriver), anyString(), eq(By.id("native-element-on-flutter-driver")));
+        verify(flutterDriver, never()).waitForInVisible(any());
+    }
+
+    @Test
+    public void performDoubleClickAndLongPressShouldDelegateToFlutterGestureInterfaceWithResolvedElement() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement targetElement = mock(WebElement.class);
+        var targetLocator = AppiumBy.flutterKey("increment");
+        when(elementActionsHelper.identifyUniqueElement(driver, targetLocator)).thenReturn(List.of("increment", targetElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.performDoubleClick(targetLocator).performLongPress(targetLocator);
+
+        ArgumentCaptor<DoubleClickParameter> doubleClickCaptor = ArgumentCaptor.forClass(DoubleClickParameter.class);
+        verify(driver).performDoubleClick(doubleClickCaptor.capture());
+        SHAFT.Validations.assertThat().object(doubleClickCaptor.getValue().getElement()).isEqualTo(targetElement).perform();
+
+        ArgumentCaptor<LongPressParameter> longPressCaptor = ArgumentCaptor.forClass(LongPressParameter.class);
+        verify(driver).performLongPress(longPressCaptor.capture());
+        SHAFT.Validations.assertThat().object(longPressCaptor.getValue().getElement()).isEqualTo(targetElement).perform();
+    }
+
+    @Test
+    public void performDragAndDropShouldDelegateToFlutterGestureInterfaceWithResolvedSourceAndTarget() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement sourceElement = mock(WebElement.class);
+        WebElement targetElement = mock(WebElement.class);
+        var sourceLocator = AppiumBy.flutterKey("draggable");
+        var targetLocator = AppiumBy.flutterKey("drop-zone");
+        when(elementActionsHelper.identifyUniqueElement(driver, sourceLocator)).thenReturn(List.of("draggable", sourceElement));
+        when(elementActionsHelper.identifyUniqueElement(driver, targetLocator)).thenReturn(List.of("drop-zone", targetElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.performDragAndDrop(sourceLocator, targetLocator);
+
+        ArgumentCaptor<DragAndDropParameter> dragAndDropCaptor = ArgumentCaptor.forClass(DragAndDropParameter.class);
+        verify(driver).performDragAndDrop(dragAndDropCaptor.capture());
+        SHAFT.Validations.assertThat().object(dragAndDropCaptor.getValue().getSource()).isEqualTo(sourceElement).perform();
+        SHAFT.Validations.assertThat().object(dragAndDropCaptor.getValue().getTarget()).isEqualTo(targetElement).perform();
+    }
+
+    @Test
+    public void gestureMethodsWithNonFlutterDriverShouldFailActionWithoutCallingFlutterInterface() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.performDoubleClick(By.id("native"))
+                .performLongPress(By.id("native"))
+                .performDragAndDrop(By.id("native-source"), By.id("native-target"));
+
+        verify(elementActionsHelper, times(3)).failAction(eq(driver), anyString(), any(By.class));
+        verify(elementActionsHelper, never()).identifyUniqueElement(any(), any());
+    }
+
+    @Test
+    public void injectMockImageAndActivateInjectedImageShouldDelegateToFlutterCameraMockingInterface() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        File imageFile = TEMP_DIR.resolve("mock-camera.png").toFile();
+        Files.write(imageFile.toPath(), getValidPngBytes());
+        when(driver.injectMockImage(imageFile)).thenReturn("image-123");
+
+        String imageId = touchActions.injectMockImage(imageFile);
+        touchActions.activateInjectedImage(imageId);
+
+        SHAFT.Validations.assertThat().object(imageId).isEqualTo("image-123").perform();
+        verify(driver).injectMockImage(imageFile);
+        verify(driver).activateInjectedImage("image-123");
+    }
+
+    @Test
+    public void injectMockImageWithNonFlutterDriverShouldFailActionAndReturnNull() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        File imageFile = TEMP_DIR.resolve("mock-camera-native.png").toFile();
+        Files.write(imageFile.toPath(), getValidPngBytes());
+
+        String imageId = touchActions.injectMockImage(imageFile);
+
+        SHAFT.Validations.assertThat().object(imageId).isEqualTo(null).perform();
+        verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
     }
 
     private AndroidDriver createMockAndroidDriver() {

@@ -18,7 +18,14 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
+import io.appium.java_client.flutter.SupportsFlutterCameraMocking;
+import io.appium.java_client.flutter.SupportsGestureOnFlutterElements;
+import io.appium.java_client.flutter.SupportsWaitingForFlutterElements;
+import io.appium.java_client.flutter.commands.DoubleClickParameter;
+import io.appium.java_client.flutter.commands.DragAndDropParameter;
+import io.appium.java_client.flutter.commands.LongPressParameter;
 import io.appium.java_client.flutter.commands.ScrollParameter;
+import io.appium.java_client.flutter.commands.WaitParameter;
 import io.appium.java_client.ios.IOSDriver;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
@@ -840,6 +847,222 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions rotate(String orientation) {
         return rotate(enumValue(ScreenOrientation.class, orientation, "orientation"));
+    }
+
+    /**
+     * Waits for a Flutter widget to become visible, using {@link SupportsWaitingForFlutterElements#waitForVisible}
+     * against the Flutter integration driver's own widget tree -- unlike native visibility waits, this works
+     * against a bare FlutterView with no native scrollable/overlay. Requires both a Flutter integration driver
+     * session and an {@link AppiumBy.FlutterBy} locator; anything else fails the action.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForVisible(By elementLocator) {
+        return waitForVisible(elementLocator, null);
+    }
+
+    /**
+     * Waits for a Flutter widget to become visible within the given timeout, using
+     * {@link SupportsWaitingForFlutterElements#waitForVisible}.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @param timeout        the maximum duration to wait, or {@code null} to use the Flutter driver default
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForVisible(By elementLocator, Duration timeout) {
+        String testData = "locator=" + elementLocator + (timeout != null ? ", timeout=" + timeout : "");
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsWaitingForFlutterElements flutterDriver
+                    && elementLocator instanceof AppiumBy.FlutterBy flutterLocator) {
+                var parameter = new WaitParameter().setLocator(flutterLocator);
+                if (timeout != null) {
+                    parameter.setTimeout(timeout);
+                }
+                flutterDriver.waitForVisible(parameter);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Waits for a Flutter widget to become absent, using {@link SupportsWaitingForFlutterElements#waitForInVisible}
+     * against the Flutter integration driver's own widget tree. Requires both a Flutter integration driver
+     * session and an {@link AppiumBy.FlutterBy} locator; anything else fails the action.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForAbsent(By elementLocator) {
+        return waitForAbsent(elementLocator, null);
+    }
+
+    /**
+     * Waits for a Flutter widget to become absent within the given timeout, using
+     * {@link SupportsWaitingForFlutterElements#waitForInVisible}.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @param timeout        the maximum duration to wait, or {@code null} to use the Flutter driver default
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForAbsent(By elementLocator, Duration timeout) {
+        String testData = "locator=" + elementLocator + (timeout != null ? ", timeout=" + timeout : "");
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsWaitingForFlutterElements flutterDriver
+                    && elementLocator instanceof AppiumBy.FlutterBy flutterLocator) {
+                var parameter = new WaitParameter().setLocator(flutterLocator);
+                if (timeout != null) {
+                    parameter.setTimeout(timeout);
+                }
+                flutterDriver.waitForInVisible(parameter);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Performs a Flutter-native double-click on the target widget, using
+     * {@link SupportsGestureOnFlutterElements#performDoubleClick}. Unlike {@link #doubleTap(By)}, this drives
+     * Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+     * FlutterView. Requires a Flutter integration driver session; anything else fails the action.
+     *
+     * @param elementLocator the locator of the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions performDoubleClick(By elementLocator) {
+        String testData = "locator=" + elementLocator;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsGestureOnFlutterElements flutterDriver) {
+                WebElement element = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1);
+                flutterDriver.performDoubleClick(new DoubleClickParameter().setElement(element));
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Performs a Flutter-native long-press on the target widget, using
+     * {@link SupportsGestureOnFlutterElements#performLongPress}. Unlike {@link #longTap(By)}, this drives
+     * Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+     * FlutterView. Requires a Flutter integration driver session; anything else fails the action.
+     *
+     * @param elementLocator the locator of the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions performLongPress(By elementLocator) {
+        String testData = "locator=" + elementLocator;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsGestureOnFlutterElements flutterDriver) {
+                WebElement element = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1);
+                flutterDriver.performLongPress(new LongPressParameter().setElement(element));
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Performs a Flutter-native drag-and-drop between two widgets, using
+     * {@link SupportsGestureOnFlutterElements#performDragAndDrop}. Unlike {@link #swipeToElement(By, By)}, this
+     * drives Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+     * FlutterView. Requires a Flutter integration driver session; anything else fails the action.
+     *
+     * @param sourceElementLocator the locator of the widget to drag
+     * @param targetElementLocator the locator of the widget to drop onto
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions performDragAndDrop(By sourceElementLocator, By targetElementLocator) {
+        String testData = "source=" + sourceElementLocator + ", target=" + targetElementLocator;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsGestureOnFlutterElements flutterDriver) {
+                WebElement source = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), sourceElementLocator).get(1);
+                WebElement target = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1);
+                flutterDriver.performDragAndDrop(new DragAndDropParameter(source, target));
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, targetElementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, targetElementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Injects a mock camera image into the Flutter application, using
+     * {@link SupportsFlutterCameraMocking#injectMockImage(File)}. Useful for QR/scanner flow testing. Requires a
+     * Flutter integration driver session; anything else fails the action and returns {@code null}.
+     * <p>
+     * Intentionally breaks the fluent chain (like {@link com.shaft.gui.element.AlertActions#getAlertText()}):
+     * the returned image id is required by {@link #activateInjectedImage(String)}.
+     *
+     * @param image the image file to inject (must be in PNG format)
+     * @return a unique id for the injected image, or {@code null} if the action failed
+     */
+    public String injectMockImage(File image) {
+        String testData = "image=" + image;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsFlutterCameraMocking flutterDriver) {
+                String imageId = flutterDriver.injectMockImage(image);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+                return imageId;
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+                return null;
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+            return null;
+        }
+    }
+
+    /**
+     * Activates a previously injected mock camera image, using
+     * {@link SupportsFlutterCameraMocking#activateInjectedImage(String)}. Requires a Flutter integration driver
+     * session; anything else fails the action.
+     *
+     * @param imageId the id returned by {@link #injectMockImage(File)}
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions activateInjectedImage(String imageId) {
+        String testData = "imageId=" + imageId;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsFlutterCameraMocking flutterDriver) {
+                flutterDriver.activateInjectedImage(imageId);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
     }
 
     /**
