@@ -660,6 +660,125 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     /**
+     * Issue #4191 (tracker #4160): PR #4184's {@link AssistantTranscriptView#widthCappedWidget}
+     * javadoc claimed {@link ToolApprovalPromptPanel} has zero insets and is therefore unaffected by
+     * that fix's insets-aware cap widening. Measuring the panel's real border
+     * ({@code createEtchedBorder()} composed with {@code JBUI.Borders.empty(8)}) shows non-zero
+     * insets of {@code (10,10,10,10)}, which does widen its outer-width cap by ~20px -- see the
+     * corrected javadoc. No CI-run test exercised this panel's rendered width before this one: the
+     * screenshot-renderer coverage that would show it ({@code assistantApprovalPromptScreenshot}) is
+     * gated {@code assumeFalse} on {@code -Dshaft.intellij.screenshotDir}, which CI never sets. This
+     * test carries no such gate and drives the exact same {@code NARROW_WIDTH} construction {@link
+     * #firstRunWelcomeDismissButtonIsReachableAtNarrowDarkWidth} uses, proving the extra ~20px does
+     * not push the panel past the transcript viewport's visible (unscrolled-horizontally) width.
+     */
+    @Test
+    void toolApprovalPromptFitsWithinTranscriptWidthAtNarrowToolWindowWidth()
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<ToolApprovalPromptPanel> approvalPanel = new AtomicReference<>();
+        AtomicReference<JBScrollPane> transcriptScroll = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(DARK_THEME, true);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/record-web https://example.com", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.defaultAutobotMode = "AGENT";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            selectButton(component, "Allow source edits");
+            invokeStartMcpInvocation(component, AssistantCommand.Invocation.tool(
+                    "capture_start", captureStartArguments()));
+            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, false);
+
+            approvalPanel.set(findByAccessibleName(
+                    component, "Tool approval request for capture_start", ToolApprovalPromptPanel.class));
+            transcriptScroll.set(findByAccessibleName(component, "Assistant transcript", JBScrollPane.class));
+        });
+
+        assertNotNull(approvalPanel.get(),
+                "The tool approval prompt must render at a narrow dark tool window width");
+        assertNotNull(transcriptScroll.get(),
+                "The Assistant transcript scroll pane must be present at a narrow dark tool window width");
+
+        JViewport viewport = transcriptScroll.get().getViewport();
+        Rectangle boundsInView = SwingUtilities.convertRectangle(
+                approvalPanel.get().getParent(), approvalPanel.get().getBounds(), viewport.getView());
+        assertTrue(boundsInView.x + boundsInView.width <= viewport.getWidth(),
+                "The tool approval prompt (real insets (10,10,10,10), widening widthCappedWidget's "
+                        + "outer-width cap by ~20px) must not extend past the transcript viewport's "
+                        + "visible width at NARROW_WIDTH -- panel right edge "
+                        + (boundsInView.x + boundsInView.width) + "px, viewport width "
+                        + viewport.getWidth() + "px.");
+    }
+
+    /**
+     * Issue #4191 (tracker #4160): the same "zero insets, no-op" javadoc claim {@code
+     * widthCappedWidget} previously made about {@link ToolApprovalPromptPanel} above also named
+     * {@link AssistantQuestionOptionsPanel} -- its real border ({@code createEmptyBorder(4, 0, 0, 0)}
+     * composed with {@code JBUI.Borders.empty(2)}) measures {@code (6,2,2,2)}, widening its cap by
+     * ~4px. Renders the panel via the same package-private {@code showAssistantQuestionOptions} seam
+     * production code uses when an assistant turn's markdown contains a detected {@link
+     * AssistantQuestion}, at the same narrow tool-window width the welcome-bubble tests use, and
+     * proves the extra ~4px does not push it past the transcript viewport's visible width.
+     */
+    @Test
+    void assistantQuestionOptionsFitWithinTranscriptWidthAtNarrowToolWindowWidth()
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<AssistantQuestionOptionsPanel> optionsPanel = new AtomicReference<>();
+        AtomicReference<JBScrollPane> transcriptScroll = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(DARK_THEME, true);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            ShaftSettingsState.Settings settings = defaultSettings();
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            invokeShowAssistantQuestionOptions(component, new AssistantQuestion(
+                    "Which browser should the recording target?",
+                    List.of("Chromium", "Firefox", "WebKit")));
+            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, false);
+
+            optionsPanel.set(findByAccessibleName(
+                    component, "Suggested answers", AssistantQuestionOptionsPanel.class));
+            transcriptScroll.set(findByAccessibleName(component, "Assistant transcript", JBScrollPane.class));
+        });
+
+        assertNotNull(optionsPanel.get(),
+                "The assistant question options panel must render at a narrow dark tool window width");
+        assertNotNull(transcriptScroll.get(),
+                "The Assistant transcript scroll pane must be present at a narrow dark tool window width");
+
+        JViewport viewport = transcriptScroll.get().getViewport();
+        Rectangle boundsInView = SwingUtilities.convertRectangle(
+                optionsPanel.get().getParent(), optionsPanel.get().getBounds(), viewport.getView());
+        assertTrue(boundsInView.x + boundsInView.width <= viewport.getWidth(),
+                "The assistant question options panel (real insets (6,2,2,2), widening "
+                        + "widthCappedWidget's outer-width cap by ~4px) must not extend past the "
+                        + "transcript viewport's visible width at NARROW_WIDTH -- panel right edge "
+                        + (boundsInView.x + boundsInView.width) + "px, viewport width "
+                        + viewport.getWidth() + "px.");
+    }
+
+    private static void invokeShowAssistantQuestionOptions(ShaftAssistantPanel component, AssistantQuestion question) {
+        try {
+            Method method = ShaftAssistantPanel.class.getDeclaredMethod("showAssistantQuestionOptions", AssistantQuestion.class);
+            method.setAccessible(true);
+            method.invoke(component, question);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to render the assistant question options widget", exception);
+        }
+    }
+
+    /**
      * Renders the composer with the attach affordances populated (issue #3727): the "Attach" toolbar
      * button beside Send, and a removable chip per attachment above the prompt -- a picked file, a
      * large file truncated with a visible note, and a picked image. Attaches through the same
