@@ -240,8 +240,8 @@ class HealingLocatorProposalServiceTest {
         // (unique && contextMatched) before picking a candidate to suggest.
         source(repository, "private static final By LOGIN = By.id(\"old-login\");");
         Path report = multiCandidateReport(repository,
-                candidateJson("candidate-top", "By.id: duplicate-login", false, true),
-                candidateJson("candidate-eligible", "By.id: new-login", true, true));
+                candidateJson("candidate-top", "By.id: duplicate-login", false, true, true),
+                candidateJson("candidate-eligible", "By.id: new-login", true, true, true));
 
         HealingLocatorProposal proposal = new HealingLocatorProposalService().proposeAdvisory(
                 new HealingLocatorProposalRequest(
@@ -260,8 +260,8 @@ class HealingLocatorProposalServiceTest {
             throws Exception {
         source(repository, "private static final By LOGIN = By.id(\"old-login\");");
         Path report = multiCandidateReport(repository,
-                candidateJson("candidate-a", "By.id: duplicate-login", false, true),
-                candidateJson("candidate-b", "By.id: wrong-context", true, false));
+                candidateJson("candidate-a", "By.id: duplicate-login", false, true, true),
+                candidateJson("candidate-b", "By.id: wrong-context", true, false, true));
 
         assertThrows(IllegalArgumentException.class, () -> new HealingLocatorProposalService()
                 .proposeAdvisory(new HealingLocatorProposalRequest(
@@ -272,13 +272,42 @@ class HealingLocatorProposalServiceTest {
                         repository.resolve("target/advisory-none-eligible"))));
     }
 
+    @Test
+    void advisoryProposalSkipsANonInteractableTopScoredCandidateForAnInteractableOne(
+            @TempDir Path repository) throws Exception {
+        // Issue #4209 (round 2): HealingDecisionEngine's eligible list also filters on
+        // interactable whenever visibilityRequired=true (the common case for real callers), so a
+        // higher-scored candidate that is unique/contextMatched but not interactable can still
+        // mismatch the persisted decision.confidence. Require interactable too, unconditionally --
+        // a deliberate approximation since the report never records whether visibilityRequired
+        // applied to this attempt.
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path report = multiCandidateReport(repository,
+                candidateJson("candidate-top", "By.id: not-interactable-login", true, true, false),
+                candidateJson("candidate-eligible", "By.id: new-login", true, true, true));
+
+        HealingLocatorProposal proposal = new HealingLocatorProposalService().proposeAdvisory(
+                new HealingLocatorProposalRequest(
+                        repository,
+                        report,
+                        "src/test/java/example/LoginTest.java",
+                        true,
+                        repository.resolve("target/advisory-interactable")));
+
+        assertEquals("By.id(\"new-login\")", proposal.proposedExpression(),
+                "The advisory must pick the interactable candidate, not a higher-scored"
+                        + " non-interactable one.");
+    }
+
     private static ObjectNode candidateJson(
-            String candidateId, String proposedLocator, boolean unique, boolean contextMatched) {
+            String candidateId, String proposedLocator, boolean unique, boolean contextMatched,
+            boolean interactable) {
         ObjectNode candidate = JSON.createObjectNode();
         candidate.put("candidateId", candidateId);
         candidate.put("proposedLocator", proposedLocator);
         candidate.put("unique", unique);
         candidate.put("contextMatched", contextMatched);
+        candidate.put("interactable", interactable);
         candidate.putArray("evidence").add("test-id exact match");
         return candidate;
     }
@@ -350,6 +379,7 @@ class HealingLocatorProposalServiceTest {
         candidate.put("proposedLocator", proposedLocator);
         candidate.put("unique", unique);
         candidate.put("contextMatched", true);
+        candidate.put("interactable", true);
         candidate.putArray("evidence").add("test-id exact match");
         ObjectNode decision = report.putObject("decision");
         decision.put("status", decisionStatus);

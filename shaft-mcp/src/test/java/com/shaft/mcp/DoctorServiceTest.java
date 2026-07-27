@@ -713,7 +713,8 @@ class DoctorServiceTest {
                     "proposedLocator": "By.id: new-login",
                     "evidence": ["test-id partial match"],
                     "unique": true,
-                    "contextMatched": true
+                    "contextMatched": true,
+                    "interactable": true
                   }],
                   "decision": {
                     "status": "BELOW_THRESHOLD",
