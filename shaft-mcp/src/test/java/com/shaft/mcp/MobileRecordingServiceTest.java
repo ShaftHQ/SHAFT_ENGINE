@@ -55,6 +55,31 @@ class MobileRecordingServiceTest {
     }
 
     @Test
+    void codeBlocksReportsUnconfirmedNotSuccessfulSinceNoReplayWasAttempted() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("unconfirmed.json");
+
+        service.start(recording.toString(), "native", false);
+        service.record(
+                "tap",
+                locatorStrategy.ACCESSIBILITY_ID,
+                "login",
+                Map.of(),
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                false);
+        service.stop(false);
+
+        McpMobileReplayResult result = service.codeBlocks(recording.toString(), "driver");
+
+        // codeBlocks() only renders copy-paste text; it never compiles or replays anything, so
+        // reporting successful=true here would lie about validation that never happened (#4239 F4),
+        // matching web/API's UNCONFIRMED semantics for the analogous no-replay case.
+        assertFalse(result.successful(), "Pure codegen without replay must not report successful=true");
+        assertEquals(0, result.replayedActionCount());
+    }
+
+    @Test
     void typedValueSensitivityIsClassifiedPerFieldLikeWebCapture() {
         assertTrue(MobileService.isSensitiveTypedValue("password_input", "hunter2"),
                 "Password-looking fields must stay redacted");

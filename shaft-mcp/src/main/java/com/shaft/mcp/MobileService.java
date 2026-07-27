@@ -549,8 +549,10 @@ public class MobileService {
             replay(action);
             replayed++;
         }
+        boolean allActionsReplayed = replayed == recording.actions().size();
         McpMobileReplayResult blocks = recorder.codeBlocks(recordingPath, driverVariableName);
-        return new McpMobileReplayResult(blocks.recordingPath(), true, replayed, blocks.codeBlocks(), blocks.warnings());
+        return new McpMobileReplayResult(
+                blocks.recordingPath(), allActionsReplayed, replayed, blocks.codeBlocks(), blocks.warnings());
     }
 
     /**

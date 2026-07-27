@@ -286,7 +286,11 @@ final class McpMobileRecordingService {
         if (targetSource != null || !text(insertAfter).isBlank()) {
             blocks.addAll(targetInsertionBlocks(targetSource, insertAfter, pom));
         }
-        return new McpMobileReplayResult(path, true, 0, blocks, replayWarnings(stored));
+        // Pure codegen: this method never compiles or replays anything, so successful=false and
+        // replayedActionCount=0 are honest (matches web/API's UNCONFIRMED semantics for the
+        // analogous no-replay case, #4239 F4). No report/source/test-data paths exist to attach
+        // here since no generation attempt beyond copy-paste text rendering ever ran.
+        return new McpMobileReplayResult(path, false, 0, blocks, replayWarnings(stored));
     }
 
     private void persist() {
