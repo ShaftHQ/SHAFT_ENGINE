@@ -2665,7 +2665,7 @@ final class AssistantCommand {
                 - Inspect the current project structure before editing.
                 - Move stable locators into page object classes.
                 - Move replay actions into intent-named page methods.
-                - Do not use SHAFT.GUI.Locator.xpath; use smart locators, the locator builder, or By.xpath only as a last fallback.
+                - Do not use SHAFT.GUI.Locator.xpath; build locators with the SHAFT locator builder's ARIA-role strategy, SHAFT.GUI.Locator.hasRole(...), falling back to native By.xpath(...) only when the element exposes no ARIA role.
                 - Keep the TestNG test focused on scenario orchestration and final assertions.
                 - Do not duplicate existing locators, page actions, tests, or classes.
                 - Preserve the recorded browser journey; do not collapse it to only opening the start page or a generic title check.
