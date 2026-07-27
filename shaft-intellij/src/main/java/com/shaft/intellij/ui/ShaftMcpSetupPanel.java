@@ -510,7 +510,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setPreferredSize(JBUI.size(560, 180));
         details.getAccessibleContext().setAccessibleName("SHAFT MCP setup output");
         details.setEditable(false);
-        details.setFont(new Font(Font.MONOSPACED, Font.PLAIN, details.getFont() == null ? 12 : details.getFont().getSize()));
+        details.setFont(new Font(AssistantTranscriptView.monospacedFontFamily(), Font.PLAIN, details.getFont() == null ? 12 : details.getFont().getSize()));
         details.setBackground(UIManagerColors.background());
         details.setForeground(UIManagerColors.foreground());
         details.setBorder(JBUI.Borders.compound(JBUI.Borders.empty(6), JBUI.Borders.customLine(UIManagerColors.border(), 1)));
@@ -1015,7 +1015,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
         area.getAccessibleContext().setAccessibleName(accessibleName);
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, area.getFont() == null ? 12 : area.getFont().getSize()));
+        area.setFont(new Font(AssistantTranscriptView.monospacedFontFamily(), Font.PLAIN, area.getFont() == null ? 12 : area.getFont().getSize()));
         area.setMinimumSize(JBUI.size(360, Math.max(72, rows * 24)));
         return area;
     }
@@ -2670,7 +2670,7 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private SimpleAttributeSet consoleStyle(boolean success) {
         SimpleAttributeSet style = new SimpleAttributeSet();
-        StyleConstants.setFontFamily(style, details.getFont() == null ? Font.MONOSPACED : details.getFont().getFamily());
+        StyleConstants.setFontFamily(style, details.getFont() == null ? AssistantTranscriptView.monospacedFontFamily() : details.getFont().getFamily());
         StyleConstants.setFontSize(style, details.getFont() == null ? 12 : details.getFont().getSize());
         StyleConstants.setForeground(style, success ? ShaftStatusPresentation.success() : UIManagerColors.foreground());
         if (success) {
