@@ -4523,6 +4523,92 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(markdown.contains("Killed"), markdown));
     }
 
+    /**
+     * Issue #3962: a soft Cancel reaches {@code showAgentResult} asynchronously (unlike Kill, which
+     * finalizes synchronously in {@code stopLocalAgentStreaming} before the invocation is even asked
+     * to cancel) -- so when the run's terminal-answer companion ({@code pendingTerminalAnswer}) is
+     * still unresolved at that moment, the fix waits for it instead of immediately rendering the bare
+     * "_Cancelled._" placeholder and losing the real answer forever once the companion does resolve.
+     * Exercises the real waiting/rendering sequencing (a not-yet-completed {@link CompletableFuture},
+     * resolved only after {@code showAgentResult} has already run), not just a direct method call.
+     */
+    @Test
+    void assistantCancelWaitsForPendingTerminalAnswerAndRendersItInsteadOfBarePlaceholder() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 401);
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel);
+        showAgentResult(panel, 401, null, new CancellationException("cancelled"));
+
+        // Not resolved yet -- the cancelled placeholder must not have been finalized while the run's
+        // real terminal answer is still pending, or it would be lost the instant it does arrive.
+        String beforeResolution = transcriptMarkdown(panel);
+        assertFalse(beforeResolution.contains("Cancelled"), beforeResolution);
+
+        pendingTerminalAnswer.complete("The finished answer, parsed before cancel won the race.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The finished answer, parsed before cancel won the race."),
+                        markdown),
+                () -> assertEquals(1,
+                        countOccurrences(markdown, "The finished answer, parsed before cancel won the race."),
+                        "the terminal answer must render exactly once: " + markdown));
+    }
+
+    /**
+     * Issue #3962, Kill side: unlike Cancel, {@code stopLocalAgentStreaming} finalizes the "_Killed._"
+     * bubble synchronously at button-click time -- before {@code ShaftMcpInvocation#kill()} even runs
+     * -- so the companion cannot be waited on there without delaying the existing instant feedback.
+     * Instead the same already-finalized message is upgraded in place once the companion resolves.
+     * Proves both halves of the anti-duplication requirement: the message count never grows (no
+     * second bubble) and the upgrade only fires once real content exists.
+     */
+    @Test
+    void assistantKillUpgradesTheSameFinalizedMessageOnceTerminalAnswerArrives() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(), () -> {
+        }, () -> {
+        });
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 402);
+
+        CompletableFuture<String> pendingTerminalAnswer = new CompletableFuture<>();
+        setField(panel, "pendingTerminalAnswer", pendingTerminalAnswer);
+
+        cancelOrKillCurrent(panel); // Cancel
+        cancelOrKillCurrent(panel); // escalate to Kill -- calls stopLocalAgentStreaming synchronously
+
+        String immediately = transcriptMarkdown(panel);
+        assertTrue(immediately.contains("Killed"), immediately);
+        int messageCountAfterKill = currentSessionMessageCount(panel);
+
+        pendingTerminalAnswer.complete("The finished answer, parsed before kill won the race.");
+        pumpEdt();
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The finished answer, parsed before kill won the race."),
+                        markdown),
+                () -> assertEquals(messageCountAfterKill, currentSessionMessageCount(panel),
+                        "the upgrade must replace the same message in place, never append a second one"),
+                () -> assertEquals(1,
+                        countOccurrences(markdown, "The finished answer, parsed before kill won the race."),
+                        "the terminal answer must render exactly once: " + markdown));
+    }
+
     @Test
     void assistantKillRequestTerminalEntryIsKilledNotCancelled() throws Exception {
         // Issue #3919: no "Killing..."/terminal "Killed (Ns)" milestone bubbles in the transcript any
@@ -7165,6 +7251,23 @@ class ShaftPanelSetupTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    private static int currentSessionMessageCount(ShaftAssistantPanel panel) throws Exception {
+        ShaftAssistantChatState chatState = (ShaftAssistantChatState) getField(panel, "chatState");
+        return chatState.activeSession().messages.size();
+    }
+
+    /** Flushes the real AWT Event Dispatch Thread's queue: a no-op {@code invokeAndWait} only returns
+     * once every {@code invokeLater}/{@code runOnEdt} action already queued ahead of it has run,
+     * making otherwise-async EDT continuations (e.g. a {@code CompletableFuture.whenComplete} callback
+     * that hops onto the EDT via {@code runOnEdt}) observable deterministically in a headless test. */
+    private static void pumpEdt() {
+        try {
+            SwingUtilities.invokeAndWait(() -> { });
+        } catch (Exception pumpFailure) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 

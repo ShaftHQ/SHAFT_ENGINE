@@ -251,6 +251,14 @@ final class ShaftAssistantPanel extends JPanel {
     // terminal render reads localAgentOutput, so a run's very last streamed lines are never lost or
     // silently delayed past the terminal state.
     private LocalAgentOutputCoalescer localAgentOutputCoalescer;
+    /** Issue #3962: the current local-agent run's parsed terminal answer, carried on a side channel
+     * {@code future.cancel(true)} cannot touch -- {@link AssistantLocalAgentRunner#run}'s own {@code
+     * finally} block completes this exactly once per run (with {@code null} if the structured stream
+     * never produced a terminal event), regardless of whether the primary future ({@link
+     * #currentInvocation}) was cancelled first. {@code null} while no local-agent run is active or
+     * once a run's completion has consumed it. See {@link #showAgentResult} (soft Cancel) and {@link
+     * #stopLocalAgentStreaming} (Kill) for the two ways it is used. */
+    private CompletableFuture<String> pendingTerminalAnswer;
     private final Deque<Runnable> queuedLocalAgentApprovalPrompts = new ArrayDeque<>();
     private boolean localAgentApprovalPromptShowing;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
@@ -1438,12 +1446,14 @@ final class ShaftAssistantPanel extends JPanel {
                         timer.setRepeats(false);
                         timer.start();
                     });
+            pendingTerminalAnswer = new CompletableFuture<>();
             currentInvocation = AssistantLocalAgentRunner.startWithOptionalCompact(
                     invocation,
                     autoCompact.isSelected(),
                     localAgentOutputCoalescer::enqueue,
                     localAgentApprovalHandler(streamToken),
-                    verboseLocalAgentOutput());
+                    verboseLocalAgentOutput(),
+                    pendingTerminalAnswer::complete);
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
             return;
@@ -2074,8 +2084,23 @@ final class ShaftAssistantPanel extends JPanel {
         finishCaptureIntegrationIfRunning(success, result);
         if (cancelled) {
             String terminalStep = killed ? "Killed" : "Cancelled";
-            showAgentCancelled(streamToken, currentStream, killed, partialOutput);
             setStatus(terminalStep);
+            // Issue #3962: a genuine Kill already finalized synchronously in stopLocalAgentStreaming
+            // (handleKilledOrStaleAgentStream short-circuited above before this branch could ever run
+            // for that same stream token), so pendingTerminalAnswer only ever matters for a soft
+            // Cancel reaching here -- wait for it (bounded: AssistantLocalAgentRunner#run's own
+            // finally always completes it, one way or another) instead of immediately rendering the
+            // bare "_Cancelled._" placeholder and permanently losing a terminal answer that was
+            // already parsed the instant it resolves.
+            CompletableFuture<String> pending = pendingTerminalAnswer;
+            pendingTerminalAnswer = null;
+            if (pending == null) {
+                showAgentCancelled(streamToken, currentStream, killed, partialOutput);
+            } else {
+                pending.whenComplete((terminalAnswer, ignoredError) -> runOnEdt(() -> showAgentCancelled(
+                        streamToken, streamToken == activeLocalAgentStreamToken, killed, partialOutput,
+                        terminalAnswer)));
+            }
             return;
         }
         showAgentToolResult(streamToken, currentStream, success, result, error, captureIntegrationRun, partialOutput);
@@ -2235,10 +2260,30 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showAgentCancelled(int streamToken, boolean currentStream, boolean killed, String partialOutput) {
+        showAgentCancelled(streamToken, currentStream, killed, partialOutput, null);
+    }
+
+    /**
+     * Same as the 4-arg overload above, plus {@code terminalAnswer} (issue #3962): when non-blank, the
+     * structured stream had already produced a real, composed answer before the cancellation raced
+     * it -- rendered here instead of the bare "_Cancelled._"/"_Killed._" marker or the raw partial
+     * buffer, both of which would otherwise be all that is left once {@code future.cancel(true)}
+     * discards the run's actual return value.
+     */
+    private void showAgentCancelled(
+            int streamToken, boolean currentStream, boolean killed, String partialOutput, String terminalAnswer) {
         String label = killed ? "Killed" : "Cancelled";
-        String canceledResponse = partialOutput == null || partialOutput.isBlank()
-                ? "_" + label + "._"
-                : formatLocalAgentStreamingResponse(partialOutput) + "\n\n_" + label + "._ (partial output above)";
+        String canceledResponse;
+        if (terminalAnswer != null && !terminalAnswer.isBlank()) {
+            canceledResponse = AssistantMarkdown.normalizeMarkdown(
+                    AssistantLocalAgentRunner.stripTrailingUsageMetadata(terminalAnswer))
+                    + "\n\n_" + label + "._ (the run had already finished)";
+        } else if (partialOutput == null || partialOutput.isBlank()) {
+            canceledResponse = "_" + label + "._";
+        } else {
+            canceledResponse = formatLocalAgentStreamingResponse(partialOutput) + "\n\n_" + label
+                    + "._ (partial output above)";
+        }
         // A user-initiated Cancel/Kill is a tool-event outcome, not a genuine failure -- mirrors
         // showTerminalSequenceResult's cancelled branch for the MCP-tool-sequence path.
         showAgentResponse(streamToken, currentStream, canceledResponse, "", ShaftAssistantChatState.KIND_TOOL_EVENT);
@@ -2571,11 +2616,71 @@ final class ShaftAssistantPanel extends JPanel {
                             + "\n\n_Killed._ (partial output above)"
                     : "_Killed._";
             replaceLocalAgentStreamPlaceholder("assistant", finalized, true);
+            int finalizedMessageIndex = localAgentStreamPlaceholderMessageIndex;
             localAgentStreamPlaceholderMessageIndex = -1;
+            scheduleKilledTerminalAnswerUpgrade(finalizedMessageIndex);
         }
         activeLocalAgentStreamToken = -1;
         localAgentOutput = null;
         clearPendingLocalAgentApprovalPrompt();
+    }
+
+    /**
+     * Issue #3962: a Kill finalizes the "_Killed._" bubble synchronously above, before {@link
+     * ShaftMcpInvocation#kill()} even runs -- so {@link #pendingTerminalAnswer} (if this run has one)
+     * cannot possibly be resolved yet, and waiting for it here would delay the existing instant Kill
+     * feedback. Instead, this schedules a one-time, guarded in-place upgrade of the exact message just
+     * finalized (at {@code finalizedMessageIndex}) for whenever -- if ever -- the companion resolves
+     * with a real answer, without delaying or duplicating the render above.
+     */
+    private void scheduleKilledTerminalAnswerUpgrade(int finalizedMessageIndex) {
+        CompletableFuture<String> pending = pendingTerminalAnswer;
+        pendingTerminalAnswer = null;
+        if (pending == null) {
+            return;
+        }
+        pending.thenAccept(terminalAnswer -> runOnEdt(
+                () -> upgradeKilledLocalAgentMessage(finalizedMessageIndex, terminalAnswer)));
+    }
+
+    /**
+     * Guarded upgrade for {@link #scheduleKilledTerminalAnswerUpgrade}: replaces the "_Killed._"
+     * message at {@code messageIndex} in place with {@code terminalAnswer}'s polished text, but only
+     * if all of the following still hold at the time this actually runs (which may be immediately, or
+     * after other transcript activity has happened in the meantime):
+     * <ul>
+     *   <li>{@code terminalAnswer} is non-blank -- a killed run whose stream never produced a
+     *   terminal event has nothing to upgrade to, and the existing marker stands unchanged;</li>
+     *   <li>{@code messageIndex} still points inside the active session's message list -- guards
+     *   against a shape change (e.g. the transcript's cap-trim eviction of the oldest bubbles);</li>
+     *   <li>that exact message still carries the {@code "_Killed._"} marker -- guards against the
+     *   same index now belonging to unrelated content, so this can only ever replace the message it
+     *   finalized, never a different one.</li>
+     * </ul>
+     * Never appends a new message: this is always a replace of the single already-rendered bubble, so
+     * a killed run's answer can be upgraded at most once and is never shown twice.
+     */
+    private void upgradeKilledLocalAgentMessage(int messageIndex, String terminalAnswer) {
+        if (terminalAnswer == null || terminalAnswer.isBlank()) {
+            return;
+        }
+        ShaftAssistantChatState.Session active = chatState.activeSession();
+        if (active == null || active.messages == null || messageIndex < 0 || messageIndex >= active.messages.size()) {
+            return;
+        }
+        ShaftAssistantChatState.Message target = active.messages.get(messageIndex);
+        if (target.markdown == null || !target.markdown.contains("_Killed._")) {
+            return;
+        }
+        String upgraded = AssistantMarkdown.normalizeMarkdown(
+                AssistantLocalAgentRunner.stripTrailingUsageMetadata(terminalAnswer))
+                + "\n\n_Killed._ (the run had already finished)";
+        target.markdown = upgraded;
+        if (messageIndex == active.messages.size() - 1) {
+            transcript.replaceLast(target.role, upgraded, target.kind);
+        } else {
+            transcript.setMessages(active.messages);
+        }
     }
 
     /**

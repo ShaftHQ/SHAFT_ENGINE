@@ -197,12 +197,38 @@ final class AssistantLocalAgentRunner {
             LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
             ApprovalBridgeLauncher bridgeLauncher,
             boolean verbose) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                bridgeLauncher, verbose, null);
+    }
+
+    /**
+     * Same as the 7-arg overload above, plus {@code terminalAnswerConsumer} (issue #3962). {@code
+     * ShaftMcpInvocation.cancel()}/{@code kill()} call {@code future.cancel(true)} <em>before</em>
+     * running their cancel/kill action (issue #3758/#3768's validated ordering, untouched here) -- so
+     * once that call wins, the JDK's own {@code Future} contract silently discards whatever {@link
+     * #run} later returns or throws, even a real parsed terminal answer. {@code
+     * terminalAnswerConsumer}, when non-null, is notified exactly once from {@code run()}'s own
+     * {@code finally} block (see the canonical {@link #run} overload) with the parsed terminal answer
+     * -- or {@code null} if the structured stream never produced one -- regardless of {@code
+     * future.cancel(true)}, since it is a side channel the primary future's cancellation cannot touch.
+     * {@code null} (the default via the 7-arg overload) means "no one is listening"; every existing
+     * caller is unaffected.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
                 arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable, approvalHandler, bridgeLauncher, verbose),
+                requireCommandAvailable, approvalHandler, bridgeLauncher, verbose, terminalAnswerConsumer),
                 ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
@@ -275,6 +301,24 @@ final class AssistantLocalAgentRunner {
             Consumer<String> outputConsumer,
             LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
             boolean verbose) {
+        return startWithOptionalCompact(invocation, autoCompactEnabled, outputConsumer, approvalHandler, verbose, null);
+    }
+
+    /**
+     * Same as the 5-arg overload above, plus {@code terminalAnswerConsumer} (issue #3962) -- see the
+     * matching {@link #start(AssistantCommand.Invocation, Consumer, ProcessLauncher, boolean,
+     * LocalAgentApprovalBridge.ApprovalRequestHandler, ApprovalBridgeLauncher, boolean, Consumer)}
+     * overload for what it is notified with and when. {@link ShaftAssistantPanel} calls this overload
+     * for its local-agent runs so it can recover a cancelled/killed run's parsed terminal answer,
+     * which {@code future.cancel(true)} would otherwise discard unconditionally.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
         if (autoCompactEnabled) {
             ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
             if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
@@ -282,7 +326,7 @@ final class AssistantLocalAgentRunner {
             }
         }
         return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess, true, approvalHandler,
-                LocalAgentApprovalBridge::start, verbose);
+                LocalAgentApprovalBridge::start, verbose, terminalAnswerConsumer);
     }
 
     /**
@@ -528,7 +572,7 @@ final class AssistantLocalAgentRunner {
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable) {
         return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable, null, LocalAgentApprovalBridge::start, true);
+                requireCommandAvailable, null, LocalAgentApprovalBridge::start, true, null);
     }
 
     private static ShaftMcpToolResult run(
@@ -540,7 +584,8 @@ final class AssistantLocalAgentRunner {
             boolean requireCommandAvailable,
             LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
             ApprovalBridgeLauncher bridgeLauncher,
-            boolean verbose) {
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
         Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
         LocalAgentApprovalBridge.ApprovalRequestHandler narratingApprovalHandler =
                 narrateApproval(approvalHandler, outputConsumer);
@@ -563,6 +608,11 @@ final class AssistantLocalAgentRunner {
                 }
             }
         }
+        // Declared here (not inside the try below) so the outer finally can always reach it -- issue
+        // #3962's terminalAnswerConsumer notification below must fire from every exit path of this
+        // method, including the early-return guard clauses at the top of the try that run before a
+        // structured stream parser is even created.
+        StructuredStreamParser streamParser = null;
         try {
             List<String> command = commandFor(arguments, bridge);
             if (command.isEmpty()) {
@@ -580,7 +630,7 @@ final class AssistantLocalAgentRunner {
             String stdin = string(arguments, "prompt", "");
             Path workingDirectory = workingDirectory(arguments);
             boolean isDefaultCommand = defaultCommand(arguments);
-            StructuredStreamParser streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
+            streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
             Consumer<String> effectiveConsumer =
                     effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
             OutputStream stdinStream = null;
@@ -656,6 +706,20 @@ final class AssistantLocalAgentRunner {
                 processReference.set(null);
             }
         } finally {
+            // Issue #3962: notified exactly once, from every exit path of this method (normal return,
+            // timeout, a thrown exception, or a cancellation the checks above turned into a thrown
+            // CancellationException) -- unconditionally, regardless of whether cancellationRequested
+            // was ever observed. This runs strictly before this method returns/throws to the
+            // supplyAsync wrapper that completes the primary future, so by the time any caller's
+            // future.whenComplete callback can possibly observe this run's outcome, this notification
+            // has already happened -- closing the race #3758/#3768 exploit differently (this side
+            // channel is never subject to future.cancel(true), which only ever affects the primary
+            // future's own stored result).
+            if (terminalAnswerConsumer != null) {
+                terminalAnswerConsumer.accept(streamParser != null && streamParser.hasTerminalEvent()
+                        ? streamParser.finalOutput()
+                        : null);
+            }
             if (bridge != null) {
                 bridge.close();
             }
