@@ -202,7 +202,13 @@ public class OptionsManager {
                     flutterOptions.setFlutterSystemPort(SHAFT.Properties.mobile.flutterSystemPort());
                 }
                 flutterOptions.setFlutterEnableMockCamera(SHAFT.Properties.mobile.flutterEnableMockCamera());
-                appiumCapabilities = new DesiredCapabilities(flutterOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities()).merge(customDriverOptions));
+                //merge customWebDriverCapabilities.properties
+                flutterOptions = flutterOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
+                //merge hardcoded custom options
+                if (customDriverOptions != null) {
+                    flutterOptions = flutterOptions.merge(customDriverOptions);
+                }
+                appiumCapabilities = new DesiredCapabilities(flutterOptions);
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_WINDOWS ->
                     appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));

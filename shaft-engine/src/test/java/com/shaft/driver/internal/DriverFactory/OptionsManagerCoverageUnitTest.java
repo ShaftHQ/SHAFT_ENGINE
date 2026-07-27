@@ -270,4 +270,15 @@ public class OptionsManagerCoverageUnitTest {
         Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:flutterEnableMockCamera"), true);
     }
 
+    @Test
+    public void shouldBuildFlutterCapabilitiesWhenCustomDriverOptionsIsNull() {
+        SHAFT.Properties.platform.set().targetPlatform("android");
+        SHAFT.Properties.mobile.set().browserName("");
+
+        OptionsManager manager = new OptionsManager();
+        manager.setDriverOptions(DriverFactory.DriverType.APPIUM_FLUTTER, null);
+
+        Assert.assertNotNull(manager.getAppiumCapabilities());
+    }
+
 }
