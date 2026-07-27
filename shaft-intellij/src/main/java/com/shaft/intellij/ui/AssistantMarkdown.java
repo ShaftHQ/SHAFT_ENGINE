@@ -1568,7 +1568,7 @@ final class AssistantMarkdown {
                 - For broad test or page-object design, call `test_automation_scenarios` to learn the matching SHAFT coding pattern.
                 - Call `test_code_guardrails_check` on the final Java snippet before returning it.
                 - Use `SHAFT.GUI.WebDriver`, `driver.browser()`, `driver.element()`, `driver.element().touch()`, and `SHAFT.GUI.Locator`.
-                - Do not use `SHAFT.GUI.Locator.xpath(...)`; build locators with the SHAFT locator builder's ARIA-role strategy, `SHAFT.GUI.Locator.hasRole(...)`, falling back to native `By.xpath(...)` only when the element exposes no ARIA role.
+                - Do not use `SHAFT.GUI.Locator.xpath(...)`, or the raw `SHAFT.GUI.Locator.id/name/cssSelector/className/tagName(...)` factories; build locators in tier order: a unique, stable, author-written id (`SHAFT.GUI.Locator.hasAnyTagName().hasId(...)`) first, the ARIA-role strategy (`SHAFT.GUI.Locator.hasRole(...)`) second, falling back to native `By.xpath(...)` only when the element has neither.
                 - Do not return native navigation calls, direct element lookup calls, WebElement actions, browser-driver constructors, or other raw Selenium code.
                 """.strip();
     }
