@@ -685,6 +685,106 @@ class DoctorServiceTest {
         assertTrue(Files.isRegularFile(Path.of(proposal.manifestPath())));
     }
 
+    @Test
+    void advisoryLocatorToolCreatesReviewableProposalWithoutChangingSource(@TempDir Path temp)
+            throws Exception {
+        // Issue #4194: a low-trust (BELOW_THRESHOLD) ladder outcome must be reachable through the
+        // same explicitly user-invoked MCP surface as the confirmed-recovery path, never applied
+        // automatically.
+        SHAFT.Properties.healing.set().sourcePatchEnabled(true);
+        Path source = temp.resolve("src/test/java/example/LoginTest.java");
+        Files.createDirectories(source.getParent());
+        String sourceContent = """
+                package example;
+                import org.openqa.selenium.By;
+                class LoginTest {
+                    private static final By LOGIN = By.id("old-login");
+                }
+                """;
+        Files.writeString(source, sourceContent, StandardCharsets.UTF_8);
+        Path report = temp.resolve("healing-report.json");
+        Files.writeString(report, """
+                {
+                  "schemaVersion": "2.0",
+                  "attemptId": "attempt-mcp-advisory",
+                  "originalLocator": "By.id: old-login",
+                  "candidates": [{
+                    "candidateId": "candidate-1",
+                    "proposedLocator": "By.id: new-login",
+                    "evidence": ["test-id partial match"],
+                    "unique": true,
+                    "contextMatched": true
+                  }],
+                  "decision": {
+                    "status": "BELOW_THRESHOLD",
+                    "selectedCandidateId": "",
+                    "confidence": 0.62
+                  },
+                  "action": {
+                    "outcome": "NOT_EXECUTED",
+                    "postActionVerification": "UNVERIFIABLE"
+                  }
+                }
+                """, StandardCharsets.UTF_8);
+
+        var proposal = service(temp).proposeAdvisoryLocator(
+                temp.toString(),
+                report.toString(),
+                "src/test/java/example/LoginTest.java",
+                true,
+                temp.resolve("target/advisories").toString());
+
+        assertEquals(sourceContent, Files.readString(source, StandardCharsets.UTF_8));
+        assertTrue(proposal.proposalId().startsWith("heal-advisory-"));
+        assertTrue(proposal.patch().rationale().contains("ADVISORY"));
+        assertTrue(Files.isRegularFile(Path.of(proposal.manifestPath())));
+    }
+
+    @Test
+    void advisoryLocatorToolRejectsRecoveredReports(@TempDir Path temp) throws Exception {
+        SHAFT.Properties.healing.set().sourcePatchEnabled(true);
+        Path source = temp.resolve("src/test/java/example/LoginTest.java");
+        Files.createDirectories(source.getParent());
+        Files.writeString(source, """
+                package example;
+                import org.openqa.selenium.By;
+                class LoginTest {
+                    private static final By LOGIN = By.id("old-login");
+                }
+                """, StandardCharsets.UTF_8);
+        Path report = temp.resolve("healing-report.json");
+        Files.writeString(report, """
+                {
+                  "schemaVersion": "2.0",
+                  "attemptId": "attempt-mcp-recovered",
+                  "originalLocator": "By.id: old-login",
+                  "candidates": [{
+                    "candidateId": "candidate-1",
+                    "proposedLocator": "By.id: new-login",
+                    "evidence": ["test-id exact match"],
+                    "unique": true,
+                    "contextMatched": true
+                  }],
+                  "decision": {
+                    "status": "RECOVERED",
+                    "selectedCandidateId": "candidate-1",
+                    "confidence": 0.94
+                  },
+                  "action": {
+                    "outcome": "PASSED",
+                    "postActionVerification": "ELEMENT_INTERACTABLE"
+                  }
+                }
+                """, StandardCharsets.UTF_8);
+
+        assertThrows(IllegalArgumentException.class, () -> service(temp).proposeAdvisoryLocator(
+                temp.toString(),
+                report.toString(),
+                "src/test/java/example/LoginTest.java",
+                true,
+                temp.resolve("target/advisory-wrong-status").toString()));
+    }
+
     /**
      * Builds a minimal synthetic SHAFT single-file Allure HTML report: the embedded-data marker
      * plus one {@code data/test-results/*.json} entry, matching the empirically observed format

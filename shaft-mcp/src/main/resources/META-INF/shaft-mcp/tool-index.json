@@ -1629,6 +1629,54 @@
       "example": null
     },
     {
+      "name": "doctor_propose_advisory_locator",
+      "service": "DoctorService",
+      "description": "maps a low-trust SHAFT Heal report to one reviewable advisory locator comment proposal without editing, replacing, or publishing",
+      "params": [
+        {
+          "name": "healingReportPath",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "outputDirectory",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "repositoryRoot",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "sourcePatchConsent",
+          "type": "boolean",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "sourcePath",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
       "name": "doctor_propose_healed_locator",
       "service": "DoctorService",
       "description": "maps a verified SHAFT Heal report to one reviewable locator patch without editing source or publishing",

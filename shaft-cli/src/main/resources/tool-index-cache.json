@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0-shaft-cli-snapshot",
-  "note": "Stop-gap cache for `shaft-cli tools --cached` (tracker #3866 T3/#3869). Assembled from shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json (names/mutation/sensitive/deprecated) and shaft-skills/references/shaft-mcp-tools.md (descriptions), both already regenerated to the frozen 89-tool catalog. Replace with a build-time copy of the canonical shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json once T2/#3868 lands it -- this file is not that canonical index and will not auto-update.",
-  "totalTools": 89,
+  "note": "Stop-gap cache for `shaft-cli tools --cached` (tracker #3866 T3/#3869). Assembled from shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json (names/mutation/sensitive/deprecated) and shaft-skills/references/shaft-mcp-tools.md (descriptions), both already regenerated to the frozen 90-tool catalog. Replace with a build-time copy of the canonical shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json once T2/#3868 lands it -- this file is not that canonical index and will not auto-update.",
+  "totalTools": 90,
   "tools": [
     {
       "name": "autobot_local_agent_clients",
@@ -314,6 +314,13 @@
     {
       "name": "doctor_analyze_trace",
       "description": "analyzes a persisted SHAFT trace and returns deterministic Doctor remediation guidance",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_propose_advisory_locator",
+      "description": "maps a low-trust SHAFT Heal report to one reviewable advisory locator comment proposal without editing, replacing, or publishing",
       "mutation": false,
       "sensitive": false,
       "deprecated": false

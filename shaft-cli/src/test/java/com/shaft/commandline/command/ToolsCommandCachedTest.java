@@ -35,14 +35,14 @@ class ToolsCommandCachedTest {
     }
 
     @Test
-    void cachedJsonListsAllEightyNineTools() {
+    void cachedJsonListsAllNinetyTools() {
         StringWriter out = new StringWriter();
         int exit = new CommandLine(new ToolsCommand(REFUSES_TO_CONNECT))
                 .setOut(new PrintWriter(out, true))
                 .execute("--cached", "--json");
 
         assertEquals(0, exit);
-        assertTrue(out.toString().contains("\"totalTools\" : 89"),
+        assertTrue(out.toString().contains("\"totalTools\" : 90"),
                 "cached --json output should include the manifest's totalTools field");
     }
 }

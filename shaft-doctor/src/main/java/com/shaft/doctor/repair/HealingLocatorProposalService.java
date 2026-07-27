@@ -102,6 +102,96 @@ public final class HealingLocatorProposalService {
     }
 
     /**
+     * Creates and persists an advisory-only, unconfirmed review proposal from a low-trust
+     * SHAFT Heal ladder outcome (issue #4194).
+     *
+     * <p>Unlike {@link #propose(HealingLocatorProposalRequest)}, this never requires a confirmed
+     * {@code RECOVERED} decision or a passed action outcome -- a {@code BELOW_THRESHOLD} decision
+     * is exactly the "low trust" signal this exists for. The resulting patch only adds a review
+     * comment near the original locator; it never replaces or otherwise edits the locator itself,
+     * matching issue #2885's closed acceptance criteria that runtime healing never silently
+     * modifies source.</p>
+     *
+     * @param request explicit proposal request
+     * @return reviewable advisory proposal and structured Doctor patch
+     */
+    public HealingLocatorProposal proposeAdvisory(HealingLocatorProposalRequest request) {
+        if (!SHAFT.Properties.healing.sourcePatchEnabled()) {
+            throw new IllegalArgumentException(
+                    "Locator source-patch proposals are disabled by healing.sourcePatch.enabled.");
+        }
+        if (request == null || !request.sourcePatchConsent()) {
+            throw new IllegalArgumentException("Explicit locator source-patch proposal consent is required.");
+        }
+        Path repository = realDirectory(request.repositoryRoot(), "Repository root");
+        Path source = repository.resolve(request.sourcePath()).normalize();
+        if (!source.startsWith(repository) || !Files.isRegularFile(source)
+                || !source.getFileName().toString().endsWith(".java")) {
+            throw new IllegalArgumentException("Locator proposals require one approved Java source file.");
+        }
+        JsonNode report = read(request.healingReportPath());
+        JsonNode topCandidate = validateAdvisoryReport(report);
+        String originalLocator = report.path("originalLocator").asText();
+        String proposedLocator = topCandidate.path("proposedLocator").asText();
+        String originalExpression = javaExpression(originalLocator);
+        String proposedExpression = javaExpression(proposedLocator);
+        String content = readText(source);
+        int first = content.indexOf(originalExpression);
+        int last = content.lastIndexOf(originalExpression);
+        if (first < 0 || first != last) {
+            throw new IllegalArgumentException(
+                    "The original locator must map to exactly one supported Java expression.");
+        }
+        int lineStart = content.lastIndexOf('\n', first) + 1;
+        String indent = content.substring(lineStart, first).replaceAll("\\S.*", "");
+        double confidence = report.path("decision").path("confidence").asDouble();
+        String comment = indent + "// SHAFT Doctor advisory (unconfirmed): a low-confidence auto-heal"
+                + " candidate suggests " + proposedExpression + " (confidence "
+                + String.format(Locale.ROOT, "%.2f", confidence)
+                + ") -- below the trust threshold; verify before adopting.\n";
+        String proposedContent = content.substring(0, lineStart) + comment + content.substring(lineStart);
+        int line = 1 + Math.toIntExact(content.substring(0, first).chars()
+                .filter(value -> value == '\n').count());
+        String sourceSha = sha256(content);
+        String proposedSha = sha256(proposedContent);
+        String proposalId = "heal-advisory-" + report.path("attemptId").asText()
+                + "-" + UUID.randomUUID().toString().substring(0, 8);
+        List<String> evidence = new ArrayList<>();
+        topCandidate.path("evidence").forEach(item -> evidence.add(item.asText()));
+        DoctorRepairRequest.FilePatch patch = new DoctorRepairRequest.FilePatch(
+                request.sourcePath(),
+                DoctorRepairRequest.FilePatch.Operation.REPLACE,
+                proposedContent,
+                "ADVISORY (unconfirmed): add a review comment for a low-confidence auto-heal candidate"
+                        + " from SHAFT Heal attempt " + report.path("attemptId").asText()
+                        + "; verify before adopting -- this never replaces the existing locator.",
+                List.of());
+        String token = DoctorHashing.sha256(
+                (proposalId + "\n" + sourceSha + "\n" + proposedSha)
+                        .getBytes(StandardCharsets.UTF_8));
+        Path output = request.outputDirectory().toAbsolutePath().normalize();
+        createDirectory(output);
+        Path manifest = output.resolve("healing-locator-advisory-" + proposalId + ".json");
+        HealingLocatorProposal proposal = new HealingLocatorProposal(
+                HealingLocatorProposal.CURRENT_SCHEMA_VERSION,
+                proposalId,
+                report.path("attemptId").asText(),
+                request.sourcePath(),
+                line,
+                originalExpression,
+                proposedExpression,
+                confidence,
+                List.copyOf(evidence),
+                sourceSha,
+                proposedSha,
+                patch,
+                token,
+                manifest.toString());
+        write(manifest, proposal);
+        return proposal;
+    }
+
+    /**
      * Verifies that the mapped source has not changed since proposal creation.
      *
      * @param repositoryRoot approved repository root
@@ -140,6 +230,30 @@ public final class HealingLocatorProposalService {
                 || "ELEMENT_STALE".equals(verification)) {
             throw new IllegalArgumentException("Failed post-action verification blocks source mapping.");
         }
+    }
+
+    /**
+     * Validates a low-trust report for an advisory-only proposal and selects the highest-scoring
+     * candidate (issue #4194). Unlike {@link #validateReport(JsonNode)}, this deliberately accepts
+     * a {@code BELOW_THRESHOLD} decision with no selected candidate and no passed action outcome --
+     * that absence of confirmation is exactly the condition this proposal type exists for.
+     */
+    private static JsonNode validateAdvisoryReport(JsonNode report) {
+        String attemptId = report.path("attemptId").asText();
+        if (!"2.0".equals(report.path("schemaVersion").asText())
+                || !attemptId.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")) {
+            throw new IllegalArgumentException("A SHAFT Heal 2.0 report is required.");
+        }
+        if (!"BELOW_THRESHOLD".equals(report.path("decision").path("status").asText())) {
+            throw new IllegalArgumentException(
+                    "Only a below-threshold decision can propose an advisory review.");
+        }
+        JsonNode candidates = report.path("candidates");
+        if (!candidates.isArray() || candidates.isEmpty()) {
+            throw new IllegalArgumentException("An advisory proposal requires at least one scored candidate.");
+        }
+        // The report's candidates are already ranked highest score first (ShaftHealingProvider).
+        return candidates.get(0);
     }
 
     private static JsonNode selectedCandidate(JsonNode report) {
