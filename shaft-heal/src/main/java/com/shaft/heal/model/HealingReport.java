@@ -19,6 +19,7 @@ import java.util.Objects;
  * @param provider provider and fallback metadata
  * @param privacy minimization and redaction metadata
  * @param action action and post-action metadata
+ * @param ladder re-suggestion ladder metadata (issue #4027)
  */
 public record HealingReport(
         String schemaVersion,
@@ -33,11 +34,13 @@ public record HealingReport(
         HealingDecision decision,
         ProviderMetadata provider,
         PrivacyMetadata privacy,
-        ActionMetadata action) {
+        ActionMetadata action,
+        LadderMetadata ladder) {
     public static final String CURRENT_SCHEMA_VERSION = "2.0";
 
     /**
-     * Creates a backward-compatible report without structured context metadata.
+     * Creates a backward-compatible report without structured context metadata or re-suggestion
+     * ladder metadata.
      */
     public HealingReport(
             String schemaVersion,
@@ -64,6 +67,29 @@ public record HealingReport(
                         "",
                         ""),
                 candidates, decision, provider, privacy, action);
+    }
+
+    /**
+     * Creates a backward-compatible report without re-suggestion ladder metadata (issue #4027);
+     * the ladder was not engaged, matching today's one-shot behavior.
+     */
+    public HealingReport(
+            String schemaVersion,
+            String attemptId,
+            String timestamp,
+            String originalLocator,
+            String failureCategory,
+            String pageKey,
+            String context,
+            HealingContext contextMetadata,
+            List<HealingCandidate> candidates,
+            HealingDecision decision,
+            ProviderMetadata provider,
+            PrivacyMetadata privacy,
+            ActionMetadata action) {
+        this(schemaVersion, attemptId, timestamp, originalLocator, failureCategory, pageKey,
+                context, contextMetadata, candidates, decision, provider, privacy, action,
+                LadderMetadata.disabled());
     }
 
     /**
@@ -94,6 +120,7 @@ public record HealingReport(
         provider = provider == null ? ProviderMetadata.disabled() : provider;
         privacy = privacy == null ? PrivacyMetadata.minimized() : privacy;
         action = action == null ? ActionMetadata.pending("") : action;
+        ladder = ladder == null ? LadderMetadata.disabled() : ladder;
     }
 
     /**
@@ -211,6 +238,34 @@ public record HealingReport(
          */
         public static ActionMetadata pending(String name) {
             return new ActionMetadata(name, true, "PENDING", "UNVERIFIABLE", "");
+        }
+    }
+
+    /**
+     * Re-suggestion ladder metadata (issue #4027): how many deterministic rungs ran and how much
+     * total elapsed time they consumed against the configured hard budget, so the 60-second budget
+     * is observable in the report instead of only enforced silently.
+     *
+     * @param rungsAttempted how many deterministic re-suggestion attempts ran (always at least 1)
+     * @param elapsedMillis total elapsed time across every rung, in milliseconds
+     * @param budgetSeconds the configured hard total budget in seconds; {@code 0} means the ladder
+     *                       was not engaged (today's one-shot behavior)
+     */
+    public record LadderMetadata(int rungsAttempted, long elapsedMillis, long budgetSeconds) {
+        /**
+         * Creates safe ladder metadata.
+         */
+        public LadderMetadata {
+            rungsAttempted = Math.max(1, rungsAttempted);
+            elapsedMillis = Math.max(0, elapsedMillis);
+            budgetSeconds = Math.max(0, budgetSeconds);
+        }
+
+        /**
+         * @return metadata for a single-attempt resolution with the ladder not engaged
+         */
+        public static LadderMetadata disabled() {
+            return new LadderMetadata(1, 0, 0);
         }
     }
 }

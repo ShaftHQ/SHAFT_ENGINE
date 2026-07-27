@@ -498,3 +498,7 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable","timestamp":"2026-07-26T20:37:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.single-frame-swing-screenshot-evidence-cannot-confirm-scrollable-content-clipping-claims-verify-the-live-jviewport-before-treating-them-as-defects","timestamp":"2026-07-26T20:45:21+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.shaft-intellij-gradle-unit-tests-have-no-live-intellij-application-guard-every-applicationmanager-touch","timestamp":"2026-07-26T20:45:21+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-werror-bans-jtextcomponent-modeltoview-int-use-modeltoview2d-int-for-pixel-position-swing-test-assertions","timestamp":"2026-07-27T00:18:39+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.capturegenerators-preview-apply-fingerprint-must-stay-independent-of-outputroot-derived-content","timestamp":"2026-07-27T00:17:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.capturegenerators-preview-apply-fingerprint-must-stay-independent-of-outputroot-derived-content-2","timestamp":"2026-07-27T00:18:16+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.issue-4172-shipped-in-pr-4185-shaft-capture-wired-into-the-fingerprint-seeding-seam-two-design-forks-resolved","timestamp":"2026-07-27T00:19:19+03:00"}

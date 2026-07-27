@@ -961,6 +961,73 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.contains("\"value\": 1")));
     }
 
+    /**
+     * Issue #4171: {@code isRecorderActive}/{@code countText}/{@code readinessLabel} used to be
+     * duplicated (byte-identical) in both {@code GuidedWorkflowPanel} and {@code RecorderToolPanel}
+     * alongside {@link AssistantMarkdown#unwrapCaptureStatus}. This pins their consolidated home here
+     * directly, matching the exact semantics {@code GuidedWorkflowPanelTest
+     * .applyStatusPollUnwrapsTheActiveEngineSectionFromTheUnionResponse} already exercises indirectly
+     * through {@code GuidedWorkflowPanel}.
+     */
+    @Test
+    void isRecorderActiveReadsTheBooleanFieldFirstThenFallsBackToEngineState() {
+        JsonObject activeByFlag = new JsonObject();
+        activeByFlag.addProperty("active", true);
+
+        JsonObject idleByFlag = new JsonObject();
+        idleByFlag.addProperty("active", false);
+
+        JsonObject activeByState = new JsonObject();
+        activeByState.addProperty("state", "STARTING");
+
+        JsonObject idleByState = new JsonObject();
+        idleByState.addProperty("state", "NOT_RUNNING");
+
+        assertAll(
+                () -> assertTrue(AssistantMarkdown.isRecorderActive(activeByFlag)),
+                () -> assertFalse(AssistantMarkdown.isRecorderActive(idleByFlag)),
+                () -> assertTrue(AssistantMarkdown.isRecorderActive(activeByState)),
+                () -> assertFalse(AssistantMarkdown.isRecorderActive(idleByState)),
+                () -> assertFalse(AssistantMarkdown.isRecorderActive(null)),
+                () -> assertFalse(AssistantMarkdown.isRecorderActive(new JsonObject())));
+    }
+
+    @Test
+    void countTextPluralizesStepsAndAppendsPendingSignalCount() {
+        JsonObject oneStep = new JsonObject();
+        oneStep.addProperty("actionCount", 1);
+
+        JsonObject manyStepsWithPending = new JsonObject();
+        manyStepsWithPending.addProperty("eventCount", 5);
+        manyStepsWithPending.addProperty("pendingSignalCount", 2);
+
+        assertAll(
+                () -> assertEquals("0 steps", AssistantMarkdown.countText(null)),
+                () -> assertEquals("0 steps", AssistantMarkdown.countText(new JsonObject())),
+                () -> assertEquals("1 step", AssistantMarkdown.countText(oneStep)),
+                () -> assertEquals("5 steps (+2 pending)", AssistantMarkdown.countText(manyStepsWithPending)));
+    }
+
+    @Test
+    void readinessLabelMapsTheWireEnumToHumanCasedText() {
+        JsonObject ready = new JsonObject();
+        ready.addProperty("readiness", "ready");
+        JsonObject risky = new JsonObject();
+        risky.addProperty("readiness", "RISKY");
+        JsonObject blocked = new JsonObject();
+        blocked.addProperty("readiness", "Blocked");
+        JsonObject unknown = new JsonObject();
+        unknown.addProperty("readiness", "SOMETHING_ELSE");
+
+        assertAll(
+                () -> assertEquals("Ready", AssistantMarkdown.readinessLabel(ready)),
+                () -> assertEquals("Risky", AssistantMarkdown.readinessLabel(risky)),
+                () -> assertEquals("Blocked", AssistantMarkdown.readinessLabel(blocked)),
+                () -> assertEquals("", AssistantMarkdown.readinessLabel(unknown)),
+                () -> assertEquals("", AssistantMarkdown.readinessLabel(new JsonObject())),
+                () -> assertEquals("", AssistantMarkdown.readinessLabel(null)));
+    }
+
     private static String mcpText(String text) {
         JsonObject item = new JsonObject();
         item.addProperty("type", "text");
