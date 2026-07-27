@@ -58,6 +58,7 @@
 <ol class="toc-list">
 <li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" tabindex="0">HealingReport(String, String, String, String, String, String, String, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata)</a></li>
 <li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" tabindex="0">HealingReport(String, String, String, String, String, String, String, HealingContext, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata)</a></li>
+<li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata)" tabindex="0">HealingReport(String, String, String, String, String, String, String, HealingContext, List, HealingDecision, HealingReport.ProviderMetadata, HealingReport.PrivacyMetadata, HealingReport.ActionMetadata, HealingReport.LadderMetadata)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -78,6 +79,7 @@
 <li><a href="#provider()" tabindex="0">provider()</a></li>
 <li><a href="#privacy()" tabindex="0">privacy()</a></li>
 <li><a href="#action()" tabindex="0">action()</a></li>
+<li><a href="#ladder()" tabindex="0">ladder()</a></li>
 </ol>
 </li>
 </ol>
@@ -108,10 +110,11 @@
 <dd><code><span id="param-provider">provider</span></code> - provider and fallback metadata</dd>
 <dd><code><span id="param-privacy">privacy</span></code> - minimization and redaction metadata</dd>
 <dd><code><span id="param-action">action</span></code> - action and post-action metadata</dd>
+<dd><code><span id="param-ladder">ladder</span></code> - re-suggestion ladder metadata (issue #4027)</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">HealingReport</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context, <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates, <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision, <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider, <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy, <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">HealingReport</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context, <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates, <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision, <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider, <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy, <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action, <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Structured, explainable SHAFT Heal attempt report.</div>
 </div>
@@ -133,13 +136,20 @@
 <div class="block">Action metadata.</div>
 </div>
 <div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="HealingReport.PrivacyMetadata.html" class="type-name-link" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a></code></div>
+<div class="col-second odd-row-color"><code><a href="HealingReport.LadderMetadata.html" class="type-name-link" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a></code></div>
 <div class="col-last odd-row-color">
-<div class="block">Privacy metadata.</div>
+<div class="block">Re-suggestion ladder metadata (issue #4027): how many deterministic rungs ran and how much
+total elapsed time they consumed against the configured hard budget, so the 60-second budget
+is observable in the report instead of only enforced silently.</div>
 </div>
 <div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="HealingReport.ProviderMetadata.html" class="type-name-link" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a></code></div>
+<div class="col-second even-row-color"><code><a href="HealingReport.PrivacyMetadata.html" class="type-name-link" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a></code></div>
 <div class="col-last even-row-color">
+<div class="block">Privacy metadata.</div>
+</div>
+<div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="HealingReport.ProviderMetadata.html" class="type-name-link" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Optional provider metadata.</div>
 </div>
 </div>
@@ -182,9 +192,27 @@
  <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action)</code></div>
 <div class="col-last even-row-color">
+<div class="block">Creates a backward-compatible report without re-suggestion ladder metadata (issue #4027);
+the ladder was not engaged, matching today's one-shot behavior.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata)" class="member-name-link">HealingReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context,
+ <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates,
+ <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision,
+ <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
+ <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
+ <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action,
+ <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Creates an immutable report.</div>
 </div>
-<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" class="member-name-link">HealingReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata)" class="member-name-link">HealingReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator,
@@ -196,8 +224,9 @@
  <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
  <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Creates a backward-compatible report without structured context metadata.</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a backward-compatible report without structured context metadata or re-suggestion
+ladder metadata.</div>
 </div>
 </div>
 </section>
@@ -258,39 +287,44 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a hash code value for this object.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#originalLocator()" class="member-name-link">originalLocator</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ladder()" class="member-name-link">ladder</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-ladder"><code>ladder</code></a> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#originalLocator()" class="member-name-link">originalLocator</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-originalLocator"><code>originalLocator</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageKey()" class="member-name-link">pageKey</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageKey()" class="member-name-link">pageKey</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-pageKey"><code>pageKey</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#privacy()" class="member-name-link">privacy</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#privacy()" class="member-name-link">privacy</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-privacy"><code>privacy</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#provider()" class="member-name-link">provider</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#provider()" class="member-name-link">provider</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-provider"><code>provider</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#schemaVersion()" class="member-name-link">schemaVersion</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#schemaVersion()" class="member-name-link">schemaVersion</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-schemaVersion"><code>schemaVersion</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#timestamp()" class="member-name-link">timestamp</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#timestamp()" class="member-name-link">timestamp</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-timestamp"><code>timestamp</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
 </div>
@@ -350,7 +384,8 @@
  <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
  <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action)</span></div>
-<div class="block">Creates a backward-compatible report without structured context metadata.</div>
+<div class="block">Creates a backward-compatible report without structured context metadata or re-suggestion
+ladder metadata.</div>
 </div>
 </section>
 </li>
@@ -371,6 +406,29 @@
  <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
  <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
  <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action)</span></div>
+<div class="block">Creates a backward-compatible report without re-suggestion ladder metadata (issue #4027);
+the ladder was not engaged, matching today's one-shot behavior.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,com.shaft.heal.model.HealingContext,java.util.List,com.shaft.heal.model.HealingDecision,com.shaft.heal.model.HealingReport.ProviderMetadata,com.shaft.heal.model.HealingReport.PrivacyMetadata,com.shaft.heal.model.HealingReport.ActionMetadata,com.shaft.heal.model.HealingReport.LadderMetadata)">
+<h3>HealingReport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">HealingReport</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attemptId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;timestamp,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;originalLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;failureCategory,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageKey,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context,
+ <a href="HealingContext.html" title="class in com.shaft.heal.model">HealingContext</a>&nbsp;contextMetadata,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="HealingCandidate.html" title="class in com.shaft.heal.model">HealingCandidate</a>&gt;&nbsp;candidates,
+ <a href="HealingDecision.html" title="class in com.shaft.heal.model">HealingDecision</a>&nbsp;decision,
+ <a href="HealingReport.ProviderMetadata.html" title="class in com.shaft.heal.model">HealingReport.ProviderMetadata</a>&nbsp;provider,
+ <a href="HealingReport.PrivacyMetadata.html" title="class in com.shaft.heal.model">HealingReport.PrivacyMetadata</a>&nbsp;privacy,
+ <a href="HealingReport.ActionMetadata.html" title="class in com.shaft.heal.model">HealingReport.ActionMetadata</a>&nbsp;action,
+ <a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a>&nbsp;ladder)</span></div>
 <div class="block">Creates an immutable report.</div>
 </div>
 </section>
@@ -595,6 +653,19 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-action"><code>action</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ladder()">
+<h3>ladder</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="HealingReport.LadderMetadata.html" title="class in com.shaft.heal.model">HealingReport.LadderMetadata</a></span>&nbsp;<span class="element-name">ladder</span>()</div>
+<div class="block">Returns the value of the <a href="#param-ladder"><code>ladder</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-ladder"><code>ladder</code></a> record component</dd>
 </dl>
 </div>
 </section>
