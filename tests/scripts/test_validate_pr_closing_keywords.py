@@ -231,6 +231,39 @@ class ParseCommitsJsonTest(unittest.TestCase):
         )
 
 
+class GhApiCommitsShapeRoundTripTest(unittest.TestCase):
+    """Issue #4237: pins the mapping `.github/workflows/pr-gate.yml`'s
+    `pr-body-autoclose-guard` job performs on the raw `gh api
+    repos/{owner}/{repo}/pulls/{number}/commits` response (each element nests the message
+    under `commit.message`) before handing it to this script. The CI step's jq filter
+    (`.[] | {sha: .sha, message: .commit.message}`, slurped across pages with a separate
+    `jq -s -c '.'`) is mirrored here in Python so a mismatch between that shape and what
+    `parse_commits_json` expects fails a fast local test instead of only in CI."""
+
+    @staticmethod
+    def _pr_gate_jq_equivalent(raw_commits_api_response):
+        """Mirror `.[] | {sha: .sha, message: .commit.message}` piped through `jq -s -c '.'`."""
+        return json.dumps(
+            [
+                {"sha": entry["sha"], "message": entry["commit"]["message"]}
+                for entry in raw_commits_api_response
+            ]
+        )
+
+    def test_real_gh_api_shape_round_trips_and_flags_the_hazardous_commit(self):
+        raw_commits_api_response = [
+            {"sha": "aaaaaaaaaaaa", "commit": {"message": "Add a helper method\n"}},
+            {"sha": "bbbbbbbbbbbb", "commit": {"message": "This doesn't close #10 by itself.\n"}},
+            {"sha": "cccccccccccc", "commit": {"message": "Closes #20\n"}},
+        ]
+        commits_json = self._pr_gate_jq_equivalent(raw_commits_api_response)
+        commits = parse_commits_json(commits_json)
+        errors = find_negated_autocloses_in_commits(commits)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("bbbbbbbbbbbb", errors[0]["path"])
+        self.assertIn("#10", errors[0]["message"])
+
+
 class MainCLIIntegrationTest(unittest.TestCase):
     """Exercises the actual CLI entry point CI invokes: PR_BODY + PR_COMMITS_JSON env vars."""
 

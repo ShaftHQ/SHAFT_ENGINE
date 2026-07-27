@@ -430,15 +430,36 @@ jobs:
   # it auto-closed #3930 from PR #4009's "Does not fix #3930's original macOS
   # OOM", overriding a human's manual reopen 7 minutes earlier. Runs
   # unconditionally on every pull_request (like dependency-review below, it
-  # concerns PR body text, not changed files, so no `changes` path leg gates
-  # it) and reads the live PR body via `github.event.pull_request.body`,
+  # concerns PR body/commit text, not changed files, so no `changes` path leg
+  # gates it) and reads the live PR body via `github.event.pull_request.body`,
   # which only exists on the pull_request event.
+  #
+  # Issue #4146/#4237: GitHub's scanner also reads individual commit messages
+  # pushed to the default branch, not just the final PR body -- confirmed via
+  # #3930's timeline, whose second auto-close carried a squash-merge commit
+  # SHA with a clean PR body. #4157 wired this once, then reverted the whole
+  # file for an unrelated reason (its `edited`-trigger concurrency hazard),
+  # leaving this job body-only until now. Commits come from the REST API, not
+  # `git log` (this job's checkout is unauthenticated for an arbitrary
+  # base..head range and shallow by default), with `--paginate` from the
+  # start: issue #4159 found the prior attempt capped at the default 100-item
+  # page with no `--paginate`, silently dropping the rest of a >100-commit PR.
+  # The jq filter deliberately does NOT wrap each page in `[...]`: verified
+  # empirically that `gh api --paginate` applies `--jq` per page and
+  # concatenates each page's raw output, so an array-per-page filter emits
+  # back-to-back JSON arrays that are not one valid document. Emitting a bare
+  # object per commit and slurping the whole stream with a separate
+  # `jq -s -c '.'` merges every page into the single JSON array
+  # `parse_commits_json` expects, regardless of page count.
   pr-body-autoclose-guard:
-    name: PR Body Autoclose Guard
+    name: PR Body & Commit Autoclose Guard
     needs: changes
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -446,11 +467,20 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+      - name: Fetch PR commit messages
+        id: pr-commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          commits_json=$(gh api -X GET "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
+            --paginate -f per_page=100 --jq '.[] | {sha: .sha, message: .commit.message}' | jq -s -c '.')
+          echo "commits_json=${commits_json}" >> "$GITHUB_OUTPUT"
       - name: Run PR body autoclose guard unit tests
         run: python3 -m unittest tests.scripts.test_validate_pr_closing_keywords -v
-      - name: Validate PR body has no negated closing-keyword references
+      - name: Validate PR body and commit messages have no negated closing-keyword references
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_COMMITS_JSON: ${{ steps.pr-commits.outputs.commits_json }}
         run: python3 scripts/ci/validate_pr_closing_keywords.py
 
   # Moved from security.yml's dependency-review job. Runs unconditionally on
