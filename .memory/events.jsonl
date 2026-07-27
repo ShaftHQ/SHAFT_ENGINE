@@ -513,3 +513,4 @@
 {"actor":"agent","event":"memory.created","id":"decision.issue-4239-p0-3-p0-4-shipped-in-pr-4243-captureservice-generatereplay-had-9-unannotated-mcptool-params-not-just-replay-capture-start-mobile-fix-took-the-description-only-fallback","timestamp":"2026-07-27T11:11:04+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.no-local-pmd-npath-maven-plugin-wired-into-shaft-engine-codacy-npath-findings-cant-be-re-run-locally","timestamp":"2026-07-27T12:51:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.lambdatest-e2e-nightly-cron-stays-disabled-wont-fix-accepted-plan-spend-limitation-3934-2927-3473","timestamp":"2026-07-27T14:51:47+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.crash-orphaned-branch-may-already-be-landed-under-a-different-pr-diff-against-master-main-before-assuming-its-unlanded-work","timestamp":"2026-07-27T14:55:24+03:00"}
