@@ -722,7 +722,7 @@
     if (isControlElement(element)) return null;
     const attributes = {};
     ["id", "name", "type", "placeholder", "autocomplete", "data-testid",
-      "data-test", "data-qa", "aria-label", "role"].forEach(name => {
+      "data-test", "data-qa", "aria-label", "role", "title", "alt", "aria-labelledby"].forEach(name => {
       if (element.hasAttribute && element.hasAttribute(name)) {
         attributes[name] = text(element.getAttribute(name));
       }

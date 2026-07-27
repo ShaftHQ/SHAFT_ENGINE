@@ -333,7 +333,8 @@ public final class CaptureGenerator {
                         request.replayTimeout());
                 reporter.accept(0.9, "Replayed generated test: " + replay.status());
                 if (replay.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED) {
-                    seedHealingHistory(state.targets(), healingHistoryPath);
+                    seedHealingHistory(state.targets(), healingHistoryPath,
+                            request.fallbackLocators() && hasFallbackTargets(state.targets()));
                 }
             } else if (request.replay()) {
                 replay = CaptureGenerationReport.Validation.skipped(
@@ -1384,15 +1385,33 @@ public final class CaptureGenerator {
      * {@code HealingManager} entry point. Deliberately ungated on {@code healing.strategy}, mirroring
      * {@code HealingManager.recordOutcome()}'s existing precedent rather than {@code resolve()}'s
      * gated one -- see the PR body for the consequence this accepts.
+     *
+     * <p>Issue #4188 gap B: when {@code fallbackReplay} is true, the generated code calls {@code
+     * captureReplayLocator(primary, alt1, ...)} (see {@link #locatorExpression(TargetPlan, boolean)}),
+     * which can resolve to an alternate candidate at runtime if the primary has degraded. {@code
+     * HealingSupport.locator()} keys its history lookup by exact {@code By.toString()}, so every
+     * candidate in the fallback chain -- not just the primary -- gets its own seeded fingerprint here,
+     * keeping whichever one actually resolves at replay time already covered.
      */
-    private static void seedHealingHistory(List<TargetPlan> targets, Path healingHistoryPath) {
+    private static void seedHealingHistory(
+            List<TargetPlan> targets, Path healingHistoryPath, boolean fallbackReplay) {
         SHAFT.Properties.healing.set().historyPath(healingHistoryPath.toString());
         for (TargetPlan target : targets) {
+            HealingFingerprintSeed seed = fingerprintSeed(target.target());
             HealingManager.observeFingerprint(new HealingFingerprintObservation(
                     target.context().page().url(),
                     runtimeLocator(target),
                     "ELEMENT_RESOLUTION",
-                    fingerprintSeed(target.target())));
+                    seed));
+            if (fallbackReplay) {
+                for (LocatorRanker.ScoredLocator alternative : target.selection().alternatives()) {
+                    HealingManager.observeFingerprint(new HealingFingerprintObservation(
+                            target.context().page().url(),
+                            runtimeLocator(target.target(), alternative.candidate()),
+                            "ELEMENT_RESOLUTION",
+                            seed));
+                }
+            }
         }
     }
 
