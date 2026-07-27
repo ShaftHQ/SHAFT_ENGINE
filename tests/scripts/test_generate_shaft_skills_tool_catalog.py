@@ -214,7 +214,7 @@ class RealRepositoryDriftGateTest(unittest.TestCase):
     def test_real_sources_parse_to_expected_magnitude(self):
         content, total, service_count = MODULE.build(MODULE.SOURCE_DIR)
 
-        self.assertEqual(89, total)
+        self.assertEqual(90, total)
         self.assertEqual(14, service_count)
         self.assertIn("SHAFT MCP Tool Catalog", content)
 
