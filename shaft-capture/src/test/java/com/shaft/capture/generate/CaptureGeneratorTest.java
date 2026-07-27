@@ -1331,6 +1331,53 @@ class CaptureGeneratorTest {
                 result.report().warnings().toString());
     }
 
+    // Issue #4206: deleteStagedSourceQuietly(stagedSource) previously ran only on the normal
+    // success/failure control-flow path after compile/replay, never in the outer
+    // catch (RuntimeException) block -- so a RuntimeException escaping validator.compile()/
+    // validator.replay() (e.g. an unchecked JacksonException from a malformed/partially-flushed
+    // Allure result file, as from a killed replay JVM) leaked the staged .java source file under
+    // target/shaft-capture/staging/.
+    @Test
+    void replayThrowingRuntimeExceptionStillDeletesStagedSourceFile() throws Exception {
+        CaptureSession baseline = CaptureFixtures.representativeSession();
+        writeCaptureData("alice");
+        Path output = temp.resolve("staged-source-leak");
+
+        GeneratedTestValidator throwingReplayValidator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                throw new RuntimeException("Simulated malformed Allure-results parse failure.");
+            }
+        };
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), throwingReplayValidator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session(baseline), output, "generated.capture", "StagedSourceLeakTest", true,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertFalse(result.successful());
+        Path stagedSource = output.toAbsolutePath().normalize()
+                .resolve("target/shaft-capture/staging")
+                .resolve("generated/capture")
+                .resolve("StagedSourceLeakTest.java")
+                .normalize();
+        assertFalse(Files.exists(stagedSource),
+                "staged source file should have been cleaned up after a RuntimeException from replay()");
+    }
+
     @Test
     void workspaceContainedFileUrlRecordingIsNotAPrivacyBlocker() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();

@@ -176,6 +176,11 @@ public final class CaptureGenerator {
         // JSON is restored/removed AFTER a failed validation rather than staged beforehand.
         byte[] previousDataBytes = null;
         boolean dataWritePendingValidation = false;
+        // The staged pre-validation copy of the generated source (issue #4166), hoisted here so a
+        // RuntimeException escaping compile()/replay() (issue #4206) can still find and delete it
+        // in the catch block below -- deleteStagedSourceQuietly() is a no-op if it was never
+        // created or was already cleaned up on the normal success/failure path.
+        Path stagedSource = null;
         // Names the pipeline phase reached when a RuntimeException escapes to the catch block below,
         // so a failure never collapses to a bare, stage-less message (issue #4029).
         String stage = "reading the capture session";
@@ -318,7 +323,7 @@ public final class CaptureGenerator {
             // written to its real path here -- the replay subprocess loads it by the deterministic
             // SHAFT.TestData.JSON(dataFileName(className)) convention, not from a staged location.
             stage = "writing generated artifacts to disk";
-            Path stagedSource = stagingSourcePath(outputRoot, request.packageName(), className);
+            stagedSource = stagingSourcePath(outputRoot, request.packageName(), className);
             atomicWrite(stagedSource, source);
             previousDataBytes = readDataSnapshot(paths.data());
             atomicWrite(paths.data(), dataJson);
@@ -401,6 +406,9 @@ public final class CaptureGenerator {
                     : paths;
             GenerationState failure = GenerationState.failure(
                     "Generation failed while " + stage + ": " + safeMessage(exception));
+            if (stagedSource != null) {
+                deleteStagedSourceQuietly(stagedSource);
+            }
             if (dataWritePendingValidation && paths != null) {
                 restoreOrRemoveDataFile(paths.data(), previousDataBytes, paths.root(), failure.warnings());
             }
