@@ -1611,7 +1611,7 @@ public final class CaptureGenerator {
         if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE && candidate.roleXpathVerified()) {
             Role ariaRole = ariaRole(target.role());
             if (ariaRole != null) {
-                return semanticName.isBlank()
+                return semanticName.isBlank() || !tagCanCarryOwnText(target.tagName())
                         ? Locator.hasRole(ariaRole).build()
                         : Locator.hasRole(ariaRole).hasNormalizedText(semanticName).build();
             }
@@ -1668,6 +1668,26 @@ public final class CaptureGenerator {
      */
     private static boolean isVerifiedRoleCandidate(LocatorCandidate candidate) {
         return candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE && candidate.roleXpathVerified();
+    }
+
+    private static final Set<String> TAGS_WITHOUT_OWN_TEXT = Set.of("input", "textarea", "select");
+
+    /**
+     * Issue #4239 P1.4a follow-up: true unless {@code tagName} is a void-of-text-children HTML form
+     * control (input/textarea/select). These tags can never carry their own visible text content, so
+     * pairing a verified ROLE locator with {@code hasNormalizedText(...)} -- which compiles to a
+     * literal {@code normalize-space(.)} predicate on the matched element itself, per {@link
+     * com.shaft.gui.internal.locator.LocatorBuilder#hasNormalizedText} -- is unconditionally
+     * unsatisfiable for them, regardless of where their accessible name actually came from (an
+     * associated {@code <label>}, {@code aria-label}, {@code placeholder}, ...): the generated code
+     * would compile fine but throw {@code NoSuchElementException} at replay, every time. {@code
+     * roleXpathVerified} alone already proves the bare role union matches this element uniquely
+     * (see {@link LocatorCandidate#roleXpathVerified()}), so omitting the name predicate for these
+     * tags costs only extra future-drift resilience -- never today's correctness -- while a
+     * button/link/heading/etc. (own text IS a legitimate name source) keeps the narrower locator.
+     */
+    private static boolean tagCanCarryOwnText(String tagName) {
+        return !TAGS_WITHOUT_OWN_TEXT.contains(tagName.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -1750,7 +1770,7 @@ public final class CaptureGenerator {
             Role ariaRole = ariaRole(target.role());
             if (ariaRole != null) {
                 String roleLocator = "SHAFT.GUI.Locator.hasRole(Role." + ariaRole.name() + ")";
-                return semanticName.isBlank()
+                return semanticName.isBlank() || !tagCanCarryOwnText(target.tagName())
                         ? roleLocator + ".build()"
                         : roleLocator + ".hasNormalizedText(\"" + javaString(semanticName) + "\").build()";
             }

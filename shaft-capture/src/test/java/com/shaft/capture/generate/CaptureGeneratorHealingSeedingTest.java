@@ -116,8 +116,12 @@ class CaptureGeneratorHealingSeedingTest {
                 .historyPath(expectedHistoryPath.toString());
         WebDriver driver = mock(WebDriver.class);
         when(driver.getCurrentUrl()).thenReturn("https://example.test/form");
-        By originalLocator = Locator.hasRole(com.shaft.gui.internal.locator.Role.TEXTBOX)
-                .hasNormalizedText("Username").build();
+        // Issue #4239 P1.4a follow-up: the "username-input" fixture's ROLE candidate carries no
+        // self-verified replayXpath (its accessible name comes from an associated <label>, per
+        // CaptureFixtures.target()), and its tag ("input") structurally cannot satisfy a
+        // hasNormalizedText(...) own-text predicate -- CaptureGenerator now renders (and the runtime
+        // healing seed must key against) the bare verified-role locator instead.
+        By originalLocator = Locator.hasRole(com.shaft.gui.internal.locator.Role.TEXTBOX).build();
         ShaftHealingProvider provider = new ShaftHealingProvider();
 
         provider.resolve(new HealingRequest(driver, originalLocator, "TYPE", true, null, null, null));
