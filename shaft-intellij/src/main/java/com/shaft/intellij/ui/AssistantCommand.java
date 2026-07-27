@@ -116,10 +116,16 @@ final class AssistantCommand {
     // match SHAFT_MCP_USAGE_HINT_LOCAL_AGENT; that would silently drop guidance cloud users have no
     // other way to receive. A future P2.3 build-time consistency check must cover this constant
     // against shaft-skills/ in addition to the P2.1 instructions properties.
+    //
+    // Issue #4258 (adjacent finding filed during #4256): this constant used to also tell the model
+    // to "call driver_initialize before browser_* tools" -- an unactionable tool-invocation
+    // directive for the same reason as #4256's SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD fix, since
+    // autobot_provider_chat has no tool-calling loop. The WebDriver-vs-Playwright engine preference
+    // it conveyed is restated below without naming a tool to call.
     private static final String SHAFT_MCP_USAGE_HINT_CLOUD =
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
-                    For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                    For WebDriver browser tasks, default to WebDriver-based SHAFT code; do not use Playwright unless requested.
                     Never start an interactive user-driven recording (capture_start, which dispatches to whichever engine -- WebDriver, Playwright, or mobile -- is active): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
                     A scripted capture_start session (its optional nested codegenOptions carries the full Playwright-codegen-compatible request) that you drive and capture_stop within this same turn is allowed.
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
@@ -185,11 +191,24 @@ final class AssistantCommand {
                     - Put every code snippet in fenced code blocks with the correct language.
                     - Return only SHAFT-syntax Java; never return raw Selenium code.
                     """.stripIndent().trim();
-    private static final String SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE =
+    private static final String SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT =
             """
                     Live browser verification was explicitly requested:
                     - Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
                     - Verify each selected locator by performing the actual action with shaft-mcp element_type or element_click before returning it.
+                    """.stripIndent().trim();
+    // Issue #4258 (adjacent finding filed during #4256): unlike the local-agent variant above --
+    // which really is an MCP client and can call driver_initialize/browser_open_intent/
+    // element_type/element_click -- SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE used to be shared verbatim with
+    // the cloud-chat path regardless of the `cloud` flag passed to codeGenerationGuidance.
+    // autobot_provider_chat / AutobotService.runProviderChat is a plain text-completion call with no
+    // tool-calling loop at all, so it can never open a real browser session or invoke any of those
+    // tools. Restate the requested outcome without naming a tool to call.
+    private static final String SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_CLOUD =
+            """
+                    Live browser verification was explicitly requested, but this chat has no way to open a real browser session or perform a live action:
+                    - Never claim a live browser check happened, and never present a returned locator as live-verified or replay-proven.
+                    - Base each selected locator on the page structure the user described or attached, applying the same locator policy as any other request.
                     """.stripIndent().trim();
     private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
             List.of("/help", "/mcp-help", "/shaft-help"),
@@ -2986,11 +3005,17 @@ final class AssistantCommand {
     // SHAFT_CODEGEN_TOOL_GUIDANCE_* split (see their declarations) this call site needs -- cloudPrompt
     // passes true (no MCP instructions channel, keep the full policy text), localAgentPrompt passes
     // false (the spawned CLI is an MCP client and gets that content from P2.1 instead).
+    // Issue #4258: the same {@code cloud} flag also selects which half of the
+    // SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_* split applies -- this constant used to be appended
+    // unconditionally regardless of {@code cloud} even though only the local-agent path can act on
+    // its tool-invocation directives.
     private static String codeGenerationGuidance(String text, boolean cloud) {
         String base = cloud ? SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD : SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT;
-        return shouldUseLiveCodegenTools(text)
-                ? base + "\n" + SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE
-                : base;
+        if (!shouldUseLiveCodegenTools(text)) {
+            return base;
+        }
+        String liveGuidance = cloud ? SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_CLOUD : SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT;
+        return base + "\n" + liveGuidance;
     }
 
     private static boolean shouldUseLiveCodegenTools(String text) {
