@@ -354,10 +354,20 @@ public final class CaptureGenerator {
                         "Replay was skipped because compilation failed.");
                 reporter.accept(0.9, "Replay skipped: compilation failed");
             }
-            boolean successful = compilation.status()
-                    != CaptureGenerationReport.Validation.ValidationStatus.FAILED
+            // Issue #4029: compile/replay neither failed outright, so the generated artifacts are
+            // safe to promote -- but "safe to promote" is not the same claim as "proven to run".
+            // generationOk gates promotion/rollback exactly as `successful` used to; `status` is
+            // the separate, honest report of WHAT was proven: an actual replay pass is required for
+            // SUCCESS, a skipped/not-requested replay is UNCONFIRMED (never bare success), and either
+            // validation actually failing is FAILED.
+            boolean generationOk = compilation.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED
                     && replay.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED;
-            if (successful) {
+            CaptureGenerationReport.Status status = !generationOk
+                    ? CaptureGenerationReport.Status.FAILED
+                    : replay.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED
+                    ? CaptureGenerationReport.Status.SUCCESS
+                    : CaptureGenerationReport.Status.UNCONFIRMED;
+            if (generationOk) {
                 stage = "promoting the validated generated source to its final path";
                 atomicWrite(paths.source(), source);
             } else {
@@ -375,7 +385,7 @@ public final class CaptureGenerator {
                     session,
                     paths,
                     state,
-                    successful ? CaptureGenerationReport.Status.SUCCESS : CaptureGenerationReport.Status.FAILED,
+                    status,
                     compilation,
                     replay,
                     enrichment);
@@ -396,7 +406,7 @@ public final class CaptureGenerator {
                         request.enrichmentPreviewPath(), privacyFailure);
             }
             atomicWrite(reportPath, reportJson);
-            reporter.accept(1.0, "Generation complete: " + (successful ? "SUCCESS" : "FAILED"));
+            reporter.accept(1.0, "Generation complete: " + status);
             return result(paths.source(), paths.data(), reportPath,
                     request.enrichmentPreviewPath(), report);
         } catch (RuntimeException exception) {
