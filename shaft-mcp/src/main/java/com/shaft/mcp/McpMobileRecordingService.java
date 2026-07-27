@@ -201,7 +201,8 @@ final class McpMobileRecordingService {
                 sensitiveStored,
                 warnings,
                 0,
-                false);
+                false,
+                "");
         List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
         actions.add(recorded);
         recording = new McpMobileRecording(

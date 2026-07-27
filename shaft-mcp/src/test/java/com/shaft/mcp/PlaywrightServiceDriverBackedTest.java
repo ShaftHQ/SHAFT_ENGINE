@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -365,6 +366,172 @@ class PlaywrightServiceDriverBackedTest {
         assertTrue(result.warnings().stream().anyMatch(
                         warning -> warning.contains("no unique stable id, no self-verified ARIA role")),
                 result.warnings().toString());
+    }
+
+    /**
+     * Issue #4262: NAME-strategy manual recordings used to hard-fail codegen because no
+     * {@code replayXpath} was ever computed for them, so none of {@code LocatorPolicy}'s three
+     * admission paths accepted the candidate. {@link PlaywrightService} now constructs a candidate
+     * XPath from the recorded {@code name} attribute and independently re-verifies it live -- the
+     * primary NAME locator (SHAFT's {@code hasAttribute("name", ...)} builder) and the constructed
+     * {@code //*[@name="..."]} expression are two different queries, so both must confirm uniqueness
+     * before {@code replayXpath} is trusted.
+     */
+    @Test
+    void nameStrategyRecordedThroughTheLiveDriverComputesASelfVerifiedReplayXpath() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(1);
+        Path recording = temp.resolve("recordings/name-unique.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.NAME, "myField");
+        service.recordStop(false);
+
+        McpPlaywrightRecordingService fixture = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        McpMobileRecordedAction recorded = fixture.readRecording(recording.toString()).actions().getFirst();
+        assertEquals("//*[@name=\"myField\"]", recorded.replayXpath());
+    }
+
+    /**
+     * The independent re-query is the point of issue #4262's design: a NAME locator that is unique
+     * through SHAFT's own builder but whose literally-constructed XPath equivalent resolves
+     * differently live must not be trusted as self-verified -- assumed equivalence is exactly the
+     * fabricated-evidence defect issue #4273 already fixed once for {@code stable}.
+     */
+    @Test
+    void nameStrategyReplayXpathStaysBlankWhenTheIndependentXpathRequeryDisagreesWithTheLiveLocator() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(1);
+        when(element.getElementsCount(eq(org.openqa.selenium.By.xpath("//*[@name=\"myField\"]")))).thenReturn(2);
+        Path recording = temp.resolve("recordings/name-disagreement.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.NAME, "myField");
+        service.recordStop(false);
+
+        McpPlaywrightRecordingService fixture = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        McpMobileRecordedAction recorded = fixture.readRecording(recording.toString()).actions().getFirst();
+        assertEquals("", recorded.replayXpath());
+    }
+
+    /**
+     * Issue #4262: an XPATH-strategy manual recording's {@code locatorValue} is already a literal
+     * XPath expression -- when it resolves to exactly one live element, that expression IS its own
+     * self-verified {@code replayXpath}; no separate construction step is needed (unlike NAME).
+     */
+    @Test
+    void xpathStrategyRecordedThroughTheLiveDriverSetsReplayXpathToTheVerifiedExpression() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(1);
+        Path recording = temp.resolve("recordings/xpath-unique.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.XPATH, "//button[@data-testid='submit-btn']");
+        service.recordStop(false);
+
+        McpPlaywrightRecordingService fixture = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        McpMobileRecordedAction recorded = fixture.readRecording(recording.toString()).actions().getFirst();
+        assertEquals("//button[@data-testid='submit-btn']", recorded.replayXpath());
+    }
+
+    /**
+     * The honest-refusal half of the XPATH path: matching zero or multiple live elements must not be
+     * trusted as self-verified, mirroring the existing ID-strategy non-unique test above.
+     */
+    @Test
+    void xpathStrategyReplayXpathStaysBlankWhenNotUnique() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(2);
+        Path recording = temp.resolve("recordings/xpath-nonunique.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.XPATH, "//button[@class='btn']");
+        service.recordStop(false);
+
+        McpPlaywrightRecordingService fixture = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        McpMobileRecordedAction recorded = fixture.readRecording(recording.toString()).actions().getFirst();
+        assertEquals("", recorded.replayXpath());
+    }
+
+    /**
+     * End-to-end regression for issue #4262: a NAME-strategy manual recording now reaches
+     * {@code LocatorPolicy}'s {@code Tier.VERIFIED_XPATH} through the real
+     * {@link McpPlaywrightCaptureAdapter}/{@link com.shaft.capture.generate.CaptureGenerator} path --
+     * generation is no longer refused, and the emitted source renders the self-verified XPath.
+     */
+    @Test
+    void nameStrategyLocatorRecordedThroughTheLiveDriverGeneratesAVerifiedXpathLocator() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(1);
+        Path recording = temp.resolve("recordings/name-codegen.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.NAME, "myField");
+        service.recordStop(false);
+
+        McpMobileReplayResult result = service.recordingCodeBlocks(recording.toString(), "driver");
+
+        assertNotEquals(CaptureGenerationReport.Status.FAILED, result.report().status(), result.warnings().toString());
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//*[@name=\\\"myField\\\"]\")"), source);
+    }
+
+    /**
+     * Same end-to-end proof for XPATH strategy.
+     */
+    @Test
+    void xpathStrategyLocatorRecordedThroughTheLiveDriverGeneratesAVerifiedXpathLocator() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(1);
+        Path recording = temp.resolve("recordings/xpath-codegen.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.XPATH, "//button[@data-testid='submit-btn']");
+        service.recordStop(false);
+
+        McpMobileReplayResult result = service.recordingCodeBlocks(recording.toString(), "driver");
+
+        assertNotEquals(CaptureGenerationReport.Status.FAILED, result.report().status(), result.warnings().toString());
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//button[@data-testid='submit-btn']\")"), source);
+    }
+
+    /**
+     * Scope guard for issue #4262: CSS-strategy manual recordings are deliberately NOT fixed here (a
+     * general CSS-to-XPath conversion is out of scope and tracked as a separate follow-up) -- this
+     * proves the fix did not accidentally widen admission for CSS too.
+     */
+    @Test
+    void cssStrategyLocatorRecordedThroughTheLiveDriverStillHonestlyRefuses() throws Exception {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+        ElementActions element = mock(ElementActions.class);
+        inject(service, mockDriver(mock(BrowserActions.class), element, mock(Page.class)));
+        when(element.getElementsCount(any(org.openqa.selenium.By.class))).thenReturn(1);
+        Path recording = temp.resolve("recordings/css-still-refused.json");
+        service.recordStart(recording.toString(), "playwright", true);
+
+        service.click(locatorStrategy.CSS, "#submit-button");
+        service.recordStop(false);
+
+        McpMobileReplayResult result = service.recordingCodeBlocks(recording.toString(), "driver");
+
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertFalse(result.successful());
+        assertFalse(Files.exists(result.sourcePath()));
     }
 
     @Test
