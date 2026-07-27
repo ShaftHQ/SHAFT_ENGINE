@@ -16,6 +16,15 @@ import java.util.Set;
  *                    candidate (issue #4026), or blank when none was computed. When present,
  *                    it is the exact string the engine resolves at replay -- record and replay
  *                    share one artifact instead of independently deriving the same locator twice.
+ * @param roleXpathVerified whether the recorder self-verified that {@code SHAFT.GUI.Locator.hasRole(...)}'s
+ *                    EXACT fixed per-role XPath union (issue #4239 P1.0a/ladder) resolves uniquely to
+ *                    this element in the live DOM. Only meaningful for {@link LocatorStrategy#ROLE}
+ *                    candidates: {@code uniquenessCount} on a ROLE candidate is derived by re-deriving
+ *                    {@code inferredRole} across the page, which can disagree with what the fixed XPath
+ *                    union {@code hasRole(...)} actually ships (e.g. a {@code <div role="button">}
+ *                    truthfully has {@code uniquenessCount == 1} yet matches zero elements via
+ *                    {@code hasRole(Role.BUTTON)}'s tag-shape union) -- this is the only signal that
+ *                    tells the two apart, so codegen's rung-1 emission gate must check it explicitly.
  */
 public record LocatorCandidate(
         LocatorStrategy strategy,
@@ -24,10 +33,12 @@ public record LocatorCandidate(
         boolean visible,
         boolean stable,
         Set<LocatorSignal> signals,
-        String replayXpath) {
+        String replayXpath,
+        boolean roleXpathVerified) {
     /**
-     * Creates immutable locator evidence with no recorded {@code replayXpath} (additive
-     * backward-compatible overload; existing 6-arg call sites keep compiling unchanged).
+     * Creates immutable locator evidence with no recorded {@code replayXpath} and
+     * {@code roleXpathVerified} defaulted to {@code false} (additive backward-compatible overload;
+     * existing 6-arg call sites keep compiling unchanged).
      *
      * @param strategy locator strategy
      * @param expression raw locator expression
@@ -43,7 +54,30 @@ public record LocatorCandidate(
             boolean visible,
             boolean stable,
             Set<LocatorSignal> signals) {
-        this(strategy, expression, uniquenessCount, visible, stable, signals, "");
+        this(strategy, expression, uniquenessCount, visible, stable, signals, "", false);
+    }
+
+    /**
+     * Creates immutable locator evidence with {@code roleXpathVerified} defaulted to {@code false}
+     * (additive backward-compatible overload; existing 7-arg call sites keep compiling unchanged).
+     *
+     * @param strategy locator strategy
+     * @param expression raw locator expression
+     * @param uniquenessCount number of matching elements observed
+     * @param visible whether the target was visible
+     * @param stable whether the evidence appeared stable
+     * @param signals additional deterministic scoring signals
+     * @param replayXpath self-verified replay XPath, or blank when none was computed
+     */
+    public LocatorCandidate(
+            LocatorStrategy strategy,
+            String expression,
+            int uniquenessCount,
+            boolean visible,
+            boolean stable,
+            Set<LocatorSignal> signals,
+            String replayXpath) {
+        this(strategy, expression, uniquenessCount, visible, stable, signals, replayXpath, false);
     }
     /**
      * Supported locator evidence strategies.

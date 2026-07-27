@@ -47,6 +47,16 @@ public final class CaptureFixtures {
                                 "form input:nth-child(1)", 1, true, false,
                                 Set.of(LocatorCandidate.LocatorSignal.GENERATED,
                                         LocatorCandidate.LocatorSignal.POSITIONAL)),
+                        // Issue #4239 P1.4-decision ladder: a plain <input> with no explicit "type"
+                        // attribute genuinely matches LocatorBuilder.byRole(Role.TEXTBOX)'s fixed XPath
+                        // union (//input[not(@type)] among others), so a real recorder self-verifies
+                        // roleXpathVerified=true here -- rung 1 is the realistic, expected outcome for
+                        // this native form control (contrast the LABEL candidate below, whose accessible
+                        // name comes from an associated <label>, a signal computeReplayXpath cannot
+                        // express as a self-verified XPath -- see shaft-capture-recorder.js:289-291).
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.ROLE,
+                                "textbox:Username", 1, true, true,
+                                Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), "", true),
                         new LocatorCandidate(LocatorCandidate.LocatorStrategy.LABEL,
                                 "Username", 1, true, true,
                                 Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE,

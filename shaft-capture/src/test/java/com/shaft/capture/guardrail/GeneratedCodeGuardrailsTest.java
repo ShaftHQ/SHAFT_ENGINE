@@ -218,4 +218,55 @@ class GeneratedCodeGuardrailsTest {
         assertTrue(result.passed());
         assertTrue(result.violations().stream().noneMatch(violation -> violation.kind().equals("HARDCODED_SECRET")));
     }
+
+    /**
+     * Issue #4239 P1.1: with the emission-time ladder in {@code CaptureGenerator} now the primary
+     * enforcement (rung 1 verified ARIA role, rung 2 self-verified XPath, rung 3 FAILED), this lint
+     * rule is the regression-catching backstop -- unconditional ERROR, no "only when an ARIA
+     * candidate existed" qualifier (that qualifier is unimplementable in a text lint: it cannot see
+     * what candidates were recorded, only the emitted code). Every one of
+     * {@code id/name/cssSelector/className/tagName} is checked; {@code hasTagName}/{@code hasRole}
+     * (the SHAFT locator BUILDER, not these raw Selenium-strategy factories) must stay clean.
+     */
+    @Test
+    void rejectsNonAriaLocatorFactoriesUnconditionally() {
+        GuardrailCheckResult result = GeneratedCodeGuardrails.check("""
+                import com.shaft.driver.SHAFT;
+                import org.openqa.selenium.By;
+
+                class GeneratedLoginTest {
+                    By byId = SHAFT.GUI.Locator.id("login");
+                    By byName = SHAFT.GUI.Locator.name("login");
+                    By byCss = SHAFT.GUI.Locator.cssSelector(".login");
+                    By byClassName = SHAFT.GUI.Locator.className("login-form");
+                    By byTagName = SHAFT.GUI.Locator.tagName("button");
+                }
+                """);
+
+        assertFalse(result.passed());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("NON_ARIA_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 5), result.violations().toString());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("NON_ARIA_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 6), result.violations().toString());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("NON_ARIA_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 7), result.violations().toString());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("NON_ARIA_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 8), result.violations().toString());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("NON_ARIA_LOCATOR")
+                && violation.severity().equals("ERROR") && violation.line() == 9), result.violations().toString());
+    }
+
+    @Test
+    void hasTagNameBuilderIsNotConfusedWithTheRawTagNameFactory() {
+        GuardrailCheckResult result = GeneratedCodeGuardrails.check("""
+                import com.shaft.driver.SHAFT;
+
+                class LoginPage {
+                    private final By label = SHAFT.GUI.Locator.hasTagName("input").containsText("Username").build();
+                }
+                """);
+
+        assertTrue(result.violations().stream().noneMatch(violation -> violation.kind().equals("NON_ARIA_LOCATOR")),
+                result.violations().toString());
+    }
 }

@@ -755,7 +755,8 @@ final class CaptureEventPipeline implements AutoCloseable {
                         bool(raw.get("visible")),
                         bool(raw.get("stable")),
                         locatorSignals(raw.get("signals")),
-                        replayXpath.value()));
+                        replayXpath.value(),
+                        bool(raw.get("roleXpathVerified"))));
             }
         }
         String targetId = logicalId.value().isBlank()

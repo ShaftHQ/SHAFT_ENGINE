@@ -17,6 +17,14 @@ public final class GeneratedCodeGuardrails {
             "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*xpath\\s*\\(");
     private static final Pattern SMART_LOCATOR = Pattern.compile(
             "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*(?:clickableField|inputField)\\s*\\(");
+    // Issue #4239 P1.1: with CaptureGenerator's emission-time ladder (rung 1 verified ARIA role,
+    // rung 2 self-verified XPath, rung 3 FAILED) now the primary enforcement, this rule is the
+    // regression-catching backstop -- unconditional ERROR, no "only when an ARIA candidate existed"
+    // qualifier (unimplementable in a text lint: it cannot see recorded candidates, only emitted
+    // code). Deliberately excludes hasTagName/hasRole -- the SHAFT locator BUILDER methods, not these
+    // raw Selenium-strategy factories.
+    private static final Pattern NON_ARIA_LOCATOR = Pattern.compile(
+            "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*(?:id|name|cssSelector|className|tagName)\\s*\\(");
     private static final Pattern CLASS_BOUNDARY = Pattern.compile("\\bclass\\s+\\w+");
     private static final Pattern TEST_ANNOTATION = Pattern.compile("@Test\\b");
     private static final Pattern LOCATOR_DECLARATION = Pattern.compile(
@@ -58,6 +66,9 @@ public final class GeneratedCodeGuardrails {
     private static final String NO_HARDCODED_SECRET = "Do not hard-code obvious header, token, or password secrets.";
     private static final String NO_SMART_LOCATOR = "Avoid generating SHAFT.GUI.Locator.clickableField/inputField"
             + " (intent-based smart locators); prefer role-based locators or the SHAFT locator builder instead.";
+    private static final String NO_NON_ARIA_LOCATOR = "Do not generate SHAFT.GUI.Locator.id/name/cssSelector/"
+            + "className/tagName; use a self-verified ARIA role (hasRole) or, when no role is available, a "
+            + "self-verified By.xpath.";
     private static final String NO_POM_VIOLATION = "Do not declare locators (SHAFT.GUI.Locator.* or By.xpath) inside a"
             + " class that also has @Test methods; move locators/actions into a Page Object class and keep"
             + " orchestration in the test.";
@@ -77,6 +88,7 @@ public final class GeneratedCodeGuardrails {
         addThreadSleepViolations(source, violations);
         addShaftLocatorXpathViolations(source, violations);
         addSmartLocatorViolations(source, violations);
+        addNonAriaLocatorViolations(source, violations);
         addPageObjectModelViolations(source, violations);
         addAbsoluteXpathViolations(source, violations);
         addPageFactoryWarnings(source, violations);
@@ -100,6 +112,10 @@ public final class GeneratedCodeGuardrails {
 
     private static void addSmartLocatorViolations(String source, List<GuardrailViolation> violations) {
         addPatternViolations(source, violations, SMART_LOCATOR, "SMART_LOCATOR", "ERROR", NO_SMART_LOCATOR);
+    }
+
+    private static void addNonAriaLocatorViolations(String source, List<GuardrailViolation> violations) {
+        addPatternViolations(source, violations, NON_ARIA_LOCATOR, "NON_ARIA_LOCATOR", "ERROR", NO_NON_ARIA_LOCATOR);
     }
 
     private static void addPageObjectModelViolations(String source, List<GuardrailViolation> violations) {

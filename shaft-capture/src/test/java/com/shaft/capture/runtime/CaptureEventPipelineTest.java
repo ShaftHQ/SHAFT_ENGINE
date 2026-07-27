@@ -104,8 +104,23 @@ class CaptureEventPipelineTest {
         pipeline.accept(signalFromContext(
                 "navigation", START.plusMillis(50), realContextId, Map.of(),
                 Map.of("action", "OPEN"), Map.of("url", "https://example.test/login")));
+        // Issue #4239 P1.4-decision ladder: usernameTarget()'s shared ID-only locator payload is no
+        // longer codegen-eligible (rung 3), which is orthogonal to what THIS test proves (window/context
+        // resolution) -- so this target carries its own self-verified ROLE candidate instead, mirroring
+        // what a real recorder emits for a plain, natively-typed <input> (matches
+        // LocatorBuilder.byRole(Role.TEXTBOX)'s fixed union unconditionally).
+        Map<String, Object> ladderEligibleUsernameTarget = target("username", "input", "textbox",
+                Map.of("name", "username", "autocomplete", "username"),
+                List.of(Map.of(
+                        "strategy", "ROLE",
+                        "expression", "textbox:username",
+                        "uniquenessCount", 1,
+                        "visible", true,
+                        "stable", true,
+                        "signals", List.of("ACCESSIBLE"),
+                        "roleXpathVerified", true)));
         pipeline.accept(signalFromContext(
-                "input", START.plusSeconds(3), "loopback", usernameTarget(),
+                "input", START.plusSeconds(3), "loopback", ladderEligibleUsernameTarget,
                 Map.of("value", "shaft.user", "committed", true), Map.of()));
         pipeline.close();
 
@@ -895,6 +910,57 @@ class CaptureEventPipelineTest {
         assertEquals("//div[normalize-space(.)=\"Something went wrong\"]", role.replayXpath(),
                 "the recorded replayXpath must survive the pipeline unchanged instead of being "
                         + "dropped: " + role);
+    }
+
+    /**
+     * Issue #4239 P1.0a/ladder: the in-page recorder self-verifies whether {@code hasRole(...)}'s
+     * fixed per-role XPath union resolves uniquely to a ROLE candidate's element, and sends it as
+     * {@code roleXpathVerified} on that locator payload entry. Until now nothing in the pipeline's
+     * raw-map parsing read that field, so it was silently dropped before reaching disk (see
+     * {@code ManagedCaptureRecorderBrowserTest#roleCandidateFromLiveState}'s javadoc) -- the ladder in
+     * {@code CaptureGenerator} needs it to gate rung-1 {@code hasRole(...)} emission, so it must
+     * survive the pipeline unchanged like {@code replayXpath} already does.
+     */
+    @Test
+    void threadsRecordedRoleXpathVerifiedFromLocatorPayloadOntoTheCandidate(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        Map<String, Object> target = Map.of(
+                "logicalElementId", "real-button",
+                "tagName", "button",
+                "role", "button",
+                "accessibleName", "Real Button",
+                "label", "",
+                "attributes", Map.of(),
+                "locators", List.of(Map.of(
+                        "strategy", "ROLE",
+                        "expression", "button:Real Button",
+                        "uniquenessCount", 1,
+                        "visible", true,
+                        "stable", true,
+                        "signals", List.of("ACCESSIBLE"),
+                        "roleXpathVerified", true)),
+                "visible", true,
+                "enabled", true,
+                "selected", false);
+        pipeline.accept(signal("click", START, target, Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        CaptureEvent.ClickEvent click = assertInstanceOf(
+                CaptureEvent.ClickEvent.class, store.read().events().get(0));
+        LocatorCandidate role = click.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "A ROLE locator candidate must be recorded: " + click.target()));
+        assertTrue(role.roleXpathVerified(),
+                "the recorded roleXpathVerified flag must survive the pipeline unchanged instead of "
+                        + "being dropped: " + role);
     }
 
     @Test

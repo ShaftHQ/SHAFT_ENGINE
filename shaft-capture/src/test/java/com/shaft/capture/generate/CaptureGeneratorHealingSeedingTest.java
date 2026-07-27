@@ -116,7 +116,8 @@ class CaptureGeneratorHealingSeedingTest {
                 .historyPath(expectedHistoryPath.toString());
         WebDriver driver = mock(WebDriver.class);
         when(driver.getCurrentUrl()).thenReturn("https://example.test/form");
-        By originalLocator = Locator.hasTagName("input").containsText("Username").build();
+        By originalLocator = Locator.hasRole(com.shaft.gui.internal.locator.Role.TEXTBOX)
+                .hasNormalizedText("Username").build();
         ShaftHealingProvider provider = new ShaftHealingProvider();
 
         provider.resolve(new HealingRequest(driver, originalLocator, "TYPE", true, null, null, null));
@@ -132,12 +133,37 @@ class CaptureGeneratorHealingSeedingTest {
      * request.fallbackLocators()==true}, the generated code calls {@code
      * captureReplayLocator(primary, alt1, ...)}, which can resolve to an alternate at runtime if the
      * primary degrades -- and {@code HealingSupport.locator()} keys its history lookup by exact
-     * {@code By.toString()}. {@link CaptureFixtures#target()} carries two locator candidates (a
-     * higher-scored LABEL one and a lower-scored CSS one), so the CSS one is always the unselected
-     * fallback alternative here. This proves seeding now covers that alternate, not just the primary.
+     * {@code By.toString()}. This proves seeding now covers that alternate, not just the primary.
+     *
+     * <p>Issue #4239 P1.4-decision ladder: the fallback alternative must itself clear rung 1 or rung
+     * 2 (a {@link CaptureFixtures#target()}'s lower-scored CSS candidate no longer qualifies, since
+     * CSS is never ladder-eligible), so this uses a bespoke element with a second, independently
+     * ladder-eligible {@code ACCESSIBLE_NAME} candidate carrying its own self-verified
+     * {@code replayXpath} instead.
      */
     @Test
     void fallbackCandidateAlsoLeavesFingerprintHistoryASubsequentReplayLookupFinds() throws Exception {
+        com.shaft.capture.model.ElementSnapshot usernameInput = new com.shaft.capture.model.ElementSnapshot(
+                "username-input",
+                "input",
+                "textbox",
+                "Username",
+                "Username",
+                Map.of("autocomplete", "username", "name", "username"),
+                List.of(
+                        new com.shaft.capture.model.LocatorCandidate(
+                                com.shaft.capture.model.LocatorCandidate.LocatorStrategy.ROLE,
+                                "textbox:Username", 1, true, true,
+                                java.util.Set.of(com.shaft.capture.model.LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "", true),
+                        new com.shaft.capture.model.LocatorCandidate(
+                                com.shaft.capture.model.LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME,
+                                "Username", 1, true, true,
+                                java.util.Set.of(com.shaft.capture.model.LocatorCandidate.LocatorSignal.ACCESSIBLE),
+                                "//input[normalize-space(@aria-label)=\"Username\"]")),
+                true,
+                true,
+                false);
         CaptureSession session = new CaptureSession(
                 CaptureSession.CURRENT_SCHEMA_VERSION,
                 "healing-seed-fallback-session",
@@ -148,7 +174,7 @@ class CaptureGeneratorHealingSeedingTest {
                 List.of(
                         new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
                                 CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
-                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), CaptureFixtures.target(),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), usernameInput,
                                 CaptureEvent.MouseButton.PRIMARY, 1)),
                 List.of(),
                 List.of(),
@@ -194,10 +220,10 @@ class CaptureGeneratorHealingSeedingTest {
                 .historyPath(expectedHistoryPath.toString());
         WebDriver driver = mock(WebDriver.class);
         when(driver.getCurrentUrl()).thenReturn("https://example.test/form");
-        // The lower-scored CSS candidate from CaptureFixtures#target() -- never the primary
-        // (LABEL) By, but exactly what captureReplayLocator() falls back to at replay time if the
-        // primary degrades. Mirrors runtimeLocator()'s own CSS branch: Locator.cssSelector(expression).
-        By alternateLocator = Locator.cssSelector("form input:nth-child(1)");
+        // The lower-scored ACCESSIBLE_NAME candidate -- never the primary (verified ROLE) By, but
+        // exactly what captureReplayLocator() falls back to at replay time if the primary degrades.
+        // Mirrors runtimeLocator()'s own replayXpath branch: By.xpath(candidate.replayXpath()).
+        By alternateLocator = By.xpath("//input[normalize-space(@aria-label)=\"Username\"]");
         ShaftHealingProvider provider = new ShaftHealingProvider();
 
         provider.resolve(new HealingRequest(driver, alternateLocator, "TYPE", true, null, null, null));
