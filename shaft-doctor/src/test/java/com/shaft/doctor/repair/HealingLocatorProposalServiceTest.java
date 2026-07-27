@@ -232,6 +232,79 @@ class HealingLocatorProposalServiceTest {
         assertTrue(failure.getMessage().contains("healing.sourcePatch.enabled"));
     }
 
+    @Test
+    void advisoryProposalSkipsAnIneligibleTopScoredCandidateForTheGenuinelyEligibleOne(
+            @TempDir Path repository) throws Exception {
+        // Issue #4209: candidates.get(0) is sorted by raw score alone and can be non-unique or
+        // off-context; the advisory must mirror HealingDecisionEngine's own eligibility gate
+        // (unique && contextMatched) before picking a candidate to suggest.
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path report = multiCandidateReport(repository,
+                candidateJson("candidate-top", "By.id: duplicate-login", false, true),
+                candidateJson("candidate-eligible", "By.id: new-login", true, true));
+
+        HealingLocatorProposal proposal = new HealingLocatorProposalService().proposeAdvisory(
+                new HealingLocatorProposalRequest(
+                        repository,
+                        report,
+                        "src/test/java/example/LoginTest.java",
+                        true,
+                        repository.resolve("target/advisory-eligible")));
+
+        assertEquals("By.id(\"new-login\")", proposal.proposedExpression(),
+                "The advisory must pick the genuinely eligible candidate, not the raw top score.");
+    }
+
+    @Test
+    void advisoryProposalRejectsAReportWhereNoCandidateIsEligible(@TempDir Path repository)
+            throws Exception {
+        source(repository, "private static final By LOGIN = By.id(\"old-login\");");
+        Path report = multiCandidateReport(repository,
+                candidateJson("candidate-a", "By.id: duplicate-login", false, true),
+                candidateJson("candidate-b", "By.id: wrong-context", true, false));
+
+        assertThrows(IllegalArgumentException.class, () -> new HealingLocatorProposalService()
+                .proposeAdvisory(new HealingLocatorProposalRequest(
+                        repository,
+                        report,
+                        "src/test/java/example/LoginTest.java",
+                        true,
+                        repository.resolve("target/advisory-none-eligible"))));
+    }
+
+    private static ObjectNode candidateJson(
+            String candidateId, String proposedLocator, boolean unique, boolean contextMatched) {
+        ObjectNode candidate = JSON.createObjectNode();
+        candidate.put("candidateId", candidateId);
+        candidate.put("proposedLocator", proposedLocator);
+        candidate.put("unique", unique);
+        candidate.put("contextMatched", contextMatched);
+        candidate.putArray("evidence").add("test-id exact match");
+        return candidate;
+    }
+
+    private static Path multiCandidateReport(Path repository, ObjectNode... candidates) throws Exception {
+        ObjectNode report = JSON.createObjectNode();
+        report.put("schemaVersion", "2.0");
+        report.put("attemptId", "attempt-multi");
+        report.put("originalLocator", "By.id: old-login");
+        var candidatesArray = report.putArray("candidates");
+        for (ObjectNode candidate : candidates) {
+            candidatesArray.add(candidate);
+        }
+        ObjectNode decision = report.putObject("decision");
+        decision.put("status", "BELOW_THRESHOLD");
+        decision.put("selectedCandidateId", "");
+        decision.put("confidence", 0.42);
+        ObjectNode action = report.putObject("action");
+        action.put("outcome", "NOT_EXECUTED");
+        action.put("postActionVerification", "FAILED");
+        Path path = repository.resolve("healing-report-multi.json");
+        Files.writeString(path, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(report),
+                StandardCharsets.UTF_8);
+        return path;
+    }
+
     private static Path source(Path repository, String locatorLine) throws Exception {
         Path source = repository.resolve("src/test/java/example/LoginTest.java");
         Files.createDirectories(source.getParent());

@@ -252,8 +252,18 @@ public final class HealingLocatorProposalService {
         if (!candidates.isArray() || candidates.isEmpty()) {
             throw new IllegalArgumentException("An advisory proposal requires at least one scored candidate.");
         }
-        // The report's candidates are already ranked highest score first (ShaftHealingProvider).
-        return candidates.get(0);
+        // The report's candidates are already ranked highest score first (ShaftHealingProvider),
+        // but that ranking alone doesn't re-derive HealingDecisionEngine's own eligibility gate
+        // (unique && contextMatched) -- the persisted decision.confidence came from that
+        // pre-filtered ranking, so the advisory must mirror it before picking a candidate
+        // (issue #4209).
+        for (JsonNode candidate : candidates) {
+            if (candidate.path("unique").asBoolean() && candidate.path("contextMatched").asBoolean()) {
+                return candidate;
+            }
+        }
+        throw new IllegalArgumentException(
+                "No candidate passed uniqueness/context-match preconditions for an advisory proposal.");
     }
 
     private static JsonNode selectedCandidate(JsonNode report) {
