@@ -1,12 +1,12 @@
 {
-  "body_path": "memory/decisions/issue-4239-p0-3-p0-4-shipped-in-pr-4243-captureservice-generatereplay-had-9-unannotated-mcptool-params-not-just-replay-capture-start-mobile-fix-took-the-description-only-fallback.md",
-  "content_hash": "sha256:2d90260e1f1da3c76f6c6290228420019aebe7d020c500734a50a0ec20893f49",
+  "body_path": "memory/decisions/issue-4239-p0-3-p0-4-pr-4243-captureservice-mcptool-schema-annotations.md",
+  "content_hash": "sha256:b975bc6b2bf62ab6955e4979e490c5236cfb86ca066a80fcc03b1ebf5fdca5b1",
   "created_at": "2026-07-27T11:11:04+03:00",
   "evidence": [],
   "facets": {
     "category": "decision-rationale"
   },
-  "id": "decision.issue-4239-p0-3-p0-4-shipped-in-pr-4243-captureservice-generatereplay-had-9-unannotated-mcptool-params-not-just-replay-capture-start-mobile-fix-took-the-description-only-fallback",
+  "id": "decision.issue-4239-p0-3-p0-4-pr-4243-captureservice-mcptool-schema-annotations",
   "scope": {
     "branch": null,
     "kind": "project",
