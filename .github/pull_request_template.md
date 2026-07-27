@@ -36,7 +36,7 @@
 - [ ] I have read the [Contributing Guide](../CONTRIBUTING.md) and this PR follows its guidelines.
 - [ ] Documentation/agent-only changes pass their deterministic validators and `git diff --check`.
 - [ ] Behavior changes have focused automated coverage.
-- [ ] Affected tests pass: `mvn -pl shaft-engine -am test -Dtest=<AffectedTestClass>`.
+- [ ] Affected tests pass: `mvn -pl shaft-engine -am test -Dtest=<AffectedTestClass> -DheadlessExecution=true`.
 - [ ] Code/build changes compile once with `mvn clean install -DskipTests -Dgpg.skip`.
 - [ ] New `public` methods and classes have JavaDoc comments with `@param` / `@return` / `@throws` tags.
 - [ ] I have not introduced any hardcoded credentials, secrets, or sensitive data.

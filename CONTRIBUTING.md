@@ -121,10 +121,12 @@ py -3 scripts/ci/validate_documentation_boundaries.py
 git diff --check
 ```
 
-For localized code changes, run the affected test first:
+For localized code changes, run the affected test first. Always scope the run
+with `-Dtest=` and force headless execution, so a browser-capable test cannot
+open a real window on your machine:
 
 ```bash
-mvn -pl shaft-engine -am test "-Dtest=TestClassName"
+mvn -pl shaft-engine -am test "-Dtest=TestClassName" "-DheadlessExecution=true"
 ```
 
 Then run one compile/package pass appropriate to the change. For broad API,
