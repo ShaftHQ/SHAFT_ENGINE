@@ -451,6 +451,88 @@
       inferredRole(candidate) === role && (!name || accessibleName(candidate) === name));
   };
   const labelMatchCount = expression => semanticMatchCount(candidate => label(candidate) === expression);
+  // Issue #4239 P1.0a: maps a raw ARIA role string (an explicit role="..." attribute, or a
+  // tag-shape inference -- see inferredRole above) to the SHAFT Role enum constant name, mirroring
+  // CaptureGenerator#ariaRole (CaptureGenerator.java:1668-1687) INCLUDING its ARIA-name-vs-enum-
+  // constant-name mismatches (row -> TABLE_ROW, cell/gridcell -> TABLE_CELL, columnheader ->
+  // TABLE_COLUMNHEADER, grid -> TABLE, img/image -> IMAGE). Returns "" when there is no equivalent.
+  const shaftRoleFor = rawRole => ({
+    button: "BUTTON",
+    link: "LINK",
+    textbox: "TEXTBOX",
+    checkbox: "CHECKBOX",
+    radio: "RADIO",
+    combobox: "COMBOBOX",
+    heading: "HEADING",
+    img: "IMAGE",
+    image: "IMAGE",
+    list: "LIST",
+    listitem: "LISTITEM",
+    table: "TABLE",
+    grid: "TABLE",
+    row: "TABLE_ROW",
+    cell: "TABLE_CELL",
+    gridcell: "TABLE_CELL",
+    columnheader: "TABLE_COLUMNHEADER"
+  })[String(rawRole || "").toLowerCase()] || "";
+  // Issue #4239 P1.0a: the EXACT fixed per-role XPath union LocatorBuilder.byRole compiles at
+  // replay time (ported literally from LocatorBuilder.java:144-190, not re-derived), so record-time
+  // verification proves the locator SHAFT.GUI.Locator.hasRole(...) will actually ship, not an
+  // approximation of it.
+  const roleXpathUnion = {
+    BUTTON: "//button | //input[@type='button'] | //input[@type='submit'] | //input[@type='reset'] | //a[contains(@class,'button')]",
+    LINK: "//a[@href]",
+    TEXTBOX: "//input[@type='text'] | //textarea | //input[@type='email'] | //input[@type='password'] | //input[@type='search'] | //input[not(@type)] | //input[@type='tel'] | //input[@type='url'] | //input[@type='number'] | //input[@type='date'] | //input[@type='time'] | //input[@type='month'] | //input[@type='week'] | //input[@type='datetime-local']",
+    CHECKBOX: "//input[@type='checkbox']",
+    RADIO: "//input[@type='radio']",
+    COMBOBOX: "//select | //input[@type='select-one'] | //input[@type='select-multiple']",
+    HEADING: "//h1 | //h2 | //h3 | //h4 | //h5 | //h6",
+    IMAGE: "//img | //input[@type='image']",
+    LIST: "//ul | //ol | //dl",
+    LISTITEM: "//li | //dt | //dd",
+    TABLE: "//table",
+    TABLE_ROW: "//tr",
+    TABLE_CELL: "//td",
+    TABLE_COLUMNHEADER: "//th"
+  };
+  // Evaluates `xpath` against the live DOM, walking at most MULTI_MATCH_CAP matches in document
+  // order (same cost-bounding rationale as semanticMatchCount above: callers here only ever need
+  // to distinguish zero/one/more-than-one matches). Returns the capped match count plus whether
+  // `element` was among the matches seen -- accurate whenever count resolves to exactly 1, which
+  // is the only case either caller below (roleXpathVerified, and the XPATH strategy's own
+  // uniquenessCount) treats as "verified"/"unique".
+  const evaluateXpath = (xpath, element) => {
+    try {
+      const result = document.evaluate(
+          xpath, document, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null);
+      let count = 0;
+      let includesElement = false;
+      let node = result.iterateNext();
+      while (node && count < MULTI_MATCH_CAP) {
+        if (!isControlElement(node)) {
+          count++;
+          if (node === element) includesElement = true;
+        }
+        node = result.iterateNext();
+      }
+      return {count, includesElement};
+    } catch (ignored) {
+      return {count: 0, includesElement: false};
+    }
+  };
+  // Issue #4239 P1.0a: self-verifies that the EXACT XPath SHAFT.GUI.Locator.hasRole(Role.X) will
+  // ship for this candidate's inferred role resolves UNIQUELY to this element in the live DOM --
+  // not just that it matches something. inferredRole() can return an explicit role="..." attribute
+  // value that LocatorBuilder.byRole never actually queries (its union is a fixed tag/attribute
+  // shape, not a role selector), so a ROLE candidate's own uniquenessCount (derived by re-deriving
+  // inferredRole across the page) can disagree with what the shipped locator actually matches.
+  const roleXpathVerified = (element, role) => {
+    const shaftRole = shaftRoleFor(role);
+    const union = shaftRole && roleXpathUnion[shaftRole];
+    if (!union) return false;
+    const {count, includesElement} = evaluateXpath("(" + union + ")", element);
+    return count === 1 && includesElement;
+  };
   const cssPath = element => {
     const parts = [];
     let current = element;
@@ -476,7 +558,7 @@
     const result = [];
     const visible = Boolean(element.getClientRects && element.getClientRects().length);
     const add = (strategy, expression, selector, stable, signals, replayXpath) => {
-      if (!expression) return;
+      if (!expression) return null;
       const normalized = text(expression);
       let uniquenessCount;
       if (selector) {
@@ -485,10 +567,18 @@
         uniquenessCount = roleMatchCount(normalized);
       } else if (strategy === "LABEL") {
         uniquenessCount = labelMatchCount(normalized);
+      } else if (strategy === "XPATH") {
+        // Issue #4239 P1.0b: unlike ROLE/LABEL (matched via semanticMatchCount above), this
+        // strategy's own replayXpath IS the self-verified XPath, so its true match count is
+        // measured the same way roleXpathVerified measures uniqueness -- never hardcoded to 1
+        // (the exact fabrication issue #4025 fixed for ROLE/LABEL). Uses the raw replayXpath, not
+        // the display-normalized expression above, so the count reflects the EXACT string that
+        // will be shipped as the locator.
+        uniquenessCount = evaluateXpath(replayXpath || normalized, element).count;
       } else {
         uniquenessCount = 1;
       }
-      result.push({
+      const candidate = {
         strategy,
         expression: normalized,
         uniquenessCount,
@@ -496,17 +586,32 @@
         stable,
         signals,
         replayXpath: replayXpath || ""
-      });
+      };
+      result.push(candidate);
+      return candidate;
     };
     const role = inferredRole(element);
     const nameSignal = accessibleNameSignal(element);
     const name = nameSignal.name;
+    // Issue #4239 P1.0b: computed once per element (previously only inside the ROLE branch below)
+    // so LABEL candidates and role-less elements can reuse the same self-verified fallback XPath --
+    // without this, any element with no inferred role never got a self-verified XPath fallback at
+    // all, even with a computable accessible name (aria-label/alt/title/own text).
+    const xpathCandidate = name ? computeReplayXpath(element, name, nameSignal.source) : "";
     if (role && name) {
-      add("ROLE", `${role}:${name}`, "", true, ["ACCESSIBLE"],
-          computeReplayXpath(element, name, nameSignal.source));
+      const roleCandidate = add("ROLE", `${role}:${name}`, "", true, ["ACCESSIBLE"], xpathCandidate);
+      if (roleCandidate) roleCandidate.roleXpathVerified = roleXpathVerified(element, role);
     }
     const targetLabel = label(element);
-    if (targetLabel) add("LABEL", targetLabel, "", true, ["ACCESSIBLE", "LABEL_ASSOCIATED"]);
+    if (targetLabel) {
+      add("LABEL", targetLabel, "", true, ["ACCESSIBLE", "LABEL_ASSOCIATED"], xpathCandidate);
+    } else if (!role) {
+      // Issue #4239 P1.0b: no inferred role and no enclosing <label> -- without this, an element
+      // whose only signal is e.g. its own visible text (a plain <span onclick=...>) would fall
+      // straight to ID/NAME/TEST_ID/CSS with no self-verified XPath fallback at all. add() no-ops
+      // when xpathCandidate is blank (nothing was computable), so this never adds an empty candidate.
+      add("XPATH", xpathCandidate, "", true, ["ACCESSIBLE"], xpathCandidate);
+    }
     testIdAttributes.forEach(attribute => {
       const value = element.getAttribute(attribute);
       if (value) {
