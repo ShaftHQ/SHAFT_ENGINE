@@ -2,44 +2,37 @@
 
 ## Supported Versions
 
-SHAFT Engine follows a **latest-release-only** support model. Security fixes are applied to the most recent release exclusively.
+SHAFT Engine follows a **latest-release-only** support model. Security fixes are
+applied to the most recent release exclusively.
 
 | Version | Supported |
 |---------|-----------|
-| Latest  | ✅ |
-| Older   | ❌ |
+| Latest | Yes |
+| Older | No |
 
-If you are affected by a vulnerability on an older version, please upgrade to the latest release first.  
-Check the current version: [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/SHAFT_ENGINE)
-
----
+If a vulnerability affects you on an older version, upgrade to the latest
+release first:
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&label=latest%20version)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 
 ## Reporting a Vulnerability
 
-**Please do NOT open a public GitHub issue for security vulnerabilities.**  
-Public disclosure before a fix is available puts all users at risk.
+**Do not open a public GitHub issue for a security vulnerability.** Public
+disclosure before a fix is available puts every user at risk.
 
-### Preferred: GitHub Private Security Advisory
+**Preferred —
+[report a vulnerability privately](https://github.com/ShaftHQ/SHAFT_ENGINE/security/advisories/new).**
+This opens a private discussion with the maintainers and stays confidential
+until a fix ships.
 
-Use GitHub's built-in private reporting channel:
+**Alternative** — if you cannot use GitHub advisories, email
+**mohabmohie@gmail.com**.
 
-👉 **[Report a vulnerability privately](https://github.com/ShaftHQ/SHAFT_ENGINE/security/advisories/new)**
+Include in your report:
 
-This creates a private discussion between you and the maintainers. Your report remains confidential until a fix is released.
-
-### Alternative: Email
-
-If you cannot use GitHub's advisory system, email the maintainer directly:
-
-📧 **mohabmohie@gmail.com**
-
-Include the following in your report:
-- A clear description of the vulnerability
-- Steps to reproduce (minimal code or configuration)
-- Potential impact and affected versions
-- Any suggested mitigations or patches (optional but appreciated)
-
----
+- A clear description of the vulnerability.
+- Steps to reproduce, with minimal code or configuration.
+- Potential impact and affected versions.
+- Suggested mitigations or patches (optional, appreciated).
 
 ## Response Timeline
 
@@ -49,33 +42,34 @@ Include the following in your report:
 | Initial assessment | Within **5 business days** |
 | Fix released | Depends on severity — critical issues are prioritized |
 
-You will be credited in the release notes (unless you prefer to remain anonymous).
-
----
+You will be credited in the release notes unless you prefer to stay anonymous.
 
 ## Scope
 
-The following are **in scope** for security reports:
+**In scope:**
 
-- Vulnerabilities in SHAFT Engine's own source code (`shaft-engine/src/main/java/`)
-- Unsafe defaults in configuration or properties that could expose user data
-- Dependency vulnerabilities that have a direct exploitable path through SHAFT's public API
+- Vulnerabilities in SHAFT Engine's own source code (`shaft-engine/src/main/java/`).
+- Unsafe configuration or property defaults that could expose user data.
+- Dependency vulnerabilities with a direct exploitable path through SHAFT's
+  public API.
 
-The following are **out of scope**:
+**Out of scope:**
 
-- Vulnerabilities in test code (`shaft-engine/src/test/java/`) — these are example tests, not production code
-- Issues in third-party libraries where no exploitable path through SHAFT exists (report these upstream)
-- Social engineering or phishing attacks
-
----
+- Vulnerabilities in test code (`shaft-engine/src/test/java/`) — these are
+  example tests, not production code.
+- Third-party library issues with no exploitable path through SHAFT; report
+  those upstream.
+- Social engineering or phishing.
 
 ## Dependency Security
 
-SHAFT Engine uses **Dependabot** for automated daily dependency updates and **CodeQL** for continuous static analysis on every pull request. This significantly reduces the window of exposure for known CVEs in transitive dependencies.
+SHAFT Engine runs **Dependabot** on a daily schedule and **CodeQL** static
+analysis on every pull request, which shortens the exposure window for known
+CVEs in transitive dependencies.
 
-Security-related dependency updates are tracked through Dependabot pull requests and are reflected in each [release's changelog](https://github.com/ShaftHQ/SHAFT_ENGINE/releases) when applicable.
-
----
+Security-related dependency updates land as Dependabot pull requests and appear
+in the relevant
+[release changelog](https://github.com/ShaftHQ/SHAFT_ENGINE/releases).
 
 ## Disclosure Policy
 

@@ -10,7 +10,7 @@
 Java 25 automation framework for Web, Mobile, API, CLI, and Database testing.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
-[![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/e2eTests.yml?branch=main&style=flat-square&label=tests)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
+[![PR Gate](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&style=flat-square&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
 [![Docs](https://img.shields.io/badge/docs-live-5b4bff?style=flat-square)](https://shafthq.github.io/docs/start/overview)
 
 **[Open the User Guide](https://shafthq.github.io/docs/start/overview)**
@@ -22,19 +22,7 @@ automation plumbing in one place: drivers, synchronization, assertions,
 configuration, test data, reporting, evidence, and optional agent-assisted
 workflows.
 
-## Why SHAFT
-
-- Java and Maven first, with TestNG, JUnit, and Cucumber integration.
-- One workflow for Web, Mobile, API, CLI, Database, accessibility, reporting,
-  and evidence.
-- Configuration-first defaults for local, grid, cloud, and CI execution.
-- Optional modules and tools for BrowserStack, Capture, Doctor, Heal, MCP, AI,
-  IntelliJ IDEA, video, and visual testing.
-- IntelliJ IDEA is the front-door workflow for coding partners: plan from the
-  SHAFT tool window, reuse existing code, review generated blocks, and verify
-  locally.
-
-## Feature Overview
+## What You Get
 
 | Area | Built in |
 |---|---|
@@ -43,20 +31,26 @@ workflows.
 | System coverage | CLI and Database actions for end-to-end validation beyond the browser. |
 | Test design | Assertions, validations, test data handling, and configuration overrides. |
 | Reporting | Allure-ready evidence, attachments, execution logs, and accessibility artifacts. |
-| Extensions | Optional modules and tools for cloud execution, capture, diagnostics, healing, MCP, AI, IntelliJ IDEA, video, and visual checks. |
+| Extensions | Opt-in modules for cloud execution, capture, diagnostics, healing, MCP, AI, video, and visual checks, plus an IntelliJ IDEA plugin. |
 
-SHAFT is built for Java teams that want consistent APIs, repeatable
-configuration, and useful run artifacts across the full automation suite.
+Java and Maven first, with TestNG, JUnit, and Cucumber integration, and
+configuration-first defaults for local, grid, cloud, and CI execution. The
+IntelliJ IDEA plugin is the front door for agent-assisted work: plan from the
+SHAFT tool window, reuse existing code, review generated blocks, verify locally.
 
-## User Guide
+## Documentation
 
 - Start: [overview](https://shafthq.github.io/docs/start/overview), [installation](https://shafthq.github.io/docs/start/installation), [upgrade](https://shafthq.github.io/docs/start/upgrade).
 - Testing: [web](https://shafthq.github.io/docs/testing/web), [mobile](https://shafthq.github.io/docs/testing/mobile), [API](https://shafthq.github.io/docs/testing/api).
 - Agentic workflows: [IntelliJ IDEA plugin](https://shafthq.github.io/docs/agentic/intellij), [MCP](https://shafthq.github.io/docs/agentic/mcp), [Doctor](https://shafthq.github.io/docs/agentic/doctor), [Heal](https://shafthq.github.io/docs/agentic/heal).
+- [Modular-era feature catalog](modular-era-feature-catalog.md) — which optional
+  module or command to adopt, with screenshots.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, validation, and pull
-request guidance.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, validation, and pull requests.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community expectations.
+- [SECURITY.md](SECURITY.md) — report a vulnerability privately, never as a
+  public issue.
 
 MIT licensed. See [LICENSE](LICENSE).
