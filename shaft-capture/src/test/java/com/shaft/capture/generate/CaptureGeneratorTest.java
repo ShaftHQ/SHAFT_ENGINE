@@ -880,6 +880,51 @@ class CaptureGeneratorTest {
     }
 
     /**
+     * Issue #4278: a targetless {@code FrameEvent} (a recorder-observed frame switch with a logical
+     * frame id but no captured element snapshot) rendered the frame id through the literal
+     * {@code SHAFT.GUI.Locator.id(...)} builder call -- exactly the non-ARIA form its own
+     * {@code NON_ARIA_LOCATOR} guardrail unconditionally rejects, hard-failing generation for a
+     * switch the user cannot influence by re-recording. A frame id is not an element locator at all,
+     * but SHAFT's {@code switchToIframe} only accepts a {@code By}/{@code ShaftLocator}, so the fix
+     * routes it through the same policy-clean {@code hasAnyTagName().hasId(...)} builder chain
+     * #4271 already established for unique author-written element ids.
+     */
+    @Test
+    void targetlessFrameSwitchGeneratesTheShaftLocatorBuilderIdFormAndClearsEveryGuardrail() throws Exception {
+        Path session = session(targetlessFrameSwitchSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("targetless-frame")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId(\"payment-frame\").build()"), source);
+        assertFalse(source.contains("SHAFT.GUI.Locator.id("), source);
+        assertTrue(CaptureGenerator.guardrailUnsupportedFindings(source).isEmpty(),
+                CaptureGenerator.guardrailUnsupportedFindings(source).toString());
+    }
+
+    private static CaptureSession targetlessFrameSwitchSession() {
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "targetless-frame-switch-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.FrameEvent(CaptureFixtures.context(2),
+                                CaptureEvent.FrameAction.ENTER, "payment-frame", null)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    /**
      * Issue #4271 review finding 2: {@code LocatorRanker} ranks candidates lexicographically by
      * (tier, score) <em>within one element snapshot</em>, but when the same logical element is seen
      * again on a later event, {@code CaptureGenerator} merged the two selections by raw additive
