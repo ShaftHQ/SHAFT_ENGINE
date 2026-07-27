@@ -236,7 +236,11 @@ class AssistantCommandTest {
                         "do not put driver.element()/locator calls directly in a @Test method body"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("fluent design and action chaining"), generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("start a fresh session with capture_start"), generatedPrompt),
+                // Issue #4239 P2.2: the capture-ordering ("start a fresh session with capture_start
+                // ... capture_generate_replay") and locator-policy ("Never generate
+                // SHAFT.GUI.Locator.xpath") sentences are now delivered to local-agent CLI runs via
+                // the P2.1 MCP `instructions` channel (McpServerInstructionsTest), not restated here.
+                () -> assertFalse(generatedPrompt.contains("start a fresh session with capture_start"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
@@ -246,7 +250,7 @@ class AssistantCommandTest {
                 () -> assertTrue(generatedPrompt.contains("Do not publish locators as verified"), generatedPrompt),
                 () -> assertFalse(generatedPrompt.contains("Live browser verification was explicitly requested"),
                         generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("Never generate SHAFT.GUI.Locator.xpath"), generatedPrompt),
+                () -> assertFalse(generatedPrompt.contains("Never generate SHAFT.GUI.Locator.xpath"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Call test_code_guardrails_check"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not print full repository files"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Put every code snippet in fenced code blocks"),
@@ -280,10 +284,12 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
-                () -> assertTrue(prompt.contains("start a fresh session with capture_start"), prompt),
-                // Natural-language codegen must end in the replay-proving generator, never the
-                // generate-only draft tool, so the returned locators are validated live.
-                () -> assertTrue(prompt.contains("capture_generate_replay"), prompt),
+                // Issue #4239 P2.2: the record -> confirm-replay -> generate -> verify ordering (and
+                // the "capture_generate_replay over capture_code_blocks" preference it protected) is
+                // now delivered to local-agent CLI runs via the P2.1 MCP `instructions` channel
+                // instead of being restated in this prompt (see McpServerInstructionsTest).
+                () -> assertFalse(prompt.contains("start a fresh session with capture_start"), prompt),
+                () -> assertFalse(prompt.contains("capture_generate_replay"), prompt),
                 () -> assertFalse(prompt.contains("with capture_code_blocks"), prompt),
                 () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("navigate to https://duckduckgo.com"), prompt),
@@ -378,7 +384,8 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
                 () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
                 () -> assertTrue(prompt.contains("Never substitute a different URL, domain, or example page"), prompt),
-                () -> assertTrue(prompt.contains("start a fresh session with capture_start"), prompt),
+                // Issue #4239 P2.2: ordering now lives solely in the P2.1 MCP instructions channel.
+                () -> assertFalse(prompt.contains("start a fresh session with capture_start"), prompt),
                 () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("Do not publish locators as verified"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
@@ -400,7 +407,10 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
                 () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
-                () -> assertTrue(prompt.contains("element_type, element_click"), prompt),
+                // "element_type, element_click" (comma-joined) used to also match the ordering
+                // bullet trimmed by issue #4239 P2.2; the real source of this phrase is
+                // SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE's "or"-joined wording, asserted here directly.
+                () -> assertTrue(prompt.contains("element_type or element_click"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
     }
 
@@ -630,13 +640,19 @@ class AssistantCommandTest {
      * ({@code TestAutomationService.NO_SMART_LOCATOR}) rates Smart Locator usage in generated code
      * as ERROR, but the prompts delivered to the LLM used to actively recommend "smart locators" as
      * a preferred or fallback strategy in both {@code SHAFT_MCP_USAGE_HINT} and
-     * {@code SHAFT_CODEGEN_TOOL_GUIDANCE}. The real policy (already reconciled everywhere else in
-     * PR #4031) is: SHAFT locator builder ARIA-role strategy ({@code SHAFT.GUI.Locator.hasRole(...)})
-     * first, native {@code By.xpath(...)} only when the element exposes no ARIA role, and Smart
-     * Locator is never recommended in generated code.
+     * {@code SHAFT_CODEGEN_TOOL_GUIDANCE}. P0.1/#4240 first fixed the wording to state the real
+     * policy (SHAFT locator builder ARIA-role strategy {@code SHAFT.GUI.Locator.hasRole(...)} first,
+     * native {@code By.xpath(...)} only when the element exposes no ARIA role).
+     *
+     * <p>Issue #4239 P2.2: that policy sentence is now owned by the P2.1 MCP {@code instructions}
+     * channel (delivered to every MCP client, verified live in
+     * {@code shaft-mcp/.../McpServerInstructionsTest}), and no longer restated in the local-agent
+     * variant of these constants -- the local CLI (Claude Code/Codex) is itself an MCP client of
+     * shaft-mcp and receives it there. This is a structural guard against F1 recurring: there is
+     * only one place left to get the wording wrong.
      */
     @Test
-    void localAgentPromptsStateAriaRoleFirstLocatorPolicyAndNeverRecommendSmartLocators() {
+    void localAgentPromptsNoLongerRestateLocatorPolicyOwnedByP21McpInstructions() {
         AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
                 "open wikipedia and search for SHAFT Engine",
                 "CODEX",
@@ -658,25 +674,67 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertFalse(nonCodegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"),
                         nonCodegenPrompt),
-                () -> assertTrue(nonCodegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), nonCodegenPrompt),
-                () -> assertTrue(nonCodegenPrompt.contains(
+                () -> assertFalse(nonCodegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), nonCodegenPrompt),
+                () -> assertFalse(nonCodegenPrompt.contains(
                         "By.xpath(...) only when the element exposes no ARIA role"), nonCodegenPrompt),
+                () -> assertFalse(codegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt));
+    }
+
+    /**
+     * Issue #4239 P2.2 counterpart to the test above: {@code autobot_provider_chat}'s cloud-chat
+     * path ({@code AutobotService.runProviderChat}) is a plain text-completion call with no MCP
+     * handshake at all -- it can never receive the P2.1 {@code instructions} field through any
+     * channel, unlike the local-agent CLI path. So the cloud variant of these constants must keep
+     * stating the locator policy in full, or cloud users silently lose it. Do not trim this back to
+     * match the local-agent variant.
+     */
+    @Test
+    void cloudPromptsRetainFullLocatorPolicyBecauseCloudNeverReceivesMcpInstructions() {
+        AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
+                "open wikipedia and search for SHAFT Engine",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation codegen = AssistantCommand.fromPrompt(
+                "generate a Java login test with a page object",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String nonCodegenPrompt = nonCodegen.arguments().get("prompt").getAsString();
+        String codegenPrompt = codegen.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(nonCodegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"),
+                        nonCodegenPrompt),
                 () -> assertFalse(codegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"), codegenPrompt),
                 () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
                 () -> assertTrue(codegenPrompt.contains(
-                        "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt));
+                        "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("start a fresh session with capture_start"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("capture_generate_replay"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("capture_api_start"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("healer_run_failed_test"), codegenPrompt));
     }
 
     /**
      * Issue #4239 (Phase 0, item P0.1b): two more occurrences of the same "smart locators" fallback
      * recommendation fixed by P0.1/#4240 were flagged out of that PR's scope -- one of them is the
      * post-approval file-creation prompt built by {@code captureIntegrationPrompt} and dispatched
-     * through {@code approvedCaptureIntegration}. Same policy as the rest of the file: SHAFT locator
-     * builder ARIA-role strategy ({@code SHAFT.GUI.Locator.hasRole(...)}) first, native
-     * {@code By.xpath(...)} only when the element exposes no ARIA role, never Smart Locators.
+     * through {@code approvedCaptureIntegration}, which is local-agent-CLI-only (it rejects cloud
+     * selections). Issue #4239 P2.2: since that CLI session is itself an MCP client of shaft-mcp and
+     * receives the P2.1 {@code instructions} locator policy already, the duplicate sentence is
+     * removed here rather than just re-fixed a third time.
      */
     @Test
-    void captureIntegrationPromptStatesAriaRoleFirstLocatorPolicyAndNeverRecommendsSmartLocators() {
+    void captureIntegrationPromptNoLongerRestatesLocatorPolicyOwnedByP21McpInstructions() {
         AssistantCommand.Invocation invocation = AssistantCommand.approvedCaptureIntegration(
                 AssistantCommand.Selection.local("CODEX", "CLI"),
                 "C:/work/project",
@@ -688,8 +746,8 @@ class AssistantCommandTest {
 
         assertAll(
                 () -> assertFalse(prompt.toLowerCase(Locale.ROOT).contains("smart locator"), prompt),
-                () -> assertTrue(prompt.contains("SHAFT.GUI.Locator.hasRole("), prompt),
-                () -> assertTrue(prompt.contains(
+                () -> assertFalse(prompt.contains("SHAFT.GUI.Locator.hasRole("), prompt),
+                () -> assertFalse(prompt.contains(
                         "By.xpath(...) only when the element exposes no ARIA role"), prompt));
     }
 }
