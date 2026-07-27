@@ -284,5 +284,20 @@ final class ToolApprovalPromptPanel extends JPanel {
         public Dimension getMaximumSize() {
             return getPreferredSize();
         }
+
+        /**
+         * Without this override, {@link javax.swing.plaf.basic.BasicTextAreaUI#getMinimumSize}
+         * reports roughly one row's height regardless of the real wrapped content -- when an
+         * ancestor's actual available height falls short of the true sum of preferred heights (e.g.
+         * two of these areas stacked via {@link BoxLayout}), the layout manager shrinks a child
+         * toward its minimum before its preferred size, silently clipping every line past the first
+         * with no ellipsis or scroll affordance. Locking minimum to the full wrapped {@link
+         * #getPreferredSize()} (mirroring {@link #getMaximumSize()} above) means this area can never
+         * be compressed smaller than the text it must show in full.
+         */
+        @Override
+        public Dimension getMinimumSize() {
+            return getPreferredSize();
+        }
     }
 }
