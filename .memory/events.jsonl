@@ -507,3 +507,4 @@
 {"actor":"agent","event":"memory.created","id":"fact.mobile-record-replay-codegen-lives-entirely-in-shaft-mcp-not-shaft-capture","timestamp":"2026-07-27T09:37:13+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.issue-4234-closed-as-non-issue-preferredheightrow-cannot-reach-wrappingargumentsareas-shrink-below-minimum-bug","timestamp":"2026-07-27T10:24:34+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.fake-test-applications-getservice-returning-null-defeats-the-editorcolorsmanager-getinstance-never-returns-null-guard","timestamp":"2026-07-27T10:37:22+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.applicationmanager-setapplication-app-disposable-s-restore-on-dispose-no-ops-when-the-previous-application-was-null","timestamp":"2026-07-27T11:05:51+03:00"}
