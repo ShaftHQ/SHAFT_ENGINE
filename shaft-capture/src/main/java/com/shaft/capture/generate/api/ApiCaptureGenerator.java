@@ -348,11 +348,18 @@ public final class ApiCaptureGenerator {
                         classesDirectory, testDataDirectory.getParent(), outputRoot, Duration.ofMinutes(2))
                 : CaptureGenerationReport.Validation.skipped("Replay was not requested.");
 
-        boolean failed = compilation.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED
-                || replay.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED;
-        CaptureGenerationReport.Status status = failed
+        // Issue #4220 (adjacent finding from #4029): neither compile nor replay failing outright
+        // means the generated artifacts are safe to report, but "safe to report" is not the same
+        // claim as "proven to run" -- an actual replay pass is required for SUCCESS, a skipped/
+        // not-requested replay is UNCONFIRMED (never bare success), and either validation actually
+        // failing is FAILED. Mirrors CaptureGenerator.generate()'s generationOk/status split.
+        boolean generationOk = compilation.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED
+                && replay.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED;
+        CaptureGenerationReport.Status status = !generationOk
                 ? CaptureGenerationReport.Status.FAILED
-                : CaptureGenerationReport.Status.SUCCESS;
+                : replay.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED
+                ? CaptureGenerationReport.Status.SUCCESS
+                : CaptureGenerationReport.Status.UNCONFIRMED;
 
         CaptureGenerationReport report = new CaptureGenerationReport(
                 CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
