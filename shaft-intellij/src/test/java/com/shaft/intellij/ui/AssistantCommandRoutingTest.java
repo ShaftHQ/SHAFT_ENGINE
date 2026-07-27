@@ -922,9 +922,12 @@ class AssistantCommandRoutingTest {
         String prompt = invocation.arguments().get("prompt").getAsString();
         assertAll(
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
-                () -> assertTrue(prompt.contains("start a fresh session with capture_start"), prompt),
-                () -> assertTrue(prompt.contains("capture_generate_replay"), prompt),
-                () -> assertTrue(prompt.contains("healer_run_failed_test"), prompt),
+                // Issue #4239 P2.2: the record -> confirm-replay -> generate -> verify ordering and
+                // the healer follow-up are no longer restated for local-agent CLI runs -- they are
+                // delivered via the P2.1 MCP `instructions` channel instead (McpServerInstructionsTest).
+                () -> assertFalse(prompt.contains("start a fresh session with capture_start"), prompt),
+                () -> assertFalse(prompt.contains("capture_generate_replay"), prompt),
+                () -> assertFalse(prompt.contains("healer_run_failed_test"), prompt),
                 () -> assertTrue(prompt.contains("Page Object Model"), prompt),
                 () -> assertTrue(prompt.contains(
                         "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."),

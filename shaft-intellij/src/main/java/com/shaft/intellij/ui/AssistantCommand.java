@@ -89,7 +89,34 @@ final class AssistantCommand {
             """
                     If you need to ask the user a genuine clarifying question with a short list of concrete choices (2-6 short options), prefer ending your final answer with a single line containing only a JSON object shaped {"shaft-question": "<question text>", "shaft-options": ["<option 1>", "<option 2>"]} (for example: {"shaft-question": "Want me to actually run through a recording now?", "shaft-options": ["Use the sample page", "I'll give you a URL"]}); if you cannot produce that exact single-line JSON object, fall back to ending your answer with a fenced code block tagged shaft-options containing a JSON array of the option labels instead (for example: a fence tagged shaft-options wrapping ["Use the sample page", "I'll give you a URL"]); omit both forms for ordinary narrative answers.
                     """.stripIndent().trim();
-    private static final String SHAFT_MCP_USAGE_HINT =
+    // Issue #4239 P2.2: split from one shared constant into a local-agent variant (this one) and a
+    // _CLOUD variant below. The local-agent CLI (Claude Code/Codex, launched by
+    // AssistantLocalAgentRunner with shaft-mcp registered as an MCP server) is itself an MCP client
+    // and receives the locator policy plus per-surface tool routing for free via the P2.1
+    // `spring.ai.mcp.server.instructions` channel (shaft-mcp/.../application*.properties,
+    // McpServerInstructionsTest) -- restating it here would be the second copy that let F1 (issue
+    // #4239) drift out of sync in the first place. What remains is genuinely plugin-specific: the
+    // shaft-question JSON protocol (SHAFT_OPTIONS_HINT), the session-lifetime constraint that a
+    // recording tool call cannot outlive this turn, and the SHAFT-syntax/no-raw-Selenium output
+    // rules P2.1 does not state.
+    private static final String SHAFT_MCP_USAGE_HINT_LOCAL_AGENT =
+            """
+                    If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
+                    Never start an interactive user-driven recording (capture_start, which dispatches to whichever engine -- WebDriver, Playwright, or mobile -- is active): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
+                    A scripted capture_start session (its optional nested codegenOptions carries the full Playwright-codegen-compatible request) that you drive and capture_stop within this same turn is allowed.
+                    Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                    Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
+                    For repeated search-result anchors, scope the locator to the first result container; for Wikipedia use By.id("searchInput") for the search box and `(//div[contains(@class,'mw-search-result-heading')])[1]//a` for the first result.
+                    """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
+    // Issue #4239 P2.2: kept in full (identical to the pre-split SHAFT_MCP_USAGE_HINT) for the
+    // cloud-chat path (autobot_provider_chat / AutobotService.runProviderChat), which is a plain
+    // text-completion call with no MCP handshake at all -- unlike the local-agent CLI path above,
+    // cloud providers never receive spring.ai.mcp.server.instructions (P2.1) through any channel, so
+    // this remains their only copy of the locator policy and tool routing. Do NOT trim this back to
+    // match SHAFT_MCP_USAGE_HINT_LOCAL_AGENT; that would silently drop guidance cloud users have no
+    // other way to receive. A future P2.3 build-time consistency check must cover this constant
+    // against shaft-skills/ in addition to the P2.1 instructions properties.
+    private static final String SHAFT_MCP_USAGE_HINT_CLOUD =
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
@@ -100,7 +127,34 @@ final class AssistantCommand {
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for Wikipedia use By.id("searchInput") for the search box and `(//div[contains(@class,'mw-search-result-heading')])[1]//a` for the first result.
                     """.stripIndent().trim() + "\n" + SHAFT_OPTIONS_HINT;
-    private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
+    // Issue #4239 P2.2: same split as above. The ordering (record -> confirm-replay -> generate ->
+    // verify) and per-surface tool routing bullets below are dropped from the local-agent variant --
+    // the local CLI gets them from the P2.1 MCP instructions channel instead. POM structure, fluent
+    // style, URL-confirmation, and output-formatting rules stay: P2.1's instructions do not state
+    // any of those, on either path.
+    private static final String SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT =
+            """
+                    This is a code-generation request. Before returning Java:
+                    - Call shaft_guide_search for the relevant SHAFT guide examples and cite the official guide URLs.
+                    - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
+                    - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
+                    - Reuse existing tests, page objects, locator fields, and action methods first.
+                    - MUST follow the Page Object Model: one Page Object Model class per described flow, holding all locators and action methods, matching this project's existing package/module layout and SHAFT syntax; do not put driver.element()/locator calls directly in a @Test method body -- extract them into a page class. Keep the returned code minimal and project-structure-compliant; do not repeat this guidance text back to the user or paste unrelated boilerplate.
+                    - Write in SHAFT's fluent design and action chaining style: chain calls on the same element/actions object (for example driver.element().click(locator).type(otherLocator, "value")) instead of a separate statement per action; only break the chain when the next step needs a different receiver.
+                    - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
+                    - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
+                    - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
+                    - Do not publish locators as verified unless a live browser session actually checked them.
+                    - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
+                    - Call test_code_guardrails_check on the final Java snippet.
+                    - Do not print full repository files or broad file dumps. Cite inspected files by path and include only the generated or changed code needed for the answer.
+                    - Put every code snippet in fenced code blocks with the correct language.
+                    - Return only SHAFT-syntax Java; never return raw Selenium code.
+                    """.stripIndent().trim();
+    // Issue #4239 P2.2: kept in full (identical to the pre-split SHAFT_CODEGEN_TOOL_GUIDANCE) for
+    // the same reason as SHAFT_MCP_USAGE_HINT_CLOUD above -- cloud chat never receives the P2.1 MCP
+    // instructions, so this is its only copy of the ordering and tool-routing guidance. Do NOT trim.
+    private static final String SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD =
             """
                     This is a code-generation request. Before returning Java:
                     - Call shaft_guide_search for the relevant SHAFT guide examples and cite the official guide URLs.
@@ -829,8 +883,8 @@ final class AssistantCommand {
         if (!isCodeGenerationRequest(text)) {
             return withConversationContext(SHAFT_OPTIONS_HINT + "\n\n" + text, conversationContext);
         }
-        return withConversationContext(SHAFT_MCP_USAGE_HINT
-                + "\n" + codeGenerationGuidance(text)
+        return withConversationContext(SHAFT_MCP_USAGE_HINT_CLOUD
+                + "\n" + codeGenerationGuidance(text, true)
                 + "\n" + codeRequestScope(Selection.normalize(mode, "ASK"), openFileContext)
                 + "\n\n" + text, conversationContext);
     }
@@ -2651,6 +2705,10 @@ final class AssistantCommand {
         return arguments;
     }
 
+    // Issue #4239 P2.2: approvedCaptureIntegration/this prompt is local-agent-CLI-only (it rejects
+    // cloud selections above), so the locator-policy sentence this used to repeat here for a third
+    // time (issue #4239 P0.1b) is dropped rather than re-fixed again -- that CLI session is an MCP
+    // client of shaft-mcp and already receives it via the P2.1 `instructions` channel.
     private static String captureIntegrationPrompt(String reviewMarkdown, String rawCodegenResult) {
         return """
                 The user approved the reviewed SHAFT Capture code. Create the actual Java test files now.
@@ -2665,7 +2723,6 @@ final class AssistantCommand {
                 - Inspect the current project structure before editing.
                 - Move stable locators into page object classes.
                 - Move replay actions into intent-named page methods.
-                - Do not use SHAFT.GUI.Locator.xpath; build locators with the SHAFT locator builder's ARIA-role strategy, SHAFT.GUI.Locator.hasRole(...), falling back to native By.xpath(...) only when the element exposes no ARIA role.
                 - Keep the TestNG test focused on scenario orchestration and final assertions.
                 - Do not duplicate existing locators, page actions, tests, or classes.
                 - Preserve the recorded browser journey; do not collapse it to only opening the start page or a generic title check.
@@ -2712,9 +2769,9 @@ final class AssistantCommand {
         String normalizedMode = Selection.normalize(mode, "ASK");
         boolean agentMode = "AGENT".equals(normalizedMode);
         boolean codeGenerationRequest = isCodeGenerationRequest(text);
-        String hint = SHAFT_MCP_USAGE_HINT
+        String hint = SHAFT_MCP_USAGE_HINT_LOCAL_AGENT
                 + (codeGenerationRequest
-                ? "\n" + codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
+                ? "\n" + codeGenerationGuidance(text, false) + "\n" + codeRequestScope(normalizedMode, openFileContext)
                 : "");
         // The user already mentioning "shaft-mcp" themselves makes the "use shaft-mcp for browser
         // tasks" boilerplate redundant, but the shaft-options hint is unrelated to that -- it must
@@ -2722,7 +2779,7 @@ final class AssistantCommand {
         // silently loses its clickable-options chip UI (a real user report).
         String withHint = lower.contains("shaft-mcp")
                 ? (codeGenerationRequest
-                ? codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
+                ? codeGenerationGuidance(text, false) + "\n" + codeRequestScope(normalizedMode, openFileContext)
                 + "\n" + SHAFT_OPTIONS_HINT + "\n\n" + text
                 : SHAFT_OPTIONS_HINT + "\n\n" + text)
                 : hint + "\n\n" + text;
@@ -2837,8 +2894,10 @@ final class AssistantCommand {
      * deterministically short-circuited into a bare {@code capture_start} that opens a browser and
      * silently drops the rest of the description (the assertion, the generated test). Routing this
      * intent through {@link #isCodeGenerationRequest} instead sends it to the underlying agent with
-     * {@link #SHAFT_CODEGEN_TOOL_GUIDANCE}'s full record -&gt; act -&gt; stop -&gt; codegen -&gt;
-     * self-heal pipeline, matching what the description actually asked for.
+     * the full record -&gt; act -&gt; stop -&gt; codegen -&gt; self-heal pipeline, matching what the
+     * description actually asked for -- stated in {@link #SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD} for
+     * cloud chat, and delivered to local-agent CLI runs via the P2.1 MCP {@code instructions}
+     * channel instead of {@link #SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT} (issue #4239 P2.2).
      *
      * <p>{@link #isStartRecording}/{@link #isRecordScenarioIntent}/{@link #isReRecord} are
      * excluded so the narrow, deliberately exact-match deterministic triggers they own (issue
@@ -2915,10 +2974,15 @@ final class AssistantCommand {
                 "generated code");
     }
 
-    private static String codeGenerationGuidance(String text) {
+    // Issue #4239 P2.2: {@code cloud} selects which half of the SHAFT_MCP_USAGE_HINT_*/
+    // SHAFT_CODEGEN_TOOL_GUIDANCE_* split (see their declarations) this call site needs -- cloudPrompt
+    // passes true (no MCP instructions channel, keep the full policy text), localAgentPrompt passes
+    // false (the spawned CLI is an MCP client and gets that content from P2.1 instead).
+    private static String codeGenerationGuidance(String text, boolean cloud) {
+        String base = cloud ? SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD : SHAFT_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT;
         return shouldUseLiveCodegenTools(text)
-                ? SHAFT_CODEGEN_TOOL_GUIDANCE + "\n" + SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE
-                : SHAFT_CODEGEN_TOOL_GUIDANCE;
+                ? base + "\n" + SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE
+                : base;
     }
 
     private static boolean shouldUseLiveCodegenTools(String text) {
