@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/gbrain-remote-mcp-query-needs-explicit-source-id-shaft-engine-default-and-all-return-empty.md",
-  "content_hash": "sha256:7f98836aa8e755d313d0624c1d8ad71179c76b3d8d9e871579c280cf49e04c39",
+  "content_hash": "sha256:79868e955a7df3a9ea39ee57dbbad7a3e8e7e17be257cd40d0c69a93dfccbe92",
   "created_at": "2026-07-18T02:55:15+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "research gbrain reliability vs obsidian; vendor caveman; karpathy skills; act-as-fable arch-decision rule; issue #3709 budget"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
   "tags": [
     "gbrain",
     "retrieval",
@@ -27,5 +28,5 @@
   ],
   "title": "gbrain remote MCP query needs explicit source_id shaft-engine; default and __all__ return empty",
   "type": "gotcha",
-  "updated_at": "2026-07-18T02:55:15+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

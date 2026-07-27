@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/gbrain-serve-mcp-session-lock-another-live-claude-code-session-can-hold-it-not-just-autopilot-self.md",
-  "content_hash": "sha256:77b0dbeef983695a1262b3c55c09a550e961edfeee9eaff5a71f354968590ba8",
+  "content_hash": "sha256:b14b7759b0f55efd7e053847e81d26f87a2937b1b1b16158e7f1a7233d390f94",
   "created_at": "2026-07-17T15:52:32+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "Fix gbrain SLUG_MISMATCH blocking shaft-userguide indexing, close issue #3618"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
   "tags": [
     "gbrain",
     "pglite",
@@ -27,5 +28,5 @@
   ],
   "title": "gbrain serve MCP session lock: another live Claude Code session can hold it, not just autopilot/self",
   "type": "gotcha",
-  "updated_at": "2026-07-17T15:52:32+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/gbrain-full-code-strategy-sync-needs-no-hard-deadline-on-repos-this-size.md",
-  "content_hash": "sha256:3d36b11a785304df9ce8ad2a3906af7ea3328a72e00e2849a99b793e8594acec",
+  "content_hash": "sha256:5fa1429052be3cebd26bfbb909fe84c8e1eda9fbe3dfe3069565384cb0b9d529",
   "created_at": "2026-07-16T20:45:38+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "Complete gbrain implementation and headroom evaluation/setup; capture durable outcomes for both"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
   "tags": [
     "gbrain",
     "sync",
@@ -26,5 +27,5 @@
   ],
   "title": "gbrain full code-strategy sync needs --no-hard-deadline on repos this size",
   "type": "gotcha",
-  "updated_at": "2026-07-16T20:45:38+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

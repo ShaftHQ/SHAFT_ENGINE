@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/bash-tool-working-directory-persists-across-calls-always-cd-explicitly-when-juggling-worktrees.md",
-  "content_hash": "sha256:1d9c860bc7a1b1969ffc5f88098887a4ce41e74f57a5cc7381489c650510a9f0",
+  "content_hash": "sha256:edf360a69361f1c34fc2e4f324bf3fa82db68c35c89588a5916f966e3488b056",
   "created_at": "2026-07-18T20:53:22+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "Bash tool working directory persists across calls -- always cd explicitly when juggling worktrees",
   "type": "gotcha",
-  "updated_at": "2026-07-18T20:53:22+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/orchestrator-shell-cwd-persists-bare-cd-into-a-delegate-worktree-hijacks-its-head-on-later-git-commands.md",
-  "content_hash": "sha256:40c927b216089c88479f615dbf86600aa1e896f3c780295720f6fd319ae612f0",
+  "content_hash": "sha256:cec3a1313363701ab45fca57bb921eb6b5ce5402ad109b41e6b34dd921b79019",
   "created_at": "2026-07-21T09:38:51+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "close-all-issues + release babysit session 2026-07-21"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "gotcha.bash-tool-working-directory-persists-across-calls-always-cd-explicitly-when-juggling-worktrees",
   "tags": [
     "git",
     "worktree",
@@ -27,5 +28,5 @@
   ],
   "title": "Orchestrator shell cwd persists: bare cd into a delegate worktree hijacks its HEAD on later git commands",
   "type": "gotcha",
-  "updated_at": "2026-07-21T09:38:51+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

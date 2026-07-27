@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/gbrain-slug-mismatch-blocks-83-shaft-userguide-pages-extract-needs-source-db-on-db-only-brains.md",
-  "content_hash": "sha256:adce2f7a96f8ae77d709dbc383ed094b1f2f3b4882665a409e49090b47535830",
+  "content_hash": "sha256:6772c00672988def851c324c5f91a4764772de1b4bdcbb7e69b38f580b12bcc4",
   "created_at": "2026-07-16T22:08:23+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "gbrain/headroom infra hardening + agent-guidance optimization session 2026-07-16 (PR #3617, docs PR 780, issue #3618)"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
   "tags": [
     "gbrain",
     "docusaurus",
@@ -27,5 +28,5 @@
   ],
   "title": "gbrain SLUG_MISMATCH blocks 83 shaft-userguide pages; extract needs --source db on DB-only brains",
   "type": "gotcha",
-  "updated_at": "2026-07-16T22:08:23+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

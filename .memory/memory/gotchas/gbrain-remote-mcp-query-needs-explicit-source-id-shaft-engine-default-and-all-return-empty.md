@@ -1,1 +1,5 @@
+SUPERSEDED 2026-07-27 memory-hygiene cleanup: gbrain was fully uninstalled 2026-07-18 (see decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision) -- this describes operational quirks of a tool that no longer exists in this environment. Kept as historical record, not deleted. Original text preserved below.
+
+---
+
 Over the remote gbrain MCP transport, mcp__gbrain__query / search / list_pages / get_page silently return [] unless you pass source_id shaft-engine (the exact source name). Root cause: whoami fails unknown_transport (ctx.auth not threaded for remote callers), so the remote caller has no default source grant and __all__ (grant-scoped for remote) spans nothing; content lives under named sources shaft-engine (1437 pages) and shaft-userguide (183), while default has ~1 page. Verified 2026-07-18: the same query returns [] with no source_id or __all__, but 5 hits at 0.87-0.91 with source_id shaft-engine. The search (keyword) tool has no source_id param and cannot be scoped, so use query with source_id for reliable retrieval. resolve_slugs and sources_list are not source-scoped and work regardless.

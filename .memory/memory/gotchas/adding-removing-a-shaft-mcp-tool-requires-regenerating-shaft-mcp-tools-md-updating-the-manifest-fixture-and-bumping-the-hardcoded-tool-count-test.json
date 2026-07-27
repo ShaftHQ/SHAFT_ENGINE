@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/adding-removing-a-shaft-mcp-tool-requires-regenerating-shaft-mcp-tools-md-updating-the-manifest-fixture-and-bumping-the-hardcoded-tool-count-test.md",
-  "content_hash": "sha256:4f3509361b7631fd5a67e09a5f20c18db349d0e5a9b098ace7567f0fdadea58b",
+  "content_hash": "sha256:5e3044aeb312fa700a413462b7c9f184fa3cb50f8fd668eb92e61d3018491c21",
   "created_at": "2026-07-15T11:52:04+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "Adding or removing a shaft-mcp @Tool has drift-gate + manifest + tool-count obligations"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync",
   "tags": [
     "mcp",
     "shaft-mcp",
@@ -28,5 +29,5 @@
   ],
   "title": "Adding/removing a shaft-mcp @Tool requires regenerating shaft-mcp-tools.md, updating the manifest fixture, and bumping the hardcoded tool-count test",
   "type": "gotcha",
-  "updated_at": "2026-07-15T11:52:04+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

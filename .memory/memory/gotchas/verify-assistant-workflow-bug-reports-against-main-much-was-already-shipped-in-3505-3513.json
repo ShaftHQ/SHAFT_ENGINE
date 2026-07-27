@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/verify-assistant-workflow-bug-reports-against-main-much-was-already-shipped-in-3505-3513.md",
-  "content_hash": "sha256:46422b478a9209b7c8ecea05bc0b021cc99884e1a0a40ab1c701d2dfe3ce1d25",
+  "content_hash": "sha256:cbbfdb0067ec6956145abc0b40eff0b134382fa52951928abf33b97075d135c2",
   "created_at": "2026-07-14T15:55:31+03:00",
   "evidence": [
     {
@@ -22,9 +22,9 @@
     "kind": "agent",
     "task": "IntelliJ initial->recorder->codegen end-user workflow audit (2026-07-14 close-all-open-issues loop)"
   },
-  "status": "active",
+  "status": "stale",
   "tags": [],
   "title": "Verify Assistant workflow bug reports against main -- much was already shipped in #3505/#3513",
   "type": "gotcha",
-  "updated_at": "2026-07-14T15:55:31+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }

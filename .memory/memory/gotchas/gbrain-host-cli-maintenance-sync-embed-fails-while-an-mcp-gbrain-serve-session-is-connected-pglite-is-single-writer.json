@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/gbrain-host-cli-maintenance-sync-embed-fails-while-an-mcp-gbrain-serve-session-is-connected-pglite-is-single-writer.md",
-  "content_hash": "sha256:6fe8fc83f1fd9fa3b38ca0ea72059a9f711f297294f92cbbc4934e37ed142ff9",
+  "content_hash": "sha256:6c16ef71112f12c5beb13644517fb981af310f5c1cd717a9b846bac450badf0a",
   "created_at": "2026-07-18T07:46:21+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "Issue #3708 brain_score remediation follow-up"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
   "tags": [
     "gbrain",
     "gotcha",
@@ -27,5 +28,5 @@
   ],
   "title": "gbrain host CLI maintenance (sync/embed) fails while an MCP `gbrain serve` session is connected -- PGLite is single-writer",
   "type": "gotcha",
-  "updated_at": "2026-07-18T07:46:21+03:00"
+  "updated_at": "2026-07-27T20:27:35+03:00"
 }
