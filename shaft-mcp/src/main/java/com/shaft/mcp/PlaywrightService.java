@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.microsoft.playwright.Page;
+import com.shaft.capture.generate.LocatorPolicy;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.driver.ShaftLocator;
 import org.openqa.selenium.By;
@@ -423,62 +424,63 @@ public class PlaywrightService {
      * Clicks a Playwright element.
      */
     public McpMobileActionResult click(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().click(locator));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().click(locator));
         return recordLocator("click", locatorStrategy, locatorValue,
-                "driver.element().click(" + locatorCode(locatorStrategy, locatorValue) + ");", false);
+                "driver.element().click(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
     }
 
     /**
      * Clicks a Playwright element using JavaScript.
      */
     public McpMobileActionResult clickUsingJavaScript(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clickUsingJavascript(locator));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clickUsingJavascript(locator));
         return recordLocator("click_js", locatorStrategy, locatorValue,
-                "driver.element().clickUsingJavascript(" + locatorCode(locatorStrategy, locatorValue) + ");", false);
+                "driver.element().clickUsingJavascript(" + locatorCode(locatorStrategy, locatorValue) + ");", false,
+                evidence);
     }
 
     /**
      * Double-clicks a Playwright element.
      */
     public McpMobileActionResult doubleClick(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().doubleClick(locator));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().doubleClick(locator));
         return recordLocator("double_click", locatorStrategy, locatorValue,
-                "driver.element().doubleClick(" + locatorCode(locatorStrategy, locatorValue) + ");", false);
+                "driver.element().doubleClick(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
     }
 
     /**
      * Hovers over a Playwright element.
      */
     public McpMobileActionResult hover(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().hover(locator));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().hover(locator));
         return recordLocator("hover", locatorStrategy, locatorValue,
-                "driver.element().hover(" + locatorCode(locatorStrategy, locatorValue) + ");", false);
+                "driver.element().hover(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
     }
 
     /**
      * Types into a Playwright element.
      */
     public McpMobileActionResult type(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().type(locator, textValue));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().type(locator, textValue));
         String code = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"" + javaString(textValue) + "\");";
         String redacted = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"<redacted>\");";
         return recordLocator("type", locatorStrategy, locatorValue, code, redacted, true,
-                Map.of("value", text(textValue)));
+                Map.of("value", text(textValue)), evidence);
     }
 
     /**
      * Appends text to a Playwright element.
      */
     public McpMobileActionResult appendText(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeAppend(locator, textValue));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeAppend(locator, textValue));
         String code = "driver.element().typeAppend(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"" + javaString(textValue) + "\");";
         String redacted = "driver.element().typeAppend(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"<redacted>\");";
         return recordLocator("append_text", locatorStrategy, locatorValue, code, redacted, true,
-                Map.of("value", text(textValue)));
+                Map.of("value", text(textValue)), evidence);
     }
 
     /**
@@ -488,33 +490,33 @@ public class PlaywrightService {
             locatorStrategy locatorStrategy,
             String locatorValue,
             String textValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().setValueUsingJavaScript(locator, textValue));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().setValueUsingJavaScript(locator, textValue));
         String code = "driver.element().setValueUsingJavaScript(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"" + javaString(textValue) + "\");";
         String redacted = "driver.element().setValueUsingJavaScript(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"<redacted>\");";
         return recordLocator("set_value_js", locatorStrategy, locatorValue, code, redacted, true,
-                Map.of("value", text(textValue)));
+                Map.of("value", text(textValue)), evidence);
     }
 
     /**
      * Clears a Playwright element.
      */
     public McpMobileActionResult clear(locatorStrategy locatorStrategy, String locatorValue) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clear(locator));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clear(locator));
         return recordLocator("clear", locatorStrategy, locatorValue,
-                "driver.element().clear(" + locatorCode(locatorStrategy, locatorValue) + ");", false);
+                "driver.element().clear(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
     }
 
     /**
      * Uploads a file through a Playwright file input.
      */
     public McpMobileActionResult uploadFile(locatorStrategy locatorStrategy, String locatorValue, String filePath) {
-        withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeFileLocationForUpload(locator, filePath));
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeFileLocationForUpload(locator, filePath));
         String code = "driver.element().typeFileLocationForUpload(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"" + javaString(filePath) + "\");";
         return recordLocator("upload_file", locatorStrategy, locatorValue, code, false,
-                Map.of("value", text(filePath)));
+                Map.of("value", text(filePath)), evidence);
     }
 
     /**
@@ -639,8 +641,9 @@ public class PlaywrightService {
             locatorStrategy locatorStrategy,
             String locatorValue,
             String javaCode,
-            boolean sensitive) {
-        return record(action, locatorStrategy, locatorValue, Map.of(), javaCode, sensitive);
+            boolean sensitive,
+            LocatorEvidence evidence) {
+        return record(action, locatorStrategy, locatorValue, Map.of(), javaCode, javaCode, sensitive, evidence);
     }
 
     private McpMobileActionResult recordLocator(
@@ -649,8 +652,9 @@ public class PlaywrightService {
             String locatorValue,
             String javaCode,
             boolean sensitive,
-            Map<String, String> parameters) {
-        return record(action, locatorStrategy, locatorValue, parameters, javaCode, sensitive);
+            Map<String, String> parameters,
+            LocatorEvidence evidence) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, javaCode, sensitive, evidence);
     }
 
     private McpMobileActionResult recordLocator(
@@ -660,8 +664,9 @@ public class PlaywrightService {
             String javaCode,
             String redactedJavaCode,
             boolean sensitive,
-            Map<String, String> parameters) {
-        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive);
+            Map<String, String> parameters,
+            LocatorEvidence evidence) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive, evidence);
     }
 
     private McpMobileActionResult record(
@@ -671,7 +676,8 @@ public class PlaywrightService {
             Map<String, String> parameters,
             String javaCode,
             boolean sensitive) {
-        return record(action, locatorStrategy, locatorValue, parameters, javaCode, javaCode, sensitive);
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, javaCode, sensitive,
+                LocatorEvidence.UNVERIFIED);
     }
 
     private McpMobileActionResult record(
@@ -682,6 +688,26 @@ public class PlaywrightService {
             String javaCode,
             String redactedJavaCode,
             boolean sensitive) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive,
+                LocatorEvidence.UNVERIFIED);
+    }
+
+    /**
+     * Records a Playwright action together with the live-DOM evidence {@link #withLocator} computed
+     * against the real driver at the moment the action executed (issue #4273): a real live-element
+     * count and a real stable signal, instead of {@link McpPlaywrightRecordingService}'s pre-existing
+     * unverified {@code 0}/{@code false} default that every non-locator action (navigation, window
+     * management, etc.) still reports via the overloads above.
+     */
+    private McpMobileActionResult record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            LocatorEvidence evidence) {
         McpMobileRecordedAction recorded = recorder.record(
                 action,
                 locatorStrategy,
@@ -689,7 +715,9 @@ public class PlaywrightService {
                 parameters,
                 javaCode,
                 redactedJavaCode,
-                sensitive);
+                sensitive,
+                evidence.uniquenessCount(),
+                evidence.stable());
         List<String> warnings = actionWarnings(action, locatorStrategy, recorded);
         return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
                 warnings);
@@ -728,10 +756,44 @@ public class PlaywrightService {
                 List.of());
     }
 
-    private void withLocator(locatorStrategy locatorStrategy, String locatorValue, LocatorOperation operation) {
-        operation.execute(getLocator(locatorStrategy, locatorValue));
+    /**
+     * Resolves and executes {@code operation} against the live Playwright driver, computing real
+     * live-DOM {@link LocatorEvidence} for the target locator before the action runs (issue #4273).
+     * Evidence is captured before, not after, the operation executes: a click can navigate away or
+     * remove the element, so counting matches only afterward would no longer describe what was
+     * actually clicked.
+     */
+    private LocatorEvidence withLocator(locatorStrategy strategy, String locatorValue, LocatorOperation operation) {
+        By locator = getLocator(strategy, locatorValue);
+        LocatorEvidence evidence = evidenceFor(strategy, locatorValue, locator);
+        operation.execute(locator);
         logger.info("Playwright element operation completed (strategy: {}, locator length: {})",
-                locatorStrategy, locatorValue == null ? 0 : locatorValue.length());
+                strategy, locatorValue == null ? 0 : locatorValue.length());
+        return evidence;
+    }
+
+    /**
+     * Computes real live-DOM evidence for one locator: {@code uniquenessCount} from the live element
+     * count, and {@code stable} from {@code LocatorPolicy.looksAutoGenerated} for {@code ID}-strategy
+     * locators (the only strategy {@code LocatorPolicy}'s tier 1 actually consults {@code stable}
+     * for). Every other strategy reports {@code stable=false}: unverified, matching this surface's
+     * pre-existing honest-refusal default -- {@code uniquenessCount} is still the real live count so
+     * a future tier can consult it.
+     */
+    private LocatorEvidence evidenceFor(locatorStrategy strategy, String locatorValue, By locator) {
+        int uniquenessCount = getDriver().element().getElementsCount(locator);
+        boolean stable = strategy == locatorStrategy.ID
+                && !LocatorPolicy.looksAutoGenerated(text(locatorValue));
+        return new LocatorEvidence(uniquenessCount, stable);
+    }
+
+    /**
+     * Live-DOM evidence for one recorded locator (issue #4273). {@link #UNVERIFIED} is used for
+     * every action with no live locator to check (navigation, window management, drag-and-drop by
+     * offset, etc.), matching the honest-refusal default this surface has always reported for those.
+     */
+    private record LocatorEvidence(int uniquenessCount, boolean stable) {
+        static final LocatorEvidence UNVERIFIED = new LocatorEvidence(0, false);
     }
 
     private com.microsoft.playwright.Locator locator(locatorStrategy locatorStrategy, String locatorValue) {

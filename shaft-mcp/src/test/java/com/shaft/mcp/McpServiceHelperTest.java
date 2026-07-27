@@ -114,7 +114,9 @@ class McpServiceHelperTest {
                 Map.of("value", "<redacted>"),
                 "driver.element().type(SHAFT.GUI.Locator.id(\"username\"), \"<redacted>\");",
                 false,
-                null);
+                null,
+                0,
+                false);
 
         InvocationTargetException failure = assertThrows(InvocationTargetException.class,
                 () -> invokeStatic(

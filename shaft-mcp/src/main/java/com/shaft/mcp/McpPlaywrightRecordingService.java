@@ -176,6 +176,31 @@ final class McpPlaywrightRecordingService {
             String javaCode,
             String redactedJavaCode,
             boolean sensitive) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive,
+                0, false);
+    }
+
+    /**
+     * Records a Playwright action together with the live-DOM evidence {@link PlaywrightService}
+     * computed at the moment it executed (issue #4273): a real count of matching live elements and
+     * a real stable signal, instead of the unverified {@code 0}/{@code false} the 7-arg overload
+     * above still reports for actions with no live locator (navigation, window management, etc.).
+     *
+     * @param uniquenessCount number of live elements the recorded locator matched, or {@code 0} when
+     *         not applicable/unverified
+     * @param stable whether the recorded locator looks human-authored rather than framework-generated
+     * @return the recorded action, or {@code null} when no recording is active
+     */
+    synchronized McpMobileRecordedAction record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            int uniquenessCount,
+            boolean stable) {
         if (recording == null) {
             return null;
         }
@@ -200,7 +225,9 @@ final class McpPlaywrightRecordingService {
                 safeParameters,
                 sensitiveStored ? javaCode : redactedJavaCode,
                 sensitiveStored,
-                warnings);
+                warnings,
+                uniquenessCount,
+                stable);
         List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
         actions.add(recorded);
         recording = new McpMobileRecording(
