@@ -141,7 +141,13 @@ public class CaptureService {
                     + "or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested "
                     + "codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args "
                     + "with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, "
-                    + "etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only")
+                    + "etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only. IMPORTANT: this "
+                    + "tool takes no engine/platform argument of its own -- with no active session (the "
+                    + "default), it ALWAYS launches a desktop Chrome/Edge browser, never a mobile app, even "
+                    + "when the caller's intent is to record on a mobile device or emulator; to record a "
+                    + "mobile app, call driver_initialize(engine=mobile_native) or "
+                    + "driver_initialize(engine=mobile_web) FIRST to make that engine active, then call "
+                    + "capture_start (with no WEB-only args) so it dispatches to the mobile recorder instead")
     public McpCaptureUnionStatus start(
             @ToolParam(required = false, description = "initial http, https, or file URL; blank opens an empty browser; WEB/NONE only")
             String targetUrl,
@@ -979,14 +985,31 @@ public class CaptureService {
             @McpToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
                     + "blank uses the most recently modified recording under recordings/")
             String sessionPath,
+            @McpToolParam(required = false, description = "generated project root inside the MCP workspace; "
+                    + "blank defaults to generated-tests under the workspace")
             String outputDirectory,
+            @McpToolParam(required = false, description = "generated Java package; "
+                    + "blank defaults to generated.capture")
             String packageName,
+            @McpToolParam(required = false, description = "generated Java class name; "
+                    + "blank derives a name from the recorded session (its goal, or a seeded name), suffixed Test")
             String className,
+            @McpToolParam(required = false, description = "whether existing generated source and test-data files "
+                    + "may be replaced; status reports are always refreshed; defaults to false")
             boolean overwrite,
+            @McpToolParam(required = false, description = "whether to compile AND execute the generated test, "
+                    + "replay-proving it: true is required for the report status to be SUCCESS (the replay "
+                    + "actually passed); false -- or any replay that never runs, e.g. after a compilation failure "
+                    + "-- yields codegen-only output the report marks UNCONFIRMED, never SUCCESS; defaults to false")
             boolean replay,
+            @McpToolParam(required = false, description = "whether to request optional AI enrichment preview")
             boolean useAi,
+            @McpToolParam(required = false, description = "explicit approval for local inference")
             boolean allowLocalAi,
+            @McpToolParam(required = false, description = "explicit approval for remote inference")
             boolean allowRemoteAi,
+            @McpToolParam(required = false, description = "Java driver variable name used in extracted snippets; "
+                    + "blank defaults to driver")
             String driverVariableName,
             @McpToolParam(required = false, description = "codegen target: web (default) | playwright | mobile; "
                     + "blank infers from the active engine")

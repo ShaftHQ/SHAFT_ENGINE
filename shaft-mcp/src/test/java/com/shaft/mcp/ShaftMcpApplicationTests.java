@@ -378,6 +378,45 @@ class ShaftMcpApplicationTests {
     }
 
     /**
+     * Issue #4239 P0.3 (finding F7): {@code capture_generate_replay}'s {@code replay} parameter (and
+     * several sibling parameters on the same {@code @McpTool}-annotated overload) carried no {@code
+     * @McpToolParam}, so the served schema exposed them with no description at all -- an LLM caller
+     * had no signal that {@code replay=true} is what makes the output replay-proven (report status
+     * {@code SUCCESS} only once the generated test actually passed), while {@code replay=false} (or
+     * any skipped/failed replay) yields codegen-only output the report marks {@code UNCONFIRMED},
+     * never {@code SUCCESS} (see {@code CaptureGenerator.java}'s status derivation and {@code
+     * CaptureGenerationReport.Status}). Asserts the live-served schema -- not just the source
+     * annotations -- carries that semantics for {@code replay} and a real description for every
+     * other previously-unannotated parameter on this method.
+     */
+    @Test
+    void captureGenerateReplaySchemaDocumentsReplayProofSemanticsForEveryParameter() throws Exception {
+        McpSchema.Tool tool = annotationScannedToolSpecs().stream()
+                .filter(spec -> spec.tool().name().equals("capture_generate_replay"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("capture_generate_replay is not annotation-scanned"))
+                .tool();
+        JsonNode properties = new ObjectMapper().valueToTree(tool.inputSchema()).path("properties");
+
+        JsonNode replay = properties.path("replay");
+        assertTrue(replay.has("description"),
+                "capture_generate_replay's replay parameter has no description: " + properties);
+        String replayDescription = replay.path("description").asText();
+        assertTrue(replayDescription.contains("SUCCESS"),
+                "replay description must state true is what makes the output replay-proven (status SUCCESS): "
+                        + replayDescription);
+        assertTrue(replayDescription.contains("UNCONFIRMED"),
+                "replay description must state false yields codegen-only output reported as UNCONFIRMED: "
+                        + replayDescription);
+
+        for (String param : List.of("outputDirectory", "packageName", "className", "overwrite", "useAi",
+                "allowLocalAi", "allowRemoteAi", "driverVariableName")) {
+            assertTrue(properties.path(param).has("description"),
+                    "capture_generate_replay's " + param + " parameter has no description: " + properties);
+        }
+    }
+
+    /**
      * Issue #3986: Spring AI 2.0.0 emits {@code requiredByDefault=true} for @Tool parameter POJOs,
      * so {@link com.shaft.capture.runtime.NetworkCaptureOptions}'s six unannotated public fields
      * were all schema-required -- rejecting any caller (including the curated
