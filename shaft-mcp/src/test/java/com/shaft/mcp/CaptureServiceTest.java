@@ -724,9 +724,18 @@ class CaptureServiceTest {
                 "Pay now",
                 "",
                 Map.of("type", "submit"),
+                // Issue #4239 P1.4a ladder (#4252): a plain XPATH candidate with no self-verified
+                // replayXpath is no longer ladder-eligible at all -- generation now hard-fails before
+                // ever reaching the brittle-locator review warning this fixture exists to exercise.
+                // A non-blank replayXpath clears rung 2, but the expression must stay relative
+                // ("//", not "/html/...") since GeneratedCodeGuardrails' ABSOLUTE_XPATH rule is an
+                // unconditional ERROR independent of ladder eligibility. Keeping the "[3]" index still
+                // trips CaptureGenerator's INDEXED_LOCATOR brittleness check, so this candidate remains
+                // exactly as brittle -- for the same reason -- as before, just not literally absolute.
                 List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
-                        "/html/body/div[3]/form/button[2]", 1, true, false,
-                        Set.of(LocatorCandidate.LocatorSignal.POSITIONAL))),
+                        "//div[3]/form/button[2]", 1, true, false,
+                        Set.of(LocatorCandidate.LocatorSignal.POSITIONAL),
+                        "//div[3]/form/button[2]")),
                 true,
                 true,
                 false);
