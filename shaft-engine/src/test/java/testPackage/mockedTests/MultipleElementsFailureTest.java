@@ -82,6 +82,11 @@ public class MultipleElementsFailureTest {
                 "Expected the disambiguation to wait out most of the " + SHORT_IDENTIFICATION_TIMEOUT_SECONDS
                         + "s identification timeout as a last resort, but it resolved after only "
                         + elapsedMillis + "ms.");
+        // proves WHICH button was actually clicked -- #save's `onclick` marker never fires because a
+        // native `disabled` button ignores click events entirely, so a silent no-op on #save would
+        // leave the title unchanged and fail this assertion, instead of passing as it would if this
+        // test only checked that "some click succeeded".
+        Assert.assertEquals(driver.get().browser().getCurrentWindowTitle(), "cancel-clicked");
     }
 
     @Test

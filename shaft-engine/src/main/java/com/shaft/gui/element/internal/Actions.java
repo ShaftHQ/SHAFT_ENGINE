@@ -522,10 +522,18 @@ public class Actions extends ElementActions {
                     // only when exactly one match is displayed and enabled (the rest are hidden/disabled
                     // decoys -- e.g. duplicated markup for different breakpoints); any other split (0, or
                     // 2+, displayed-and-enabled matches) still throws.
+                    int matchCountBeforeNarrowing = foundElements.get().size();
                     Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed.get()
                             ? uniqueDisplayedAndEnabledElement(foundElements.get())
                             : Optional.empty();
                     if (uniqueActionable.isPresent()) {
+                        // issue #4321: a real ambiguity was just auto-resolved -- trace it so a user
+                        // whose locator matches more than one element notices it, instead of the action
+                        // silently looking like an ordinary pass.
+                        ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
+                                + " matched " + matchCountBeforeNarrowing
+                                + " elements; auto-resolved to the only displayed and enabled one after the"
+                                + " identification timeout was exhausted.");
                         foundElements.set(List.of(uniqueActionable.get()));
                     } else {
                         throw new MultipleElementsFoundException();
@@ -647,10 +655,16 @@ public class Actions extends ElementActions {
                         // issue #4321: same last-resort-only narrowing as the initial lookup above --
                         // only auto-resolve when exactly one refreshed match is actually actionable, and
                         // only on the single post-timeout attempt (see comment on the initial lookup).
+                        int refreshedMatchCountBeforeNarrowing = foundElements.get().size();
                         Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed.get()
                                 ? uniqueDisplayedAndEnabledElement(foundElements.get())
                                 : Optional.empty();
                         if (uniqueActionable.isPresent()) {
+                            ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
+                                    + " matched " + refreshedMatchCountBeforeNarrowing
+                                    + " elements after lazy-loading settled; auto-resolved to the only"
+                                    + " displayed and enabled one after the identification timeout was"
+                                    + " exhausted.");
                             foundElements.set(List.of(uniqueActionable.get()));
                         } else {
                             throw new MultipleElementsFoundException();
