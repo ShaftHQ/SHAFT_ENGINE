@@ -31,7 +31,7 @@ No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`, `Start-Process`, `r
 
 ## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Retrieve: `memory load "<task>"`/`memory search`. Save durable decisions/gotchas/corrections with evidence; reuse IDs; no duplicates/diaries.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Retrieve: `memory load "<task>"`/`memory search`. Save durable decisions/gotchas/corrections with evidence; reuse IDs; no duplicates/diaries; title by decision, not ship event; short ids. Dead entries: delete, never stale-mark (#4287).
 
 Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> file it now (Working Rules). Nothing durable is a valid outcome -- say so.
 

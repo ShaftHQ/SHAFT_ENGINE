@@ -1000,7 +1000,8 @@ _SESSION_START_REMINDER = (
     "2. Always pass -DheadlessExecution=true for any Maven test run that can reach browser tests.\n"
     "3. Never run `allure serve`, `allure open`, or `allure:serve` -- generate reports, never auto-open them.\n"
     "4. One branch/worktree/PR per session; no GUI-open commands (Start-Process, Invoke-Item, rundll32, os.startfile, explorer, `start`, `cmd /c start`).\n"
-    "5. Methodology: act-as-mohab (.claude/skills/act-as-mohab) is binding for this session and must be embedded (Subagent covenant) in every delegated subagent prompt."
+    "5. Methodology: act-as-mohab (.claude/skills/act-as-mohab) is binding for this session and must be embedded (Subagent covenant) in every delegated subagent prompt.\n"
+    "6. Session entry: `memory load \"<task>\"` (repo .memory store) and the graphify cache (`python3 tools/repository-map/resolve_graph_out.py --check`) come BEFORE any manual discovery; save durable gotchas/decisions via `memory remember` the moment they are confirmed, not at session end."
 )
 
 
