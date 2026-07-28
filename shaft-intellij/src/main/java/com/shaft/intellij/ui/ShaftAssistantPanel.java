@@ -208,6 +208,17 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
     private final JButton configure;
+    /**
+     * Bordered chip wrapping {@link #currentAgentConfiguration} + {@link #configure} together so
+     * the "which agent is this / configure it" pair reads as one grouped unit in {@code routeRow}
+     * instead of two unstyled controls lost among the surrounding dropdowns (issue #4316). Mirrors
+     * the {@link #allowSourceMutationChip} idiom, but with a neutral tint (reusing
+     * {@link ShaftStatusPresentation#progress()}, the same informational tint already used for
+     * {@link #status}) since this pair is purely informational, not a high-stakes toggle. Its
+     * visibility must mirror both wrapped controls' shared {@code lockedRoute} gate in
+     * {@link #updateControlVisibility()} so it never renders as an empty chip.
+     */
+    private final JPanel currentAgentChip;
     private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
@@ -612,6 +623,21 @@ final class ShaftAssistantPanel extends JPanel {
         rerunLastPrompt.setEnabled(false);
         this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
         ShaftIconButtons.apply(this.configure, ShaftIcons.SETTINGS);
+        // Neutral informational tint (progress(), also used for the "status" label at #3601 B3.4) --
+        // distinct from allowSourceMutationChip's warning tint, which is deliberately alarming for a
+        // high-stakes toggle. This pair is just "which agent is this / configure it".
+        currentAgentChip = new JPanel(new BorderLayout(4, 0));
+        currentAgentChip.setOpaque(true);
+        currentAgentChip.setBackground(ShaftStatusPresentation.tint(
+                javax.swing.UIManager.getColor("Panel.background") == null
+                        ? java.awt.Color.WHITE
+                        : javax.swing.UIManager.getColor("Panel.background"),
+                ShaftStatusPresentation.progress(), 0.08D));
+        currentAgentChip.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
+                JBUI.Borders.empty(2, 6)));
+        currentAgentChip.add(currentAgentConfiguration, BorderLayout.CENTER);
+        currentAgentChip.add(this.configure, BorderLayout.EAST);
 
         mode.addActionListener(event -> onModeOrRouteSelectionChanged());
         providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
@@ -661,8 +687,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(providerType);
         routeRow.add(assistantFamily);
         routeRow.add(assistantRuntime);
-        routeRow.add(currentAgentConfiguration);
-        routeRow.add(configure);
+        routeRow.add(currentAgentChip);
         routeRow.add(customCommand);
         routeRow.add(cloudProvider);
         routeRow.add(cloudModel);
@@ -3195,6 +3220,10 @@ final class ShaftAssistantPanel extends JPanel {
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(currentAgentConfigurationText);
         currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
         currentAgentConfiguration.setVisible(lockedRoute);
+        // Chip has no state of its own; it only needs to stay in lockstep with the label's and
+        // configure button's own shared lockedRoute gate below so it never renders as an empty
+        // colored box (mirrors the allowSourceMutationChip comment at #3601 B3.4).
+        currentAgentChip.setVisible(lockedRoute);
         customCommand.setVisible(advanced && !lockedRoute && localCli);
         customCommand.setEnabled(controlsEnabled && advanced && !lockedRoute && localCli);
         cloudProvider.setVisible(advanced && !lockedRoute && cloud);
