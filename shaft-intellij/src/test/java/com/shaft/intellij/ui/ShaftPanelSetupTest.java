@@ -2611,6 +2611,37 @@ class ShaftPanelSetupTest {
         assertFalse(chooseAction.isVisible(), "Space toggles the row again, collapsing it back");
     }
 
+    @Test
+    void doneStepRowShowsADiscoverableRecheckIconThatReusesTheExistingToggle() throws Exception {
+        // Issue #4314 fix 4: a collapsed "done" row was already reconfigurable non-destructively by
+        // clicking it (toggleStepRowInspection/installRowInspectionToggle) -- but nothing on screen
+        // hinted it was clickable. A small recheck icon, visible only once the row is "done", makes
+        // that existing behavior discoverable; it must reuse the same toggle, never new logic.
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.agentLaneReady = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JPanel upgradeRow = (JPanel) getField(panel, "upgradeRow");
+        JButton chooseRecheck = findByAccessibleName(chooseRow, "Choose agent setup step recheck", JButton.class);
+        JButton upgradeRecheck = findByAccessibleName(upgradeRow, "Upgrade project setup step recheck", JButton.class);
+        JComponent chooseAction = stepRowAction(panel, chooseRow);
+
+        assertAll(
+                () -> assertNotNull(chooseRecheck, "a done row should carry a recheck icon"),
+                () -> assertTrue(chooseRecheck.isVisible(), "the icon is relevant once the row is done"),
+                () -> assertNotNull(upgradeRecheck, "every step row carries the icon"),
+                () -> assertFalse(upgradeRecheck.isVisible(), "...but it stays hidden outside the done state"),
+                () -> assertFalse(chooseAction.isVisible(), "row starts collapsed since a later step is active"));
+
+        chooseRecheck.doClick();
+        assertTrue(chooseAction.isVisible(), "clicking the recheck icon must reuse the existing row toggle");
+
+        chooseRecheck.doClick();
+        assertFalse(chooseAction.isVisible(), "clicking again collapses it back, same as clicking the row");
+    }
+
     private static JComponent stepRowAction(ShaftMcpSetupPanel panel, JPanel row) throws Exception {
         Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("stepRowAction", JPanel.class);
         method.setAccessible(true);

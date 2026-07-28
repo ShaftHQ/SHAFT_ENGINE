@@ -88,6 +88,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     /** Client-property key {@link #stepRow} stashes its action component under, so the row-collapse
      * logic (issue #3601 S2) can find and hide it without a dedicated field per row. */
     private static final String STEP_ACTION_KEY = "shaft.stepRow.action";
+    /** Client-property key {@link #stepRow} stashes its discoverable recheck icon under (issue
+     * #4314 fix 4), so {@link #styleStepRow} can show it only in the "done" state without a
+     * dedicated field per row. */
+    private static final String STEP_RECHECK_KEY = "shaft.stepRow.recheck";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -2205,7 +2209,7 @@ final class ShaftMcpSetupPanel extends JPanel {
      * content onto its own line sidesteps that degenerate case entirely: it always gets the row's
      * full width to itself.
      */
-    private static JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
+    private JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(true);
         GridBagConstraints labelConstraints = new GridBagConstraints();
@@ -2220,10 +2224,27 @@ final class ShaftMcpSetupPanel extends JPanel {
         stateConstraints.anchor = GridBagConstraints.WEST;
         stateConstraints.insets = JBUI.insets(0, 0, 0, 10);
         row.add(stateLabel, stateConstraints);
+        // Discoverable recheck affordance (issue #4314 fix 4): a collapsed "done" row was already
+        // reconfigurable non-destructively by clicking it (toggleStepRowInspection below), but
+        // nothing on screen hinted it was clickable. This icon -- only shown once the row is
+        // actually "done" (see styleStepRow) -- fires that exact same toggle, never new logic; a
+        // plain JButton is keyboard-reachable on its own via the normal Tab/Enter/Space contract, so
+        // it needs no extra key bindings of its own, and (being an opaque child component) consumes
+        // its own clicks without also triggering the whole-row MouseAdapter installed below.
+        JButton recheck = ShaftIconButtons.create("Recheck this step",
+                label.getAccessibleContext().getAccessibleName() + " recheck", ShaftIcons.RERUN,
+                event -> toggleStepRowInspection(row));
+        recheck.setVisible(false);
+        GridBagConstraints recheckConstraints = new GridBagConstraints();
+        recheckConstraints.gridx = 2;
+        recheckConstraints.gridy = 0;
+        recheckConstraints.anchor = GridBagConstraints.NORTHEAST;
+        recheckConstraints.weightx = 1.0;
+        row.add(recheck, recheckConstraints);
         GridBagConstraints actionConstraints = new GridBagConstraints();
         actionConstraints.gridx = 0;
         actionConstraints.gridy = 1;
-        actionConstraints.gridwidth = 2;
+        actionConstraints.gridwidth = 3;
         actionConstraints.anchor = GridBagConstraints.WEST;
         actionConstraints.fill = GridBagConstraints.HORIZONTAL;
         actionConstraints.weightx = 1.0;
@@ -2233,6 +2254,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
                 JBUI.Borders.empty(8, 10)));
         row.putClientProperty(STEP_ACTION_KEY, action);
+        row.putClientProperty(STEP_RECHECK_KEY, recheck);
         return row;
     }
 
@@ -2416,6 +2438,13 @@ final class ShaftMcpSetupPanel extends JPanel {
                     default -> UIManagerColors.border();
                 }, 1),
                 JBUI.Borders.empty(8, 10)));
+        // Issue #4314 fix 4: the recheck icon only signals something once there is something to
+        // recheck -- i.e. once the row has actually finished, matching the "done rows are the ones
+        // worth re-inspecting" behavior toggleStepRowInspection already assumes.
+        Object recheck = row.getClientProperty(STEP_RECHECK_KEY);
+        if (recheck instanceof JComponent recheckIcon) {
+            recheckIcon.setVisible("done".equals(state));
+        }
     }
 
     private static String escapeHtml(String text) {
