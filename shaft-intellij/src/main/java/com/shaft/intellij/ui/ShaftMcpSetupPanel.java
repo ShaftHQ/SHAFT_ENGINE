@@ -2173,16 +2173,24 @@ final class ShaftMcpSetupPanel extends JPanel {
                 default -> UIManagerColors.foreground();
             });
         }
+        // Issue #4314 fix 5: the "next" badge is blanked out entirely -- no text, no opaque pill
+        // background, no border -- since it looked like a clickable button but wasn't and added no
+        // signal beyond the "done" (green) transition + auto-expanding next row already convey.
+        // Every other state keeps its exact existing text/opacity/border, untouched.
         stateLabel.setText(switch (state) {
             case "done" -> "Done";
             case "failed" -> "Failed";
-            case "next" -> "Next";
+            case "next" -> "";
             case "checking" -> "Checking";
             case "optional" -> "Offline";
             default -> "Waiting";
         });
         stateLabel.setToolTipText(name + " is " + displayState(state));
         stateLabel.getAccessibleContext().setAccessibleDescription(name + " setup state: " + state);
+        stateLabel.setOpaque(!"next".equals(state));
+        stateLabel.setBorder("next".equals(state)
+                ? JBUI.Borders.empty(2, 6)
+                : JBUI.Borders.compound(JBUI.Borders.customLine(UIManagerColors.border(), 1), JBUI.Borders.empty(2, 6)));
         stateLabel.setBackground(switch (state) {
             case "done" -> UIManagerColors.doneBackground();
             case "next", "checking", "optional" -> UIManagerColors.activeBackground();

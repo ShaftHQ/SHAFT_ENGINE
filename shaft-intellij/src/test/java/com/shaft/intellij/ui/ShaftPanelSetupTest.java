@@ -1297,16 +1297,16 @@ class ShaftPanelSetupTest {
     void setupPanelShowsNoGreenStepsOnFreshLanding() {
         // Issue #3560: none of the numbered verification steps may be green until the user has
         // explicitly clicked that row's Check and it passed -- a fresh landing always starts
-        // neutral/blue ("Next"), never green ("Done"), regardless of what passive on-disk/PATH
-        // detection would otherwise reveal.
+        // neutral ("next" -- a blank badge as of issue #4314 fix 5), never green ("Done"),
+        // regardless of what passive on-disk/PATH detection would otherwise reveal.
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         assertAll(
-                () -> assertEquals("Next",
+                () -> assertEquals("",
                         findByAccessibleName(panel, "Upgrade project setup state", JLabel.class).getText()),
-                () -> assertEquals("Next",
+                () -> assertEquals("",
                         findByAccessibleName(panel, "Choose agent setup state", JLabel.class).getText()),
-                () -> assertEquals("Next",
+                () -> assertEquals("",
                         findByAccessibleName(panel, "Install SHAFT MCP setup state", JLabel.class).getText()),
                 () -> assertNotEquals("Done",
                         findByAccessibleName(panel, "Check now setup state", JLabel.class).getText()));
@@ -1333,8 +1333,9 @@ class ShaftPanelSetupTest {
         JLabel upgradeState = findByAccessibleName(panel, "Upgrade project setup state", JLabel.class);
         JLabel upgradeDetail = findByAccessibleName(panel, "SHAFT project version status", JLabel.class);
 
-        // Nothing is green until the user presses Check (issue #3560/#3426 A4/A5).
-        assertEquals("Next", upgradeState.getText());
+        // Nothing is green until the user presses Check (issue #3560/#3426 A4/A5); the "next" badge
+        // itself renders blank (issue #4314 fix 5).
+        assertEquals("", upgradeState.getText());
 
         // A project already on the latest release (or newer) is green once checked.
         setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
@@ -1354,9 +1355,45 @@ class ShaftPanelSetupTest {
                         ShaftProjectVersionCheck.State.UPGRADE_AVAILABLE, "10.2.20260101", "10.3.20260710"));
         clickAccessible(panel, "Check SHAFT project version");
         assertAll(
-                () -> assertEquals("Next", upgradeState.getText()),
+                () -> assertEquals("", upgradeState.getText()),
                 () -> assertTrue(upgradeDetail.getText().contains("10.3.20260710 is available")),
                 () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT upgrade command", JButton.class).isVisible()));
+    }
+
+    @Test
+    void nextStateBadgeRendersBlankInsteadOfALookalikeButton() throws Exception {
+        // Issue #4314 fix 5: the "next" badge used to render an opaque, bordered, "Next"-labeled
+        // pill that looked like a clickable button but wasn't -- the owner found it added no signal
+        // beyond the "done" (green) transition + auto-expanding next row already convey. Blank it
+        // out specifically for "next"; every other state (done/failed/checking/optional) keeps its
+        // exact existing text/colors/opacity, and the step name label itself keeps its existing
+        // bold/blue "active step" styling -- only the redundant badge pill is removed.
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        JLabel upgradeState = findByAccessibleName(panel, "Upgrade project setup state", JLabel.class);
+        // upgradeStep's own accessible NAME is dynamic (rewritten by setStep() to include the live
+        // state), unlike upgradeState's stable name (issue #3603), so it must be read by field.
+        JLabel upgradeStep = (JLabel) getField(panel, "upgradeStep");
+
+        assertAll(
+                () -> assertEquals("", upgradeState.getText()),
+                () -> assertFalse(upgradeState.isOpaque(),
+                        "a blank badge must not paint an opaque pill background"),
+                () -> assertFalse(upgradeState.getBorder() instanceof javax.swing.border.CompoundBorder,
+                        "a blank badge must not paint a visible border either"),
+                () -> assertEquals(java.awt.Font.BOLD, upgradeStep.getFont().getStyle() & java.awt.Font.BOLD,
+                        "the step name label's own bold 'active step' styling is untouched"));
+
+        setField(panel, "upgradeChecker", (java.util.function.Supplier<ShaftProjectVersionCheck.Result>) () ->
+                new ShaftProjectVersionCheck.Result(
+                        ShaftProjectVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
+        clickAccessible(panel, "Check SHAFT project version");
+
+        assertAll(
+                () -> assertEquals("Done", upgradeState.getText(), "the done badge is untouched"),
+                () -> assertTrue(upgradeState.isOpaque(), "the done badge keeps its opaque pill"),
+                () -> assertTrue(upgradeState.getBorder() instanceof javax.swing.border.CompoundBorder,
+                        "the done badge keeps its visible border"));
     }
 
     @Test
@@ -1368,8 +1405,9 @@ class ShaftPanelSetupTest {
         JLabel installState = findByAccessibleName(panel, "Install SHAFT MCP setup state", JLabel.class);
         JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
 
-        // Nothing is green until the user presses Check (issue #3560/#3426 A4/A5).
-        assertEquals("Next", installState.getText());
+        // Nothing is green until the user presses Check (issue #3560/#3426 A4/A5); the "next" badge
+        // itself renders blank (issue #4314 fix 5).
+        assertEquals("", installState.getText());
 
         // Installed at or above the latest release is green once checked, matching the
         // "Upgrade project" row's real-check pattern (issue #3538).
@@ -1392,7 +1430,7 @@ class ShaftPanelSetupTest {
                         ShaftMcpVersionCheck.State.UPGRADE_AVAILABLE, "10.2.20260101", "10.3.20260710"));
         clickAccessible(panel, "Check SHAFT MCP version");
         assertAll(
-                () -> assertEquals("Next", installState.getText()),
+                () -> assertEquals("", installState.getText()),
                 () -> assertTrue(mcpVersionDetail.getText().contains("latest 10.3.20260710")),
                 () -> assertTrue(
                         findByAccessibleName(panel, "Install SHAFT MCP", JButton.class).isVisible()));
@@ -1402,7 +1440,7 @@ class ShaftPanelSetupTest {
                 new ShaftMcpVersionCheck.Result(ShaftMcpVersionCheck.State.NOT_INSTALLED, "", ""));
         clickAccessible(panel, "Check SHAFT MCP version");
         assertAll(
-                () -> assertEquals("Next", installState.getText()),
+                () -> assertEquals("", installState.getText()),
                 () -> assertTrue(mcpVersionDetail.getText().contains("not installed yet")),
                 () -> assertTrue(
                         findByAccessibleName(panel, "Install SHAFT MCP", JButton.class).isVisible()));
@@ -1961,7 +1999,8 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertFalse(settings.agentLaneReady),
-                () -> assertEquals("Next", chooseState.getText()),
+                // The "next" badge itself renders blank (issue #4314 fix 5).
+                () -> assertEquals("", chooseState.getText()),
                 () -> assertFalse(settings.mcpSetupComplete),
                 () -> assertFalse(findByAccessibleName(panel, "Connect SHAFT agent", JButton.class).isVisible()));
     }
