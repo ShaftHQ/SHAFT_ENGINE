@@ -39,7 +39,7 @@ User harness (`~/.claude`, incl. `agents/`) deploys from canonical `.claude/user
 
 ## Validation
 
-Before forked Maven/Surefire/TestNG runs, load gotchas; if delete gotcha active, avoid `mvn test` -- compile/test-compile, static checks, or disposable copy. Smallest non-redundant check; rerun after edits/rebases/deps.
+Before forked Maven/Surefire/TestNG runs, load gotchas; if delete gotcha active, avoid `mvn test` -- compile/test-compile, static checks, or disposable copy. Smallest non-redundant check; rerun only after edits/rebases/deps.
 
 - Guidance/memory: `py -3`/`python3 scripts/ci/validate_agent_setup.py`
 - Local code: affected tests, then one compile/package.
@@ -57,9 +57,9 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args: `{}`, `@`, `;`, `&`, `|
 
 - Plugin Swing UI: `frontend-design` (net-new surfaces only) -> `jdtls-lsp` -> JetBrains MCP inspections (optional) -> screenshot renderer review; no Swing via browser MCP.
 - Docs/report web UI: `frontend-design` -> implement -> shaft-mcp browser evidence (screenshots + `browser_accessibility_audit`). Perf/network regressions: shaft-mcp `browser_network_requests`.
-- Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree: just `rg` the pom; Docker down -- never start it: `curl` search.maven.org) -> `ci-failure-investigator` on breakage; date-window ecosystem research 30-60d, prefer live community sources over stale posts.
+- Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (in-tree: just `rg` pom; Docker down -- never start it: `curl` search.maven.org) -> `ci-failure-investigator` on breakage; window ecosystem research 30-60d, prefer live community sources over stale posts.
 - `context7`: past-cutoff library APIs only, else repo exemplars.
-- Discovery: `memory`/`mempalace`/`graphify` before manual search -- never grep what store knows; `rg` to verify live code (stores can be stale).
+- Discovery: `memory`/`mempalace`/`graphify` before manual search -- never grep what store knows; `rg` only to verify live code (stores can be stale).
 - Skip `jdtls-lsp` for one-liners; value scales with impact. `mcp-server-dev`: net-new tool schema only.
 - Repo `.claude/skills/`: `act-as-mohab` binds always (every model/subagent; owns routing, tiers, and the always-on `caveman` voice); `ponytail` binds every implementation decision; `shaft-mastery`/`test-driven-development`/`graphify`/`work-github` by trigger.
 
