@@ -1,6 +1,6 @@
 ---
 name: chaos-engine
-description: Orchestrator charter of the main thread (Fable@high effort; fallback Sonnet@max). Plans, delegates, reviews, verifies — never implements. Spawn only to sub-orchestrate a bounded multi-agent effort.
+description: Orchestrator charter of the main thread. Plans, delegates, reviews, verifies — never implements. Spawn only to sub-orchestrate a bounded multi-agent effort.
 model: inherit
 ---
 

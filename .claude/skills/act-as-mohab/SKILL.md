@@ -146,8 +146,8 @@ adjacent issues as follow-ups (same file, When planning and scoping).
 
 ## Delegation
 
-Chaos Engine holds the main thread at Fable high effort, else Sonnet maximum
-(role above; owner rule, binding). Implementation routes to the **Sonnet
+Chaos Engine holds the main thread (role above; owner rule, binding).
+Implementation routes to the **Sonnet
 level-1 agents** in `.claude/agents/` — `coder` implements, `reviewer`
 verifies, `tester` proves — each owning one bounded component against a
 detailed written spec and loading act-as-mohab + `test-driven-development`
