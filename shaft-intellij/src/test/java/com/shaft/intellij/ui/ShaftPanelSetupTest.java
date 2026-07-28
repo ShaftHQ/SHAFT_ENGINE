@@ -749,7 +749,9 @@ class ShaftPanelSetupTest {
             assertTrue(containsText(toolWindow, "3 Install SHAFT MCP"));
             assertTrue(containsText(toolWindow, "4 Check setup"));
             assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
-            assertTrue(containsText(toolWindow, "Target: "));
+            // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
+            // removed -- the family/runtime combo boxes above it already show the live selection.
+            assertNull(findByAccessibleName(toolWindow, "SHAFT MCP setup summary", JLabel.class));
             assertNotNull(findByAccessibleName(toolWindow, "Install SHAFT MCP setup state", JLabel.class));
             assertNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
             assertFalse(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class).isVisible());
@@ -2115,11 +2117,31 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupIntroDropsDeadGreyedCopyAndRedundantTargetRuntimeSummary() {
+        // Issue #4314 fix 1: the intro's greyed "Pick an agent -- recording, code generation..."
+        // paragraph and the redundant "Target: X. Runtime: Y." setupSummary caption (already
+        // restated by the family/runtime combo boxes above it) add no value and cramp the layout --
+        // both are removed, while the bold "Connect SHAFT Assistant" title stays.
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe());
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Connect SHAFT Assistant")),
+                () -> assertFalse(containsText(panel, "Pick an agent")),
+                () -> assertFalse(containsText(panel, "Model Context Protocol")),
+                () -> assertFalse(containsText(panel, "Installs SHAFT MCP locally")),
+                () -> assertFalse(containsText(panel, "Target: ")),
+                () -> assertNull(findByAccessibleName(panel, "SHAFT MCP setup summary", JLabel.class)));
+    }
+
+    @Test
     void setupPanelAccessibleDescriptionsTrackLiveStatusRecoveryChecklistAndToastAcrossUpdates() throws Exception {
-        // Issue #3603: setupSummary/status/recoveryStatus/readyChecklist/toast keep a short,
-        // stable accessible NAME (test-id-safe, e.g. "SHAFT MCP setup next step"), but a screen
-        // reader also needs the live, real content those labels display -- carried by the
-        // accessible DESCRIPTION, which must keep tracking every later update, not just the first.
+        // Issue #3603: status/recoveryStatus/readyChecklist/toast keep a short, stable accessible
+        // NAME (test-id-safe, e.g. "SHAFT MCP setup next step"), but a screen reader also needs the
+        // live, real content those labels display -- carried by the accessible DESCRIPTION, which
+        // must keep tracking every later update, not just the first. (setupSummary itself was
+        // removed by issue #4314 fix 1 as redundant with the family/runtime combo boxes.)
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe());
@@ -2133,22 +2155,11 @@ class ShaftPanelSetupTest {
         JLabel readyChecklist = findByAccessibleName(panel, "Setup ready checklist", JLabel.class);
         JLabel recoveryStatus = findByAccessibleName(panel, "SHAFT MCP recovery summary", JLabel.class);
         JLabel toastLabel = findByAccessibleName(panel, "SHAFT setup clipboard toast", JLabel.class);
-        JLabel setupSummary = findByAccessibleName(panel, "SHAFT MCP setup summary", JLabel.class);
-        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
-        JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
         assertAll(
                 () -> assertNotNull(status),
                 () -> assertNotNull(readyChecklist),
                 () -> assertNotNull(recoveryStatus),
-                () -> assertNotNull(toastLabel),
-                () -> assertNotNull(setupSummary));
-        // setupSummary already reflects the live target/runtime selection as soon as the panel is
-        // built (updateLiveSummary() runs during construction), so the description must already
-        // mirror that live text rather than the static placeholder setText() was first given.
-        String initialSetupSummaryDescription = setupSummary.getAccessibleContext().getAccessibleDescription();
-        assertAll(
-                () -> assertEquals(setupSummary.getText(), initialSetupSummaryDescription),
-                () -> assertTrue(initialSetupSummaryDescription.contains("CODEX"), initialSetupSummaryDescription));
+                () -> assertNotNull(toastLabel));
 
         showTestResult(panel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
         String firstStatusDescription = status.getAccessibleContext().getAccessibleDescription();
@@ -2158,17 +2169,6 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(firstStatusDescription.isBlank()),
                 () -> assertEquals(readyChecklist.getText(), firstChecklistDescription),
                 () -> assertTrue(firstChecklistDescription.contains("Ready to record"), firstChecklistDescription));
-
-        // Live-update proof for setupSummary: switching the assistant family/runtime must update
-        // the description to the NEW target/runtime text, not just retain the initial selection.
-        family.setSelectedItem("CLAUDE");
-        runtime.setSelectedItem("DESKTOP_APP");
-        String secondSetupSummaryDescription = setupSummary.getAccessibleContext().getAccessibleDescription();
-        assertAll(
-                () -> assertEquals(setupSummary.getText(), secondSetupSummaryDescription),
-                () -> assertTrue(secondSetupSummaryDescription.contains("CLAUDE"), secondSetupSummaryDescription),
-                () -> assertNotEquals(initialSetupSummaryDescription, secondSetupSummaryDescription,
-                        "the description must track the live target/runtime summary after it changes"));
 
         // Live-update proof: a second, different result (a failure) must update the descriptions to
         // their NEW text, not just retain what the first successful check produced.
