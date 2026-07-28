@@ -716,7 +716,7 @@ public class CaptureService {
                 excludedTransactionIds,
                 pinnedJsonPaths == null ? List.of() : pinnedJsonPaths));
         boolean successful = result.report().status() == CaptureGenerationReport.Status.SUCCESS;
-        List<McpCodeBlock> blocks = successful && result.sourcePath() != null
+        List<McpCodeBlock> blocks = sourceUsable(result.sourcePath(), result.report())
                 ? codeBlocks.fromGeneratedSource(result.sourcePath(), "api", result.report())
                 : List.of();
         return new McpCaptureReplayResult(
@@ -1565,11 +1565,25 @@ public class CaptureService {
      * suppressing code blocks because compilation never passed for them.
      */
     private static boolean generatedCodeUsable(CaptureGenerationResult result) {
-        return result.sourcePath() != null
-                && (result.successful()
-                || (result.report() != null
-                && result.report().compilation().status()
-                == CaptureGenerationReport.Validation.ValidationStatus.PASSED));
+        return sourceUsable(result.sourcePath(), result.report());
+    }
+
+    /**
+     * Whether a generated source is worth returning to the caller as copy-paste code blocks:
+     * generation produced a source file and either the report is a confirmed {@code SUCCESS} or
+     * compilation itself passed. A replay failure/skip marks the overall result unsuccessful but
+     * must not swallow generated, compiling code -- the API codegen path
+     * ({@link #generateApi}) hit exactly this gap (issue #4311): it gated {@code codeBlocks} on
+     * {@code status() == SUCCESS} alone, so a deliberately replay-skipped {@code UNCONFIRMED}
+     * report (#4220) always returned an empty {@code codeBlocks} list even though the generated
+     * SHAFT.API source had compiled cleanly. This mirrors the fix already applied to the
+     * WebDriver/Playwright path above for the same reason (issue #3409).
+     */
+    private static boolean sourceUsable(Path sourcePath, CaptureGenerationReport report) {
+        return sourcePath != null
+                && report != null
+                && (report.status() == CaptureGenerationReport.Status.SUCCESS
+                || report.compilation().status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED);
     }
 
     private CaptureBackendBlocks backendBlocks(

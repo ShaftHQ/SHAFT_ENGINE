@@ -558,3 +558,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.actionscoverageunittest-screenshotthrows-real-awt-screenshot-leak-despite-fully-mocked","timestamp":"2026-07-28T06:52:33+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.mvn-pl-downstream-test-resolves-upstream-module-deps-from-stale-m2-cache-not-the-working-tree-install-the-upstream-module-first-or-downstream-verification-proves-nothing","timestamp":"2026-07-28T06:52:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.mvn-pl-downstream-test-resolves-upstream-deps-from-stale-m2-cache-install-upstream-first","timestamp":"2026-07-28T06:52:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.captureservice-generateapi-gated-codeblocks-on-report-status-success-dropping-compiled-but-unconfirmed-code-issue-4311","timestamp":"2026-07-28T11:29:21+03:00"}
