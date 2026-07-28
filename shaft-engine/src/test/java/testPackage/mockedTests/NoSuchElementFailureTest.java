@@ -9,7 +9,7 @@ import org.testng.annotations.Test;
 
 public class NoSuchElementFailureTest {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    String mockedHTML = "data:text/html,<input/><input/><input/><script>var result;</script><button ${HIDDEN} alt='Google' onclick='result=\"Clicked\"'>Go</button>";
+    String mockedHTML = "data:text/html,<input/><input/><input/>";
 
 
     @Test(expectedExceptions = {RuntimeException.class})
