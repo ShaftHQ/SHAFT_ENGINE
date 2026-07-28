@@ -39,7 +39,9 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 /**
  * Helper utilities for low-level element discovery, interaction, and reporting.
@@ -253,15 +255,38 @@ public class ElementActionsHelper {
      * @return element information payload used by downstream action methods
      */
     public List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
+        return waitForElementPresence(driver, elementLocator, checkForVisibility, false);
+    }
+
+    /**
+     * Waits for an element to be present (and optionally visible), then returns collected metadata,
+     * optionally enforcing that the locator resolves to a single element.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementLocator locator of the target element
+     * @param checkForVisibility whether visibility must be validated
+     * @param enforceElementUniqueness when {@code true}, a locator matching more than one element is
+     *                                 retried for the full identification-timeout window (issue #4332,
+     *                                 mirroring {@code Actions.performAction}'s #4321 fix), then given
+     *                                 exactly one last-resort attempt narrowing to the single
+     *                                 displayed-and-enabled match if there is one; used only by
+     *                                 {@link #identifyUniqueElement(WebDriver, By, boolean)} -- other
+     *                                 callers (e.g. {@link #getElementsCount}) pass {@code false} and
+     *                                 keep the original permissive raw-count behavior
+     * @return element information payload used by downstream action methods
+     */
+    private List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility, boolean enforceElementUniqueness) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
         boolean collectLocatorHealth = LocatorHealthReporter.isEnabled();
         long locatorHealthStart = collectLocatorHealth ? System.nanoTime() : 0L;
         AtomicInteger locatorHealthPollingAttempts = collectLocatorHealth ? new AtomicInteger() : null;
         AtomicInteger locatorHealthStaleRetries = collectLocatorHealth ? new AtomicInteger() : null;
-        try {
-            List<Object> locatedElement = new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
-                    .until(f -> {
+        // issue #4332: false on every poll of the primary fluentWait below -- disambiguation must stay
+        // a strict LAST RESORT, applied only once the full identification-timeout retry window is
+        // exhausted, mirroring Actions.performAction's #4321 lastResortNarrowingAllowed flag.
+        AtomicBoolean lastResortNarrowingAllowed = new AtomicBoolean(false);
+        Function<WebDriver, List<Object>> attemptLocate = f -> {
                         if (locatorHealthPollingAttempts != null) {
                             locatorHealthPollingAttempts.incrementAndGet();
                         }
@@ -292,6 +317,34 @@ public class ElementActionsHelper {
                                     reportActionResult(driver, null, null, null, null, null, false);
                                     FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
                                     throw invalidSelectorException;
+                                }
+                            }
+                            // issue #4332: mirror Actions.performAction's #4321 last-resort
+                            // disambiguation for this separate identifyUniqueElement retry/timeout
+                            // path. Always throws during the normal retry loop (lastResortNarrowingAllowed
+                            // is false on every poll), preserving the full identification-timeout window
+                            // for a still-settling page; only the single last-resort attempt made after
+                            // that window is exhausted (see the TimeoutException handling below) allows
+                            // narrowing, and only when exactly one match is displayed and enabled. When
+                            // the last-resort attempt still can't narrow to a single actionable match,
+                            // this deliberately does NOT throw -- targetElements stays ambiguous so
+                            // identifyUniqueElement's own uniqueness check (one level up) reports the
+                            // failure exactly as it did before this fix.
+                            if (enforceElementUniqueness && targetElements.size() > 1
+                                    && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
+                                    && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                                if (!lastResortNarrowingAllowed.get()) {
+                                    throw new MultipleElementsFoundException();
+                                }
+                                int matchCountBeforeNarrowing = targetElements.size();
+                                Optional<WebElement> uniqueActionable =
+                                        com.shaft.gui.element.internal.Actions.uniqueDisplayedAndEnabledElement(targetElements);
+                                if (uniqueActionable.isPresent()) {
+                                    ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(elementLocator)
+                                            + " matched " + matchCountBeforeNarrowing
+                                            + " elements; auto-resolved to the only displayed and enabled one"
+                                            + " after the identification timeout was exhausted.");
+                                    targetElements = List.of(uniqueActionable.get());
                                 }
                             }
                             WebElement targetElement = targetElements.getFirst();
@@ -388,7 +441,10 @@ public class ElementActionsHelper {
                             }
                             throw staleElementReferenceException;
                         }
-                    });
+        };
+        try {
+            List<Object> locatedElement = new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
+                    .until(attemptLocate::apply);
             recordLocatorHealthLookup(
                     elementLocator,
                     locatorHealthStart,
@@ -398,6 +454,27 @@ public class ElementActionsHelper {
                     locatorHealthStaleRetries);
             return locatedElement;
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            if (enforceElementUniqueness && com.shaft.gui.element.internal.Actions.isCausedByAmbiguousLocator(timeoutException)) {
+                // issue #4332: the full identification-timeout retry window is exhausted and the
+                // locator is still ambiguous on every unmodified retry. Take exactly one more look,
+                // this time allowing narrowing to the single actionable match if there is one --
+                // mirrors Actions.performAction's #4321 last-resort attempt.
+                lastResortNarrowingAllowed.set(true);
+                try {
+                    List<Object> locatedElement = attemptLocate.apply(driver);
+                    recordLocatorHealthLookup(
+                            elementLocator,
+                            locatorHealthStart,
+                            locatorHealthPollingAttempts,
+                            resolvedElementCount(locatedElement),
+                            false,
+                            locatorHealthStaleRetries);
+                    return locatedElement;
+                } catch (RuntimeException stillUnresolvable) {
+                    // fall through to the ordinary timeout handling below, using the ORIGINAL
+                    // timeoutException so the reported failure is unchanged from before this fix.
+                }
+            }
             recordLocatorHealthLookup(
                     elementLocator,
                     locatorHealthStart,
@@ -786,7 +863,10 @@ public class ElementActionsHelper {
     }
 
     private List<Object> identifyUniqueElement(WebDriver driver, By elementLocator, boolean checkForVisibility) {
-        var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, checkForVisibility);
+        // issue #4332: unlike getMatchingElementsInformation's other callers (e.g. getElementsCount,
+        // which needs the raw ambiguous count), identifyUniqueElement's whole purpose is uniqueness --
+        // it opts into the last-resort disambiguation retry inside waitForElementPresence.
+        var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, checkForVisibility, true);
 
         if (elementLocator != null) {
             // in case of regular locator
@@ -826,6 +906,10 @@ public class ElementActionsHelper {
      * @return list containing count and resolved element details
      */
     public List<Object> getMatchingElementsInformation(WebDriver driver, By elementLocator, boolean checkForVisibility) {
+        return getMatchingElementsInformation(driver, elementLocator, checkForVisibility, false);
+    }
+
+    private List<Object> getMatchingElementsInformation(WebDriver driver, By elementLocator, boolean checkForVisibility, boolean enforceElementUniqueness) {
         if (elementLocator == null) {
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
@@ -833,7 +917,7 @@ public class ElementActionsHelper {
             return elementInformation;
         }
         if (!elementLocator.equals(By.tagName("html"))) {
-            return this.waitForElementPresence(driver, elementLocator, checkForVisibility);
+            return this.waitForElementPresence(driver, elementLocator, checkForVisibility, enforceElementUniqueness);
         } else {
             //if locator is just tag-name html
             var elementInformation = new ArrayList<>();
