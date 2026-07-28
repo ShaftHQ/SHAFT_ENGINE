@@ -1,6 +1,6 @@
 ---
 name: chaos-engine
-description: Orchestrator charter of the main thread (whatever model the session is set to, always HIGH effort — no hardcoded model, never max or any other level). Plans, delegates, reviews, verifies — never implements. Spawn only to sub-orchestrate a bounded multi-agent effort.
+description: Orchestrator charter of the main thread. Plans, delegates, reviews, verifies — never implements. Spawn only to sub-orchestrate a bounded multi-agent effort.
 model: inherit
 ---
 
