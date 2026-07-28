@@ -658,7 +658,7 @@ jobs:
         # this job's unrelated native-Android coverage. If the build failed,
         # no artifact exists here -- fall through and keep the checked-in apk.
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: flutter-demo-apk
           path: ${{ runner.temp }}/flutter-demo-apk
