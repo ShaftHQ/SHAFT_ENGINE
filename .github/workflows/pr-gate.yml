@@ -295,6 +295,20 @@ jobs:
   # TestNG suite XML found by #4071 (that file is deleted in the same change
   # that added this line) -- pure file-read plus JSONCompare, no driver, no
   # network, verified green with a scoped local run before being added.
+  # testPackage.mockedTests.MultipleElementsFailureTest (issue #4336, follow-up
+  # to #4321/#4326) is the one exception to "no live-browser suites here": it
+  # DOES construct a real SHAFT.GUI.WebDriver() session, but -- unlike the
+  # nightly-only CoverageTests suites -- needs no remote Selenium Grid. Its
+  # driver defaults (properties/default/custom.properties: executionAddress=
+  # local, targetBrowserName=chrome) launch a local headless Chrome session,
+  # the same shape the capture-e2e job above already runs successfully on
+  # this same ubuntu-22.04 runner with zero extra browser-setup steps. It
+  # only talks to TestPageServer, an in-JVM HttpServer serving local HTML
+  # fixtures -- no Docker, no network. Verified with a scoped local run
+  # (`-Dtest=MultipleElementsFailureTest -DheadlessExecution=true`) before
+  # being added; previously only ran via e2eTests.yml's nightly/broad
+  # GLOBAL_TESTING_SCOPE selector, so a regression here could merge before
+  # the broader E2E suite caught it.
   unit-tests:
     name: Unit Tests (${{ matrix.module }})
     needs: changes
@@ -327,7 +341,7 @@ jobs:
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
-          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, JsonActionsTests, !RestValidationsBuilderUnitTest'
+          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, JsonActionsTests, MultipleElementsFailureTest, !RestValidationsBuilderUnitTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Verify shaft-engine unit test results
