@@ -81,10 +81,10 @@ public class TouchMultipleElementsFailureTest {
     }
 
     private static void assertThrowsMultipleElementsFoundException(Runnable action) {
-        // TouchActions failures are reported via ElementActionsHelper#failAction, which throws
-        // org.junit.jupiter.api.Assertions.fail(...) (an AssertionError), unlike the RuntimeException
-        // thrown by Actions.performAction's report pipeline -- assert on Throwable, not RuntimeException.
-        Throwable thrown = Assert.expectThrows(Throwable.class, action::run);
+        // issue #4341: ElementActionsHelper#failAction now throws RuntimeException (matching
+        // Actions.performAction's reportBroken pipeline) instead of AssertionError, so this can
+        // assert on RuntimeException just like MultipleElementsFailureTest does.
+        RuntimeException thrown = Assert.expectThrows(RuntimeException.class, action::run);
         Throwable cause = thrown;
         while (cause != null && !(cause instanceof MultipleElementsFoundException)) {
             cause = cause.getCause();

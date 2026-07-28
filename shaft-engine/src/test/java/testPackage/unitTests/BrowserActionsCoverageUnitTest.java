@@ -597,9 +597,11 @@ public class BrowserActionsCoverageUnitTest {
         iosBrowserActions.setContext("WEBVIEW_1");
         Assert.assertEquals(iosBrowserActions.getContextHandles().size(), 2);
 
-        Assert.assertThrows(AssertionError.class, browserActions::getContext);
-        Assert.assertThrows(AssertionError.class, () -> browserActions.setContext("WEBVIEW_1"));
-        Assert.assertThrows(AssertionError.class, browserActions::getContextHandles);
+        // issue #4341: ElementActionsHelper#failAction throws RuntimeException, not AssertionError,
+        // matching the RuntimeException-typed assertions used elsewhere in this same test class.
+        Assert.assertThrows(RuntimeException.class, browserActions::getContext);
+        Assert.assertThrows(RuntimeException.class, () -> browserActions.setContext("WEBVIEW_1"));
+        Assert.assertThrows(RuntimeException.class, browserActions::getContextHandles);
     }
 
     private WebDriver createInterceptableDriver() {
