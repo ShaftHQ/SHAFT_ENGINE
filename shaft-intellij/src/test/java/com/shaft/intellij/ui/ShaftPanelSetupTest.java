@@ -1876,6 +1876,81 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void chooseRowOffersAStandaloneCheckButtonMirroringOtherStepsCheckPattern() throws Exception {
+        // Issue #4314 fix 2: every other step (Upgrade, Install) already has its own "Check" button
+        // that turns its badge green on its own -- "2 Pick agent" only ever turned green as a side
+        // effect of the full step-4 MCP probe. This button lets a user verify "is my picked agent
+        // already installed/connected" without running the whole setup flow.
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe());
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+
+        JButton checkChosenAgent = findByAccessibleName(chooseRow, "Check agent connection", JButton.class);
+
+        assertAll(
+                () -> assertNotNull(checkChosenAgent, "chooseRow should carry its own Check button"),
+                () -> assertTrue(checkChosenAgent.isVisible()));
+    }
+
+    @Test
+    void checkingTheSelectedAgentReflectsCloudReadinessIntoTheChooseBadgeWithoutTouchingReadyStepWidgets()
+            throws Exception {
+        // The Check click must only settle settings.agentLaneReady and the "2 Pick agent" badge --
+        // NOT run the full applyAgentLaneState() side effects the Ready step (startChatting/
+        // startWithoutAgent/connectAgent) only earns from an actual step-4 MCP probe.
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        storedKeys.put("GEMINI_API_KEY", "already-stored-key");
+        ShaftMcpSetupPanel.CloudKeyStore keyStore = fakeKeyStore(storedKeys);
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), keyStore);
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        family.setSelectedItem("GEMINI");
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JLabel chooseState = (JLabel) getField(panel, "chooseState");
+
+        clickAccessible(chooseRow, "Check agent connection");
+
+        assertAll(
+                () -> assertTrue(settings.agentLaneReady),
+                () -> assertEquals("Done", chooseState.getText()),
+                () -> assertFalse(settings.mcpSetupComplete,
+                        "the full step-4 MCP probe must never run as a side effect of this check"),
+                () -> assertFalse(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Start SHAFT without an agent", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Connect SHAFT agent", JButton.class).isVisible()));
+    }
+
+    @Test
+    void checkingTheSelectedAgentRunsTheDeepProbeOffTheEdtAndReflectsFailureIntoTheChooseBadgeOnly()
+            throws Exception {
+        // Non-cloud families' readiness check spawns the client CLI (~10s) -- exactly like
+        // connectAgentClicked()'s existing off-EDT dispatch -- so the click must synchronously enter
+        // a busy state and the real result must only land once the (simulated) async hand-off
+        // completes.
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpToolResult notReady = ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH.");
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), (client, runtime) -> notReady);
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JLabel chooseState = (JLabel) getField(panel, "chooseState");
+
+        clickAccessible(chooseRow, "Check agent connection");
+        assertTrue(containsText(panel, "Checking agent"), "click must synchronously enter the busy state");
+
+        invokeApplyChosenAgentCheckResult(panel, notReady);
+
+        assertAll(
+                () -> assertFalse(settings.agentLaneReady),
+                () -> assertEquals("Next", chooseState.getText()),
+                () -> assertFalse(settings.mcpSetupComplete),
+                () -> assertFalse(findByAccessibleName(panel, "Connect SHAFT agent", JButton.class).isVisible()));
+    }
+
+    @Test
     void connectAgentButtonKeepsTheNotReadyStateWithoutCrashingWhenTheRetryStillFails() throws Exception {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftMcpToolResult stillFailing = ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH.");
@@ -5466,6 +5541,9 @@ class ShaftPanelSetupTest {
                 // The shaft-mcp version step's check button is labeled like its upgrade-step peer
                 // above: it names the exact check being run on a first-run setup screen (issue #3538).
                 .filter(button -> !"Check SHAFT MCP version".equals(accessibleName(button)))
+                // "2 Pick agent"'s own standalone Check button (issue #4314 fix 2) is the same
+                // first-run-setup-screen Check pattern as the two rows above it.
+                .filter(button -> !"Check agent connection".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
                 // its lane (issue #3425 A2/B7/A6).
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
@@ -7577,6 +7655,21 @@ class ShaftPanelSetupTest {
             throws Exception {
         Method applyResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
                 "applyConnectAgentResult", ShaftMcpToolResult.class);
+        applyResult.setAccessible(true);
+        applyResult.invoke(panel, readiness);
+    }
+
+    /**
+     * Invokes checkChosenAgentClicked()'s real completion path directly, mirroring
+     * {@link #invokeApplyConnectAgentResult} above: the non-cloud branch's background probe/EDT
+     * hand-off cannot complete in this headless harness (no live IntelliJ Application), so tests
+     * simulate "the check's result arrived" by calling the same private method that hand-off would
+     * otherwise invoke.
+     */
+    private static void invokeApplyChosenAgentCheckResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult readiness)
+            throws Exception {
+        Method applyResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "applyChosenAgentCheckResult", ShaftMcpToolResult.class);
         applyResult.setAccessible(true);
         applyResult.invoke(panel, readiness);
     }

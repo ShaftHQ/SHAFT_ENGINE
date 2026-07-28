@@ -140,6 +140,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private JLabel readyChecklist;
     private final JButton copyUpgradeCommand;
     private final JButton checkUpgrade;
+    private final JButton checkChosenAgent;
     private final JLabel upgradeDetail;
     private final JButton installNow;
     private final JButton checkMcpVersion;
@@ -350,6 +351,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
         applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
         checkMcpVersion.addActionListener(event -> runMcpVersionCheck(true));
+        // Issue #4314 fix 2: every other step already has its own "Check" button that turns its
+        // badge green on its own -- "2 Pick agent" only turned green as a side effect of the full
+        // step-4 MCP probe. This lets a user verify "is my picked agent already installed/connected"
+        // without running the whole setup flow.
+        checkChosenAgent = new JButton("Check");
+        checkChosenAgent.getAccessibleContext().setAccessibleName("Check agent connection");
+        checkChosenAgent.setToolTipText("Verify the selected agent is already installed and connected, "
+                + "without running the full SHAFT MCP setup check");
+        applyLabeledAction(checkChosenAgent, ShaftIcons.CHECK);
+        checkChosenAgent.addActionListener(event -> checkChosenAgentClicked());
         // Primary one-click install action (issue #3743; reworked for JetBrains Marketplace
         // compliance -- see ShaftPluginSecurityTest, which forbids this plugin from spawning
         // processes): opens a terminal with the full MCP + skills + CLI command pre-typed through
@@ -539,6 +550,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
         agentControls.add(recommendedAgent);
+        JPanel chooseActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        chooseActions.setOpaque(false);
+        chooseActions.add(checkChosenAgent);
+        agentControls.add(chooseActions);
         // Issue #3771: each labeledControl row above packs its own label at that label's natural
         // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
         // them land at different x-offsets -- a ragged left edge next to a real aligned form.
@@ -1174,6 +1189,46 @@ final class ShaftMcpSetupPanel extends JPanel {
         updateActionState(false);
     }
 
+    /**
+     * "2 Pick agent"'s own standalone "Check" (issue #4314 fix 2): verifies the currently selected
+     * family/runtime is already installed/connected without running the whole step-4 MCP probe.
+     * Mirrors {@link #connectAgentClicked()}'s off-EDT dispatch for the non-cloud deep readiness
+     * probe (spawns the client CLI, ~10s -- must never block the EDT); the Gemini cloud route stays
+     * inline since it only does a fast local Password Safe lookup.
+     *
+     * <p>Deliberately does <b>not</b> call {@link #applyAgentLaneState}: that method also flips the
+     * Ready step's startChatting/startWithoutAgent/connectAgent visibility, which this step-2-only
+     * check must never touch (those widgets are earned solely by the real step-4 MCP probe). Only
+     * {@code settings.agentLaneReady} and this row's own badge (via {@link #updateActionState}) are
+     * updated here.</p>
+     */
+    private void checkChosenAgentClicked() {
+        if (progress.isVisible()) {
+            return;
+        }
+        applySelectionToSettings();
+        setRunning(true, "Checking agent (~10s)...");
+        if (cloudFamilySelected()) {
+            applyChosenAgentCheckResult(verifySelectedAgentReadiness(null));
+            return;
+        }
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
+                        ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                        applyChosenAgentCheckResult(error != null
+                                ? ShaftMcpToolResult.failure("Could not run the agent readiness check: "
+                                        + error.getMessage())
+                                : readiness)));
+    }
+
+    private void applyChosenAgentCheckResult(ShaftMcpToolResult readiness) {
+        setRunning(false, readiness.success() ? "Agent connected." : "Agent not ready yet. See details below.");
+        settings.agentLaneReady = readiness.success();
+        updateActionState(false);
+    }
+
     private void setRunning(boolean running, String text) {
         updateActionState(running);
         progress.setVisible(running);
@@ -1195,6 +1250,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         // row's own blue/green/red styling is what conveys pass/fail now.
         test.setEnabled(!running);
         installShaftCli.setEnabled(!running);
+        checkChosenAgent.setEnabled(!running);
         checkUpgrade.setEnabled(!running);
         copyUpgradeCommand.setEnabled(!running);
         checkMcpVersion.setEnabled(!running);
