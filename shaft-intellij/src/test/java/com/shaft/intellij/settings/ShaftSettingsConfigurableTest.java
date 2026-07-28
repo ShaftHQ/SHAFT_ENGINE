@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -291,6 +292,48 @@ class ShaftSettingsConfigurableTest {
                 () -> assertTrue(secondDescription.contains("Codex"), secondDescription),
                 () -> assertNotEquals(firstDescription, secondDescription,
                         "the description must track the live agent configuration after it changes"));
+    }
+
+    /**
+     * Issue #4322 (adjacent finding from #4316/PR #4320): {@code currentAgentConfiguration} (the
+     * "Agent: Local / Codex / CLI"-style label) and {@code configureAgent} (the settings gear) used
+     * to sit as two bare controls in the "Current agent" form row -- a plain, unbordered value label
+     * directly touching a boxed icon button, with no shared visual grouping -- the same clutter
+     * #4316 fixed in {@code ShaftAssistantPanel}'s {@code routeRow}. They now share one bordered
+     * {@code currentAgentChip} {@link JPanel}, mirroring the {@code currentAgentChip}/{@code
+     * allowSourceMutationChip} idiom PR #4320 introduced there.
+     */
+    @Test
+    void currentAgentChipGroupsLabelAndConfigureButtonWhenSummaryIsShown() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JPanel chip = (JPanel) getField(configurable, "currentAgentChip");
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
+        JButton configure = findByAccessibleName(panel, "Configure assistant agent", JButton.class);
+
+        assertNotNull(chip, "currentAgentChip field must exist and be wired into the form");
+        assertTrue(chip.isVisible(), "MCP is ready and not mid-edit, so the summary row -- and its "
+                + "grouping chip -- must be visible");
+        assertTrue(containsComponent(chip, currentAgent), "chip must contain the current-agent-configuration label");
+        assertTrue(containsComponent(chip, configure), "chip must contain the configure/settings gear button");
+    }
+
+    /** Same summary-shown gate {@code currentAgentConfiguration}/{@code configureAgent} already used individually. */
+    @Test
+    void currentAgentChipHiddenWhenSummaryIsNotShown() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        configurable.createComponent();
+
+        JPanel chip = (JPanel) getField(configurable, "currentAgentChip");
+
+        assertNotNull(chip, "currentAgentChip field must exist and be wired into the form");
+        assertFalse(chip.isVisible(), "MCP is not ready, so the summary row is not shown -- the "
+                + "grouping chip must stay hidden exactly like the two controls it wraps used to");
     }
 
     @Test
@@ -908,6 +951,10 @@ class ShaftSettingsConfigurableTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true); // NOPMD - test-only field inspection, matching the established getField/setField helpers in ShaftPanelSetupTest
         return field.get(target);
+    }
+
+    private static boolean containsComponent(Container container, Component target) {
+        return Arrays.stream(container.getComponents()).anyMatch(child -> child == target);
     }
 
     private static List<JButton> collectButtons(Component root) {

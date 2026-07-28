@@ -32,6 +32,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -81,7 +82,17 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JButton testRecoveryAction;
     private JLabel currentAgentConfigurationTitle;
     private JLabel currentAgentConfiguration;
-    private JPanel currentAgentConfigurationRow;
+    /**
+     * Bordered chip wrapping {@link #currentAgentConfiguration} + {@link #configureAgent} together
+     * so the "which agent is this / configure it" pair reads as one grouped unit in the "Current
+     * agent" form row, instead of a plain unbordered value label sitting directly against a boxed
+     * icon button (issue #4322, an adjacent finding from #4316/PR #4320). Mirrors the {@code
+     * currentAgentChip} idiom {@code ShaftAssistantPanel} uses for the same label/gear pair in its
+     * {@code routeRow}, with the same neutral informational tint ({@link
+     * ShaftStatusPresentation#progress()}). Visibility mirrors both wrapped controls' shared
+     * {@code showSummary} gate in {@link #updateAgentConfigurationControls()}.
+     */
+    private JPanel currentAgentChip;
     private JButton configureAgent;
     private JLabel assistantProviderTypeLabel;
     private JLabel assistantFamilyLabel;
@@ -345,7 +356,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         testGithubKey.addActionListener(event -> testProviderKey(
                 GITHUB_PROVIDER_KEY, githubKey, githubKeyStatus, testGithubKey, "GitHub", ProviderKeyProbe::testGithub));
         currentAgentConfigurationTitle = label("Current agent", 'C', currentAgentConfiguration);
-        currentAgentConfigurationRow = agentConfigurationRow(currentAgentConfiguration, configureAgent);
+        currentAgentChip = agentConfigurationRow(currentAgentConfiguration, configureAgent);
         assistantProviderTypeLabel = label("Provider type", 'Y', assistantProviderType);
         assistantFamilyLabel = label("Family", 'F', assistantFamily);
         assistantRuntimeLabel = label("Runtime", 'R', assistantRuntime);
@@ -377,7 +388,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(headlessExecution)
                 .addComponent(testExecutionHelp)
                 .addComponent(section("Execution"))
-                .addLabeledComponent(currentAgentConfigurationTitle, currentAgentConfigurationRow)
+                .addLabeledComponent(currentAgentConfigurationTitle, currentAgentChip)
                 .addLabeledComponent(assistantProviderTypeLabel, assistantProviderType)
                 .addLabeledComponent(assistantFamilyLabel, assistantFamily)
                 .addLabeledComponent(assistantRuntimeLabel, assistantRuntime)
@@ -528,7 +539,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         testRecoveryAction = null;
         currentAgentConfigurationTitle = null;
         currentAgentConfiguration = null;
-        currentAgentConfigurationRow = null;
+        currentAgentChip = null;
         configureAgent = null;
         assistantProviderTypeLabel = null;
         assistantFamilyLabel = null;
@@ -718,10 +729,26 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return row;
     }
 
+    /**
+     * Builds the bordered "chip" wrapping {@code currentConfiguration} + {@code configureButton}
+     * (issue #4322). Neutral informational tint ({@code progress()}) -- the same idiom {@code
+     * ShaftAssistantPanel#currentAgentChip} uses for the identical label/gear pair in its
+     * {@code routeRow} (PR #4320) -- distinct from a high-stakes-toggle warning tint, since this
+     * pair is just "which agent is this / configure it".
+     */
     private static JPanel agentConfigurationRow(JLabel currentConfiguration, JButton configureButton) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        row.add(currentConfiguration);
-        row.add(configureButton);
+        JPanel row = new JPanel(new BorderLayout(4, 0));
+        row.setOpaque(true);
+        row.setBackground(ShaftStatusPresentation.tint(
+                javax.swing.UIManager.getColor("Panel.background") == null
+                        ? java.awt.Color.WHITE
+                        : javax.swing.UIManager.getColor("Panel.background"),
+                ShaftStatusPresentation.progress(), 0.08D));
+        row.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
+                JBUI.Borders.empty(2, 6)));
+        row.add(currentConfiguration, BorderLayout.CENTER);
+        row.add(configureButton, BorderLayout.EAST);
         return row;
     }
 
@@ -1138,7 +1165,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         boolean showSummary = mcpReady(state) && !editingAgentConfiguration;
         boolean cloud = advanced && "CLOUD".equals(assistantProviderType.getSelectedItem());
         currentAgentConfigurationTitle.setVisible(showSummary);
-        currentAgentConfigurationRow.setVisible(showSummary);
+        // Chip has no state of its own; it only needs to stay in lockstep with the label's and
+        // configureAgent button's own shared showSummary gate so it never renders as an empty
+        // colored box (mirrors ShaftAssistantPanel's currentAgentChip comment, issue #4316/PR #4320).
+        currentAgentChip.setVisible(showSummary);
         currentAgentConfiguration.setVisible(showSummary);
         configureAgent.setVisible(showSummary);
         assistantProviderTypeLabel.setVisible(advanced && !showSummary);
