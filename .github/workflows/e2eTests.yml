@@ -574,8 +574,70 @@ jobs:
           job-name: Ubuntu_Playwright_IPhone17ProMax
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
+  # Issue #4313: builds the SAME correctly-wired Flutter demo-app that
+  # Android_Flutter_Emulator_E2E builds (identical pinned appium-flutter-server
+  # checkout + flutter build apk --debug + gradlew app:assembleDebug
+  # -Ptarget=.../integration_test/appium.dart pipeline, see that job's own
+  # comment below for the full history), minus the emulator-boot/session-open
+  # steps that job also runs -- this job only needs the APK artifact, not a
+  # live device. Split into its own job (rather than steps inlined into
+  # Android_Native_BrowserStack) so a transient Flutter/Gradle build failure
+  # here can never take down that job's much broader native-Android test run
+  # (its -Dtest selector below also covers %regex[.*ndroid.*] and three
+  # BrowserStack *UnitTest classes, none of which are Flutter-related) --
+  # continue-on-error: true at job level guarantees that isolation.
+  Flutter_Demo_App_Build:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Native_BrowserStack,')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          java-version: '17'
+          node-version: '20'
+      - name: Setup Flutter 3.22.1
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.22.1
+          channel: stable
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4.0.1
+      - name: Checkout pinned appium-flutter-server demo-app
+        uses: actions/checkout@v7
+        with:
+          repository: AppiumTestDistribution/appium-flutter-server
+          # Same pinned commit as Android_Flutter_Emulator_E2E -- never track a
+          # moving branch; there is no permanently-hosted prebuilt APK, the
+          # upstream project's own CI builds fresh from source every run too.
+          ref: 78ba97a6146091b944335d0db3330f74416f3ac7
+          path: appium-flutter-server
+          sparse-checkout: |
+            demo-app
+      - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
+        # Recipe verbatim from Android_Flutter_Emulator_E2E below (itself taken
+        # from appium-flutter-server's own .github/workflows/main.yml at the
+        # pinned commit).
+        run: |
+          set -euo pipefail
+          cd appium-flutter-server/demo-app
+          dart pub global activate rps --version 0.8.0
+          flutter build apk --debug
+          cd android && ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+      - name: Upload wired Flutter demo-app APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: flutter-demo-apk
+          path: appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 1
+
   Android_Native_BrowserStack:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Android_Native_BrowserStack,')
+    needs: Flutter_Demo_App_Build
     runs-on: ubuntu-latest
     timeout-minutes: 50
     outputs:
@@ -589,6 +651,24 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+      - name: Download freshly-built Flutter demo-app APK
+        id: download_flutter_demo_apk
+        # Tolerate a missing artifact: Flutter_Demo_App_Build runs with
+        # continue-on-error: true precisely so its own failures never block
+        # this job's unrelated native-Android coverage. If the build failed,
+        # no artifact exists here -- fall through and keep the checked-in apk.
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: flutter-demo-apk
+          path: ${{ runner.temp }}/flutter-demo-apk
+      - name: Replace stale checked-in flutter-demo.apk with the freshly-built one
+        if: steps.download_flutter_demo_apk.outcome == 'success'
+        # FlutterTest.java:48 hardcodes this exact relative path and is resolved
+        # against shaft-engine's own module basedir (BrowserStackHelper.java's
+        # setupNativeAppExecution -> FileActions.getAbsolutePath), which is why
+        # this overwrite alone is sufficient -- no FlutterTest.java change needed.
+        run: cp "${{ runner.temp }}/flutter-demo-apk/app-debug.apk" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -608,11 +688,12 @@ jobs:
         # FlutterTest.setupFlutterDriver failed immediately with "Flutter server is not
         # started", because flutter-demo.apk is a plain Flutter build with no such
         # server embedded (confirmed via `unzip -l` -- no flutter_driver/integration
-        # markers). Reverted back to self-skip (the pre-#4303 default) until issue #4313
-        # replaces flutter-demo.apk with one actually built via the same
-        # Ptarget=.../integration_test/appium.dart pipeline Android_Flutter_Emulator_E2E
-        # already uses, and that rebuild is verified with a real workflow_dispatch run
-        # before re-enabling this flag -- the exact verification step #4294 skipped.
+        # markers). Reverted back to self-skip (the pre-#4303 default). Issue #4313 (this
+        # job's new Flutter_Demo_App_Build prerequisite above) now replaces flutter-demo.apk
+        # with one actually built via the same Ptarget=.../integration_test/appium.dart
+        # pipeline Android_Flutter_Emulator_E2E already uses; re-enabling this flag still
+        # requires a real workflow_dispatch run verifying FlutterTest passes against it
+        # first -- the exact verification step #4294 skipped, not to be repeated.
         # The -Dtest selector below still deliberately matches FlutterTest.* (harmless
         # while self-skipping) so re-enabling later is a one-line change again.
         run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
