@@ -144,7 +144,6 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JLabel upgradeDetail;
     private final JButton installNow;
     private final JButton checkMcpVersion;
-    private final JButton copyMcpInstallCommand;
     private final JLabel mcpVersionDetail;
     private final JButton test;
     private final JButton startChatting;
@@ -363,23 +362,20 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkChosenAgent.addActionListener(event -> checkChosenAgentClicked());
         // Primary one-click install action (issue #3743; reworked for JetBrains Marketplace
         // compliance -- see ShaftPluginSecurityTest, which forbids this plugin from spawning
-        // processes): opens a terminal with the full MCP + skills + CLI command pre-typed through
-        // the same TerminalOpener seam as "Copy SHAFT MCP install command" below; the plugin never
-        // executes the command itself, the user presses Enter.
+        // processes): copies the full MCP + skills + CLI command to the clipboard AND opens a
+        // terminal with it pre-typed through the same TerminalOpener seam, via the shared
+        // copyCommandIntoTerminal() helper every other copy-then-terminal action on this screen
+        // already uses; the plugin never executes the command itself, the user presses Enter.
+        // Issue #4314 fix 3: this used to be two functionally near-identical buttons ("Install" and
+        // a separate "Copy" that additionally copied to clipboard first) -- merged into this one.
         installNow = new JButton("Install");
         installNow.getAccessibleContext().setAccessibleName("Install SHAFT MCP");
-        installNow.setToolTipText("Opens a terminal with the SHAFT MCP + skills + shaft-cli install command "
-                + "pre-typed for the selected client -- press Enter there to run it, then press Check.");
+        installNow.setToolTipText("Copies the SHAFT MCP + skills + shaft-cli install command to the clipboard and "
+                + "opens a terminal with it pre-typed for the selected client -- press Enter there to run it, "
+                + "then press Check.");
         installNow.setMnemonic(KeyEvent.VK_I);
         applyLabeledAction(installNow, ShaftIcons.DOWNLOAD);
         installNow.addActionListener(event -> runInstall());
-        copyMcpInstallCommand = new JButton("Copy");
-        copyMcpInstallCommand.getAccessibleContext().setAccessibleName("Copy SHAFT MCP install command");
-        copyMcpInstallCommand.setToolTipText("Copy the SHAFT MCP install/update command and open a terminal with "
-                + "it pre-typed — just press Enter there to run it");
-        copyMcpInstallCommand.setMnemonic(KeyEvent.VK_C);
-        applyLabeledAction(copyMcpInstallCommand, ShaftIcons.COPY);
-        copyMcpInstallCommand.addActionListener(event -> copyMcpInstallCommand());
         mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
         test = new JButton("Check");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
@@ -569,12 +565,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         upgradeActions.add(copyUpgradeCommand);
         upgradeActions.add(upgradeDetail);
         // Merged row #3 (issue #3560): the old separate "SHAFT MCP version" row is folded into
-        // "3 Install SHAFT MCP" — one row, one Check, one Copy, badge driven by mcpVersionStepState().
+        // "3 Install SHAFT MCP" — one row, one Check, one Install, badge driven by
+        // mcpVersionStepState(). Issue #4314 fix 3: Install and the old separate Copy button are
+        // themselves merged into this one Install action.
         JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         installActions.setOpaque(false);
         installActions.add(installNow);
         installActions.add(checkMcpVersion);
-        installActions.add(copyMcpInstallCommand);
         installActions.add(mcpVersionDetail);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
@@ -1254,7 +1251,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkUpgrade.setEnabled(!running);
         copyUpgradeCommand.setEnabled(!running);
         checkMcpVersion.setEnabled(!running);
-        copyMcpInstallCommand.setEnabled(!running);
         installNow.setEnabled(!running);
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
@@ -1586,46 +1582,22 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     /**
-     * Copies the SHAFT MCP install/update command for the selected client. Install and upgrade are
-     * the same command — re-running the installer script always fetches the latest release — so
-     * there is no separate "install" vs "upgrade" flavor of this command (issue #3538). This is now
-     * the single copy action for the merged "3 Install SHAFT MCP" row (issue #3560), so it goes
-     * through {@link #installerCommand()} — the same helper the Advanced installer options panel
-     * uses — to honor the "Also install shaft-cli" checkbox.
-     */
-    private void copyMcpInstallCommand() {
-        String command = installerCommand();
-        copy(command, "Copied SHAFT MCP install command");
-        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> { });
-        if (opened) {
-            openIntellijTerminal();
-        }
-        setStatusText(opened
-                ? "Terminal opened with the SHAFT MCP install command pre-typed. Press Enter there to run it; "
-                + "when it finishes, press Check."
-                : "SHAFT MCP install command copied. Paste it into a terminal, run it; when it finishes, press Check.");
-        updateActionState(false);
-    }
-
-    /**
      * Primary "Install SHAFT MCP" action (issue #3743; reworked for JetBrains Marketplace
      * compliance -- {@code ShaftPluginSecurityTest} forbids this plugin from spawning OS
-     * processes). Routes the full MCP + skills + CLI command through the exact same {@link
-     * #terminalOpener} seam {@link #copyMcpInstallCommand()} uses: a terminal opens with the
-     * command pre-typed and the user presses Enter to actually run it -- the plugin itself never
-     * executes anything.
+     * processes). Copies the full MCP + skills + CLI command for the selected client to the
+     * clipboard AND opens a terminal with it pre-typed, through {@link #copyCommandIntoTerminal} --
+     * the same copy-then-terminal helper every other action on this screen shares -- so the plugin
+     * itself never executes anything; the user presses Enter. Install and upgrade are the same
+     * command — re-running the installer script always fetches the latest release — so there is no
+     * separate "install" vs "upgrade" flavor of this command (issue #3538); it goes through {@link
+     * #installerCommand()} — the same helper the Advanced installer options panel uses — to honor
+     * the "Also install shaft-cli" checkbox.
+     *
+     * <p>Issue #4314 fix 3: this used to be two functionally near-identical actions -- this one and
+     * a separate "Copy" button that additionally copied to the clipboard first -- merged here.</p>
      */
     private void runInstall() {
-        String command = installerCommand();
-        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> setStatusText(typed
-                ? "Command ready in the terminal -- run it, then press Check."
-                : "Couldn't auto-type the command there. Use Copy and paste it manually, then press Check."));
-        if (opened) {
-            openIntellijTerminal();
-            setStatusText("Terminal opened — typing the command...");
-        } else {
-            setStatusText("Could not open a terminal. Use Copy to get the install command instead.");
-        }
+        copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install", "Copied SHAFT MCP install command");
         updateActionState(false);
     }
 
@@ -1645,7 +1617,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install",
                 "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
-        copyMcpInstallCommand.requestFocusInWindow();
+        installNow.requestFocusInWindow();
     }
 
     /**
