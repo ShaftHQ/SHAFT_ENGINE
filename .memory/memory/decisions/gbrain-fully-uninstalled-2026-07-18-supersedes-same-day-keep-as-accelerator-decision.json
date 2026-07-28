@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision.md",
-  "content_hash": "sha256:7afbcf39393aaff5551771e94aa768e241ab9ddc96f4ee6cbf97357f736a0925",
+  "content_hash": "sha256:12f76c860ba45359cfb967dea79114b9351c8f5fa18030a782bda096a1a2c4d7",
   "created_at": "2026-07-18T08:36:26+03:00",
   "evidence": [],
   "facets": {
@@ -28,5 +28,5 @@
   ],
   "title": "gbrain fully uninstalled 2026-07-18 (supersedes same-day keep-as-accelerator decision)",
   "type": "decision",
-  "updated_at": "2026-07-18T08:36:26+03:00"
+  "updated_at": "2026-07-28T18:34:25+03:00"
 }
