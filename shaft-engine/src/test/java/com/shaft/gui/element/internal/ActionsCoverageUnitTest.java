@@ -1044,6 +1044,23 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void isCausedByAmbiguousLocatorShouldWalkTheFullCauseChain() {
+        // issue #4321 second-pass review: the last-resort retry must trigger only when a
+        // MultipleElementsFoundException appears anywhere in the failure's cause chain -- typically
+        // wrapped by FluentWait's TimeoutException, but never assuming a fixed wrapping depth.
+        Assert.assertTrue(Actions.isCausedByAmbiguousLocator(new com.shaft.gui.internal.exceptions.MultipleElementsFoundException()));
+        Assert.assertTrue(Actions.isCausedByAmbiguousLocator(
+                new org.openqa.selenium.TimeoutException("timed out",
+                        new com.shaft.gui.internal.exceptions.MultipleElementsFoundException())));
+        Assert.assertTrue(Actions.isCausedByAmbiguousLocator(
+                new RuntimeException("wrapper", new RuntimeException("nested",
+                        new com.shaft.gui.internal.exceptions.MultipleElementsFoundException()))));
+        Assert.assertFalse(Actions.isCausedByAmbiguousLocator(new NoSuchElementException("not found")));
+        Assert.assertFalse(Actions.isCausedByAmbiguousLocator(
+                new org.openqa.selenium.TimeoutException("timed out", new StaleElementReferenceException("stale"))));
+    }
+
+    @Test
     public void getTextShouldReturnEmptyStringWhenAllTextFallbacksAreNull() {
         WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         WebElement element = standardElement();

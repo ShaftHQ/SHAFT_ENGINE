@@ -485,9 +485,14 @@ public class Actions extends ElementActions {
         AtomicReference<HealingResolution> healingResolution = new AtomicReference<>();
         AtomicReference<HealingResolution> secondaryHealingResolution = new AtomicReference<>();
         AtomicReference<By> secondaryLocator = new AtomicReference<>();
+        // issue #4321 (second-pass review): disambiguation must be a strict LAST RESORT, applied only
+        // once the full identification-timeout retry window below is exhausted -- never during the
+        // loop itself, so a still-settling page always gets its full window before any narrowing is
+        // even considered. False for every poll of the primary fluentWait call; flipped true only for
+        // the single extra attempt made after that call times out with an ambiguous locator.
+        AtomicBoolean lastResortNarrowingAllowed = new AtomicBoolean(false);
 
-        try {
-            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(true).until(d -> {
+        Function<WebDriver, Boolean> attemptElementActionOnce = d -> {
                 flakeProfile.waitLoops.incrementAndGet();
                 flakeProfile.locatorLookups.incrementAndGet();
                 // find all elements matching the target locator
@@ -509,11 +514,17 @@ public class Actions extends ElementActions {
                 // ensure element locator is unique if applicable
                 if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy) && !(locator instanceof ByAll)) {
                     // issue #4321: a locator matching several elements is only genuinely ambiguous when
-                    // more than one of them is actually actionable. When exactly one is displayed and
-                    // enabled (the rest are hidden/disabled decoys -- e.g. duplicated markup for
-                    // different breakpoints), narrow to that single element instead of failing; any
-                    // other split (0, or 2+, displayed-and-enabled matches) still throws exactly as before.
-                    Optional<WebElement> uniqueActionable = uniqueDisplayedAndEnabledElement(foundElements.get());
+                    // more than one of them is actually actionable. This ALWAYS throws during the normal
+                    // retry loop (lastResortNarrowingAllowed is false here on every poll), identical to
+                    // pre-#4321 behavior -- a still-settling page keeps its full identification-timeout
+                    // window. Only the single last-resort attempt made after that window is exhausted
+                    // (see the outer try/catch around the fluentWait call below) allows narrowing, and
+                    // only when exactly one match is displayed and enabled (the rest are hidden/disabled
+                    // decoys -- e.g. duplicated markup for different breakpoints); any other split (0, or
+                    // 2+, displayed-and-enabled matches) still throws.
+                    Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed.get()
+                            ? uniqueDisplayedAndEnabledElement(foundElements.get())
+                            : Optional.empty();
                     if (uniqueActionable.isPresent()) {
                         foundElements.set(List.of(uniqueActionable.get()));
                     } else {
@@ -522,6 +533,9 @@ public class Actions extends ElementActions {
                 }
 
                 if (healingResolution.get() == null) {
+                    // issue #4327 (follow-up, not yet implemented): a last-resort-narrowed single
+                    // element is fed into observe() exactly like a naturally-unique match, so it can seed
+                    // a heal-history fingerprint an ambiguous locator could not have earned before #4321.
                     HealingManager.observe(
                             d,
                             locator,
@@ -630,9 +644,12 @@ public class Actions extends ElementActions {
                             && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
                             && !(locator instanceof RelativeLocator.RelativeBy)
                             && !(locator instanceof ByAll)) {
-                        // issue #4321: same narrowing as the initial lookup above -- only auto-resolve
-                        // when exactly one refreshed match is actually actionable.
-                        Optional<WebElement> uniqueActionable = uniqueDisplayedAndEnabledElement(foundElements.get());
+                        // issue #4321: same last-resort-only narrowing as the initial lookup above --
+                        // only auto-resolve when exactly one refreshed match is actually actionable, and
+                        // only on the single post-timeout attempt (see comment on the initial lookup).
+                        Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed.get()
+                                ? uniqueDisplayedAndEnabledElement(foundElements.get())
+                                : Optional.empty();
                         if (uniqueActionable.isPresent()) {
                             foundElements.set(List.of(uniqueActionable.get()));
                         } else {
@@ -914,7 +931,22 @@ public class Actions extends ElementActions {
                         true,
                         "");
                 return true;
-            });
+        };
+
+        try {
+            try {
+                new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(true).until(attemptElementActionOnce::apply);
+            } catch (RuntimeException timeoutFailure) {
+                if (isCausedByAmbiguousLocator(timeoutFailure)) {
+                    // issue #4321: the full identification-timeout retry window is exhausted and the
+                    // locator is still ambiguous on every unmodified retry. Take exactly one more look,
+                    // this time allowing narrowing to the single actionable match if there is one.
+                    lastResortNarrowingAllowed.set(true);
+                    attemptElementActionOnce.apply(driverFactoryHelper.getDriver());
+                } else {
+                    throw timeoutFailure;
+                }
+            }
         } catch (RuntimeException exception) {
             HealingManager.recordOutcome(
                     driverFactoryHelper.getDriver(),
@@ -1816,6 +1848,24 @@ public class Actions extends ElementActions {
             }
         }
         return Optional.ofNullable(match);
+    }
+
+    /**
+     * Checks whether {@code exception} -- typically the {@link org.openqa.selenium.TimeoutException}
+     * thrown when {@link SynchronizationManager}'s fluentWait exhausts the identification timeout --
+     * was ultimately caused by an ambiguous locator, by walking the full cause chain rather than
+     * assuming a fixed wrapping depth (issue #4321).
+     *
+     * @param exception the caught failure to inspect
+     * @return {@code true} when {@link MultipleElementsFoundException} appears anywhere in the chain
+     */
+    static boolean isCausedByAmbiguousLocator(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof MultipleElementsFoundException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static NoSuchElementException createDragAndDropElementNotFoundException(By locator, String role, NoSuchElementException rootCauseException) {
