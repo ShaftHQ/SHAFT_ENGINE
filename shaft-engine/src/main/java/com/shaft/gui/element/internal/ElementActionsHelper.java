@@ -27,7 +27,6 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import lombok.Getter;
 import org.apache.logging.log4j.Level;
-import org.junit.jupiter.api.Assertions;
 import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.interactions.Actions;
@@ -1048,10 +1047,14 @@ public class ElementActionsHelper {
         } else {
             message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
         }
+        // issue #4341: AssertionError must be reserved for genuine assertion failures; a broken/failed
+        // action (this method's only role -- see TouchActions/ElementActions/AlertActions/BrowserActions
+        // call sites) throws RuntimeException instead, mirroring Actions.report's reportBroken pipeline,
+        // with the original exception preserved as the cause.
         if (rootCauseException.length >= 1) {
-            Assertions.fail(message, rootCauseException[0]);
+            throw new RuntimeException(message, rootCauseException[0]);
         } else {
-            Assertions.fail(message);
+            throw new RuntimeException(message);
         }
     }
 

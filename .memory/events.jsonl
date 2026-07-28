@@ -562,3 +562,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.sonnet-coder-tester-subagents-get-gh-pr-merge-auto-and-gh-pr-checks-view-json-blocked-by-the-permission-classifier-only-the-orchestrator-session-can-arm-auto-merge","timestamp":"2026-07-28T11:44:14+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.shaft-properties-flags-set-is-jvm-global-clearforcurrentthread-never-resets-it","timestamp":"2026-07-28T13:02:21+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction","timestamp":"2026-07-28T14:26:06+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction","timestamp":"2026-07-28T17:16:37+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction","timestamp":"2026-07-28T17:31:45+03:00"}

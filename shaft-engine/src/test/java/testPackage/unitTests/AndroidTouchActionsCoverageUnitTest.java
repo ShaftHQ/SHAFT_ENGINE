@@ -286,6 +286,38 @@ public class AndroidTouchActionsCoverageUnitTest {
     }
 
     @Test
+    public void visualSwipeBubblesAlreadyReportedFailureWithoutDoubleWrapping() throws Exception {
+        // issue #4341: ElementActionsHelper#failAction now throws RuntimeException, not AssertionError, for
+        // a broken/failed action. swipeElementIntoView(By, String, SwipeDirection)'s inner catch block used
+        // to catch AssertionError specifically, to bubble an already-reported failure (the "couldn't find
+        // reference element" failAction call below) straight to the outer wrapper without re-reporting it.
+        // Now that failAction throws RuntimeException, that catch must match RuntimeException instead --
+        // otherwise the exception falls into the generic Exception handler and gets redundantly re-reported
+        // and re-wrapped an extra time before the outer wrapper wraps it again.
+        RemoteWebDriver driver = createMockRemoteWebDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper spyHelper = mock(ElementActionsHelper.class);
+        byte[] validPng = getValidPngBytes();
+        when(spyHelper.findElementPresence(eq(driver), eq("missing.png")))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        // simulate failAction's real (post-#4341-fix) throwing behavior on every overload it could hit here
+        doThrow(new RuntimeException("couldn't find reference element"))
+                .when(spyHelper).failAction(eq(driver), anyString(), isNull(By.class), any(List.class));
+        doThrow(new RuntimeException("redundant re-wrap -- should never happen"))
+                .when(spyHelper).failAction(eq(driver), anyString(), isNull(By.class), any(List.class), any(Throwable.class));
+        doThrow(new RuntimeException("final wrap"))
+                .when(spyHelper).failAction(eq(driver), isNull(By.class), any(Throwable.class));
+        injectElementActionsHelper(touchActions, spyHelper);
+
+        org.testng.Assert.expectThrows(RuntimeException.class,
+                () -> touchActions.swipeElementIntoView(null, "missing.png", TouchActions.SwipeDirection.DOWN));
+
+        verify(spyHelper, never()).failAction(eq(driver), anyString(), isNull(By.class), any(List.class), any(Throwable.class));
+        verify(spyHelper, times(1)).failAction(eq(driver), anyString(), isNull(By.class), any(List.class));
+        verify(spyHelper, times(1)).failAction(eq(driver), isNull(By.class), any(Throwable.class));
+    }
+
+    @Test
     public void textSwipeHelpersShouldUseUiAutomatorLookups() {
         AndroidDriver driver = createMockAndroidDriver();
         when(driver.findElement(any(By.class))).thenReturn(mock(WebElement.class));

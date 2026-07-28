@@ -698,9 +698,12 @@ public class TouchActions extends FluentWebDriverAction {
                     elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
                 }
                 elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
-            } catch (AssertionError assertionError) {
-                //bubble up
-                throw assertionError;
+            } catch (RuntimeException runtimeException) {
+                // issue #4341: ElementActionsHelper#failAction (called above on the empty-coordinates
+                // branch) now throws RuntimeException instead of AssertionError -- bubble it up as-is
+                // instead of falling into the generic Exception handler below and re-reporting/re-wrapping
+                // an already-reported failure a redundant extra time.
+                throw runtimeException;
             } catch (Exception exception) {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
             }

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction.md",
-  "content_hash": "sha256:1cf0c4d38ffa9c109a0eefcfec742a8f787b24fa98dddaf7e2fb08bde38eb8b7",
+  "content_hash": "sha256:b82596dcd60e9f832a7daa7d3bf38a1cd9d710ab67f82910dd3b39782ec11f79",
   "created_at": "2026-07-28T14:26:06+03:00",
   "evidence": [],
   "facets": {
@@ -24,9 +24,10 @@
   "tags": [
     "exceptions",
     "touch-actions",
-    "testing"
+    "testing",
+    "resolved"
   ],
-  "title": "TouchActions failures throw AssertionError, not RuntimeException like Actions.performAction",
+  "title": "RESOLVED (#4341): ElementActionsHelper.failAction now throws RuntimeException, not AssertionError",
   "type": "gotcha",
-  "updated_at": "2026-07-28T14:26:06+03:00"
+  "updated_at": "2026-07-28T17:31:45+03:00"
 }
