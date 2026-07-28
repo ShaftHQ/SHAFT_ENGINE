@@ -298,6 +298,9 @@ this is what to do with what you find. Adapted from bmad-method's
 - **Verify before building on it.** Diff the delegate's changes, run the
   affected checks, and confirm its claims against the real files — a
   delegate's report is an input to verify, not a conclusion to trust.
+- **Two explicit passes, never one blended review**: first spec compliance
+  (does the diff do what was asked), second code quality (is it
+  well-written).
 - **Route every finding into exactly one bucket**, never leave it unsorted:
   - `decision_needed` — an ambiguous choice only the owner can make; the
     finding is real but the fix depends on intent you don't have.

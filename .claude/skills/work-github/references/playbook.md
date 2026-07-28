@@ -218,7 +218,9 @@ gh issue close <tracker>
 ## 4. Review before you commit — every time
 
 A subagent's self-report describes what it intended, not necessarily what it
-did. Before committing any subagent's work:
+did. Before reviewing or shipping any nontrivial diff, run a `graphify` query
+against the touched symbols to check blast radius — the index is already
+built, so this is free. Before committing any subagent's work:
 
 - Read the actual diff (`git diff`), not just the report.
 - Skim the new/changed tests for real assertions, not tautologies.

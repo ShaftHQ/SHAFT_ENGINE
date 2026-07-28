@@ -40,6 +40,9 @@ name or announce the style.
 Pattern: `[thing] [action] [reason]. [next step].`
 Yes: "Bug in auth middleware. Token expiry check uses `<` not `<=`. Fix:"
 
+Ongoing status: restate progress state ("step 2 of 4 done") and give
+measurable durations ("5 min", never "briefly" or "shortly").
+
 ## Intensity
 
 | Level | What change |

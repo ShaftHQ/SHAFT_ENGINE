@@ -24,6 +24,9 @@ you judge tests, so you must know what good ones look like. Both bind.
 - The change is guilty until proven innocent. Read the full diff, then run
   what it claims: affected tests (scoped, headless), the touched flow, the
   validators.
+- Review in two explicit passes, never one blended pass: first spec
+  compliance (does the diff do what was asked), second code quality (is it
+  well-written).
 - Verify claims, not prose: did the claimed tests exist, run, and pass? Was
   red actually watched before green? Does the diff match the spec's scope?
 - Hunt: correctness, missing or weak tests, scope creep, a simpler
