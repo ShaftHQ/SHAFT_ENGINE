@@ -518,32 +518,22 @@ public class Actions extends ElementActions {
                     // retry loop (lastResortNarrowingAllowed is false here on every poll), identical to
                     // pre-#4321 behavior -- a still-settling page keeps its full identification-timeout
                     // window. Only the single last-resort attempt made after that window is exhausted
-                    // (see the outer try/catch around the fluentWait call below) allows narrowing, and
-                    // only when exactly one match is displayed and enabled (the rest are hidden/disabled
-                    // decoys -- e.g. duplicated markup for different breakpoints); any other split (0, or
-                    // 2+, displayed-and-enabled matches) still throws.
-                    int matchCountBeforeNarrowing = foundElements.get().size();
-                    Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed.get()
-                            ? uniqueDisplayedAndEnabledElement(foundElements.get())
-                            : Optional.empty();
-                    if (uniqueActionable.isPresent()) {
-                        // issue #4321: a real ambiguity was just auto-resolved -- trace it so a user
-                        // whose locator matches more than one element notices it, instead of the action
-                        // silently looking like an ordinary pass.
-                        ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
-                                + " matched " + matchCountBeforeNarrowing
-                                + " elements; auto-resolved to the only displayed and enabled one after the"
-                                + " identification timeout was exhausted.");
-                        foundElements.set(List.of(uniqueActionable.get()));
-                    } else {
-                        throw new MultipleElementsFoundException();
-                    }
+                    // (see the outer try/catch around the fluentWait call below) allows narrowing -- see
+                    // narrowOrHealOrThrowWhenAmbiguous (issue #4327) for what happens when even that
+                    // last-resort attempt cannot narrow to a single actionable match.
+                    narrowOrHealOrThrowWhenAmbiguous(
+                            d, locator, action.name(), foundElements, healingResolution,
+                            lastResortNarrowingAllowed.get(), "");
                 }
 
                 if (healingResolution.get() == null) {
-                    // issue #4327 (follow-up, not yet implemented): a last-resort-narrowed single
-                    // element is fed into observe() exactly like a naturally-unique match, so it can seed
-                    // a heal-history fingerprint an ambiguous locator could not have earned before #4321.
+                    // issue #4327: a last-resort-narrowed single element (via #4321's visibility
+                    // heuristic in narrowOrHealOrThrowWhenAmbiguous) is fed into observe() exactly like
+                    // a naturally-unique match, so it can seed a heal-history fingerprint an ambiguous
+                    // locator could not have earned before #4321. When narrowOrHealOrThrowWhenAmbiguous
+                    // instead resolved the ambiguity via SHAFT Heal, healingResolution is already set
+                    // above, so this branch is skipped -- observe() and resolve() are mutually
+                    // exclusive per lookup, same as the zero-match branch in findAllElements(By, String).
                     HealingManager.observe(
                             d,
                             locator,
@@ -655,20 +645,9 @@ public class Actions extends ElementActions {
                         // issue #4321: same last-resort-only narrowing as the initial lookup above --
                         // only auto-resolve when exactly one refreshed match is actually actionable, and
                         // only on the single post-timeout attempt (see comment on the initial lookup).
-                        int refreshedMatchCountBeforeNarrowing = foundElements.get().size();
-                        Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed.get()
-                                ? uniqueDisplayedAndEnabledElement(foundElements.get())
-                                : Optional.empty();
-                        if (uniqueActionable.isPresent()) {
-                            ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
-                                    + " matched " + refreshedMatchCountBeforeNarrowing
-                                    + " elements after lazy-loading settled; auto-resolved to the only"
-                                    + " displayed and enabled one after the identification timeout was"
-                                    + " exhausted.");
-                            foundElements.set(List.of(uniqueActionable.get()));
-                        } else {
-                            throw new MultipleElementsFoundException();
-                        }
+                        narrowOrHealOrThrowWhenAmbiguous(
+                                d, locator, action.name() + "_READY", foundElements, healingResolution,
+                                lastResortNarrowingAllowed.get(), " after lazy-loading settled");
                     }
                 }
                 if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldCheckNativeActionability(action, locator)) {
@@ -1871,6 +1850,77 @@ public class Actions extends ElementActions {
             }
         }
         return Optional.ofNullable(match);
+    }
+
+    /**
+     * Resolves a still-ambiguous locator (2+ matches, #4321's visibility-based narrowing already
+     * applied by the caller and found either zero or several actionable candidates) or throws.
+     * Shared by both the initial and the lazy-load-refreshed lookups, which apply this identical
+     * disambiguation sequence: (1) #4321's last-resort visibility narrowing -- handled by the
+     * caller before invoking this method; (2) issue #4327's SHAFT-Heal history-based narrowing,
+     * attempted only as a further last resort, exactly like the existing zero-match branch
+     * ({@link #findAllElements(By, String)}); (3) throw {@link MultipleElementsFoundException}.
+     * {@link HealingManager#resolve} is itself a no-op unless SHAFT Heal is enabled and prior
+     * history exists for this exact locator, so default and no-history behavior is unchanged.
+     *
+     * @param driver active driver
+     * @param locator target locator
+     * @param action action name
+     * @param foundElements current match list, updated in place on narrowing/healing
+     * @param healingResolution healing resolution slot, set when SHAFT Heal resolves the ambiguity
+     * @param lastResortNarrowingAllowed whether this is the single post-timeout last-resort attempt
+     * @param settledSuffix trace-message suffix distinguishing the refreshed lookup from the initial one
+     */
+    private void narrowOrHealOrThrowWhenAmbiguous(
+            WebDriver driver,
+            By locator,
+            String action,
+            AtomicReference<List<WebElement>> foundElements,
+            AtomicReference<HealingResolution> healingResolution,
+            boolean lastResortNarrowingAllowed,
+            String settledSuffix) {
+        int matchCountBeforeNarrowing = foundElements.get().size();
+        Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed
+                ? uniqueDisplayedAndEnabledElement(foundElements.get())
+                : Optional.empty();
+        if (uniqueActionable.isPresent()) {
+            // issue #4321: a real ambiguity was just auto-resolved -- trace it so a user whose
+            // locator matches more than one element notices it, instead of the action silently
+            // looking like an ordinary pass.
+            ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
+                    + " matched " + matchCountBeforeNarrowing + " elements" + settledSuffix
+                    + "; auto-resolved to the only displayed and enabled one after the"
+                    + " identification timeout was exhausted.");
+            foundElements.set(List.of(uniqueActionable.get()));
+            return;
+        }
+        if (lastResortNarrowingAllowed) {
+            // issue #4327: #4321's visibility-based narrowing could not disambiguate (0, or 2+,
+            // displayed-and-enabled matches). Before giving up, consult SHAFT Heal's fingerprint
+            // history for this exact locator -- the same mechanism the zero-match branch already
+            // uses. A last-resort-narrowed single element also seeds this same history via
+            // HealingManager.observe() (see the call site above), so a fingerprint recorded from
+            // a previously-narrowed ambiguous locator is just as valid a "this is the element the
+            // user meant" signal as any other.
+            Optional<HealingResolution> healed = HealingManager.resolve(
+                    driver,
+                    locator,
+                    action,
+                    true,
+                    LocatorBuilder.getIFrameLocator().get(),
+                    ShadowLocatorBuilder.shadowDomLocator.get(),
+                    ShadowLocatorBuilder.cssSelector.get());
+            if (healed.isPresent()) {
+                ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
+                        + " matched " + matchCountBeforeNarrowing + " elements" + settledSuffix
+                        + " and could not be narrowed to a single displayed and enabled match;"
+                        + " SHAFT Heal resolved it from prior history instead.");
+                healingResolution.set(healed.get());
+                foundElements.set(healed.get().elements());
+                return;
+            }
+        }
+        throw new MultipleElementsFoundException();
     }
 
     /**
