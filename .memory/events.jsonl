@@ -559,3 +559,4 @@
 {"actor":"agent","event":"memory.deleted","id":"gotcha.mvn-pl-downstream-test-resolves-upstream-module-deps-from-stale-m2-cache-not-the-working-tree-install-the-upstream-module-first-or-downstream-verification-proves-nothing","timestamp":"2026-07-28T06:52:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.mvn-pl-downstream-test-resolves-upstream-deps-from-stale-m2-cache-install-upstream-first","timestamp":"2026-07-28T06:52:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.captureservice-generateapi-gated-codeblocks-on-report-status-success-dropping-compiled-but-unconfirmed-code-issue-4311","timestamp":"2026-07-28T11:29:21+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.sonnet-coder-tester-subagents-get-gh-pr-merge-auto-and-gh-pr-checks-view-json-blocked-by-the-permission-classifier-only-the-orchestrator-session-can-arm-auto-merge","timestamp":"2026-07-28T11:44:14+03:00"}
