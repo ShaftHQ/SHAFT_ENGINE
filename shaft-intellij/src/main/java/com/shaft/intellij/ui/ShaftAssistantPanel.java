@@ -285,6 +285,16 @@ final class ShaftAssistantPanel extends JPanel {
     private CompletableFuture<String> pendingTerminalAnswer;
     private final Deque<Runnable> queuedLocalAgentApprovalPrompts = new ArrayDeque<>();
     private boolean localAgentApprovalPromptShowing;
+    /**
+     * The bridge-facing future for whichever local-agent approval request is currently showing its
+     * widget, or {@code null} when none is. Issue #4319 bug 1: lets {@link
+     * #localAgentApprovalHandler} tell a genuinely abandoned request (the bridge gave up on its own
+     * timeout with no user decision -- see {@link LocalAgentApprovalBridge#awaitDecision}, which now
+     * cancels this same future when that happens) apart from one still waiting in {@link
+     * #queuedLocalAgentApprovalPrompts} that simply hasn't been shown yet, so only the request that
+     * is actually stuck on screen gets cleaned up.
+     */
+    private CompletableFuture<LocalAgentApprovalBridge.Decision> showingLocalAgentApprovalFuture;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
     private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
@@ -2326,6 +2336,20 @@ final class ShaftAssistantPanel extends JPanel {
      */
     private void showAgentResponse(
             int streamToken, boolean currentStream, String response, String output, String kind) {
+        // Issue #4319 bug 2: Claude Code's own final "text" block streams in as a dimmed
+        // KIND_MILESTONE bubble the moment the assistant event arrives (see
+        // ClaudeStreamEventMapper#describeAssistantEvent), moments before the terminal event that
+        // carries the identical text on a normal completion. Neither terminal branch below has a
+        // streaming-placeholder index to replace in place when that happens (only Verbose mode's
+        // appendLocalAgentOutput branch ever establishes one), so both would otherwise append this
+        // text as a second, duplicate bubble. Retract that redundant milestone first -- but only when
+        // there is no real placeholder to replace in place already (Verbose mode's own in-place
+        // update is untouched) -- so whichever branch below runs lands as the sole bubble, exactly as
+        // if the milestone had never streamed. A milestone showing genuinely different text is left
+        // alone; only an exact match is ever retracted.
+        if (localAgentStreamPlaceholderMessageIndex < 0) {
+            retractRedundantTrailingMilestone(response);
+        }
         if (currentStream) {
             finishLocalAgentResponse(streamToken, response, output, kind);
         } else {
@@ -2335,6 +2359,35 @@ final class ShaftAssistantPanel extends JPanel {
             // (issue #3703), which withLocalAgentTokenUsage does.
             persistAndAppendResponse(withLocalAgentTokenUsage(response, output), output, kind);
         }
+    }
+
+    /**
+     * Removes the transcript's last message when it is a {@link ShaftAssistantChatState#KIND_MILESTONE}
+     * bubble whose text exactly matches {@code response} (issue #4319 bug 2) -- resyncing {@code
+     * transcript} from {@code chatState} afterward, the same already-used pattern {@link
+     * #replaceLocalAgentStreamPlaceholder} relies on whenever it mutates {@code chatState} out from
+     * under the view directly (see the two-message-graph note on {@link #append}). Deliberately exact-
+     * match only and scoped to milestone bubbles specifically: a milestone showing different text (a
+     * tool call, a "Thinking:" line, ...) must never be retracted, and neither must a user bubble or
+     * any other kind that happens to share the same words.
+     */
+    private void retractRedundantTrailingMilestone(String response) {
+        if (response == null || response.isBlank()) {
+            return;
+        }
+        ShaftAssistantChatState.Session active = chatState.activeSession();
+        if (active == null || active.messages == null || active.messages.isEmpty()) {
+            return;
+        }
+        int lastIndex = active.messages.size() - 1;
+        ShaftAssistantChatState.Message last = active.messages.get(lastIndex);
+        if (!ShaftAssistantChatState.KIND_MILESTONE.equals(last.kind)
+                || last.markdown == null
+                || !last.markdown.strip().equals(response.strip())) {
+            return;
+        }
+        active.messages.remove(lastIndex);
+        transcript.setMessages(active.messages);
     }
 
     /**
@@ -2828,6 +2881,17 @@ final class ShaftAssistantPanel extends JPanel {
     private LocalAgentApprovalBridge.ApprovalRequestHandler localAgentApprovalHandler(int streamToken) {
         return (toolName, input) -> {
             CompletableFuture<LocalAgentApprovalBridge.Decision> future = new CompletableFuture<>();
+            // Issue #4319 bug 1: a cancelled/exceptionally-completed future means the BRIDGE gave up
+            // on this request (its own decision timeout fired with no user decision, e.g. the CLI
+            // moved on to a different tool call) -- not a normal resolution, which always completes
+            // this future normally via resolveLocalAgentApproval below. Only that abandonment case
+            // needs reacting to here; a normal completion is already fully handled at its own call
+            // site and must not be double-processed.
+            future.whenComplete((decision, error) -> {
+                if (error != null) {
+                    runOnEdt(() -> handleAbandonedLocalAgentApproval(future));
+                }
+            });
             runOnEdt(() -> handleLocalAgentApprovalRequest(streamToken, toolName, input, future));
             return future;
         };
@@ -2877,6 +2941,7 @@ final class ShaftAssistantPanel extends JPanel {
             int streamToken, String toolName, JsonObject input,
             CompletableFuture<LocalAgentApprovalBridge.Decision> future) {
         localAgentApprovalPromptShowing = true;
+        showingLocalAgentApprovalFuture = future;
         setStatus("Awaiting approval for " + toolName + "...");
         CompletableFuture<ToolApprovalDecision> decisionFuture = new CompletableFuture<>();
         ToolApprovalPromptPanel approvalPanel = new ToolApprovalPromptPanel(
@@ -2899,6 +2964,7 @@ final class ShaftAssistantPanel extends JPanel {
             CompletableFuture<LocalAgentApprovalBridge.Decision> future) {
         transcript.clearWidget();
         localAgentApprovalPromptShowing = false;
+        showingLocalAgentApprovalFuture = null;
         String key = LOCAL_AGENT_APPROVAL_KEY_PREFIX + toolName;
         String outcomeLine;
         if (decision == null || decision == ToolApprovalDecision.DENY) {
@@ -2921,6 +2987,37 @@ final class ShaftAssistantPanel extends JPanel {
             appendLocalAgentOutput(streamToken, outcomeLine);
             setStatus("Thinking...");
         }
+        advanceLocalAgentApprovalQueue();
+    }
+
+    /**
+     * Issue #4319 bug 1: reacts to a local-agent approval request the BRIDGE has abandoned (its own
+     * decision timeout fired -- see {@link LocalAgentApprovalBridge#awaitDecision} -- with no user
+     * decision ever arriving), which completes {@code abandonedFuture} exceptionally instead of
+     * through {@link #resolveLocalAgentApproval}'s normal path. Only cleans up when {@code
+     * abandonedFuture} is the request actually on screen right now ({@link
+     * #showingLocalAgentApprovalFuture}): a request still waiting in {@link
+     * #queuedLocalAgentApprovalPrompts} that gets abandoned before ever being shown is left alone --
+     * its own {@code showPrompt} still runs once its turn comes, harmlessly rendering a widget whose
+     * decision will complete an already-cancelled future as a no-op. Without this, {@link
+     * #localAgentApprovalPromptShowing} stays stuck {@code true} forever once a request is abandoned,
+     * silently queuing every later approval request in the same run behind one that will never
+     * resolve or show -- the exact "no approval selector, ever" symptom reported live: the model's
+     * retry via a different tool after the first call timed out.
+     */
+    private void handleAbandonedLocalAgentApproval(
+            CompletableFuture<LocalAgentApprovalBridge.Decision> abandonedFuture) {
+        if (abandonedFuture != showingLocalAgentApprovalFuture) {
+            return;
+        }
+        transcript.clearWidget();
+        localAgentApprovalPromptShowing = false;
+        showingLocalAgentApprovalFuture = null;
+        advanceLocalAgentApprovalQueue();
+    }
+
+    /** Shows the next queued local-agent approval prompt, if any, else restores composer focus. */
+    private void advanceLocalAgentApprovalQueue() {
         Runnable next = queuedLocalAgentApprovalPrompts.poll();
         if (next != null) {
             next.run();
@@ -2933,6 +3030,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (localAgentApprovalPromptShowing) {
             transcript.clearWidget();
             localAgentApprovalPromptShowing = false;
+            showingLocalAgentApprovalFuture = null;
         }
         queuedLocalAgentApprovalPrompts.clear();
     }
@@ -3050,10 +3148,19 @@ final class ShaftAssistantPanel extends JPanel {
         // Any real message (user or assistant) ends the first-run welcome (issue #3540): the
         // welcome is only ever valid on a genuinely empty transcript, and this always follows
         // showFirstRunWelcomeIfNeeded() showing it (or a no-op if never shown/already dismissed),
-        // so clearWidget() here is safe even when nothing is currently showing. append() is never
-        // called while an approval widget occupies the same slot (see showFirstRunWelcomeIfNeeded's
-        // javadoc), so this never fights that widget for the slot.
-        transcript.clearWidget();
+        // so clearWidget() here is safe even when nothing is currently showing. Issue #4319 bug 1:
+        // append() is NOT guaranteed to skip the local-agent approval widget's slot the way the old
+        // comment here assumed -- AssistantLocalAgentRunner.narrateApproval's own "Waiting for your
+        // approval on X -- run timer paused." narration line streams back in through this exact path
+        // (appendLocalAgentOutput -> addCompactLocalAgentMilestone -> appendAgentMilestone -> append)
+        // while the ToolApprovalPromptPanel selector it is narrating about is still on screen, so an
+        // unconditional clearWidget() here destroyed the just-shown selector a moment after it
+        // rendered. Skip it while that widget is up; AssistantTranscriptView#canAppendIncrementally
+        // already falls back to a full refresh() whenever pendingWidget is non-null, which re-trails
+        // the widget after the new message instead of losing it.
+        if (!localAgentApprovalPromptShowing) {
+            transcript.clearWidget();
+        }
         transcript.append(role, text, rawResponse, kind);
         chatState.append(role, text, rawResponse, kind);
         updateContextTruncationBoundary();

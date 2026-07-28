@@ -4120,6 +4120,66 @@ class ShaftPanelSetupTest {
                                 + markdown));
     }
 
+    /**
+     * Issue #4319 bug 2 (best evidence-consistent mechanism found -- not a confirmed live repro):
+     * Claude Code's {@code stream-json} protocol emits the model's own final "text" block as a plain
+     * assistant event the moment the turn ends ({@code ClaudeStreamEventMapper#describeAssistantEvent}
+     * -> {@code appendLocalAgentOutput} -> {@code addCompactLocalAgentMilestone}), rendering it as a
+     * dimmed {@code KIND_MILESTONE} bubble with nothing recognizing that this text IS about to become
+     * the run's terminal answer -- Claude's terminal {@code result} event's own {@code result} field
+     * carries the identical text on a normal completion. {@code finishLocalAgentResponse} then renders
+     * that same text again as a fresh, separate, clear bubble (non-Verbose runs never establish a
+     * streaming-placeholder index to replace in place -- see {@code replaceLocalAgentStreamPlaceholder}'s
+     * fresh-append branch), so the exact same wording appears twice: once dimmed, once clear. This
+     * reproduces with a plain completion (no approval pause, no stream-token mismatch), unlike the
+     * currentStream-mismatch hypothesis the issue itself first floated.
+     */
+    @Test
+    void assistantNonVerboseFinalizationDoesNotDuplicateAPlainTextFinalAnswerAlreadyStreamedAsAMilestone()
+            throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String finalAnswer = "I need two things before I can generate this code: 1. No file is"
+                + " currently open. 2. Target URL confirmation.";
+
+        appendStreamingLocalAgentBubble(panel, 40);
+        appendLocalAgentOutput(panel, 40, finalAnswer);
+        showAgentResult(panel, 40, ShaftMcpToolResult.success(finalAnswer));
+
+        @SuppressWarnings("unchecked")
+        List<ShaftAssistantChatState.Message> messages =
+                ((ShaftAssistantChatState) getField(panel, "chatState")).activeMessages();
+        long occurrences = messages.stream().filter(message -> message.markdown.contains(finalAnswer)).count();
+
+        assertEquals(1, occurrences,
+                "the final answer must render exactly once, not once as a dimmed milestone and again"
+                        + " as the polished final bubble: " + transcriptMarkdown(panel));
+    }
+
+    /**
+     * Companion guardrail for the fix above: a milestone that streamed in DIFFERENT text from the
+     * eventual final answer (the common case -- a "Calling tool X..." milestone, not the model's own
+     * final text block) must never be retracted just because a terminal response follows it. Both
+     * must still render as separate bubbles.
+     */
+    @Test
+    void assistantNonVerboseFinalizationStillShowsADifferentMilestoneAndTheFinalAnswerSeparately()
+            throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String milestone = "Calling tool Bash (grep locator)...";
+        String finalAnswer = "Found the search result element and generated the SHAFT test.";
+
+        appendStreamingLocalAgentBubble(panel, 41);
+        appendLocalAgentOutput(panel, 41, milestone);
+        showAgentResult(panel, 41, ShaftMcpToolResult.success(finalAnswer));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains(milestone),
+                        "a milestone with genuinely different text must survive: " + markdown),
+                () -> assertTrue(markdown.contains(finalAnswer),
+                        "the final answer must still render: " + markdown));
+    }
+
     @Test
     void assistantNonVerboseRunShowsNoPlaceholderBubbleWhileRunning() throws Exception {
         // Issue #3919: the "_Running local assistant..._" placeholder bubble is gone -- progress
@@ -7254,6 +7314,85 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(second.isDone()),
                 () -> assertTrue(second.get().allowed()));
+    }
+
+    /**
+     * Issue #4319 bug 1: {@code LocalAgentApprovalBridge.awaitDecision} gives up locally on its own
+     * {@code TimeoutException} (the CLI moves on -- e.g. retries the same intent via a different
+     * tool) but never cancels/completes the bridge-facing future it handed out, so {@code
+     * localAgentApprovalPromptShowing} stays stuck {@code true} forever: a later approval request in
+     * the SAME run (the model's PowerShell retry after Bash's approval timed out) then finds the
+     * flag stuck and is silently queued behind a request that will never resolve -- never actually
+     * rendering its own selector, and never updating the status bar either (since {@code
+     * showLocalAgentApprovalPrompt}, the only place that sets the status text, never runs for it).
+     * This reproduces the abandonment with {@code future.cancel(true)}, mirroring the fix planned for
+     * the bridge side.
+     */
+    @Test
+    void abandonedLocalAgentApprovalUnsticksTheShowingFlagAndTheNextRequestStillShows() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        appendStreamingLocalAgentBubble(panel, 21);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 21);
+        CompletableFuture<LocalAgentApprovalBridge.Decision> first = handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        assertNotNull(transcriptWidget(panel), "the first request should render immediately");
+
+        // Simulates the bridge giving up on its own timeout, with no user decision ever arriving.
+        SwingUtilities.invokeAndWait(() -> first.cancel(true));
+
+        CompletableFuture<LocalAgentApprovalBridge.Decision> second =
+                handler.requestApproval("PowerShell", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        JComponent secondWidget = transcriptWidget(panel);
+        assertAll(
+                () -> assertNotNull(secondWidget,
+                        "a second tool's approval request must still render its own selector after the"
+                                + " first one was abandoned (timed out), not resolved by the user"),
+                () -> assertTrue(secondWidget instanceof ToolApprovalPromptPanel,
+                        "the rendered widget must be the clickable approval selector"),
+                () -> assertEquals("Tool approval request for PowerShell",
+                        secondWidget.getAccessibleContext().getAccessibleName(),
+                        "the rendered widget must be the SECOND (PowerShell) request, not the stale"
+                                + " Bash widget left over from the abandoned first request"));
+    }
+
+    /**
+     * Issue #4319 bug 1: {@code AssistantLocalAgentRunner.narrateApproval} emits "Waiting for your
+     * approval on X -- run timer paused." through the SAME coalesced output pipeline that renders
+     * ordinary milestone bubbles (see {@code appendLocalAgentOutput} -> {@code
+     * addCompactLocalAgentMilestone} -> {@code appendAgentMilestone} -> {@code append}). {@code
+     * append} unconditionally calls {@code transcript.clearWidget()}, on the documented (but false,
+     * for this exact case) assumption that append is never called while an approval widget is
+     * showing -- so the narration line the user actually sees in the real transcript destroys the
+     * just-rendered {@link ToolApprovalPromptPanel} selector a moment after it appears, leaving only
+     * narration text with nothing left to click.
+     */
+    @Test
+    void localAgentApprovalWidgetSurvivesAMilestoneAppendedWhileItIsShowing() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        appendStreamingLocalAgentBubble(panel, 20);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 20);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        assertNotNull(transcriptWidget(panel), "the approval prompt should render immediately");
+
+        // Simulates narrateApproval's own narration line reaching the transcript through the real
+        // coalesced output path a live run uses.
+        appendLocalAgentOutput(panel, 20, "Waiting for your approval on Bash -- run timer paused.");
+
+        JComponent widgetAfterNarration = transcriptWidget(panel);
+        assertAll(
+                () -> assertNotNull(widgetAfterNarration,
+                        "a narration/milestone line streaming in while an approval prompt is showing"
+                                + " must not clobber it"),
+                () -> assertTrue(widgetAfterNarration instanceof ToolApprovalPromptPanel,
+                        "the surviving widget must still be the clickable approval selector"));
     }
 
     private static LocalAgentApprovalBridge.ApprovalRequestHandler localAgentApprovalHandler(

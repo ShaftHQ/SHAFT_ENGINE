@@ -277,9 +277,17 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
         try {
             return future.get(decisionTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException exception) {
+            // Issue #4319 bug 1: give up locally AND tell the handler side this request is
+            // abandoned by cancelling the same future it handed out -- otherwise the caller (SHAFT's
+            // ShaftAssistantPanel) has no signal this request will never resolve, and its own
+            // "a prompt is currently showing" bookkeeping stays stuck forever, silently queuing every
+            // later approval request in the same run (e.g. a retry via a different tool) behind one
+            // that will never show or resolve.
+            future.cancel(true);
             return Decision.deny("No user decision arrived before the run's timeout.");
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            future.cancel(true);
             return Decision.deny("Interrupted while awaiting a user decision.");
         } catch (ExecutionException exception) {
             return Decision.deny("Approval failed: " + exception.getMessage());
