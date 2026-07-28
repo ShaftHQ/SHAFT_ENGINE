@@ -59,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -506,8 +507,19 @@ public class Actions extends ElementActions {
                     throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
 
                 // ensure element locator is unique if applicable
-                if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy) && !(locator instanceof ByAll))
-                    throw new MultipleElementsFoundException();
+                if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy) && !(locator instanceof ByAll)) {
+                    // issue #4321: a locator matching several elements is only genuinely ambiguous when
+                    // more than one of them is actually actionable. When exactly one is displayed and
+                    // enabled (the rest are hidden/disabled decoys -- e.g. duplicated markup for
+                    // different breakpoints), narrow to that single element instead of failing; any
+                    // other split (0, or 2+, displayed-and-enabled matches) still throws exactly as before.
+                    Optional<WebElement> uniqueActionable = uniqueDisplayedAndEnabledElement(foundElements.get());
+                    if (uniqueActionable.isPresent()) {
+                        foundElements.set(List.of(uniqueActionable.get()));
+                    } else {
+                        throw new MultipleElementsFoundException();
+                    }
+                }
 
                 if (healingResolution.get() == null) {
                     HealingManager.observe(
@@ -618,7 +630,14 @@ public class Actions extends ElementActions {
                             && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
                             && !(locator instanceof RelativeLocator.RelativeBy)
                             && !(locator instanceof ByAll)) {
-                        throw new MultipleElementsFoundException();
+                        // issue #4321: same narrowing as the initial lookup above -- only auto-resolve
+                        // when exactly one refreshed match is actually actionable.
+                        Optional<WebElement> uniqueActionable = uniqueDisplayedAndEnabledElement(foundElements.get());
+                        if (uniqueActionable.isPresent()) {
+                            foundElements.set(List.of(uniqueActionable.get()));
+                        } else {
+                            throw new MultipleElementsFoundException();
+                        }
                     }
                 }
                 if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldCheckNativeActionability(action, locator)) {
@@ -1766,6 +1785,37 @@ public class Actions extends ElementActions {
             }
         }
         return false;
+    }
+
+    /**
+     * Finds the single actionable (displayed and enabled) element among {@code elements}, reusing
+     * the same per-element {@code isDisplayed()}/{@code isEnabled()} filtering already applied by
+     * {@link #chooseBestEffortDisplayedElement(List)}. Unlike that best-effort picker, this method
+     * never guesses: it returns a match only when EXACTLY ONE element qualifies, so a locator that
+     * matches several genuinely actionable elements stays ambiguous (issue #4321) -- disambiguation
+     * is intentionally narrow, not a general-purpose "pick one" fallback.
+     *
+     * @param elements candidate elements matched by the target locator
+     * @return the single displayed-and-enabled element, or empty when zero or several qualify
+     */
+    static Optional<WebElement> uniqueDisplayedAndEnabledElement(List<WebElement> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return Optional.empty();
+        }
+        WebElement match = null;
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed() && element.isEnabled()) {
+                    if (match != null) {
+                        return Optional.empty();
+                    }
+                    match = element;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        return Optional.ofNullable(match);
     }
 
     private static NoSuchElementException createDragAndDropElementNotFoundException(By locator, String role, NoSuchElementException rootCauseException) {

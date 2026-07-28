@@ -57,6 +57,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -1004,7 +1005,43 @@ public class ActionsCoverageUnitTest {
                 .contains("Caused by: java.lang.IllegalArgumentException: cause"));
     }
 
+    @Test
+    public void uniqueDisplayedAndEnabledElementShouldNarrowOnlyWhenExactlyOneQualifies() {
+        // issue #4321: disambiguation must only fire when the found-elements list has exactly one
+        // displayed-and-enabled candidate; any other split (zero, or two-or-more) must stay ambiguous.
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        WebElement visibleButDisabled = mock(WebElement.class);
+        when(visibleButDisabled.isDisplayed()).thenReturn(true);
+        when(visibleButDisabled.isEnabled()).thenReturn(false);
+        WebElement visibleEnabled = mock(WebElement.class);
+        when(visibleEnabled.isDisplayed()).thenReturn(true);
+        when(visibleEnabled.isEnabled()).thenReturn(true);
 
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(hidden, visibleButDisabled, visibleEnabled)),
+                Optional.of(visibleEnabled));
+
+        WebElement anotherVisibleEnabled = mock(WebElement.class);
+        when(anotherVisibleEnabled.isDisplayed()).thenReturn(true);
+        when(anotherVisibleEnabled.isEnabled()).thenReturn(true);
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(visibleEnabled, anotherVisibleEnabled)),
+                Optional.empty());
+
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(hidden, visibleButDisabled)),
+                Optional.empty());
+
+        WebElement throwing = mock(WebElement.class);
+        when(throwing.isDisplayed()).thenThrow(new WebDriverException("stale-ish"));
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(throwing, visibleEnabled)),
+                Optional.of(visibleEnabled));
+
+        Assert.assertEquals(Actions.uniqueDisplayedAndEnabledElement(List.of()), Optional.empty());
+        Assert.assertEquals(Actions.uniqueDisplayedAndEnabledElement(null), Optional.empty());
+    }
 
     @Test
     public void getTextShouldReturnEmptyStringWhenAllTextFallbacksAreNull() {
