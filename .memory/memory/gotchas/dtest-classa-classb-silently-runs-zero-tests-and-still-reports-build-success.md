@@ -1,5 +1,0 @@
-MERGED 2026-07-27 memory-hygiene cleanup: same root gotcha as gotcha.surefire-dtest-multi-class-needs-commas-not (`-Dtest=ClassA+ClassB` silently matches zero tests, masked by failIfNoTests=false). Its pom.xml:807-808 citation and the surefire-reports mtime-check tip were folded into the canonical entry; read that one instead. Original text preserved below.
-
----
-
-SHAFT_ENGINE uses the TestNG Surefire provider, which rejects '+' as a class separator in -Dtest. Combined with failIfNoSpecifiedTests=false and failIfNoTests=false at shaft-engine/pom.xml:807-808, a -Dtest=ClassA+ClassB invocation silently matches zero tests and Maven still reports BUILD SUCCESS -- there is no error, warning, or nonzero exit code signaling that nothing ran. Use commas instead: -Dtest=ClassA,ClassB. When verifying a scoped test run in this repo, always cross-check target/surefire-reports/ file mtimes (or test counts) to confirm tests actually executed, rather than trusting a green Maven exit code alone. This already cost a real agent time in this session before being caught.

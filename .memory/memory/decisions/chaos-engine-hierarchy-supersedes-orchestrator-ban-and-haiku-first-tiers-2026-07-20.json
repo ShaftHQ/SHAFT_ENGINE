@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/chaos-engine-hierarchy-supersedes-orchestrator-ban-and-haiku-first-tiers-2026-07-20.md",
-  "content_hash": "sha256:34826dc98d3718e4dd092bd7bdc73c79f1631f01e5d4b373796d96a4d4f702b9",
+  "content_hash": "sha256:8933200d08ea0a2ded418b372d1758d2b5fa73faa691fa5da383c88f9177c24f",
   "created_at": "2026-07-20T17:49:45+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "Chaos Engine hierarchy supersedes orchestrator ban and Haiku-first tiers (2026-07-20)",
   "type": "decision",
-  "updated_at": "2026-07-20T17:49:45+03:00"
+  "updated_at": "2026-07-28T18:47:50+03:00"
 }
