@@ -52,6 +52,35 @@ public class MultipleElementsFailureTest {
     }
 
     @Test
+    public void clickPreservesOriginalTimeoutDiagnosticsWhenStillAmbiguousAfterLastResort() {
+        // issue #4334: when the single last-resort narrowing attempt (issue #4321/PR #4326) ALSO
+        // fails because the locator is still genuinely ambiguous, the final MultipleElementsFoundException
+        // must not silently drop the original primary-loop TimeoutException -- it carried the "tried for
+        // N second(s)" identification-timeout diagnostics that a bare last-resort failure has no way to
+        // reproduce on its own.
+        driver.get().browser().navigateToURL(mockedHTML);
+        RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
+                () -> driver.get().element().click(By.xpath("//input")));
+        // the exception SHAFT reports to the user wraps the real failure as its cause (see
+        // Actions.reportBroken/reportedException handling) -- the suppressed diagnostics can live on
+        // either the outer wrapper or the wrapped cause, so walk the whole chain.
+        boolean originalTimeoutDiagnosticsPreserved = false;
+        for (Throwable current = thrown; current != null; current = current.getCause()) {
+            if (java.util.Arrays.stream(current.getSuppressed())
+                    .anyMatch(suppressed -> suppressed instanceof org.openqa.selenium.TimeoutException
+                            && suppressed.getMessage() != null
+                            && suppressed.getMessage().contains("tried for"))) {
+                originalTimeoutDiagnosticsPreserved = true;
+                break;
+            }
+        }
+        Assert.assertTrue(originalTimeoutDiagnosticsPreserved,
+                "Expected the original TimeoutException (carrying the 'tried for ... second(s)' "
+                        + "identification-timeout diagnostics) to be preserved as a suppressed exception "
+                        + "somewhere in the final failure's cause chain, but none was found; thrown was: " + thrown);
+    }
+
+    @Test
     public void typeResolvesToTheOnlyVisibleAndEnabledElementAmongMultipleMatches() {
         driver.get().browser().navigateToURL(oneVisibleHTML);
         // the locator itself is genuinely ambiguous (3 matches); the action must still succeed
