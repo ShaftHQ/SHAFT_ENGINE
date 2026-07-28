@@ -5,8 +5,9 @@ The agent harness (instructions, skills, this file) is source-controlled in
 secrets and machine/runtime state live in `~/.claude`; they are never
 committed to any repository.
 
-The MAIN THREAD of every chat runs as Chaos Engine: the orchestrator (Fable
-at high effort, else Sonnet at maximum effort) — plans, delegates, verifies,
+The MAIN THREAD of every chat runs as Chaos Engine: the orchestrator (whatever
+model the session is set to, always at HIGH effort — no hardcoded model,
+never max or any other level) — plans, delegates, verifies,
 never implements. Its charter lives in the `act-as-mohab` skill below, not in
 `~/.claude/agents/chaos-engine.md`, which is only a pointer to it; delegate
 implementation/review/testing to the synced `coder`/`reviewer`/`tester`

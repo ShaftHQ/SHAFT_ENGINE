@@ -596,3 +596,4 @@
 {"actor":"agent","event":"memory.updated","id":"decision.chaos-engine-hierarchy-supersedes-orchestrator-ban-and-haiku-first-tiers-2026-07-20","timestamp":"2026-07-28T18:47:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.agent-tool-isolation-worktree-worktrees-the-orchestrator-repo-not-a-target-path-in-the-prompt","timestamp":"2026-07-28T20:01:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.bazel-test-cached-passed-is-not-proof-of-a-fresh-run-use-nocache-test-results-when-independently-re-verifying","timestamp":"2026-07-28T22:46:34+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.orchestrator-model-routing-no-hardcoded-model-always-high-effort-supersedes-2026-07-20-fable-first-decision","timestamp":"2026-07-29T00:37:52+03:00"}
