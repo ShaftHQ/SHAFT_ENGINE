@@ -594,3 +594,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.subagent-gh-pr-merge-auto-blocked-only-orchestrator-arms-automerge","timestamp":"2026-07-28T18:37:35+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.sonnet-coder-tester-subagents-get-gh-pr-merge-auto-and-gh-pr-checks-view-json-blocked-by-the-permission-classifier-only-the-orchestrator-session-can-arm-auto-merge","timestamp":"2026-07-28T18:37:35+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.chaos-engine-hierarchy-supersedes-orchestrator-ban-and-haiku-first-tiers-2026-07-20","timestamp":"2026-07-28T18:47:50+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.agent-tool-isolation-worktree-worktrees-the-orchestrator-repo-not-a-target-path-in-the-prompt","timestamp":"2026-07-28T20:01:52+03:00"}
