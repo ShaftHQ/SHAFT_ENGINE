@@ -88,6 +88,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     /** Client-property key {@link #stepRow} stashes its action component under, so the row-collapse
      * logic (issue #3601 S2) can find and hide it without a dedicated field per row. */
     private static final String STEP_ACTION_KEY = "shaft.stepRow.action";
+    /** Client-property key {@link #stepRow} stashes its discoverable recheck icon under (issue
+     * #4314 fix 4), so {@link #styleStepRow} can show it only in the "done" state without a
+     * dedicated field per row. */
+    private static final String STEP_RECHECK_KEY = "shaft.stepRow.recheck";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -140,10 +144,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     private JLabel readyChecklist;
     private final JButton copyUpgradeCommand;
     private final JButton checkUpgrade;
+    private final JButton checkChosenAgent;
     private final JLabel upgradeDetail;
     private final JButton installNow;
     private final JButton checkMcpVersion;
-    private final JButton copyMcpInstallCommand;
     private final JLabel mcpVersionDetail;
     private final JButton test;
     private final JButton startChatting;
@@ -168,7 +172,6 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JLabel readyState;
     private final JLabel status;
     private final JLabel recommendedAgent;
-    private final JLabel setupSummary;
     private final JLabel recoveryStatus;
     private final JLabel toast;
     private final JButton copyCommand;
@@ -351,25 +354,32 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
         applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
         checkMcpVersion.addActionListener(event -> runMcpVersionCheck(true));
+        // Issue #4314 fix 2: every other step already has its own "Check" button that turns its
+        // badge green on its own -- "2 Pick agent" only turned green as a side effect of the full
+        // step-4 MCP probe. This lets a user verify "is my picked agent already installed/connected"
+        // without running the whole setup flow.
+        checkChosenAgent = new JButton("Check");
+        checkChosenAgent.getAccessibleContext().setAccessibleName("Check agent connection");
+        checkChosenAgent.setToolTipText("Verify the selected agent is already installed and connected, "
+                + "without running the full SHAFT MCP setup check");
+        applyLabeledAction(checkChosenAgent, ShaftIcons.CHECK);
+        checkChosenAgent.addActionListener(event -> checkChosenAgentClicked());
         // Primary one-click install action (issue #3743; reworked for JetBrains Marketplace
         // compliance -- see ShaftPluginSecurityTest, which forbids this plugin from spawning
-        // processes): opens a terminal with the full MCP + skills + CLI command pre-typed through
-        // the same TerminalOpener seam as "Copy SHAFT MCP install command" below; the plugin never
-        // executes the command itself, the user presses Enter.
+        // processes): copies the full MCP + skills + CLI command to the clipboard AND opens a
+        // terminal with it pre-typed through the same TerminalOpener seam, via the shared
+        // copyCommandIntoTerminal() helper every other copy-then-terminal action on this screen
+        // already uses; the plugin never executes the command itself, the user presses Enter.
+        // Issue #4314 fix 3: this used to be two functionally near-identical buttons ("Install" and
+        // a separate "Copy" that additionally copied to clipboard first) -- merged into this one.
         installNow = new JButton("Install");
         installNow.getAccessibleContext().setAccessibleName("Install SHAFT MCP");
-        installNow.setToolTipText("Opens a terminal with the SHAFT MCP + skills + shaft-cli install command "
-                + "pre-typed for the selected client -- press Enter there to run it, then press Check.");
+        installNow.setToolTipText("Copies the SHAFT MCP + skills + shaft-cli install command to the clipboard and "
+                + "opens a terminal with it pre-typed for the selected client -- press Enter there to run it, "
+                + "then press Check.");
         installNow.setMnemonic(KeyEvent.VK_I);
         applyLabeledAction(installNow, ShaftIcons.DOWNLOAD);
         installNow.addActionListener(event -> runInstall());
-        copyMcpInstallCommand = new JButton("Copy");
-        copyMcpInstallCommand.getAccessibleContext().setAccessibleName("Copy SHAFT MCP install command");
-        copyMcpInstallCommand.setToolTipText("Copy the SHAFT MCP install/update command and open a terminal with "
-                + "it pre-typed — just press Enter there to run it");
-        copyMcpInstallCommand.setMnemonic(KeyEvent.VK_C);
-        applyLabeledAction(copyMcpInstallCommand, ShaftIcons.COPY);
-        copyMcpInstallCommand.addActionListener(event -> copyMcpInstallCommand());
         mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
         test = new JButton("Check");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
@@ -440,17 +450,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         recommendedAgent.setText(recommendedAgentText);
         recommendedAgent.getAccessibleContext().setAccessibleDescription(recommendedAgentText);
         recommendedAgent.setVisible(true);
-        setupSummary = new JLabel();
-        setupSummary.getAccessibleContext().setAccessibleName("SHAFT MCP setup summary");
-        setupSummary.setText("Installs SHAFT MCP locally and configures the selected client.");
-        // Accessible description mirrors the live summary text (issue #3603): see
-        // updateLiveSummary(), the choke point every later update runs through.
-        setupSummary.getAccessibleContext().setAccessibleDescription(setupSummary.getText());
-        // Muted caption weight (issue #3601 B1.2), matching the ShaftAssistantPanel status-line
-        // idiom: this line restates the live target/runtime selection already visible in the form
-        // above it, so it should read as secondary detail, not a peer of the intro copy.
-        setupSummary.setFont(setupSummary.getFont().deriveFont(Math.max(10.0F, setupSummary.getFont().getSize2D() - 1.0F)));
-        setupSummary.setForeground(ShaftStatusPresentation.pending());
         recoveryStatus = new JLabel();
         recoveryStatus.getAccessibleContext().setAccessibleName("SHAFT MCP recovery summary");
         recoveryStatus.setVisible(false);
@@ -551,6 +550,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
         agentControls.add(recommendedAgent);
+        JPanel chooseActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        chooseActions.setOpaque(false);
+        chooseActions.add(checkChosenAgent);
+        agentControls.add(chooseActions);
         // Issue #3771: each labeledControl row above packs its own label at that label's natural
         // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
         // them land at different x-offsets -- a ragged left edge next to a real aligned form.
@@ -566,12 +569,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         upgradeActions.add(copyUpgradeCommand);
         upgradeActions.add(upgradeDetail);
         // Merged row #3 (issue #3560): the old separate "SHAFT MCP version" row is folded into
-        // "3 Install SHAFT MCP" — one row, one Check, one Copy, badge driven by mcpVersionStepState().
+        // "3 Install SHAFT MCP" — one row, one Check, one Install, badge driven by
+        // mcpVersionStepState(). Issue #4314 fix 3: Install and the old separate Copy button are
+        // themselves merged into this one Install action.
         JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         installActions.setOpaque(false);
         installActions.add(installNow);
         installActions.add(checkMcpVersion);
-        installActions.add(copyMcpInstallCommand);
         installActions.add(mcpVersionDetail);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
@@ -700,14 +704,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
         // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
-        // First user-visible mention of "MCP" in this file (issue #3601 B1.2): expanded once here,
-        // in plain prose, so the acronym never appears unexplained before this screen defines it.
-        JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — recording, code "
-                + "generation, and failure diagnosis work the same on Codex, Claude Code, Copilot, and Gemini. "
-                + "SHAFT handles the wiring through MCP (Model Context Protocol).</body></html>");
-        summary.setForeground(ShaftStatusPresentation.pending());
         intro.add(title, BorderLayout.NORTH);
-        intro.add(summary, BorderLayout.CENTER);
         installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
                 .addComponent(installShaftCli)
@@ -727,7 +724,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         });
         JPanel form = FormBuilder.createFormBuilder()
                 .addComponent(intro)
-                .addComponent(setupSummary)
                 .addComponent(runtimeStatus)
                 .addComponent(workflow)
                 .addComponent(advancedInstallerToggle)
@@ -1194,6 +1190,46 @@ final class ShaftMcpSetupPanel extends JPanel {
         updateActionState(false);
     }
 
+    /**
+     * "2 Pick agent"'s own standalone "Check" (issue #4314 fix 2): verifies the currently selected
+     * family/runtime is already installed/connected without running the whole step-4 MCP probe.
+     * Mirrors {@link #connectAgentClicked()}'s off-EDT dispatch for the non-cloud deep readiness
+     * probe (spawns the client CLI, ~10s -- must never block the EDT); the Gemini cloud route stays
+     * inline since it only does a fast local Password Safe lookup.
+     *
+     * <p>Deliberately does <b>not</b> call {@link #applyAgentLaneState}: that method also flips the
+     * Ready step's startChatting/startWithoutAgent/connectAgent visibility, which this step-2-only
+     * check must never touch (those widgets are earned solely by the real step-4 MCP probe). Only
+     * {@code settings.agentLaneReady} and this row's own badge (via {@link #updateActionState}) are
+     * updated here.</p>
+     */
+    private void checkChosenAgentClicked() {
+        if (progress.isVisible()) {
+            return;
+        }
+        applySelectionToSettings();
+        setRunning(true, "Checking agent (~10s)...");
+        if (cloudFamilySelected()) {
+            applyChosenAgentCheckResult(verifySelectedAgentReadiness(null));
+            return;
+        }
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
+                        ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                        applyChosenAgentCheckResult(error != null
+                                ? ShaftMcpToolResult.failure("Could not run the agent readiness check: "
+                                        + error.getMessage())
+                                : readiness)));
+    }
+
+    private void applyChosenAgentCheckResult(ShaftMcpToolResult readiness) {
+        setRunning(false, readiness.success() ? "Agent connected." : "Agent not ready yet. See details below.");
+        settings.agentLaneReady = readiness.success();
+        updateActionState(false);
+    }
+
     private void setRunning(boolean running, String text) {
         updateActionState(running);
         progress.setVisible(running);
@@ -1215,10 +1251,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         // row's own blue/green/red styling is what conveys pass/fail now.
         test.setEnabled(!running);
         installShaftCli.setEnabled(!running);
+        checkChosenAgent.setEnabled(!running);
         checkUpgrade.setEnabled(!running);
         copyUpgradeCommand.setEnabled(!running);
         checkMcpVersion.setEnabled(!running);
-        copyMcpInstallCommand.setEnabled(!running);
         installNow.setEnabled(!running);
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
@@ -1550,46 +1586,22 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     /**
-     * Copies the SHAFT MCP install/update command for the selected client. Install and upgrade are
-     * the same command — re-running the installer script always fetches the latest release — so
-     * there is no separate "install" vs "upgrade" flavor of this command (issue #3538). This is now
-     * the single copy action for the merged "3 Install SHAFT MCP" row (issue #3560), so it goes
-     * through {@link #installerCommand()} — the same helper the Advanced installer options panel
-     * uses — to honor the "Also install shaft-cli" checkbox.
-     */
-    private void copyMcpInstallCommand() {
-        String command = installerCommand();
-        copy(command, "Copied SHAFT MCP install command");
-        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> { });
-        if (opened) {
-            openIntellijTerminal();
-        }
-        setStatusText(opened
-                ? "Terminal opened with the SHAFT MCP install command pre-typed. Press Enter there to run it; "
-                + "when it finishes, press Check."
-                : "SHAFT MCP install command copied. Paste it into a terminal, run it; when it finishes, press Check.");
-        updateActionState(false);
-    }
-
-    /**
      * Primary "Install SHAFT MCP" action (issue #3743; reworked for JetBrains Marketplace
      * compliance -- {@code ShaftPluginSecurityTest} forbids this plugin from spawning OS
-     * processes). Routes the full MCP + skills + CLI command through the exact same {@link
-     * #terminalOpener} seam {@link #copyMcpInstallCommand()} uses: a terminal opens with the
-     * command pre-typed and the user presses Enter to actually run it -- the plugin itself never
-     * executes anything.
+     * processes). Copies the full MCP + skills + CLI command for the selected client to the
+     * clipboard AND opens a terminal with it pre-typed, through {@link #copyCommandIntoTerminal} --
+     * the same copy-then-terminal helper every other action on this screen shares -- so the plugin
+     * itself never executes anything; the user presses Enter. Install and upgrade are the same
+     * command — re-running the installer script always fetches the latest release — so there is no
+     * separate "install" vs "upgrade" flavor of this command (issue #3538); it goes through {@link
+     * #installerCommand()} — the same helper the Advanced installer options panel uses — to honor
+     * the "Also install shaft-cli" checkbox.
+     *
+     * <p>Issue #4314 fix 3: this used to be two functionally near-identical actions -- this one and
+     * a separate "Copy" button that additionally copied to the clipboard first -- merged here.</p>
      */
     private void runInstall() {
-        String command = installerCommand();
-        boolean opened = terminalOpener.open("SHAFT MCP install", command, typed -> setStatusText(typed
-                ? "Command ready in the terminal -- run it, then press Check."
-                : "Couldn't auto-type the command there. Use Copy and paste it manually, then press Check."));
-        if (opened) {
-            openIntellijTerminal();
-            setStatusText("Terminal opened — typing the command...");
-        } else {
-            setStatusText("Could not open a terminal. Use Copy to get the install command instead.");
-        }
+        copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install", "Copied SHAFT MCP install command");
         updateActionState(false);
     }
 
@@ -1609,7 +1621,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install",
                 "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
-        copyMcpInstallCommand.requestFocusInWindow();
+        installNow.requestFocusInWindow();
     }
 
     /**
@@ -2161,16 +2173,24 @@ final class ShaftMcpSetupPanel extends JPanel {
                 default -> UIManagerColors.foreground();
             });
         }
+        // Issue #4314 fix 5: the "next" badge is blanked out entirely -- no text, no opaque pill
+        // background, no border -- since it looked like a clickable button but wasn't and added no
+        // signal beyond the "done" (green) transition + auto-expanding next row already convey.
+        // Every other state keeps its exact existing text/opacity/border, untouched.
         stateLabel.setText(switch (state) {
             case "done" -> "Done";
             case "failed" -> "Failed";
-            case "next" -> "Next";
+            case "next" -> "";
             case "checking" -> "Checking";
             case "optional" -> "Offline";
             default -> "Waiting";
         });
         stateLabel.setToolTipText(name + " is " + displayState(state));
         stateLabel.getAccessibleContext().setAccessibleDescription(name + " setup state: " + state);
+        stateLabel.setOpaque(!"next".equals(state));
+        stateLabel.setBorder("next".equals(state)
+                ? JBUI.Borders.empty(2, 6)
+                : JBUI.Borders.compound(JBUI.Borders.customLine(UIManagerColors.border(), 1), JBUI.Borders.empty(2, 6)));
         stateLabel.setBackground(switch (state) {
             case "done" -> UIManagerColors.doneBackground();
             case "next", "checking", "optional" -> UIManagerColors.activeBackground();
@@ -2197,7 +2217,7 @@ final class ShaftMcpSetupPanel extends JPanel {
      * content onto its own line sidesteps that degenerate case entirely: it always gets the row's
      * full width to itself.
      */
-    private static JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
+    private JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(true);
         GridBagConstraints labelConstraints = new GridBagConstraints();
@@ -2212,10 +2232,27 @@ final class ShaftMcpSetupPanel extends JPanel {
         stateConstraints.anchor = GridBagConstraints.WEST;
         stateConstraints.insets = JBUI.insets(0, 0, 0, 10);
         row.add(stateLabel, stateConstraints);
+        // Discoverable recheck affordance (issue #4314 fix 4): a collapsed "done" row was already
+        // reconfigurable non-destructively by clicking it (toggleStepRowInspection below), but
+        // nothing on screen hinted it was clickable. This icon -- only shown once the row is
+        // actually "done" (see styleStepRow) -- fires that exact same toggle, never new logic; a
+        // plain JButton is keyboard-reachable on its own via the normal Tab/Enter/Space contract, so
+        // it needs no extra key bindings of its own, and (being an opaque child component) consumes
+        // its own clicks without also triggering the whole-row MouseAdapter installed below.
+        JButton recheck = ShaftIconButtons.create("Recheck this step",
+                label.getAccessibleContext().getAccessibleName() + " recheck", ShaftIcons.RERUN,
+                event -> toggleStepRowInspection(row));
+        recheck.setVisible(false);
+        GridBagConstraints recheckConstraints = new GridBagConstraints();
+        recheckConstraints.gridx = 2;
+        recheckConstraints.gridy = 0;
+        recheckConstraints.anchor = GridBagConstraints.NORTHEAST;
+        recheckConstraints.weightx = 1.0;
+        row.add(recheck, recheckConstraints);
         GridBagConstraints actionConstraints = new GridBagConstraints();
         actionConstraints.gridx = 0;
         actionConstraints.gridy = 1;
-        actionConstraints.gridwidth = 2;
+        actionConstraints.gridwidth = 3;
         actionConstraints.anchor = GridBagConstraints.WEST;
         actionConstraints.fill = GridBagConstraints.HORIZONTAL;
         actionConstraints.weightx = 1.0;
@@ -2225,6 +2262,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
                 JBUI.Borders.empty(8, 10)));
         row.putClientProperty(STEP_ACTION_KEY, action);
+        row.putClientProperty(STEP_RECHECK_KEY, recheck);
         return row;
     }
 
@@ -2354,10 +2392,6 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void updateLiveSummary() {
-        String target = String.valueOf(installerTarget.getSelectedItem()).replace('_', ' ');
-        String setupSummaryText = "Target: " + target + ". Runtime: " + assistantRuntimeLabel() + ".";
-        setupSummary.setText(setupSummaryText);
-        setupSummary.getAccessibleContext().setAccessibleDescription(setupSummaryText);
         String recommendedAgentText = recommendedAgentText();
         recommendedAgent.setText(recommendedAgentText);
         recommendedAgent.getAccessibleContext().setAccessibleDescription(recommendedAgentText);
@@ -2412,6 +2446,13 @@ final class ShaftMcpSetupPanel extends JPanel {
                     default -> UIManagerColors.border();
                 }, 1),
                 JBUI.Borders.empty(8, 10)));
+        // Issue #4314 fix 4: the recheck icon only signals something once there is something to
+        // recheck -- i.e. once the row has actually finished, matching the "done rows are the ones
+        // worth re-inspecting" behavior toggleStepRowInspection already assumes.
+        Object recheck = row.getClientProperty(STEP_RECHECK_KEY);
+        if (recheck instanceof JComponent recheckIcon) {
+            recheckIcon.setVisible("done".equals(state));
+        }
     }
 
     private static String escapeHtml(String text) {
