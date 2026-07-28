@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumBy;
@@ -74,6 +75,101 @@ public class HealingActionsIntegrationTest {
         verify(recovered).click();
         verify(provider).recordOutcome(any());
         verify(provider, never()).observe(any());
+    }
+
+    @Test
+    public void multiMatchLocatorShouldHealToHistoricallyObservedElementWhenLastResortNarrowingCannotDisambiguate() {
+        // issue #4327: extends the zero-match self-heal mechanism (#4321/PR #4326) to the MULTI-match
+        // branch. Both candidates below are displayed+enabled, so #4321's visibility-based narrowing
+        // (uniqueDisplayedAndEnabledElement) cannot disambiguate them on its own -- the locator stays
+        // genuinely ambiguous through every retry poll. Only once the identification timeout is fully
+        // exhausted should SHAFT Heal's fingerprint history be consulted, as a further last resort.
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        By locator = By.className("ambiguous");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement decoy = mock(WebElement.class);
+        WebElement healed = mock(WebElement.class);
+        when(decoy.isDisplayed()).thenReturn(true);
+        when(decoy.isEnabled()).thenReturn(true);
+        when(healed.isDisplayed()).thenReturn(true);
+        when(healed.isEnabled()).thenReturn(true);
+        when(driver.findElements(locator)).thenReturn(List.of(decoy, healed));
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-multi", List.of(healed), By.id("healed-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).click(locator);
+        }
+
+        verify(healed).click();
+        verify(decoy, never()).click();
+        verify(provider).recordOutcome(any());
+    }
+
+    @Test
+    public void multiMatchLocatorShouldStillThrowWhenHealingProviderHasNoHistoryForIt() {
+        // issue #4327, acceptance criterion (c): SHAFT Heal enabled but no prior history for this
+        // locator must still throw cleanly -- no silent misbehavior when there is nothing to heal from.
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        By locator = By.className("ambiguous");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement first = mock(WebElement.class);
+        WebElement second = mock(WebElement.class);
+        when(first.isDisplayed()).thenReturn(true);
+        when(first.isEnabled()).thenReturn(true);
+        when(second.isDisplayed()).thenReturn(true);
+        when(second.isEnabled()).thenReturn(true);
+        when(driver.findElements(locator)).thenReturn(List.of(first, second));
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.empty());
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helper).click(locator));
+            Throwable cause = thrown;
+            while (cause != null && !(cause instanceof MultipleElementsFoundException)) {
+                cause = cause.getCause();
+            }
+            Assert.assertTrue(cause instanceof MultipleElementsFoundException,
+                    "Expected a MultipleElementsFoundException in the cause chain, but got: " + thrown);
+        }
+
+        verify(first, never()).click();
+        verify(second, never()).click();
+    }
+
+    @Test
+    public void multiMatchLocatorShouldNeverInvokeHealingProviderWhenShaftHealDisabled() {
+        // issue #4327, acceptance criterion (a): default/SHAFT-Heal-disabled behavior must be
+        // unchanged -- zero new surface for the common case.
+        SHAFT.Properties.healing.set().strategy("disabled");
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        By locator = By.className("ambiguous");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement first = mock(WebElement.class);
+        WebElement second = mock(WebElement.class);
+        when(first.isDisplayed()).thenReturn(true);
+        when(first.isEnabled()).thenReturn(true);
+        when(second.isDisplayed()).thenReturn(true);
+        when(second.isEnabled()).thenReturn(true);
+        when(driver.findElements(locator)).thenReturn(List.of(first, second));
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Assert.expectThrows(RuntimeException.class, () -> new Actions(helper).click(locator));
+        }
+
+        verify(provider, never()).resolve(any());
     }
 
     @Test

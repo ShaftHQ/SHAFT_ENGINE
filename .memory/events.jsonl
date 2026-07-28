@@ -564,3 +564,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction","timestamp":"2026-07-28T14:26:06+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction","timestamp":"2026-07-28T17:16:37+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.touchactions-failures-throw-assertionerror-not-runtimeexception-like-actions-performaction","timestamp":"2026-07-28T17:31:45+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.issue-4327-shipped-healingmanager-resolve-extended-to-the-multi-match-branch-via-a-shared-narroworhealorthrowwhenambiguous-helper","timestamp":"2026-07-28T14:47:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.4332-touch-tap-disambiguation-was-not-merged-into-origin-main-as-of-pr-4343s-branch-point-despite-being-cited-as-already-merged-foundation","timestamp":"2026-07-28T14:47:44+03:00"}
