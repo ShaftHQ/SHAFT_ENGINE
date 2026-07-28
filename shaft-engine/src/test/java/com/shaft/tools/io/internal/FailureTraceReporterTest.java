@@ -414,8 +414,9 @@ public class FailureTraceReporterTest {
             try {
                 new TouchActions(driver).rotate(ScreenOrientation.LANDSCAPE);
                 Assert.fail("Expected rotate to report a failed action.");
-            } catch (AssertionError expected) {
-                // expected
+            } catch (RuntimeException expected) {
+                // issue #4341: ElementActionsHelper#failAction throws RuntimeException, not
+                // AssertionError, for this broken-action failure.
             }
 
             String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
