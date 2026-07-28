@@ -39,6 +39,16 @@ public class Properties {
     static Paths basePaths;
     static Pattern basePattern;
     static volatile Flags baseFlags;
+    /**
+     * Pristine snapshot of {@link #baseFlags}, captured by {@code PropertiesHelper.loadProperties()}
+     * immediately after {@code baseFlags} is first assigned, before any {@code Flags.set()} override is
+     * possible. {@link Flags} is intentionally shared across all threads (unlike the per-thread override
+     * configs below) so that a value set from one thread is visible from another -- see the {@link Flags}
+     * class javadoc. {@link #clearForCurrentThread()} uses this snapshot to restore {@code baseFlags} to
+     * its initialized state at test-class lifecycle boundaries, so a flag flipped by one test class does
+     * not leak into the next test class sharing the same Surefire fork.
+     */
+    static volatile Flags pristineBaseFlags;
     static Reporting baseReporting;
     static Allure baseAllure;
     static Timeouts baseTimeouts;
@@ -237,5 +247,10 @@ public class Properties {
         naturalActionsOverride.remove();
         playwrightOverride.remove();
         captureOverride.remove();
+        synchronized (Properties.class) {
+            if (pristineBaseFlags != null) {
+                baseFlags = pristineBaseFlags;
+            }
+        }
     }
 }

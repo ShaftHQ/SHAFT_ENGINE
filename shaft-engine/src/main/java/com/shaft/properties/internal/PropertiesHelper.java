@@ -93,6 +93,9 @@ public class PropertiesHelper {
         Properties.baseBrowserStack = ConfigFactory.create(BrowserStack.class);
         Properties.internal = ConfigFactory.create(Internal.class);
         Properties.baseFlags = ConfigFactory.create(Flags.class);
+        // Snapshot the just-loaded, override-free instance so clearForCurrentThread() can restore
+        // Flags to this pristine state at test-class lifecycle boundaries (see Properties.pristineBaseFlags).
+        Properties.pristineBaseFlags = Properties.baseFlags;
         Properties.cucumber = ConfigFactory.create(Cucumber.class);
         Properties.baseHealenium = ConfigFactory.create(Healenium.class);
         Properties.baseHealing = ConfigFactory.create(Healing.class);
