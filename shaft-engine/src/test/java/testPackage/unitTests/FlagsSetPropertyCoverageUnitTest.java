@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Flags;
+import com.shaft.properties.internal.Properties;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -146,5 +147,23 @@ public class FlagsSetPropertyCoverageUnitTest {
         Assert.assertEquals(SHAFT.Properties.flags.validateSwipeToElement(), !originalValidateSwipeToElement);
         Assert.assertEquals(SHAFT.Properties.flags.disableSslCertificateCheck(), !originalDisableSslCertificateCheck);
         Assert.assertEquals(SHAFT.Properties.flags.telemetryEnabled(), !originalTelemetryEnabled);
+    }
+
+    @Test(description = "Regression #4328: clearForCurrentThread() must reset a Flags override back to its "
+            + "pristine initialized value, closing the test-class-boundary leak (TestNGListener fires this "
+            + "same call whenever a new test class's @BeforeClass starts on a pooled Surefire thread)")
+    public void testClearForCurrentThreadResetsFlagsOverrideToPristineValue() {
+        boolean pristineValue = SHAFT.Properties.flags.forceCheckElementLocatorIsUnique();
+
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(!pristineValue);
+        Assert.assertEquals(SHAFT.Properties.flags.forceCheckElementLocatorIsUnique(), !pristineValue,
+                "sanity check: the override should take effect before the lifecycle boundary fires");
+
+        Properties.clearForCurrentThread();
+
+        Assert.assertEquals(SHAFT.Properties.flags.forceCheckElementLocatorIsUnique(), pristineValue,
+                "clearForCurrentThread() should restore Flags to their pristine initialized value, otherwise a "
+                        + "flag flipped by one test class silently leaks into the next test class sharing the "
+                        + "same Surefire fork (#4328)");
     }
 }
