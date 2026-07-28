@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Multiple Buttons Disabled/Enabled Fixture</title>
+</head>
+<body>
+<!-- onclick markers let the test prove WHICH button actually got clicked, instead of only
+     asserting that some click succeeded (a native `disabled` button ignores click events
+     entirely, so if #save were ever clicked in error, neither marker would fire and the
+     assertion below would correctly fail rather than pass on a silent no-op). -->
+<button id="save" disabled onclick="document.title='save-clicked'">Save</button>
+<button id="cancel" onclick="document.title='cancel-clicked'">Cancel</button>
+</body>
+</html>
