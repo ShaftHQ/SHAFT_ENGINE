@@ -956,7 +956,16 @@ public class Actions extends ElementActions {
                     // locator is still ambiguous on every unmodified retry. Take exactly one more look,
                     // this time allowing narrowing to the single actionable match if there is one.
                     lastResortNarrowingAllowed.set(true);
-                    attemptElementActionOnce.apply(driverFactoryHelper.getDriver());
+                    try {
+                        attemptElementActionOnce.apply(driverFactoryHelper.getDriver());
+                    } catch (RuntimeException lastResortFailure) {
+                        // issue #4334: the last-resort attempt bypasses fluentWait, so its own failure has
+                        // no "tried for N second(s)" wrapper -- suppress the original TimeoutException onto
+                        // it so that diagnostic context (the identification timeout was fully exhausted
+                        // before this was reported ambiguous) is not silently dropped.
+                        lastResortFailure.addSuppressed(timeoutFailure);
+                        throw lastResortFailure;
+                    }
                 } else {
                     throw timeoutFailure;
                 }
