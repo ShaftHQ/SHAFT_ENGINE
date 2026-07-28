@@ -236,8 +236,10 @@ report, or immediately if blocked, an assumption is refuted, a durable
 finding is confirmed, scope is about to be exceeded, or about to wait on
 anything external, send one
 substantive `SendMessage` to `main`: done with evidence, in flight,
-blockers, explicit yes/no on needing help. A hand-off, not a heartbeat —
-never a monitor or CI `--watch`; same to Haiku sub-delegates, consolidated.
+blockers, explicit yes/no on needing help. State progress as step N of M and
+durations in measured minutes, never vague words like "briefly". A
+hand-off, not a heartbeat — never a monitor or CI `--watch`; same to Haiku
+sub-delegates, consolidated.
 
 ## Ownership: the full loop
 
