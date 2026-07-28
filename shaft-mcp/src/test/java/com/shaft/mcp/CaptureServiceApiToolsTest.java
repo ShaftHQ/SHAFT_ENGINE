@@ -239,6 +239,45 @@ class CaptureServiceApiToolsTest {
         }
     }
 
+    /**
+     * Regression for the "Guided Workflows Live E2E" nightly failure (issue #4311,
+     * run 30331796055): {@code apiRecorderCapturesNetworkTrafficAndGeneratesShaftApiCode} recorded
+     * real network traffic, generated, and got a report with {@code status=UNCONFIRMED} (correct --
+     * replay defaults to {@code false}, #4220) and {@code compilation.status=PASSED}, yet
+     * {@code codeBlocks} came back empty, so every {@code code.contains(...)} assertion on the
+     * generated SHAFT.API source failed. Unlike the WebDriver/Playwright path
+     * ({@code CaptureService#generatedCodeUsable}, fixed for the same "replay skipped must not
+     * swallow compiling code" problem by issue #3409), {@code generateApi} gated {@code codeBlocks}
+     * on {@code report.status() == SUCCESS} alone, which UNCONFIRMED never satisfies by design.
+     */
+    @Test
+    void generateApiReturnsCodeBlocksWhenCompilationPassedButReplayWasSkipped() throws Exception {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSession();
+
+            McpCaptureReplayResult result = service.generateApi(
+                    "recordings/session-mcp.json", "generated", "tests.generated", "",
+                    "SCENARIO", "STATUS", true, false, "", List.of(), List.of());
+
+            assertGeneratedUnconfirmed(result);
+            assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                    result.report().compilation().status(), "Generation report: " + result.report());
+            assertFalse(result.codeBlocks().isEmpty(),
+                    "capture_api_generate must still return copy-paste code blocks for a compiled-but-"
+                            + "unconfirmed (replay-skipped) generation, not silently drop them: "
+                            + result.report());
+            assertTrue(result.codeBlocks().get(0).code().contains("new SHAFT.API("),
+                    "Returned code block should hold the generated SHAFT.API source: "
+                            + result.codeBlocks().get(0).code());
+        } finally {
+            service.close();
+        }
+    }
+
     @Test
     void generateApiOmitsExcludedTransactionsFromTheGeneratedTest() throws Exception {
         // Issue #3548 item 3: deselecting a transaction in the recorder table must remove it from
