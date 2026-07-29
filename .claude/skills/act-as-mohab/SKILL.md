@@ -195,7 +195,9 @@ up front. Recursive: every delegating agent owes its sub-delegates the same
 watch. The check-in is consultancy, not monitoring — concrete support (a
 solved sub-problem, a decision, a re-spec), never a bare "status?" ping.
 Two-sided: delegates owe the same proactive report (covenant below),
-volunteered, not extracted.
+volunteered, not extracted. Auto-notify covers only work you launched; a
+delegate pausing on its own backgrounded work wakes no one — message it,
+don't wait.
 
 **Delegates run act-as-mohab implicitly.** Every delegated agent runs this
 skill's full method whether or not it can load the file — the Subagent
