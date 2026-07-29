@@ -29,13 +29,13 @@
       "category": "testing",
       "strict": false,
       "skills": [
-        "./act-as-shaft-dev",
-        "./analyzing-shaft-failures",
-        "./choosing-shaft-locators",
-        "./planning-shaft-tests",
-        "./recording-shaft-tests-with-mcp",
-        "./verifying-and-applying-shaft-changes",
-        "./writing-shaft-tests"
+        "shaft-skills/act-as-shaft-dev",
+        "shaft-skills/analyzing-shaft-failures",
+        "shaft-skills/choosing-shaft-locators",
+        "shaft-skills/planning-shaft-tests",
+        "shaft-skills/recording-shaft-tests-with-mcp",
+        "shaft-skills/verifying-and-applying-shaft-changes",
+        "shaft-skills/writing-shaft-tests"
       ]
     }
   ]
