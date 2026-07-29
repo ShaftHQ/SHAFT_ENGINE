@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agentic PDCA Loop"
+  short_description: "Persona PDCA isolation loop"
+  default_prompt: "Use $agentic-pdca-loop."
+policy:
+  allow_implicit_invocation: true

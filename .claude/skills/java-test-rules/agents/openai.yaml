@@ -1,0 +1,6 @@
+interface:
+  display_name: "Java Test Rules"
+  short_description: "Apply Java test isolation and lifecycle rules"
+  default_prompt: "Use $java-test-rules."
+policy:
+  allow_implicit_invocation: true

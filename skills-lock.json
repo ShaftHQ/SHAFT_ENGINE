@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "skills": {
+    "act-as-mohab": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/act-as-mohab/SKILL.md",
+      "computedHash": "4b621b7ec997d3a814d2286e422ae44140c74af910d81e10b2296260c5d29ed4"
+    },
+    "act-as-shaft-dev": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/act-as-shaft-dev/SKILL.md",
+      "computedHash": "d62a35c7c1446c7f9ede920aad9afaa54458ae0b022f40e9fa006c1cd1bc8b91"
+    },
+    "agent-guidance-boundary-guard": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/agent-guidance-boundary-guard/SKILL.md",
+      "computedHash": "d545179a7d8d0a5b0cfa886a233efda53b85594c9907005d268683f00bd0612c"
+    },
+    "agentic-pdca-loop": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/agentic-pdca-loop/SKILL.md",
+      "computedHash": "28bd9ea5d68964a4187be6b2f988204c7768e1cf5a2f2349977609890f35c54c"
+    },
+    "allure-extent-report-operator": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/allure-extent-report-operator/SKILL.md",
+      "computedHash": "52a0835fb4b022cd4da923fc009a560593e0e077a68cf8525bc56d885e7c7337"
+    },
+    "analyzing-shaft-failures": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/analyzing-shaft-failures/SKILL.md",
+      "computedHash": "85d3d021a9ab10f18fe8f8e32a0a9bd3897175569bca3c950d132f6f7be223ff"
+    },
+    "caveman": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/caveman/SKILL.md",
+      "computedHash": "17f9ff625d2b96cb09b9aa835437267e4267729e2f701876f9808a5b62e9e584"
+    },
+    "choosing-shaft-locators": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/choosing-shaft-locators/SKILL.md",
+      "computedHash": "b33dc71a35a19438f525c9e91f3181f8735968656c5ff8d020a3445635efb160"
+    },
+    "ci-failure-investigator": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ci-failure-investigator/SKILL.md",
+      "computedHash": "791c043952923b0a3e1c1df38e964c7fcb711b2f0ee4cfb7eb05828f31c47bd6"
+    },
+    "flaky-test-stabilizer": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/flaky-test-stabilizer/SKILL.md",
+      "computedHash": "55dc386f6648a12b92191d8220105f3de8b0425df9039c2e91b28ece625599a0"
+    },
+    "framework-source-rules": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/framework-source-rules/SKILL.md",
+      "computedHash": "4907caf9a76d0d85ecb31d37e82141eb0478a049ea1f065b0ab1307cac138065"
+    },
+    "graphify": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/graphify/SKILL.md",
+      "computedHash": "6bfdb2f8692a5f40e6fe6e9e7c8ba662141534ab09ce58e80dd9cd0e16b99cf1"
+    },
+    "java-test-rules": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/java-test-rules/SKILL.md",
+      "computedHash": "17fcbec17ef64dca95581e165f3b509c1ba72a8489d1b422bb05debcdd0f910c"
+    },
+    "mcp-transport-contract-auditor": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/mcp-transport-contract-auditor/SKILL.md",
+      "computedHash": "06b0c56365cd0ee574910e53aa3206358b93c0d1556e9793f03b33bca2791100"
+    },
+    "modular-boundary-auditor": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/modular-boundary-auditor/SKILL.md",
+      "computedHash": "16227bef92e25858bda7571d20ecacaaa25bd9a92fd54420bea7248cd00cef2c"
+    },
+    "planning-shaft-tests": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/planning-shaft-tests/SKILL.md",
+      "computedHash": "c7d1999b232045cbb6e8c2064e839b7b03ab4625ce432673e6c1406591fab0ba"
+    },
+    "ponytail": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ponytail/SKILL.md",
+      "computedHash": "58a558ef1f4bdde9591eb2bfdeb4eabacbeba87dc237d2622ee842ca0816776f"
+    },
+    "public-behavior-docs-synchronizer": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/public-behavior-docs-synchronizer/SKILL.md",
+      "computedHash": "486460535061652e4ebfde20d776816302d3c88cb84d1d9bd2f92a37b9b30330"
+    },
+    "recording-shaft-tests-with-mcp": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/recording-shaft-tests-with-mcp/SKILL.md",
+      "computedHash": "4e35f50e111b3edc66b595d35dcf023c1093d8c40aad21d927e7e31d504e76de"
+    },
+    "release-dependency-guard": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/release-dependency-guard/SKILL.md",
+      "computedHash": "ea2e6bb3c88d52103f75098b7c67d796fe27125c6ae27ddffdd6a63fe02ec34d"
+    },
+    "shaft-marketing-ad-producer": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/shaft-marketing-ad-producer/SKILL.md",
+      "computedHash": "df5ea1f84fe4a53ed2cf5a1f610fef46195912fcc6f01087cedd6dbc8fa50e34"
+    },
+    "shaft-mastery": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/shaft-mastery/SKILL.md",
+      "computedHash": "35bd0ba2c5152763234d51c7f1305efbee35d94db161f3d8c627df1627dcccd0"
+    },
+    "shaft-ui-design": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/shaft-ui-design/SKILL.md",
+      "computedHash": "216cc1fdeabf17a07ec67be6c630772b9b80db4c57633546eb0a2cc7b8d3e4d7"
+    },
+    "test-driven-development": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/test-driven-development/SKILL.md",
+      "computedHash": "e189c86e1e4e5ccdea083e05b449368943fbdd0c9caf958f9e522a34d7e2b3a3"
+    },
+    "verifying-and-applying-shaft-changes": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/verifying-and-applying-shaft-changes/SKILL.md",
+      "computedHash": "d752b9495c1292112b6068baa66b90b63ae6795149da19f4d18bbe6e823fad64"
+    },
+    "work-github": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/work-github/SKILL.md",
+      "computedHash": "fd49c1d6378b67630bff411d46fabff0299754f8519418ff9f87dd181b72cb42"
+    },
+    "writing-shaft-tests": {
+      "source": "ShaftHQ/SHAFT_ENGINE",
+      "sourceType": "github",
+      "skillPath": "shaft-skills/writing-shaft-tests/SKILL.md",
+      "computedHash": "6fe8855df493a4d4847fbc39b07acbd916e8f3de9c528f83c5ac7439a35bf9ae"
+    }
+  }
+}
