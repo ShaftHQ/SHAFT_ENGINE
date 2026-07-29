@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/junittestpackage-tests-run-only-in-the-nightly-junit-profile-scoped-mvn-test-silently-runs-0-tests-without-the-junit-profile.md",
+  "content_hash": "sha256:603825b6a9651a3ab1a7796cf0910bcdf22c95fe5790d0c9857b286a0f14cb5b",
+  "created_at": "2026-07-29T15:35:18+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.junittestpackage-tests-run-only-in-the-nightly-junit-profile-scoped-mvn-test-silently-runs-0-tests-without-the-junit-profile",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix nightly failure 4359"
+  },
+  "status": "active",
+  "tags": [
+    "junit",
+    "profile",
+    "nightly",
+    "pr-gate",
+    "failaction"
+  ],
+  "title": "junitTestPackage tests run only in the nightly junit profile; scoped mvn test silently runs 0 tests without the junit profile",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T15:35:18+03:00"
+}

@@ -57,9 +57,24 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("false")
     boolean telemetryEnabled();
 
-    /** @return maximum provider timeout in seconds */
+    /**
+     * @return maximum provider timeout in seconds
+     *
+     * <p>Raised from 30 (issue #4361): autobot_provider_chat has declared a 300-second
+     * per-request timeout since its introduction, but this global ceiling -- left at its
+     * original default -- silently clamped every request back down to 30 seconds
+     * (AiExecutionService#effectiveTimeout takes {@code min(requested, this value)}, and
+     * AbstractHttpAiProvider applies the result as the HTTP request timeout). Once #4113 let
+     * the full 8,000-token output budget reach the wire, reasoning-model code generation
+     * legitimately runs past 30 seconds, surfacing as status=TIMEOUT ("Provider request timed
+     * out.") in the live Gemini E2E. 300 lets the already-declared per-call timeout actually
+     * take effect; callers that request less (or nothing -- AiRequest defaults to 30 seconds)
+     * are unaffected because the ceiling only ever lowers a request's own timeout. Callers
+     * that deliberately request the configured ceiling itself (PilotNaturalActionPlanner)
+     * inherit the raise; set this property lower to restore a tighter bound everywhere.</p>
+     */
     @Key("pilot.ai.timeoutSeconds")
-    @DefaultValue("30")
+    @DefaultValue("300")
     int timeoutSeconds();
 
     /** @return maximum serialized request size */

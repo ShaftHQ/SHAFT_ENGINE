@@ -603,3 +603,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.selenium-pr-17832-debug-logging-consistency-mechanism-five-review-fix-rounds-this-session-landed-clean","timestamp":"2026-07-29T08:59:53+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.month-old-stash-pile-was-pure-debris-every-referenced-issue-already-closed-merged-every-file-already-superseded-on-main","timestamp":"2026-07-29T15:24:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.safe-mass-stash-drop-pattern-drop-by-hash-reverified-current-index-one-at-a-time-never-trust-a-captured-index-after-any-drop","timestamp":"2026-07-29T15:24:50+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.pilot-ai-timeoutseconds-global-ceiling-silently-clamped-autobots-declared-300s-timeout-to-30s","timestamp":"2026-07-29T15:34:59+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.junittestpackage-tests-run-only-in-the-nightly-junit-profile-scoped-mvn-test-silently-runs-0-tests-without-the-junit-profile","timestamp":"2026-07-29T15:35:18+03:00"}
