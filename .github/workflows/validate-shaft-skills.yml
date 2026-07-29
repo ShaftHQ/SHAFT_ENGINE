@@ -9,6 +9,7 @@ on:
 jobs:
   validate-skills:
     name: Validate marketplace.json vs shaft-skills
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
