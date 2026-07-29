@@ -599,3 +599,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.orchestrator-model-routing-no-hardcoded-model-always-high-effort-supersedes-2026-07-20-fable-first-decision","timestamp":"2026-07-29T00:37:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.orchestrator-model-effort-routing-no-rule-at-all-not-a-different-hardcoded-value-supersedes-the-2026-07-29-high-effort-decision","timestamp":"2026-07-29T01:13:16+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.fixing-a-hardcode-by-hardcoding-a-different-value-is-not-the-fix-the-user-asked-for","timestamp":"2026-07-29T01:13:16+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.when-a-fix-reveals-a-new-bug-2-times-in-a-row-stop-trusting-the-same-agents-self-review-and-dispatch-a-fresh-independent-reviewer","timestamp":"2026-07-29T08:59:53+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.selenium-pr-17832-debug-logging-consistency-mechanism-five-review-fix-rounds-this-session-landed-clean","timestamp":"2026-07-29T08:59:53+03:00"}
