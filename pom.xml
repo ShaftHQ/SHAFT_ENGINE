@@ -150,12 +150,12 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.6.0</version>
+                <version>1.6.1</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.6.0</version>
+                <version>1.6.1</version>
             </dependency>
             <!-- JUNIT6 BOM -->
             <!-- https://mvnrepository.com/artifact/org.junit/junit-bom -->
