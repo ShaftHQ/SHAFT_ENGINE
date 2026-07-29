@@ -1,0 +1,42 @@
+{
+  "name": "shafthq",
+  "owner": {
+    "name": "ShaftHQ",
+    "url": "https://github.com/ShaftHQ"
+  },
+  "description": "Official ShaftHQ marketplace. Agent skills that teach AI coding agents to write, record, and debug SHAFT_ENGINE tests correctly.",
+  "plugins": [
+    {
+      "name": "shaft-skills",
+      "source": "./shaft-skills",
+      "description": "Official SHAFT agent skills: methodology router, locator strategy, test planning and authoring, MCP-driven recording, failure analysis, and change verification.",
+      "author": {
+        "name": "ShaftHQ"
+      },
+      "homepage": "https://shafthq.github.io/docs/start/overview",
+      "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
+      "license": "MIT",
+      "keywords": [
+        "shaft",
+        "test-automation",
+        "selenium",
+        "appium",
+        "rest-assured",
+        "java",
+        "testng",
+        "junit"
+      ],
+      "category": "testing",
+      "strict": false,
+      "skills": [
+        "./act-as-shaft-dev",
+        "./analyzing-shaft-failures",
+        "./choosing-shaft-locators",
+        "./planning-shaft-tests",
+        "./recording-shaft-tests-with-mcp",
+        "./verifying-and-applying-shaft-changes",
+        "./writing-shaft-tests"
+      ]
+    }
+  ]
+}

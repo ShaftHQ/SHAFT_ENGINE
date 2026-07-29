@@ -46,6 +46,33 @@ SHAFT tool window, reuse existing code, review generated blocks, verify locally.
 - [Modular-era feature catalog](modular-era-feature-catalog.md) — which optional
   module or command to adopt, with screenshots.
 
+## Agent Skills
+
+SHAFT ships a first-party skill pack in [`shaft-skills/`](shaft-skills) that
+teaches AI coding agents SHAFT conventions: locator strategy, test planning
+and authoring, MCP-driven recording, failure analysis, and change
+verification.
+
+Install as a Claude Code plugin (ships the full pack, including the shared
+`references/` lookups):
+
+```text
+/plugin marketplace add ShaftHQ/SHAFT_ENGINE
+/plugin install shaft-skills@shafthq
+```
+
+Or install individual skills to Claude Code, Cursor, Codex, and other agents
+with the [skills CLI](https://github.com/vercel-labs/skills):
+
+```shell
+npx skills add ShaftHQ/SHAFT_ENGINE --skill act-as-shaft-dev --skill writing-shaft-tests
+```
+
+The CLI picker also lists this repository's internal maintainer skills; the
+user-facing pack is the seven skills under `shaft-skills/`. Per-skill CLI
+installs copy each skill directory on its own, so the optional
+`shaft-skills/references/` lookups ship only with the plugin install.
+
 ## Contributing
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, validation, and pull requests.
