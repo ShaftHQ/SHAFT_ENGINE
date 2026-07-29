@@ -35,7 +35,10 @@ class JunitCoreAssertionMigrationTest {
         RuntimeException rootCause = new RuntimeException("root cause message");
         ElementActionsHelper helper = new ElementActionsHelper(true);
 
-        AssertionError error = assertThrows(AssertionError.class,
+        // Issue #4341: failAction reports a broken/failed action, never a genuine assertion,
+        // so it throws RuntimeException (mirroring Actions.report's reportBroken pipeline)
+        // while still preserving the report message and the original root cause.
+        RuntimeException error = assertThrows(RuntimeException.class,
                 () -> helper.failAction(null, "click", "submit", null, null, rootCause));
 
         assertTrue(error.getMessage().contains("Failed to Click \"submit\""),
@@ -43,6 +46,6 @@ class JunitCoreAssertionMigrationTest {
         assertTrue(error.getMessage().contains("root cause message"),
                 "Failure message should include the root cause message.");
         assertSame(rootCause, error.getCause(),
-                "JUnit Assertions.fail(message, cause) should preserve the original cause.");
+                "failAction should preserve the original exception as the cause.");
     }
 }

@@ -30,6 +30,21 @@ public class PropertiesUnitTest {
         Assert.assertTrue(retries >= 0, "Retries should be non-negative");
     }
 
+    @Test(description = "Test Pilot properties - AI timeout ceiling lets autobot's declared 300s reach the wire")
+    public void testPilotTimeoutSecondsCeilingCoversAutobotDeclaredTimeout() {
+        // Issue #4361: autobot_provider_chat declares a 300s per-request timeout
+        // (AutobotService.DEFAULT_TIMEOUT_SECONDS), but AiExecutionService#effectiveTimeout and
+        // AbstractHttpAiProvider both clamp to min(requested, pilot.ai.timeoutSeconds). With the
+        // global default left at 30s, every provider call was silently cut off after 30s --
+        // reasoning-model codegen responses (full 8,000-token budget since #4113) legitimately
+        // exceed that, surfacing as status=TIMEOUT "Provider request timed out." in the live
+        // Gemini E2E. Same defect class as pilot.ai.maxOutputTokens (#4113): a per-request value
+        // is dead unless the global ceiling keeps up.
+        int timeoutSeconds = SHAFT.Properties.pilot.timeoutSeconds();
+        Assert.assertEquals(timeoutSeconds, 300,
+                "pilot.ai.timeoutSeconds default must cover autobot's declared 300s per-request timeout");
+    }
+
     @Test(description = "Test Platform properties - target platform")
     public void testPlatformTargetPlatform() {
         String targetPlatform = SHAFT.Properties.platform.targetPlatform();
