@@ -27,7 +27,7 @@ jobs:
             exit 1
           fi
 
-          find shaft-skills -maxdepth 1 -type d -printf '%f\n' | sed '1d' | sort -u > /tmp/dir-skills.txt
+          find shaft-skills -maxdepth 1 -type d -printf '%f\n' | sed '1d' | grep -v '^references$' | sort -u > /tmp/dir-skills.txt
 
           missing_dirs=$(comm -23 /tmp/mp-skills-norm.txt /tmp/dir-skills.txt || true)
           missing_mp=$(comm -13 /tmp/mp-skills-norm.txt /tmp/dir-skills.txt || true)
