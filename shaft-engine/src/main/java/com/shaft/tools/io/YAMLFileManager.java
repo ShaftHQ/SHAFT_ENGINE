@@ -318,7 +318,7 @@ public class YAMLFileManager {
 
         for (int i = 0; i < indexes.size(); i++) {
             value = parseObjectToList(value, Object.class)
-                    .get(indexes.stream().findFirst().orElseThrow());
+                    .get(indexes.get(i));
         }
 
         return value;
