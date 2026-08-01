@@ -9,6 +9,10 @@
 #       and .memory/memory/gotchas/
 #       unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor.md --
 #       both repo-tracked so they travel with every clone/worktree)
+#      CI exception: e2eTests.yml's JUnit E2E reactor job deliberately builds
+#      dependencies with -am. It remains bounded by -pl shaft-engine, its
+#      -Dtest=Junit*,MoonTests default, and -DheadlessExecution=true, unlike
+#      the local test commands this guard protects.
 #   R2 Never auto-open/serve Allure reports
 #   R3 Never run GUI-opening commands on Windows (AGENTS.md Windows/Codex Safety)
 #   R8 Deny mutating `git stash` subcommands (pop/drop/apply/clear/push, and
