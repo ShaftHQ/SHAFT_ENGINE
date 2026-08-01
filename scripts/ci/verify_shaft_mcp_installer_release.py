@@ -328,7 +328,7 @@ def main() -> int:
             )
         shaft_cli_args = ("--install-shaft-cli",) if verify_shaft_cli else ()
         plugin_install = run_installer(
-            installer_command("intellij-plugin", *shaft_cli_args, "--json"),
+            installer_command("intellij-plugin", *shaft_cli_args, "--install-shaft-skills", "--json"),
             cwd=root,
             environment=environment,
             capture=True,

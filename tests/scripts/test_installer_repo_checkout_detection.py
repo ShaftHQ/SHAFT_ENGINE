@@ -10,12 +10,13 @@ fetching the latest installer -- reintroducing whatever bug that stale copy carr
 
 from __future__ import annotations
 
+import json
+import os
 import platform
 import shutil
 import subprocess
 import tempfile
 import unittest
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -85,12 +86,16 @@ class ShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
             wrapper.write_text((ROOT / "scripts/mcp/install-shaft-mcp.sh").read_text(encoding="utf-8"), encoding="utf-8")
             (script_dir / "install_shaft_mcp.py").write_text(
                 "import json, sys\nprint(json.dumps(sys.argv[1:]))\n", encoding="utf-8")
+            environment = os.environ.copy()
+            environment["SHAFT_MCP_BOOTSTRAP_HOME"] = str(Path(tmp) / "bootstrap")
 
             result = subprocess.run(
-                [SHELL, str(wrapper), "--install-shaft-cli", "--json"],
+                [SHELL, "scripts/mcp/install-shaft-mcp.sh", "--install-shaft-cli", "--json"],
                 capture_output=True,
                 text=True,
                 check=True,
+                env=environment,
+                cwd=root,
             )
 
         try:
@@ -108,32 +113,6 @@ class ShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             _, scratch = _write_scenarios(Path(tmp))
             self.assertFalse(self._detect(scratch))
-
-    def test_wrapper_forwards_component_arguments_without_adding_skills(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "repoA"
-            script_dir = root / "scripts" / "mcp"
-            script_dir.mkdir(parents=True)
-            (root / "pom.xml").write_text(SHAFT_PARENT_POM, encoding="utf-8")
-            wrapper = script_dir / "install-shaft-mcp.ps1"
-            wrapper.write_text((ROOT / "scripts/mcp/install-shaft-mcp.ps1").read_text(encoding="utf-8"), encoding="utf-8")
-            (script_dir / "install_shaft_mcp.py").write_text(
-                "import json, sys\nprint(json.dumps(sys.argv[1:]))\n", encoding="utf-8")
-
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper),
-                 "--install-shaft-cli", "--json"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-
-        try:
-            arguments = json.loads(result.stdout.strip().splitlines()[-1])
-        except json.JSONDecodeError as error:
-            self.fail(f"Unexpected wrapper stdout={result.stdout!r}, stderr={result.stderr!r}: {error}")
-        self.assertEqual(["--install-shaft-cli", "--json"], arguments)
-
 
 @unittest.skipUnless(platform.system() == "Windows", "PowerShell installer only ships for Windows")
 class PowerShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
@@ -174,6 +153,31 @@ class PowerShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             _, scratch = _write_scenarios(Path(tmp))
             self.assertFalse(self._detect(scratch))
+
+    def test_wrapper_forwards_component_arguments_without_adding_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repoA"
+            script_dir = root / "scripts" / "mcp"
+            script_dir.mkdir(parents=True)
+            (root / "pom.xml").write_text(SHAFT_PARENT_POM, encoding="utf-8")
+            wrapper = script_dir / "install-shaft-mcp.ps1"
+            wrapper.write_text((ROOT / "scripts/mcp/install-shaft-mcp.ps1").read_text(encoding="utf-8"), encoding="utf-8")
+            (script_dir / "install_shaft_mcp.py").write_text(
+                "import json, sys\nprint(json.dumps(sys.argv[1:]))\n", encoding="utf-8")
+
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper),
+                 "--install-shaft-cli", "--json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+        try:
+            arguments = json.loads(result.stdout.strip().splitlines()[-1])
+        except json.JSONDecodeError as error:
+            self.fail(f"Unexpected wrapper stdout={result.stdout!r}, stderr={result.stderr!r}: {error}")
+        self.assertEqual(["--install-shaft-cli", "--json"], arguments)
 
 
 if __name__ == "__main__":
