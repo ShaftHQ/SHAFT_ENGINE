@@ -86,8 +86,8 @@ instruction files while preserving user prose.
 
 On upgrade, the SHAFT installer removes only its seven verifiably owned retired
 skill folders; it leaves other user skills and files in the native directories intact.
-It refuses linked or junctioned native skill directories so an install cannot
-write outside the selected project.
+It refuses linked or junctioned native skill directories using Windows
+reparse-point checks, so an install cannot write outside the selected project.
 
 Use direct MCP tools for interactive stateful work, for example
 `shaft_guide_search` with `{"query":"page object model","maxResults":3}`.

@@ -10,6 +10,7 @@ import platform
 import queue
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -964,8 +965,14 @@ def download_agent_validation_script_files(target: Path) -> Path:
 def is_link_or_junction(path: Path) -> bool:
     """Whether a path can redirect native skill installation outside the project."""
     try:
-        is_junction = getattr(path, "is_junction", None)
-        return path.is_symlink() or (is_junction() if is_junction is not None else False)
+        if path.is_symlink():
+            return True
+        if os.name != "nt":
+            return False
+        attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+        return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400))
+    except FileNotFoundError:
+        return False
     except OSError:
         return True
 

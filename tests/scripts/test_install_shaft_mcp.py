@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -404,6 +405,34 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             with self.assertRaisesRegex(MODULE.InstallError, "linked native skill path"):
                 MODULE.install_shaft_skills(root, root / "bootstrap", "codex")
+
+            self.assertTrue(legacy.is_dir())
+            self.assertFalse((external / "skills" / "shaft-developer").exists())
+
+    @unittest.skipUnless(os.name == "nt", "Windows junctions only")
+    def test_install_shaft_skills_rejects_junctioned_native_parent_without_path_is_junction(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            external = root / "external"
+            legacy = external / "skills" / "writing-shaft-tests"
+            (legacy / "agents").mkdir(parents=True)
+            (legacy / "SKILL.md").write_text(
+                "---\nname: writing-shaft-tests\n---\n# Retired SHAFT skill\n", encoding="utf-8")
+            (legacy / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
+            result = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(root / ".agents"), str(external)],
+                capture_output=True, text=True, check=False)
+            if result.returncode != 0:
+                self.skipTest(f"filesystem does not support junctions: {result.stderr.strip()}")
+            path_is_junction = getattr(Path, "is_junction", None)
+            if path_is_junction is not None:
+                delattr(Path, "is_junction")
+            try:
+                with self.assertRaisesRegex(MODULE.InstallError, "linked native skill path"):
+                    MODULE.install_shaft_skills(root, root / "bootstrap", "codex")
+            finally:
+                if path_is_junction is not None:
+                    setattr(Path, "is_junction", path_is_junction)
 
             self.assertTrue(legacy.is_dir())
             self.assertFalse((external / "skills" / "shaft-developer").exists())
