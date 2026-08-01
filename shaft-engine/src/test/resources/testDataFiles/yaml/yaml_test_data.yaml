@@ -48,6 +48,14 @@ nested-list:
           -
             - You caught me
 
+matrix:
+  -
+    - r0c0
+    - r0c1
+  -
+    - r1c0
+    - r1c1
+
 nested-map:
   a:
     b:

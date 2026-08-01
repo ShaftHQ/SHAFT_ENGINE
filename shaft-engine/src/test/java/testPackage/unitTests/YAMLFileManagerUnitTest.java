@@ -205,6 +205,12 @@ public class YAMLFileManagerUnitTest {
                 .isEqualTo("You caught me").perform();
     }
 
+    @Test(description = "get: nested list with different indexes reads each level separately")
+    public void getNestedListWithDifferentIndexes() {
+        Validations.assertThat().object(yaml.getString("matrix[1][0]"))
+                .isEqualTo("r1c0").perform();
+    }
+
     @Test(description = "get: mixed map and list path")
     public void getMixedMapAndListPath() {
         Validations.assertThat().object(yaml.getString("mix-map-list.m1[1].l1.m2[1].l3"))
