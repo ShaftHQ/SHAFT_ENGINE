@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/live-launcher-retries-must-be-errexit-safe.md",
-  "content_hash": "sha256:6211d78737bca116c53138fe0bd1e7bee75cebf25800911a23a848025be963ba",
+  "content_hash": "sha256:1a97bcedbe039429b1bce0e4b2c83b392e49451dda5f9e08ab6b052cc62dec0d",
   "created_at": "2026-08-01T20:20:05+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "427acaa9de4ff633d8e027af073706bfaf8c4df3",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Live launcher retries must be errexit-safe",
   "type": "gotcha",
-  "updated_at": "2026-08-01T20:20:05+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

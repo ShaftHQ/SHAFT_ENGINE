@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency.md",
-  "content_hash": "sha256:e6b295fb1cf9b8c49a8cd24d05a97d7e3bfe9dbce84490d94cb262daf2c9f943",
+  "content_hash": "sha256:8dfcef49b6fcd5b104dccab01587df0f6609fe580a60b1c1a9370a212c47b301",
   "created_at": "2026-07-17T22:59:55+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "bd886bb984d31cc8fb9cab1ce12160bbce45cfd2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "shaft-intellij: SMTRunnerEventsListener/SMTestProxy already reachable at platformVersion=2024.3 with zero new Gradle dependency",
   "type": "gotcha",
-  "updated_at": "2026-07-17T22:59:55+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

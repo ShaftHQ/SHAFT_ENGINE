@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps.md",
-  "content_hash": "sha256:f9e77103481d331fc8c4e864b11e24a4c885d88be2d1795dd7f6b9b6d74492a2",
+  "content_hash": "sha256:496b3d5b25da44be0d9fe0ff14a1a9f944421ea0650194128212641c98ba06b3",
   "created_at": "2026-07-10T15:08:06+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "b74aad833dafe5e7a94bde12026424068af73989",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureEventPipeline.java"
@@ -28,5 +33,5 @@
   ],
   "title": "clientActionId is the authoritative dedup identity for recorder steps",
   "type": "gotcha",
-  "updated_at": "2026-07-10T15:08:06+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

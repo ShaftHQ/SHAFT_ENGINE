@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/selenium-augmenter-adddriveraugmentation-is-an-immutable-builder-always-reassign-the-return-value.md",
-  "content_hash": "sha256:e5be5d430f8d35c0302d2a68b84535bd15399b3274ca009041c923e3dcb3429b",
+  "content_hash": "sha256:4894e072fefbbd11511fa673bcd94e70ef269649372b300204a240471fb30785",
   "created_at": "2026-07-19T22:15:10+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/DriverFactoryHelper.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Selenium Augmenter#addDriverAugmentation is an immutable builder -- always reassign the return value",
   "type": "gotcha",
-  "updated_at": "2026-07-19T22:15:10+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

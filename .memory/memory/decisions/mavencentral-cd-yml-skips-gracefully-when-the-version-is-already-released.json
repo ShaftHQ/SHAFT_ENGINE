@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/mavencentral-cd-yml-skips-gracefully-when-the-version-is-already-released.md",
-  "content_hash": "sha256:f2b900163ca76b46a8b7d6a61ea4705f62eabe219591d3f3559483363a796620",
+  "content_hash": "sha256:8e84feea0595bb46bd56433d20bf0623a5e79f55896259a7a522584e083fe933",
   "created_at": "2026-07-08T07:55:24+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "295f18b2989ff801f80bf34c0c288fd1dd7d037b",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       ".github/workflows/mavenCentral_cd.yml",
@@ -30,5 +35,5 @@
   ],
   "title": "mavenCentral_cd.yml skips gracefully when the version is already released",
   "type": "decision",
-  "updated_at": "2026-07-08T07:55:24+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

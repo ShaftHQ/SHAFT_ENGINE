@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-werror-bans-jtextcomponent-modeltoview-int-use-modeltoview2d-int-for-pixel-position-swing-test-assertions.md",
-  "content_hash": "sha256:522835e07d09d9825d0898d8f757bbd352e2386e2f1aa5687111769f4cb2401e",
+  "content_hash": "sha256:6545d31b01dad88437cfbb73804c50e1c4f077df7c03c3ac7308f9ec2b1b3f8c",
   "created_at": "2026-07-27T00:18:39+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/build.gradle.kts",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +38,5 @@
   ],
   "title": "shaft-intellij -Werror bans JTextComponent#modelToView(int) -- use modelToView2D(int) for pixel-position Swing test assertions",
   "type": "gotcha",
-  "updated_at": "2026-07-27T00:18:39+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

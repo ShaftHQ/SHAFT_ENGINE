@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/intellij-assistant-rejects-native-selenium-generated-java.md",
-  "content_hash": "sha256:b9b5fb518d80eec4f773c812dd35661ab9763e025c78a1d7c0b2875ef27fa97f",
+  "content_hash": "sha256:44e48de4e9b074dcbfe8f3f3c48ec68a85bad4583e9dd7d4d193b2bb523288f3",
   "created_at": "2026-07-02T23:32:22+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "08241ae741fa84adf61603f2617a09de530c7e0e",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCommand.java",
@@ -32,5 +37,5 @@
   ],
   "title": "IntelliJ Assistant rejects native Selenium generated Java",
   "type": "decision",
-  "updated_at": "2026-07-02T23:32:22+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

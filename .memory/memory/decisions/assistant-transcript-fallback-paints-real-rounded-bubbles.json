@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/assistant-transcript-fallback-paints-real-rounded-bubbles.md",
-  "content_hash": "sha256:7ca1006cdb3a4ca32cbf3167f449b179878f9036e58930e8bee12b00651ed542",
+  "content_hash": "sha256:8784bb263e57c417223f7a6aaa2feaf51b28992672047952812d76df7cca4082",
   "created_at": "2026-07-02T23:32:22+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "08241ae741fa84adf61603f2617a09de530c7e0e",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
@@ -30,5 +35,5 @@
   ],
   "title": "Assistant transcript fallback paints real rounded bubbles",
   "type": "decision",
-  "updated_at": "2026-07-02T23:32:22+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

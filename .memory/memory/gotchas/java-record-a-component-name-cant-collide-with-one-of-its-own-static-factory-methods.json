@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/java-record-a-component-name-cant-collide-with-one-of-its-own-static-factory-methods.md",
-  "content_hash": "sha256:86559f827a0df730215dd97b0fe46ecffeaa773d88c8d49d495d1ccfb1d2bd5e",
+  "content_hash": "sha256:46825cb3dd75386f32926125b750ef25de1b841806c1c2b48ee78974da95412c",
   "created_at": "2026-07-17T03:55:35+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ProviderKeyProbe.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -25,5 +30,5 @@
   ],
   "title": "Java record: a component name can't collide with one of its own static factory methods",
   "type": "gotcha",
-  "updated_at": "2026-07-17T03:55:35+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

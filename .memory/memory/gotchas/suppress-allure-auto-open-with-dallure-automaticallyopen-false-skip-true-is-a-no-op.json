@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op.md",
-  "content_hash": "sha256:1739fba511b28f591a35b0c7fb46af0b6fe86496d9ac3860f06c3f6671163c06",
+  "content_hash": "sha256:b878c184b120d959e0cb967b7375de07e0b3cbabc255f9fd16905c7f9cd522ad",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "AGENTS.md",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/tools/io/internal/AllureManager.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "Suppress Allure auto-open with -Dallure.automaticallyOpen=false (skip=true is a no-op)",
   "type": "gotcha",
-  "updated_at": "2026-07-17T23:31:36+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/actions-performactions-reporting-only-accessible-name-fetch-only-caught-two-narrow-exception-types-not-generic-webdriverexception.md",
-  "content_hash": "sha256:bd575150994519b5d22d06914cdd83c41d05eb4ba2589341c658c82faac76e3c",
+  "content_hash": "sha256:56a607f430b73a04f9678f825c3dbb984177c16fa1fa3d643484909ac873e352",
   "created_at": "2026-07-28T00:51:38+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ea6b094efeea53e4d22c0d841b3eff5ddf533d0c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "Actions.performAction's reporting-only accessible-name fetch only caught two narrow exception types, not generic WebDriverException",
   "type": "gotcha",
-  "updated_at": "2026-07-28T00:51:38+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/swing-decouple-a-toggles-collapsed-state-for-its-label-from-its-overthreshold-state-for-its-visibility.md",
-  "content_hash": "sha256:c65c1a9cf064625ff8ecf2d357329562017a99d30dcbdcc959ef4348b35b02bc",
+  "content_hash": "sha256:c11a9ae6b6caa443de626e8b2a4417470769d0f6998be7727c574ea1399a6aed",
   "created_at": "2026-07-17T04:30:07+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Swing: decouple a toggle's collapsed-state (for its label) from its overThreshold-state (for its visibility)",
   "type": "gotcha",
-  "updated_at": "2026-07-17T04:30:07+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

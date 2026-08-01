@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:673e0420d40b456a0ce452c8f3b577b4c6e7cf98cabdade00ed6e01730a0d1dc",
+  "created_at": "2026-08-01T22:08:11+03:00",
+  "from": "gotcha.bash-tool-working-directory-persists-across-calls-always-cd-explicitly-when-juggling-worktrees",
+  "id": "rel.bash-cwd-related-to-shared-worktree-reset",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.git-reset-hard-in-a-shared-worktree-can-silently-eat-a-sibling-agents-uncommitted-edit-mid-read-edit-read-cycle-with-no-error-on-either-side",
+  "updated_at": "2026-08-01T22:08:11+03:00"
+}

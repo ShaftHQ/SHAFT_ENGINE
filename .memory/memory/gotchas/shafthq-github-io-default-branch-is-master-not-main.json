@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/shafthq-github-io-default-branch-is-master-not-main.md",
-  "content_hash": "sha256:def3ace440cf9c93a8856e56193294a7ca545e426b2584fcef1e48c5847f2bf0",
-  "created_at": "2026-07-20T03:48:27+03:00",
-  "evidence": [],
+  "content_hash": "sha256:3e3a7783168425aa8a69d88c061a555875106043ce9f143731555b62b4c17a7b",
+  "created_at": "2026-08-01T21:46:42+03:00",
+  "evidence": [
+    {
+      "id": "1488f2affa3a7e7f65be38a8f26f198214a81be2",
+      "kind": "commit"
+    },
+    {
+      "id": "https://api.github.com/repos/ShaftHQ/shafthq.github.io",
+      "kind": "source"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -25,5 +34,5 @@
   ],
   "title": "shafthq.github.io default branch is master, not main",
   "type": "gotcha",
-  "updated_at": "2026-07-20T03:48:27+03:00"
+  "updated_at": "2026-08-01T21:46:42+03:00"
 }

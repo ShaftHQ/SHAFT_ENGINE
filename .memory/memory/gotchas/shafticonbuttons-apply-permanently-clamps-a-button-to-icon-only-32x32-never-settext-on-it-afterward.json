@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/shafticonbuttons-apply-permanently-clamps-a-button-to-icon-only-32x32-never-settext-on-it-afterward.md",
-  "content_hash": "sha256:677a4303a0b6554626c9e3c7dc85ee9e0be9fcba719b8953d48f656b22997e32",
+  "content_hash": "sha256:cec432b27f3e4291e8859f0239c6f7f38d160c1a0f1159c24e3711ed890e7e1f",
   "created_at": "2026-07-17T03:21:37+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftIconButtons.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ShaftSettingsConfigurable.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "ShaftIconButtons.apply() permanently clamps a button to icon-only 32x32; never setText() on it afterward",
   "type": "gotcha",
-  "updated_at": "2026-07-17T03:21:37+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

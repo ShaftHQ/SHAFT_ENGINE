@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/mocked-executescript-suites-cannot-catch-script-body-return-bugs.md",
-  "content_hash": "sha256:7b009aaf2515bb4295728c050a7756cdba87648ded14444264febfab90b989fd",
+  "content_hash": "sha256:5c4b00b019d72c41770caec38c3e3f78372c364aab8379b1c52388a5d9e14433",
   "created_at": "2026-07-19T16:03:11+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "88f85f864859ff59a10edcc0784f5c41328db576",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "Mocked executeScript suites cannot catch script-body return bugs",
   "type": "gotcha",
-  "updated_at": "2026-07-19T16:03:11+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

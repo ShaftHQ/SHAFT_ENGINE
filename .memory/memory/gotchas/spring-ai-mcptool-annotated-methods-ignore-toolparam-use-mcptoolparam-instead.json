@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/spring-ai-mcptool-annotated-methods-ignore-toolparam-use-mcptoolparam-instead.md",
-  "content_hash": "sha256:1516abe6b70280e705c1097ca82cfe4d5d46df357ca770b18969efb3e58960d4",
+  "content_hash": "sha256:8895173f7188747415c218857e6bdef26311ebde04021b5796c83114df846a84",
   "created_at": "2026-07-17T23:32:03+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "79b6b970faef0e3f3c825d4cdc06ff4a12f3316a",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "Spring AI @McpTool-annotated methods ignore @ToolParam; use @McpToolParam instead",
   "type": "gotcha",
-  "updated_at": "2026-07-17T23:32:03+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

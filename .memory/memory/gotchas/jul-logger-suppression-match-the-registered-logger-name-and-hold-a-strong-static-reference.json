@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/jul-logger-suppression-match-the-registered-logger-name-and-hold-a-strong-static-reference.md",
-  "content_hash": "sha256:d21d66fc7d91af6e21db73a0c8817cf37c3177ea8a629d22ea65625bce7febbb",
+  "content_hash": "sha256:28fe4d782b51a650d745baf9d0749ce30b60be7d1a830a74a3f249d33c432fab",
   "created_at": "2026-07-18T20:13:27+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/DriverFactoryHelper.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "JUL logger suppression: match the registered logger name, and hold a strong static reference",
   "type": "gotcha",
-  "updated_at": "2026-07-18T20:13:27+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

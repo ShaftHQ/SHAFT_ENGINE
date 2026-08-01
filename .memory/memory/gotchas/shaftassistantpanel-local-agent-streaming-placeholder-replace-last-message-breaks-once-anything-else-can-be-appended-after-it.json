@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it.md",
-  "content_hash": "sha256:d46068286e59e84f8f3f4c8bc22f15035f2f2f25de80e166778a9fe8a4ba7852",
+  "content_hash": "sha256:b86a7248b4626d5cd281cc1b31e79fa402dc3de800f24dc21a4fdf7e508aecea",
   "created_at": "2026-07-17T23:38:38+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "0fbf115e4645f39f32bd2fcf768dec65c456432a",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "ShaftAssistantPanel local-agent streaming placeholder: replace-last-message breaks once anything else can be appended after it",
   "type": "gotcha",
-  "updated_at": "2026-07-17T23:38:38+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

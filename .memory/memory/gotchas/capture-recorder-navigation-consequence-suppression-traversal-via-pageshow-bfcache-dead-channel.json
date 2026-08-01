@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/capture-recorder-navigation-consequence-suppression-traversal-via-pageshow-bfcache-dead-channel.md",
-  "content_hash": "sha256:182f6fe949f034775a950362ae7b1f8e160350ac97c44d6344e1261635d07dbb",
+  "content_hash": "sha256:e24c09a9d708787decae568f6502c5a0c04a61471f246d1498b7a6709d4cb1e1",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "d348c742ec78402f3f3a103612ba8ae6b8e72e16",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Capture recorder navigation: consequence suppression, traversal via pageshow, bfcache dead-channel",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

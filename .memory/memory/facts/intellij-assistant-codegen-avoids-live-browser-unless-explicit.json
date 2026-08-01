@@ -1,8 +1,17 @@
 {
   "body_path": "memory/facts/intellij-assistant-codegen-avoids-live-browser-unless-explicit.md",
-  "content_hash": "sha256:4267b716a1454b13a1a21da759bdc9a6057631f9b1889a25dd70ceaff5905c3f",
+  "content_hash": "sha256:2ba097222cf6b960fd58ea3fc8f6f0736482bb048d45ce0e170213e75c565715",
   "created_at": "2026-07-05T10:18:19+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCommand.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/AssistantCommandTest.java",
+      "kind": "file"
+    }
+  ],
   "id": "fact.intellij-assistant-codegen-avoids-live-browser-unless-explicit",
   "scope": {
     "branch": null,
@@ -23,5 +32,5 @@
   ],
   "title": "IntelliJ Assistant codegen avoids live browser unless explicit",
   "type": "fact",
-  "updated_at": "2026-07-05T10:18:19+03:00"
+  "updated_at": "2026-08-01T21:50:09+03:00"
 }

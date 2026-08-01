@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shafthq-github-io-classic-heading-id-breaks-acorn-mdx-parse-on-md-files-use-heading-id-instead.md",
-  "content_hash": "sha256:e7c37bbf9ae577429ff9570becde981a46d192efdb4eded3e1b34985b9f0f727",
+  "content_hash": "sha256:7b3dcaba483179a5ee5d690d9a93a12f5b4e71e2f0c23405b04303ea6870a25a",
   "created_at": "2026-07-19T21:43:50+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/shafthq.github.io/blob/17ca8cd0746bca05fb6de4e75323a01d03eab8e3/docs/features/modules.md#L104",
+      "kind": "source"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "shafthq.github.io: classic ## Heading {#id} breaks acorn MDX parse on .md files -- use ## Heading {/* #id */} instead",
   "type": "gotcha",
-  "updated_at": "2026-07-19T21:43:50+03:00"
+  "updated_at": "2026-08-01T22:08:11+03:00"
 }

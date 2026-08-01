@@ -1,8 +1,25 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly.md",
-  "content_hash": "sha256:94b44118903a22f9b02e1c9770847c16ae7d8bd716ec8a8ad4b52a5b7ba53734",
+  "content_hash": "sha256:b44e2487d943cdd788473666bf42e6b2d8d36557a725564214c9d9e1ae01dbbc",
   "created_at": "2026-07-17T03:55:35+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftPluginExecutor.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ShaftSettingsConfigurable.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ShaftCredentialService.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/settings/ShaftSettingsConfigurableTest.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +44,5 @@
   ],
   "title": "shaft-intellij async Swing code: two EDT-hop idioms, only one is unit-testable headlessly",
   "type": "gotcha",
-  "updated_at": "2026-07-17T03:55:35+03:00"
+  "updated_at": "2026-08-01T22:15:51+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/pr-issue-prose-is-not-a-merge-state-source-of-truth-check-state-and-mergedat.md",
-  "content_hash": "sha256:a18382276af5a60c0c9ce9538a9aad4a2af9e0ccd0f4b6f5a0075046743d1beb",
+  "content_hash": "sha256:f0df3d85175a02989f72bc0a2a071d4aeb1fd74c7ad8fcfd4bbf34f3abfe5c7b",
   "created_at": "2026-07-26T18:46:54+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": ".agents/skills/act-as-mohab/references/work-github-playbook.md",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -25,5 +30,5 @@
   ],
   "title": "PR/issue prose is not a merge-state source of truth -- check state and mergedAt",
   "type": "gotcha",
-  "updated_at": "2026-07-26T18:46:54+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }
