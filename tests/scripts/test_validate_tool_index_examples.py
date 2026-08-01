@@ -9,6 +9,7 @@ without needing a live MCP run.
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -133,6 +134,17 @@ class MainIntegrationTest(unittest.TestCase):
 
         self.assertEqual(30, len(skill_directories))
         self.assertEqual([], MODULE.validate_delivery(MODULE.DEFAULT_SKILLS_ROOT, tool_index))
+
+    def test_cli_accepts_a_relative_skills_root(self):
+        result = subprocess.run(
+            [sys.executable, str(MODULE_PATH), "--skills-root", "shaft-skills"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
 
     def test_fails_when_a_skill_file_references_a_stale_param_name(self):
         with tempfile.TemporaryDirectory() as tmp:

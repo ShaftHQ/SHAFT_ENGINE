@@ -367,13 +367,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    if not args.tool_index_path.is_file():
-        print(f"validate_tool_index_examples: {args.tool_index_path} does not exist; run "
+    skills_root = args.skills_root.resolve()
+    tool_index_path = args.tool_index_path.resolve()
+    if not tool_index_path.is_file():
+        print(f"validate_tool_index_examples: {tool_index_path} does not exist; run "
               "'python3 scripts/mcp/generate_tool_index.py' first.", file=sys.stderr)
         return 1
-    tool_index = json.loads(args.tool_index_path.read_text(encoding="utf-8"))
+    tool_index = json.loads(tool_index_path.read_text(encoding="utf-8"))
 
-    problems = validate_all(args.skills_root, tool_index)
+    problems = validate_all(skills_root, tool_index)
     if problems:
         print("validate_tool_index_examples: delivered skill contract problems found:", file=sys.stderr)
         for problem in problems:
