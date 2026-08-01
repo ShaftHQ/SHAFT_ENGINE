@@ -394,7 +394,8 @@ public class ShaftProjectService {
         Set<String> managedFiles = managedSkillFiles(skillRoot, target, warnings);
         for (Map.Entry<String, String> skillFile : skillFiles.entrySet()) {
             String relativePath = skillFile.getKey();
-            if (writeGeneratedFile(skillRoot.resolve(relativePath), target, skillFile.getValue(), relativePath,
+            Path destination = safeArchiveDestination(skillRoot, relativePath);
+            if (writeGeneratedFile(destination, target, skillFile.getValue(), relativePath,
                     managedFiles, overwrite, generatedFiles, warnings)) {
                 managedFiles.add(relativePath);
             }
@@ -743,13 +744,7 @@ public class ShaftProjectService {
                 JarURLConnection connection = (JarURLConnection) url.openConnection();
                 String prefix = connection.getEntryName() + "/";
                 try (JarFile jar = connection.getJarFile()) {
-                    for (JarEntry entry : jar.stream().filter(entry -> !entry.isDirectory())
-                            .filter(entry -> entry.getName().startsWith(prefix)).toList()) {
-                        Path destination = safeResourceDestination(target, entry.getName().substring(prefix.length()));
-                        try (var input = jar.getInputStream(entry)) {
-                            copyFile(input.readAllBytes(), destination, target, overwrite);
-                        }
-                    }
+                    extractArchiveEntries(jar, prefix, target, overwrite);
                 }
                 return;
             }
@@ -759,6 +754,41 @@ public class ShaftProjectService {
         } catch (Exception exception) {
             throw new IOException("Project generator resources could not be read.", exception);
         }
+    }
+
+    static void extractArchiveEntries(JarFile archive, String prefix, Path extractionRoot, boolean overwrite)
+            throws IOException {
+        for (JarEntry entry : archive.stream()
+                .filter(candidate -> candidate.getName().startsWith(prefix)).toList()) {
+            String relativePath = entry.getName().substring(prefix.length());
+            if (relativePath.isEmpty()) {
+                continue;
+            }
+            Path destination = safeArchiveDestination(extractionRoot, relativePath);
+            if (entry.isDirectory()) {
+                Files.createDirectories(destination);
+                continue;
+            }
+            try (var input = archive.getInputStream(entry)) {
+                copyFile(input.readAllBytes(), destination, extractionRoot, overwrite);
+            }
+        }
+    }
+
+    static Path safeArchiveDestination(Path extractionRoot, String archiveEntryName) {
+        if (archiveEntryName == null || archiveEntryName.isBlank()) {
+            throw new IllegalArgumentException("Archive entry name must not be blank.");
+        }
+        Path root = extractionRoot.toAbsolutePath().normalize();
+        Path entryPath = Path.of(archiveEntryName.replace('\\', '/')).normalize();
+        if (entryPath.isAbsolute()) {
+            throw new IllegalArgumentException("Archive entry escaped the extraction directory.");
+        }
+        Path destination = root.resolve(entryPath).normalize();
+        if (!destination.startsWith(root)) {
+            throw new IllegalArgumentException("Archive entry escaped the extraction directory.");
+        }
+        return safeDestination(destination, root);
     }
 
     private static void copyResourceFile(String resourceName, Path destination, Path targetRoot, boolean overwrite)
@@ -818,15 +848,6 @@ public class ShaftProjectService {
             throw new IllegalArgumentException("Generated project file could not be safely resolved.", exception);
         }
         return normalized;
-    }
-
-    static Path safeResourceDestination(Path targetRoot, String resourceName) {
-        Path normalizedRoot = targetRoot.toAbsolutePath().normalize();
-        Path normalizedDestination = normalizedRoot.resolve(resourceName).normalize();
-        if (!normalizedDestination.startsWith(normalizedRoot)) {
-            throw new IllegalArgumentException("Generated project file escaped the output directory.");
-        }
-        return normalizedDestination;
     }
 
     private static URL resource(String resourceName) throws IOException {

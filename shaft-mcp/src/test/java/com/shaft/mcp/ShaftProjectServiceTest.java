@@ -11,6 +11,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -428,17 +431,47 @@ class ShaftProjectServiceTest {
     }
 
     @Test
-    void resourceDestinationRejectsTraversalOutsideProjectDirectory() {
+    void archiveDestinationRejectsTraversalOutsideProjectDirectory() {
         Path project = temp.resolve("project");
 
         assertEquals(project.resolve("src/test/java/SampleTest.java").toAbsolutePath().normalize(),
-                ShaftProjectService.safeResourceDestination(project, "src/test/java/SampleTest.java"));
+                ShaftProjectService.safeArchiveDestination(project, "src/test/java/SampleTest.java"));
         assertThrows(IllegalArgumentException.class,
-                () -> ShaftProjectService.safeResourceDestination(project, "../pom.xml"));
+                () -> ShaftProjectService.safeArchiveDestination(project, "../pom.xml"));
         assertThrows(IllegalArgumentException.class,
-                () -> ShaftProjectService.safeResourceDestination(project, "src/../../pom.xml"));
+                () -> ShaftProjectService.safeArchiveDestination(project, "src/../../pom.xml"));
         assertThrows(IllegalArgumentException.class,
-                () -> ShaftProjectService.safeResourceDestination(project, temp.resolve("pom.xml").toString()));
+                () -> ShaftProjectService.safeArchiveDestination(project, temp.resolve("pom.xml").toString()));
+    }
+
+    @Test
+    void archiveExtractionRejectsTraversalAndAbsoluteEntriesWithoutWritingOutsideTheRoot() throws Exception {
+        Path extractionRoot = Files.createDirectories(temp.resolve("extracted"));
+        Path escaped = temp.resolve("escaped.txt");
+        Path archive = temp.resolve("malicious.jar");
+        try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(archive))) {
+            output.putNextEntry(new JarEntry("templates/safe-directory/"));
+            output.closeEntry();
+            output.putNextEntry(new JarEntry("templates/safe.txt"));
+            output.write("safe".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            output.closeEntry();
+            output.putNextEntry(new JarEntry("templates/../escaped.txt"));
+            output.write("malicious".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            output.closeEntry();
+        }
+
+        try (JarFile jar = new JarFile(archive.toFile())) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> ShaftProjectService.extractArchiveEntries(jar, "templates/", extractionRoot, true));
+        }
+
+        assertFalse(Files.exists(escaped));
+        assertTrue(Files.isDirectory(extractionRoot.resolve("safe-directory")));
+        assertTrue(Files.exists(extractionRoot.resolve("safe.txt")));
+        assertThrows(IllegalArgumentException.class,
+                () -> ShaftProjectService.safeArchiveDestination(extractionRoot,
+                        temp.resolve("absolute-escape.txt").toAbsolutePath().toString()));
+        assertFalse(Files.exists(temp.resolve("absolute-escape.txt")));
     }
 
     @Test
