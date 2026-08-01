@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT API Testing"
+  short_description: "Implement reliable SHAFT API tests"
+  default_prompt: "Use $shaft-api-testing to implement these service checks with SHAFT.API."

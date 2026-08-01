@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Assertions"
+  short_description: "Choose precise SHAFT assertions"
+  default_prompt: "Use $shaft-assertions to add the smallest precise SHAFT oracles to this test."

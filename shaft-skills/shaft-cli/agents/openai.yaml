@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT CLI"
+  short_description: "Run scriptable SHAFT CLI commands"
+  default_prompt: "Use $shaft-cli to choose and run the correct deterministic SHAFT CLI command."

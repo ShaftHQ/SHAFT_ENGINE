@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Page Objects"
+  short_description: "Design focused SHAFT page objects"
+  default_prompt: "Use $shaft-page-objects to design or refactor these reusable page and component objects."

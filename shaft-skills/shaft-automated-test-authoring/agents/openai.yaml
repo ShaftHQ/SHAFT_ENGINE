@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Automated Test Authoring"
+  short_description: "Author maintainable SHAFT tests"
+  default_prompt: "Use $shaft-automated-test-authoring to implement this reviewed test case in SHAFT Java."
