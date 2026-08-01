@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.md",
-  "content_hash": "sha256:521a3ba6327552af1767ffb1a43f1a03a5ea99d6582a4b0018ecc2b6c9d8f7a6",
+  "content_hash": "sha256:8f0f07bae2bf0c00f1cb80db0f26479a85ec1e7f5765f4557fc177025a514a56",
   "created_at": "2026-07-10T15:08:06+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "9472943ff95b234b81b7bc7b01b9f098d7b68a9f",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/java/com/shaft/capture/generate/GeneratedTestValidator.java",
@@ -34,5 +39,5 @@
   ],
   "title": "Windows JVM launchers must pass large classpaths via a Java @argfile",
   "type": "gotcha",
-  "updated_at": "2026-07-12T12:12:35+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

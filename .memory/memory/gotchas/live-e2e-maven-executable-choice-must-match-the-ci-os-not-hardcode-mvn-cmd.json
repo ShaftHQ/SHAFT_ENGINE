@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/live-e2e-maven-executable-choice-must-match-the-ci-os-not-hardcode-mvn-cmd.md",
-  "content_hash": "sha256:36499f7ded826a3c5abdbdf2e46e730a3ce0dec9675db8296ca1798abedf33ee",
+  "content_hash": "sha256:999864515e4f2dd3b74c9dfe2417a1fd64acff70ea34d0a8a2e75849124cc26c",
   "created_at": "2026-07-26T10:58:55+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "68f0a3d24e326126e5cd9e20dc7d3f10ff8bc229",
+      "kind": "commit"
+    },
+    {
+      "id": "759d8d8d7a8cdc41994829285d4078f89d07a041",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       ".github/workflows/live-tools-nightly.yml",
@@ -32,5 +41,5 @@
   ],
   "title": "Live E2E Maven executable choice must match the CI OS, not hardcode mvn.cmd",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:58:55+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/windows-ci-max-path-checkout-failure-autocrlf-byte-compare-drift.md",
-  "content_hash": "sha256:5b7e5a672c7ac5e7db4cc01676ee0805f196a1a20d2bbb636324ce525745d595",
+  "content_hash": "sha256:be671c82d3c7036b1119356ba131e3be55e02351ec376da2028faea92bd18b0c",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c09f2cc8e0c7c7f1313a112c37eaf8dc88f41f1d",
+      "kind": "commit"
+    },
+    {
+      "id": "9cbd0dafe565d73ca4bbd841de0f5daf27931fe0",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +35,5 @@
   ],
   "title": "Windows CI: MAX_PATH checkout failure + autocrlf byte-compare drift",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

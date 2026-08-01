@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/headroom-proxy-removed-2026-07-17-token-savings-not-worth-lost-remote-control-200k-context-cap-and-broken-auto-loaded-skills.md",
-  "content_hash": "sha256:8db8557502935d4d2b34bd1b83e262b1e69aad3384e51a49db38b9ecb6ac553e",
+  "content_hash": "sha256:bb491ffdff3495d2e846161e99255640cd3371a1362d982b0c7e06ff0a2c23b8",
   "created_at": "2026-07-17T08:17:35+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "d2e068b4076f0f748a28c1832e3cff7ec63c7b41",
+      "kind": "commit"
+    },
+    {
+      "id": "526dbff31f964294f3759687f4db9551c7517cf2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "headroom proxy removed 2026-07-17: token savings not worth lost remote control, 200K context cap, and broken auto-loaded skills",
   "type": "gotcha",
-  "updated_at": "2026-07-17T08:17:35+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

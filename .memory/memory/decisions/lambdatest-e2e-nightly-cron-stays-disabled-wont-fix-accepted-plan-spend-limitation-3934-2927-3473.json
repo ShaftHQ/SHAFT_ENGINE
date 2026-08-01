@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/lambdatest-e2e-nightly-cron-stays-disabled-wont-fix-accepted-plan-spend-limitation-3934-2927-3473.md",
-  "content_hash": "sha256:b62576e9ed13c767e1f97266ad9370d870c6884ed6882b047b70198ad5080411",
+  "content_hash": "sha256:b52a0cbc38b511d9e984c55cac73f3979e50cc6b522297907123697e6131f6ca",
   "created_at": "2026-07-27T14:51:47+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "454fa01c119e90ec3856d9f88e4e6029b866a81a",
+      "kind": "commit"
+    },
+    {
+      "id": "fa2e55064c6737eabc6f20ca127474481b5185ce",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -30,5 +39,5 @@
   ],
   "title": "LambdaTest E2E nightly cron stays disabled — won't-fix, accepted plan-spend limitation (#3934, #2927, #3473)",
   "type": "decision",
-  "updated_at": "2026-07-27T14:51:47+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

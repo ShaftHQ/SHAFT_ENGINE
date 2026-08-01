@@ -1,8 +1,13 @@
 {
   "body_path": "memory/facts/shaft-intellij-jlabel-accessible-name-overrides-commonly-hide-live-dynamic-label-text-from-screen-readers.md",
-  "content_hash": "sha256:fff40ea5b57e9f56b7ea8bfd5d9dfa0469e2509b0af52375c57b8afdfac83ce4",
+  "content_hash": "sha256:88b1f43580efb402d57775105b99ff471b22f0cf0a2f9a75217eff193b8eb1a3",
   "created_at": "2026-07-16T09:48:38+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "a62c53da88e3b9a534144cc0e5dee002b5503c83",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "shaft-intellij: JLabel accessible-name overrides commonly hide live/dynamic label text from screen readers",
   "type": "fact",
-  "updated_at": "2026-07-16T09:48:38+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

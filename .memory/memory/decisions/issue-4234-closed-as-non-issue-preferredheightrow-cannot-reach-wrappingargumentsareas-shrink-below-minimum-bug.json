@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/issue-4234-closed-as-non-issue-preferredheightrow-cannot-reach-wrappingargumentsareas-shrink-below-minimum-bug.md",
-  "content_hash": "sha256:2358b80c0745b39fe5a7cc4cf2fa9a17aedf7fca29bbec3510976d1312f45ab7",
+  "content_hash": "sha256:59336c74aee0a89ba4d63d862d9c7fd97635da0fa4a76209fb5768f6954e7fc5",
   "created_at": "2026-07-27T10:24:34+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "cf330c65d2ce7848b7d794c6e3a74a88a87cdabd",
+      "kind": "commit"
+    },
+    {
+      "id": "8a91441cc795b6fa1cd47efa01dbed70d24bdeda",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -29,5 +38,5 @@
   ],
   "title": "Issue #4234 closed as non-issue: PreferredHeightRow cannot reach WrappingArgumentsArea's shrink-below-minimum bug",
   "type": "decision",
-  "updated_at": "2026-07-27T10:24:34+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

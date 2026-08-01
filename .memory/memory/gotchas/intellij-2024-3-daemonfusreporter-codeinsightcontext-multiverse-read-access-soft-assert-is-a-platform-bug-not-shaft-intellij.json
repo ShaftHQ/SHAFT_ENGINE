@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/intellij-2024-3-daemonfusreporter-codeinsightcontext-multiverse-read-access-soft-assert-is-a-platform-bug-not-shaft-intellij.md",
-  "content_hash": "sha256:9ff3ef2ba4ab1d10c6aadfb8fc4ce2ae5b1e9d2f566f657e1c6d7c59ebf35154",
+  "content_hash": "sha256:3b668808ec372b2a6bab36094d9602691b4c79eda36c6639877f9c3ab0c69600",
   "created_at": "2026-07-16T11:13:45+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "35bcd0f74ec0cb407d31a483dfdbaa508f191633",
+      "kind": "commit"
+    },
+    {
+      "id": "de8254e822277d0feb21e52346927d8e374c8f78",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +38,5 @@
   ],
   "title": "IntelliJ 2024.3 DaemonFusReporter/CodeInsightContext 'multiverse' read-access soft-assert is a platform bug, not shaft-intellij",
   "type": "gotcha",
-  "updated_at": "2026-07-16T11:57:15+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

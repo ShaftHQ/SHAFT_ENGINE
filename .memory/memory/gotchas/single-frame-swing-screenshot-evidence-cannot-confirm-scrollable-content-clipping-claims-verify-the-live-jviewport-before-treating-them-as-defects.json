@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/single-frame-swing-screenshot-evidence-cannot-confirm-scrollable-content-clipping-claims-verify-the-live-jviewport-before-treating-them-as-defects.md",
-  "content_hash": "sha256:72f26c994597e039fe170c3f6ceb2f12c9eff856365b21c820151ca2985c8633",
+  "content_hash": "sha256:bb06dd0ada89df256f0e5ad69becfc07d287810c722fa2b17fee0d938d9db2db",
   "created_at": "2026-07-26T20:45:21+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c5a8e4e377215404acaf3562f16f07f9a9fcd4e2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
@@ -31,5 +36,5 @@
   ],
   "title": "Single-frame Swing screenshot evidence cannot confirm scrollable-content clipping claims -- verify the live JViewport before treating them as defects",
   "type": "gotcha",
-  "updated_at": "2026-07-26T20:45:21+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/claude-code-local-agent-interactive-approval-uses-permission-prompt-tool-a-minimal-mcp-over-http-bridge.md",
-  "content_hash": "sha256:d555b2d10de04788186e07138a7589e6fa1a40a65dedd7f4188b18a787e07900",
+  "content_hash": "sha256:335cc71262bcd4511fc6ab3c9e5f2ed6efd31c95a097520c3cf3489059ffcd61",
   "created_at": "2026-07-09T12:58:19+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/approval/LocalAgentApprovalBridge.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/main/java/com/shaft/intellij/approval/LocalAgentApprovalBridge.java",
@@ -33,5 +38,5 @@
   ],
   "title": "Claude Code local-agent interactive approval uses --permission-prompt-tool + a minimal MCP-over-HTTP bridge",
   "type": "decision",
-  "updated_at": "2026-07-09T12:58:19+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

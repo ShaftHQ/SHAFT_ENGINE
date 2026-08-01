@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/git-reset-hard-in-a-shared-worktree-can-silently-eat-a-sibling-agents-uncommitted-edit-mid-read-edit-read-cycle-with-no-error-on-either-side.md",
-  "content_hash": "sha256:1443c0bdc515c018b530c065efd63a4117b51aeb116e6cc9d40f26a5d8504fdf",
+  "content_hash": "sha256:7f58fbf8ced11055c290593fa5357a325ba99545e2d56e943278f26d9a267f0f",
   "created_at": "2026-07-27T16:24:54+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "82325e1710587a4e525eebe127ceb9b4b8409273",
+      "kind": "commit"
+    },
+    {
+      "id": "ce8882dde44085d5ac71770e494ca923ecdff766",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +38,5 @@
   ],
   "title": "git reset --hard in a shared worktree can silently eat a sibling agent's uncommitted edit mid Read-Edit-Read cycle, with no error on either side",
   "type": "gotcha",
-  "updated_at": "2026-07-27T16:24:54+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

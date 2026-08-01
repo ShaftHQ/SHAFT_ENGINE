@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/mcp-guardrail-checks-only-have-teeth-via-autobotservice-runproviderchat.md",
-  "content_hash": "sha256:195480ada5217d917e40ab4f9a2822c0a0c9ba1b50099a652692e55d6ebe369e",
+  "content_hash": "sha256:f42e8812ef4085477b63cc30654d5237351c85dda33613ee9b130f5258fa668f",
   "created_at": "2026-07-26T10:25:51+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "06efbc6b4ad2a068e70fcacea21d22ec276148ca",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "MCP guardrail checks only have teeth via AutobotService.runProviderChat",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:25:51+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

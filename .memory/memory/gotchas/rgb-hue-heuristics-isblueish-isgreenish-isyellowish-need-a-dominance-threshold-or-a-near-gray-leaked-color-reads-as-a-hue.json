@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/rgb-hue-heuristics-isblueish-isgreenish-isyellowish-need-a-dominance-threshold-or-a-near-gray-leaked-color-reads-as-a-hue.md",
-  "content_hash": "sha256:e44b77c5e1668d883c7e6764228bda7e313cf4373253a7a4caf8e42b30c043c2",
+  "content_hash": "sha256:408ae0f867454c27c4d6fc1b96d1dae1486c0874cc1731bfdca55fd9ae129ec2",
   "created_at": "2026-07-19T19:02:45+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "cb5960e1fded8898846e441a469ad947400ab6e8",
+      "kind": "commit"
+    },
+    {
+      "id": "97bf71433181ff4a75717877ade4ddebb6df5fac",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "RGB hue heuristics (isBlueish/isGreenish/isYellowish) need a dominance threshold or a near-gray leaked color reads as a hue",
   "type": "gotcha",
-  "updated_at": "2026-07-19T19:02:45+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

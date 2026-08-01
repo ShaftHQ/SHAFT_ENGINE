@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/shaft-intellij-blocking-async-work-runs-on-shaftpluginexecutor-never-forkjoinpool-commonpool.md",
-  "content_hash": "sha256:172af97bea5c976c5d00b4eb8fb8031e6a45ce0f557300ffff01053f3e56b164",
+  "content_hash": "sha256:e5af26a6d46aab97b6e3724d7723a6fb32d0ca6395eaac8f2c4f2de029e3a112",
   "created_at": "2026-07-17T02:13:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "e60c2b2f0d510fa0047786506922ea151ce4ad98",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "shaft-intellij blocking async work runs on ShaftPluginExecutor, never ForkJoinPool.commonPool()",
   "type": "decision",
-  "updated_at": "2026-07-17T02:13:20+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

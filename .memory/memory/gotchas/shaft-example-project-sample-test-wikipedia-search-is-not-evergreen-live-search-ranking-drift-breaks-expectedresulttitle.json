@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle.md",
-  "content_hash": "sha256:06732220d6d9fa80245817c079929224b3faf8491c294efd00442e4dcfec5825",
+  "content_hash": "sha256:6cd5b581cefbff2c6a584e9c5405e1e793fd205f3daf93f4a5ab87170b7e1d8a",
   "created_at": "2026-07-19T22:15:10+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "d5bd860de73b74c6516d08e1a15ea8a2f4b125a8",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "SHAFT example-project sample test (Wikipedia search) is not evergreen -- live search ranking drift breaks expectedResultTitle",
   "type": "gotcha",
-  "updated_at": "2026-07-19T22:15:10+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/mvn-test-in-shaft-engine-silently-runs-zero-junit5-tests-under-the-default-testng-maven-profile.md",
-  "content_hash": "sha256:25df79a24ae92d82bb76f8a56fead0827feff2f09d1c0407357282db1b8cabb0",
+  "content_hash": "sha256:675ce33b32d7933781a66aebc26aea28625962d076027aab36047fe2c447a75d",
   "created_at": "2026-07-26T16:17:39+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "11c7208e4d871d53a057eb2c2210064ef88d3493",
+      "kind": "commit"
+    },
+    {
+      "id": "ad6726057fe2cde046550c7683b1e25498a6ce1f",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "mvn test in shaft-engine silently runs zero JUnit5 tests under the default testng Maven profile",
   "type": "gotcha",
-  "updated_at": "2026-07-26T16:17:39+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-mcp-external-e2e-tests-silently-skip-without-dincludemcpbrowsere2e-true.md",
-  "content_hash": "sha256:1ea150578ae564d3d6cb4987d179ce5caa61546f340ca253a6826d57cdac9db7",
+  "content_hash": "sha256:a55fc58c4d5ce28a74b8fbfa7d2f3760a3e49876b5cfb4780fbab20a7ce8751c",
   "created_at": "2026-07-21T08:35:15+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-mcp/pom.xml",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "shaft-mcp external-e2e tests silently skip without -DincludeMcpBrowserE2E=true",
   "type": "gotcha",
-  "updated_at": "2026-07-21T08:35:15+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

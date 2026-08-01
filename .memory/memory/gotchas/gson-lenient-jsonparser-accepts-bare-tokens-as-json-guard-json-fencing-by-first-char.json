@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/gson-lenient-jsonparser-accepts-bare-tokens-as-json-guard-json-fencing-by-first-char.md",
-  "content_hash": "sha256:085c58ed57613c3e8b917410b35324836a199e28953f4e6ec629674efc29cc36",
+  "content_hash": "sha256:6f8841fb2b08039ddd1cc8e22ee7f0365cf711e21b2b9e5aa903c6f53d42f93f",
   "created_at": "2026-07-18T19:12:24+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "a4563a08d1ad6a0f8f34511c6e7e9218c8e4b419",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Gson lenient JsonParser accepts bare tokens as JSON; guard JSON-fencing by first char",
   "type": "gotcha",
-  "updated_at": "2026-07-18T19:12:24+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

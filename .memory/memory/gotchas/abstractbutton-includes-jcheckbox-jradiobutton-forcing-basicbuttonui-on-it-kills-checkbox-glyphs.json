@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/abstractbutton-includes-jcheckbox-jradiobutton-forcing-basicbuttonui-on-it-kills-checkbox-glyphs.md",
-  "content_hash": "sha256:6cfd38490ea12f6278cf12cf0a25611ab379523c226cbbeb975679f6f75a33a1",
+  "content_hash": "sha256:b12f2628fbcecf035e79845ab59b52ac6c9008e27ec9698723d830304d0c2bc3",
   "created_at": "2026-07-19T17:59:10+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "4ea86694aaa62196a24372f7e35d4796317c73b8",
+      "kind": "commit"
+    },
+    {
+      "id": "cb5960e1fded8898846e441a469ad947400ab6e8",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "AbstractButton includes JCheckBox/JRadioButton -- forcing BasicButtonUI on it kills checkbox glyphs",
   "type": "gotcha",
-  "updated_at": "2026-07-19T17:59:10+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

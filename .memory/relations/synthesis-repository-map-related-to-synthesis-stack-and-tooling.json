@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:cf0eab5fb0b93df98832d09d15462ee978af9e9da6e9dceff955da77f2319dc3",
+  "created_at": "2026-07-29T16:47:24+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "synthesis.repository-map",
+  "id": "rel.synthesis-repository-map-related-to-synthesis-stack-and-tooling",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:47:24+03:00"
+}

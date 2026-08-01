@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/safe-mass-stash-drop-pattern-drop-by-hash-reverified-current-index-one-at-a-time-never-trust-a-captured-index-after-any-drop.md",
-  "content_hash": "sha256:9ee5a6bb93198d3ba8fcd30029bf49c3e54b4f5254f30e3f14d265183965e3e0",
+  "content_hash": "sha256:c9caff7402c63cf7d252cf8bd5b2a089ea42d8c3f37e92518f33180e4a274ecf",
   "created_at": "2026-07-29T15:24:50+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #4130",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Safe mass stash-drop pattern: drop by hash-reverified current index, one at a time, never trust a captured index after any drop",
   "type": "gotcha",
-  "updated_at": "2026-07-29T15:24:50+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

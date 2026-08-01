@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/github-pr-evidence-shaft-mcp-stdio-manifest-stdio-tools-list-json-is-a-frozen-historical-snapshot-not-a-live-artifact.md",
-  "content_hash": "sha256:f396362e71dd1fcc1957eac328713f57d12063586fcc3d4ffa8bd01da8f6a09a",
+  "content_hash": "sha256:71a89ac83718f5cfce4e9b6a9d842e6d53c13e7fdccdcb93912a8896aed9fc04",
   "created_at": "2026-07-17T23:32:03+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "3ef6e8ac88f03ab522e6cb302be72eddd472519f",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": ".github/pr-evidence/shaft-mcp-stdio-manifest/stdio-tools-list.json is a frozen historical snapshot, not a live artifact",
   "type": "gotcha",
-  "updated_at": "2026-07-17T23:32:03+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

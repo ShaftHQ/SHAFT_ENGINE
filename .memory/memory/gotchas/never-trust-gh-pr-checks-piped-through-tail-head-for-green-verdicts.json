@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/never-trust-gh-pr-checks-piped-through-tail-head-for-green-verdicts.md",
-  "content_hash": "sha256:a2812428c06f31497fabe5f580021e85930652be02ecd21de9990ae9ee38d51d",
+  "content_hash": "sha256:90d829ff916c74653aa8e7436a42ec8bd7dfb41fd7819a8619235933ce4c4901",
   "created_at": "2026-07-12T16:28:50+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "6bba7439dfd308d8f4c081cc5d50904e91348ff2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Never trust gh pr checks piped through tail/head for green verdicts",
   "type": "gotcha",
-  "updated_at": "2026-07-12T16:28:50+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

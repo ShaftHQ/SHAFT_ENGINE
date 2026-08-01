@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/release-candidate-pipeline-fails-fast-masking-later-stage-bugs.md",
-  "content_hash": "sha256:be2541708077c8372270daf26dd30a1aed385c75ae935952d3ebc60fdf6b96db",
+  "content_hash": "sha256:7d6b01ab6c00feccef7e9888d7d1bc8147b26e7279fccecb1cbaf51b7f88ecde",
   "created_at": "2026-07-06T23:25:17+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "03c49d5c31ee4def68c4bfdf822da70533ea99e7",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       ".github/workflows/shaft-pilot-release.yml"
@@ -28,5 +33,5 @@
   ],
   "title": "release-candidate pipeline fails fast, masking later-stage bugs",
   "type": "gotcha",
-  "updated_at": "2026-07-06T23:25:17+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

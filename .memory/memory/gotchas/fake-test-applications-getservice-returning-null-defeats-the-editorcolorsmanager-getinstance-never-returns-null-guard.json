@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/fake-test-applications-getservice-returning-null-defeats-the-editorcolorsmanager-getinstance-never-returns-null-guard.md",
-  "content_hash": "sha256:96ed5e9981acc3a9365cdfeefe2ccea15f2b5423e21cdf8b134be6e1ff5f564c",
+  "content_hash": "sha256:2d49d75a90c9dd599a07c4328104ca7c4414b8430ff922dbaa2147369be93690",
   "created_at": "2026-07-27T10:37:22+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "6ea5761ef95caa5cf33e31f90570b3130d38c156",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "Fake test Application's getService() returning null defeats the EditorColorsManager.getInstance()-never-returns-null guard",
   "type": "gotcha",
-  "updated_at": "2026-07-27T10:37:22+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/a-green-icon-only-sweep-test-suite-does-not-prove-a-dynamically-labeled-button-renders-correctly-verify-by-reading-the-sweeps-construction-state.md",
-  "content_hash": "sha256:4585609d48e6358681911129e261cf22a6f4ffa84648344b8d326ac011c1cd75",
+  "content_hash": "sha256:021641773abc47a792f7cdcfd8ef40025d1a9362de51240bf669152a3c750215",
   "created_at": "2026-07-17T03:21:37+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3626",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "A green icon-only-sweep test suite does not prove a dynamically-labeled button renders correctly -- verify by reading the sweep's construction state",
   "type": "gotcha",
-  "updated_at": "2026-07-17T03:21:37+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

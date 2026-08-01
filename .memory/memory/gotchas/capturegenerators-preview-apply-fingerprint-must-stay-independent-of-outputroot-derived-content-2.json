@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/capturegenerators-preview-apply-fingerprint-must-stay-independent-of-outputroot-derived-content-2.md",
-  "content_hash": "sha256:c7419bff0026792a3775cd4a6eeb139f72b9867fcdf12abb0d649bbac3a228b0",
+  "content_hash": "sha256:ffa0e6672b18fa0883f3645d3b256e378aa4e5f8ea128f5280153a77bea69349",
   "created_at": "2026-07-27T00:18:16+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #4172",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "CaptureGenerator's PREVIEW/APPLY fingerprint must stay independent of outputRoot-derived content",
   "type": "gotcha",
-  "updated_at": "2026-07-27T00:18:16+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

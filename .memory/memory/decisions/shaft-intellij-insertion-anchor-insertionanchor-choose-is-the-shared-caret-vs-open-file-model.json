@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/shaft-intellij-insertion-anchor-insertionanchor-choose-is-the-shared-caret-vs-open-file-model.md",
-  "content_hash": "sha256:7601379a668a507a6440533882ff59193d00e4293fbafa3e97eb45bfe92f96dd",
+  "content_hash": "sha256:b846d9dad19f482567593abc61dd91ce6b7eff242bf5571d7407068aafb24bff",
   "created_at": "2026-07-17T21:52:12+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3662",
+      "kind": "task"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/java/InsertionAnchor.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "shaft-intellij insertion anchor: InsertionAnchor.choose is the shared caret-vs-open-file model",
   "type": "decision",
-  "updated_at": "2026-07-17T21:52:12+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

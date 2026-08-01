@@ -1,8 +1,13 @@
 {
   "body_path": "memory/facts/codex-cli-exec-json-item-completed-schema-file-change-command-execution-mcp-tool-call-status-fields.md",
-  "content_hash": "sha256:ba2d5f8deff07ed8c8f3ee514702de3c2806bedf06d83181db37bba2ebdc6188",
+  "content_hash": "sha256:fbc5e5c2479e18b6167be5e02b84043564a74c1645166b98f234a43116a72cde",
   "created_at": "2026-07-17T21:49:46+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "df106926558e09d273209f4ac400e80e9acc51cf",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "Codex CLI exec --json item.completed schema: file_change/command_execution/mcp_tool_call status fields",
   "type": "fact",
-  "updated_at": "2026-07-17T21:49:46+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

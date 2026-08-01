@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/local-m2-and-installed-shaft-mcp-are-shadowed-by-2026-07-11-local-builds.md",
-  "content_hash": "sha256:cedaeeb4a57a5b7d976527818bc43c3567d70fbfd22b532d51c0540010e4f085",
+  "content_hash": "sha256:73bd94e055f8bd4211892cbba9b92536870d66a0e399e879ea668060ef7cb321",
   "created_at": "2026-07-11T14:22:14+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c19c6975f1634519a9cb64d38fdeb03fddb14619",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Local .m2 and installed shaft-mcp are shadowed by 2026-07-11 local builds",
   "type": "gotcha",
-  "updated_at": "2026-07-11T14:22:14+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

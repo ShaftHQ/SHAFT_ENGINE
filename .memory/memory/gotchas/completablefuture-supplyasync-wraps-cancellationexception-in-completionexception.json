@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/completablefuture-supplyasync-wraps-cancellationexception-in-completionexception.md",
-  "content_hash": "sha256:9113a2cde66ec0f2ebafab590e0ba8cd29a5c3fa51cb86ac5f374d93cbedca36",
+  "content_hash": "sha256:ecb2c44879af333406fb38c2765f7d73f5899ce350299f5a12ad46f3a6ef107e",
   "created_at": "2026-07-19T04:58:53+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3758",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "CompletableFuture.supplyAsync wraps a thrown CancellationException in CompletionException, so isCancelled()/whenComplete's raw error miss it -- only an explicit future.cancel() leaves a bare CancellationException",
   "type": "gotcha",
-  "updated_at": "2026-07-20T08:53:12+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

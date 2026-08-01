@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/evidence-level-presets-override-reporting-defaultvalue-at-startup.md",
-  "content_hash": "sha256:ddb40651721ade4c84fc1d986576f73863611ac4a1a5fd73563c985bf17539cf",
+  "content_hash": "sha256:4061a90f9627d325962fa2ced8cd3dc100f75a7d4256fbd8ddc857e34e599dd0",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ff23a72a50350c5c1976faa4af71cbc2d6f41b24",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -25,5 +30,5 @@
   ],
   "title": "Evidence-level presets override Reporting @DefaultValue at startup",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

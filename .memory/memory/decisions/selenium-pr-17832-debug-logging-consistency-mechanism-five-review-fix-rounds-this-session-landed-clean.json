@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/selenium-pr-17832-debug-logging-consistency-mechanism-five-review-fix-rounds-this-session-landed-clean.md",
-  "content_hash": "sha256:dc0b0ee091a0a9b340d45e2419d63720e1da0795b21e35229b6ae169da61e8cf",
+  "content_hash": "sha256:fbe69876cd47a74cccd39df2f022c471541dc5772ac69ac125020941005550a5",
   "created_at": "2026-07-29T08:59:53+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "SeleniumHQ/selenium#17832",
+      "kind": "task"
+    },
+    {
+      "id": "f8129c5b4fb57bb34e194320c422f9a843d54467",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -25,5 +34,5 @@
   ],
   "title": "Selenium PR #17832 debug-logging-consistency-mechanism: five review-fix rounds this session, landed clean",
   "type": "decision",
-  "updated_at": "2026-07-29T08:59:53+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/applicationmanager-setapplication-app-disposable-s-restore-on-dispose-no-ops-when-the-previous-application-was-null.md",
-  "content_hash": "sha256:2ed14a0f3e68c5c92e769ca1577b34c28c104d1db46dc2d7a087805219ddeff3",
+  "content_hash": "sha256:0a0a2897be7cef129ac5dd8b1d175267f7a3ddad8b00bcd9c840ac9ef092a159",
   "created_at": "2026-07-27T11:05:51+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "6ea5761ef95caa5cf33e31f90570b3130d38c156",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -32,5 +37,5 @@
   ],
   "title": "ApplicationManager.setApplication(app, disposable)'s restore-on-dispose no-ops when the previous Application was null",
   "type": "gotcha",
-  "updated_at": "2026-07-27T11:05:51+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

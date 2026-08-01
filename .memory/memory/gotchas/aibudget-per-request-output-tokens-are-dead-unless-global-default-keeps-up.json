@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/aibudget-per-request-output-tokens-are-dead-unless-global-default-keeps-up.md",
-  "content_hash": "sha256:e5206b0274e9facd2e44575daaab2bba5f09c8e1dde4ce9f1d4b03fcde77ab68",
+  "content_hash": "sha256:3f27fb98733b48d0fffe0f5ec8fe18ec9cbe0777a41f21b7a178a9f6370d93bf",
   "created_at": "2026-07-26T18:19:35+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "e7017859b2606a09dc6c94eaafc30307e6b8bf59",
+      "kind": "commit"
+    },
+    {
+      "id": "930c0b5546c22bfdcf04da803298a56e0cf68569",
+      "kind": "commit"
+    },
+    {
+      "id": "e06e9856797673edf1236b1685e44aa9ca567e87",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +40,5 @@
   ],
   "title": "AiBudget per-request output tokens are dead unless global default keeps up",
   "type": "gotcha",
-  "updated_at": "2026-07-26T18:19:35+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

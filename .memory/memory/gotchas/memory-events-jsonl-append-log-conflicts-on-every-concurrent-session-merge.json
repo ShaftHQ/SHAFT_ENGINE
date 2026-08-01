@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge.md",
-  "content_hash": "sha256:14a87d47b0388e9160c3f83954f63b4224dbcbf73f8deefb82b5668cb8da37b8",
+  "content_hash": "sha256:92a085761e8c9096cdc47224f85f74d7c19ce5ffb5cae5d087a865956c92c181",
   "created_at": "2026-07-08T17:09:56+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "b219c60fd3386f21f3b836a268b36ce10c7aed7c",
+      "kind": "commit"
+    },
+    {
+      "id": "82b4106e07ba1eae4e09314df2605f7a04a8dc88",
+      "kind": "commit"
+    },
+    {
+      "id": "2e9311ab7480be581a8d576d041d21e051a5ea9d",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       ".memory/events.jsonl"
@@ -31,5 +44,5 @@
   ],
   "title": ".memory/events.jsonl append-log conflicts on every concurrent-session merge",
   "type": "gotcha",
-  "updated_at": "2026-07-26T19:06:15+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

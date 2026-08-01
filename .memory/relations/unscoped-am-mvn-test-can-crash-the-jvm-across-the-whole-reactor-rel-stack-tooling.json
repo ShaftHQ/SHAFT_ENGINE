@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:a006b3f0fd41d4460f472040ebc45a4827beb829f3e834c9e78841b5b4845e0d",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "gotcha.unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor",
+  "id": "rel.unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

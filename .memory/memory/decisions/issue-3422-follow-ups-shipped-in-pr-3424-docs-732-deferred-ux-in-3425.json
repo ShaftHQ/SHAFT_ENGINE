@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/issue-3422-follow-ups-shipped-in-pr-3424-docs-732-deferred-ux-in-3425.md",
-  "content_hash": "sha256:151c2fb587534da6608d61b5c8f9d7fd0635e0d31ca84890edfa3010110bdb95",
+  "content_hash": "sha256:b13c932b6f45e79a2106494f0606e1030c29ce49d4d341560c31f45b02cf178f",
   "created_at": "2026-07-11T07:55:36+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "71d32413601a9d2a2522616f4661dda47eec44bf",
+      "kind": "commit"
+    },
+    {
+      "id": "fe11e8ff1b5b8b0f071d39761d124866deb98a2a",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -21,5 +30,5 @@
   "tags": [],
   "title": "Issue #3422 follow-ups shipped in PR #3424 (docs #732, deferred UX in #3425)",
   "type": "decision",
-  "updated_at": "2026-07-11T07:55:36+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

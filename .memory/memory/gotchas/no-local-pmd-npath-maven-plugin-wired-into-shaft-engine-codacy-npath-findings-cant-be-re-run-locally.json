@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/no-local-pmd-npath-maven-plugin-wired-into-shaft-engine-codacy-npath-findings-cant-be-re-run-locally.md",
-  "content_hash": "sha256:11dd7bbb7a085edd0f0f03ddd0ddf2f8242a42eca4161a45b56cc291108f2446",
+  "content_hash": "sha256:15968f0fd64b1d37ce61df8be54d00cfa128a14189a204889a4d66f43eb589f3",
   "created_at": "2026-07-27T12:51:24+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "b2499a3b456416820af5fc96548cced901865aa4",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "No local PMD/NPath Maven plugin wired into SHAFT_ENGINE -- Codacy NPath findings can't be re-run locally",
   "type": "gotcha",
-  "updated_at": "2026-07-27T12:51:24+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

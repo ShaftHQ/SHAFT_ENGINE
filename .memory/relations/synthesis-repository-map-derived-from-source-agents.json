@@ -1,0 +1,21 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:01f9cde62d9f682f123d0aa80a00cc8413bdb07e013009d35824e5bb74d0cf7a",
+  "created_at": "2026-07-29T16:47:24+03:00",
+  "evidence": [
+    {
+      "id": "source.agents",
+      "kind": "source"
+    },
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "synthesis.repository-map",
+  "id": "rel.synthesis-repository-map-derived-from-source-agents",
+  "predicate": "derived_from",
+  "status": "active",
+  "to": "source.agents",
+  "updated_at": "2026-07-29T16:47:24+03:00"
+}

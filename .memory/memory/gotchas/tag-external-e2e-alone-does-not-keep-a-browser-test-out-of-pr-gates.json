@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/tag-external-e2e-alone-does-not-keep-a-browser-test-out-of-pr-gates.md",
-  "content_hash": "sha256:41f50bb742476e24580c57e1c8185b2a4a3634224c39783b02c970f453c32aa5",
+  "content_hash": "sha256:b30f822c94b3503c9a7c601663362b3397d876dc7d126259ff02328c5386a442",
   "created_at": "2026-07-26T10:58:55+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "34138a52acdb63711d6a8dd66ec41ecd93ed9984",
+      "kind": "commit"
+    },
+    {
+      "id": "a43d9b4e13a5373b4fbd0ee77896898d20cfb8ca",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       ".github/actions/capture-browser-e2e/action.yml",
@@ -32,5 +41,5 @@
   ],
   "title": "@Tag(external-e2e) alone does not keep a browser test out of PR gates",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:58:55+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

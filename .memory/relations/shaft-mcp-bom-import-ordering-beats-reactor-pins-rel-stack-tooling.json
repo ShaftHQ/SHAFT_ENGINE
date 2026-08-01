@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:2773f10d10213e7da83382538a379636f23810c43f48ca11d3a4da935b911975",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "gotcha.shaft-mcp-bom-import-ordering-beats-reactor-pins",
+  "id": "rel.shaft-mcp-bom-import-ordering-beats-reactor-pins-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

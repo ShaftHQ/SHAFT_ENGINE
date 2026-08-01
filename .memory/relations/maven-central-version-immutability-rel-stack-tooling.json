@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:1bf1f60f12e8f016242215a63bad2902f2e7bab43b0850e70938b4f7413684d9",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "constraint.maven-central-version-immutability",
+  "id": "rel.maven-central-version-immutability-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

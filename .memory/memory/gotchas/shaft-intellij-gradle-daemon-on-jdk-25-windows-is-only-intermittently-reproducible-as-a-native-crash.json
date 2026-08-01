@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-gradle-daemon-on-jdk-25-windows-is-only-intermittently-reproducible-as-a-native-crash.md",
-  "content_hash": "sha256:46481658904c55321878df197fda47b5a6f8137fbbe180cadcd29bcacb38acb5",
+  "content_hash": "sha256:530e916868dad808a01d34199822fdacf9fbbe8aa6017a2bee83bb14f4ab219f",
   "created_at": "2026-07-19T18:39:23+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "7accb5489dcf22baf1bcb04e272e75a57338610c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "shaft-intellij Gradle Daemon on JDK 25 (Windows) is only intermittently reproducible as a native crash",
   "type": "gotcha",
-  "updated_at": "2026-07-19T18:39:23+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

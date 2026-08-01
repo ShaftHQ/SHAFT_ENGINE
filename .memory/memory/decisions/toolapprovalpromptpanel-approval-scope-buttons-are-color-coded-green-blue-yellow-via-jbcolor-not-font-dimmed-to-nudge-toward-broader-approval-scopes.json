@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/toolapprovalpromptpanel-approval-scope-buttons-are-color-coded-green-blue-yellow-via-jbcolor-not-font-dimmed-to-nudge-toward-broader-approval-scopes.md",
-  "content_hash": "sha256:2a6475d5a69f0134f03a8a522bae2a30e7e0457c9889711bdb62d25198f98d3f",
+  "content_hash": "sha256:0c493b68def3a59121e566912a6991ba15f0147ceb2628a9f30297b335529199",
   "created_at": "2026-07-17T23:13:57+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3696",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "ToolApprovalPromptPanel approval-scope buttons are color-coded (green/blue/yellow via JBColor), not font-dimmed, to nudge toward broader approval scopes",
   "type": "decision",
-  "updated_at": "2026-07-17T23:13:57+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }
