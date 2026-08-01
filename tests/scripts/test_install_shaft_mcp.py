@@ -2,6 +2,7 @@ import importlib.util
 import contextlib
 import hashlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -95,6 +96,50 @@ class InstallShaftMcpTest(unittest.TestCase):
         with self.assertRaises(MODULE.InstallError):
             MODULE.parse_args(["--codex", "--install-shaft-skills", "--skip-shaft-skills"])
 
+    def test_parse_skills_only_without_client_on_non_interactive_stdin(self):
+        original_stdin = MODULE.sys.stdin
+        MODULE.sys.stdin = io.StringIO("")
+        try:
+            args = MODULE.parse_args(["--install-shaft-skills"])
+        finally:
+            MODULE.sys.stdin = original_stdin
+
+        self.assertIsNone(args.client)
+        self.assertFalse(args.install_mcp)
+        self.assertTrue(args.install_shaft_skills)
+
+    def test_parse_cli_only_without_client_on_non_interactive_stdin(self):
+        original_stdin = MODULE.sys.stdin
+        MODULE.sys.stdin = io.StringIO("")
+        try:
+            args = MODULE.parse_args(["--install-shaft-cli"])
+        finally:
+            MODULE.sys.stdin = original_stdin
+
+        self.assertIsNone(args.client)
+        self.assertFalse(args.install_mcp)
+        self.assertTrue(args.install_shaft_cli)
+
+    def test_parse_without_selector_requires_one_on_non_interactive_stdin(self):
+        original_stdin = MODULE.sys.stdin
+        MODULE.sys.stdin = io.StringIO("")
+        try:
+            with self.assertRaises(MODULE.InstallError) as failure:
+                MODULE.parse_args([])
+        finally:
+            MODULE.sys.stdin = original_stdin
+
+        self.assertIn("selector", str(failure.exception).lower())
+
+    def test_parse_without_selector_interactively_asks_each_component(self):
+        with scripted_stdin("\nn\n\n1"):
+            args = MODULE.parse_args([])
+
+        self.assertTrue(args.install_mcp)
+        self.assertFalse(args.install_shaft_cli)
+        self.assertTrue(args.install_shaft_skills)
+        self.assertEqual("codex", args.client)
+
     def test_intellij_plugin_target_does_not_configure_external_client(self):
         MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
 
@@ -167,25 +212,107 @@ class InstallShaftMcpTest(unittest.TestCase):
         for line in MODULE.render_client_menu():
             self.assertIn(line, printed_lines)
 
-    def test_unattended_install_defaults_to_shaft_skills(self):
+    def test_client_selection_does_not_implicitly_select_skills(self):
         args = MODULE.parse_args(["--intellij-plugin"])
 
-        stderr = io.StringIO()
-        original_stdin = MODULE.sys.stdin
-        MODULE.sys.stdin = io.StringIO("")
-        try:
-            with contextlib.redirect_stderr(stderr):
-                should_install = MODULE.should_install_shaft_skills(args, Path("project").resolve())
-        finally:
-            MODULE.sys.stdin = original_stdin
-
-        self.assertTrue(should_install)
-        self.assertIn("Installing SHAFT skills into current directory by default", stderr.getvalue())
+        self.assertFalse(MODULE.should_install_shaft_skills(args, Path("project").resolve()))
 
     def test_skip_shaft_skills_flag_disables_install(self):
         args = MODULE.parse_args(["--intellij-plugin", "--skip-shaft-skills"])
 
         self.assertFalse(MODULE.should_install_shaft_skills(args, Path("project").resolve()))
+
+    def test_skills_only_install_avoids_runtime_version_and_mcp_configuration(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir)
+            args = MODULE.parse_args(["--install-shaft-skills", "--json"])
+            installed = project / MODULE.SHAFT_SKILLS_DIRECTORY
+            calls = []
+            originals = {
+                "install_shaft_skills": MODULE.install_shaft_skills,
+                "get_java25": MODULE.get_java25,
+                "resolve_shaft_mcp_version": MODULE.resolve_shaft_mcp_version,
+                "configure_client": MODULE.configure_client,
+            }
+
+            def install_skills(current_directory, _root):
+                calls.append(("skills", current_directory))
+                installed.mkdir()
+                return installed
+
+            def unexpected(name):
+                def fail_if_called(*_args, **_kwargs):
+                    self.fail(f"{name} must not run for a skills-only install")
+                return fail_if_called
+
+            MODULE.install_shaft_skills = install_skills
+            MODULE.get_java25 = unexpected("Java setup")
+            MODULE.resolve_shaft_mcp_version = unexpected("MCP version resolution")
+            MODULE.configure_client = unexpected("MCP client configuration")
+            stdout = io.StringIO()
+            try:
+                with temporary_current_directory(project), contextlib.redirect_stdout(stdout), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    MODULE.install(args)
+            finally:
+                for name, original in originals.items():
+                    setattr(MODULE, name, original)
+
+        self.assertEqual([("skills", project.resolve())], calls)
+        result = json.loads(stdout.getvalue())
+        self.assertEqual({"shaftSkills": {"installed": True, "path": str(installed)}}, result["components"])
+        self.assertNotIn("client", result)
+        self.assertNotIn("server", result)
+
+    def test_cli_only_install_uses_runtime_without_mcp_client_configuration(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            args = MODULE.parse_args(["--install-shaft-cli"])
+            java = root / "java"
+            jar = root / "shaft-mcp.jar"
+            cli_jar = root / "shaft-cli.jar"
+            args_file = root / "shaft-mcp.args"
+            launcher = root / "shaft-cli"
+            calls = []
+            originals = {
+                name: getattr(MODULE, name)
+                for name in (
+                    "bootstrap_root", "get_java25", "java_home_for", "resolve_shaft_mcp_version",
+                    "install_shaft_mcp_jar", "install_runtime_dependencies", "write_launcher_args",
+                    "probe_stdio", "install_shaft_cli_jar", "write_shaft_cli_launcher",
+                    "configure_client", "install_shaft_skills",
+                )
+            }
+
+            MODULE.bootstrap_root = lambda: root / "bootstrap"
+            MODULE.get_java25 = lambda _root: java
+            MODULE.java_home_for = lambda _java: root
+            MODULE.resolve_shaft_mcp_version = lambda *_args: "1.0.0"
+            MODULE.install_shaft_mcp_jar = lambda *_args: jar
+            MODULE.install_runtime_dependencies = lambda *_args: []
+            MODULE.write_launcher_args = lambda *_args: args_file
+            MODULE.probe_stdio = lambda *_args: calls.append("probe")
+            MODULE.install_shaft_cli_jar = lambda *_args: cli_jar
+            MODULE.write_shaft_cli_launcher = lambda *_args: launcher
+            MODULE.configure_client = lambda *_args: self.fail("CLI-only must not configure an MCP client")
+            MODULE.install_shaft_skills = lambda *_args: self.fail("CLI-only must not install skills")
+            try:
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    MODULE.install(args)
+            finally:
+                for name, original in originals.items():
+                    setattr(MODULE, name, original)
+
+        self.assertEqual(["probe"], calls)
+
+    def test_wrappers_forward_arguments_without_implicit_skills_selection(self):
+        shell = (MODULE_PATH.parent / "install-shaft-mcp.sh").read_text(encoding="utf-8")
+        powershell = (MODULE_PATH.parent / "install-shaft-mcp.ps1").read_text(encoding="utf-8")
+
+        self.assertIn('exec "$python_path" "$python_script" "$@"', shell)
+        self.assertNotIn('set -- "$@" --install-shaft-skills', shell)
+        self.assertIn("$installerArguments += $Arguments", powershell)
+        self.assertNotIn('$installerArguments += @("--install-shaft-skills")', powershell)
 
     def test_install_shaft_skills_copies_package_to_current_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:

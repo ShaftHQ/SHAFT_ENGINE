@@ -233,16 +233,6 @@ function Install-ShaftMcp {
     if (-not [string]::IsNullOrWhiteSpace($trimmedVersion)) {
         $installerArguments += @("--version", $trimmedVersion)
     }
-    $hasShaftSkillsDecision = $false
-    foreach ($argument in $Arguments) {
-        if ($argument -eq "--install-shaft-skills" -or $argument -eq "--skip-shaft-skills") {
-            $hasShaftSkillsDecision = $true
-            break
-        }
-    }
-    if (-not $hasShaftSkillsDecision -and [Console]::IsInputRedirected) {
-        $installerArguments += @("--install-shaft-skills")
-    }
     if ($null -ne $Arguments -and $Arguments.Count -gt 0) {
         $installerArguments += $Arguments
     }

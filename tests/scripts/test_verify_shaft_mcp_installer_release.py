@@ -61,5 +61,15 @@ class ShaftCliPublishedTest(unittest.TestCase):
                 verify.shaft_cli_published()
 
 
+class PluginInstallContractTest(unittest.TestCase):
+    def test_unattended_plugin_install_explicitly_selects_shaft_skills(self):
+        source = Path(verify.__file__).read_text(encoding="utf-8")
+
+        self.assertIn(
+            'installer_command("intellij-plugin", *shaft_cli_args, "--install-shaft-skills", "--json")',
+            source,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

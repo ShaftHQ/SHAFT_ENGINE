@@ -42,6 +42,7 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 - Do not use `Thread.sleep`; use SHAFT waits, actions, assertions, or condition-based waiting from the guide.
 - Do not use raw `driver.findElement`, Selenium `PageFactory`, `@FindBy`, implicit waits, headed setup, or TestNG/JUnit assertions in generated tests.
 - Generate GUI assertions and checkpoint follow-ups through SHAFT assertion builders such as `driver.element().assertThat(...)`, `driver.browser().assertThat()`, or `driver.verifyThat(...)`.
+- `Actions.report()` failure paths throw `RuntimeException`; only validation/accessibility APIs throw `AssertionError`.
 - Do not generate `SHAFT.GUI.Locator.xpath(...)`, `SHAFT.GUI.Locator.id/name/cssSelector/className/tagName(...)`, or a Smart Locator (`inputField`/`clickableField`). Build locators through the SHAFT locator builder in tier order: a unique author-written id (`hasAnyTagName().hasId(...)`), then an ARIA role (`hasRole(...)`), then native relative `By.xpath(...)` only when the element has neither. See `choosing-shaft-locators` for the full ladder.
 - Do not paste Playwright TypeScript output into Java projects; reuse the behavior, locators, and evidence while writing SHAFT syntax.
 - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
