@@ -6,7 +6,7 @@ import json
 import os
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests exercise trusted local commands.
 import sys
 import tempfile
 import tomllib
@@ -115,7 +115,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertNotIn(str(ROOT), command)
             completed = subprocess.run(
                 command,
-                shell=True,
+                shell=True,  # nosec B602 - execute tracked hook command exactly.
                 input=json.dumps(
                     {
                         "hook_event_name": "PreToolUse",
@@ -214,7 +214,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertEqual(broken, [])
 
     def test_mempalace_config_is_tracked_while_generated_state_is_ignored(self):
-        tracked = subprocess.run(
+        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
             ["git", "ls-files", "--error-unmatch", "mempalace.yaml"],
             cwd=ROOT,
             capture_output=True,
@@ -296,7 +296,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             env["GROK_HOOK_EVENT"] = payload.get("hookEventName", "")
         with tempfile.TemporaryDirectory() as state_dir:
             env["SHAFT_GUARD_STATE_DIR"] = state_dir
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - trusted interpreter and repo script.
                 [sys.executable, str(GUARD)],
                 input=json.dumps(payload),
                 cwd=ROOT,
