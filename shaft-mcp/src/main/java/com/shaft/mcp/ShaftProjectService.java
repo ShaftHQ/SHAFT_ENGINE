@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,7 +40,10 @@ public class ShaftProjectService {
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
     private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
     private static final String SKILL_FILE_NAME = "SKILL.md";
-    private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex", "opencode", "vscode");
+    private static final String ROUTER_SKILL_NAME = "shaft-developer";
+    private static final String LEGACY_ROUTER_SKILL_NAME = "act-as-shaft-dev";
+    private static final List<String> ALL_AGENT_HOSTS = List.of("codex", "claude", "vscode", "opencode");
+    private static final Set<String> AGENT_LOOPS = Set.of("all", "claude", "codex", "opencode", "vscode");
     private static final java.util.regex.Pattern SAFE_SKILL_NAME =
             java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
     private static final java.util.regex.Pattern FRONT_MATTER_PATTERN =
@@ -293,24 +297,26 @@ public class ShaftProjectService {
      * <p>Every bridge is generated at call time from the bundled {@code shaft-skills/&lt;skill&gt;/SKILL.md}
      * guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of the full skill text,
      * so the set of skills and their descriptions always tracks {@code shaft-skills/} as of the shaft-mcp
-     * build. Existing files are left untouched unless {@code overwrite} is {@code true}; a skipped file is
-     * reported as a warning instead of failing the call, because {@code targetDirectory} is expected to be
-     * an existing user repository that may already carry its own agent configuration.
+     * build. Existing skill files are left untouched unless {@code overwrite} is {@code true}; host
+     * instruction files always preserve user-authored bytes outside SHAFT's managed block. Existing
+     * recognized host adapters are refreshed alongside the selected loop, and {@code all} installs every
+     * supported host adapter.
      *
      * <p>A bundled skill whose {@code SKILL.md} frontmatter declares {@code distribution: full} is a
      * methodology skill whose value lives in its text, so it is scaffolded as its full body instead of a
      * thin bridge: verbatim for claude/codex/opencode, and with an injected {@code applyTo: "**"} frontmatter
      * key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.
      *
-     * @param loop claude, codex, opencode, or vscode
+     * @param loop all, claude, codex, opencode, or vscode
      * @param targetDirectory workspace-relative existing test repo directory
-     * @param overwrite whether existing generated files may be replaced
+     * @param overwrite whether existing SHAFT-owned skill files may be replaced
      * @return generated agent-scaffolding details
      */
     @Tool(name = "shaft_project_init_agents",
-            description = "scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file "
-                    + "into an existing test repo for a coding-agent loop (claude, codex, opencode, vscode), "
-                    + "without overwriting files that already exist unless overwrite=true")
+            description = "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing "
+                    + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode); "
+                    + "preserves user-authored instruction text and only overwrites SHAFT-owned skill files when "
+                    + "overwrite=true")
     public McpShaftProjectInitAgentsResult initAgents(String loop, String targetDirectory, boolean overwrite) {
         String selectedLoop = selectedAgentLoop(loop);
         Path target = workspacePolicy.output(text(targetDirectory).isBlank() ? "." : targetDirectory,
@@ -319,37 +325,12 @@ public class ShaftProjectService {
         List<String> warnings = new ArrayList<>();
         try {
             Files.createDirectories(target);
-            List<String> skillNames = bundledSkillNames();
-            if ("vscode".equals(selectedLoop)) {
-                Path instructionsDirectory = target.resolve(".github").resolve("instructions");
-                for (String skillName : skillNames) {
-                    String skillMarkdown = readResourceText(skillResource(skillName));
-                    Map<String, String> frontMatter = frontMatter(skillMarkdown);
-                    String name = frontMatter.getOrDefault("name", skillName);
-                    String description = frontMatter.getOrDefault("description", "");
-                    String instructions = isFullDistribution(frontMatter)
-                            ? vscodeFullInstructionsMarkdown(skillMarkdown, name, description)
-                            : vscodeInstructionsMarkdown(skillName, name, description);
-                    writeGeneratedFile(instructionsDirectory.resolve(skillName + ".instructions.md"), target,
-                            instructions, overwrite, generatedFiles, warnings);
-                }
-            } else {
-                Path skillsDirectory = target.resolve(agentLoopSkillsDirectory(selectedLoop));
-                for (String skillName : skillNames) {
-                    String skillMarkdown = readResourceText(skillResource(skillName));
-                    Map<String, String> frontMatter = frontMatter(skillMarkdown);
-                    String content = isFullDistribution(frontMatter)
-                            ? skillMarkdown
-                            : skillBridgeMarkdown(
-                                    skillName,
-                                    frontMatter.getOrDefault("name", skillName),
-                                    frontMatter.getOrDefault("description", ""));
-                    writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, content,
-                            overwrite, generatedFiles, warnings);
-                }
+            Set<String> hosts = agentHosts(target, selectedLoop);
+            Map<String, String> skills = bundledSkills();
+            for (String host : hosts) {
+                installSkills(target, host, skills, overwrite, generatedFiles, warnings);
             }
-            writeGeneratedFile(target.resolve("SHAFT-AGENTS.md"), target,
-                    rootGuidanceMarkdown(selectedLoop, skillNames), overwrite, generatedFiles, warnings);
+            installHostAdapters(target, hosts, generatedFiles, warnings);
             return new McpShaftProjectInitAgentsResult(
                     McpShaftProjectInitAgentsResult.CURRENT_SCHEMA_VERSION,
                     target,
@@ -370,7 +351,121 @@ public class ShaftProjectService {
     }
 
     private static String agentLoopSkillsDirectory(String loop) {
-        return "." + loop + "/skills";
+        return switch (loop) {
+            case "codex" -> ".agents/skills";
+            case "claude" -> ".claude/skills";
+            case "opencode" -> ".opencode/skills";
+            default -> throw new IllegalArgumentException("Unsupported skill host: " + loop);
+        };
+    }
+
+    private static Set<String> agentHosts(Path target, String selectedLoop) throws IOException {
+        Set<String> hosts = new LinkedHashSet<>();
+        if ("all".equals(selectedLoop)) {
+            hosts.addAll(ALL_AGENT_HOSTS);
+        } else {
+            hosts.add(selectedLoop);
+        }
+        Path agents = target.resolve("AGENTS.md");
+        if (Files.exists(agents)) {
+            String content = Files.readString(agents, StandardCharsets.UTF_8);
+            boolean openCodeManaged = content.contains(managedBlockStart("opencode"));
+            if (content.contains(managedBlockStart("codex")) || !openCodeManaged) {
+                hosts.add("codex");
+            }
+            if (openCodeManaged) {
+                hosts.add("opencode");
+            }
+        }
+        if (Files.exists(target.resolve("CLAUDE.md")) || Files.exists(target.resolve(".claude/CLAUDE.md"))) {
+            hosts.add("claude");
+        }
+        if (Files.exists(target.resolve(".github/copilot-instructions.md"))) {
+            hosts.add("vscode");
+        }
+        return hosts;
+    }
+
+    private static Map<String, String> bundledSkills() throws IOException {
+        Map<String, String> skills = new LinkedHashMap<>();
+        for (String sourceName : bundledSkillNames()) {
+            String installedName = LEGACY_ROUTER_SKILL_NAME.equals(sourceName) ? ROUTER_SKILL_NAME : sourceName;
+            String skillMarkdown = renamedSkillMarkdown(readResourceText(skillResource(sourceName)), installedName);
+            if (LEGACY_ROUTER_SKILL_NAME.equals(sourceName)) {
+                skills.putIfAbsent(installedName, skillMarkdown);
+            } else {
+                skills.put(installedName, skillMarkdown);
+            }
+        }
+        return skills;
+    }
+
+    private static String renamedSkillMarkdown(String skillMarkdown, String installedName) {
+        return skillMarkdown.replaceFirst("(?m)^name:\\s*[^\\r\\n]+", "name: " + installedName);
+    }
+
+    private static void installSkills(
+            Path target,
+            String host,
+            Map<String, String> skills,
+            boolean overwrite,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        for (Map.Entry<String, String> skill : skills.entrySet()) {
+            String skillName = skill.getKey();
+            String skillMarkdown = skill.getValue();
+            Map<String, String> frontMatter = frontMatter(skillMarkdown);
+            String name = frontMatter.getOrDefault("name", skillName);
+            String description = frontMatter.getOrDefault("description", "");
+            if ("vscode".equals(host)) {
+                String instructions = isFullDistribution(frontMatter)
+                        ? vscodeFullInstructionsMarkdown(skillMarkdown, name, description)
+                        : vscodeInstructionsMarkdown(skillName, name, description);
+                writeGeneratedFile(target.resolve(".github/instructions")
+                                .resolve(skillName + ".instructions.md"),
+                        target, instructions, overwrite, generatedFiles, warnings);
+            } else {
+                String content = isFullDistribution(frontMatter)
+                        ? skillMarkdown
+                        : skillBridgeMarkdown(skillName, name, description);
+                writeGeneratedFile(target.resolve(agentLoopSkillsDirectory(host))
+                                .resolve(skillName).resolve(SKILL_FILE_NAME),
+                        target, content, overwrite, generatedFiles, warnings);
+            }
+        }
+    }
+
+    private static void installHostAdapters(
+            Path target,
+            Set<String> hosts,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        if (hosts.contains("codex")) {
+            writeManagedBlock(target.resolve("AGENTS.md"), target, "codex",
+                    ".agents/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
+        }
+        if (hosts.contains("opencode")) {
+            writeManagedBlock(target.resolve("AGENTS.md"), target, "opencode",
+                    ".opencode/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
+        }
+        if (hosts.contains("claude")) {
+            Path rootAdapter = target.resolve("CLAUDE.md");
+            Path nestedAdapter = target.resolve(".claude/CLAUDE.md");
+            boolean rootExists = Files.exists(rootAdapter);
+            boolean nestedExists = Files.exists(nestedAdapter);
+            if (rootExists || !nestedExists) {
+                writeManagedBlock(rootAdapter, target, "claude", ".claude/skills/shaft-developer/SKILL.md",
+                        generatedFiles, warnings);
+            }
+            if (nestedExists) {
+                writeManagedBlock(nestedAdapter, target, "claude", "skills/shaft-developer/SKILL.md",
+                        generatedFiles, warnings);
+            }
+        }
+        if (hosts.contains("vscode")) {
+            writeManagedBlock(target.resolve(".github/copilot-instructions.md"), target, "vscode",
+                    "instructions/shaft-developer.instructions.md", generatedFiles, warnings);
+        }
     }
 
     private static void writeGeneratedFile(
@@ -386,8 +481,76 @@ public class ShaftProjectService {
             return;
         }
         Files.createDirectories(normalized.getParent());
-        Files.writeString(normalized, content, StandardCharsets.UTF_8);
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        if (Files.exists(normalized) && Arrays.equals(Files.readAllBytes(normalized), bytes)) {
+            return;
+        }
+        Files.write(normalized, bytes);
         generatedFiles.add(normalized);
+    }
+
+    private static void writeManagedBlock(
+            Path destination,
+            Path targetRoot,
+            String host,
+            String routerPath,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        Path normalized = safeDestination(destination, targetRoot);
+        String current = Files.exists(normalized) ? Files.readString(normalized, StandardCharsets.UTF_8) : "";
+        String startMarker = managedBlockStart(host);
+        String endMarker = managedBlockEnd(host);
+        int start = current.indexOf(startMarker);
+        int end = current.indexOf(endMarker, Math.max(0, start + startMarker.length()));
+        int anyEnd = current.indexOf(endMarker);
+        boolean duplicate = start >= 0 && (current.indexOf(startMarker, start + startMarker.length()) >= 0
+                || (end >= 0 && current.indexOf(endMarker, end + endMarker.length()) >= 0));
+        if ((start >= 0 && end < 0) || (start < 0 && anyEnd >= 0) || (anyEnd >= 0 && anyEnd < start) || duplicate) {
+            warnings.add("Skipped file with malformed managed block: " + normalized);
+            return;
+        }
+
+        String newline = newline(current);
+        String block = managedBlock(host, routerPath, newline);
+        String updated;
+        if (start >= 0) {
+            updated = current.substring(0, start) + block + current.substring(end + endMarker.length());
+        } else {
+            updated = current + managedBlockSeparator(current, newline) + block;
+        }
+        if (current.equals(updated)) {
+            return;
+        }
+        Files.createDirectories(normalized.getParent());
+        Files.writeString(normalized, updated, StandardCharsets.UTF_8);
+        generatedFiles.add(normalized);
+    }
+
+    private static String managedBlock(String host, String routerPath, String newline) {
+        return managedBlockStart(host) + newline
+                + "## SHAFT " + titleCase(host) + newline + newline
+                + "Before any SHAFT task, read and follow [`shaft-developer`](" + routerPath + ") as the "
+                + "mandatory router before using any other SHAFT skill or tool." + newline
+                + managedBlockEnd(host);
+    }
+
+    private static String managedBlockStart(String host) {
+        return "<!-- SHAFT-MANAGED:BEGIN shaft-developer:" + host + " -->";
+    }
+
+    private static String managedBlockEnd(String host) {
+        return "<!-- SHAFT-MANAGED:END shaft-developer:" + host + " -->";
+    }
+
+    private static String newline(String content) {
+        return content.contains("\r\n") ? "\r\n" : "\n";
+    }
+
+    private static String managedBlockSeparator(String content, String newline) {
+        if (content.isEmpty() || content.endsWith(newline + newline)) {
+            return "";
+        }
+        return content.endsWith(newline) ? newline : newline + newline;
     }
 
     private static String skillResource(String skillName) {
@@ -532,31 +695,6 @@ public class ShaftProjectService {
                     : Character.toUpperCase(word.charAt(0)) + word.substring(1));
         }
         return title.toString();
-    }
-
-    private static String rootGuidanceMarkdown(String loop, List<String> skillNames) {
-        StringBuilder guidance = new StringBuilder();
-        guidance.append("# SHAFT Agent Guidance (generated)\n\n")
-                .append("> Generated by `shaft_project_init_agents` (shaft-mcp) for the `").append(loop)
-                .append("` loop. This file is intentionally standalone so the tool never edits a file you "
-                        + "already maintain. Review it, then MERGE the relevant parts into your own "
-                        + "`AGENTS.md`/`CLAUDE.md` (or your loop's equivalent guidance file -- "
-                        + "`.github/copilot-instructions.md` for vscode/GitHub Copilot, `AGENTS.md` for "
-                        + "opencode), and delete this file once merged.\n\n")
-                .append("## Generated skill bridges\n\n")
-                .append("Each bridge below points a coding agent at using `shaft-mcp` MCP tools for a SHAFT "
-                        + "workflow:\n\n");
-        for (String skillName : skillNames) {
-            guidance.append("- `").append(skillName).append("`\n");
-        }
-        guidance.append("\n## Using shaft-mcp\n\n")
-                .append("- Prefer `shaft-mcp:shaft_guide_search` before guessing tool behavior.\n")
-                .append("- Treat generated or recorded code as a draft: preview it with "
-                        + "`shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, then "
-                        + "verify with `shaft-mcp:verify_run_focused`.\n")
-                .append("- Do not insert SHAFT code without review; this is SHAFT's evidence-gated AI "
-                        + "governance model, not a fire-and-forget generator.\n");
-        return guidance.toString();
     }
 
     private static Map<String, Map<String, String>> projects() {
