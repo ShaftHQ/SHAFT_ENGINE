@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class ShaftProjectServiceTest {
     @TempDir
@@ -184,13 +185,22 @@ class ShaftProjectServiceTest {
         assertHostAdapter(repo.resolve("AGENTS.md"), ".agents/skills/shaft-developer/SKILL.md");
         assertHostAdapter(repo.resolve("CLAUDE.md"), ".claude/skills/shaft-developer/SKILL.md");
         assertHostAdapter(repo.resolve(".github/copilot-instructions.md"),
-                "instructions/shaft-developer.instructions.md");
+                "instructions/shaft-developer/SKILL.md");
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/references/routing.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/references/sources.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/agents/openai.yaml")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-automated-test-authoring/SKILL.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-automated-test-authoring/references/playbook.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/references/shaft-mcp-tools.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/evaluation-prompts.md")));
         assertTrue(Files.exists(repo.resolve(".claude/skills/shaft-developer/SKILL.md")));
         assertTrue(Files.exists(repo.resolve(".opencode/skills/shaft-developer/SKILL.md")));
-        assertTrue(Files.exists(repo.resolve(".github/instructions/shaft-developer.instructions.md")));
+        assertTrue(Files.exists(repo.resolve(".github/instructions/shaft-developer/SKILL.md")));
         assertTrue(Files.readString(repo.resolve(".agents/skills/shaft-developer/SKILL.md"))
                 .contains("name: shaft-developer"));
+        assertFalse(Files.readString(repo.resolve(".agents/skills/shaft-automated-test-authoring/SKILL.md"))
+                .contains("SHAFT bridge"));
         assertFalse(Files.exists(repo.resolve(".agents/skills/act-as-shaft-dev")));
         assertFalse(Files.exists(repo.resolve(".claude/skills/act-as-shaft-dev")));
         assertFalse(Files.exists(repo.resolve(".github/instructions/act-as-shaft-dev.instructions.md")));
@@ -271,10 +281,10 @@ class ShaftProjectServiceTest {
         assertTrue(Files.readString(copilot).startsWith("copilot user text"));
         assertHostAdapter(agents, ".agents/skills/shaft-developer/SKILL.md");
         assertHostAdapter(claude, ".claude/skills/shaft-developer/SKILL.md");
-        assertHostAdapter(copilot, "instructions/shaft-developer.instructions.md");
+        assertHostAdapter(copilot, "instructions/shaft-developer/SKILL.md");
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
         assertTrue(Files.exists(repo.resolve(".claude/skills/shaft-developer/SKILL.md")));
-        assertTrue(Files.exists(repo.resolve(".github/instructions/shaft-developer.instructions.md")));
+        assertTrue(Files.exists(repo.resolve(".github/instructions/shaft-developer/SKILL.md")));
         assertFalse(Files.exists(repo.resolve(".opencode")));
     }
 
@@ -320,7 +330,7 @@ class ShaftProjectServiceTest {
     }
 
     @Test
-    void initAgentsKeepsOverwriteSemanticsForOwnedSkillFilesOnly() throws Exception {
+    void initAgentsNeverOverwritesAnUnownedSkillFile() throws Exception {
         ShaftProjectService service = new ShaftProjectService(
                 McpWorkspacePolicy.of(temp),
                 new FakeRunner(),
@@ -329,7 +339,7 @@ class ShaftProjectServiceTest {
         Path repo = Files.createDirectories(temp.resolve("existing-repo"));
         Path adapter = repo.resolve("CLAUDE.md");
         Files.writeString(adapter, "custom instructions");
-        Path skill = Files.createDirectories(repo.resolve(".claude/skills/writing-shaft-tests"))
+        Path skill = Files.createDirectories(repo.resolve(".claude/skills/shaft-automated-test-authoring"))
                 .resolve("SKILL.md");
         Files.writeString(skill, "custom skill");
 
@@ -337,12 +347,54 @@ class ShaftProjectServiceTest {
 
         assertEquals("custom skill", Files.readString(skill));
         assertTrue(Files.readString(adapter).startsWith("custom instructions"));
-        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("writing-shaft-tests")));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("shaft-automated-test-authoring")));
 
-        service.initAgents("claude", "existing-repo", true);
+        McpShaftProjectInitAgentsResult refreshed = service.initAgents("claude", "existing-repo", true);
 
-        assertTrue(Files.readString(skill).contains("Generated by `shaft_project_init_agents`"));
+        assertEquals("custom skill", Files.readString(skill));
+        assertTrue(refreshed.warnings().stream().anyMatch(warning -> warning.contains("unowned")));
         assertTrue(Files.readString(adapter).startsWith("custom instructions"));
+    }
+
+    @Test
+    void initAgentsRefreshesAProvenanceTrackedSkillFile() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        service.initAgents("claude", "managed-repo", true);
+        Path skill = temp.resolve("managed-repo/.claude/skills/shaft-automated-test-authoring/SKILL.md");
+        Files.writeString(skill, "stale generated skill");
+
+        service.initAgents("claude", "managed-repo", true);
+
+        assertTrue(Files.readString(skill).contains("# SHAFT Automated Test Authoring"));
+    }
+
+    @Test
+    void initAgentsRejectsHostSkillDirectorySymlinkOutsideTheProject() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+        Path repo = Files.createDirectories(temp.resolve("symlink-repo"));
+        Path outside = Files.createDirectories(temp.resolve("outside-skills"));
+        Path link = repo.resolve(".agents");
+        try {
+            Files.createSymbolicLink(link, outside);
+
+            assertThrows(IllegalArgumentException.class, () -> service.initAgents("codex", "symlink-repo", true));
+            assertFalse(Files.exists(outside.resolve("skills/shaft-developer/SKILL.md")));
+        } catch (UnsupportedOperationException | SecurityException exception) {
+            assumeTrue(false, "Symlink creation is unavailable: " + exception.getMessage());
+        } catch (java.io.IOException exception) {
+            assumeTrue(false, "Symlink creation failed: " + exception.getMessage());
+        } finally {
+            Files.deleteIfExists(link);
+        }
     }
 
     @Test
