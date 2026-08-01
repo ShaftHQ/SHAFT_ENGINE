@@ -5,13 +5,16 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import java.awt.Component;
+import java.awt.Container;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * Covers issue #3694: the notices banner strip (setup notice + fresh-project hint) above the chat
@@ -71,6 +74,26 @@ class ShaftAssistantPanelLayoutTest {
                 + "grouped chip must stay hidden exactly like the two controls it wraps used to");
     }
 
+    @Test
+    void runSettingsDisclosureStartsCollapsedAndKeepsRouteControlsTogether() throws ReflectiveOperationException {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+
+        JToggleButton toggle = (JToggleButton) fieldOf(panel, "runSettingsToggle");
+        JPanel settings = (JPanel) fieldOf(panel, "runSettingsPanel");
+        Component mode = fieldOf(panel, "mode");
+
+        assertAll(
+                () -> assertEquals("Run settings", toggle.getAccessibleContext().getAccessibleName()),
+                () -> assertFalse(toggle.isSelected(), "the everyday composer must start compact"),
+                () -> assertFalse(settings.isVisible(), "route and configuration controls belong behind Run settings"),
+                () -> assertTrue(containsDescendant(settings, mode), "mode must remain in the settings disclosure"));
+
+        toggle.doClick();
+
+        assertTrue(settings.isVisible(), "Run settings must expand with the keyboard-accessible toggle");
+    }
+
     /** MCP configured (hides the setup notice) with a {@code null} project (never "fresh", hides that notice too). */
     private static ShaftSettingsState.Settings readySettingsForExistingProject() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
@@ -97,5 +120,10 @@ class ShaftAssistantPanelLayoutTest {
 
     private static boolean containsComponent(JComponent container, Component target) {
         return Arrays.stream(container.getComponents()).anyMatch(child -> child == target);
+    }
+
+    private static boolean containsDescendant(Container container, Component target) {
+        return Arrays.stream(container.getComponents()).anyMatch(child -> child == target
+                || child instanceof Container nested && containsDescendant(nested, target));
     }
 }

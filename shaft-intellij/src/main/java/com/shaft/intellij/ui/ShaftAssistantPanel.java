@@ -52,6 +52,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
 import javax.swing.JPopupMenu;
+import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -123,28 +124,6 @@ final class ShaftAssistantPanel extends JPanel {
                     + "before any actions were captured) or code generation may have failed silently. "
                     + "Record the journey again, confirm the recording actually captured actions, then "
                     + "ask for a test generated from that recording._";
-    /**
-     * First-run welcome (issue #3500 O1, follow-up #3540): the Assistant's own first message,
-     * shown once via {@link #showFirstRunWelcomeIfNeeded()} until dismissed. The numbered steps
-     * read as plain text, not the five-emoji list this used to be -- this was the one place emoji
-     * appeared anywhere in the plugin, breaking from the wizard/Settings/rest-of-panel voice
-     * (#3601 B3.3); the opening "Hi!" keeps its own emoji as the one deliberate warm-greeting
-     * accent. The closing line is a first-session tooltip coach for the icon-only toolbar (#3601
-     * A3): every button in this panel is icon-only via {@code ShaftIconButtons.apply(...)} with a
-     * hover tooltip and an accessible name, but a first-time user sees a row of unlabeled icons
-     * with no hover yet. No codebase precedent for a Balloon/JBPopupFactory coach-mark exists to
-     * point at a specific control, so this reuses the same show-once welcome mechanism instead of
-     * introducing a new popup widget, naming only the two or three controls needed first.
-     */
-    private static final String FIRST_RUN_WELCOME_MARKDOWN =
-            "👋 Hi! I'm the SHAFT Assistant — I turn what you do in your app into real tests.\n\n"
-                    + "**Let's get started**\n\n"
-                    + "1. Check your setup in the status strip up top.\n"
-                    + "2. Record a sample flow — just click around your app.\n"
-                    + "3. Review code to turn it into a real test.\n"
-                    + "4. Or just tell me what you need below.\n\n"
-                    + "Every button around this panel is an icon with a tooltip — hover any of them "
-                    + "for its name; the ones you'll reach for first are New chat, Send, and Copy response.";
     private final Project project;
     // Stable per-instance identity so overlapping recordings across surfaces don't collapse onto
     // one process-wide flag (issue #3591 item 3).
@@ -183,6 +162,8 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton send;
     private final JButton attach;
     private final JButton cancel;
+    private final JToggleButton runSettingsToggle;
+    private final JPanel runSettingsPanel;
     private final JButton copyLastResponse;
     private final JButton copyRawResponse;
     private final JButton copyTranscript;
@@ -526,8 +507,6 @@ final class ShaftAssistantPanel extends JPanel {
             transcript.setMessages(chatState.activeMessages());
             lastPrompt = latestUserPrompt();
             updateContextTruncationBoundary();
-        } else {
-            showFirstRunWelcomeIfNeeded();
         }
         status = new JLabel(READY_STATUS);
         status.getAccessibleContext().setAccessibleName("Assistant status");
@@ -692,21 +671,36 @@ final class ShaftAssistantPanel extends JPanel {
         actionRow.add(rerunLastPrompt);
         actionRow.add(cancel);
 
-        JPanel routeRow = wrapRow();
-        routeRow.add(mode);
-        routeRow.add(providerType);
-        routeRow.add(assistantFamily);
-        routeRow.add(assistantRuntime);
-        routeRow.add(currentAgentChip);
-        routeRow.add(customCommand);
-        routeRow.add(cloudProvider);
-        routeRow.add(cloudModel);
-        routeRow.add(localModel);
-        routeRow.add(refreshLocalModels);
-        routeRow.add(effort);
-        routeRow.add(allowSourceMutationChip);
-        routeRow.add(verboseAgentOutput);
-        routeRow.add(autoCompact);
+        runSettingsPanel = new JPanel();
+        runSettingsPanel.setLayout(new BoxLayout(runSettingsPanel, BoxLayout.Y_AXIS));
+        runSettingsPanel.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
+        runSettingsPanel.add(runSetting("Mode", mode));
+        runSettingsPanel.add(runSetting("Provider", providerType));
+        runSettingsPanel.add(runSetting("Assistant", assistantFamily));
+        runSettingsPanel.add(runSetting("Runtime", assistantRuntime));
+        runSettingsPanel.add(runSetting("Current agent", currentAgentChip));
+        runSettingsPanel.add(runSetting("Command", customCommand));
+        runSettingsPanel.add(runSetting("Cloud provider", cloudProvider));
+        runSettingsPanel.add(runSetting("Cloud model", cloudModel));
+        runSettingsPanel.add(runSetting("Cloud key", cloudKeyPanel));
+        runSettingsPanel.add(runSetting("Local model", localModel));
+        runSettingsPanel.add(runSetting("Refresh models", refreshLocalModels));
+        runSettingsPanel.add(runSetting("Effort", effort));
+        runSettingsPanel.add(runSetting("Source edits", allowSourceMutationChip));
+        runSettingsPanel.add(runSetting("Output", verboseAgentOutput));
+        runSettingsPanel.add(runSetting("Context", autoCompact));
+        runSettingsPanel.setVisible(false);
+        runSettingsToggle = new JToggleButton();
+        runSettingsToggle.getAccessibleContext().setAccessibleName("Run settings");
+        runSettingsToggle.getAccessibleContext().setAccessibleDescription(
+                "Show or hide the assistant route and run configuration.");
+        runSettingsToggle.addActionListener(event -> {
+            runSettingsPanel.setVisible(runSettingsToggle.isSelected());
+            updateRunSettingsSummary();
+            runSettingsPanel.getParent().revalidate();
+            runSettingsPanel.getParent().repaint();
+        });
+        updateRunSettingsSummary();
 
         JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         sendActions.add(attach);
@@ -721,8 +715,12 @@ final class ShaftAssistantPanel extends JPanel {
                 + "the SHAFT guardrail check on the result");
         convertSeleniumHint.setVisible(false);
         convertSeleniumHint.addActionListener(event -> wrapPromptAsSeleniumConversion());
+        JPanel settingsDisclosure = new JPanel();
+        settingsDisclosure.setLayout(new BoxLayout(settingsDisclosure, BoxLayout.Y_AXIS));
+        settingsDisclosure.add(runSettingsToggle);
+        settingsDisclosure.add(runSettingsPanel);
         composerFooter.add(convertSeleniumHint, BorderLayout.NORTH);
-        composerFooter.add(routeRow, BorderLayout.CENTER);
+        composerFooter.add(settingsDisclosure, BorderLayout.CENTER);
         composerFooter.add(promptActions, BorderLayout.SOUTH);
 
         JPanel composer = new JPanel(new BorderLayout(4, 4));
@@ -741,7 +739,6 @@ final class ShaftAssistantPanel extends JPanel {
         composerTop.add(buildEmptyStateChips());
         composer.add(composerTop, BorderLayout.NORTH);
         composer.add(promptScroll, BorderLayout.CENTER);
-        composer.add(cloudKeyPanel, BorderLayout.WEST);
         composer.add(composerFooter, BorderLayout.SOUTH);
 
         JPanel south = new JPanel(new BorderLayout(4, 4));
@@ -756,10 +753,8 @@ final class ShaftAssistantPanel extends JPanel {
         notices = new JPanel();
         notices.setLayout(new BoxLayout(notices, BoxLayout.Y_AXIS));
         notices.add(setupNotice(project, settings));
-        // Separate signal from showFirstRunWelcomeIfNeeded() (#3601 O3): keyed off the project's
-        // actual pom.xml state via ShaftProjectVersionCheck, not firstRunCoachDismissed, so it
-        // keeps helping a returning user whose project is still fresh after the welcome bubble is
-        // long gone -- and stays quiet for an already-adopted project even on a first run.
+        // Separate signal keyed off the project's actual pom.xml state via
+        // ShaftProjectVersionCheck, so it stays quiet for an already-adopted project.
         notices.add(freshProjectNotice(project));
 
         JPanel north = new JPanel(new BorderLayout(4, 4));
@@ -3145,10 +3140,7 @@ final class ShaftAssistantPanel extends JPanel {
      * default. A blank/{@code null} kind behaves exactly like the 3-arg overload.
      */
     private void append(String role, String text, String rawResponse, String kind) {
-        // Any real message (user or assistant) ends the first-run welcome (issue #3540): the
-        // welcome is only ever valid on a genuinely empty transcript, and this always follows
-        // showFirstRunWelcomeIfNeeded() showing it (or a no-op if never shown/already dismissed),
-        // so clearWidget() here is safe even when nothing is currently showing. Issue #4319 bug 1:
+        // Any real message clears a transient transcript widget before it is persisted. Issue #4319 bug 1:
         // append() is NOT guaranteed to skip the local-agent approval widget's slot the way the old
         // comment here assumed -- AssistantLocalAgentRunner.narrateApproval's own "Waiting for your
         // approval on X -- run timer paused." narration line streams back in through this exact path
@@ -3369,6 +3361,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (cloud) {
             updateCloudKeyStatus();
         }
+        syncRunSettingsRows();
+        updateRunSettingsSummary();
         updateActionChrome();
     }
 
@@ -3446,40 +3440,11 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
-     * Shows the first-run welcome as the Assistant's own first message in the transcript (issue
-     * #3500 O1, follow-up #3540), via the same ephemeral {@link AssistantTranscriptView#showWidget}
-     * slot used for {@link ToolApprovalPromptPanel} -- never persisted into
-     * chatState/markdown/Copy-transcript. A no-op unless the transcript is genuinely empty and the
-     * flag isn't set, so it's safe to call after every transition to an empty transcript
-     * (construction, New chat, chat switch, Clear); {@link #transcript}'s single widget slot is
-     * never contested because those same call sites always {@code transcript.clear()} first, and an
-     * approval widget only ever appears after some message has already hidden this welcome (every
-     * {@link #append(String, String, String)} call clears it unconditionally).
-     */
-    private void showFirstRunWelcomeIfNeeded() {
-        if (settings.firstRunCoachDismissed || !transcript.markdown().isBlank()) {
-            return;
-        }
-        javax.swing.JButton gotIt = new javax.swing.JButton("Got it");
-        gotIt.getAccessibleContext().setAccessibleName("Dismiss first run coach");
-        gotIt.setToolTipText("Hide this first-run guide permanently.");
-        gotIt.setMargin(JBUI.insets(1, 8));
-        gotIt.addActionListener(event -> {
-            settings.firstRunCoachDismissed = true;
-            transcript.clearWidget();
-        });
-        transcript.showWidget("assistant", transcript.assistantBubbleWithActions(
-                FIRST_RUN_WELCOME_MARKDOWN, gotIt, "Assistant welcome message bubble"));
-    }
-
-    /**
      * First-run empty-state chips (issue #3500 A6): three concrete next actions that pre-fill the
      * composer instead of executing anything, so the user stays in control of the first send.
      * {@code WrapLayout} (not plain {@code FlowLayout}) reports correct wrapped preferred height in
      * a narrow tool window; a plain {@code FlowLayout} row under-reports it, letting whatever
-     * follows collide with a wrapped second line of chips (root cause of the first-run coach clip,
-     * issue #3540 -- the coach strip that used to sit above this row is now the transcript welcome
-     * bubble; see {@link #showFirstRunWelcomeIfNeeded()}).
+     * follows collide with a wrapped second line of chips.
      */
     private javax.swing.JPanel buildEmptyStateChips() {
         javax.swing.JPanel chipRow = new javax.swing.JPanel(new WrapLayout(java.awt.FlowLayout.LEFT, 6, 0));
@@ -3927,7 +3892,6 @@ final class ShaftAssistantPanel extends JPanel {
         captureIntegrationRunning = false;
         transcript.clear();
         contextTruncationBoundaryIndex = -1;
-        showFirstRunWelcomeIfNeeded();
         lastResponse = "";
         lastRawResponse = "";
         lastPrompt = "";
@@ -3949,7 +3913,6 @@ final class ShaftAssistantPanel extends JPanel {
         captureIntegrationRunning = false;
         refreshChatSelector();
         transcript.clear();
-        showFirstRunWelcomeIfNeeded();
         prompt.setText("");
         lastResponse = "";
         lastRawResponse = "";
@@ -4463,7 +4426,6 @@ final class ShaftAssistantPanel extends JPanel {
         } else {
             transcript.clear();
             contextTruncationBoundaryIndex = -1;
-            showFirstRunWelcomeIfNeeded();
         }
         lastResponse = "";
         lastRawResponse = "";
@@ -4756,8 +4718,7 @@ final class ShaftAssistantPanel extends JPanel {
      * setup wizard's "Upgrade project" step whether this project has any SHAFT
      * ({@code io.github.shafthq}) dependency at all; surfacing that same NOT_A_SHAFT_PROJECT signal
      * here points a user starting from an empty or non-SHAFT project at the Guided tab's "Create a
-     * new SHAFT project" template. A separate signal from {@link #showFirstRunWelcomeIfNeeded()} --
-     * keyed off project state, not {@code firstRunCoachDismissed} -- and purely a suggestion:
+     * new SHAFT project" template. It is keyed off project state and is purely a suggestion:
      * dismissing it, or any other Assistant control, works exactly as before.
      */
     private static JPanel freshProjectNotice(Project project) {
@@ -4813,6 +4774,33 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static JPanel wrapRow() {
         return new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
+    }
+
+    private static JPanel runSetting(String labelText, JComponent control) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        row.setOpaque(false);
+        JLabel label = new JLabel(labelText);
+        label.setLabelFor(control);
+        label.setBorder(JBUI.Borders.empty(0, 0, 0, 6));
+        row.putClientProperty("shaft.run.settings.control", control);
+        row.add(label);
+        row.add(control);
+        return row;
+    }
+
+    private void syncRunSettingsRows() {
+        for (Component component : runSettingsPanel.getComponents()) {
+            if (component instanceof JPanel row
+                    && row.getClientProperty("shaft.run.settings.control") instanceof JComponent control) {
+                row.setVisible(control.isVisible());
+            }
+        }
+    }
+
+    private void updateRunSettingsSummary() {
+        String selectedMode = String.valueOf(mode.getSelectedItem()).toLowerCase(Locale.ROOT);
+        runSettingsToggle.setText("Run settings · " + selectedMode.substring(0, 1).toUpperCase(Locale.ROOT)
+                + selectedMode.substring(1));
     }
 
     static String trimChatTitleForWidth(String title, FontMetrics metrics, int maxWidth) {

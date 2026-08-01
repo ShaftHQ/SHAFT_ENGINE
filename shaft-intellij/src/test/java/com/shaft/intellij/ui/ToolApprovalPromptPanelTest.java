@@ -5,7 +5,6 @@ import com.shaft.intellij.approval.ToolApprovalDecision;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
-import java.awt.Color;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -16,13 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolApprovalPromptPanelTest {
-    // Issue #3782: a leaked dark-theme UIManager override (e.g. Button.background 0x45494A, a
-    // near-gray with red/green/blue only 1-5 units apart) from another test's L&F install can read
-    // as "blueish" under a plain greater-than comparison. Requiring a real minimum gap between the
-    // dominant channel and the others keeps these heuristics meaningful for genuinely color-coded
-    // buttons while no longer misclassifying an ambient near-gray leak as a hue.
-    private static final int HUE_DOMINANCE_THRESHOLD = 15;
-
     @Test
     void standardCapabilityShowsAllScopesPlusDeny() {
         AtomicReference<ToolApprovalDecision> decided = new AtomicReference<>();
@@ -156,7 +148,7 @@ class ToolApprovalPromptPanelTest {
      * default look.
      */
     @Test
-    void approvalScopeButtonsShareEqualVisualWeightAndAreColorCodedByScopeBreadth() {
+    void broadAndPermanentApprovalScopesAreNotVisuallyPromoted() {
         ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
                 "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
         List<JButton> buttons = panel.decisionButtonsForTest();
@@ -164,40 +156,15 @@ class ToolApprovalPromptPanelTest {
         JButton approveOnce = findByLabel(buttons, "Approve once");
         JButton approveToolAlways = findByLabel(buttons, "Approve tool always");
         JButton approveAllTools = findByLabel(buttons, "Approve all tools");
-        JButton deny = findByLabel(buttons, "Deny");
-
         assertAll(
+                () -> assertEquals(approveOnce.getBackground(), approveToolAlways.getBackground(),
+                        "permanent approval must keep the native neutral treatment"),
+                () -> assertEquals(approveOnce.getBackground(), approveAllTools.getBackground(),
+                        "broad approval must not look like the preferred action"),
                 () -> assertEquals(approveOnce.getFont().getSize2D(), approveToolAlways.getFont().getSize2D(),
                         "Approve tool always must not be font-shrunk relative to Approve once"),
                 () -> assertEquals(approveOnce.getFont().getSize2D(), approveAllTools.getFont().getSize2D(),
-                        "Approve all tools must not be font-shrunk relative to Approve once"),
-                () -> assertTrue(isGreenish(approveAllTools.getBackground()),
-                        "Approve all tools (broadest scope) should be highlighted green: "
-                                + approveAllTools.getBackground()),
-                () -> assertTrue(isBlueish(approveToolAlways.getBackground()),
-                        "Approve tool always (medium scope) should be highlighted blue: "
-                                + approveToolAlways.getBackground()),
-                () -> assertTrue(isYellowish(approveOnce.getBackground()),
-                        "Approve once (narrowest scope) should be highlighted yellow: "
-                                + approveOnce.getBackground()),
-                () -> assertFalse(isGreenish(deny.getBackground()) || isBlueish(deny.getBackground())
-                                || isYellowish(deny.getBackground()),
-                        "Deny should keep the platform default button color, not a scope color"));
-    }
-
-    private static boolean isGreenish(Color color) {
-        return color.getGreen() - color.getRed() > HUE_DOMINANCE_THRESHOLD
-                && color.getGreen() - color.getBlue() > HUE_DOMINANCE_THRESHOLD;
-    }
-
-    private static boolean isBlueish(Color color) {
-        return color.getBlue() - color.getRed() > HUE_DOMINANCE_THRESHOLD
-                && color.getBlue() - color.getGreen() > HUE_DOMINANCE_THRESHOLD;
-    }
-
-    private static boolean isYellowish(Color color) {
-        return color.getRed() - color.getBlue() > HUE_DOMINANCE_THRESHOLD
-                && color.getGreen() - color.getBlue() > HUE_DOMINANCE_THRESHOLD;
+                        "Approve all tools must not gain a larger visual weight than Approve once"));
     }
 
     private static JButton findByLabel(List<JButton> buttons, String label) {

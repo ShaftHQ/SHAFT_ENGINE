@@ -64,6 +64,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
@@ -526,143 +527,23 @@ class ShaftPluginScreenshotRendererTest {
         return image.get();
     }
 
-    /**
-     * Issue #4163 (tracker #4160 area B): a static render of {@code intellij-plugin-assistant-empty-
-     * narrow.png} was read as showing the first-run welcome bubble's "Got it" dismiss button cut off
-     * below the visible frame, with no scrollbar visually distinguishable in the PNG. That finding was
-     * filed at medium confidence with an explicit caveat: {@link AssistantTranscriptView#showWidget}
-     * adds the welcome bubble into a panel that sits inside a real scroll pane (this view's own
-     * "Assistant transcript" {@link JBScrollPane}), so a static render alone cannot prove the button is
-     * unreachable -- only a live check of the real {@link JViewport}/{@link JScrollBar} model can.
-     *
-     * <p>This test drives the exact same narrow/dark construction {@link #renderAssistantEmpty} uses
-     * for its screenshot evidence and checks reachability directly.
-     *
-     * <p><b>Contract, deliberately relaxed (issue #4174 follow-up, three-round CI investigation):</b>
-     * this test originally also required the button to be fully visible in the *initial, unscrolled*
-     * viewport -- the actual claim issue #4163 reported. That stricter claim was never the real
-     * requirement: a user scrolling a few pixels to reach a dismiss button is unremarkable chat-UI
-     * behavior; a user who can never reach it at all is the actual bug. Three separate, independently
-     * verified local fixes for a *different* defect in this same bubble (issue #4174's trailing-
-     * paragraph crop) each passed this test's stricter no-scroll assertion locally and then failed it
-     * on the real Linux CI runner anyway, with sound, reproducible local margins each time -- meaning
-     * the exact-pixel no-scroll claim does not hold reliably across environments regardless of how
-     * correct the surrounding layout math is. The orchestrator relaxed this test's contract to the
-     * actual user-facing requirement -- reachable somewhere within the transcript's full scrollable
-     * extent, never permanently stuck -- rather than continuing to chase environment-specific pixel
-     * margins for a stricter guarantee nothing in the original issue actually needed.
-     */
+    /** The narrow empty state remains quiet: onboarding guidance lives in prefill suggestions only. */
     @Test
-    void firstRunWelcomeDismissButtonIsReachableAtNarrowDarkWidth() throws InterruptedException, InvocationTargetException {
-        AtomicReference<Boolean> reachableAfterScrollingToBottom = new AtomicReference<>();
-        AtomicReference<JButton> dismissButton = new AtomicReference<>();
+    void emptyAssistantHasNoFirstRunWelcomeAtNarrowDarkWidth() throws InterruptedException, InvocationTargetException {
+        AtomicReference<JComponent> component = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(DARK_THEME, true);
-            ShaftSettingsState.Settings settings = defaultSettings();
-            JComponent component = new ShaftToolWindowPanel(
-                    screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());
-            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
-            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
-            SwingUtilities.updateComponentTreeUI(component);
-            component.doLayout();
-            layout(component, false);
-
-            JButton gotIt = findByAccessibleName(component, "Dismiss first run coach", JButton.class);
-            dismissButton.set(gotIt);
-            if (gotIt == null) {
-                return;
-            }
-
-            JBScrollPane transcriptScroll = findByAccessibleName(component, "Assistant transcript", JBScrollPane.class);
-            if (transcriptScroll == null) {
-                return;
-            }
-            JViewport viewport = transcriptScroll.getViewport();
-            Component view = viewport.getView();
-            Rectangle buttonInViewCoordinates =
-                    SwingUtilities.convertRectangle(gotIt.getParent(), gotIt.getBounds(), view);
-
-            JScrollBar verticalScrollBar = transcriptScroll.getVerticalScrollBar();
-            verticalScrollBar.setValue(verticalScrollBar.getMaximum());
-            reachableAfterScrollingToBottom.set(viewport.getViewRect().contains(buttonInViewCoordinates));
+            JComponent panel = new ShaftToolWindowPanel(
+                    screenshotProject(), defaultSettings(), AssistantLocalAgentRunner::readiness,
+                    new ShaftAssistantChatState());
+            panel.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            layout(panel, false);
+            component.set(panel);
         });
 
-        assertNotNull(dismissButton.get(),
-                "The welcome bubble's Got it button must render at a narrow dark tool window width");
-        assertTrue(reachableAfterScrollingToBottom.get(),
-                "The Got it button must be findable and clickable somewhere within the transcript's "
-                        + "full scrollable extent at NARROW_WIDTH x HEIGHT under DarculaLaf -- scrolled "
-                        + "all the way to the bottom, it must never be permanently stuck or unreachable "
-                        + "(issue #4163). Requiring it visible without any scrolling proved unreliable "
-                        + "across environments (see class javadoc above) and is no longer asserted.");
-    }
-
-    /**
-     * Issue #4174 (tracker #4160 area B): investigating #4163's sibling "Got it" button-clip claim
-     * (see {@link #firstRunWelcomeDismissButtonIsReachableAtNarrowDarkWidth} above, which did NOT
-     * reproduce as originally reported) turned up a real, different defect in the same welcome bubble: at
-     * narrow tool-window widths the trailing paragraph -- "...the ones you'll reach for first are
-     * New chat, Send, and Copy response." -- is silently cut off mid-sentence, with no ellipsis or
-     * other signal that content is missing. Swing clips painting to a component's own bounds, so a
-     * character laid out below {@link JEditorPane#getHeight()} is never painted; this drives the
-     * exact same narrow/dark construction and proves the pane's own allocated height (after real
-     * layout) falls short of where the paragraph's final characters are positioned -- the same
-     * height-under-reporting mechanism {@code assistantBubbleWithActions}'s existing trailing-list-
-     * crop fix comment documents for a different (list, not paragraph) content shape.
-     */
-    @Test
-    void firstRunWelcomeTrailingParagraphIsNotClippedAtNarrowWidth() throws InterruptedException, InvocationTargetException {
-        AtomicReference<JEditorPane> welcomePane = new AtomicReference<>();
-        AtomicReference<Rectangle> tailCharacterBounds = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            configureLookAndFeel(DARK_THEME, true);
-            ShaftSettingsState.Settings settings = defaultSettings();
-            JComponent component = new ShaftToolWindowPanel(
-                    screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());
-            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
-            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
-            SwingUtilities.updateComponentTreeUI(component);
-            component.doLayout();
-            layout(component, false);
-
-            JEditorPane pane = findByAccessibleName(component, "Assistant welcome message content", JEditorPane.class);
-            welcomePane.set(pane);
-            if (pane == null) {
-                return;
-            }
-            try {
-                String rendered = pane.getDocument().getText(0, pane.getDocument().getLength());
-                String tail = "Copy response.";
-                int tailStart = rendered.indexOf(tail);
-                if (tailStart < 0) {
-                    return;
-                }
-                int lastOffset = tailStart + tail.length() - 1;
-                java.awt.geom.Rectangle2D bounds2D = pane.modelToView2D(lastOffset);
-                tailCharacterBounds.set(bounds2D == null ? null : bounds2D.getBounds());
-            } catch (BadLocationException exception) {
-                throw new IllegalStateException(exception);
-            }
-        });
-
-        assertNotNull(welcomePane.get(),
-                "The welcome bubble's message pane must render at a narrow dark tool window width");
-        assertNotNull(tailCharacterBounds.get(),
-                "The welcome message's trailing paragraph must contain the full onboarding sentence, "
-                        + "including its final \"Copy response.\" clause, in the rendered document");
-        Rectangle bounds = tailCharacterBounds.get();
-        int margin = welcomePane.get().getHeight() - (bounds.y + bounds.height);
-        // A margin that merely clears zero is exactly what regressed here once already (a shared
-        // htmlPane border reservation tuned against one platform's font metrics left only 1px of
-        // slack on a real run): require real headroom, not a razor-thin pass, so a future edit that
-        // erodes this back down gets caught here instead of on a CI runner with different font
-        // metrics.
-        assertTrue(margin >= 10,
-                "The trailing paragraph's final characters (\"Copy response.\") must be painted "
-                        + "inside the welcome message pane's own bounds at NARROW_WIDTH with a real "
-                        + "safety margin (>=10px), not a razor-thin pass -- Swing clips paint to "
-                        + "component bounds, so text laid out below getHeight() is silently dropped "
-                        + "with no ellipsis, reproducing issue #4174. Actual margin: " + margin + "px.");
+        assertNull(findByAccessibleName(component.get(), "Dismiss first run coach", JButton.class),
+                "The quiet empty Assistant must not render a first-run welcome essay or dismissal control");
+        assertNull(findByAccessibleName(component.get(), "Assistant welcome message content", JEditorPane.class));
     }
 
     /**
@@ -675,7 +556,7 @@ class ShaftPluginScreenshotRendererTest {
      * screenshot-renderer coverage that would show it ({@code assistantApprovalPromptScreenshot}) is
      * gated {@code assumeFalse} on {@code -Dshaft.intellij.screenshotDir}, which CI never sets. This
      * test carries no such gate and drives the exact same {@code NARROW_WIDTH} construction {@link
-     * #firstRunWelcomeDismissButtonIsReachableAtNarrowDarkWidth} uses, proving the extra ~20px does
+     * #emptyAssistantHasNoFirstRunWelcomeAtNarrowDarkWidth} uses, proving the extra ~20px does
      * not push the panel past the transcript viewport's visible (unscrolled-horizontally) width.
      */
     @Test

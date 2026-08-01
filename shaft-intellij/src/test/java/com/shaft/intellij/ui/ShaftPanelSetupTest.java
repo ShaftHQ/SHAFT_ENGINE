@@ -2777,26 +2777,27 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void firstRunCoachShowsOnceAndDismissPersists() {
+    void emptyAssistantUsesThreePrefillSuggestionsWithoutFirstRunWelcomeEssay() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
 
-        // Issue #3540: the first-run coach moved from a bottom strip under the chips into the
-        // transcript itself, as the Assistant's own first (non-persisted) message.
-        assertNotNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
-                "The first-run welcome must show as the Assistant's first transcript message before dismissal.");
-        JButton dismiss = findByAccessibleName(toolWindow, "Dismiss first run coach", JButton.class);
-        assertNotNull(dismiss);
-        dismiss.doClick();
-        assertAll(
-                () -> assertTrue(settings.firstRunCoachDismissed,
-                        "Dismissing the coach must persist the acknowledgment."),
-                () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
-                        "Dismissing must remove the welcome bubble from the transcript immediately."));
+        JButton record = findByAccessibleName(toolWindow, "Record a sample flow", JButton.class);
+        JButton assertHelp = findByAccessibleName(toolWindow, "Ask how to assert", JButton.class);
+        JButton diagnose = findByAccessibleName(toolWindow, "Diagnose my last failure", JButton.class);
 
-        ShaftToolWindowPanel reopened = new ShaftToolWindowPanel(fakeProject(), settings);
-        assertNull(findByAccessibleName(reopened, "Assistant welcome message bubble", JComponent.class),
-                "The welcome must never reappear once acknowledged.");
+        assertAll(
+                () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
+                        "an empty Assistant should not lead with a long, persistent welcome essay"),
+                () -> assertNotNull(record),
+                () -> assertNotNull(assertHelp),
+                () -> assertNotNull(diagnose),
+                () -> assertFalse(settings.firstRunCoachDismissed,
+                        "there is no coach dismissal state to persist when no coach is rendered"));
+
+        record.doClick();
+        ShaftAssistantPanel panel = findAssistantPanel(toolWindow);
+        assertTrue(panel.promptText().contains("Record a sample web flow"),
+                "an empty-state suggestion must prefill for review, never auto-send");
     }
 
     /**
