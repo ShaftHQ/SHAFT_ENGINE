@@ -8,6 +8,7 @@ without needing a live MCP run.
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -241,6 +242,15 @@ class DeliveredSkillContractTest(unittest.TestCase):
 
     def test_valid_hub_and_specialist_contract_passes(self):
         self.assertEqual([], self.problems())
+
+    def test_accepts_a_symlinked_skills_root(self):
+        alias_root = self.skills_root.parent / "shaft-skills-alias"
+        try:
+            os.symlink(self.skills_root, alias_root, target_is_directory=True)
+        except (NotImplementedError, OSError) as error:
+            self.skipTest(f"directory symlinks are unavailable: {error}")
+
+        self.assertEqual([], MODULE.validate_delivery(alias_root, self.tool_index))
 
     def test_accepts_meaningful_description_without_literal_when_to_use_phrase(self):
         problems = self.problems()

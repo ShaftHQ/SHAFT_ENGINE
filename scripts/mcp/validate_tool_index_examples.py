@@ -179,7 +179,7 @@ def _local_link_targets(path: Path, content: str, skills_root: Path) -> list[Pat
         target = target.split("#", 1)[0]
         resolved = (path.parent / target).resolve()
         try:
-            resolved.relative_to(skills_root.resolve())
+            resolved.relative_to(skills_root)
         except ValueError:
             continue
         targets.append(resolved)
@@ -217,6 +217,7 @@ def _literal_tool_names(path: Path, content: str, skills_root: Path) -> set[str]
 
 def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
     """Validate the portable shaft-skills tree and every literal MCP reference."""
+    skills_root = skills_root.resolve()
     problems: list[str] = []
     if not skills_root.is_dir():
         return [f"{skills_root}: shaft-skills directory is missing"]
@@ -322,7 +323,7 @@ def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
             target = target.split("#", 1)[0]
             resolved = (markdown_path.parent / target).resolve()
             try:
-                resolved.relative_to(skills_root.resolve())
+                resolved.relative_to(skills_root)
             except ValueError:
                 problems.append(f"{display}: local reference leaves delivered shaft-skills: {raw_target}")
                 continue
@@ -367,7 +368,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    skills_root = args.skills_root.resolve()
     tool_index_path = args.tool_index_path.resolve()
     if not tool_index_path.is_file():
         print(f"validate_tool_index_examples: {tool_index_path} does not exist; run "
@@ -375,7 +375,7 @@ def main(argv: list[str]) -> int:
         return 1
     tool_index = json.loads(tool_index_path.read_text(encoding="utf-8"))
 
-    problems = validate_all(skills_root, tool_index)
+    problems = validate_all(args.skills_root, tool_index)
     if problems:
         print("validate_tool_index_examples: delivered skill contract problems found:", file=sys.stderr)
         for problem in problems:
