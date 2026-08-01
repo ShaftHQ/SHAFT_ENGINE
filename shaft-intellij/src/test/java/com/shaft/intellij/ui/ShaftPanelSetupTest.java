@@ -2784,6 +2784,7 @@ class ShaftPanelSetupTest {
         JButton record = findByAccessibleName(toolWindow, "Record a sample flow", JButton.class);
         JButton assertHelp = findByAccessibleName(toolWindow, "Ask how to assert", JButton.class);
         JButton diagnose = findByAccessibleName(toolWindow, "Diagnose my last failure", JButton.class);
+        JLabel invitation = findByAccessibleName(toolWindow, "Assistant empty state invitation", JLabel.class);
 
         assertAll(
                 () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
@@ -2791,6 +2792,7 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(record),
                 () -> assertNotNull(assertHelp),
                 () -> assertNotNull(diagnose),
+                () -> assertEquals("What would you like to do?", invitation.getText()),
                 () -> assertFalse(settings.firstRunCoachDismissed,
                         "there is no coach dismissal state to persist when no coach is rendered"));
 

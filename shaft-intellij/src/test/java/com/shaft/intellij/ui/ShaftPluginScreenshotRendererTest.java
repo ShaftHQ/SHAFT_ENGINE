@@ -26,6 +26,7 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollBar;
 import javax.swing.JTextArea;
+import javax.swing.JToggleButton;
 import javax.swing.JViewport;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
@@ -635,6 +636,9 @@ class ShaftPluginScreenshotRendererTest {
             selectButton(component, "Allow source edits");
             invokeStartMcpInvocation(component, AssistantCommand.Invocation.tool(
                     "capture_start", captureStartArguments()));
+            JToggleButton details = findByAccessibleName(component, "Show technical details", JToggleButton.class);
+            assertNotNull(details);
+            details.doClick();
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);

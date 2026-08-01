@@ -12,8 +12,11 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.JToggleButton;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,11 +93,23 @@ final class ToolApprovalPromptPanel extends JPanel {
         argumentsLabel.getAccessibleContext().setAccessibleName("Tool approval arguments");
         argumentsLabel.getAccessibleContext().setAccessibleDescription(
                 "Arguments for the " + toolName + " tool call awaiting approval: " + argumentsSummary(arguments));
+        argumentsLabel.setVisible(false);
+        JToggleButton technicalDetails = new JToggleButton("Show technical details");
+        technicalDetails.getAccessibleContext().setAccessibleName("Show technical details");
+        technicalDetails.getAccessibleContext().setAccessibleDescription(
+                "Show or hide the raw arguments for the " + toolName + " tool call.");
+        technicalDetails.addActionListener(event -> {
+            boolean visible = technicalDetails.isSelected();
+            argumentsLabel.setVisible(visible);
+            technicalDetails.setText(visible ? "Hide technical details" : "Show technical details");
+            argumentsLabel.getParent().revalidate();
+        });
 
         JPanel argumentsPanel = new JPanel();
         argumentsPanel.setOpaque(false);
         argumentsPanel.setLayout(new BoxLayout(argumentsPanel, BoxLayout.Y_AXIS));
         argumentsPanel.add(plainLanguageArea);
+        argumentsPanel.add(technicalDetails);
         argumentsPanel.add(argumentsLabel);
 
         JPanel header = new JPanel(new BorderLayout(2, 2));
@@ -104,13 +119,46 @@ final class ToolApprovalPromptPanel extends JPanel {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.setOpaque(false);
-        for (ToolApprovalDecision decision : capability == null ? List.<ToolApprovalDecision>of() : capability.scopes()) {
-            actions.add(decisionButton(toolName, decision));
-        }
         actions.add(decisionButton(toolName, ToolApprovalDecision.DENY));
+        List<ToolApprovalDecision> scopes = capability == null ? List.of() : capability.scopes();
+        if (scopes.contains(ToolApprovalDecision.APPROVE_ONCE)) {
+            actions.add(decisionButton(toolName, ToolApprovalDecision.APPROVE_ONCE));
+        }
+        JPanel permanentActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        permanentActions.setOpaque(false);
+        for (ToolApprovalDecision decision : scopes) {
+            if (decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS
+                    || decision == ToolApprovalDecision.APPROVE_ALL_TOOLS) {
+                JButton button = decisionButton(toolName, decision);
+                button.setVisible(false);
+                permanentActions.add(button);
+            }
+        }
+        if (permanentActions.getComponentCount() > 0) {
+            JToggleButton reviewOptions = new JToggleButton("Review options");
+            reviewOptions.getAccessibleContext().setAccessibleName("Review options");
+            reviewOptions.getAccessibleContext().setAccessibleDescription(
+                    "Show or hide permanent tool approval choices.");
+            reviewOptions.addActionListener(event -> {
+                boolean visible = reviewOptions.isSelected();
+                permanentActions.setVisible(visible);
+                for (Component component : permanentActions.getComponents()) {
+                    component.setVisible(visible);
+                }
+                reviewOptions.setText(visible ? "Hide options" : "Review options");
+                permanentActions.getParent().revalidate();
+            });
+            permanentActions.setVisible(false);
+            actions.add(reviewOptions);
+        }
 
         add(header, BorderLayout.NORTH);
-        add(actions, BorderLayout.SOUTH);
+        JPanel actionStack = new JPanel();
+        actionStack.setOpaque(false);
+        actionStack.setLayout(new BoxLayout(actionStack, BoxLayout.Y_AXIS));
+        actionStack.add(actions);
+        actionStack.add(permanentActions);
+        add(actionStack, BorderLayout.SOUTH);
     }
 
     private JButton decisionButton(String toolName, ToolApprovalDecision decision) {
@@ -119,6 +167,13 @@ final class ToolApprovalPromptPanel extends JPanel {
         button.getAccessibleContext().setAccessibleDescription(buttonDescription(toolName, decision));
         button.setToolTipText(buttonDescription(toolName, decision));
         button.addActionListener(event -> decide(decision));
+        if (decision == ToolApprovalDecision.DENY) {
+            button.setFont(button.getFont().deriveFont(Font.BOLD));
+        } else if (decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS
+                || decision == ToolApprovalDecision.APPROVE_ALL_TOOLS) {
+            button.setContentAreaFilled(false);
+            button.setOpaque(false);
+        }
         decisionButtons.add(button);
         return button;
     }

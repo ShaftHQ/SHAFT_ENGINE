@@ -673,7 +673,8 @@ final class ShaftAssistantPanel extends JPanel {
 
         runSettingsPanel = new JPanel();
         runSettingsPanel.setLayout(new BoxLayout(runSettingsPanel, BoxLayout.Y_AXIS));
-        runSettingsPanel.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
+        runSettingsPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEtchedBorder(), JBUI.Borders.empty(4, 6)));
         runSettingsPanel.add(runSetting("Mode", mode));
         runSettingsPanel.add(runSetting("Provider", providerType));
         runSettingsPanel.add(runSetting("Assistant", assistantFamily));
@@ -3449,6 +3450,9 @@ final class ShaftAssistantPanel extends JPanel {
     private javax.swing.JPanel buildEmptyStateChips() {
         javax.swing.JPanel chipRow = new javax.swing.JPanel(new WrapLayout(java.awt.FlowLayout.LEFT, 6, 0));
         chipRow.setOpaque(false);
+        JLabel invitation = new JLabel("What would you like to do?");
+        invitation.getAccessibleContext().setAccessibleName("Assistant empty state invitation");
+        chipRow.add(invitation);
         chipRow.add(emptyStateChip("Record a sample flow",
                 "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."));
         chipRow.add(emptyStateChip("Ask how to assert",
@@ -4777,14 +4781,14 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static JPanel runSetting(String labelText, JComponent control) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        JPanel row = new JPanel(new BorderLayout(8, 0));
         row.setOpaque(false);
         JLabel label = new JLabel(labelText);
         label.setLabelFor(control);
-        label.setBorder(JBUI.Borders.empty(0, 0, 0, 6));
+        label.setPreferredSize(JBUI.size(112, label.getPreferredSize().height));
         row.putClientProperty("shaft.run.settings.control", control);
-        row.add(label);
-        row.add(control);
+        row.add(label, BorderLayout.WEST);
+        row.add(control, BorderLayout.CENTER);
         return row;
     }
 
@@ -4798,9 +4802,13 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void updateRunSettingsSummary() {
-        String selectedMode = String.valueOf(mode.getSelectedItem()).toLowerCase(Locale.ROOT);
-        runSettingsToggle.setText("Run settings · " + selectedMode.substring(0, 1).toUpperCase(Locale.ROOT)
-                + selectedMode.substring(1));
+        String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
+        String route = usesCloud()
+                ? ShaftUiLabels.friendly(String.valueOf(cloudProvider.getSelectedItem())) + " Cloud"
+                : ShaftUiLabels.friendly(String.valueOf(assistantFamily.getSelectedItem())) + " "
+                + ShaftUiLabels.friendly(String.valueOf(assistantRuntime.getSelectedItem()));
+        runSettingsToggle.setText("Run settings · " + selectedMode + " · " + route + " · Effort: "
+                + String.valueOf(effort.getSelectedItem()));
     }
 
     static String trimChatTitleForWidth(String title, FontMetrics metrics, int maxWidth) {

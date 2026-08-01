@@ -5,6 +5,7 @@ import com.shaft.intellij.approval.ToolApprovalDecision;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
+import javax.swing.JToggleButton;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolApprovalPromptPanelTest {
@@ -26,6 +28,7 @@ class ToolApprovalPromptPanelTest {
 
         assertAll(
                 () -> assertEquals(4, buttons.size()),
+                () -> assertEquals("Deny", buttons.get(0).getText(), "Deny must be the safe first choice"),
                 () -> assertTrue(labels.contains("Approve once")),
                 () -> assertTrue(labels.contains("Approve tool always")),
                 () -> assertTrue(labels.contains("Approve all tools")),
@@ -138,15 +141,7 @@ class ToolApprovalPromptPanelTest {
                         "arguments JSON must not be truncated with a trailing ellipsis"));
     }
 
-    /**
-     * Issue #3696: previously {@code APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} rendered
-     * with a smaller, gray, unbordered "de-emphasized" look while {@code APPROVE_ONCE} kept full
-     * default emphasis -- the opposite of the intended nudge toward broader approval scopes. Now
-     * all three scope buttons share equal font weight and are color-coded by scope breadth: green
-     * (broadest) for "Approve all tools", blue (medium) for "Approve tool always", yellow
-     * (narrowest) for "Approve once". {@code Deny} is not a scope to weight and keeps the platform
-     * default look.
-     */
+    /** Permanent scopes remain explicit but visually secondary to the safe first decision. */
     @Test
     void broadAndPermanentApprovalScopesAreNotVisuallyPromoted() {
         ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
@@ -161,6 +156,10 @@ class ToolApprovalPromptPanelTest {
                         "permanent approval must keep the native neutral treatment"),
                 () -> assertEquals(approveOnce.getBackground(), approveAllTools.getBackground(),
                         "broad approval must not look like the preferred action"),
+                () -> assertFalse(approveToolAlways.isContentAreaFilled(),
+                        "permanent approval must not use an opaque primary-button fill"),
+                () -> assertFalse(approveAllTools.isContentAreaFilled(),
+                        "broad approval must not use an opaque primary-button fill"),
                 () -> assertEquals(approveOnce.getFont().getSize2D(), approveToolAlways.getFont().getSize2D(),
                         "Approve tool always must not be font-shrunk relative to Approve once"),
                 () -> assertEquals(approveOnce.getFont().getSize2D(), approveAllTools.getFont().getSize2D(),
@@ -191,6 +190,69 @@ class ToolApprovalPromptPanelTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("arguments text area not found"))
                 .getText();
+    }
+
+    @Test
+    void rawArgumentsStayHiddenUntilTechnicalDetailsAreRequested() {
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+        javax.swing.JTextArea arguments = findArgumentsArea(panel);
+        JToggleButton details = findToggle(panel, "Show technical details");
+
+        assertAll(
+                () -> assertFalse(arguments.isVisible(), "raw JSON must not be permanent approval chrome"),
+                () -> assertNotNull(details));
+
+        details.doClick();
+
+        assertAll(
+                () -> assertTrue(arguments.isVisible()),
+                () -> assertEquals("Hide technical details", details.getText()));
+    }
+
+    @Test
+    void permanentApprovalScopesStayBehindReviewOptions() {
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+        List<JButton> buttons = panel.decisionButtonsForTest();
+        JToggleButton review = findToggle(panel, "Review options");
+        JButton always = findByLabel(buttons, "Approve tool always");
+        JButton all = findByLabel(buttons, "Approve all tools");
+
+        assertAll(
+                () -> assertNotNull(review),
+                () -> assertFalse(always.isVisible()),
+                () -> assertFalse(all.isVisible()));
+
+        review.doClick();
+
+        assertAll(
+                () -> assertTrue(always.isVisible()),
+                () -> assertTrue(all.isVisible()),
+                () -> assertEquals("Hide options", review.getText()));
+    }
+
+    private static javax.swing.JTextArea findArgumentsArea(ToolApprovalPromptPanel panel) {
+        List<javax.swing.JTextArea> textAreas = new java.util.ArrayList<>();
+        collectTextAreas(panel, textAreas);
+        return textAreas.stream()
+                .filter(area -> "Tool approval arguments".equals(area.getAccessibleContext().getAccessibleName()))
+                .findFirst().orElseThrow();
+    }
+
+    private static JToggleButton findToggle(java.awt.Container container, String text) {
+        for (java.awt.Component component : container.getComponents()) {
+            if (component instanceof JToggleButton toggle && text.equals(toggle.getText())) {
+                return toggle;
+            }
+            if (component instanceof java.awt.Container child) {
+                JToggleButton nested = findToggle(child, text);
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
     }
 
     private static void collectTextAreas(java.awt.Container container, List<javax.swing.JTextArea> found) {

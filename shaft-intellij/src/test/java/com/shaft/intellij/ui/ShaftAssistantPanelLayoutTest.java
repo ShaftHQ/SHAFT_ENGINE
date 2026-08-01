@@ -8,6 +8,7 @@ import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.BorderLayout;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
@@ -87,11 +88,29 @@ class ShaftAssistantPanelLayoutTest {
                 () -> assertEquals("Run settings", toggle.getAccessibleContext().getAccessibleName()),
                 () -> assertFalse(toggle.isSelected(), "the everyday composer must start compact"),
                 () -> assertFalse(settings.isVisible(), "route and configuration controls belong behind Run settings"),
-                () -> assertTrue(containsDescendant(settings, mode), "mode must remain in the settings disclosure"));
+                () -> assertTrue(containsDescendant(settings, mode), "mode must remain in the settings disclosure"),
+                () -> assertTrue(toggle.getText().contains("CLI"),
+                        "the collapsed summary must name the effective agent/runtime"),
+                () -> assertTrue(toggle.getText().toLowerCase(java.util.Locale.ROOT).contains("effort"),
+                        "the collapsed summary must name the selected effort"));
 
         toggle.doClick();
 
         assertTrue(settings.isVisible(), "Run settings must expand with the keyboard-accessible toggle");
+
+        ((javax.swing.JComboBox<?>) mode).setSelectedItem("PLAN");
+        assertTrue(toggle.getText().contains("Plan"), "the summary must update with the selected mode");
+    }
+
+    @Test
+    void expandedRunSettingsUseOneAlignedNativeSettingsGroup() throws ReflectiveOperationException {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+        JPanel settings = (JPanel) fieldOf(panel, "runSettingsPanel");
+
+        assertTrue(Arrays.stream(settings.getComponents()).allMatch(component -> component instanceof Container row
+                        && row.getLayout() instanceof BorderLayout),
+                "Run settings must use aligned label/control rows, not independent FlowLayout rows");
     }
 
     /** MCP configured (hides the setup notice) with a {@code null} project (never "fresh", hides that notice too). */
