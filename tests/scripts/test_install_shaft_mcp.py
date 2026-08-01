@@ -8,8 +8,10 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install_shaft_mcp.py"
+REPO_ROOT = MODULE_PATH.parents[2]
 SPEC = importlib.util.spec_from_file_location("install_shaft_mcp", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 if SPEC.loader is None:
@@ -235,10 +237,10 @@ class InstallShaftMcpTest(unittest.TestCase):
                 "configure_client": MODULE.configure_client,
             }
 
-            def install_skills(current_directory, _root):
-                calls.append(("skills", current_directory))
+            def install_skills(current_directory, _root, client):
+                calls.append(("skills", current_directory, client))
                 installed.mkdir()
-                return installed
+                return [installed]
 
             def unexpected(name):
                 def fail_if_called(*_args, **_kwargs):
@@ -258,9 +260,13 @@ class InstallShaftMcpTest(unittest.TestCase):
                 for name, original in originals.items():
                     setattr(MODULE, name, original)
 
-        self.assertEqual([("skills", project.resolve())], calls)
+        self.assertEqual([("skills", project.resolve(), None)], calls)
         result = json.loads(stdout.getvalue())
-        self.assertEqual({"shaftSkills": {"installed": True, "path": str(installed)}}, result["components"])
+        self.assertEqual({"shaftSkills": {
+            "installed": True,
+            "path": str(installed),
+            "paths": [str(installed)],
+        }}, result["components"])
         self.assertNotIn("client", result)
         self.assertNotIn("server", result)
 
@@ -314,19 +320,30 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertIn("$installerArguments += $Arguments", powershell)
         self.assertNotIn('$installerArguments += @("--install-shaft-skills")', powershell)
 
-    def test_install_shaft_skills_copies_package_to_current_directory(self):
+    def test_install_shaft_skills_copies_package_to_native_codex_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             with temporary_current_directory(root):
-                installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap")
+                installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap", "codex")
 
-            # Compare resolved paths: os.chdir(root) followed by Path.cwd() inside
-            # install_shaft_skills returns the OS's canonicalized cwd (symlinks resolved on
-            # macOS, short 8.3 names expanded on Windows), which textually differs from the
-            # unresolved `root` built from tempfile.TemporaryDirectory() on those platforms.
-            self.assertEqual((root / MODULE.SHAFT_SKILLS_DIRECTORY).resolve(), installed.resolve())
-            self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
-            self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
+            self.assertEqual([(root / ".agents" / "skills").resolve()], installed)
+            self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
+            self.assertTrue((installed[0] / "shaft-mcp" / "agents" / "openai.yaml").is_file())
+
+    def test_install_shaft_skills_without_client_covers_all_native_roots(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+
+            installed = MODULE.install_shaft_skills(root, root / "bootstrap", None)
+
+            self.assertEqual([
+                (root / ".agents" / "skills").resolve(),
+                (root / ".claude" / "skills").resolve(),
+                (root / ".github" / "skills").resolve(),
+            ], installed)
+            for target in installed:
+                self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
+                self.assertEqual(30, len(list(target.glob("*/SKILL.md"))))
 
     def test_install_shaft_skills_downloads_raw_files_without_repo_archive(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -334,9 +351,19 @@ class InstallShaftMcpTest(unittest.TestCase):
             calls = []
             original_local_source = MODULE.local_shaft_skills_source
             original_download_file = MODULE.download_file
+            original_discovery = MODULE.remote_shaft_skill_files
 
             def no_local_source():
                 return None
+
+            remote_files = (
+                "references/shaft-cli-commands.md",
+                "references/shaft-mcp-tools.md",
+                "shaft-developer/SKILL.md",
+                "shaft-developer/agents/openai.yaml",
+                "shaft-mcp/SKILL.md",
+                "shaft-mcp/agents/openai.yaml",
+            )
 
             def fake_download(url, target, label, **_kwargs):
                 calls.append(url)
@@ -347,38 +374,87 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             MODULE.local_shaft_skills_source = no_local_source
             MODULE.download_file = fake_download
+            MODULE.remote_shaft_skill_files = lambda: remote_files
             try:
-                installed = MODULE.install_shaft_skills(root / "project", root / "bootstrap")
+                installed = MODULE.install_shaft_skills(
+                    root / "project", root / "bootstrap", "claude")
             finally:
                 MODULE.local_shaft_skills_source = original_local_source
                 MODULE.download_file = original_download_file
+                MODULE.remote_shaft_skill_files = original_discovery
 
-            self.assertEqual(len(MODULE.SHAFT_SKILLS_SOURCE_FILES), len(calls))
-            self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
-            self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
-            self.assertTrue(
-                (installed / "verifying-and-applying-shaft-changes" / "SKILL.md").is_file())
-            self.assertTrue((installed / "references" / "shaft-mcp-tools.md").is_file())
-            self.assertTrue((installed / "references" / "shaft-cli-commands.md").is_file())
+            self.assertEqual(len(remote_files), len(calls))
+            self.assertEqual([(root / "project" / ".claude" / "skills").resolve()], installed)
+            self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
+            self.assertTrue((installed[0] / "shaft-mcp" / "agents" / "openai.yaml").is_file())
+            self.assertTrue((installed[0] / "references" / "shaft-mcp-tools.md").is_file())
+            self.assertTrue((installed[0] / "references" / "shaft-cli-commands.md").is_file())
 
-    def test_shaft_skills_manifest_files_exist_in_repo(self):
+    def test_remote_manifest_discovery_filters_to_complete_skill_pack(self):
+        tree = {"truncated": False, "tree": [
+            {"path": "README.md", "type": "blob"},
+            {"path": "shaft-skills/evaluation-prompts.md", "type": "blob"},
+            {"path": "shaft-skills/references/shaft-mcp-tools.md", "type": "blob"},
+            {"path": "shaft-skills/shaft-developer/SKILL.md", "type": "blob"},
+            {"path": "shaft-skills/shaft-developer/references/routing.md", "type": "blob"},
+            {"path": "shaft-skills/shaft-mcp/SKILL.md", "type": "blob"},
+            {"path": "shaft-skills/shaft-mcp/agents/openai.yaml", "type": "blob"},
+            {"path": "shaft-skills/unrelated/note.md", "type": "blob"},
+        ]}
+
+        with mock.patch.object(MODULE, "download_bytes", return_value=json.dumps(tree).encode()):
+            discovered = MODULE.remote_shaft_skill_files()
+
+        self.assertEqual((
+            "evaluation-prompts.md",
+            "references/shaft-mcp-tools.md",
+            "shaft-developer/SKILL.md",
+            "shaft-developer/references/routing.md",
+            "shaft-mcp/SKILL.md",
+            "shaft-mcp/agents/openai.yaml",
+        ), discovered)
+
+    def test_shaft_skills_dynamic_manifest_is_sorted_and_complete(self):
         source = MODULE.local_shaft_skills_source()
         self.assertIsNotNone(source, "repo checkout should be detected as a shaft-skills source")
-        for relative in MODULE.SHAFT_SKILLS_SOURCE_FILES:
+        manifest = MODULE.shaft_skill_files(source)
+
+        self.assertEqual(tuple(sorted(manifest)), manifest)
+        self.assertEqual(30, sum(relative.endswith("/SKILL.md") for relative in manifest))
+        for relative in manifest:
             self.assertTrue((source / relative).is_file(), f"manifest entry missing on disk: {relative}")
 
-    def test_every_repo_skill_directory_is_in_manifest(self):
-        # Reverse direction of the check above: a skill added on disk but not
-        # to SHAFT_SKILLS_SOURCE_FILES silently never ships to external users
-        # (planning-shaft-tests regressed this way in 0817029a9f).
+    def test_every_repo_skill_directory_and_support_file_is_in_dynamic_manifest(self):
         source = MODULE.local_shaft_skills_source()
         self.assertIsNotNone(source, "repo checkout should be detected as a shaft-skills source")
+        manifest = set(MODULE.shaft_skill_files(source))
         for skill_md in sorted(source.glob("*/SKILL.md")):
-            relative = skill_md.relative_to(source).as_posix()
-            self.assertIn(relative, MODULE.SHAFT_SKILLS_SOURCE_FILES,
-                          f"skill on disk missing from download manifest: {relative}")
-            self.assertIn(relative, MODULE.SHAFT_SKILLS_SOURCE_MARKERS,
-                          f"skill on disk missing from source markers: {relative}")
+            for file in skill_md.parent.rglob("*"):
+                if file.is_file():
+                    relative = file.relative_to(source).as_posix()
+                    self.assertIn(relative, manifest,
+                                  f"skill support file missing from download manifest: {relative}")
+
+    def test_marketplace_lists_every_canonical_skill_directory(self):
+        source = MODULE.local_shaft_skills_source()
+        marketplace = json.loads((REPO_ROOT / ".claude-plugin" / "marketplace.json")
+                                 .read_text(encoding="utf-8"))
+        listed = marketplace["plugins"][0]["skills"]
+        expected = [f"./{path.parent.name}" for path in sorted(source.glob("*/SKILL.md"))]
+
+        self.assertEqual(expected, listed)
+        self.assertIn("./shaft-developer", listed)
+
+    def test_readme_routes_setup_through_router_and_current_tools(self):
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("--skill '*'", readme)
+        self.assertIn("--install-shaft-skills --json", readme)
+        self.assertIn("`$shaft-developer`", readme)
+        self.assertIn("shaft_project_init_agents", readme)
+        self.assertIn('shaft-cli guide search query="browser assertions" maxResults=3 --json', readme)
+        self.assertNotIn("act-as-shaft-dev", readme)
+        self.assertNotIn("writing-shaft-tests", readme)
 
     def test_codex_auto_approval_is_added_to_shaft_mcp_section(self):
         with tempfile.TemporaryDirectory() as temp_dir:

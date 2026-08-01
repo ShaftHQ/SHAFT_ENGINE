@@ -8,7 +8,7 @@ aria-snapshot assertions (`matchesAriaSnapshot`, partial-subset semantics)
 reward the role+name rung heavily.
 
 For SHAFT-generated/codegen output specifically, this collapses to three
-legal tiers (`choosing-shaft-locators` owns the full policy; enforced
+legal tiers (`shaft-locator-design` owns the full policy; enforced
 mechanically by `shaft-capture`'s `LocatorPolicy`, issue #4271): (1) a
 unique, author-written `id` through the SHAFT locator builder
 (`hasAnyTagName().hasId(...)`) — never a framework-recycled id such as

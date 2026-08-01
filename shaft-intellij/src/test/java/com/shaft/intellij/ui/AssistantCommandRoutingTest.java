@@ -365,13 +365,26 @@ class AssistantCommandRoutingTest {
     }
 
     @Test
-    void skillsCommandListsAuthoringSkills() {
+    void skillsCommandListsCanonicalRouterAndFullTaxonomy() {
         AssistantCommand.Invocation invocation = command("/skills");
+        List<String> canonicalSkills = List.of(
+                "shaft-accessibility-testing", "shaft-api-testing", "shaft-assertions",
+                "shaft-automated-test-authoring", "shaft-change-verification", "shaft-cli",
+                "shaft-database-testing", "shaft-defect-reporting", "shaft-developer",
+                "shaft-execution-reporting", "shaft-failure-analysis", "shaft-flaky-test-analysis",
+                "shaft-fluent-api", "shaft-guide-search", "shaft-locator-design", "shaft-mcp",
+                "shaft-mobile-actions", "shaft-nonfunctional-test-design", "shaft-page-objects",
+                "shaft-recording-codegen", "shaft-requirements-analysis", "shaft-stakeholder-reporting",
+                "shaft-test-case-design", "shaft-test-data-design", "shaft-test-environment",
+                "shaft-test-execution", "shaft-test-monitoring", "shaft-test-planning",
+                "shaft-test-recording", "shaft-web-actions");
+        String response = invocation.localResponse();
         assertAll(
                 () -> assertTrue(invocation.isLocal()),
-                () -> assertTrue(invocation.localResponse().contains("$writing-shaft-tests")),
-                () -> assertTrue(invocation.localResponse().contains("$choosing-shaft-locators")),
-                () -> assertTrue(invocation.localResponse().contains("$verifying-and-applying-shaft-changes")));
+                () -> assertTrue(response.startsWith("SHAFT skills start at **$shaft-developer**"), response),
+                () -> assertTrue(canonicalSkills.stream().allMatch(skill -> response.contains("$" + skill)), response),
+                () -> assertFalse(response.contains("$writing-shaft-tests"), response),
+                () -> assertFalse(response.contains("$act-as-shaft-dev"), response));
     }
 
     @Test

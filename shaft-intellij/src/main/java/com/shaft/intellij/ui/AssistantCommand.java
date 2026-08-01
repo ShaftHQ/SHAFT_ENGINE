@@ -273,7 +273,7 @@ final class AssistantCommand {
             "/verify mvn -q test-compile",
             (command, rest, workingDirectory) -> verify(rest, workingDirectory));
     private static final CommandDefinition SKILLS_COMMAND = new CommandDefinition("/skills",
-            "List SHAFT authoring skills",
+            "List SHAFT testing lifecycle skills",
             List.of("/skill"),
             "/skills",
             (command, rest, workingDirectory) -> Invocation.local(skillsHelp()));
@@ -678,15 +678,20 @@ final class AssistantCommand {
 
     private static String skillsHelp() {
         return """
-                SHAFT authoring skills (use `$<name>` in a chat with an installed agent):
+                SHAFT skills start at **$shaft-developer**. It selects one specialist for the immediate output.
 
-                **$writing-shaft-tests** - write, review, or repair SHAFT Java tests, page objects, API/mobile tests.
-                **$choosing-shaft-locators** - pick stable SHAFT smart/semantic locators over brittle XPath.
-                **$recording-shaft-tests-with-mcp** - record web/mobile flows and turn them into reusable SHAFT code.
-                **$analyzing-shaft-failures** - triage failed Allure/trace evidence and route repairs safely.
-                **$verifying-and-applying-shaft-changes** - review, diff, apply, guardrail, and verify generated code.
+                Lifecycle: $shaft-requirements-analysis, $shaft-test-planning, $shaft-test-case-design,
+                $shaft-test-data-design, $shaft-test-environment, $shaft-test-execution, $shaft-test-monitoring,
+                $shaft-failure-analysis, $shaft-flaky-test-analysis, $shaft-defect-reporting,
+                $shaft-execution-reporting, $shaft-stakeholder-reporting, $shaft-accessibility-testing,
+                $shaft-nonfunctional-test-design.
 
-                Each skill grounds generated code in the official SHAFT guide and the coding-partner plan first.""";
+                Implementation: $shaft-automated-test-authoring, $shaft-page-objects, $shaft-fluent-api,
+                $shaft-locator-design, $shaft-web-actions, $shaft-mobile-actions, $shaft-api-testing,
+                $shaft-database-testing, $shaft-assertions, $shaft-guide-search, $shaft-test-recording,
+                $shaft-recording-codegen, $shaft-change-verification.
+
+                Tools: $shaft-mcp for interactive stateful work; $shaft-cli for repeatable one-shot commands.""";
     }
 
     record OpenFileContext(String path, String text, String selectedText) {

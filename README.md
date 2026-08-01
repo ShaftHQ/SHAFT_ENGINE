@@ -49,9 +49,9 @@ SHAFT tool window, reuse existing code, review generated blocks, verify locally.
 ## Agent Skills
 
 SHAFT ships a first-party skill pack in [`shaft-skills/`](shaft-skills) that
-teaches AI coding agents SHAFT conventions: locator strategy, test planning
-and authoring, MCP-driven recording, failure analysis, and change
-verification.
+routes the full software-testing lifecycle through 30 focused skills. Start
+every SHAFT task with `$shaft-developer`; it selects one lifecycle,
+implementation, or MCP/CLI specialist for the immediate output.
 
 Install as a Claude Code plugin (ships the full pack, including the shared
 `references/` lookups):
@@ -61,17 +61,42 @@ Install as a Claude Code plugin (ships the full pack, including the shared
 /plugin install shaft-skills@shafthq
 ```
 
-Or install individual skills to Claude Code, Cursor, Codex, and other agents
-with the [skills CLI](https://github.com/vercel-labs/skills):
+From a repository checkout, the SHAFT installer copies the complete pack and
+shared generated catalogs to every agent-native project directory:
 
 ```shell
-npx skills add ShaftHQ/SHAFT_ENGINE --skill act-as-shaft-dev --skill writing-shaft-tests
+python scripts/mcp/install_shaft_mcp.py --install-shaft-skills --json
 ```
 
-The CLI picker also lists this repository's internal maintainer skills; the
-user-facing pack is the seven skills under `shaft-skills/`. Per-skill CLI
-installs copy each skill directory on its own, so the optional
-`shaft-skills/references/` lookups ship only with the plugin install.
+The [skills CLI](https://github.com/vercel-labs/skills) can install all 30
+skill directories directly:
+
+```shell
+npx skills add https://github.com/ShaftHQ/SHAFT_ENGINE/tree/main/shaft-skills --skill '*' --agent '*' -y
+```
+
+Its per-skill install omits the shared generated MCP/CLI catalogs, so prefer
+the Claude plugin or SHAFT installer when those lookups are needed. With an
+installer client selector, `--install-shaft-skills` targets `.agents/skills`,
+`.claude/skills`, or `.github/skills` for that client. For a multi-host
+project, call
+`shaft_project_init_agents(loop="all", targetDirectory=".", overwrite=false)`
+through a connected SHAFT MCP client; it creates or updates real host
+instruction files while preserving user prose.
+
+Use direct MCP tools for interactive stateful work, for example
+`shaft_guide_search` with `{"query":"page object model","maxResults":3}`.
+Use SHAFT CLI for repeatable one-shot work:
+
+```shell
+shaft-cli guide search query="browser assertions" maxResults=3 --json
+shaft-cli tools --cached
+```
+
+Exact current MCP names and CLI syntax live in the generated
+[`shaft-mcp-tools.md`](shaft-skills/references/shaft-mcp-tools.md) and
+[`shaft-cli-commands.md`](shaft-skills/references/shaft-cli-commands.md)
+catalogs; skills never guess tool names or parameters.
 
 ## Contributing
 

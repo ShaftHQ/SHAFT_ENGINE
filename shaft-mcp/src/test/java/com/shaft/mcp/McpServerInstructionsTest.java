@@ -16,7 +16,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Issue #4239 P2.1 (finding F9): {@code shaft-skills/choosing-shaft-locators/SKILL.md:16-19} and
+ * Issue #4239 P2.1 (finding F9): {@code shaft-skills/shaft-locator-design/SKILL.md} and
  * three sibling skill files state the correct locator policy, the record -> confirm-replay ->
  * generate -> verify ordering, per-surface tool routing, and how to read {@code successful}/
  * {@code status}, but nothing at runtime ever delivered any of it to an LLM client: no {@code
