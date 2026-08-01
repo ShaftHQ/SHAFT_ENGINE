@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Flaky Test Analysis"
+  short_description: "Eliminate inconsistent test outcomes"
+  default_prompt: "Use $shaft-flaky-test-analysis to isolate why this SHAFT test changes status across equivalent runs."

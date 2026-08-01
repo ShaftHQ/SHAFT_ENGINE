@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Developer"
+  short_description: "Route every SHAFT testing task"
+  default_prompt: "Use $shaft-developer to route this SHAFT testing task to the right specialist."

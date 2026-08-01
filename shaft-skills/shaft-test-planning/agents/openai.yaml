@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Planning"
+  short_description: "Build a risk-based test plan"
+  default_prompt: "Use $shaft-test-planning to create a focused risk-based plan for this SHAFT test effort."

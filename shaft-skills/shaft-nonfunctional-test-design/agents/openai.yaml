@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Nonfunctional Test Design"
+  short_description: "Design measurable quality tests"
+  default_prompt: "Use $shaft-nonfunctional-test-design to turn these quality risks into measurable tests."

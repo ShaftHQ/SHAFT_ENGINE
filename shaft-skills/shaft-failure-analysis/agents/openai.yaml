@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Failure Analysis"
+  short_description: "Find evidence-backed root causes"
+  default_prompt: "Use $shaft-failure-analysis to determine the root cause of this SHAFT failure from its artifacts."
