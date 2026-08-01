@@ -446,9 +446,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         runtimeStatus = setupStatusLabel("Assistant runtime setup status");
         assistStatus = setupStatusLabel("Assistant connection setup status");
         recommendedAgent = setupStatusLabel("Recommended assistant agent");
-        String recommendedAgentText = recommendedAgentText();
-        recommendedAgent.setText(recommendedAgentText);
-        recommendedAgent.getAccessibleContext().setAccessibleDescription(recommendedAgentText);
+        setRecommendedAgentText();
         recommendedAgent.setVisible(true);
         recoveryStatus = new JLabel();
         recoveryStatus.getAccessibleContext().setAccessibleName("SHAFT MCP recovery summary");
@@ -550,7 +548,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
         agentControls.add(recommendedAgent);
-        JPanel chooseActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel chooseActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         chooseActions.setOpaque(false);
         chooseActions.add(checkChosenAgent);
         agentControls.add(chooseActions);
@@ -558,12 +556,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
         // them land at different x-offsets -- a ragged left edge next to a real aligned form.
         alignLabelColumn(familyRow, runtimeRow, apiKeyRow);
-        JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         checkActions.setOpaque(false);
         checkActions.add(test);
         checkActions.add(progress);
         checkActions.add(assistStatus);
-        JPanel upgradeActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel upgradeActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         upgradeActions.setOpaque(false);
         upgradeActions.add(checkUpgrade);
         upgradeActions.add(copyUpgradeCommand);
@@ -572,7 +570,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         // "3 Install SHAFT MCP" — one row, one Check, one Install, badge driven by
         // mcpVersionStepState(). Issue #4314 fix 3: Install and the old separate Copy button are
         // themselves merged into this one Install action.
-        JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         installActions.setOpaque(false);
         installActions.add(installNow);
         installActions.add(checkMcpVersion);
@@ -606,7 +604,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyEngineWarmup.addActionListener(event -> copyCommandIntoTerminal(
                 SetupPrerequisites.shaftEngineWarmupCommand(), "SHAFT Engine warm-up",
                 "Copied SHAFT Engine warm-up command"));
-        JPanel prerequisitesActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel prerequisitesActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         prerequisitesActions.setOpaque(false);
         prerequisitesActions.add(recheckPrerequisites);
         prerequisitesActions.add(copyEngineWarmup);
@@ -627,7 +625,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         installRowInspectionToggle(installRow, installStep, installState);
         installRowInspectionToggle(checkRow, testStep, testState);
         readyStep.setText("Ready");
-        JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         readyActions.setOpaque(false);
         readyActions.add(startChatting);
         readyActions.add(connectAgent);
@@ -662,28 +660,28 @@ final class ShaftMcpSetupPanel extends JPanel {
         };
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
         workflow.add(prerequisitesRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(6));
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(upgradeRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(6));
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(chooseRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(6));
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(installRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(6));
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(checkRow);
-        workflow.add(javax.swing.Box.createVerticalStrut(6));
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
         workflow.add(chatRow);
-        JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         targetRow.add(manualInstallerTarget);
         targetRow.add(installerTarget);
-        JPanel diagnosticRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel diagnosticRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         diagnosticRow.add(copyCommand);
         diagnosticRow.add(copyOutput);
         diagnosticRow.add(copyDocs);
         diagnosticRow.add(copyRestartCommand);
         diagnosticRow.add(toggleDetails);
-        JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         secondaryActions.add(resetAndReinstall);
-        JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         postSetupControls.getAccessibleContext().setAccessibleName("SHAFT plugin post-setup controls");
         postSetupControls.add(expertMode);
         postSetupControls.add(connectionAgentsRecheck);
@@ -722,17 +720,32 @@ final class ShaftMcpSetupPanel extends JPanel {
             installerDetailsPanel.setVisible(advancedInstallerToggle.isSelected());
             updateProgressivePanels();
         });
+        JCheckBox moreOptionsToggle = new JCheckBox("More options");
+        moreOptionsToggle.getAccessibleContext().setAccessibleName("Show more setup options");
+        moreOptionsToggle.getAccessibleContext().setAccessibleDescription(
+                "Show advanced installer, recovery, and reset options.");
+        moreOptionsToggle.setOpaque(false);
+        JPanel moreOptionsPanel = new JPanel();
+        moreOptionsPanel.setLayout(new javax.swing.BoxLayout(moreOptionsPanel, javax.swing.BoxLayout.Y_AXIS));
+        moreOptionsPanel.setOpaque(false);
+        moreOptionsPanel.add(advancedInstallerToggle);
+        moreOptionsPanel.add(installerDetailsPanel);
+        moreOptionsPanel.add(secondaryActions);
+        moreOptionsPanel.add(postSetupControls);
+        moreOptionsPanel.setVisible(false);
+        moreOptionsToggle.addActionListener(event -> {
+            moreOptionsPanel.setVisible(moreOptionsToggle.isSelected());
+            updateProgressivePanels();
+        });
         JPanel form = FormBuilder.createFormBuilder()
                 .addComponent(intro)
                 .addComponent(runtimeStatus)
                 .addComponent(workflow)
-                .addComponent(advancedInstallerToggle)
-                .addComponent(installerDetailsPanel)
+                .addComponent(moreOptionsToggle)
+                .addComponent(moreOptionsPanel)
                 .addComponent(status)
                 .addComponent(toast)
                 .addComponent(recoveryStatus)
-                .addComponent(secondaryActions)
-                .addComponent(postSetupControls)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         detailsPanel = new JPanel(new BorderLayout(4, 4));
@@ -2256,11 +2269,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         actionConstraints.anchor = GridBagConstraints.WEST;
         actionConstraints.fill = GridBagConstraints.HORIZONTAL;
         actionConstraints.weightx = 1.0;
-        actionConstraints.insets = JBUI.insets(6, 0, 0, 0);
+        actionConstraints.insets = JBUI.insets(4, 0, 0, 0);
         row.add(action, actionConstraints);
         row.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
-                JBUI.Borders.empty(8, 10)));
+                JBUI.Borders.empty(8)));
         row.putClientProperty(STEP_ACTION_KEY, action);
         row.putClientProperty(STEP_RECHECK_KEY, recheck);
         return row;
@@ -2338,29 +2351,29 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     /**
-     * Collapses a "done" step row to its single label+badge line once the flow has moved past it
-     * (issue #3601 S2): scanning the five core rows back to front, a done row collapses only once
-     * some later row already shows real progress (done/next/checking) — so the row the user is
-     * actually on, and any row nothing has happened on yet ("wait"), never collapses. A click can
-     * still force a collapsed row open (see {@link #toggleStepRowInspection}); that override is
-     * cleared here whenever the row stops being collapse-eligible, and wiped wholesale on the next
-     * real setup update (see {@link #updateWorkflowRows}) so it never outlives the progress that
-     * earned it.
+     * Keeps the workflow task-first: only the first unfinished step expands by default, while any
+     * other row stays a compact, keyboard-inspectable summary. A click or Enter/Space can still
+     * force a row open (see {@link #toggleStepRowInspection}); that override is reset on the next
+     * real setup update (see {@link #updateWorkflowRows}).
      */
     private void collapseStepsBehindProgress(String[] states) {
         JPanel[] rows = {prerequisitesRow, upgradeRow, chooseRow, installRow, checkRow};
-        boolean laterRowTouched = false;
-        for (int index = rows.length - 1; index >= 0; index--) {
+        int activeStep = activeStepIndex(states);
+        for (int index = 0; index < rows.length; index++) {
             JPanel row = rows[index];
-            boolean collapseEligible = "done".equals(states[index]) && laterRowTouched;
-            if (!collapseEligible) {
-                manuallyExpandedRows.remove(row);
-            }
-            setRowCollapsed(row, collapseEligible && !manuallyExpandedRows.contains(row));
-            if (!"wait".equals(states[index])) {
-                laterRowTouched = true;
+            setRowCollapsed(row, index != activeStep && !manuallyExpandedRows.contains(row));
+        }
+    }
+
+    private static int activeStepIndex(String[] states) {
+        // Project upgrade is advisory, but a missing prerequisite is actionable. The task flow
+        // therefore advances through prerequisites, agent, install, then connection check.
+        for (int index : new int[]{0, 2, 3, 4}) {
+            if (!"done".equals(states[index])) {
+                return index;
             }
         }
+        return -1;
     }
 
     /**
@@ -2392,13 +2405,27 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void updateLiveSummary() {
-        String recommendedAgentText = recommendedAgentText();
-        recommendedAgent.setText(recommendedAgentText);
-        recommendedAgent.getAccessibleContext().setAccessibleDescription(recommendedAgentText);
+        setRecommendedAgentText();
+    }
+
+    private void setRecommendedAgentText() {
+        String detail = recommendedAgentText();
+        recommendedAgent.setText(recommendedAgentDisplayText());
+        recommendedAgent.setToolTipText(detail);
+        recommendedAgent.getAccessibleContext().setAccessibleDescription(detail);
+    }
+
+    private String recommendedAgentDisplayText() {
+        String label = cliAgentLabel(recommendation.family());
+        return switch (recommendation.basis()) {
+            case DETECTED -> "Recommended: " + label;
+            case NOT_DETECTED -> "Install recommended " + label;
+            case SAVED_SELECTION -> "Selected: " + label;
+        };
     }
 
     private static JPanel labeledControl(String text, JComponent control) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         row.setOpaque(false);
         JLabel label = new JLabel(text);
         // Don't clamp label size; use JBUI insets for consistent spacing
@@ -2445,7 +2472,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                     case "failed" -> ShaftStatusPresentation.error();
                     default -> UIManagerColors.border();
                 }, 1),
-                JBUI.Borders.empty(8, 10)));
+                JBUI.Borders.empty(8)));
         // Issue #4314 fix 4: the recheck icon only signals something once there is something to
         // recheck -- i.e. once the row has actually finished, matching the "done rows are the ones
         // worth re-inspecting" behavior toggleStepRowInspection already assumes.
