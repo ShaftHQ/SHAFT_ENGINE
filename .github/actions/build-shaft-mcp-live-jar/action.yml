@@ -23,10 +23,12 @@ runs:
       shell: bash
       run: |
         for attempt in 1 2 3; do
-          mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip \
-            && mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
-          status=$?
-          if [ "$status" -eq 0 ]; then
+          if {
+            mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip \
+              && mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
+            status=$?
+            [ "$status" -eq 0 ]
+          }; then
             exit 0
           fi
           if [ "$attempt" -lt 3 ]; then
