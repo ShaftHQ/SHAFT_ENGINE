@@ -13,7 +13,7 @@
 9. Define the oracle and evidence that would prove each criterion passed or failed. [`ISTQB-CTFL`, `SHAFT-REPORTING`]
 10. Baseline the reviewed requirement set and record approved changes before downstream design begins. [`ISTQB-CTFL`, `ISTQB-TM`]
 
-## Valid examples
+## Examples
 
 - Review a checkout story and flag the missing currency rounding, declined-payment, and idempotency rules.
 - Compare an OpenAPI contract with acceptance criteria and identify undocumented 401, 409, and validation-body behavior.

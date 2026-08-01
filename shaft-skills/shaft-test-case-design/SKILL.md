@@ -1,8 +1,8 @@
 ---
 name: shaft-test-case-design
-description: Design reviewable manual or automatable test cases and scenarios with traceability, preconditions, data, steps, expected results, techniques, priorities, and boundary coverage.
+description: Use when designing reviewable manual or automatable test cases and scenarios with traceability, data, steps, expected results, techniques, priorities, and boundary coverage.
 ---
 
 # SHAFT Test Case Design
 
-Read and follow [the test-case-design playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the test-case-design playbook](references/playbook.md).

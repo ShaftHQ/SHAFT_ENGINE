@@ -13,7 +13,7 @@
 9. Verify target size, pointer alternatives, drag alternatives, motion control, time limits, flashing, and mobile accessibility semantics. [`W3C-WCAG22`, `ANDROID-TESTING`]
 10. Report each finding with criterion, level, page or state, steps, evidence, affected users, severity, remediation owner, and retest result. [`W3C-WCAG22`, `ISTQB-TM`]
 
-## Valid examples
+## Examples
 
 - Test a checkout form with keyboard-only input, screen reader, zoom, error recovery, status announcements, and contrast checks.
 - Test a modal for focus entry, containment, visible order, escape, background isolation, and focus restoration.

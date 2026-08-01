@@ -13,7 +13,7 @@
 9. Observe latency distributions, throughput, errors, saturation, resources, recovery time, data integrity, and user-visible symptoms during every run. [`GOOGLE-SRE-MONITORING`]
 10. Repeat enough to quantify variance, disclose limitations, preserve evidence, and report thresholds and residual risk without overclaiming. [`GOOGLE-SRE-TESTING`, `ISTQB-TM`]
 
-## Valid examples
+## Examples
 
 - Design an API load test for peak checkout traffic using percentile latency, error rate, throughput, and saturation thresholds.
 - Design a recovery test that interrupts one dependency, verifies graceful degradation, restores it, and measures recovery and data integrity.

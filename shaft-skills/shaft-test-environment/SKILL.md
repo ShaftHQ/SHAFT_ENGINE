@@ -1,8 +1,8 @@
 ---
 name: shaft-test-environment
-description: Define, review, or troubleshoot SHAFT test environment readiness, parity, versions, configuration, dependencies, browsers, devices, observability, isolation, reset, and drift.
+description: Use when defining, reviewing, or troubleshooting SHAFT test environment readiness, parity, versions, configuration, dependencies, isolation, reset, and drift.
 ---
 
 # SHAFT Test Environment
 
-Read and follow [the test-environment playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the test-environment playbook](references/playbook.md).

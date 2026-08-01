@@ -13,7 +13,7 @@
 9. Assign owners and dates to release conditions, mitigations, retests, and accepted residual risks. [`ISTQB-TM`]
 10. Keep the main report concise and link a technical appendix for counts, environments, defects, and artifacts. [`ISTQB-TM`, `SHAFT-REPORTING`]
 
-## Valid examples
+## Examples
 
 - Give executives a conditional-go recommendation because checkout passes but refund recovery has one high-impact unresolved defect.
 - Give a product owner a sprint-quality update by critical journey, changed risk, blocked coverage, and next decision.

@@ -5,4 +5,4 @@ description: Analyze requirements for testability, acceptance criteria, traceabi
 
 # SHAFT Requirements Analysis
 
-Read and follow [the requirements-analysis playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the requirements-analysis playbook](references/playbook.md).

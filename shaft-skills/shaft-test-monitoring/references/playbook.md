@@ -13,7 +13,7 @@
 9. Reprioritize or suspend testing when risk, scope, build quality, capacity, or evidence invalidates the plan, and record the control decision. [`ISTQB-TM`]
 10. Publish timestamped snapshots with source links so progress and completion claims are reproducible. [`ISTQB-TM`, `SHAFT-REPORTING`]
 
-## Valid examples
+## Examples
 
 - Monitor a pull-request gate for completion, new failures, retries, duration regression, and required-platform coverage.
 - Track a release regression cycle by critical journey, residual risk, blocker aging, and exit criteria.

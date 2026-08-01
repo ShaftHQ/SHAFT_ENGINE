@@ -13,7 +13,7 @@
 9. Capture logs, traces, screenshots, network evidence, and environment metadata needed to distinguish product, test, and infrastructure failures. [`SHAFT-REPORTING`, `ALLURE-RESULTS`]
 10. Detect drift, record changes, and revalidate the baseline before comparing results across runs. [`GOOGLE-SRE-TESTING`, `ISTQB-TM`]
 
-## Valid examples
+## Examples
 
 - Define a Chrome, Firefox, and Edge matrix with pinned versions and known browser-specific exclusions.
 - Prepare Android emulator and real-device capabilities with app build, automation driver, locale, orientation, and cleanup rules.

@@ -13,7 +13,7 @@
 9. Link requirements, test cases, runs, related failures, and existing defects; search for duplicates before filing. [`ISTQB-CTFL`, `ISTQB-TM`]
 10. Redact secrets and personal data, track workflow state and ownership, and record fix verification before closure. [`OWASP-WSTG`, `ISTQB-TM`, `SHAFT-REPORTING`]
 
-## Valid examples
+## Examples
 
 - Report checkout accepting an expired card with build, browser, seeded user, minimal steps, response evidence, and payment risk.
 - Report an API returning 500 instead of the contracted 400 for one malformed boundary payload.

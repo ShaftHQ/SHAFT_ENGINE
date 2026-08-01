@@ -1,8 +1,8 @@
 ---
 name: shaft-test-monitoring
-description: Monitor and control SHAFT test progress, coverage, quality gates, defects, risks, durations, retries, flakiness, infrastructure health, and completion against plan.
+description: Use when monitoring and controlling SHAFT test progress, coverage, quality gates, defects, risks, duration, flakiness, infrastructure health, and completion.
 ---
 
 # SHAFT Test Monitoring
 
-Read and follow [the test-monitoring playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the test-monitoring playbook](references/playbook.md).

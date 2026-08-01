@@ -13,7 +13,7 @@
 9. Validate the repair with enough repeated clean runs across the conditions that previously varied. [`GOOGLE-SRE-TESTING`]
 10. Track flake rate, affected platforms, retry cost, recurrence, and confidence until the issue is resolved. [`ALLURE-STABILITY`, `ISTQB-TM`]
 
-## Valid examples
+## Examples
 
 - Isolate an order-dependent test that leaves a static account or database record for the next test.
 - Replace a sleep-based click with a state-based readiness condition after timing traces show a race.

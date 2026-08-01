@@ -1,8 +1,8 @@
 ---
 name: shaft-test-execution
-description: Execute approved SHAFT tests with controlled scope, preflight checks, deterministic configuration, evidence capture, status reconciliation, rerun transparency, and safe cleanup.
+description: Use when executing approved SHAFT tests with controlled scope, preflight checks, deterministic configuration, evidence capture, status reconciliation, and safe cleanup.
 ---
 
 # SHAFT Test Execution
 
-Read and follow [the test-execution playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the test-execution playbook](references/playbook.md).

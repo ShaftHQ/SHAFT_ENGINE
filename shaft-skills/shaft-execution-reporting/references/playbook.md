@@ -13,7 +13,7 @@
 9. State quality-gate values, thresholds, exceptions, blockers, residual risks, and confidence explicitly. [`ISTQB-TM`]
 10. End with prioritized technical actions, owners, and next checks; never claim an unobserved execution or resolution. [`ISTQB-TM`, `GOOGLE-SRE-MONITORING`]
 
-## Valid examples
+## Examples
 
 - Summarize a pull-request run with exact suite counts, one new product failure, two broken tests, retry history, and artifact links.
 - Compare a browser matrix by platform, duration, failure signature, unexecuted combinations, and gate outcome.

@@ -13,7 +13,7 @@
 9. Make retries and manual reruns visible, keep every attempt, and never use a later pass to erase an earlier failure. [`ALLURE-STABILITY`]
 10. Reconcile selected, started, completed, and status totals against exit criteria before declaring the run complete. [`ISTQB-TM`, `ALLURE-RESULTS`]
 
-## Valid examples
+## Examples
 
 - Run one changed login method headlessly, inspect its populated Allure result, then run the affected class.
 - Execute negative API contract cases against a versioned build and preserve request/response evidence with secrets masked.

@@ -13,7 +13,7 @@
 9. Use stable identifiers and versioned trace links so results and defects remain attributable. [`ISTQB-CTFL`, `ALLURE-RESULTS`]
 10. Review for duplicates, missing partitions, unreachable setup, weak oracles, and unnecessary end-to-end scope. [`ISTQB-CTFL`, `SELENIUM-PRACTICES`]
 
-## Valid examples
+## Examples
 
 - Derive boundary cases for an age field that accepts integers from 18 through 120.
 - Use a decision table for discounts depending on membership, coupon validity, and minimum basket value.

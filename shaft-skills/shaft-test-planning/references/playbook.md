@@ -13,7 +13,7 @@
 9. Define progress, coverage, quality, defect, flake, risk, and completion measures plus their audiences and cadence. [`ISTQB-TM`, `ALLURE-STABILITY`]
 10. Review the plan with stakeholders and adapt it when risks, scope, evidence, or constraints change. [`ISTQB-TM`]
 
-## Valid examples
+## Examples
 
 - Plan smoke, critical-journey, and regression coverage for a web checkout release with a two-day test window.
 - Plan contract, migration, rollback, and data-integrity tests for a versioned API change.

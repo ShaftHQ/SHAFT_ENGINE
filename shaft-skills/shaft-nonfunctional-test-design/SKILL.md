@@ -1,8 +1,8 @@
 ---
 name: shaft-nonfunctional-test-design
-description: Design measurable risk-based nonfunctional tests for performance, load, stress, endurance, security, reliability, resilience, recovery, compatibility, scalability, usability, and operational quality.
+description: Use when designing measurable risk-based nonfunctional tests for performance, security, reliability, recovery, compatibility, scalability, usability, and operational quality.
 ---
 
 # SHAFT Nonfunctional Test Design
 
-Read and follow [the nonfunctional-test-design playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the nonfunctional-test-design playbook](references/playbook.md).

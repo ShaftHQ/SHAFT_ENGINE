@@ -13,7 +13,7 @@
 9. Fix or recommend action at the owner of the root cause; do not weaken assertions, widen waits, or replace locators merely to force green. [`SELENIUM-PRACTICES`, `ISTQB-CTFL`]
 10. Report cause, confidence, supporting and contradictory evidence, impact, and the exact check that will verify resolution. [`ISTQB-TM`, `SHAFT-REPORTING`]
 
-## Valid examples
+## Examples
 
 - Diagnose a `NoSuchElementException` by checking frame, state, locator uniqueness, timing trace, and recent UI changes.
 - Distinguish an API assertion failure caused by changed product behavior from stale expected data or a broken dependency.

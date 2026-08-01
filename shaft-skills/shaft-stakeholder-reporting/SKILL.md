@@ -1,8 +1,8 @@
 ---
 name: shaft-stakeholder-reporting
-description: Produce business-facing SHAFT quality and release reports that translate verified coverage, outcomes, defects, trends, and residual risk into clear decisions, recommendations, conditions, and ownership.
+description: Use when producing business-facing SHAFT quality or release reports that translate verified coverage, outcomes, defects, trends, and residual risk into decisions.
 ---
 
 # SHAFT Stakeholder Reporting
 
-Read and follow [the stakeholder-reporting playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the stakeholder-reporting playbook](references/playbook.md).

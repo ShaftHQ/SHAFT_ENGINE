@@ -13,7 +13,7 @@
 9. Version fixtures with schemas and refresh them when contracts, migrations, clocks, locales, or reference data change. [`ISTQB-CTFL`, `GOOGLE-SRE-TESTING`]
 10. Record ownership, source, creation method, retention, reset, and disposal rules for each data family. [`ISTQB-TM`, `OWASP-WSTG`]
 
-## Valid examples
+## Examples
 
 - Design valid, missing-field, boundary-length, duplicate, and malicious API request bodies from a contract.
 - Allocate unique customer and order records per parallel worker in a multi-tenant checkout suite.

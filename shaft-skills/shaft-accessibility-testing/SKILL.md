@@ -1,8 +1,8 @@
 ---
 name: shaft-accessibility-testing
-description: Design, execute, or review web and mobile accessibility testing for WCAG conformance, keyboard and focus behavior, semantics, assistive technologies, responsive states, input, errors, and user impact.
+description: Use when designing, executing, or reviewing web and mobile accessibility testing for WCAG conformance, keyboard and focus behavior, semantics, errors, and user impact.
 ---
 
 # SHAFT Accessibility Testing
 
-Read and follow [the accessibility-testing playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the accessibility-testing playbook](references/playbook.md).

@@ -1,8 +1,8 @@
 ---
 name: shaft-execution-reporting
-description: Produce engineering-facing SHAFT execution reports with reconciled status counts, coverage, environments, failure clusters, defects, flakes, retries, evidence links, risks, and reproducible next actions.
+description: Use when producing engineering-facing SHAFT execution reports with reconciled counts, coverage, environments, failures, defects, flakes, evidence links, risks, and next actions.
 ---
 
 # SHAFT Execution Reporting
 
-Read and follow [the execution-reporting playbook](references/playbook.md).
+Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the execution-reporting playbook](references/playbook.md).
