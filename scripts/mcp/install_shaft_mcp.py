@@ -50,6 +50,15 @@ SHAFT_SKILLS_NATIVE_DIRECTORIES = {
     "intellij-plugin": (".agents/skills", ".claude/skills", ".github/skills"),
 }
 SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills", ".github/skills")
+RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
+    "act-as-shaft-dev",
+    "analyzing-shaft-failures",
+    "choosing-shaft-locators",
+    "planning-shaft-tests",
+    "recording-shaft-tests-with-mcp",
+    "verifying-and-applying-shaft-changes",
+    "writing-shaft-tests",
+))
 AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/validate_agent_setup.py",
     "scripts/ci/validate_agent_guidance.py",
@@ -799,6 +808,28 @@ def is_shaft_skills_source(path: Path) -> bool:
     return path.is_dir() and (path / SHAFT_SKILLS_ROUTER / "SKILL.md").is_file()
 
 
+def is_owned_retired_shaft_skill(directory: Path, name: str) -> bool:
+    """Recognize the two-file signature used by SHAFT's retired skill packages."""
+    skill = directory / "SKILL.md"
+    descriptor = directory / "agents" / "openai.yaml"
+    if directory.is_symlink() or not (directory.is_dir() and skill.is_file() and descriptor.is_file()):
+        return False
+    try:
+        content = skill.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return re.search(rf"(?m)^name:\s*{re.escape(name)}\s*$", content) is not None
+
+
+def remove_retired_shaft_skills(target: Path) -> None:
+    """Remove only verifiably SHAFT-owned legacy skill directories from a target."""
+    target = target.resolve()
+    for name in RETIRED_SHAFT_SKILL_DIRECTORIES:
+        candidate = target / name
+        if is_owned_retired_shaft_skill(candidate, name):
+            shutil.rmtree(candidate)
+
+
 def shaft_skill_files(source: Path) -> tuple[str, ...]:
     """Discover the portable pack from its canonical skill directories."""
     source = source.resolve()
@@ -938,6 +969,8 @@ def shaft_skills_targets(current_directory: Path, client: str | None) -> list[Pa
 
 def install_shaft_skills(current_directory: Path, root: Path, client: str | None = None) -> list[Path]:
     targets = shaft_skills_targets(current_directory, client)
+    for target in targets:
+        remove_retired_shaft_skills(target)
     source = local_shaft_skills_source()
     if source is not None:
         return [copy_shaft_skills(source, target) for target in targets]

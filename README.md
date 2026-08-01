@@ -84,6 +84,9 @@ project, call
 through a connected SHAFT MCP client; it creates or updates real host
 instruction files while preserving user prose.
 
+On upgrade, the SHAFT installer removes only its seven verifiably owned retired
+skill folders; it leaves other user skills and files in the native directories intact.
+
 Use direct MCP tools for interactive stateful work, for example
 `shaft_guide_search` with `{"query":"page object model","maxResults":3}`.
 Use SHAFT CLI for repeatable one-shot work:

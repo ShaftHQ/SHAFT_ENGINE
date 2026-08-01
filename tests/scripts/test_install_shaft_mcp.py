@@ -345,6 +345,52 @@ class InstallShaftMcpTest(unittest.TestCase):
                 self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
                 self.assertEqual(30, len(list(target.glob("*/SKILL.md"))))
 
+    def test_install_shaft_skills_removes_only_owned_retired_skill_directories_idempotently(self):
+        retired = (
+            "act-as-shaft-dev",
+            "analyzing-shaft-failures",
+            "choosing-shaft-locators",
+            "planning-shaft-tests",
+            "recording-shaft-tests-with-mcp",
+            "verifying-and-applying-shaft-changes",
+            "writing-shaft-tests",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / ".agents" / "skills"
+            for name in retired:
+                owned = target / name
+                (owned / "agents").mkdir(parents=True)
+                (owned / "SKILL.md").write_text(
+                    f"---\nname: {name}\n---\n# Retired SHAFT skill\n", encoding="utf-8")
+                (owned / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
+            protected = root / ".claude" / "skills" / retired[-1]
+            protected.mkdir(parents=True)
+            (protected / "SKILL.md").write_text(
+                "---\nname: writing-shaft-tests\n---\n# User-owned skill\n", encoding="utf-8")
+            custom = target / "custom-skill" / "notes.md"
+            custom.parent.mkdir(parents=True)
+            custom.write_text("keep me", encoding="utf-8")
+            top_level_user_file = target / "user-notes.md"
+            top_level_user_file.write_text("keep me too", encoding="utf-8")
+
+            first = MODULE.install_shaft_skills(root, root / "bootstrap", None)
+            second = MODULE.install_shaft_skills(root, root / "bootstrap", None)
+
+            self.assertEqual([
+                target.resolve(),
+                (root / ".claude" / "skills").resolve(),
+                (root / ".github" / "skills").resolve(),
+            ], first)
+            self.assertEqual(first, second)
+            self.assertEqual(frozenset(retired), MODULE.RETIRED_SHAFT_SKILL_DIRECTORIES)
+            for name in retired:
+                self.assertFalse((target / name).exists())
+            self.assertTrue(protected.is_dir())
+            self.assertEqual("keep me", custom.read_text(encoding="utf-8"))
+            self.assertEqual("keep me too", top_level_user_file.read_text(encoding="utf-8"))
+            self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
+
     def test_install_shaft_skills_downloads_raw_files_without_repo_archive(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
