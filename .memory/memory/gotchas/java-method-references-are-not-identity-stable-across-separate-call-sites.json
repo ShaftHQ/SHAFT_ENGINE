@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/java-method-references-are-not-identity-stable-across-separate-call-sites.md",
-  "content_hash": "sha256:8fce6116c9be54aa0211468ab03ed57a5415a381367a062c3b7773d929d73ccc",
+  "content_hash": "sha256:52611a00737de66d529c810eb9cf7a71c986fdd3796ceb5014bc8441c4e37ed2",
   "created_at": "2026-07-17T02:13:20+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "Java method references are not identity-stable across separate call sites",
   "type": "gotcha",
-  "updated_at": "2026-07-17T02:13:20+03:00"
+  "updated_at": "2026-08-01T16:08:42+03:00"
 }

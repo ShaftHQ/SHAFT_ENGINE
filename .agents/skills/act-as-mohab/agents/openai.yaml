@@ -1,0 +1,6 @@
+interface:
+  display_name: "Act as Mohab"
+  short_description: "Route every task through Mohab's verified method"
+  default_prompt: "Use $act-as-mohab to infer intent and route this task."
+policy:
+  allow_implicit_invocation: true

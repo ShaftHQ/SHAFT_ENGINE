@@ -1,0 +1,961 @@
+#!/usr/bin/env python3
+"""Portable SHAFT PreToolUse deny guard for Claude, Codex, and Grok."""
+# Stdlib only. Input is normalized before evaluation; policy below is shared.
+# Rules:
+#
+#   R1 Maven test scoping + headless execution
+#      (mirrors .memory/memory/gotchas/
+#       mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open.md
+#       and .memory/memory/gotchas/
+#       unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor.md --
+#       both repo-tracked so they travel with every clone/worktree)
+#   R2 Never auto-open/serve Allure reports
+#   R3 Never run GUI-opening commands on Windows (AGENTS.md Windows/Codex Safety)
+#   R8 Deny mutating `git stash` subcommands (pop/drop/apply/clear/push, and
+#      bare `git stash`) in Bash/PowerShell commands. The stash list lives in
+#      the shared .git dir, common to the main checkout and every
+#      `git worktree add`-created worktree; an empty `stash push` followed by
+#      `stash pop` can pop and DROP an unrelated entry from another
+#      session/worktree (issue #4130). Read-only `git stash list` / `git
+#      stash show` stay allowed.
+#   R9 `git worktree add` guardrails (issue #4126): (B1) deny when the Bash
+#      tool's worktree path argument contains backslashes -- Git Bash/MSYS
+#      consumes each backslash as an escape and the path silently collapses
+#      into one garbage segment at the repo root, exit 0. PowerShell is
+#      unaffected, so this check is Bash-only. (B2) deny any
+#      `git worktree add` missing `-c core.longpaths=true`, which otherwise
+#      aborts with `Filename too long` checking out existing over-long
+#      .memory/** paths. Both fail open on anything not confidently parsed.
+#
+# Claude-compatible and Codex use snake_case input and hookSpecificOutput.
+# Grok may supply camelCase fields and uses top-level deny/reason. The
+# normalizer and host-specific emitter keep rule evaluation identical.
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+
+# ---------------------------------------------------------------------------
+# R1: Maven test scoping + headless execution
+# ---------------------------------------------------------------------------
+
+_MVN_TEST_GOALS = (
+    "test",
+    "verify",
+    "install",
+    "deploy",
+    "package",
+    "surefire:test",
+    "failsafe:integration-test",
+)
+
+_SKIP_TESTS_RE = re.compile(r"-DskipTests\b|-Dmaven\.test\.skip=true\b", re.IGNORECASE)
+_DTEST_RE = re.compile(r"-Dtest=", re.IGNORECASE)
+_AM_RE = re.compile(r"(?<![\w-])(?:-am|--also-make)(?![\w-])", re.IGNORECASE)
+_PL_RE = re.compile(r"(?<![\w-])(?:-pl|--projects)(?![\w-])", re.IGNORECASE)
+_HEADLESS_TRUE_RE = re.compile(r"-DheadlessExecution=true\b", re.IGNORECASE)
+
+# R1/R2 must match the actual command head, not command-looking text quoted as
+# DATA (a `gh pr create --body` describing a Maven run, a commit message, a
+# heredoc). Multi-line string bodies are stripped before segmentation, and the
+# mvn/allure token must then be the executable at the start of its command
+# segment (allowing env-var assignments and common runner/wrapper prefixes).
+
+# Bash/POSIX heredoc bodies: <<EOF ... EOF (optionally quoted/indented tag).
+_BASH_HEREDOC_RE = re.compile(
+    r"<<-?\s*([\"']?)(\w+)\1.*?(?:\r?\n)\s*\2(?=\s|$)", re.DOTALL
+)
+# PowerShell here-strings: @' ... '@ and @" ... "@ (bodies are data).
+_PS_HERE_STRING_RE = re.compile(r"@(['\"])\r?\n.*?\r?\n\1@", re.DOTALL)
+# Quoted strings that span multiple lines are data (PR/commit bodies); quoted
+# single-line tokens like '-Dtest=Foo' are real arguments and must survive.
+_MULTILINE_DQUOTE_RE = re.compile(r'"(?:[^"\\]|\\.)*?\n(?:[^"\\]|\\.)*?"', re.DOTALL)
+_MULTILINE_SQUOTE_RE = re.compile(r"'[^']*?\n[^']*?'", re.DOTALL)
+# Line continuations keep one logical command in one segment.
+_LINE_CONTINUATION_RE = re.compile(r"(?:\\|`)\r?\n")
+
+# Tokens that may legitimately precede the real executable in a segment.
+_RUNNER_PREFIX_TOKENS = frozenset(
+    {"time", "nohup", "nice", "xvfb-run", "npx", "pnpm", "yarn", "dlx", "exec"}
+)
+_ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_]\w*=\S*$")
+
+
+def _sanitize_for_command_head(command: str) -> str:
+    """Strip data-only string bodies and join continuation lines."""
+    sanitized = _LINE_CONTINUATION_RE.sub(" ", command)
+    sanitized = _BASH_HEREDOC_RE.sub(" ", sanitized)
+    sanitized = _PS_HERE_STRING_RE.sub(" ", sanitized)
+    sanitized = _MULTILINE_DQUOTE_RE.sub(" ", sanitized)
+    sanitized = _MULTILINE_SQUOTE_RE.sub(" ", sanitized)
+    return sanitized
+
+
+def _command_segments(command: str) -> list[str]:
+    """Split into command segments (separators plus real newlines)."""
+    return re.split(r"(?:;|&&|\|\||\||&|\r?\n)", command)
+
+
+def _segment_tokens(segment: str) -> list[str]:
+    stripped = segment.strip()
+    stripped = re.sub(r"^&\s*", "", stripped)  # PowerShell call operator
+    return stripped.split()
+
+
+def _head_executable_matches(segment: str, names: frozenset[str]) -> bool:
+    """True when the segment's executable token (basename) is one of `names`."""
+    tokens = _segment_tokens(segment)
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if _ENV_ASSIGNMENT_RE.match(token):
+            index += 1
+            continue
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in names:
+            return True
+        if basename in _RUNNER_PREFIX_TOKENS:
+            index += 1
+            # `timeout 60 mvn ...`-style: skip a numeric argument after a runner
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        if basename == "timeout":
+            index += 1
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        return False
+    return False
+
+
+_MVN_NAMES = frozenset({"mvn", "mvn.cmd", "mvn.bat"})
+_ALLURE_NAMES = frozenset({"allure", "allure.cmd", "allure.bat"})
+
+
+def _mvn_segments(command: str) -> list[str]:
+    """Segments whose executable is mvn (command position, not quoted prose)."""
+    return [
+        segment
+        for segment in _command_segments(_sanitize_for_command_head(command))
+        if _head_executable_matches(segment, _MVN_NAMES)
+    ]
+
+
+def _segment_has_test_goal(segment: str) -> bool:
+    for goal in _MVN_TEST_GOALS:
+        # word-boundary aware match for the goal token (handles "surefire:test" too)
+        pattern = re.compile(r"(?<![\w:.\-])" + re.escape(goal) + r"(?![\w:.\-])", re.IGNORECASE)
+        if pattern.search(segment):
+            return True
+    return False
+
+
+def check_r1_maven(command: str) -> str | None:
+    """Return a block reason string, or None if R1 does not apply / is satisfied."""
+    for segment in _mvn_segments(command):
+        if not _segment_has_test_goal(segment):
+            continue
+        if _SKIP_TESTS_RE.search(segment):
+            continue  # tests are skipped entirely -- rule does not apply
+
+        has_dtest = bool(_DTEST_RE.search(segment))
+        has_am = bool(_AM_RE.search(segment))
+        has_pl = bool(_PL_RE.search(segment))
+
+        if not has_dtest and (has_am or not has_pl):
+            return (
+                "R1 (Maven test scoping): this command runs a Maven test-executing "
+                "goal/phase without -Dtest= scoping, and either uses -am/--also-make "
+                "or has no -pl/--projects scoping at all. Running an unscoped/-am "
+                "test phase across the whole reactor has previously crashed the JVM "
+                "(EXCEPTION_ACCESS_VIOLATION) by pulling in every upstream module's "
+                "test suite (see .memory scoped-test-execution-policy). Scope the "
+                "run with -Dtest=<SpecificClass>, or use -pl <module> WITHOUT -am "
+                "(compile/install the dependency once separately if needed)."
+            )
+
+        if not _HEADLESS_TRUE_RE.search(segment):
+            return (
+                "R1 (headless execution): this command runs Maven tests that can "
+                "reach SHAFT-driver-based browser tests but does not pass "
+                "-DheadlessExecution=true. Browser-capable test runs must force "
+                "headless execution to avoid launching a real, unprompted browser "
+                "window on the user's own machine (see .memory gotcha "
+                "mvn-test-must-force-headlessexecution-true...). Add "
+                "-DheadlessExecution=true."
+            )
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# R2: Allure must never be auto-served/opened
+# ---------------------------------------------------------------------------
+
+_ALLURE_SERVE_RE = re.compile(r"^\s*(serve|open)(?![\w-])", re.IGNORECASE)
+_ALLURE_MVN_SERVE_RE = re.compile(r"(?<![\w:.\-])allure:serve(?![\w:.\-])", re.IGNORECASE)
+
+
+def _segment_runs_allure_serve(segment: str) -> bool:
+    tokens = _segment_tokens(segment)
+    for index, token in enumerate(tokens):
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in _ALLURE_NAMES:
+            prefixes = tokens[:index]
+            prefix_ok = all(
+                _ENV_ASSIGNMENT_RE.match(prefix)
+                or re.split(r"[/\\]", prefix.strip("\"'"))[-1].lower() in _RUNNER_PREFIX_TOKENS
+                for prefix in prefixes
+            )
+            rest = " ".join(tokens[index + 1:])
+            return prefix_ok and bool(_ALLURE_SERVE_RE.match(rest))
+    return False
+
+
+def check_r2_allure(command: str) -> str | None:
+    sanitized = _sanitize_for_command_head(command)
+    serve_in_command_position = any(
+        _segment_runs_allure_serve(segment) for segment in _command_segments(sanitized)
+    )
+    mvn_allure_serve = any(
+        _ALLURE_MVN_SERVE_RE.search(segment) for segment in _mvn_segments(command)
+    )
+    if serve_in_command_position or mvn_allure_serve:
+        return (
+            "R2 (Allure auto-open): this command runs 'allure serve', "
+            "'allure open', or the Maven 'allure:serve' goal. Never auto-open "
+            "or serve Allure reports -- generate reports (e.g. `allure "
+            "generate`) and leave them under target/allure-results / "
+            "allure-report for the user to open explicitly."
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# R3: GUI-opening verbs (Windows safety, AGENTS.md)
+# ---------------------------------------------------------------------------
+
+# Verbs that are unsafe as substrings-of-a-larger-identifier but safe as a
+# clearly delimited word/command token. Word-boundary-based, case-insensitive.
+_GUI_WORD_VERBS = (
+    r"Start-Process",
+    r"Invoke-Item",
+    r"rundll32",
+    r"os\.startfile",
+    r"explorer",
+)
+_GUI_WORD_RE = re.compile(
+    r"(?<![\w.\-])(?:" + "|".join(_GUI_WORD_VERBS) + r")(?![\w.\-])", re.IGNORECASE
+)
+
+# The multi-word/dotted verbs above collide with a different shape than the
+# short aliases below: not a quoted regex character class, but ordinary PROSE
+# -- a commit message, PR/issue body, or code comment merely discussing one of
+# these five patterns (reported live, twice, this session: `git commit -m` and
+# `gh issue create --body`; see issue #4147). Restricting to "first word of a
+# command segment" (the short-alias fix) does not apply here without losing
+# real detection: `os.startfile` is never a command's first token -- it is
+# always embedded in an interpreter's script argument (`python3 -c "..."`) --
+# and a real invocation can also be nested inside a QUOTED script argument to
+# another interpreter, e.g. `powershell -Command "Start-Process notepad"` run
+# via the Bash tool. So instead of restricting position, reuse the existing
+# multi-line-quote/heredoc sanitizer (`_sanitize_for_command_head`, already
+# used ahead of the Maven/Allure command-head checks) and additionally blank
+# single-line quoted strings that are pure data -- UNLESS the quote
+# immediately follows a "treat this quoted text as code to execute" flag
+# (-c / -Command / /c / --command), which keeps every real nested-interpreter
+# invocation scanned. This is deliberately scoped to the interpreters this
+# harness actually exposes (PowerShell/cmd/python/py via the Bash and
+# PowerShell tools); an obfuscated `-EncodedCommand` (base64) is undetectable
+# either way, before or after this fix.
+_EXEC_FLAG_QUOTE_RE = re.compile(
+    r"(?:--?[Cc]ommand|-[Cc]|/[Cc])\s+(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+    r"|(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+)
+
+
+def _blank_prose_quotes(command: str) -> str:
+    """Blank single-line quoted strings that are data, keeping nested-code quotes intact."""
+
+    def repl(match: re.Match[str]) -> str:
+        if match.group(1) is not None:
+            return match.group(0)  # protected: flag + quoted code, scan it as-is
+        return " " * len(match.group(0))  # prose quote: blank so its words can't match
+
+    return _EXEC_FLAG_QUOTE_RE.sub(repl, command)
+
+
+def _sanitize_for_gui_word_check(command: str) -> str:
+    """Strip data-only quoted/heredoc prose before the R3 multi-word-verb search."""
+    return _blank_prose_quotes(_sanitize_for_command_head(command))
+
+
+def _unquote_exec_flag_payload(command: str) -> str:
+    """Drop the quote characters around an exec-flag-quoted payload, blank prose.
+
+    `_blank_prose_quotes` keeps an exec-flag-quoted payload (after -c /
+    -Command / /c / --command) intact, quotes included -- fine for
+    `_GUI_WORD_RE`, a plain substring search unaffected by surrounding quote
+    characters. But `_CMD_C_START_RE` requires the verb to follow `/c` with
+    only WHITESPACE in between, so a quote character right after `/c`
+    defeats it even though the quote changes nothing about what actually
+    runs (issue #4152: `cmd /c "start report.html"` is `cmd /c start
+    report.html` from the shell's point of view). Replacing the quote
+    characters with spaces -- while still blanking pure-prose quotes, as
+    `_blank_prose_quotes` does -- lets the structural whitespace-only check
+    see through the quoting without weakening the prose exemption.
+    """
+
+    def repl(match: re.Match[str]) -> str:
+        quoted = match.group(1)
+        if quoted is not None:
+            prefix = match.group(0)[: -len(quoted)]
+            return prefix + " " + quoted[1:-1] + " "
+        return " " * len(match.group(0))  # prose quote: blank so its words can't match
+
+    return _EXEC_FLAG_QUOTE_RE.sub(repl, command)
+
+
+def _sanitize_for_cmd_c_check(command: str) -> str:
+    """Strip data-only quoted/heredoc prose and unquote exec-flag payloads."""
+    return _unquote_exec_flag_payload(_sanitize_for_command_head(command))
+
+
+# `ii` and `start` are only the GUI-open PowerShell alias / verb when they
+# stand alone as the FIRST WORD of a command segment (real command position).
+# A plain word-boundary regex over the whole raw command string (the earlier
+# approach for `ii`) false-positives on any quoted interpreter argument that
+# merely contains the two letters as a delimited "word" -- e.g. a Python
+# regex character class `r'[Ii]mplement'` passed to `py -3 -c "..."` is not a
+# PowerShell command at all, yet `(?<![\w.\-])ii(?![\w.\-])` still matched it
+# (reported live; see PR description). Restricting to "first word of the
+# segment" (like `start` already did) fixes this without losing any real
+# detection: a bare `ii <path>` -- or `ii` after `;`/`&&`/`|`/`&` -- is still
+# the first word of its own segment and stays blocked.
+
+# `cmd /c start ...`
+_CMD_C_START_RE = re.compile(r"(?<![\w.\-])cmd(?:\.exe)?\s+/c\s+start(?![\w.\-])", re.IGNORECASE)
+
+# Command-segment separators used to find "start of a command position".
+_SEGMENT_SPLIT_RE = re.compile(r"(?:;|&&|\|\||\||&)")
+
+
+def _segments(command: str) -> list[str]:
+    return _SEGMENT_SPLIT_RE.split(command)
+
+
+def _segment_starts_with_word(segment: str, word: str) -> bool:
+    """True if `word` is the first word of this command segment (command position).
+
+    Deliberately excludes lookalikes: a short alias/verb inside a larger
+    identifier ("--start-maximized", "restart", "capture_start", "radii"),
+    embedded in a quoted interpreter argument (a regex character class like
+    `[Ii]mplement` passed to `py -3 -c "..."`, or ordinary prose like
+    "start something" inside a quoted string), or appearing later in the
+    same segment are NOT matches -- in every one of those cases the alias is
+    not the token actually being executed as a command.
+    """
+    stripped = segment.strip()
+    # Only strip a leading PowerShell call operator "&" followed by whitespace;
+    # do not attempt to skip past other prefixes -- we want `word` to be the
+    # literal first word of the segment.
+    candidate = stripped
+    call_op_match = re.match(r"^&\s*", stripped)
+    if call_op_match:
+        candidate = stripped[call_op_match.end():]
+    first_word_match = re.match(r"^([A-Za-z_][\w.\-]*)", candidate)
+    if not first_word_match:
+        return False
+    return first_word_match.group(1).lower() == word.lower()
+
+
+def check_r3_gui_open(command: str) -> str | None:
+    if _GUI_WORD_RE.search(_sanitize_for_gui_word_check(command)):
+        return (
+            "R3 (GUI-open verb): this command invokes a GUI-opening verb "
+            "(Start-Process / Invoke-Item / rundll32 / os.startfile / "
+            "explorer). Per AGENTS.md Windows/Codex Safety, do not run "
+            "commands that open GUI applications, file explorers, or "
+            "dialogs -- use py -3 / node / mvn / git / non-interactive CLI "
+            "invocations instead."
+        )
+    if _CMD_C_START_RE.search(_sanitize_for_cmd_c_check(command)):
+        return (
+            "R3 (GUI-open verb): this command runs `cmd /c start ...`, which "
+            "opens a GUI/file-association handler. Per AGENTS.md Windows/"
+            "Codex Safety, do not use `start` to launch GUI content."
+        )
+    for segment in _segments(command):
+        if _segment_starts_with_word(segment, "ii"):
+            return (
+                "R3 (GUI-open verb): this command invokes `ii`, the "
+                "PowerShell alias for Invoke-Item, as the first word of a "
+                "command segment (real command position). Per AGENTS.md "
+                "Windows/Codex Safety, do not open items via GUI handlers."
+            )
+        if _segment_starts_with_word(segment, "start"):
+            return (
+                "R3 (GUI-open verb): `start` appears as the first word of a "
+                "command segment, which on Windows launches a new "
+                "GUI/console window or opens a file via its default handler. "
+                "Per AGENTS.md Windows/Codex Safety, avoid `start` as a "
+                "command verb (this is not triggered by substrings like "
+                "--start-maximized, restart, or capture_start)."
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# R8: deny mutating `git stash` subcommands (shared across worktrees)
+# ---------------------------------------------------------------------------
+
+_GIT_NAMES = frozenset({"git", "git.exe"})
+
+
+def _git_segments(command: str) -> list[str]:
+    """Segments whose executable is git (command position, not quoted prose)."""
+    return [
+        segment
+        for segment in _command_segments(_sanitize_for_command_head(command))
+        if _head_executable_matches(segment, _GIT_NAMES)
+    ]
+
+
+def _tokens_after_head(segment: str, names: frozenset[str]) -> list[str] | None:
+    """Return the tokens following the segment's matching head executable, or None."""
+    tokens = _segment_tokens(segment)
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if _ENV_ASSIGNMENT_RE.match(token):
+            index += 1
+            continue
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in names:
+            return tokens[index + 1:]
+        if basename in _RUNNER_PREFIX_TOKENS or basename == "timeout":
+            index += 1
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        return None
+    return None
+
+
+_GIT_STASH_MUTATING_SUBCOMMANDS = frozenset({"pop", "drop", "apply", "clear", "push"})
+_GIT_STASH_READONLY_SUBCOMMANDS = frozenset({"list", "show"})
+_GIT_GLOBAL_OPTS_WITH_ARG = frozenset({"-c", "-C"})
+
+
+def _stash_subcommand(rest: list[str]) -> tuple[bool, str | None]:
+    """Return (is_stash_command, subcommand_or_None) for tokens following the git executable."""
+    index = 0
+    while index < len(rest):
+        token = rest[index]
+        if token in _GIT_GLOBAL_OPTS_WITH_ARG:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        break
+    if index >= len(rest) or rest[index].lower() != "stash":
+        return False, None
+    index += 1
+    while index < len(rest):
+        token = rest[index]
+        if token.startswith("-"):
+            index += 1
+            continue
+        return True, token.lower()
+    return True, None
+
+
+def check_r8_git_stash(command: str) -> str | None:
+    """Return a block reason for a mutating `git stash` subcommand, or None."""
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, _GIT_NAMES)
+        if rest is None:
+            continue
+        is_stash, sub = _stash_subcommand(rest)
+        if not is_stash or sub in _GIT_STASH_READONLY_SUBCOMMANDS:
+            continue
+        if sub is None or sub in _GIT_STASH_MUTATING_SUBCOMMANDS:
+            return (
+                "R8 (git stash shared across worktrees): the stash list lives in "
+                "the shared .git directory, common to the main checkout and every "
+                "`git worktree add`-created worktree. A `git stash` that finds "
+                "nothing to save still lets a later `git stash pop` pop and DROP "
+                "an unrelated entry from a different session/worktree -- this has "
+                "already destroyed a months-old stash and silently reverted a "
+                "tracked AGENTS.md in this repo (issue #4130). Do not run mutating "
+                f"`git stash{(' ' + sub) if sub else ''}` in a shared-.git "
+                "worktree -- commit your work to your own branch instead "
+                "(`git add -A && git commit`), or use read-only `git stash list` "
+                "/ `git stash show` / `git diff` to inspect state without "
+                "mutating the shared stash."
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# R9: `git worktree add` guardrails (backslash-via-Bash, missing longpaths)
+# ---------------------------------------------------------------------------
+
+_GIT_WORKTREE_ADD_FLAGS_WITH_ARG = frozenset({"-b", "-B", "--reason"})
+_LONGPATHS_RE = re.compile(
+    r"(?<![\w.-])-c\s+[\"']?core\.longpaths=true[\"']?(?![\w.-])", re.IGNORECASE
+)
+
+
+def _worktree_add_rest(rest: list[str]) -> list[str] | None:
+    """Return tokens after 'worktree add' in `rest`, or None if not confidently a match."""
+    index = 0
+    seen_worktree = False
+    while index < len(rest):
+        token = rest[index]
+        if not seen_worktree:
+            if token.lower() == "worktree":
+                seen_worktree = True
+                index += 1
+                continue
+            if token in _GIT_GLOBAL_OPTS_WITH_ARG:
+                index += 2
+                continue
+            if token.startswith("-"):
+                index += 1
+                continue
+            return None  # unexpected token before 'worktree': not confidently parseable
+        if token.lower() == "add":
+            return rest[index + 1:]
+        return None  # 'worktree' subcommand other than 'add'
+    return None
+
+
+def _worktree_add_path(rest_after_add: list[str]) -> str | None:
+    """Return the worktree path token, or None if it cannot be confidently identified."""
+    index = 0
+    while index < len(rest_after_add):
+        token = rest_after_add[index]
+        if token in _GIT_WORKTREE_ADD_FLAGS_WITH_ARG:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        return token.strip("\"'")
+    return None
+
+
+def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
+    """Return a block reason for an unsafe `git worktree add` invocation, or None."""
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, _GIT_NAMES)
+        if rest is None:
+            continue
+        rest_after_add = _worktree_add_rest(rest)
+        if rest_after_add is None:
+            continue
+
+        if tool_name == "Bash":
+            path = _worktree_add_path(rest_after_add)
+            if path is not None and "\\" in path:
+                return (
+                    "R9 (git worktree add backslash path via Bash): the Bash "
+                    "tool runs Git Bash/MSYS, which consumes each backslash in "
+                    f"'{path}' as an escape -- the path silently collapses into "
+                    "one garbage segment at the repo root (exit code 0, no "
+                    "error). Confirmed twice this session, including "
+                    "`worktrees\\w4067` collapsing into one path segment (issue "
+                    "#4126). Use forward slashes instead, e.g. "
+                    f"'{path.replace(chr(92), '/')}'."
+                )
+
+        if not _LONGPATHS_RE.search(segment):
+            match = re.search(r"\bworktree\b", segment, re.IGNORECASE)
+            if match:
+                corrected = (
+                    segment[: match.start()] + "-c core.longpaths=true " + segment[match.start():]
+                )
+            else:
+                corrected = segment.strip() + " (add -c core.longpaths=true before 'worktree')"
+            return (
+                "R9 (git worktree add missing longpaths): plain `git worktree "
+                "add` aborts with `Filename too long` checking out existing "
+                "over-long .memory/** paths, stopping an agent before it starts "
+                "any work (issue #4126). Add -c core.longpaths=true: "
+                f"`{corrected.strip()}`"
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Dispatcher
+# ---------------------------------------------------------------------------
+
+_CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash)
+
+
+def evaluate_command(command: str) -> str | None:
+    """Return the first blocking reason found, or None if the command is allowed."""
+    for check in _CHECKS:
+        reason = check(command)
+        if reason is not None:
+            return reason
+    return None
+
+
+_FIELD_ALIASES = {
+    "hookEventName": "hook_event_name",
+    "toolName": "tool_name",
+    "toolInput": "tool_input",
+    "sessionId": "session_id",
+    "agentType": "agent_type",
+}
+_TOOL_ALIASES = {
+    "bash": "Bash",
+    "powershell": "PowerShell",
+    "shell_command": "PowerShell",
+    "shellcommand": "PowerShell",
+    "read": "Read",
+    "grep": "Grep",
+    "edit": "Edit",
+    "write": "Write",
+    "skill": "Skill",
+    "agent": "Agent",
+    "applypatch": "apply_patch",
+    "apply_patch": "apply_patch",
+}
+
+
+def normalize_hook_input(raw: dict) -> dict:
+    """Normalize supported host field and tool aliases into one rule input."""
+    normalized = dict(raw)
+    for source, target in _FIELD_ALIASES.items():
+        if target not in normalized and source in raw:
+            normalized[target] = raw[source]
+    if not normalized.get("hook_event_name") and os.environ.get("GROK_HOOK_EVENT"):
+        normalized["hook_event_name"] = os.environ["GROK_HOOK_EVENT"]
+
+    tool_input = normalized.get("tool_input")
+    if isinstance(tool_input, dict):
+        tool_input = dict(tool_input)
+        if "file_path" not in tool_input and "filePath" in tool_input:
+            tool_input["file_path"] = tool_input["filePath"]
+        normalized["tool_input"] = tool_input
+
+    raw_tool_name = str(normalized.get("tool_name") or "")
+    key = re.sub(r"[^a-z_]", "", raw_tool_name.lower())
+    normalized["tool_name"] = _TOOL_ALIASES.get(key, raw_tool_name)
+    return normalized
+
+
+def hook_host(raw: dict) -> str:
+    """Return output protocol host without affecting shared rule evaluation."""
+    configured = os.environ.get("SHAFT_GUARD_HOST", "").strip().lower()
+    if configured in {"claude", "codex", "grok"}:
+        return configured
+    if os.environ.get("GROK_HOOK_EVENT") or any(key in raw for key in _FIELD_ALIASES):
+        return "grok"
+    return "portable"
+
+
+def _extract_command(hook_input: dict) -> str:
+    tool_input = hook_input.get("tool_input") or {}
+    command = tool_input.get("command")
+    if isinstance(command, str):
+        return command
+    return ""
+
+
+def _print_deny(reason: str, host: str) -> None:
+    if host == "grok":
+        output = {"decision": "deny", "reason": reason}
+    else:
+        output = {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": reason,
+            }
+        }
+    print(json.dumps(output))
+
+
+def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
+    tool_name = hook_input.get("tool_name", "")
+
+    if tool_name in ("Bash", "PowerShell"):
+        command = _extract_command(hook_input)
+        if not command:
+            return 0
+        reason = evaluate_command(command)
+        if reason is None:
+            reason = check_r9_worktree_add(command, tool_name)
+        if reason is not None:
+            _print_deny(reason, host)
+        return 0
+
+    return 0  # not a tool this hook checks
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+# Each row: (description, command string, expect_block: bool)
+_SELF_TEST_CASES: list[tuple[str, str, bool]] = [
+    # --- MUST-PASS (allow) examples from the task spec ---
+    ("scoped -pl + -Dtest + headless", "mvn -pl shaft-mcp test '-Dtest=Foo' '-DheadlessExecution=true'", False),
+    ("skip tests with -am", "mvn -pl shaft-capture -am -DskipTests -Dgpg.skip=true verify", False),
+    ("test-compile only, not a test-executing goal", "mvn -pl shaft-engine test-compile", False),
+    ("plain git status", "git status", False),
+    ("py -3 validator script", "py -3 scripts/ci/validate_agent_setup.py", False),
+    ("allure generate via npx", "npx allure generate", False),
+
+    # --- MUST-BLOCK examples from the task spec ---
+    ("mvn -am test unscoped", "mvn -pl shaft-engine -am test", True),
+    ("bare mvn test", "mvn test", True),
+    ("mvn -pl test missing headless", "mvn -pl shaft-mcp test -Dtest=Foo", True),
+    ("allure serve", "allure serve target/allure-results", True),
+    ("mvn allure:serve", "mvn allure:serve", True),
+    ("Start-Process", "Start-Process notepad", True),
+    ("cmd /c start", "cmd /c start report.html", True),
+    ("start as first word", "start chrome", True),
+
+    # --- Additional edge cases ---
+    ("maven.test.skip=true satisfies skip", "mvn install -Dmaven.test.skip=true", False),
+    ("-pl without -am, with -Dtest, no headless still blocks on headless", "mvn -pl shaft-mcp -Dtest=Foo test", True),
+    ("-pl without -am and without -Dtest but has headless (still needs scoping via -Dtest OR pl-without-am -> allowed since pl present without am)",
+     "mvn -pl shaft-mcp test -DheadlessExecution=true", False),
+    ("--projects long form without --also-make, no -Dtest, headless present", "mvn --projects shaft-mcp test -DheadlessExecution=true", False),
+    ("--also-make long form blocks even with -pl", "mvn --projects shaft-mcp --also-make test -DheadlessExecution=true", True),
+    ("surefire:test goal triggers rule (no -pl, no -Dtest)", "mvn surefire:test", True),
+    ("failsafe:integration-test scoped with -pl (no -am) and headless is allowed", "mvn -pl shaft-engine failsafe:integration-test -DheadlessExecution=true", False),
+    ("package goal scoped with -pl (no -am) and headless is allowed", "mvn -pl shaft-engine package -DheadlessExecution=true", False),
+    ("package goal unscoped (no -pl/-Dtest) blocks on scoping", "mvn package -DheadlessExecution=true", True),
+    ("verify with -am and -Dtest is fine (has -Dtest)", "mvn -pl shaft-engine -am verify -Dtest=FooTest -DheadlessExecution=true", False),
+    ("mvnw wrapper is not matched (not literal 'mvn' token)", "./mvnw test", False),
+    ("mvn.cmd variant matched", "mvn.cmd test", True),
+    ("allure:report without serve is allowed", "mvn allure:report", False),
+    ("allure serve case-insensitive", "ALLURE SERVE target/allure-results", True),
+    ("Invoke-Item blocked", "Invoke-Item .\\report.html", True),
+    ("rundll32 blocked", "rundll32 shell32.dll,OpenAs_RunDLL report.html", True),
+    ("os.startfile blocked", "python3 -c \"import os; os.startfile('report.html')\"", True),
+    ("explorer word blocked", "explorer report.html", True),
+    ("standalone ii blocked", "ii .\\report.html", True),
+    ("ii inside word not blocked", "radii.txt", False),
+    ("ii after && in command position still blocked", "git status && ii report.html", True),
+    ("ii inside quoted regex char class in a py -c argument is not blocked (issue: R3 false positive)",
+     "py -3 -c \"import re; p = re.compile(r'[Ii]mplement')\"", False),
+    ("start inside quoted text in a py -c argument is not blocked (sibling check, same root cause)",
+     "py -3 -c \"s = 'start something'\"", False),
+    ("--start-maximized not blocked", "chromedriver --start-maximized", False),
+    ("restart not blocked", "sudo systemctl restart nginx", False),
+    ("capture_start not blocked", "mcp__shaft-mcp__capture_start", False),
+    ("start after semicolon blocked", "git status; start chrome", True),
+    ("start after && blocked", "git status && start chrome", True),
+    ("start after pipe blocked", "echo hi | start", True),
+    ("start after & blocked", "git status & start chrome", True),
+    ("start mid-word in later segment not blocked", "git status && echo restart-service", False),
+    ("empty command allowed", "", False),
+
+    # --- R3 GUI-word verbs (Start-Process/Invoke-Item/rundll32/os.startfile/
+    # explorer): realistic REAL invocation shapes must stay blocked, including
+    # ones where the verb is not the literal first token (issue #4147) ---
+    ("Start-Process after && separator", "git status && Start-Process notepad", True),
+    ("Invoke-Item after ; separator", "git status; Invoke-Item report.html", True),
+    ("rundll32 after & separator", "git status & rundll32 shell32.dll,OpenAs_RunDLL report.html", True),
+    ("Start-Process after | separator", "echo hi | Start-Process notepad", True),
+    ("Start-Process after PowerShell call operator", "& Start-Process notepad", True),
+    ("Start-Process on right side of an assignment", "$result = Start-Process notepad -PassThru", True),
+    ("rundll32 with a bash env-assignment prefix", "FOO=1 rundll32 shell32.dll,OpenAs_RunDLL report.html", True),
+    ("Start-Process nested inside powershell -Command \"...\"",
+     'powershell -Command "Start-Process notepad"', True),
+    ("Invoke-Item nested inside powershell -c \"...\" (short flag)",
+     'powershell -c "Invoke-Item report.html"', True),
+    ("rundll32 nested inside cmd /c \"...\"",
+     'cmd /c "rundll32 shell32.dll,OpenAs_RunDLL report.html"', True),
+    ("os.startfile nested inside py -3 -c \"...\" (this repo's documented convention)",
+     "py -3 -c \"import os; os.startfile('report.html')\"", True),
+
+    # --- R3 `cmd /c start`: a quote between /c and the verb must not defeat
+    # the structural check (issue #4152, false negative -- the dangerous
+    # direction). ---
+    ("cmd /c \"start ...\" (quoted) must stay blocked -- issue #4152",
+     'cmd /c "start report.html"', True),
+    ("cmd.exe /c \"start ...\" (quoted, .exe form) must stay blocked -- issue #4152",
+     'cmd.exe /c "start https://example.com"', True),
+    ("git commit -m prose mentioning the verb stays allowed alongside the #4152 fix",
+     'git commit -m "we never start a browser"', False),
+
+    # --- R3 GUI-word verbs: quoted PROSE merely discussing a denylisted verb
+    # must NOT block -- reproduced live this session via `git commit -m` and
+    # `gh issue create --body` (issue #4147) ---
+    ("git commit -m mentioning 'explorer' in prose is not a real command",
+     'git commit -m "explorer word appears in this commit message only"', False),
+    ("gh issue create --body mentioning 'rundll32' in prose is not a real command",
+     'gh issue create --body "this body discusses rundll32 in prose only"', False),
+    ("gh pr create --title mentioning 'Start-Process' in prose is not a real command",
+     'gh pr create --title "Fix Start-Process false positive"', False),
+    ("bash heredoc PR body mentioning 'explorer' is prose, not a command",
+     "gh pr create --body-file - <<'EOF'\nThis body discusses explorer in prose.\nEOF", False),
+    ("multi-line quoted body mentioning 'Invoke-Item' is prose, not a command",
+     'gh pr create --title "Fix" --body "Notes:\nInvoke-Item was mentioned here.\nAll good."', False),
+    ("inline quoted tag mentioning 'test-explorer' is prose, not a command (mempalace precedent)",
+     'echo "tag: test-explorer"', False),
+
+    # --- Command-head matching: quoted/heredoc PROSE about Maven must not block (issue #3422 item 14) ---
+    ("gh pr create body mentioning mvn test is prose, not a command",
+     'gh pr create --title "Fix" --body "Verified with:\nmvn -pl shaft-mcp test\nAll green."', False),
+    ("git commit -m quoting mvn test is prose",
+     'git commit -m "mvn test now passes"', False),
+    ("bash heredoc PR body mentioning mvn test is prose",
+     "gh pr create --body-file - <<'EOF'\nRan mvn test without flags.\nEOF", False),
+    ("powershell here-string body mentioning mvn test is prose",
+     "gh pr create --body @'\nmvn test\n'@", False),
+    ("echo quoting allure serve is prose", 'echo "allure serve target"', False),
+    ("mvn test after && is still a real command", "git status && mvn test", True),
+    ("mvn test on its own line is still a real command", "git status\nmvn test", True),
+    ("env-var prefixed mvn test is still a real command", "FOO=1 mvn test", True),
+    ("timeout-wrapped mvn test is still a real command", "timeout 60 mvn test", True),
+    ("npx allure serve is still a real command", "npx allure serve target/allure-results", True),
+    ("multi-line mvn continuation keeps its scoping flags",
+     "mvn -pl shaft-mcp test \\\n  -Dtest=Foo \\\n  -DheadlessExecution=true", False),
+
+    # --- R8: git stash mutating subcommands blocked, read-only allowed (issue #4130) ---
+    ("bare git stash blocked", "git stash", True),
+    ("git stash push blocked", "git stash push", True),
+    ("git stash pop blocked", "git stash pop", True),
+    ("git stash drop blocked", "git stash drop", True),
+    ("git stash apply blocked", "git stash apply", True),
+    ("git stash clear blocked", "git stash clear", True),
+    ("git stash list allowed (read-only)", "git stash list", False),
+    ("git stash show allowed (read-only)", "git stash show stash@{0}", False),
+    ("git stash pop with stash ref still blocked", "git stash pop stash@{1}", True),
+    ("non-stash git command allowed", "git status", False),
+    ("git stash mentioned in commit message prose is not a real command",
+     'git commit -m "ran git stash pop earlier"', False),
+]
+
+
+def run_self_test() -> int:
+    failures: list[str] = []
+    for description, command, expect_block in _SELF_TEST_CASES:
+        reason = evaluate_command(command)
+        blocked = reason is not None
+        ok = blocked == expect_block
+        status = "PASS" if ok else "FAIL"
+        detail = f"  reason={reason!r}" if blocked else ""
+        print(f"[{status}] {description}: {command!r} (expected_block={expect_block}, got_block={blocked}){detail}")
+        if not ok:
+            failures.append(description)
+
+    total = len(_SELF_TEST_CASES)
+    passed = total - len(failures)
+    print(f"\nSelf-test summary: {passed}/{total} passed, {len(failures)} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def run_r9_worktree_self_test() -> int:
+    """Exercises R9: git worktree add backslash-via-Bash + missing-longpaths guardrails."""
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    # --- B1: backslash worktree path via Bash is denied ---
+    reason = check_r9_worktree_add(
+        r"git -c core.longpaths=true worktree add worktrees\w4067 -b ChaosEngine/w4067 origin/main",
+        "Bash",
+    )
+    check("Bash backslash worktree path (with longpaths) is denied", reason is not None)
+    check("Bash backslash denial names forward slashes", reason is not None and "forward slash" in reason)
+
+    # --- B1 does not fire for PowerShell (backslashes are normal there) ---
+    reason = check_r9_worktree_add(
+        r"git -c core.longpaths=true worktree add worktrees\w4067 -b ChaosEngine/w4067 origin/main",
+        "PowerShell",
+    )
+    check("PowerShell backslash worktree path is allowed (B1 is Bash-only)", reason is None)
+
+    # --- B2: missing -c core.longpaths=true is denied (both tools), with a corrected command ---
+    reason = check_r9_worktree_add(
+        "git worktree add worktrees/w4067 -b ChaosEngine/w4067 origin/main",
+        "Bash",
+    )
+    check("Bash worktree add missing longpaths is denied", reason is not None)
+    check("longpaths denial includes the corrected command", reason is not None and "core.longpaths=true" in reason)
+
+    reason = check_r9_worktree_add(
+        "git worktree add worktrees/w4067 -b ChaosEngine/w4067 origin/main",
+        "PowerShell",
+    )
+    check("PowerShell worktree add missing longpaths is denied too (B2 applies to both tools)", reason is not None)
+
+    # --- Fully correct invocation (forward slashes + longpaths) is allowed ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/w4067 "
+        "-b ChaosEngine/w4067 origin/main",
+        "Bash",
+    )
+    check("Correct invocation (forward slashes + longpaths) is allowed", reason is None)
+
+    # --- Not a worktree-add command at all: fails open ---
+    reason = check_r9_worktree_add(r"git worktree list", "Bash")
+    check("git worktree list (no add) is allowed", reason is None)
+
+    reason = check_r9_worktree_add(r"git status", "Bash")
+    check("unrelated git command is allowed", reason is None)
+
+    # --- Prose mention in a quoted string is not a real command ---
+    reason = check_r9_worktree_add(
+        'git commit -m "ran git worktree add worktrees\\w4067 earlier"', "Bash"
+    )
+    check("git worktree add mentioned in commit message prose is not a real command", reason is None)
+
+    total_checks = len(failures)
+    print(f"\nR9 worktree-add self-test summary: {total_checks} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    if "--self-test" in argv:
+        command_result = run_self_test()
+        r9_result = run_r9_worktree_self_test()
+        return command_result or r9_result
+
+    raw = sys.stdin.read()
+    if not raw.strip():
+        return 0
+    try:
+        raw_hook_input = json.loads(raw)
+    except json.JSONDecodeError:
+        return 0  # malformed input: fail open (allow), nothing to safely block on
+
+    if not isinstance(raw_hook_input, dict):
+        return 0
+    host = hook_host(raw_hook_input)
+    hook_input = normalize_hook_input(raw_hook_input)
+    return run_pretooluse(hook_input, host)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

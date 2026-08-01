@@ -11,10 +11,10 @@ class ValidateSkillsTest(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary_directory.name)
         self.budget_path = self.root / "scripts/ci/agent_guidance_budget.json"
-        self.budget = {"skill_budgets": {".claude/skills": {"max_skill_md_bytes": 400}}}
+        self.budget = {"skill_budgets": {".agents/skills": {"max_skill_md_bytes": 400}}}
         self.write_budget()
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\n"
             "name: example\n"
             "description: >-\n"
@@ -24,7 +24,7 @@ class ValidateSkillsTest(unittest.TestCase):
             "# Example\n\nBody content that is non-empty.\n"
             "See `references/detail.md` for more.\n",
         )
-        self.write(".claude/skills/example/references/detail.md", "# Detail\n")
+        self.write(".agents/skills/example/references/detail.md", "# Detail\n")
 
     def tearDown(self):
         self.temporary_directory.cleanup()
@@ -45,55 +45,51 @@ class ValidateSkillsTest(unittest.TestCase):
         self.assertEqual(validate_repository(self.root, self.budget_path), [])
 
     def test_folded_block_scalar_description_is_read_in_full(self):
-        # Regression for the parse_frontmatter gap that used to truncate a
-        # `description: >-` value to its two-character marker: a thin/no-op
-        # description hiding behind a folded block scalar must still be
-        # caught, not silently treated as "long enough".
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: example\ndescription: >-\n  x\n---\n\n# Example\n\nBody.\n",
         )
         self.assertIn("description-too-thin", self.codes())
 
     def test_rejects_missing_skill_md(self):
-        (self.root / ".claude/skills/empty").mkdir(parents=True)
+        (self.root / ".agents/skills/empty").mkdir(parents=True)
         self.assertIn("skill-missing", self.codes())
 
     def test_rejects_malformed_frontmatter(self):
-        self.write(".claude/skills/example/SKILL.md", "# No frontmatter at all\n")
+        self.write(".agents/skills/example/SKILL.md", "# No frontmatter at all\n")
         self.assertIn("frontmatter-malformed", self.codes())
 
     def test_rejects_name_mismatch(self):
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: not-example\ndescription: Use when testing name mismatches.\n---\n\nBody.\n",
         )
         self.assertIn("frontmatter-name", self.codes())
 
     def test_rejects_missing_description(self):
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: example\n---\n\nBody.\n",
         )
         self.assertIn("frontmatter-description", self.codes())
 
     def test_rejects_description_missing_trigger(self):
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: example\ndescription: A skill that does example things nicely.\n---\n\nBody.\n",
         )
         self.assertIn("description-missing-trigger", self.codes())
 
     def test_rejects_empty_body(self):
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: example\ndescription: Use when the body is empty.\n---\n\n   \n",
         )
         self.assertIn("body-empty", self.codes())
 
     def test_rejects_dead_backtick_reference(self):
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: example\ndescription: Use when checking dead references.\n---\n\n"
             "Body. See `references/missing.md`.\n",
         )
@@ -101,14 +97,14 @@ class ValidateSkillsTest(unittest.TestCase):
 
     def test_rejects_dead_markdown_link_reference(self):
         self.write(
-            ".claude/skills/example/SKILL.md",
+            ".agents/skills/example/SKILL.md",
             "---\nname: example\ndescription: Use when checking dead references.\n---\n\n"
             "Body. See [detail](references/missing.md) for more.\n",
         )
         self.assertIn("dead-reference", self.codes())
 
     def test_rejects_oversized_skill_md(self):
-        self.budget["skill_budgets"][".claude/skills"]["max_skill_md_bytes"] = 10
+        self.budget["skill_budgets"][".agents/skills"]["max_skill_md_bytes"] = 10
         self.write_budget()
         self.assertIn("byte-budget", self.codes())
 

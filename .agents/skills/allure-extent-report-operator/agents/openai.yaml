@@ -1,6 +1,0 @@
-interface:
-  display_name: "Allure Extent Report Operator"
-  short_description: "Operate report artifacts and summaries"
-  default_prompt: "Use $allure-extent-report-operator."
-policy:
-  allow_implicit_invocation: true

@@ -1,9 +1,23 @@
 {
   "body_path": "memory/workflows/user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py.md",
-  "content_hash": "sha256:69043bad285d8beead339f43710972b3212f07c55849555e3c5e594bd6106d14",
+  "content_hash": "sha256:7ef7e30802abc30056c38244b00394191ff92b58333bb04e692eca44e80abe66",
   "created_at": "2026-07-17T09:20:42+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "scripts/agents/sync_user_harness.py",
+      "kind": "file"
+    },
+    {
+      "id": "tests/scripts/test_sync_user_harness.py",
+      "kind": "file"
+    }
+  ],
   "facets": {
+    "applies_to": [
+      ".claude/user-harness/",
+      "scripts/agents/sync_user_harness.py",
+      ".agents/skills/act-as-mohab/"
+    ],
     "category": "workflow"
   },
   "id": "workflow.user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py",
@@ -23,9 +37,10 @@
     "sync",
     "user-harness",
     "secrets",
-    "workflow"
+    "workflow",
+    "act-as-mohab"
   ],
-  "title": "User-level Claude harness syncs from canonical .claude/user-harness via scripts/agents/sync_user_harness.py",
+  "title": "User-level Claude harness deploys from tracked adapters and the canonical act-as-mohab entrypoint",
   "type": "workflow",
-  "updated_at": "2026-07-17T09:20:42+03:00"
+  "updated_at": "2026-08-01T16:14:23+03:00"
 }

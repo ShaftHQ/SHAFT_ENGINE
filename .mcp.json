@@ -1,5 +1,16 @@
 {
   "mcpServers": {
+    "shaft-memory": {
+      "command": "npx",
+      "args": ["--yes", "--package", "@aictx/memory@0.1.55", "--", "memory-mcp"],
+      "cwd": "."
+    },
+    "mempalace": {
+      "command": "mempalace-mcp",
+      "env": {
+        "MEMPALACE_EMBEDDING_MODEL": "minilm"
+      }
+    },
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]

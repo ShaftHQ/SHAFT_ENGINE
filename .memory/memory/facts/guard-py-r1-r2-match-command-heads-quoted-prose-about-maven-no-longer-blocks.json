@@ -1,6 +1,6 @@
 {
   "body_path": "memory/facts/guard-py-r1-r2-match-command-heads-quoted-prose-about-maven-no-longer-blocks.md",
-  "content_hash": "sha256:26ac22cc092652ab60020ce8f8586c6f1ddeb3c7074a15ded17d38cf701b2a47",
+  "content_hash": "sha256:afb28973a8661a5550cfee02fbb0b66de45f8ba03848f0e8645b31b003d4e709",
   "created_at": "2026-07-11T07:55:36+03:00",
   "evidence": [],
   "facets": {
@@ -19,7 +19,7 @@
   },
   "status": "active",
   "tags": [],
-  "title": "guard.py R1/R2 match command heads; quoted prose about Maven no longer blocks",
+  "title": "Portable guard matches executable command heads without blocking quoted prose",
   "type": "fact",
-  "updated_at": "2026-07-11T07:55:36+03:00"
+  "updated_at": "2026-08-01T16:07:25+03:00"
 }

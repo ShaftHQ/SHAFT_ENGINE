@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/locator-strategy-policy-reconciled-aria-role-shaft-builder-primary-plain-xpath-fallback-smart-locator-excluded-from-generated-code.md",
-  "content_hash": "sha256:efd31fcb3c2c131d831cdb4279cb258363d777da99dd653c5447aa8928c3ab03",
+  "content_hash": "sha256:f97fb8f59da7ce87032127d8a9ef05a5739a0578fa9fcb4acab74e4a8912ddc4",
   "created_at": "2026-07-26T02:46:42+03:00",
   "evidence": [],
   "facets": {
@@ -29,5 +29,5 @@
   ],
   "title": "Locator-strategy policy reconciled: ARIA-role SHAFT builder primary, plain XPath fallback, Smart Locator excluded from generated code",
   "type": "decision",
-  "updated_at": "2026-07-26T02:46:42+03:00"
+  "updated_at": "2026-08-01T16:08:42+03:00"
 }

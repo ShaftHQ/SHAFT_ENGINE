@@ -240,6 +240,6 @@ __pycache__/
 hs_err_pid*.log
 replay_pid*.log
 
-# MemPalace per-project files (issue #185)
-mempalace.yaml
+# MemPalace generated/runtime data; mempalace.yaml is canonical input.
 entities.json
+mempalace_embedder.json
