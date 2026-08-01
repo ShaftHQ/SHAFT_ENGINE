@@ -1,8 +1,21 @@
 {
   "body_path": "memory/facts/io-github-shafthq-shaft-engine-is-the-legacy-relocation-pom-shaft-engine-is-the-live-artifact.md",
-  "content_hash": "sha256:da9b967028361cefbf5db9330a6502fab9916c333b1d19f5bc299964d6b4cd81",
+  "content_hash": "sha256:c5269446062ea1eb232eac4f1961ccfc39d4a8d736a4f7ce6ff014cfdf662f74",
   "created_at": "2026-07-28T00:15:42+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "PR #4295",
+      "kind": "task"
+    },
+    {
+      "id": "legacy-shaft-engine/pom.xml",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/pom.xml",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -25,5 +38,5 @@
   ],
   "title": "io.github.shafthq:SHAFT_ENGINE is the legacy relocation POM; shaft-engine is the live artifact",
   "type": "fact",
-  "updated_at": "2026-07-28T00:15:42+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

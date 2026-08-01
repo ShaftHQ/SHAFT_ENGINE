@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shlex-split-eats-bare-backslashes-in-windows-paths.md",
-  "content_hash": "sha256:613f7302b5a6c8505973797e3a0f44b4c150a4222cd12f698b89655ce8b7621f",
+  "content_hash": "sha256:e08814fc56b2863bb3e0f6ce61e258ca991ef7d9769d73d95bd70631a517ce14",
   "created_at": "2026-07-08T17:00:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "198346c737b9e8aff2e94f59ef21f88ebd2e305b",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "scripts/ci/"
@@ -29,5 +34,5 @@
   ],
   "title": "shlex.split() eats bare backslashes in Windows paths",
   "type": "gotcha",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/concurrent-agents-sharing-one-m2-prefer-compile-package-over-install.md",
-  "content_hash": "sha256:60b4443a9a3efafbc158e6c41f415a4a3637a5b514ce1482b4d8e64769861695",
+  "content_hash": "sha256:0bbfce6aaca84f1863e00c88c0f5622d1ec1a5775b5ecf24a33038fec5ba2fc9",
   "created_at": "2026-07-26T10:25:51+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "28f0b49bf6b0741f251064810696c724763df969",
+      "kind": "commit"
+    },
+    {
+      "id": "06484e700b5b9d7c6c372c7cb8618bac959609d0",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "Concurrent agents sharing one .m2: prefer compile/package over install",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:25:51+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/intellij-assistant-3695-run-timeline-list-removed-folded-into-per-message-chat-bubbles.md",
-  "content_hash": "sha256:a3c82c33aafde8716d6ff0d325fd65ea1db446c45125c9bbafa08696559e5724",
+  "content_hash": "sha256:6a410682b6de39a53b4cefdcf2597a19a7460056d3b6eee704b5747bec9c7707",
   "created_at": "2026-07-17T23:38:38+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3672",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "IntelliJ Assistant #3695: Run timeline list removed, folded into per-message chat bubbles",
   "type": "decision",
-  "updated_at": "2026-07-17T23:38:38+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

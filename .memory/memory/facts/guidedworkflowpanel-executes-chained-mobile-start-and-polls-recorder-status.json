@@ -1,8 +1,13 @@
 {
   "body_path": "memory/facts/guidedworkflowpanel-executes-chained-mobile-start-and-polls-recorder-status.md",
-  "content_hash": "sha256:35a9e3771317b6949f57c4222fd56b3f4adc075dfceed8e155766698d2add011",
+  "content_hash": "sha256:2d01626e4cfc367c78dae30ff3b52322e54daab18404f9e1f03d63d29018e896",
   "created_at": "2026-07-11T07:55:36+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "71d32413601a9d2a2522616f4661dda47eec44bf",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "GuidedWorkflowPanel executes chained mobile start and polls recorder status",
   "type": "fact",
-  "updated_at": "2026-07-11T07:55:36+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

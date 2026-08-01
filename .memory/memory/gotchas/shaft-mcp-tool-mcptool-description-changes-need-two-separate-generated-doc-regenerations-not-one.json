@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-mcp-tool-mcptool-description-changes-need-two-separate-generated-doc-regenerations-not-one.md",
-  "content_hash": "sha256:a7dd8a78d48d5e1c2c02c4f83adeab0b3a599f2961a03ab83226b01abd2cb347",
+  "content_hash": "sha256:59bf3839cf7e6da2ef93ac0a1225f4fe7401eccf4223d34eac1423f0d85a533e",
   "created_at": "2026-07-27T11:11:04+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "79b6b970faef0e3f3c825d4cdc06ff4a12f3316a",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "shaft-mcp @Tool/@McpTool description changes need TWO separate generated-doc regenerations, not one",
   "type": "gotcha",
-  "updated_at": "2026-07-27T11:11:04+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

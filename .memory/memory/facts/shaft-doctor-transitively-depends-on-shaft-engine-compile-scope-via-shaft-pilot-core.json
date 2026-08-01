@@ -1,8 +1,13 @@
 {
   "body_path": "memory/facts/shaft-doctor-transitively-depends-on-shaft-engine-compile-scope-via-shaft-pilot-core.md",
-  "content_hash": "sha256:3bae4311f9e22b5c82456b5a7f35d7bbb88767543ae4b544407f93270395f6d9",
+  "content_hash": "sha256:08625787e053f87ff1696f0b0eec1ffa52953afc3c18d14f196281da45a71eff",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "b6967b6c839a14b7d566fbf5c6ae118a3d125702",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "shaft-doctor transitively depends on shaft-engine (compile scope via shaft-pilot-core)",
   "type": "fact",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

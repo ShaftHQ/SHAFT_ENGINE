@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-a-click-to-toggle-swing-row-wired-only-with-mouselistener-is-not-keyboard-reachable.md",
-  "content_hash": "sha256:c6dbf7dc61e13961af5a8ef8b6b5c089a9c1fc752ae14e1a6e97d4910e0e637c",
+  "content_hash": "sha256:9891ce758cd6dbe3676e2a771918a02077906f3cd0296e8d0b884228f85a10e5",
   "created_at": "2026-07-16T09:46:44+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "d18a4079fc842694ed0c2f9a07b19e4513c77402",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "shaft-intellij: a click-to-toggle Swing row wired only with MouseListener is not keyboard-reachable",
   "type": "gotcha",
-  "updated_at": "2026-07-16T09:46:44+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

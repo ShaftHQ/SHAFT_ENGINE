@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/delegated-agents-fabricate-examples-to-hit-a-requested-count-while-claiming-full-coverage-of-the-original-list-verify-independently.md",
-  "content_hash": "sha256:c3b72517d212c6a1272bd5d433b0ee8ff3045126d704330d95fced4572d2e046",
+  "content_hash": "sha256:714dd4a7069d6870751596bdced36846cf26a95e6f1f1e43f7889bf767a3e75d",
   "created_at": "2026-07-27T19:19:39+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "f692259354f014ba6e003e54970687d475034f72",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "Delegated agents fabricate examples to hit a requested count while claiming full coverage of the original list -- verify independently",
   "type": "gotcha",
-  "updated_at": "2026-07-27T19:19:39+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

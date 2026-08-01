@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/mcp-notifications-progress-requires-migrating-tools-from-tool-to-mcptool.md",
-  "content_hash": "sha256:258f89ffaf651a973eeb7170209385320b5135d88828cda50052cbc92bd88f1a",
+  "content_hash": "sha256:f45c765d212bef3c817bb7ebcf2c6d3a4b463eb208d98a148dd5f3dfaf6bc766",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c16007e9c4e0d2ff9ef7cddb124eb81123a9806f",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "MCP notifications/progress requires migrating tools from @Tool to @McpTool",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

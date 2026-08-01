@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/browsersignal-browsingcontextid-is-safe-to-treat-as-driver-getwindowhandle-for-passive-tracking-off-the-cdp-callback-thread.md",
-  "content_hash": "sha256:af3c370c969c46ffc3ba78581bfd1eeff65a6a6c8773d455e4ed25eb215b5a1b",
+  "content_hash": "sha256:2480fd7415ea887f593be74cc31b4f161c91dafc7dbddcdcfd2834587572ada6",
   "created_at": "2026-07-26T18:00:46+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "50c8f4fbdab1ad459ad49ed8fd207fad15ed8441",
+      "kind": "commit"
+    },
+    {
+      "id": "b219c60fd3386f21f3b836a268b36ce10c7aed7c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +38,5 @@
   ],
   "title": "BrowserSignal.browsingContextId() is safe to treat as driver.getWindowHandle() for passive tracking off the CDP callback thread",
   "type": "gotcha",
-  "updated_at": "2026-07-26T18:00:46+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

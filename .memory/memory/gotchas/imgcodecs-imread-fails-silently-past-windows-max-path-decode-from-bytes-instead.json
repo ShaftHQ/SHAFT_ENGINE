@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/imgcodecs-imread-fails-silently-past-windows-max-path-decode-from-bytes-instead.md",
-  "content_hash": "sha256:c5faddf0e43bd9ce5a8dd016f54e952dbe8b6fb778c9790ce6299133316af50e",
+  "content_hash": "sha256:cc890a1533dd9bdc87f2328f1026e67a84be9358e75a8f7cd8406395d47ef9e2",
   "created_at": "2026-07-12T14:28:57+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "08a1d499265848b072360066abeebc2ee4c3d43a",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Imgcodecs.imread fails silently past Windows MAX_PATH; decode from bytes instead",
   "type": "gotcha",
-  "updated_at": "2026-07-12T14:28:57+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

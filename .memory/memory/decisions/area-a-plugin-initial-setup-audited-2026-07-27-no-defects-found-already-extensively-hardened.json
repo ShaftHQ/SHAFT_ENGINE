@@ -1,8 +1,21 @@
 {
   "body_path": "memory/decisions/area-a-plugin-initial-setup-audited-2026-07-27-no-defects-found-already-extensively-hardened.md",
-  "content_hash": "sha256:79b3a4b067e41ceff6928af24a6f579175988f720ec5f7445cc0e505606b8ee4",
+  "content_hash": "sha256:ff28621398d0031c1adf892af2ff87fd6aa1cce3dfb2c75356cf0e758df1c521",
   "created_at": "2026-07-27T07:30:07+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "fe11e8ff1b5b8b0f071d39761d124866deb98a2a",
+      "kind": "commit"
+    },
+    {
+      "id": "b08f004c39664468651d7cd9db9948a7bfe74e0f",
+      "kind": "commit"
+    },
+    {
+      "id": "484674e02415f0d1dcf3b15262247b3fd8db0652",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -28,5 +41,5 @@
   ],
   "title": "Area A (plugin initial setup) audited 2026-07-27: no defects found, already extensively hardened",
   "type": "decision",
-  "updated_at": "2026-07-27T07:30:07+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,21 @@
 {
   "body_path": "memory/decisions/scheduled-e2e-ci-fixes-pr-3408.md",
-  "content_hash": "sha256:870e90738ccd5849d7c3f23e648d2faa6ebd8606a1b73827924c4e5e89443e19",
+  "content_hash": "sha256:eb090d385530c380f7f8ad802f69d96f6a408ae57866448987a179d24218ab80",
   "created_at": "2026-07-09T07:09:54+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "639ae8e0cb6891e07e7a16958b29fd929b7d3722",
+      "kind": "commit"
+    },
+    {
+      "id": "a2d32cdde746d7d82f874c0c87795eb010bb4741",
+      "kind": "commit"
+    },
+    {
+      "id": "796a4e0677b592f977c83d95e19d4b743712aeb3",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-sikulix/pom.xml",
@@ -32,5 +45,5 @@
   ],
   "title": "Scheduled E2E CI fixes PR #3408",
   "type": "decision",
-  "updated_at": "2026-07-09T07:09:54+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

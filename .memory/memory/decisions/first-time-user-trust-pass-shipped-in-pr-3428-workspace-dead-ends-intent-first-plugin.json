@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/first-time-user-trust-pass-shipped-in-pr-3428-workspace-dead-ends-intent-first-plugin.md",
-  "content_hash": "sha256:b2cc74e6f5e7afa4301833806cb8c3a8035e7a91a2da4cdd43071996c0e00d51",
+  "content_hash": "sha256:5b033ad768908f3848ca537c982dde841c4aebed4d04124928800df940a49be3",
   "created_at": "2026-07-11T14:22:14+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c19c6975f1634519a9cb64d38fdeb03fddb14619",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "First-time-user trust pass shipped in PR #3428 (workspace, dead ends, intent-first plugin)",
   "type": "decision",
-  "updated_at": "2026-07-11T14:22:14+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

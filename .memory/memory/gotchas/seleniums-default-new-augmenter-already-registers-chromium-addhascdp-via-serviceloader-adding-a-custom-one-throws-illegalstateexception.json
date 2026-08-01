@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/seleniums-default-new-augmenter-already-registers-chromium-addhascdp-via-serviceloader-adding-a-custom-one-throws-illegalstateexception.md",
-  "content_hash": "sha256:70b2afc13c00df327a91a0080b9db27fd287a071be257f682de0342f39864c77",
+  "content_hash": "sha256:514fedd03d979af6880d0eb4d3ef894ba1714888301be00a3a77e38dd6f2b9c0",
   "created_at": "2026-07-19T22:15:10+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "d5bd860de73b74c6516d08e1a15ea8a2f4b125a8",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "Selenium's default new Augmenter() already registers chromium AddHasCdp via ServiceLoader -- adding a custom one throws IllegalStateException",
   "type": "gotcha",
-  "updated_at": "2026-07-19T22:15:10+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

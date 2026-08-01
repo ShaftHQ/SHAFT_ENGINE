@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/pilot-tests-release-validators-run-fully-only-on-release-prs-mid-cycle-regressions-surface-late.md",
-  "content_hash": "sha256:13ead110fa3c134a7ec26d872a5a1970c07afa3009abf59fee8ff93f2292ee3f",
+  "content_hash": "sha256:7a368c77e41f1d5c05d64d4692a9d47b8779f1cbd44429114d9c295e72566902",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "133c76ec8cc13c89e41464a25732e6dfc07976b4",
+      "kind": "commit"
+    },
+    {
+      "id": "65ebc8e3f664c0a41ad20a3bad90a1e29cdcb566",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +35,5 @@
   ],
   "title": "Pilot tests + release validators run fully only on release PRs -- mid-cycle regressions surface late",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/two-same-named-networkcaptureoptions-types-are-hand-translated-with-no-compiler-guard.md",
-  "content_hash": "sha256:1294a37702718f7ee52d7db8da5d3b50286746f3c61f161f42007d11fb46b8f8",
+  "content_hash": "sha256:d305f314f881d8b699696d939cb970697294fdc8ef8bdc4cd5891ccdbe716da9",
   "created_at": "2026-07-26T10:58:55+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "68f0a3d24e326126e5cd9e20dc7d3f10ff8bc229",
+      "kind": "commit"
+    },
+    {
+      "id": "5cd02119ca1337c3da241e341f3f9cb8f963472f",
+      "kind": "commit"
+    },
+    {
+      "id": "55263b27925d6201eb91b92e916f47ca7b0b80f9",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java",
@@ -32,5 +45,5 @@
   ],
   "title": "Two same-named NetworkCaptureOptions types are hand-translated with no compiler guard",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:58:55+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/in-page-replayxpath-emitter-scoped-to-role-strategy-only-label-strategy-left-alone.md",
-  "content_hash": "sha256:d04f056cf41a69776c4adccf35550f83ef7668d5c20bbb689969f1fa953b1d31",
+  "content_hash": "sha256:71b87336c5ebc9b1e3bc1338fb5089f23dd49d47663db52da5322cff4db3c425",
   "created_at": "2026-07-26T09:52:26+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "48cbc505edae3eb218b0cc8d4e046ab15c01ee77",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "In-page replayXpath emitter scoped to ROLE strategy only; LABEL strategy left alone",
   "type": "decision",
-  "updated_at": "2026-07-26T09:52:26+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

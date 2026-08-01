@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/intellij-gradle-jacoco-reports-0-unless-includenolocationclasses-instrumented-classdirectories.md",
-  "content_hash": "sha256:32d6a1e752dad1912cdc7904e15e7ea9ce7b2b1dd273691e667d07a32797d22a",
+  "content_hash": "sha256:19729d15852aebe928407a4fbaf1f0d2f7f248bac2e67ddec67d556ca02f1e77",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "83c9f8c232bbbee8b8969957bcd394cfe6ee1550",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "IntelliJ Gradle JaCoCo reports 0% unless includeNoLocationClasses + instrumented classDirectories",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

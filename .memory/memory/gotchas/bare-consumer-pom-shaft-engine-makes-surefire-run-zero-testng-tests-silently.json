@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/bare-consumer-pom-shaft-engine-makes-surefire-run-zero-testng-tests-silently.md",
-  "content_hash": "sha256:3a9432d5c23e0798cdd393a47d1479879f4a486885e3baa6dc9d6be365b2e629",
+  "content_hash": "sha256:22ba7d5b413023ac3ba9f05629f6ef525b8ff85d3386fdbd07ec2e96b7278923",
   "created_at": "2026-07-11T14:22:14+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c19c6975f1634519a9cb64d38fdeb03fddb14619",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Bare consumer pom + shaft-engine makes Surefire run zero TestNG tests silently",
   "type": "gotcha",
-  "updated_at": "2026-07-11T14:22:14+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/captureservice-generateapi-gated-codeblocks-on-report-status-success-dropping-compiled-but-unconfirmed-code-issue-4311.md",
-  "content_hash": "sha256:13aeddaa3ef8a5878f2b217034d7e010590745ea62d0026665d7baf39c5c958e",
+  "content_hash": "sha256:de1e15f8845873eb4266a54b4dfd7c4afca1aa698d043c4f60487d0b6ef1d9d4",
   "created_at": "2026-07-28T11:29:21+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "b74aad833dafe5e7a94bde12026424068af73989",
+      "kind": "commit"
+    },
+    {
+      "id": "5aed165ec70e732e42db998259562bbd82351052",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -30,5 +39,5 @@
   ],
   "title": "CaptureService#generateApi gated codeBlocks on report.status()==SUCCESS, dropping compiled-but-UNCONFIRMED code (issue #4311)",
   "type": "gotcha",
-  "updated_at": "2026-07-28T11:29:21+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/actionscoverageunittest-screenshotthrows-real-awt-screenshot-leak-despite-fully-mocked.md",
-  "content_hash": "sha256:b867362f9148d81db2fe9658ae3af5f5e10b06a06ed3640db3582082150025e9",
+  "content_hash": "sha256:87ff3acf18e109b295b40ba72c36812c2e20c4345bb8787f8c0a7dbe4a72ee46",
   "created_at": "2026-07-28T06:52:33+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ed484e574f51ce5be14e032981429af19c6e7e7c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "ActionsCoverageUnitTest#performActionShouldReportOriginalExceptionAsRootCauseWhenFailureScreenshotThrows leaks a REAL AWT screenshot capture despite being 'fully mocked'",
   "type": "gotcha",
-  "updated_at": "2026-07-28T06:52:33+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/crash-orphaned-branch-may-already-be-landed-under-a-different-pr-diff-against-master-main-before-assuming-its-unlanded-work.md",
-  "content_hash": "sha256:a7cce6837e215d266bed2c753a77f1dab63f7084a46c51ffbb8e68dfb382428e",
+  "content_hash": "sha256:2ae4cfcafd9334787a037be977b299a62429f2a48e565ab972bad4aa654aa541",
   "created_at": "2026-07-27T14:55:24+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ShaftHQ/shafthq.github.io#881",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Crash-orphaned branch may already be landed under a different PR -- diff against master/main before assuming it's unlanded work",
   "type": "gotcha",
-  "updated_at": "2026-07-27T14:55:24+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

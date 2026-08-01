@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/min-interval-render-throttle-cannot-fix-o-n-2-streaming-re-render-when-each-render-exceeds-the-interval.md",
-  "content_hash": "sha256:4e17a88ac1bdd03ed18dc7341b9137a46517850550484e88efc44d258b269688",
+  "content_hash": "sha256:3ce1a401bb613600ed07f40fcb52191032c0e915ec87c79c34a055b3f03d822c",
   "created_at": "2026-07-19T11:59:34+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "31c69fa32bd360e67e7474f9f075ee5d35f2dee0",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Min-interval render throttle cannot fix O(N^2) streaming re-render when each render exceeds the interval",
   "type": "gotcha",
-  "updated_at": "2026-07-19T11:59:34+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

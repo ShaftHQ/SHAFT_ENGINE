@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/refresh-shaft-captures-m2-snapshot-too-not-just-shaft-engine-for-shaft-mcp-builds.md",
-  "content_hash": "sha256:dc7365e6372df47111bd26eb02bec971ad0b533da7db066f1299616bf8399b0f",
+  "content_hash": "sha256:b372594a4d9591b48d78c8c1bbb7ec3cbd4f072a01ae422db11e35a90c47d4c3",
   "created_at": "2026-07-12T17:28:33+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "7ddc3e5740d0e924c501437825c880992ba58ad8",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-mcp/pom.xml",
@@ -31,5 +36,5 @@
   ],
   "title": "Refresh shaft-capture's .m2 snapshot too, not just shaft-engine, for shaft-mcp builds",
   "type": "gotcha",
-  "updated_at": "2026-07-12T17:28:33+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,21 @@
 {
   "body_path": "memory/facts/pr-gate-yml-is-the-only-branch-meaningful-ci-badge-e2etests-yml-is-schedule-only.md",
-  "content_hash": "sha256:c1877eefc7e2e29cd134720466bebdffb73f7bf15a6f5135cf9bf4e506d9c4bc",
+  "content_hash": "sha256:dc718310848b656646469653f9309eeab0d3fa9494d62e98ed89cdd1012c4217",
   "created_at": "2026-07-28T00:15:42+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "PR #4295",
+      "kind": "task"
+    },
+    {
+      "id": ".github/workflows/e2eTests.yml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/pr-gate.yml",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -25,5 +38,5 @@
   ],
   "title": "pr-gate.yml is the only branch-meaningful CI badge; e2eTests.yml is schedule-only",
   "type": "fact",
-  "updated_at": "2026-07-28T00:15:42+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

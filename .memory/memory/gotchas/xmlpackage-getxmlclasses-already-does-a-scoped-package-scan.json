@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/xmlpackage-getxmlclasses-already-does-a-scoped-package-scan.md",
-  "content_hash": "sha256:0d073958938e5ed9a84792cea716463a0da52f54edbf072cdb6f94a7ba43b17a",
+  "content_hash": "sha256:3331b8a94d06bd7aa83bbdd20a5db5fb05e3c99fbaf9d20030586e36e79d241c",
   "created_at": "2026-07-26T18:13:02+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/tools/io/internal/ProjectStructureManager.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "XmlPackage.getXmlClasses() already does a scoped package scan",
   "type": "gotcha",
-  "updated_at": "2026-07-26T18:13:02+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:cf6afa4d5b31d76df0f244601fc5400580dfb37b68f31626a7b8233970e98148",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "scripts/ci/validate_agent_setup.py",
+      "kind": "file"
+    }
+  ],
+  "from": "gotcha.shlex-split-eats-bare-backslashes-in-windows-paths",
+  "id": "rel.shlex-split-eats-bare-backslashes-in-windows-paths-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

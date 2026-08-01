@@ -1,8 +1,21 @@
 {
   "body_path": "memory/decisions/local-agent-cli-runner-always-closes-stdin-immediately-interactive-approval-bridge-removed.md",
-  "content_hash": "sha256:e3aac27f86d841f864dc98889e0c44ed3b1c7c3304808569a8420172d046118b",
+  "content_hash": "sha256:31e66c0fdc7a94171737f71b63cb4ea30235621650b5e305ad0042e15301df05",
   "created_at": "2026-07-09T11:18:37+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "288a95972e9d601f92f2e49d9b0f4163a439fd58",
+      "kind": "commit"
+    },
+    {
+      "id": "b74aad833dafe5e7a94bde12026424068af73989",
+      "kind": "commit"
+    },
+    {
+      "id": "e08834284ca8a1e34e5c2c3fe4a9531b97f72c7c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java",
@@ -33,5 +46,5 @@
   ],
   "title": "Local-agent CLI runner always closes stdin immediately; interactive approval bridge removed",
   "type": "decision",
-  "updated_at": "2026-07-09T11:18:37+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

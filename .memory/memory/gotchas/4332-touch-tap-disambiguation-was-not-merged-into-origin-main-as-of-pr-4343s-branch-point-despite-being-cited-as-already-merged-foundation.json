@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/4332-touch-tap-disambiguation-was-not-merged-into-origin-main-as-of-pr-4343s-branch-point-despite-being-cited-as-already-merged-foundation.md",
-  "content_hash": "sha256:6cffc0ba1bd975c3b9b69c0e284f3791d90ef727d4e2ee8e33910c11af1bc8c2",
+  "content_hash": "sha256:896721f4c5bda7f5d983e76f88dcddc2a4c05f639a9a44d2f26104106d132db1",
   "created_at": "2026-07-28T14:47:44+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "eaea8d5c9865b3fa96db167d88d7d33aa00684ce",
+      "kind": "commit"
+    },
+    {
+      "id": "10ef39ed312217248671eb0f7e51535e7ec874e8",
+      "kind": "commit"
+    },
+    {
+      "id": "f857df440ac17469f81ccb3c78b0d87b22da399c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +40,5 @@
   ],
   "title": "#4332 (touch/tap disambiguation) was NOT merged into origin/main as of PR #4343's branch point, despite being cited as already-merged foundation",
   "type": "gotcha",
-  "updated_at": "2026-07-28T14:47:44+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

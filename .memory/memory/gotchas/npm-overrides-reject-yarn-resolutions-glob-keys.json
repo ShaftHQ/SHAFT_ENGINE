@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/npm-overrides-reject-yarn-resolutions-glob-keys.md",
-  "content_hash": "sha256:efaf78229d294fbf37496376036b1e84a3c4091bb28535e53a8d6d10bbc17839",
+  "content_hash": "sha256:89dd1e58575f258ad64dcf04e3bf82c4d47b2dbcc44ee26b35c93090da8d9d58",
   "created_at": "2026-07-19T16:03:19+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ShaftHQ/shafthq.github.io#828",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "npm overrides reject yarn-resolutions glob keys",
   "type": "gotcha",
-  "updated_at": "2026-07-19T16:03:19+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

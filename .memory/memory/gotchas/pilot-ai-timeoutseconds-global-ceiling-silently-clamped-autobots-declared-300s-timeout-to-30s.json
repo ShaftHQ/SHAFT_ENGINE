@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/pilot-ai-timeoutseconds-global-ceiling-silently-clamped-autobots-declared-300s-timeout-to-30s.md",
-  "content_hash": "sha256:f526f836c5e301d4d25e7782ae9e822bc76126b245ba15c601a39f089b70d6c2",
+  "content_hash": "sha256:eb9a268e6bf51f5c197b00468b8cfc417f4fcda8603e09d328406150ef709e75",
   "created_at": "2026-07-29T15:34:59+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "2e9311ab7480be581a8d576d041d21e051a5ea9d",
+      "kind": "commit"
+    },
+    {
+      "id": "5e5a2693527811f020c532c3a0f9fea8d8bb619e",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "pilot.ai.timeoutSeconds global ceiling silently clamped autobot's declared 300s timeout to 30s",
   "type": "gotcha",
-  "updated_at": "2026-07-29T15:34:59+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-mcp-bom-import-ordering-beats-reactor-pins.md",
-  "content_hash": "sha256:da52c0de7a9b51a011e6a846b0956db14aa783dc7ffe1e282ab70041ae4b0838",
+  "content_hash": "sha256:05eb30ea2e583f316af1e0760c9366865d7a0ce16236bc1ea81ddf02c0f41462",
   "created_at": "2026-07-26T00:42:48+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "28f0b49bf6b0741f251064810696c724763df969",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-mcp/pom.xml",
@@ -33,5 +38,5 @@
   ],
   "title": "shaft-mcp's own BOM import ordering beats reactor and sibling-module version pins",
   "type": "gotcha",
-  "updated_at": "2026-07-26T00:42:48+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

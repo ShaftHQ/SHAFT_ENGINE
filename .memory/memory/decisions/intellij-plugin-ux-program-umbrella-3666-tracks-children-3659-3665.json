@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/intellij-plugin-ux-program-umbrella-3666-tracks-children-3659-3665.md",
-  "content_hash": "sha256:0cfd740af4d8904e3a31eee188531a57c147a7bb1857d966e6c9175056a205c7",
+  "content_hash": "sha256:1729f4110ad6ee0ed44cf1e50d2ca0d05f34b3ae702f2c12db58db9fefca641d",
   "created_at": "2026-07-17T16:50:31+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "8019ac2684ce384a3c6543b99456ee637c8173d5",
+      "kind": "commit"
+    },
+    {
+      "id": "e51b4fc04f259d94ecd242a9bc49cd5e10fdbcd2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "IntelliJ plugin UX program: umbrella #3666 tracks children #3659-#3665",
   "type": "decision",
-  "updated_at": "2026-07-17T16:50:31+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

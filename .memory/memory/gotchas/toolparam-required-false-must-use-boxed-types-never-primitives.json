@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/toolparam-required-false-must-use-boxed-types-never-primitives.md",
-  "content_hash": "sha256:e2986dfbb50dffdbb26025f899b0bf36c3c06ff753850436cacd1b24c310f1e2",
+  "content_hash": "sha256:daad51065a2fff7faf0787a67632982174f65dde1f00373da2a3db103c5d4cdf",
   "created_at": "2026-07-18T19:12:24+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "a4563a08d1ad6a0f8f34511c6e7e9218c8e4b419",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "@ToolParam(required=false) must use boxed types, never primitives",
   "type": "gotcha",
-  "updated_at": "2026-07-18T19:12:24+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

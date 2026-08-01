@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/pluginmanagercore-getplugin-pluginid-is-now-internal-fails-shaft-intellij-verifyplugin-gate.md",
-  "content_hash": "sha256:93c9d59593e9d312429d28ccb7270b411223518c1934e4f7daf41f6d8198cc2e",
+  "content_hash": "sha256:aa8f2f3bf3f22a00a24b102549efe2c578b0aa6998d3204bcf4967c9cb005383",
   "created_at": "2026-07-15T16:34:01+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "35bcd0f74ec0cb407d31a483dfdbaa508f191633",
+      "kind": "commit"
+    },
+    {
+      "id": "4d5b64b1fd45074b01b39d63eac60a1bd4772283",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "PluginManagerCore.getPlugin(PluginId) is now Internal -- fails shaft-intellij verifyPlugin gate",
   "type": "gotcha",
-  "updated_at": "2026-07-15T16:34:01+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }
