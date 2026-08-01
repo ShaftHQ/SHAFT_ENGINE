@@ -391,6 +391,23 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertEqual("keep me too", top_level_user_file.read_text(encoding="utf-8"))
             self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
 
+    def test_install_shaft_skills_rejects_linked_native_parent_before_legacy_cleanup(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            external = root / "external"
+            legacy = external / "skills" / "writing-shaft-tests"
+            (legacy / "agents").mkdir(parents=True)
+            (legacy / "SKILL.md").write_text(
+                "---\nname: writing-shaft-tests\n---\n# Retired SHAFT skill\n", encoding="utf-8")
+            (legacy / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
+            os.symlink(external, root / ".agents", target_is_directory=True)
+
+            with self.assertRaisesRegex(MODULE.InstallError, "linked native skill path"):
+                MODULE.install_shaft_skills(root, root / "bootstrap", "codex")
+
+            self.assertTrue(legacy.is_dir())
+            self.assertFalse((external / "skills" / "shaft-developer").exists())
+
     def test_install_shaft_skills_downloads_raw_files_without_repo_archive(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

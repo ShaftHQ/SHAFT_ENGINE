@@ -961,10 +961,29 @@ def download_agent_validation_script_files(target: Path) -> Path:
     return target / "scripts" / "ci"
 
 
+def is_link_or_junction(path: Path) -> bool:
+    """Whether a path can redirect native skill installation outside the project."""
+    try:
+        is_junction = getattr(path, "is_junction", None)
+        return path.is_symlink() or (is_junction() if is_junction is not None else False)
+    except OSError:
+        return True
+
+
+def native_skill_target(current_directory: Path, directory: str) -> Path:
+    """Return an unlinked native skill path without resolving any native component."""
+    target = Path(os.path.abspath(current_directory))
+    for component in Path(directory).parts:
+        target /= component
+        if is_link_or_junction(target):
+            fail(f"Refusing linked native skill path: {target}", 4)
+    return target
+
+
 def shaft_skills_targets(current_directory: Path, client: str | None) -> list[Path]:
     directories = (SHAFT_SKILLS_NATIVE_DIRECTORIES.get(client, SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
                    if client else SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
-    return [(current_directory.resolve() / directory).resolve() for directory in directories]
+    return [native_skill_target(current_directory, directory) for directory in directories]
 
 
 def install_shaft_skills(current_directory: Path, root: Path, client: str | None = None) -> list[Path]:
