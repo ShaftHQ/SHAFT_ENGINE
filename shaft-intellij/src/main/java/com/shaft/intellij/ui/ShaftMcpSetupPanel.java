@@ -29,6 +29,7 @@ import javax.swing.JProgressBar;
 import javax.swing.JTextPane;
 import javax.swing.Timer;
 import javax.swing.Icon;
+import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
@@ -92,6 +93,7 @@ final class ShaftMcpSetupPanel extends JPanel {
      * #4314 fix 4), so {@link #styleStepRow} can show it only in the "done" state without a
      * dedicated field per row. */
     private static final String STEP_RECHECK_KEY = "shaft.stepRow.recheck";
+    private static final String STEP_BORDER_KEY = "shaft.stepRow.border";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -2233,10 +2235,12 @@ final class ShaftMcpSetupPanel extends JPanel {
     private JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(true);
+        row.setAlignmentX(LEFT_ALIGNMENT);
         GridBagConstraints labelConstraints = new GridBagConstraints();
         labelConstraints.gridx = 0;
         labelConstraints.gridy = 0;
         labelConstraints.anchor = GridBagConstraints.WEST;
+        labelConstraints.weightx = 1.0;
         labelConstraints.insets = JBUI.insets(0, 0, 0, 10);
         row.add(label, labelConstraints);
         GridBagConstraints stateConstraints = new GridBagConstraints();
@@ -2335,6 +2339,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         JComponent action = stepRowAction(row);
         if (action != null) {
             action.setVisible(!collapsed);
+        }
+        row.setOpaque(!collapsed);
+        if (collapsed) {
+            row.setBorder(JBUI.Borders.empty(2, 8));
+        } else if (row.getClientProperty(STEP_BORDER_KEY) instanceof Border border) {
+            row.setBorder(border);
         }
     }
 
@@ -2460,19 +2470,22 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private static void styleStepRow(JPanel row, String state) {
+        row.setOpaque(true);
         row.setBackground(switch (state) {
             case "next", "checking", "optional" -> UIManagerColors.activeBackground();
             case "done" -> UIManagerColors.doneBackground();
             default -> UIManagerColors.panelBackground();
         });
-        row.setBorder(JBUI.Borders.compound(
+        Border border = JBUI.Borders.compound(
                 JBUI.Borders.customLine(switch (state) {
                     case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
                     case "done" -> ShaftStatusPresentation.success();
                     case "failed" -> ShaftStatusPresentation.error();
                     default -> UIManagerColors.border();
                 }, 1),
-                JBUI.Borders.empty(8)));
+                JBUI.Borders.empty(8));
+        row.setBorder(border);
+        row.putClientProperty(STEP_BORDER_KEY, border);
         // Issue #4314 fix 4: the recheck icon only signals something once there is something to
         // recheck -- i.e. once the row has actually finished, matching the "done rows are the ones
         // worth re-inspecting" behavior toggleStepRowInspection already assumes.

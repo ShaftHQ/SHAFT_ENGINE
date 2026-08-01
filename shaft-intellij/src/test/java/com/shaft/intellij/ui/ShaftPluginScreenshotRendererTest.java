@@ -1819,6 +1819,43 @@ class ShaftPluginScreenshotRendererTest {
                     label.getSize().height + ", Preferred: " + label.getPreferredSize().height);
         }
 
+        // The setup journey is a progressive stepper, not a stack of equal-weight cards. Only the
+        // current task may carry a filled surface; collapsed summaries stay left-aligned, borderless
+        // and keyboard-inspectable through the panel's existing row bindings.
+        final List<JPanel> allStepRows = new ArrayList<>();
+        walkComponentsForVerification(setupPanel, comp -> {
+            if (comp instanceof JPanel panel
+                    && panel.getClientProperty("shaft.stepRow.action") instanceof JComponent) {
+                allStepRows.add(panel);
+            }
+        });
+        int expandedRows = 0;
+        int readyRows = 0;
+        for (JPanel stepRow : allStepRows) {
+            JComponent action = (JComponent) stepRow.getClientProperty("shaft.stepRow.action");
+            boolean readySummary = stepRow.getComponentCount() > 0
+                    && stepRow.getComponent(0) instanceof JLabel label
+                    && "Ready".equals(label.getText());
+            if (readySummary) {
+                if (isEffectivelyVisible(action)) {
+                    readyRows++;
+                    assertTrue(stepRow.isVisible(),
+                            "The separate Ready / Start chatting state must only surface with its row");
+                }
+            } else if (action.isVisible()) {
+                expandedRows++;
+            } else {
+                assertFalse(stepRow.isOpaque(),
+                        "Collapsed setup steps must not render as full-width cards: " + stepRow.getName());
+                assertTrue(stepRow.getBorder().getBorderInsets(stepRow).top <= 4,
+                        "Collapsed setup steps need compact vertical rhythm");
+                assertTrue(stepRow.getComponent(0) instanceof JLabel summary && summary.getX() <= 16,
+                        "Collapsed setup summaries must remain left-aligned, not centered");
+            }
+        }
+        assertTrue(expandedRows <= 1, "Only the current setup task should expand by default");
+        assertTrue(readyRows <= 1, "Ready / Start chatting must remain one separate success state");
+
         // Verify every step row's nested child panels are either non-opaque (so the
         // step's accent background shows through) or explicitly painted with that same
         // step's background color. Each wizard step (upgradeRow, chooseRow, installRow,
