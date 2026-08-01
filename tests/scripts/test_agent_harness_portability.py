@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GUARD = ROOT / "scripts/agents/guard.py"
+ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".claude", ".codex")
 
 
 def markdown_body(path: Path) -> str:
@@ -28,6 +29,29 @@ def markdown_body(path: Path) -> str:
 
 def hook_groups(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))["hooks"]
+
+
+def absolute_guidance_path_offenders(
+    root: Path, tracked_paths: list[Path] | None = None
+) -> list[str]:
+    if tracked_paths is None:
+        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
+            ["git", "ls-files", "-z", "--", *ACTIVE_GUIDANCE_PATHS],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        tracked_paths = [Path(path) for path in tracked.stdout.split("\0") if path]
+    forbidden = re.compile(
+        r"(?:(?<![A-Za-z0-9])[A-Za-z]:[\\/]|/(?:Users|home)/[^/\s]+|\$\{CLAUDE_PROJECT_DIR\})"
+    )
+    return [
+        path.as_posix()
+        for path in tracked_paths
+        if (root / path).is_file()
+        and forbidden.search((root / path).read_text(encoding="utf-8", errors="ignore"))
+    ]
 
 
 class AgentHarnessPortabilityTest(unittest.TestCase):
@@ -57,18 +81,23 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertFalse((ROOT / ".grok").exists())
 
     def test_active_guidance_has_no_personal_or_absolute_operational_paths(self):
-        paths = [ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / ".mcp.json"]
-        for directory in (ROOT / ".agents", ROOT / ".claude", ROOT / ".codex"):
-            paths.extend(path for path in directory.rglob("*") if path.is_file())
-        forbidden = re.compile(
-            r"(?:(?<![A-Za-z0-9])[A-Za-z]:[\\/]|/(?:Users|home)/[^/\s]+|\$\{CLAUDE_PROJECT_DIR\})"
-        )
-        offenders = [
-            path.relative_to(ROOT).as_posix()
-            for path in paths
-            if forbidden.search(path.read_text(encoding="utf-8", errors="ignore"))
-        ]
-        self.assertEqual(offenders, [])
+        self.assertEqual(absolute_guidance_path_offenders(ROOT), [])
+
+    def test_absolute_path_scan_ignores_untracked_local_guidance(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            (root / "AGENTS.md").write_text("Use relative paths.\n", encoding="utf-8")
+            local = root / ".claude/settings.local.json"
+            local.parent.mkdir(parents=True)
+            local.write_text('{"localPath":"C:\\\\Users\\\\owner"}\n', encoding="utf-8")
+
+            self.assertEqual(absolute_guidance_path_offenders(root, [Path("AGENTS.md")]), [])
+            self.assertEqual(
+                absolute_guidance_path_offenders(
+                    root, [Path("AGENTS.md"), Path(".claude/settings.local.json")]
+                ),
+                [".claude/settings.local.json"],
+            )
 
     def test_delegation_policy_uses_capability_tiers_not_fixed_models_or_effort(self):
         paths = [ROOT / "AGENTS.md", ROOT / ".claude/user-harness/settings.json"]
