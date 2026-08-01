@@ -62,6 +62,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.FontMetrics;
@@ -71,6 +72,8 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -102,6 +105,7 @@ final class ShaftAssistantPanel extends JPanel {
             "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade "
                     + "(# adds project context, @ inserts a workflow)";
     private static final String READY_STATUS = "Try asking me to do something...";
+    private static final int NARROW_RUN_SETTINGS_WIDTH = 420;
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_MODEL_TOOLTIP_LIVE = "Model reported by the connected agent CLI";
     private static final String LOCAL_MODEL_TOOLTIP_FALLBACK =
@@ -164,6 +168,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton cancel;
     private final JToggleButton runSettingsToggle;
     private final JPanel runSettingsPanel;
+    private final JBScrollPane runSettingsScroll;
     private final JButton copyLastResponse;
     private final JButton copyRawResponse;
     private final JButton copyTranscript;
@@ -202,6 +207,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JPanel currentAgentChip;
     private final JProgressBar progress;
     private final JLabel status;
+    private final JPanel transcriptStatusStrip;
     private final ShaftSettingsState.Settings settings;
     private final Runnable configureFlow;
     private String lastResponse = "";
@@ -523,7 +529,7 @@ final class ShaftAssistantPanel extends JPanel {
                 JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
                 JBUI.Borders.empty(4, 8)));
         status.setPreferredSize(JBUI.size(260, status.getPreferredSize().height));
-        status.setMinimumSize(JBUI.size(220, status.getPreferredSize().height));
+        status.setMinimumSize(JBUI.size(0, status.getPreferredSize().height));
         status.setVisible(false);
         progress = new JProgressBar();
         progress.setIndeterminate(true);
@@ -647,12 +653,27 @@ final class ShaftAssistantPanel extends JPanel {
         // as its own chat bubble in the transcript above instead (see appendAgentMilestone), so this
         // spinner + single-line, unlabeled status JLabel (see setStatus()) is the only run-status
         // surface left below the chat window.
-        JPanel transcriptStatus = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        transcriptStatus.add(progress);
-        transcriptStatus.add(status);
+        transcriptStatusStrip = new JPanel(new BorderLayout(6, 0));
+        transcriptStatusStrip.setOpaque(false);
+        transcriptStatusStrip.getAccessibleContext().setAccessibleName("Assistant run status");
+        transcriptStatusStrip.getAccessibleContext().setAccessibleDescription(
+                "Current assistant progress and the action to cancel the active request.");
+        JPanel statusLeading = new JPanel(new BorderLayout(6, 0));
+        statusLeading.setOpaque(false);
+        statusLeading.add(progress, BorderLayout.WEST);
+        statusLeading.add(status, BorderLayout.CENTER);
+        transcriptStatusStrip.add(statusLeading, BorderLayout.CENTER);
+        transcriptStatusStrip.add(cancel, BorderLayout.EAST);
+        transcriptStatusStrip.setVisible(false);
+        transcriptStatusStrip.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                setStatus(status.getToolTipText());
+            }
+        });
         JPanel transcriptBottom = new JPanel(new BorderLayout(4, 4));
         transcriptBottom.add(captureReviewPanel, BorderLayout.NORTH);
-        transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
+        transcriptBottom.add(transcriptStatusStrip, BorderLayout.SOUTH);
         transcriptPanel.add(transcriptBottom, BorderLayout.SOUTH);
 
         JPanel chatRow = new JPanel(new BorderLayout(6, 0));
@@ -669,9 +690,14 @@ final class ShaftAssistantPanel extends JPanel {
         actionRow.add(saveTranscript);
         actionRow.add(clearTranscript);
         actionRow.add(rerunLastPrompt);
-        actionRow.add(cancel);
 
-        runSettingsPanel = new JPanel();
+        runSettingsPanel = new JPanel() {
+            @Override
+            public void doLayout() {
+                updateRunSettingsResponsiveLayout(this);
+                super.doLayout();
+            }
+        };
         runSettingsPanel.setLayout(new BoxLayout(runSettingsPanel, BoxLayout.Y_AXIS));
         runSettingsPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEtchedBorder(), JBUI.Borders.empty(4, 6)));
@@ -691,15 +717,24 @@ final class ShaftAssistantPanel extends JPanel {
         runSettingsPanel.add(runSetting("Output", verboseAgentOutput));
         runSettingsPanel.add(runSetting("Context", autoCompact));
         runSettingsPanel.setVisible(false);
+        runSettingsScroll = new JBScrollPane(runSettingsPanel,
+                javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        runSettingsScroll.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
+        runSettingsScroll.setPreferredSize(new Dimension(0, JBUI.scale(260)));
+        runSettingsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, JBUI.scale(260)));
+        runSettingsScroll.setVisible(false);
         runSettingsToggle = new JToggleButton();
         runSettingsToggle.getAccessibleContext().setAccessibleName("Run settings");
         runSettingsToggle.getAccessibleContext().setAccessibleDescription(
                 "Show or hide the assistant route and run configuration.");
         runSettingsToggle.addActionListener(event -> {
             runSettingsPanel.setVisible(runSettingsToggle.isSelected());
+            runSettingsScroll.setVisible(runSettingsToggle.isSelected());
+            updateRunSettingsResponsiveLayout(runSettingsPanel);
             updateRunSettingsSummary();
-            runSettingsPanel.getParent().revalidate();
-            runSettingsPanel.getParent().repaint();
+            runSettingsScroll.getParent().revalidate();
+            runSettingsScroll.getParent().repaint();
         });
         updateRunSettingsSummary();
 
@@ -719,7 +754,7 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel settingsDisclosure = new JPanel();
         settingsDisclosure.setLayout(new BoxLayout(settingsDisclosure, BoxLayout.Y_AXIS));
         settingsDisclosure.add(runSettingsToggle);
-        settingsDisclosure.add(runSettingsPanel);
+        settingsDisclosure.add(runSettingsScroll);
         composerFooter.add(convertSeleniumHint, BorderLayout.NORTH);
         composerFooter.add(settingsDisclosure, BorderLayout.CENTER);
         composerFooter.add(promptActions, BorderLayout.SOUTH);
@@ -3195,6 +3230,7 @@ final class ShaftAssistantPanel extends JPanel {
         captureEvidencePack.setEnabled(!running && pendingCaptureReview != null);
         compareCaptureBackends.setEnabled(!running && pendingCaptureReview != null);
         cancel.setEnabled(running);
+        transcriptStatusStrip.setVisible(running);
         progress.setVisible(running);
         setStatus(message);
         updateSendButtonState();
@@ -4787,9 +4823,46 @@ final class ShaftAssistantPanel extends JPanel {
         label.setLabelFor(control);
         label.setPreferredSize(JBUI.size(112, label.getPreferredSize().height));
         row.putClientProperty("shaft.run.settings.control", control);
+        row.putClientProperty("shaft.run.settings.label", label);
         row.add(label, BorderLayout.WEST);
         row.add(control, BorderLayout.CENTER);
         return row;
+    }
+
+    private static void updateRunSettingsResponsiveLayout(JPanel settingsPanel) {
+        boolean stacked = settingsPanel.getWidth() > 0
+                && settingsPanel.getWidth() <= JBUI.scale(NARROW_RUN_SETTINGS_WIDTH);
+        boolean changed = false;
+        for (Component component : settingsPanel.getComponents()) {
+            if (!(component instanceof JPanel row)
+                    || !(row.getClientProperty("shaft.run.settings.control") instanceof JComponent control)
+                    || !(row.getClientProperty("shaft.run.settings.label") instanceof JLabel label)
+                    || stacked == Boolean.TRUE.equals(row.getClientProperty("shaft.run.settings.stacked"))) {
+                continue;
+            }
+            row.removeAll();
+            if (stacked) {
+                row.setLayout(new BoxLayout(row, BoxLayout.Y_AXIS));
+                label.setAlignmentX(Component.LEFT_ALIGNMENT);
+                control.setAlignmentX(Component.LEFT_ALIGNMENT);
+                row.add(label);
+                row.add(control);
+            } else {
+                row.setLayout(new BorderLayout(8, 0));
+                row.add(label, BorderLayout.WEST);
+                row.add(control, BorderLayout.CENTER);
+            }
+            row.putClientProperty("shaft.run.settings.stacked", stacked);
+            row.revalidate();
+            changed = true;
+        }
+        if (changed) {
+            settingsPanel.revalidate();
+            Container parent = settingsPanel.getParent();
+            if (parent != null) {
+                parent.revalidate();
+            }
+        }
     }
 
     private void syncRunSettingsRows() {

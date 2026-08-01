@@ -159,9 +159,13 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantEmptyScreenshot = outputPath.resolve("intellij-plugin-assistant-empty.png");
         Path assistantAttachmentsScreenshot = outputPath.resolve("intellij-plugin-assistant-attachments.png");
         Path assistantEmptyNarrowScreenshot = outputPath.resolve("intellij-plugin-assistant-empty-narrow.png");
+        Path assistantExpandedSettingsNarrowScreenshot =
+                outputPath.resolve("intellij-plugin-assistant-expanded-settings-narrow.png");
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
+        Path assistantActiveStatusNarrowScreenshot =
+                outputPath.resolve("intellij-plugin-assistant-active-status-narrow.png");
         Path assistantProgressMilestonesScreenshot = outputPath.resolve("intellij-plugin-assistant-progress-milestones.png");
         Path assistantFailureRecoveryCardScreenshot = outputPath.resolve("intellij-plugin-assistant-failure-recovery-card.png");
         Path assistantToolResultRawOutputScreenshot = outputPath.resolve("intellij-plugin-assistant-tool-result-raw-output.png");
@@ -206,9 +210,11 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantEmptyScreenshot, renderAssistantEmpty(LIGHT_THEME, false));
         write(assistantAttachmentsScreenshot, renderAssistantWithAttachments(LIGHT_THEME, false));
         write(assistantEmptyNarrowScreenshot, renderAssistantEmpty(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
+        write(assistantExpandedSettingsNarrowScreenshot, renderAssistantExpandedSettingsNarrow(DARK_THEME, true));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
+        write(assistantActiveStatusNarrowScreenshot, renderAssistantActiveStatusNarrow(DARK_THEME, true));
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
         write(assistantFailureRecoveryCardScreenshot, renderAssistantFailureRecoveryCard(LIGHT_THEME, false));
         write(assistantToolResultRawOutputScreenshot, renderAssistantToolResultRawOutput(LIGHT_THEME, false));
@@ -252,9 +258,13 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantEmptyScreenshot) > 0, assistantEmptyScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantAttachmentsScreenshot) > 0, assistantAttachmentsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantEmptyNarrowScreenshot) > 0, assistantEmptyNarrowScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantExpandedSettingsNarrowScreenshot) > 0,
+                        assistantExpandedSettingsNarrowScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantLiveDarkScreenshot) > 0, assistantLiveDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantActiveStatusNarrowScreenshot) > 0,
+                        assistantActiveStatusNarrowScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantProgressMilestonesScreenshot) > 0,
                         assistantProgressMilestonesScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantFailureRecoveryCardScreenshot) > 0,
@@ -299,9 +309,11 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantEmptyScreenshot),
                 () -> assertDimensions(assistantAttachmentsScreenshot),
                 () -> assertDimensions(assistantEmptyNarrowScreenshot, NARROW_WIDTH, HEIGHT),
+                () -> assertDimensions(assistantExpandedSettingsNarrowScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantLiveDarkScreenshot),
+                () -> assertDimensions(assistantActiveStatusNarrowScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantProgressMilestonesScreenshot),
                 () -> assertDimensions(assistantFailureRecoveryCardScreenshot),
                 () -> assertDimensions(assistantCancelledScreenshot),
@@ -524,6 +536,33 @@ class ShaftPluginScreenshotRendererTest {
             component.doLayout();
             layout(component, !dark);
             image.set(render(component, width, height));
+        });
+        return image.get();
+    }
+
+    /** Documents the narrow responsive layout after the compact Run settings disclosure is opened. */
+    private static BufferedImage renderAssistantExpandedSettingsNarrow(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            JComponent component = new ShaftToolWindowPanel(
+                    screenshotProject(), defaultSettings(), AssistantLocalAgentRunner::readiness,
+                    new ShaftAssistantChatState());
+            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            JToggleButton settings = findByAccessibleName(component, "Run settings", JToggleButton.class);
+            assertNotNull(settings, "The narrow Assistant must expose Run settings");
+            settings.doClick();
+            component.revalidate();
+            component.doLayout();
+            layout(component, !dark);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, NARROW_WIDTH, HEIGHT));
         });
         return image.get();
     }
@@ -808,6 +847,31 @@ class ShaftPluginScreenshotRendererTest {
             component.doLayout();
             layout(component, !dark);
             image.set(render(component, WIDTH, HEIGHT));
+            invokeSetRunning(component, false, "Try asking me to do something...");
+        });
+        return image.get();
+    }
+
+    /** Documents the one-line active-run strip at narrow width, including its fixed Cancel edge. */
+    private static BufferedImage renderAssistantActiveStatusNarrow(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/browser open https://example.com sign in", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.defaultAutobotMode = "AGENT";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            invokeSetRunning(component, true, "Running: browser open https://example.com sign in");
+            component.setSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(NARROW_WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, NARROW_WIDTH, HEIGHT));
             invokeSetRunning(component, false, "Try asking me to do something...");
         });
         return image.get();
