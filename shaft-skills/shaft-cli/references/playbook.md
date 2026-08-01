@@ -20,9 +20,9 @@ names live in the [generated MCP catalog](../../references/shaft-mcp-tools.md).
 
 ## Valid examples
 
-- Run `shaft-cli guide search query="browser assertions" --json` in a script and fail the step on a nonzero exit code.
+- Run `shaft-cli guide search query="browser assertions" maxResults=3 --json` in a script and fail the step on a nonzero exit code.
 - Run `shaft-cli call test_code_guardrails_check --args '{"language":"java","code":"..."}' --json` for a stateless machine-readable gate.
-- Start a persistent session before `shaft-cli call driver_initialize engine=web`, `shaft-cli call browser_navigate url=https://example.test`, and `shaft-cli call driver_quit`.
+- Start a persistent session before `shaft-cli call driver_initialize engine=web`, `shaft-cli call browser_navigate targetUrl=https://example.test`, and `shaft-cli call driver_quit`.
 - Generate code with `shaft-cli codegen --session recordings/checkout.json --backend webdriver` without starting MCP state.
 
 ## Boundary
