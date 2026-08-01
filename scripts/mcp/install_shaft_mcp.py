@@ -204,6 +204,16 @@ def choose_client() -> str:
         print("Enter a number from 1 to 6, or a target name.")
 
 
+def choose_component(prompt: str, default: bool) -> bool:
+    suffix = "[Y/n]" if default else "[y/N]"
+    print(f"{prompt} {suffix}: ", end="", file=sys.stderr, flush=True)
+    try:
+        answer = input().strip().lower()
+    except EOFError:
+        return default
+    return default if not answer else answer not in {"n", "no"}
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Install and configure shaft-mcp for a supported MCP client.",
@@ -255,8 +265,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         fail("Specify only one MCP client target.", 2)
     if args.install_shaft_skills and args.skip_shaft_skills:
         fail("Specify only one of --install-shaft-skills or --skip-shaft-skills.", 2)
-    args.client = selected[0] if selected else choose_client()
-    if args.client not in TARGETS:
+    args.client = selected[0] if selected else None
+    args.install_mcp = args.client is not None
+    has_component_selector = args.install_mcp or args.install_shaft_cli or args.install_shaft_skills
+    if not has_component_selector:
+        if not sys.stdin.isatty():
+            fail("Pass a component selector when running non-interactively.", 2)
+        args.install_mcp = choose_component("Install and configure shaft-mcp?", True)
+        args.install_shaft_cli = choose_component("Install shaft-cli?", False)
+        args.install_shaft_skills = False if args.skip_shaft_skills else choose_component(
+            "Install SHAFT skills into the current directory?", True)
+    if args.install_mcp and args.client is None:
+        args.client = choose_client()
+    if args.client is not None and args.client not in TARGETS:
         fail("Usage: install-shaft-mcp.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|intellij-plugin>]", 2)
     return args
 
@@ -892,24 +913,7 @@ def install_shaft_skills(current_directory: Path, root: Path) -> Path:
 
 
 def should_install_shaft_skills(args: argparse.Namespace, current_directory: Path) -> bool:
-    if args.install_shaft_skills:
-        return True
-    if args.skip_shaft_skills:
-        return False
-    if not sys.stdin.isatty():
-        log(f"Installing SHAFT skills into current directory by default: {current_directory}")
-        return True
-    print(
-        f"Install SHAFT skills into the current directory?\n  {current_directory}\n[Y/n]: ",
-        end="",
-        file=sys.stderr,
-        flush=True,
-    )
-    try:
-        answer = input().strip().lower()
-    except EOFError:
-        return True
-    return answer not in {"n", "no"}
+    return args.install_shaft_skills
 
 
 def java_argfile_quote(value: str) -> str:
@@ -1366,23 +1370,25 @@ def install(args: argparse.Namespace) -> None:
     root = bootstrap_root()
     root.mkdir(parents=True, exist_ok=True)
     repository = os.environ.get("SHAFT_MCP_REPOSITORY_URL", DEFAULT_REPOSITORY).rstrip("/")
-    log(f"Client target: {args.client}")
+    java = None
+    version = None
+    args_file = None
+    if args.install_mcp or args.install_shaft_cli:
+        java = get_java25(root)
+        java_home = java_home_for(java)
+        os.environ["JAVA_HOME"] = str(java_home)
+        os.environ["PATH"] = f"{java.parent}{os.pathsep}{os.environ.get('PATH', '')}"
 
-    java = get_java25(root)
-    java_home = java_home_for(java)
-    os.environ["JAVA_HOME"] = str(java_home)
-    os.environ["PATH"] = f"{java.parent}{os.pathsep}{os.environ.get('PATH', '')}"
+        if args.install_mcp and args.client != "intellij-plugin":
+            detect_project_override(args.client)
+        version = resolve_shaft_mcp_version(args.version, repository, root)
+        log(f"Installing io.github.shafthq:shaft-mcp:{version}")
+        jar = install_shaft_mcp_jar(version, repository, root)
+        dependencies = install_runtime_dependencies(jar, repository)
+        args_file = write_launcher_args(jar, dependencies)
 
-    if args.client != "intellij-plugin":
-        detect_project_override(args.client)
-    version = resolve_shaft_mcp_version(args.version, repository, root)
-    log(f"Installing io.github.shafthq:shaft-mcp:{version}")
-    jar = install_shaft_mcp_jar(version, repository, root)
-    dependencies = install_runtime_dependencies(jar, repository)
-    args_file = write_launcher_args(jar, dependencies)
-
-    log(f"Verifying shaft-mcp {version} over stdio...")
-    probe_stdio(java, args_file)
+        log(f"Verifying shaft-mcp {version} over stdio...")
+        probe_stdio(java, args_file)
 
     shaft_cli_launcher = None
     if args.install_shaft_cli:
@@ -1390,7 +1396,7 @@ def install(args: argparse.Namespace) -> None:
         shaft_cli_jar = install_shaft_cli_jar(version, repository, root)
         shaft_cli_launcher = write_shaft_cli_launcher(java, shaft_cli_jar)
 
-    if args.client != "intellij-plugin":
+    if args.install_mcp and args.client != "intellij-plugin":
         log(f"Configuring shaft-mcp for {args.client}...")
         configure_client(args.client, java, args_file)
     current_directory = Path.cwd().resolve()
@@ -1409,34 +1415,48 @@ def install(args: argparse.Namespace) -> None:
                 f"scaffold found in {current_directory}.")
     else:
         log(f"Skipped SHAFT skills installation for {skills_path}.")
-    result = {
-        "client": args.client,
-        "server": SERVER_NAME,
-        "version": version,
-        "command": str(java),
-        "args": [f"@{args_file}"],
-        "mavenLocalRepository": str(maven_local_repository()),
-        "userGuide": USER_GUIDE_URL,
-        "shaftSkills": {
-            "installed": skills_installed,
-            "path": str(skills_path),
-        },
-    }
-    if validation_script_dir:
-        result["agentValidationScript"] = {
-            "installed": True,
-            "path": str(validation_script_dir),
+    if args.install_mcp:
+        result = {
+            "client": args.client,
+            "server": SERVER_NAME,
+            "version": version,
+            "command": str(java),
+            "args": [f"@{args_file}"],
+            "mavenLocalRepository": str(maven_local_repository()),
+            "userGuide": USER_GUIDE_URL,
+            "shaftSkills": {
+                "installed": skills_installed,
+                "path": str(skills_path),
+            },
         }
-    if shaft_cli_launcher:
-        result["shaftCli"] = {
-            "installed": True,
-            "launcher": str(shaft_cli_launcher),
-        }
+        if validation_script_dir:
+            result["agentValidationScript"] = {
+                "installed": True,
+                "path": str(validation_script_dir),
+            }
+        if shaft_cli_launcher:
+            result["shaftCli"] = {
+                "installed": True,
+                "launcher": str(shaft_cli_launcher),
+            }
+    else:
+        components = {}
+        if args.install_shaft_skills:
+            components["shaftSkills"] = {"installed": skills_installed, "path": str(skills_path)}
+        if validation_script_dir:
+            components["agentValidationScript"] = {
+                "installed": True,
+                "path": str(validation_script_dir),
+            }
+        if shaft_cli_launcher:
+            components["shaftCli"] = {"installed": True, "launcher": str(shaft_cli_launcher)}
+        result = {"components": components}
     if args.json:
         print(json.dumps(result, separators=(",", ":")))
     else:
-        action = "installed and ready for" if args.client == "intellij-plugin" else "installed and configured for"
-        print(f"shaft-mcp {version} is {action} {args.client}.")
+        if args.install_mcp:
+            action = "installed and ready for" if args.client == "intellij-plugin" else "installed and configured for"
+            print(f"shaft-mcp {version} is {action} {args.client}.")
         if skills_installed:
             print(f"SHAFT skills installed at {skills_path}.")
             if validation_script_dir:
@@ -1445,8 +1465,9 @@ def install(args: argparse.Namespace) -> None:
             print(f"SHAFT skills installation skipped for {skills_path}.")
         if shaft_cli_launcher:
             print(f"shaft-cli {version} installed; run it at {shaft_cli_launcher}")
-        print(activation_hint(args.client))
-        print(f"User guide: {USER_GUIDE_URL}")
+        if args.install_mcp:
+            print(activation_hint(args.client))
+            print(f"User guide: {USER_GUIDE_URL}")
 
 
 def main(argv: list[str]) -> int:
