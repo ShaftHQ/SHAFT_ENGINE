@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/memory-and-graphify-are-a-mandatory-session-entry-point.md",
-  "content_hash": "sha256:0e03a76230766dce08968946c0ae87a1c0eab1d6a76ff7a8fa7f0a533c8df1a2",
+  "content_hash": "sha256:9d34c53dd9e4e2995cefaf862ea99bc5f3bfd91d07e1822ebc2f2355b677b81a",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
   "id": "constraint.memory-and-graphify-are-a-mandatory-session-entry-point",
@@ -20,7 +20,7 @@
     "graphify",
     "workflow"
   ],
-  "title": ".memory/ and graphify are a mandatory session entry point",
+  "title": "Native Memory, MemPalace, and Graphify are routed through act-as-mohab",
   "type": "constraint",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-08-01T16:07:25+03:00"
 }

@@ -1,0 +1,43 @@
+---
+applyTo: "**/src/test/java/**/*.java"
+---
+
+# Java Test Rules
+
+- Follow the existing TestNG, JUnit, or Cucumber style in the affected module.
+  Use descriptive scenario-based test names.
+- Browser tests create a fresh driver per test and clean it in an always-run
+  teardown. For `ThreadLocal` drivers, call both `quit()` and `remove()`.
+- Browser tests run headlessly; headed-only behavior needs explicit user
+  approval before execution (see AGENTS.md).
+- Under TestNG method parallelism, instance fields are shared across
+  concurrent methods; keep per-method paths/files/mocks/drivers/mutable setup
+  in locals or `ThreadLocal`, and clear the same thread-owned state in
+  cleanup.
+- `@Test(singleThreaded = true)` serializes one class only; static services or
+  SHAFT global properties shared across classes need an explicit cross-class
+  lock or per-test prerequisites, plus always-run restoration.
+- Use `Properties.clearForCurrentThread()` for per-thread SHAFT properties,
+  except JVM-global `SHAFT.Properties.flags` — capture/restore the original
+  in `finally`/`@AfterMethod`.
+- Preserve the live `allure-results` directory and delete only its contents.
+  Replacing the root can race with Allure writers on Windows.
+- Confirm result JSON files are populated before interpreting Allure status.
+  When retries occur, inspect non-passed attempts as well as the final summary.
+- Prefer SHAFT fluent assertions and existing test-data conventions. Store
+  reusable data in module test resources instead of embedding large fixtures.
+- Coverage-only unit tests must not call facade/default constructors that create
+  real browser sessions. Use explicit mock-backed constructors; keep session
+  creation in integration tests.
+- Avoid mocking or proxying `org.testng.ISuite` on Java 25 when list/value helper
+  logic can be tested directly.
+- Mock external services when the contract is not under test. Disable status
+  validation only when response status is intentionally outside the assertion.
+- For a bug fix, prove the regression first when practical, then run the
+  focused test after the fix; repeat/parallelize runs only to evaluate a
+  flaky or concurrency failure.
+- Reuse passing test evidence unless later edits affect the tested behavior or
+  its dependencies.
+- Capture screenshots only when the tested behavior is visual.
+- For flaky failures, use
+  [the stabilization playbook](flaky-test-stabilizer.md).

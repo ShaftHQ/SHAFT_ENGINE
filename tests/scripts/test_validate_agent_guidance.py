@@ -6,7 +6,6 @@ from pathlib import Path
 from scripts.ci.validate_agent_guidance import (
     parse_frontmatter,
     validate_repository,
-    validate_routing_bridges,
 )
 
 
@@ -17,7 +16,7 @@ class ValidateAgentGuidanceTest(unittest.TestCase):
         self.write(
             "AGENTS.md",
             "# Agents\n\n[Local](docs/local.md)\n\n"
-            "## Routing\n\nBridge: `example-bridge` example.\n",
+            "## Routing\n\nEntrypoint: `.agents/skills/act-as-mohab/SKILL.md`.\n",
         )
         self.write("CLAUDE.md", "# Claude\n\n@AGENTS.md\n")
         self.write(".github/copilot-instructions.md", "# Copilot\n")
@@ -258,37 +257,6 @@ policy:
             '---\napplyTo: "**/src/missing/**/*.java"\n---\n\n# Source\n',
         )
         self.assertIn("unmatched-scope", self.codes())
-
-    def test_validate_routing_bridges_reads_dedicated_file_directly(self):
-        # Direct call (not via validate_repository) of the current contract
-        # (#4067): the enumeration lives in ROUTING_BRIDGES_PATH
-        # (.agents/routing-bridges.txt), outside every guidance budget glob --
-        # AGENTS.md's own "## Routing" section is no longer parsed for it.
-        self.write(
-            ".agents/routing-bridges.txt",
-            "`example-bridge` example; `missing-bridge` gone.\n",
-        )
-        codes = {error["code"] for error in validate_routing_bridges(self.root)}
-        self.assertIn("routing-bridge-missing", codes)
-
-    def test_rejects_routing_bridge_with_no_skill_file(self):
-        self.write(
-            ".agents/routing-bridges.txt",
-            "`example-bridge` example; `missing-bridge` gone.\n",
-        )
-        self.assertIn("routing-bridge-missing", self.codes())
-
-    def test_routing_bridge_only_in_native_skills_tree_still_fails(self):
-        # A name that resolves under .claude/skills (Skill-tool invocable)
-        # must not be mistaken for a .agents/skills bridge (read-as-file):
-        # the two trees are independent, and issue #4053 exists precisely
-        # because agents confuse them.
-        self.write(
-            ".claude/skills/native-only/SKILL.md",
-            "---\nname: native-only\ndescription: Native skill only.\n---\n\n# Native\n",
-        )
-        self.write(".agents/routing-bridges.txt", "`native-only` example.\n")
-        self.assertIn("routing-bridge-missing", self.codes())
 
     def test_rejects_costly_mandate(self):
         self.write("AGENTS.md", "# Agents\n\nRun the build before every commit.\n")

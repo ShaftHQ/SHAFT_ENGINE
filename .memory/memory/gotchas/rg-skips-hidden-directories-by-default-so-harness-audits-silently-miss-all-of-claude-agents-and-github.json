@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/rg-skips-hidden-directories-by-default-so-harness-audits-silently-miss-all-of-claude-agents-and-github.md",
-  "content_hash": "sha256:817ab8e9682fa94abff1d02817f2bae5c5d434c210ce779624db510126136707",
+  "content_hash": "sha256:d120fbce52528f5e2c7e4f1c6689337a6959d84578ef2ae3f513aff06e0df90a",
   "created_at": "2026-07-27T15:59:11+03:00",
   "evidence": [],
   "facets": {
@@ -27,5 +27,5 @@
   ],
   "title": "rg skips hidden directories by default, so harness audits silently miss all of .claude/, .agents/ and .github/",
   "type": "gotcha",
-  "updated_at": "2026-07-27T15:59:11+03:00"
+  "updated_at": "2026-08-01T16:07:25+03:00"
 }

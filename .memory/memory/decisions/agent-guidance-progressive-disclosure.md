@@ -1,1 +1,0 @@
-Keep global guidance compact. Route task-specific rules through allowlisted thin Codex bridge skills to canonical scoped rules or playbooks. The current skill allowlist lives in scripts/ci/agent_guidance_budget.json. Deterministic validators enforce budgets, routing, and duplicate-content limits.

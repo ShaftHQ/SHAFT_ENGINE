@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/verify-intellij-platform-sdk-api-shapes-against-the-real-installed-jars-jar-tf-javap-not-memory-before-writing-an-implementation-spec.md",
-  "content_hash": "sha256:5238d81469149f9e9c829ae3ffad22e1fbc9e567d8e2040b43ec9ddab180d177",
+  "content_hash": "sha256:a4caa2c804ccdfedad013c838710b3e93a5b251767d56449385b29f629fbfbee",
   "created_at": "2026-07-17T05:03:33+03:00",
   "evidence": [],
   "facets": {
@@ -22,9 +22,9 @@
     "shaft-intellij",
     "intellij-sdk",
     "workflow",
-    "act-as-fable"
+    "act-as-mohab"
   ],
   "title": "Verify IntelliJ Platform SDK API shapes against the real installed jars (jar tf / javap), not memory, before writing an implementation spec",
   "type": "workflow",
-  "updated_at": "2026-07-17T05:03:33+03:00"
+  "updated_at": "2026-08-01T16:14:23+03:00"
 }

@@ -53,8 +53,8 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 
         self.assertEqual(validate_repository(self.root), [])
 
-    def test_allows_claude_project_skill(self):
-        self.write(".claude/skills/graphify/SKILL.md", "# Graphify\n")
+    def test_allows_canonical_project_skill(self):
+        self.write(".agents/skills/act-as-mohab/SKILL.md", "# Act as Mohab\n")
 
         self.assertEqual(validate_repository(self.root), [])
 

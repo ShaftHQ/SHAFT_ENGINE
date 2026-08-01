@@ -1,6 +1,0 @@
-interface:
-  display_name: "MCP Transport Contract Auditor"
-  short_description: "Audit MCP manifests and transports"
-  default_prompt: "Use $mcp-transport-contract-auditor."
-policy:
-  allow_implicit_invocation: true

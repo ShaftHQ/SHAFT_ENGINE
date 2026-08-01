@@ -1,12 +1,17 @@
 {
   "body_path": "memory/gotchas/unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor.md",
-  "content_hash": "sha256:f31a5d98f1bfd8983982daf210e8d2d656081c5d6f87cff1f91260330d131e06",
+  "content_hash": "sha256:45b72ab99462d0281222b7827f8cc69ce8afd0f84653b0b8d09dfb086503ab7f",
   "created_at": "2026-07-08T17:00:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "scripts/agents/guard.py",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "applies_to": [
       "pom.xml",
-      ".claude/hooks/guard.py"
+      "scripts/agents/guard.py"
     ],
     "category": "gotcha"
   },
@@ -30,5 +35,5 @@
   ],
   "title": "Unscoped `-am` mvn test can crash the JVM across the whole reactor",
   "type": "gotcha",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-08-01T16:08:42+03:00"
 }

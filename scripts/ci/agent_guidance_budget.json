@@ -28,6 +28,10 @@
       "AGENTS.md",
       "CLAUDE.md"
     ],
+    "grok": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
     "copilot": [
       "AGENTS.md",
       ".github/copilot-instructions.md",
@@ -40,7 +44,10 @@
       ".agents/skills/*/SKILL.md"
     ],
     "claude": [
-      ".agents/skills/*/SKILL.md",
+      ".claude/skills/*/SKILL.md",
+      ".claude/agents/*.md"
+    ],
+    "grok": [
       ".claude/skills/*/SKILL.md",
       ".claude/agents/*.md"
     ]
@@ -51,6 +58,7 @@
     "CLAUDE.md",
     ".agents/skills/*/SKILL.md",
     ".agents/skills/*/agents/openai.yaml",
+    ".agents/skills/act-as-mohab/references/**/*.md",
     ".claude/agents/*.md",
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
@@ -61,6 +69,7 @@
     "AGENTS.md",
     "CLAUDE.md",
     ".agents/skills/*/SKILL.md",
+    ".agents/skills/act-as-mohab/references/**/*.md",
     ".claude/agents/*.md",
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
@@ -70,29 +79,10 @@
   ],
   "expected_skill_names": {
     ".agents/skills": [
-      "agent-guidance-boundary-guard",
-      "agentic-pdca-loop",
-      "allure-extent-report-operator",
-      "ci-failure-investigator",
-      "flaky-test-stabilizer",
-      "framework-source-rules",
-      "graphify",
-      "java-test-rules",
-      "mcp-transport-contract-auditor",
-      "modular-boundary-auditor",
-      "public-behavior-docs-synchronizer",
-      "release-dependency-guard",
-      "shaft-marketing-ad-producer",
-      "shaft-ui-design"
+      "act-as-mohab"
     ],
     ".claude/skills": [
-      "act-as-mohab",
-      "caveman",
-      "graphify",
-      "ponytail",
-      "shaft-mastery",
-      "test-driven-development",
-      "work-github"
+      "act-as-mohab"
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",
@@ -111,11 +101,11 @@
   "skill_budgets": {
     ".agents/skills": {
       "max_description_chars": 220,
-      "max_body_chars": 300,
+      "max_skill_md_bytes": 8192,
       "require_openai_yaml": true
     },
     ".claude/skills": {
-      "max_skill_md_bytes": 16384
+      "max_skill_md_bytes": 1024
     },
     ".github/skills": {
       "max_skill_md_bytes": 4096
@@ -126,6 +116,7 @@
     "CLAUDE.md",
     "CONTRIBUTING.md",
     ".agents/skills/*/SKILL.md",
+    ".agents/skills/act-as-mohab/references/**/*.md",
     ".claude/agents/*.md",
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
@@ -182,5 +173,5 @@
     ".github/skills/deepseek/",
     ".github/skills/qwen/"
   ],
-  "notes": "Principle (#3745): each guidance surface is bounded by its own load cost, not a shared global pool. Always-loaded files (AGENTS.md, CLAUDE.md, copilot instructions, skill name/description metadata) are bounded by max_estimated_tokens_per_host, since every host pays that cost every session. Trigger-loaded skill bodies are bounded per skill by skill_budgets[<root>].max_skill_md_bytes (.claude/skills 16384, .github/skills 4096 -- each matched to that host's actual per-skill load cost) so growing one skill never taxes another's budget. The .agents bridge stays on its own thinness caps (max_description_chars/max_body_chars), since those bodies are Codex-loaded metadata, not lazy on-demand content. Content quality within any cap is governed by the duplicate-paragraph and forbidden-pattern intent guards, never by a shared byte pool. Environmental gotcha (applies to every byte check above, including the per-skill cap): measure LF-normalized bytes, i.e. len(read_text().encode()) not raw stat().st_size -- Path.read_text() already collapses CRLF, matching the LF blobs CI checks out, so this avoids inflating the count with Windows-CRLF working-tree line endings that CI never sees."
+  "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Host token budgets count only auto-loaded fronts and metadata. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks. Byte counts are LF-normalized via read_text()."
 }

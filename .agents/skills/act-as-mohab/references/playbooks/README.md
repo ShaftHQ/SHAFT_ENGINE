@@ -1,0 +1,15 @@
+# Task playbooks
+
+- [Agent guidance](agent-guidance-boundary-guard.md)
+- [PDCA](agentic-pdca-loop.md)
+- [Reports](allure-extent-report-operator.md)
+- [CI failures](ci-failure-investigator.md)
+- [Flaky tests](flaky-test-stabilizer.md)
+- [MCP transport](mcp-transport-contract-auditor.md)
+- [Module boundaries](modular-boundary-auditor.md)
+- [Public docs](public-behavior-docs-synchronizer.md)
+- [Release and dependencies](release-dependency-guard.md)
+- [Marketing](shaft-marketing-ad-producer.md)
+- [UI](shaft-ui-design.md)
+- [Framework source](framework-source.md)
+- [Java tests](java-tests.md)

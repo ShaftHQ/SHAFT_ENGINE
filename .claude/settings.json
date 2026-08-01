@@ -1,102 +1,31 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git status)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git show *)",
       "Bash(git log *)",
       "Bash(git rev-parse *)",
       "Bash(git worktree list)",
-      "Bash(git fetch *)",
-      "Bash(git checkout *)",
-      "Bash(git cherry-pick *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git reset *)",
-      "Bash(git rebase *)",
-      "Bash(git ls-remote *)",
-      "Bash(grep -rn *)",
       "Bash(rg *)",
-      "Bash(claude config *)",
-      "Skill(update-config)",
-      "Bash(python3 -c \"import json; json.load\\(open\\('/c/Users/Mohab/.claude/settings.json'\\)\\)\")",
-      "Bash(py -3 -c \"import json; json.load\\(open\\(r'C:\\\\Users\\\\Mohab\\\\.claude\\\\settings.json'\\)\\)\")",
-      "Bash(py -3 scripts/ci/validate_agent_setup.py)",
-      "Bash(python3 scripts/ci/validate_agent_setup.py)",
-      "Bash(py -3 scripts/ci/local_gate.py *)",
-      "Bash(python3 scripts/ci/local_gate.py *)",
-      "Bash(python3 .claude/hooks/guard.py *)",
-      "Bash(py -3 .claude/hooks/guard.py *)",
-      "Bash(python3 tools/repository-map/resolve_graph_out.py *)",
+      "Bash(py -3 scripts/ci/validate_agent_setup.py *)",
+      "Bash(python3 scripts/ci/validate_agent_setup.py *)",
+      "Bash(py -3 scripts/agents/guard.py *)",
+      "Bash(python3 scripts/agents/guard.py *)",
       "Bash(py -3 tools/repository-map/resolve_graph_out.py *)",
-      "Bash(memory load *)",
-      "Bash(memory search *)",
-      "Bash(memory check)",
-      "Bash(memory check *)",
-      "Bash(memory audit)",
-      "Bash(memory audit *)",
-      "PowerShell(git status)",
-      "PowerShell(git status *)",
-      "PowerShell(git diff *)",
-      "PowerShell(git show *)",
-      "PowerShell(git log *)",
-      "PowerShell(git rev-parse *)",
-      "PowerShell(git worktree list)",
-      "PowerShell(git fetch *)",
-      "PowerShell(git checkout *)",
-      "PowerShell(git cherry-pick *)",
-      "PowerShell(git add *)",
-      "PowerShell(git commit *)",
-      "PowerShell(git reset *)",
-      "PowerShell(git rebase *)",
-      "PowerShell(git ls-remote *)",
-      "PowerShell(grep -rn *)",
-      "PowerShell(rg *)",
-      "PowerShell(claude config *)",
-      "PowerShell(py -3 scripts/ci/validate_agent_setup.py)",
-      "PowerShell(python3 scripts/ci/validate_agent_setup.py)",
-      "PowerShell(py -3 scripts/ci/local_gate.py *)",
-      "PowerShell(python3 scripts/ci/local_gate.py *)",
-      "PowerShell(python3 .claude/hooks/guard.py *)",
-      "PowerShell(py -3 .claude/hooks/guard.py *)",
-      "PowerShell(python3 tools/repository-map/resolve_graph_out.py *)",
-      "PowerShell(py -3 tools/repository-map/resolve_graph_out.py *)",
-      "PowerShell(memory load *)",
-      "PowerShell(memory search *)",
-      "PowerShell(memory check)",
-      "PowerShell(memory check *)",
-      "PowerShell(memory audit)",
-      "PowerShell(memory audit *)"
+      "Bash(python3 tools/repository-map/resolve_graph_out.py *)",
+      "Bash(memory *)",
+      "Bash(mempalace *)"
     ]
   },
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell|Read|Grep|Edit|Write|Skill",
+        "matcher": "Bash|PowerShell|shell_command",
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"
-            ],
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3",
-            "args": [
-              "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py",
-              "--session-start"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 10
           }
         ]

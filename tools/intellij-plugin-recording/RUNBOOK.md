@@ -28,7 +28,7 @@ and uploaded to Google Drive.
 | `ffmpeg` | `ffmpeg version 8.1.1-essentials_build` | Already installed on this machine; `gdigrab` (Windows screen capture) ships built in, no extra install. |
 | `uv`/`uvx` | `uv 0.11.29` | Used to run Windows-MCP without a manual pip install (`uvx windows-mcp ...`). |
 | Windows-MCP | via `install-windows-mcp.ps1` (below) | github.com/CursorTouch/Windows-MCP. **Local scope only** -- never add it to this repo's checked-in `.mcp.json`; its own README says it "operates with full system access and can perform irreversible operations." |
-| JDK for `shaft-intellij`'s Gradle daemon | `~/.jdks/ms-21.0.11` | **Must** be JDK 21 or earlier. JDK 25 crashes the Gradle Daemon on Windows (`EXCEPTION_ACCESS_VIOLATION` in G1 GC) -- `shaft-intellij/settings.gradle.kts` fails fast with an actionable message if it detects a newer JDK (issue #3784). See `.claude/skills/shaft-mastery/references/intellij-plugin.md`. |
+| JDK for `shaft-intellij`'s Gradle daemon | `~/.jdks/ms-21.0.11` | **Must** be JDK 21 or earlier. JDK 25 crashes the Gradle Daemon on Windows (`EXCEPTION_ACCESS_VIOLATION` in G1 GC) -- `shaft-intellij/settings.gradle.kts` fails fast with an actionable message if it detects a newer JDK (issue #3784). See `../../.agents/skills/act-as-mohab/references/shaft-mastery/intellij-plugin.md`. |
 
 ## 1. Install Windows-MCP (local scope, scoped-down tools)
 

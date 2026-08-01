@@ -1,18 +1,11 @@
-# User harness (canonical)
+# User harness
 
-Canonical copies of user-level Claude harness config live here, in
-SHAFT_ENGINE, instead of only in `~/.claude`. This directory is the source
-of truth; `~/.claude` is a deploy target.
+Canonical user-level host config lives here. Run
+`py -3 scripts/agents/sync_user_harness.py --check` for drift or add `--apply`
+to deploy with backups.
 
-- `scripts/agents/sync_user_harness.py` (no args or `--check`) compares
-  each file here against its counterpart in `~/.claude` and reports
-  IN-SYNC / DRIFTED / MISSING per file.
-- `sync_user_harness.py --apply` deploys these files to `~/.claude`,
-  backing up any differing existing target to `<name>.bak` first.
-
-Secrets and machine/runtime state are never synced or committed:
-`.credentials.json`, caches, sessions, plugins, and `projects/` all stay
-local to `~/.claude` only.
-
-`~/.claude` may separately keep its own private local git repo (not this
-one) purely for local rollback history of runtime state.
+Sync scope is explicit: `CLAUDE.md`, tracked non-secret settings keys, thin role
+adapters, the Claude act-as-mohab redirect, and canonical `.agents` entrypoint.
+Settings are merged recursively, so unrelated environment variables, plugins,
+credentials, and personal keys remain untouched; other managed files are exact
+copies.

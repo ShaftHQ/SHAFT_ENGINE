@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/choosing-shaft-locators-and-the-shaft-test-authoring-skill-family-live-under-shaft-skills-not-claude-skills.md",
-  "content_hash": "sha256:0360f62fa38b0e5b54c27829b41f1ccbb526af251dc90f37cd61160fd1a24aa3",
+  "content_hash": "sha256:5048dc722a2ef8540fe77037dc5cc5750f298f73cafe342b10cd6fd9549ead4c",
   "created_at": "2026-07-26T02:46:42+03:00",
   "evidence": [],
   "facets": {
@@ -26,5 +26,5 @@
   ],
   "title": "choosing-shaft-locators and the SHAFT test-authoring skill family live under shaft-skills/, not .claude/skills/",
   "type": "gotcha",
-  "updated_at": "2026-07-26T02:46:42+03:00"
+  "updated_at": "2026-08-01T16:08:42+03:00"
 }

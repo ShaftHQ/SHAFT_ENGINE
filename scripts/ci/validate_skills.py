@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Lint .claude/skills/*/SKILL.md for structural hygiene.
+"""Lint the canonical .agents/skills/*/SKILL.md files for structural hygiene.
 
 Checks frontmatter presence/well-formedness, description quality (states
 what the skill does and when to use it), dead `references/*.md` links
 (resolved relative to each SKILL.md's own directory), and the per-skill byte
 budget. The byte budget is read from the same `agent_guidance_budget.json`
 `validate_agent_setup.py` already uses, not duplicated here — see
-`skill_budgets[".claude/skills"].max_skill_md_bytes`.
+`skill_budgets[".agents/skills"].max_skill_md_bytes`.
 
 Adapted (not copied) from bmad-method's `tools/skill-validator.md` rule
 catalog (MIT-licensed), trimmed to the rules that fit this repo's skill
@@ -33,7 +33,7 @@ from scripts.ci.validate_agent_guidance import (  # noqa: E402
     relative,
 )
 
-SKILLS_ROOT = ".claude/skills"
+SKILLS_ROOT = ".agents/skills"
 MIN_DESCRIPTION_CHARS = 20
 # Loose, deliberately broad signal set for "states when to use it" -- this is
 # a MEDIUM-severity hygiene nudge, not a grammar check; see bmad's own
@@ -158,7 +158,7 @@ def validate_skill(
 def validate_repository(
     root: Path = ROOT, budget_path: Path | None = None
 ) -> list[dict[str, str]]:
-    """Run every skill-hygiene check across .claude/skills and return sorted issues."""
+    """Run every skill-hygiene check across canonical skills and return sorted issues."""
     budget = load_budget(budget_path or root / "scripts/ci/agent_guidance_budget.json")
     max_skill_md_bytes = budget.get("skill_budgets", {}).get(SKILLS_ROOT, {}).get(
         "max_skill_md_bytes"
@@ -209,7 +209,7 @@ def main() -> int:
             print(f"{error['code']}: {error['path']}: {error['message']}", file=sys.stderr)
     else:
         print(
-            "Claude skill hygiene is valid: frontmatter, descriptions, "
+            "Canonical skill hygiene is valid: frontmatter, descriptions, "
             "references, and byte budgets all pass."
         )
     return 1 if errors else 0

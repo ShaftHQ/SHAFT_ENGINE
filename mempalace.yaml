@@ -1,0 +1,33 @@
+wing: shaft_engine
+exclude_patterns:
+- .git/**
+- .idea/**
+- .memory/index/**
+- graphify-out/**
+- '**/target/**'
+- '**/allure-results/**'
+- '**/allure-report*/**'
+- '**/execution-summary/**'
+- '**/generatedReport/**'
+- '**/performanceReport/**'
+- '**/.pytest_cache/**'
+- '**/__pycache__/**'
+rooms:
+- name: agent_harness
+  description: Agent policy, adapters, hooks, skills, and knowledge routing
+  keywords: [agents, claude, codex, hooks, skills, memory, mempalace, graphify]
+- name: framework
+  description: Core SHAFT engine and public behavior
+  keywords: [shaft_engine, shaft-engine, framework]
+- name: modules
+  description: Optional SHAFT modules and integration boundaries
+  keywords: [shaft_ai, shaft_capture, shaft_cli, shaft_heal, shaft_mcp, shaft_visual]
+- name: tests
+  description: Test code and verification infrastructure
+  keywords: [tests, testing, test]
+- name: scripts
+  description: CI, release, maintenance, and agent scripts
+  keywords: [scripts, ci]
+- name: general
+  description: Files not matched by a focused room
+  keywords: []
