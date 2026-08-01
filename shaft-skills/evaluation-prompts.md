@@ -8,6 +8,7 @@ Use these prompts through IntelliJ Assistant `/partner` or Guided `Plan coding p
 2. Use `$writing-shaft-tests` to review this Java snippet and list only the changes required before it can be accepted: it uses `Thread.sleep`, `driver.findElement`, `System.getProperty`, and a hard-coded token.
 3. Use `$writing-shaft-tests` to sketch a SHAFT API negative test from an OpenAPI contract where a missing required field should return 400. Keep reusable request/validation code outside the test.
 4. Use `$writing-shaft-tests` for a repo that already has `LoginPage.loginAs(...)` and locator fields. Show that you call `shaft_coding_partner_plan` and extend the existing target instead of creating `GeneratedLoginTest`.
+5. Use `$writing-shaft-tests` to explain which exception to expect from a broken `Actions.report()` path versus a failed validation/accessibility assertion.
 
 ## `choosing-shaft-locators`
 
