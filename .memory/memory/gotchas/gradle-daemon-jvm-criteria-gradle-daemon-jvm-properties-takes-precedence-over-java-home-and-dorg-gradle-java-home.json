@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/gradle-daemon-jvm-criteria-gradle-daemon-jvm-properties-takes-precedence-over-java-home-and-dorg-gradle-java-home.md",
-  "content_hash": "sha256:03177afa0a4ca5c2ae2b19f6ff560f9dd25b3da0b4e5bc942157edc7282361c3",
+  "content_hash": "sha256:6d90b18c1d0be45c8ddbb522a0bcad69213c1c459160ce662ec5fa7afc50662a",
   "created_at": "2026-07-19T18:39:23+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/settings.gradle.kts",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "Gradle Daemon JVM criteria (gradle-daemon-jvm.properties) takes precedence over JAVA_HOME and -Dorg.gradle.java.home",
   "type": "gotcha",
-  "updated_at": "2026-07-20T18:17:21+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

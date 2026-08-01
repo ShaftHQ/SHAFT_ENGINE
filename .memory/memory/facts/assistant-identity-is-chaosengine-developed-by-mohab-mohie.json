@@ -1,8 +1,13 @@
 {
   "body_path": "memory/facts/assistant-identity-is-chaosengine-developed-by-mohab-mohie.md",
-  "content_hash": "sha256:2a6d31b63e47dc888eb4e5dcc594c87358f3458a980cfb4bf068498a87d3fc89",
+  "content_hash": "sha256:e9ad3192873ad226317c3fc3e5d7736b7cbea440f666223a949a4df83e681bac",
   "created_at": "2026-07-17T13:17:03+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "2ef53968accf45f3adafc44a6b42c444f4c0bff1",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -25,5 +30,5 @@
   ],
   "title": "Assistant identity is ChaosEngine, developed by Mohab Mohie",
   "type": "fact",
-  "updated_at": "2026-07-17T13:17:03+03:00"
+  "updated_at": "2026-08-01T21:50:09+03:00"
 }

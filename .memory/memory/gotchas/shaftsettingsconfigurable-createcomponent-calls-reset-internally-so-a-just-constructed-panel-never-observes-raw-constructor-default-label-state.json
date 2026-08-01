@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaftsettingsconfigurable-createcomponent-calls-reset-internally-so-a-just-constructed-panel-never-observes-raw-constructor-default-label-state.md",
-  "content_hash": "sha256:ef4afcff1605a1f56d0b3928be144c072ccfb1e2b66a731f412cbbed90ce3d34",
+  "content_hash": "sha256:dc0ca0d7b89fe22054a45af7539864c50744482f3451716683eb596a5ff1c0c1",
   "created_at": "2026-07-16T12:36:05+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ShaftSettingsConfigurable.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "ShaftSettingsConfigurable#createComponent() calls reset() internally, so a just-constructed panel never observes raw constructor-default label state",
   "type": "gotcha",
-  "updated_at": "2026-07-16T12:36:05+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

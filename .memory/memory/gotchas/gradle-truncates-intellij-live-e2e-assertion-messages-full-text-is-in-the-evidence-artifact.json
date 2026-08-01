@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/gradle-truncates-intellij-live-e2e-assertion-messages-full-text-is-in-the-evidence-artifact.md",
-  "content_hash": "sha256:2162ee1da85bf8993a52cec9a7554cd7d3ade1a807a44b40c9985e594a594302",
+  "content_hash": "sha256:c2ea038fbe06cf5b178400cc63d9b680111dbd6258c81b8a49a377dde9dce169",
   "created_at": "2026-07-26T17:14:32+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": ".github/workflows/live-tools-nightly.yml",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "Gradle truncates IntelliJ live-E2E assertion messages; full text is in the *-evidence artifact",
   "type": "gotcha",
-  "updated_at": "2026-07-26T17:14:32+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/assistant-code-generation-must-verify-live-web-locators.md",
-  "content_hash": "sha256:12821ea10a8021f403557b45322afc277e2486b8ac31a21f06576c2e4978661b",
+  "content_hash": "sha256:f8edf36f7b8e11dd735c8785810a2e62dda3a7deb063295f4eeca7829d076614",
   "created_at": "2026-07-02T23:32:22+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "08241ae741fa84adf61603f2617a09de530c7e0e",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCommand.java",
@@ -32,5 +37,5 @@
   ],
   "title": "Assistant code generation must verify live web locators",
   "type": "decision",
-  "updated_at": "2026-07-02T23:32:22+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

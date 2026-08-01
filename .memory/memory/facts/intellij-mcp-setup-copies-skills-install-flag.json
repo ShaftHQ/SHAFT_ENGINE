@@ -1,8 +1,17 @@
 {
   "body_path": "memory/facts/intellij-mcp-setup-copies-skills-install-flag.md",
-  "content_hash": "sha256:d2e0d746128bed0ae66fea8bc93a4548e399f31099f5fdfb4a80ef3e20e43d65",
+  "content_hash": "sha256:6942a4b49e543b819580606b6cfe736083b21ff9ee1b78c622812ffad1ce3e41",
   "created_at": "2026-07-05T10:18:19+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
+      "kind": "file"
+    }
+  ],
   "id": "fact.intellij-mcp-setup-copies-skills-install-flag",
   "scope": {
     "branch": null,
@@ -23,5 +32,5 @@
   ],
   "title": "IntelliJ MCP setup copies skills install flag",
   "type": "fact",
-  "updated_at": "2026-07-05T10:18:19+03:00"
+  "updated_at": "2026-08-01T21:50:09+03:00"
 }

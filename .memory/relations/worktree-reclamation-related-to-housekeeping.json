@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:533a715dab5f47fa3c5dbdf1de6e096ba5d32465da47b51dcaba08e2cac4a31f",
+  "created_at": "2026-08-01T22:08:11+03:00",
+  "from": "gotcha.worktree-agent-reclamation-can-lose-uncommitted-work",
+  "id": "rel.worktree-reclamation-related-to-housekeeping",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "constraint.worktree-housekeeping-at-session-start",
+  "updated_at": "2026-08-01T22:08:11+03:00"
+}

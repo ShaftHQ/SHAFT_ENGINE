@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-auto-scaffolded-custom-properties-silently-overrides-d-system-properties.md",
-  "content_hash": "sha256:be6624e0f251ff1117cdb3b2db27b21d3a46635aa3f1be3a6fdc777cd9ccb222",
+  "content_hash": "sha256:538b3f23b041a2ec7a489cc19c0186aa77de90f5c2746b1229627e80eb68eafc",
   "created_at": "2026-07-06T23:25:17+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/properties/internal/PropertiesHelper.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-engine/src/main/java/com/shaft/properties/internal/PropertiesHelper.java",
@@ -33,5 +38,5 @@
   ],
   "title": "SHAFT auto-scaffolded custom.properties silently overrides -D system properties",
   "type": "gotcha",
-  "updated_at": "2026-07-06T23:25:17+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

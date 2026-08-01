@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-prior-javadoc-claim-about-sm-test-framework-ui-dependency-cost-was-stale-inaccurate.md",
-  "content_hash": "sha256:bd590d9f7024cbc596f473f37d8b92330ffa519a4ea228cc8af5f54650705232",
+  "content_hash": "sha256:b9b8f36532934217c0b641221245a26c8e78a6895f845038ddd203a82f3a5ae1",
   "created_at": "2026-07-17T22:59:55+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "bd886bb984d31cc8fb9cab1ce12160bbce45cfd2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "shaft-intellij: prior javadoc claim about SM test-framework UI dependency cost was stale/inaccurate",
   "type": "gotcha",
-  "updated_at": "2026-07-17T22:59:55+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

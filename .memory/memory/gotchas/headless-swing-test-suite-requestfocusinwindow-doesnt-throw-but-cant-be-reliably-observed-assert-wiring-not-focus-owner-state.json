@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/headless-swing-test-suite-requestfocusinwindow-doesnt-throw-but-cant-be-reliably-observed-assert-wiring-not-focus-owner-state.md",
-  "content_hash": "sha256:9a428158edab883dad652e75a7da2d9853f7312b01efe9f30f74588860b2a7bf",
+  "content_hash": "sha256:14e8393991fd920cc89b2364cdb9945ad8a95e1b30f56b3bb14b84571029ae42",
   "created_at": "2026-07-17T05:03:33+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "Headless Swing test suite: requestFocusInWindow() doesn't throw but can't be reliably observed -- assert wiring, not focus-owner state",
   "type": "gotcha",
-  "updated_at": "2026-07-17T05:03:33+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

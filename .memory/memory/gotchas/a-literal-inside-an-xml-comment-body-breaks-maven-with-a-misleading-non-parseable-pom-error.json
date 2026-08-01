@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/a-literal-inside-an-xml-comment-body-breaks-maven-with-a-misleading-non-parseable-pom-error.md",
-  "content_hash": "sha256:a342a1040f1cdc8e4f3faf7b86fc1f181469ac2d46c3e2db8bd37e8491a64b9f",
+  "content_hash": "sha256:78478f246d891e20e01bc6cd11afb6235bab0aafb8405821f290b24c6f41c017",
   "created_at": "2026-07-26T03:02:04+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ab32d5921d382d3cd6da0f93d243b2cc381e6b77",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "A literal -- inside an XML comment body breaks Maven with a misleading Non-parseable POM error",
   "type": "gotcha",
-  "updated_at": "2026-07-26T03:02:04+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

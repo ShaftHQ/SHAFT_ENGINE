@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:aedd524a4d2a2a26162c5c9e4d0d0f819bf90da11adba72b06125812f1287055",
+  "created_at": "2026-08-01T21:40:42+03:00",
+  "from": "decision.autonomous-merge-authority-extends-to-shafthq-github-io-docs-repo",
+  "id": "rel.docs-merge-authority-supports-docs-workflow",
+  "predicate": "supports",
+  "status": "active",
+  "to": "workflow.shaft-docs-repo-shafthq-github-io-merge-policy-deploy-checks-and-build-fragility",
+  "updated_at": "2026-08-01T21:40:42+03:00"
+}

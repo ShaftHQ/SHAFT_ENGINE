@@ -1,8 +1,17 @@
 {
   "body_path": "memory/facts/mains-only-required-status-check-is-pr-gate-summary-verified-via-the-github-rulesets-api.md",
-  "content_hash": "sha256:fbc573936e24afb79e32f809d9bcce5539417c7bb0d1fb9e7b3190ff32c0ed50",
+  "content_hash": "sha256:396ae7629ecc7dee5f17dca17a620ba1aabf71fe54e0f8a103cbcfd5cbf606d1",
   "created_at": "2026-07-26T16:20:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "2a883bc18b6d900a6aa356db7e6ae7e767f04b22",
+      "kind": "commit"
+    },
+    {
+      "id": "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/rules/branches/main",
+      "kind": "source"
+    }
+  ],
   "facets": {
     "category": "debugging-fact"
   },
@@ -26,5 +35,5 @@
   ],
   "title": "main's only required status check is PR Gate Summary, verified via the GitHub rulesets API",
   "type": "fact",
-  "updated_at": "2026-07-26T16:20:20+03:00"
+  "updated_at": "2026-08-01T21:52:56+03:00"
 }

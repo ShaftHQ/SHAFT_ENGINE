@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/gemini-thinkinglevel-is-3-x-only-thinkingbudget-is-2-5-series.md",
-  "content_hash": "sha256:8ec688946708003d59e36f3b424af9500b2787e84a12452152e545c771b5d75e",
+  "content_hash": "sha256:cf142fe59ffed684f18d218c7f7f42fbc7da80f8faa9dacc2a4c266a2ff47be3",
   "created_at": "2026-07-26T18:19:35+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-ai/src/main/java/com/shaft/ai/provider/GeminiProvider.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Gemini thinkingLevel is 3.x-only; thinkingBudget is 2.5-series",
   "type": "gotcha",
-  "updated_at": "2026-07-26T18:19:35+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

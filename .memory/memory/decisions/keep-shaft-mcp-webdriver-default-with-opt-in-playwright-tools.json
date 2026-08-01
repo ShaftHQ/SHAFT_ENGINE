@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/keep-shaft-mcp-webdriver-default-with-opt-in-playwright-tools.md",
-  "content_hash": "sha256:5fb6b01e37ad3abc7a9816b6497f07d68f043297ea97b8e90dbd3f5cf9407183",
+  "content_hash": "sha256:11a0baa4f034e3b990ff7dc408b37db1617786e838b4dfe28330520d93fcff10",
   "created_at": "2026-06-21T13:16:01+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c9506f04387fc0b828916b2dcf6f0166c4e45f33",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-mcp/src/main/java/com/shaft/mcp",
@@ -30,5 +35,5 @@
   ],
   "title": "Keep SHAFT MCP WebDriver default with opt-in Playwright tools",
   "type": "decision",
-  "updated_at": "2026-06-21T13:16:01+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/testng-retry-semantics-suppressed-attempts-fire-ontestskipped-with-wasretried-true.md",
-  "content_hash": "sha256:5cbcef1a837f29170865fd8810476b245cd99ec203dc789146599824175d34d9",
+  "content_hash": "sha256:99f4cb6b50d6e7dffbe12a194989d7fd27112eaa068c0963ca8f9f21a9e56b3a",
   "created_at": "2026-07-20T03:48:27+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "adfd81b7463d24222948af06ac039f3790088c88",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "TestNG retry semantics: suppressed attempts fire onTestSkipped with wasRetried=true",
   "type": "gotcha",
-  "updated_at": "2026-07-20T03:48:27+03:00"
+  "updated_at": "2026-08-01T21:55:58+03:00"
 }

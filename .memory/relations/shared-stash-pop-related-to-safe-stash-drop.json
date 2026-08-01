@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:d7626303e6f85454ba0b093640d25f6728057ba7eece558bbe5ee33825b0ba7b",
+  "created_at": "2026-08-01T22:08:11+03:00",
+  "from": "gotcha.git-stash-pop-is-shared-across-every-worktree-of-one-git-never-pop-speculatively",
+  "id": "rel.shared-stash-pop-related-to-safe-stash-drop",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.safe-mass-stash-drop-pattern-drop-by-hash-reverified-current-index-one-at-a-time-never-trust-a-captured-index-after-any-drop",
+  "updated_at": "2026-08-01T22:08:11+03:00"
+}

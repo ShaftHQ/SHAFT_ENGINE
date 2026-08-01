@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/use-override-annotations.md",
-  "content_hash": "sha256:dcfcfd318d4ae0a523ecd0e1bc6ea8ea4d826baf8337482c047657cc3fe85023",
+  "content_hash": "sha256:764793b655925d5e1194affd1e8b5c894cf95ff3e8bf0f4934d5649b36a7b967",
   "created_at": "2026-06-21T11:06:45+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "9387ba0d361c25845f8680af2dc70525121a3256",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Use @Override annotations on implemented methods",
   "type": "decision",
-  "updated_at": "2026-06-21T11:06:45+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

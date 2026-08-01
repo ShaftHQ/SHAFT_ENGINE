@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/memory-remember-stdin-tags-must-be-all-lowercase-or-schema-validation-fails-with-no-detail.md",
-  "content_hash": "sha256:87e56f74fabbf5a53e98a1789d1685d78c81f337efe68aaf9725165ad5234055",
+  "content_hash": "sha256:a697611b8908764a4f3e41219e65d4e53fe2f6fd50d1cf36b9af51eae9cbc211",
   "created_at": "2026-07-17T23:39:15+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": ".memory/schema/patch.schema.json",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -25,5 +30,5 @@
   ],
   "title": "memory remember --stdin: tags must be all-lowercase or schema validation fails with no detail",
   "type": "gotcha",
-  "updated_at": "2026-07-17T23:39:15+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

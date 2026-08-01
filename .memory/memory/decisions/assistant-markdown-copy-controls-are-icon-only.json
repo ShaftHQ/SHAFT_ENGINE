@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/assistant-markdown-copy-controls-are-icon-only.md",
-  "content_hash": "sha256:8d4cd9140bc57f71d8df4e501e51c46a9b786310d06f66f53c542d4726149a14",
+  "content_hash": "sha256:8541e444a53e8b8f24c66ed5a6f675edda996c2790d7332e018f82ad154b5fd3",
   "created_at": "2026-07-02T23:32:22+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "08241ae741fa84adf61603f2617a09de530c7e0e",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
@@ -31,5 +36,5 @@
   ],
   "title": "Assistant Markdown copy controls are icon-only",
   "type": "decision",
-  "updated_at": "2026-07-02T23:32:22+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/markdown-link-checkers-miss-bare-filenames-in-table-cells-check-both-directions-against-disk.md",
-  "content_hash": "sha256:11c2a5f288f1d98648e0ffe1eef2b18640dd5798cd68f2654f2932b84f37a540",
+  "content_hash": "sha256:f1bb2114800f467664b4e81894f914a276b149fc559857b1b506601cb73d54a9",
   "created_at": "2026-07-28T00:15:42+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "modular-era-feature-catalog.md",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Markdown link checkers miss bare filenames in table cells; check both directions against disk",
   "type": "gotcha",
-  "updated_at": "2026-07-28T00:15:42+03:00"
+  "updated_at": "2026-08-01T22:00:11+03:00"
 }

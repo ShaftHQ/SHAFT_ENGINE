@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:4df1ef3fb117db6b09d8644b310721f3d5d16477964b136ad599d38b0643b820",
+  "created_at": "2026-08-01T22:08:11+03:00",
+  "from": "gotcha.when-a-fix-reveals-a-new-bug-2-times-in-a-row-stop-trusting-the-same-agents-self-review-and-dispatch-a-fresh-independent-reviewer",
+  "id": "rel.independent-review-related-to-delegate-fabrication",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.delegated-agents-fabricate-examples-to-hit-a-requested-count-while-claiming-full-coverage-of-the-original-list-verify-independently",
+  "updated_at": "2026-08-01T22:08:11+03:00"
+}

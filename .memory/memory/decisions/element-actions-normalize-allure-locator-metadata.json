@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/element-actions-normalize-allure-locator-metadata.md",
-  "content_hash": "sha256:317b757f42088a8d27e07fc11ece36dfbb164184383533294d991f2c203a7d58",
+  "content_hash": "sha256:5e79acd28be7aa5ae1b33b4dcc35ff5b9febcb12f49a1f032e4d683fcedfec9c",
   "created_at": "2026-06-19T08:51:22+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "51647e5f0c8732812ff90481768b3ca1ae85bfb1",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-engine/src/main/java/com/shaft/gui/element/internal/Actions.java",
@@ -30,5 +35,5 @@
   ],
   "title": "Element actions normalize Allure locator metadata",
   "type": "decision",
-  "updated_at": "2026-06-19T08:51:22+03:00"
+  "updated_at": "2026-08-01T21:40:42+03:00"
 }
