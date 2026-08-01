@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes.md",
-  "content_hash": "sha256:0f94721bb8b644dd38842429a364627ac7e1a1f3b31086ad8ddca1f28cef7960",
+  "content_hash": "sha256:e89c056ccb6dc77fcdf2f9e17bb237075f13889bf7b76e3a1541b1cc8c3908fb",
   "created_at": "2026-07-10T15:08:06+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "b74aad833dafe5e7a94bde12026424068af73989",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java"
@@ -28,5 +33,5 @@
   ],
   "title": "Never tear down a recorder on a thread owned by a resource that teardown closes",
   "type": "gotcha",
-  "updated_at": "2026-07-10T15:08:06+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

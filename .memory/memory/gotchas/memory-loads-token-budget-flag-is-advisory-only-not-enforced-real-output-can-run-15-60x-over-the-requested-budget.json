@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/memory-loads-token-budget-flag-is-advisory-only-not-enforced-real-output-can-run-15-60x-over-the-requested-budget.md",
-  "content_hash": "sha256:c1e3a629c4e91febff55019dfc8a449705f488b46317ecbca50f0fceb294bd73",
+  "content_hash": "sha256:faa7bf04e924c54261763730e3bf17d53043e3339113f6e99715faf95fec2a26",
   "created_at": "2026-07-16T12:49:41+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c2cced799462c9c6dd5c4da097a83be58aab7781",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "memory load's --token-budget flag is advisory only, not enforced -- real output can run 15-60x over the requested budget",
   "type": "gotcha",
-  "updated_at": "2026-07-16T12:49:41+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

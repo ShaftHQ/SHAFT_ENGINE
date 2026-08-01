@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/subagent-gh-pr-merge-auto-blocked-only-orchestrator-arms-automerge.md",
-  "content_hash": "sha256:08f9ec67483d0fb014c22e8ec9a352b5512d9b98eb1541decbb463cc87acc743",
+  "content_hash": "sha256:676b6c38872f839acf01b02106bee0bf9678e58c5a873f048f1af323418d731d",
   "created_at": "2026-07-28T18:37:35+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "f84dab68d5c6d3b077adab01b5150d5362a13406",
+      "kind": "commit"
+    },
+    {
+      "id": "5aed165ec70e732e42db998259562bbd82351052",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "Sonnet coder/tester subagents get gh pr merge --auto and gh pr checks/view --json blocked by the permission classifier; only the orchestrator session can arm auto-merge",
   "type": "gotcha",
-  "updated_at": "2026-07-28T18:37:35+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

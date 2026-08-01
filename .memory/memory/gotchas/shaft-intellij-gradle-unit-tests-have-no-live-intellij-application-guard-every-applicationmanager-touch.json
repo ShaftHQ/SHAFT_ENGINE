@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/shaft-intellij-gradle-unit-tests-have-no-live-intellij-application-guard-every-applicationmanager-touch.md",
-  "content_hash": "sha256:9f17df407ef6f0287b61846bbfa4fea59a3eaae97e718b3769de9aeae73a041a",
+  "content_hash": "sha256:4ae0ca98050035f8e4014f74b5c9d847a96b8f0c5949c77751f0c3d95ff80afb",
   "created_at": "2026-07-17T02:13:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "e60c2b2f0d510fa0047786506922ea151ce4ad98",
+      "kind": "commit"
+    },
+    {
+      "id": "c5a8e4e377215404acaf3562f16f07f9a9fcd4e2",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "shaft-intellij Gradle unit tests have no live IntelliJ Application -- guard every ApplicationManager touch",
   "type": "gotcha",
-  "updated_at": "2026-07-26T20:45:21+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

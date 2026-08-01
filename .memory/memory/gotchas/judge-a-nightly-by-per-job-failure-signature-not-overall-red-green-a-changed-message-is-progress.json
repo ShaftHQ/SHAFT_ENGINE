@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/judge-a-nightly-by-per-job-failure-signature-not-overall-red-green-a-changed-message-is-progress.md",
-  "content_hash": "sha256:292884bb31da018a7abcb8f20f37c39b3e2199e9a985814b063fd5ddcd24d3c1",
+  "content_hash": "sha256:b82367a15ca8b87c4d02858e12bb45cddd9a4ed11be5135f44fa34f9c365dd93",
   "created_at": "2026-07-26T17:14:32+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "930c0b5546c22bfdcf04da803298a56e0cf68569",
+      "kind": "commit"
+    },
+    {
+      "id": "e06e9856797673edf1236b1685e44aa9ca567e87",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "Judge a nightly by per-job failure signature, not overall red/green; a changed message is progress",
   "type": "gotcha",
-  "updated_at": "2026-07-26T17:14:32+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

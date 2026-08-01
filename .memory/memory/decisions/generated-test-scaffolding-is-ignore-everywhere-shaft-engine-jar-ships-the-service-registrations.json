@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/generated-test-scaffolding-is-ignore-everywhere-shaft-engine-jar-ships-the-service-registrations.md",
-  "content_hash": "sha256:ae72c80d84093249ea93eab11df212f2d895f22c19292c6284a37563dc08455c",
+  "content_hash": "sha256:6a9497b5e717a0de689249d9b81758e33ae7804449d9943b8ddde0bbfc7a844f",
   "created_at": "2026-07-21T07:37:49+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3879",
+      "kind": "task"
+    },
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/tools/io/internal/ProjectStructureManager.java",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "Generated test scaffolding is ignore-everywhere; shaft-engine jar ships the service registrations",
   "type": "decision",
-  "updated_at": "2026-07-21T07:37:49+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

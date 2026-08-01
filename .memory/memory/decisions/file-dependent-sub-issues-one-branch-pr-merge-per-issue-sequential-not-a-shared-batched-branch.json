@@ -1,8 +1,21 @@
 {
   "body_path": "memory/decisions/file-dependent-sub-issues-one-branch-pr-merge-per-issue-sequential-not-a-shared-batched-branch.md",
-  "content_hash": "sha256:9cf5de070562a8c29f7e377071f04ec88cb94f5c322cb72c896b09fdb13bcfa7",
+  "content_hash": "sha256:64ba1f4589a3c472ee19dcd3234c22a5d75df03fec2c3cde5e2aaebe9af0c40c",
   "created_at": "2026-07-17T13:14:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "77b415476fa81ddae75cd88ee6a6bcf11f2bdfb0",
+      "kind": "commit"
+    },
+    {
+      "id": "0791ba7f7ded10fa0c866510f8988e02c08aeae1",
+      "kind": "commit"
+    },
+    {
+      "id": "93bafa9e02851330511489d3146faa557e78a264",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -27,5 +40,5 @@
   ],
   "title": "File-dependent sub-issues: one branch+PR+merge per issue, sequential, not a shared batched branch",
   "type": "decision",
-  "updated_at": "2026-07-17T13:14:20+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

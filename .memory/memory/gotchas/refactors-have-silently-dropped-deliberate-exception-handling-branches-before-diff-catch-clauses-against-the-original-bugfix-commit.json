@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/refactors-have-silently-dropped-deliberate-exception-handling-branches-before-diff-catch-clauses-against-the-original-bugfix-commit.md",
-  "content_hash": "sha256:3593d22f10cb69eca8f2165e24acfa8f4bf683dd331f1dc20c1b7dacf0009924",
+  "content_hash": "sha256:6dbc405315dfd6bacb757dcb0321424182c3c13bb66fd14c3b63eccc121a45a9",
   "created_at": "2026-07-20T00:12:38+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "3f5c3977742c43ce37ee601e77aebe86389e381d",
+      "kind": "commit"
+    },
+    {
+      "id": "e9c6f9d2e8ad36bcf54004b151bd3382aac98c1e",
+      "kind": "commit"
+    },
+    {
+      "id": "aec7d533336c8e3d1f186786383c6f7a46821b39",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +41,5 @@
   ],
   "title": "Refactors have silently dropped deliberate exception-handling branches before; diff catch clauses against the original bugfix commit",
   "type": "gotcha",
-  "updated_at": "2026-07-20T00:12:38+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

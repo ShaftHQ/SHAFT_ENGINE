@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/unmocked-shaft-properties-mutating-unit-tests-need-singlethreaded-true-under-dynamic-methods-parallel-ci.md",
-  "content_hash": "sha256:4edc710d1a3ff81a68f7ac8e0fb1e59ba35e1b284b0124ed6e88066069a66099",
+  "content_hash": "sha256:3c11267e3cd2db22c4f8e7171b9ecc41c9645da569a329fccf71055808293643",
   "created_at": "2026-07-21T16:34:05+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "bdf5dcd923dfed02fddbe6f34963479f9b33c87f",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -29,5 +34,5 @@
   ],
   "title": "Unmocked SHAFT.Properties-mutating unit tests need singleThreaded=true under DYNAMIC/METHODS parallel CI",
   "type": "gotcha",
-  "updated_at": "2026-07-21T16:34:05+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

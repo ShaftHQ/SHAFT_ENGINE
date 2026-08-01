@@ -1,0 +1,21 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:07004dc582f38052db16eacf68d38c554efeea60d0b166832c7f08a69c88100b",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_agent_setup.py",
+      "kind": "file"
+    }
+  ],
+  "from": "architecture.current",
+  "id": "rel.current-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

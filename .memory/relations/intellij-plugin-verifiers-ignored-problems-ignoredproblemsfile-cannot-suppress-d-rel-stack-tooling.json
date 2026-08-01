@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:00530de2201112fc4a9a31b9f6c58df2869f82f8ef2a3137c91be606652df471",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "shaft-intellij/build.gradle.kts",
+      "kind": "file"
+    }
+  ],
+  "from": "gotcha.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-deprecated-api-usage-findings",
+  "id": "rel.intellij-plugin-verifiers-ignored-problems-ignoredproblemsfile-cannot-suppress-d-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

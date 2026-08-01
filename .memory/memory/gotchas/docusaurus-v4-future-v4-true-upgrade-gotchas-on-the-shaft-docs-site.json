@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/docusaurus-v4-future-v4-true-upgrade-gotchas-on-the-shaft-docs-site.md",
-  "content_hash": "sha256:ea10dc1094228be780ad273e3fa9828c3b9fc0555ec94342e092663a40df4b72",
+  "content_hash": "sha256:520c40de85873fc9e2413da8aed86b65c04b344e7ea329a08dcb2465a222ddb9",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "ShaftHQ/shafthq.github.io#756",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Docusaurus v4 (future.v4:true) upgrade gotchas on the SHAFT docs site",
   "type": "gotcha",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/shaft-properties-overrides-are-thread-local-re-apply-on-background-pooled-threads.md",
-  "content_hash": "sha256:0ed9d0e3bef2b8703b012490d6413e52149d0223ce3e72a4bc683f84b1f167d2",
+  "content_hash": "sha256:a3d2a0c91c8ef6f8eeb28fb7ad68723a3969c86cb008b5d3a84e1290c682fdaf",
   "created_at": "2026-07-26T10:25:51+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "73e65419a83971a788335998191cf66de7cd1129",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "SHAFT.Properties overrides are thread-local; re-apply on background/pooled threads",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:25:51+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

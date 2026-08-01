@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/surefire-dtest-multi-class-needs-commas-not.md",
-  "content_hash": "sha256:1b1ff4654e88368dd946c4a6cc5a43b2d82e062c866883ffcc25cc2991fb281f",
+  "content_hash": "sha256:c82feaa575097d299a4f7f29a20d30aa123596028cd0b7bcbcbba81ea4cb0f48",
   "created_at": "2026-07-15T10:08:58+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "24ba6e0538ba3dca6f4fa60b065f19b83ce671b7",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Surefire -Dtest multi-class needs commas, not +",
   "type": "gotcha",
-  "updated_at": "2026-07-27T20:27:35+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

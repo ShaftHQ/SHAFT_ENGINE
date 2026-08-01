@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/java-awt-gridlayout-reserves-full-row-height-for-invisible-children-unlike-borderlayout-boxlayout-which-collapse-them-to-zero.md",
-  "content_hash": "sha256:7b228fe86efabf7eb24d67c46f5b0cf5f70f1426ef50fe12cde48d317c48800e",
+  "content_hash": "sha256:2e8adc381f96eb09ba1f988ab23575efdf05df155ceba16b2b3e4f88ed9ac29e",
   "created_at": "2026-07-17T23:13:57+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3694",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "java.awt.GridLayout reserves full-row height for invisible children -- unlike BorderLayout/BoxLayout, which collapse them to zero",
   "type": "gotcha",
-  "updated_at": "2026-07-17T23:13:57+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state.md",
-  "content_hash": "sha256:f68bc92b391abf8409f9b43a3912c34f08460402a0f100b00f428231dec18c63",
+  "content_hash": "sha256:4b4b5b4458bdb8a763ecdafb30c29d1d6ac1d0fecf9c58eb8e0aa26805f0350c",
   "created_at": "2026-07-12T13:24:30+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "e4f7eabb17b0f5fb86b6c21d7ab849e42eb73587",
+      "kind": "commit"
+    },
+    {
+      "id": "92ca7393094399e50c0f14c6bbdbdf4a4cfff5b9",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -25,5 +34,5 @@
   ],
   "title": "ShaftMcpSetupPanel installerDetailsPanel is dead-hidden; UI and screenshots reflect real machine state",
   "type": "gotcha",
-  "updated_at": "2026-07-12T13:24:30+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

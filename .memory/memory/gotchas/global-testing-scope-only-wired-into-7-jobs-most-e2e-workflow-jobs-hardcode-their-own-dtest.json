@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/global-testing-scope-only-wired-into-7-jobs-most-e2e-workflow-jobs-hardcode-their-own-dtest.md",
-  "content_hash": "sha256:db6e031b8f5f9abe020b3433a71cdf2ffbfa871ee815b1dc085987c5253bac12",
+  "content_hash": "sha256:cb49a287f67161af7f3b369bf700790d7bb4bcdde7f2e40b46b73c5f86390544",
   "created_at": "2026-07-26T17:14:32+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "5ea00e0c2c0d4feeb93c4a1e52156980c939fb61",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "An env var consumed only via shell interpolation in a workflow run: block is invisible to pom/Java greps -- GLOBAL_TESTING_SCOPE is a live example",
   "type": "gotcha",
-  "updated_at": "2026-07-26T17:18:54+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

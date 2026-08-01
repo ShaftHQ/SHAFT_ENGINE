@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/local-e2e-job-logs-contain-null-bytes-that-make-ripgrep-silently-truncate.md",
-  "content_hash": "sha256:03937048b71518fa08ddbbe8814ccd76ae1d2984a90c0973c565b7196977ca3a",
+  "content_hash": "sha256:60494ccfb71c4c1a26d714cd3dd2cc4e9d6e587c9e27bf4c6b9de0282f213af9",
   "created_at": "2026-07-20T03:48:27+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "issue #3807",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "Local E2E job logs contain null bytes that make ripgrep silently truncate",
   "type": "gotcha",
-  "updated_at": "2026-07-20T03:48:27+03:00"
+  "updated_at": "2026-08-01T21:02:05+03:00"
 }

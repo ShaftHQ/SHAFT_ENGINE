@@ -1,0 +1,21 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:6a2dc850737e73354e4e31fc66b13d8d565d0bb0e08808b9de45219104af28c5",
+  "created_at": "2026-07-29T16:47:24+03:00",
+  "evidence": [
+    {
+      "id": "source.agents",
+      "kind": "source"
+    },
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "synthesis.stack-and-tooling",
+  "id": "rel.synthesis-stack-and-tooling-derived-from-source-agents",
+  "predicate": "derived_from",
+  "status": "active",
+  "to": "source.agents",
+  "updated_at": "2026-07-29T16:47:24+03:00"
+}

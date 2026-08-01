@@ -1,8 +1,13 @@
 {
   "body_path": "memory/decisions/intellij-assistant-clarifying-questions-render-selectable-chips-via-a-fenced-shaft-options-marker-issue-3674-pr-3689.md",
-  "content_hash": "sha256:6d8dd861a79c37133569e88470315fa66494eec207e025562e8e0bd8409e5697",
+  "content_hash": "sha256:424a8f4354b91491333f42b87515069af3bff6f5e98d496befc04eadbb58db2f",
   "created_at": "2026-07-17T21:59:46+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "71adc53d4a58450517d825684f6bbeaa16071a7e",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -27,5 +32,5 @@
   ],
   "title": "IntelliJ Assistant clarifying questions render selectable chips via a fenced shaft-options marker (issue #3674, PR #3689)",
   "type": "decision",
-  "updated_at": "2026-07-17T21:59:46+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

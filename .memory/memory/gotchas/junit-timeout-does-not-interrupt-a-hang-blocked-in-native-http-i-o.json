@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/junit-timeout-does-not-interrupt-a-hang-blocked-in-native-http-i-o.md",
-  "content_hash": "sha256:c04b61359c99cf448007bdaa6ffa19fd4ff4c0b6a51602570e0ea19b4ac4014b",
+  "content_hash": "sha256:2e738d8fde3db1e8b86ef7e1eb46a78db397fc953d96911f06c79926d25623b6",
   "created_at": "2026-07-26T10:58:55+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "34138a52acdb63711d6a8dd66ec41ecd93ed9984",
+      "kind": "commit"
+    },
+    {
+      "id": "68f0a3d24e326126e5cd9e20dc7d3f10ff8bc229",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureManager.java",
@@ -32,5 +41,5 @@
   ],
   "title": "JUnit @Timeout does not interrupt a hang blocked in native HTTP I/O",
   "type": "gotcha",
-  "updated_at": "2026-07-26T10:58:55+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

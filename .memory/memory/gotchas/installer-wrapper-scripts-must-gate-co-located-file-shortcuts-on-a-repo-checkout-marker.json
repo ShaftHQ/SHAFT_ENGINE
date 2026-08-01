@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker.md",
-  "content_hash": "sha256:5737e6a4f5a95fb3e12024c429087d64b4f28b8b38eed149854f2e977f2e214d",
+  "content_hash": "sha256:007fdc3e1e1fb1fa543bafe207818e5e653f785c0afb90ed146f0f78a8a01209",
   "created_at": "2026-07-08T17:00:20+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "482111a9248d3f7cc59cc154bf1ad1251864dc72",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "scripts/mcp/install-shaft-mcp.ps1",
@@ -30,5 +35,5 @@
   ],
   "title": "Installer wrapper scripts must gate co-located-file shortcuts on a repo-checkout marker",
   "type": "gotcha",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

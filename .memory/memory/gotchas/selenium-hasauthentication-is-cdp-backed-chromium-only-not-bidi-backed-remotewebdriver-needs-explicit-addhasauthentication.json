@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/selenium-hasauthentication-is-cdp-backed-chromium-only-not-bidi-backed-remotewebdriver-needs-explicit-addhasauthentication.md",
-  "content_hash": "sha256:7c778b622231056f64cd150f2e87957d737729b9f5277a4f0959f4ea62e01f16",
+  "content_hash": "sha256:dd1770e44a46c15a4ed608011fef1db9a4371cfdd19ab0c8777ffcb8d9e2fc92",
   "created_at": "2026-07-19T22:15:10+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "d5bd860de73b74c6516d08e1a15ea8a2f4b125a8",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -28,5 +33,5 @@
   ],
   "title": "Selenium HasAuthentication is CDP-backed (Chromium-only), not BiDi-backed; RemoteWebDriver needs explicit AddHasAuthentication",
   "type": "gotcha",
-  "updated_at": "2026-07-19T22:15:10+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

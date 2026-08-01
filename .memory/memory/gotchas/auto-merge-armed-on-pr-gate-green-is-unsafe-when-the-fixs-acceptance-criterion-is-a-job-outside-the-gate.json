@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/auto-merge-armed-on-pr-gate-green-is-unsafe-when-the-fixs-acceptance-criterion-is-a-job-outside-the-gate.md",
-  "content_hash": "sha256:6cf0ddcbd480946e8c41e82ba6eed6adf123bd578070d64c42bc8d64f37fe6fb",
+  "content_hash": "sha256:350c73ca02d2567f69a51f7e78b906b95aac5a78d207df606bc12b8ed1c27eb1",
   "created_at": "2026-07-26T16:17:39+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "1ae5b074a06229572622e94d83758b894c37601d",
+      "kind": "commit"
+    },
+    {
+      "id": "a474ebb6e88cd78a0cf439d291de153f0bbe034d",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +35,5 @@
   ],
   "title": "Auto-merge armed on PR-gate green is unsafe when the fix's acceptance criterion is a job outside the gate",
   "type": "gotcha",
-  "updated_at": "2026-07-26T16:17:39+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

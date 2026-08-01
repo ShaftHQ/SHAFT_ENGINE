@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/cancel-the-completablefuture-before-the-kill-destroy-action-in-cancellable-invocation-handles.md",
-  "content_hash": "sha256:356d112ac340ad791ac3e232a4d82b70e38109cc42f0bcbecf973034ea15a322",
+  "content_hash": "sha256:2e9a139da28a0ba4f84fe954591431ee460ccaa5d7d07e97ddcd4d584fa840fb",
   "created_at": "2026-07-19T11:59:34+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "31c69fa32bd360e67e7474f9f075ee5d35f2dee0",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -26,5 +31,5 @@
   ],
   "title": "Cancel the CompletableFuture BEFORE the kill/destroy action in cancellable invocation handles",
   "type": "gotcha",
-  "updated_at": "2026-07-19T11:59:34+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

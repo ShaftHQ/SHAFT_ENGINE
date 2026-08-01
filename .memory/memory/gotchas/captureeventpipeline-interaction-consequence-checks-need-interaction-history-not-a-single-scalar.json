@@ -1,8 +1,17 @@
 {
   "body_path": "memory/gotchas/captureeventpipeline-interaction-consequence-checks-need-interaction-history-not-a-single-scalar.md",
-  "content_hash": "sha256:372d2e37b2a9f3083bc7feb3cf316729309a73e69da9b0e157673be35d706029",
+  "content_hash": "sha256:e959ea2c2f24a55986e0ece06cf8607d4e40813ec86729da31703645f9f1ce7f",
   "created_at": "2026-07-15T19:45:19+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "c2efb9bf5e8f5660201fc17ef59c6eec3e0ae1bf",
+      "kind": "commit"
+    },
+    {
+      "id": "8ff29b5fe6da9f4ca8e08e2a0d474bd904643c77",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +36,5 @@
   ],
   "title": "CaptureEventPipeline interaction-consequence checks need interaction HISTORY, not a single scalar",
   "type": "gotcha",
-  "updated_at": "2026-07-15T19:45:19+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

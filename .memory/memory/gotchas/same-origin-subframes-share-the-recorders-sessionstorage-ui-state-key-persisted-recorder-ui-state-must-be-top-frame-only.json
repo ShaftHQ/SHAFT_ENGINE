@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/same-origin-subframes-share-the-recorders-sessionstorage-ui-state-key-persisted-recorder-ui-state-must-be-top-frame-only.md",
-  "content_hash": "sha256:2280e9f1255a95716f5b1df62aeb7eaa744dbc795c7a1711ce71d4077edad635",
+  "content_hash": "sha256:e5df92eb55da3d672a3e3689353fd80eb8c4ed8b34ec3a4487d582686e0f090b",
   "created_at": "2026-07-11T20:56:28+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "7c25f949f11b5a88543cf651c959907f66d9af1f",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +26,5 @@
   "tags": [],
   "title": "Same-origin subframes share the recorder's sessionStorage UI-state key; persisted recorder UI state must be top-frame-only",
   "type": "gotcha",
-  "updated_at": "2026-07-11T20:56:28+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

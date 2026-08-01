@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/agent-tool-isolation-worktree-branches-from-session-start-head-not-the-evolving-session-branch.md",
-  "content_hash": "sha256:3239bbb8bdea403f734ab33dbd8e83e35e7ccdd90e601aa89d65adc704aa4411",
+  "content_hash": "sha256:a6941915c546c543553bf8ff87e13c6bbe2fdd1cc228b5b028d9120008ce937a",
   "created_at": "2026-07-17T13:09:42+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "0791ba7f7ded10fa0c866510f8988e02c08aeae1",
+      "kind": "commit"
+    },
+    {
+      "id": "93bafa9e02851330511489d3146faa557e78a264",
+      "kind": "commit"
+    },
+    {
+      "id": "77b415476fa81ddae75cd88ee6a6bcf11f2bdfb0",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -27,5 +40,5 @@
   ],
   "title": "Agent tool isolation:\"worktree\" branches from session-start HEAD, not the evolving session branch",
   "type": "gotcha",
-  "updated_at": "2026-07-17T13:09:42+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

@@ -1,8 +1,21 @@
 {
   "body_path": "memory/gotchas/new-shaft-mcp-service-needs-shafttools-bean-registration-and-a-manifest-entry.md",
-  "content_hash": "sha256:15d6398390d7cbd331be4e8bf7fab765464757f2edf602014007368d8e11df08",
+  "content_hash": "sha256:63031714f74b47e421d237534216c02ca3c9e60f8597d78bc76e2f5215411df3",
   "created_at": "2026-07-12T19:24:23+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "6bba7439dfd308d8f4c081cc5d50904e91348ff2",
+      "kind": "commit"
+    },
+    {
+      "id": "7ddc3e5740d0e924c501437825c880992ba58ad8",
+      "kind": "commit"
+    },
+    {
+      "id": "0817029a9fca5a4437c054d8e0f3e0a85bb3023c",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "gotcha"
   },
@@ -21,5 +34,5 @@
   "tags": [],
   "title": "New shaft-mcp @Service needs shaftTools bean registration AND a manifest entry",
   "type": "gotcha",
-  "updated_at": "2026-07-12T19:24:23+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

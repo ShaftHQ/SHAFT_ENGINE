@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:9f9dcc9710b46d4772a3b8c914028adea1971a025d2af7cc335a9e934bd81902",
+  "created_at": "2026-07-29T16:50:50+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    }
+  ],
+  "from": "decision.utf8-all-runtime-layers",
+  "id": "rel.utf8-all-runtime-layers-rel-stack-tooling",
+  "predicate": "mentions",
+  "status": "active",
+  "to": "synthesis.stack-and-tooling",
+  "updated_at": "2026-07-29T16:50:50+03:00"
+}

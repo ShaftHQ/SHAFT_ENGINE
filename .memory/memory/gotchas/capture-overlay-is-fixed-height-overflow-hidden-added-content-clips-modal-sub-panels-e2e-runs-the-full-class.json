@@ -1,8 +1,13 @@
 {
   "body_path": "memory/gotchas/capture-overlay-is-fixed-height-overflow-hidden-added-content-clips-modal-sub-panels-e2e-runs-the-full-class.md",
-  "content_hash": "sha256:1dc6e00849bc357420d3b0e46d2cfb15df38539f887661c0dfcfa949cec75878",
+  "content_hash": "sha256:29421c8440b817684af85dfd1a337573a729041e9674718cffb1b07aaa97e1ce",
   "created_at": "2026-07-14T12:45:52+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "20fda3fda2920eda9e6275fdc9662a2d2a4d6af4",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/resources/browser/shaft-capture-recorder.js",
@@ -30,5 +35,5 @@
   ],
   "title": "Capture overlay is fixed-height overflow:hidden; added content clips modal sub-panels; e2e runs the full class",
   "type": "gotcha",
-  "updated_at": "2026-07-14T12:45:52+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }

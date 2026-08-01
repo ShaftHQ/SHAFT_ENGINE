@@ -1,8 +1,17 @@
 {
   "body_path": "memory/decisions/issue-4327-shipped-healingmanager-resolve-extended-to-the-multi-match-branch-via-a-shared-narroworhealorthrowwhenambiguous-helper.md",
-  "content_hash": "sha256:6be4ff4def8db1563dc7b2185f8884c6dddcdc756ea13ff6e261dc3f1b236f97",
+  "content_hash": "sha256:743486bce674da4c19e29f2109b92381af639acf0a309d578e7229edb2b073e5",
   "created_at": "2026-07-28T14:47:44+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "eaea8d5c9865b3fa96db167d88d7d33aa00684ce",
+      "kind": "commit"
+    },
+    {
+      "id": "10ef39ed312217248671eb0f7e51535e7ec874e8",
+      "kind": "commit"
+    }
+  ],
   "facets": {
     "category": "decision-rationale"
   },
@@ -28,5 +37,5 @@
   ],
   "title": "Issue #4327 shipped: HealingManager.resolve() extended to the multi-match branch via a shared narrowOrHealOrThrowWhenAmbiguous helper",
   "type": "decision",
-  "updated_at": "2026-07-28T14:47:44+03:00"
+  "updated_at": "2026-07-29T16:45:37+03:00"
 }
