@@ -10,7 +10,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 -- CLI integration test uses only resolved, trusted executables.
 import sys
 import tempfile
 import unittest
@@ -137,9 +137,11 @@ class MainIntegrationTest(unittest.TestCase):
         self.assertEqual([], MODULE.validate_delivery(MODULE.DEFAULT_SKILLS_ROOT, tool_index))
 
     def test_cli_accepts_a_relative_skills_root(self):
-        result = subprocess.run(
-            [sys.executable, str(MODULE_PATH), "--skills-root", "shaft-skills"],
-            cwd=REPO_ROOT,
+        python_executable = Path(sys.executable).resolve(strict=True)
+        validator_script = MODULE_PATH.resolve(strict=True)
+        result = subprocess.run(  # nosec B603 -- executable and script are resolved above; arguments are fixed.
+            [str(python_executable), str(validator_script), "--skills-root", "shaft-skills"],
+            cwd=REPO_ROOT.resolve(strict=True),
             capture_output=True,
             text=True,
             check=False,

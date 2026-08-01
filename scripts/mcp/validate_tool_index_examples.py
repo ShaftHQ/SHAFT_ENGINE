@@ -215,20 +215,47 @@ def _literal_tool_names(path: Path, content: str, skills_root: Path) -> set[str]
     return names
 
 
-def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
-    """Validate the portable shaft-skills tree and every literal MCP reference."""
-    skills_root = skills_root.resolve()
+def _validate_frontmatter(skill_dir: Path, content: str, display: str) -> list[str]:
     problems: list[str] = []
-    if not skills_root.is_dir():
-        return [f"{skills_root}: shaft-skills directory is missing"]
+    frontmatter = parse_frontmatter(content)
+    if frontmatter is None:
+        return [f"{display}: valid YAML frontmatter is required"]
 
-    canonical_names = {tool["name"] for tool in tool_index.get("tools", []) if tool.get("name")}
-    skill_dirs = sorted(
-        path for path in skills_root.iterdir() if path.is_dir() and path.name != "references"
-    )
-    skill_names = {path.name for path in skill_dirs}
-    specialist_names = skill_names - {HUB_SKILL_NAME}
+    if frontmatter.get("name") != skill_dir.name:
+        problems.append(
+            f"{display}: frontmatter name {frontmatter.get('name')!r} must match folder {skill_dir.name!r}"
+        )
+    description = frontmatter.get("description", "")
+    if not description:
+        problems.append(f"{display}: frontmatter description is required")
+    elif len(description.strip()) < MIN_DESCRIPTION_CHARS:
+        problems.append(
+            f"{display}: frontmatter description must be a meaningful trigger description "
+            f"({MIN_DESCRIPTION_CHARS}+ characters)"
+        )
+    extra_keys = sorted(_frontmatter_keys(content) - ALLOWED_FRONTMATTER_KEYS)
+    if extra_keys:
+        problems.append(f"{display}: unsupported frontmatter key(s): {extra_keys}")
+    return problems
 
+
+def _validate_specialist_links(
+    skills_root: Path, skill_path: Path, content: str, display: str
+) -> list[str]:
+    problems: list[str] = []
+    hub_target = (skills_root / HUB_SKILL_NAME / "SKILL.md").resolve()
+    if hub_target not in _local_link_targets(skill_path, content, skills_root):
+        problems.append(f"{display}: specialist must include a direct hub link to {HUB_SKILL_NAME}")
+    playbooks = _direct_playbooks(skill_path, content, skills_root)
+    if not playbooks:
+        problems.append(f"{display}: specialist must include one direct playbook link under references/")
+    elif _example_count(playbooks) < 2:
+        problems.append(f"{display}: direct playbook must provide at least two valid examples or use cases")
+    return problems
+
+
+def _validate_skill_contracts(skills_root: Path, skill_dirs: list[Path]) -> list[str]:
+    problems: list[str] = []
     for skill_dir in skill_dirs:
         skill_path = skill_dir / "SKILL.md"
         display = _display(skills_root, skill_path)
@@ -238,81 +265,76 @@ def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
             problems.append(f"{display}: SKILL.md is required")
             continue
         content = skill_path.read_text(encoding="utf-8")
-        frontmatter = parse_frontmatter(content)
-        if frontmatter is None:
-            problems.append(f"{display}: valid YAML frontmatter is required")
-        else:
-            if frontmatter.get("name") != skill_dir.name:
-                problems.append(
-                    f"{display}: frontmatter name {frontmatter.get('name')!r} must match folder {skill_dir.name!r}"
-                )
-            description = frontmatter.get("description", "")
-            if not description:
-                problems.append(f"{display}: frontmatter description is required")
-            elif len(description.strip()) < MIN_DESCRIPTION_CHARS:
-                problems.append(
-                    f"{display}: frontmatter description must be a meaningful trigger description "
-                    f"({MIN_DESCRIPTION_CHARS}+ characters)"
-                )
-            extra_keys = sorted(_frontmatter_keys(content) - ALLOWED_FRONTMATTER_KEYS)
-            if extra_keys:
-                problems.append(f"{display}: unsupported frontmatter key(s): {extra_keys}")
+        problems.extend(_validate_frontmatter(skill_dir, content, display))
 
         if skill_dir.name != HUB_SKILL_NAME:
-            hub_target = (skills_root / HUB_SKILL_NAME / "SKILL.md").resolve()
-            if hub_target not in _local_link_targets(skill_path, content, skills_root):
-                problems.append(f"{display}: specialist must include a direct hub link to {HUB_SKILL_NAME}")
-            playbooks = _direct_playbooks(skill_path, content, skills_root)
-            if not playbooks:
-                problems.append(f"{display}: specialist must include one direct playbook link under references/")
-            elif _example_count(playbooks) < 2:
-                problems.append(
-                    f"{display}: direct playbook must provide at least two valid examples or use cases"
-                )
+            problems.extend(_validate_specialist_links(skills_root, skill_path, content, display))
+    return problems
 
+
+def _route_counts(
+    routing_path: Path, skills_root: Path, specialist_names: set[str]
+) -> tuple[dict[str, int], list[str]]:
+    route_counts: dict[str, int] = {}
+    problems: list[str] = []
+    for target in _local_link_targets(routing_path, routing_path.read_text(encoding="utf-8"), skills_root):
+        if target.name != "SKILL.md" or not target.parent.name.startswith("shaft-"):
+            continue
+        route_name = target.parent.name
+        route_counts[route_name] = route_counts.get(route_name, 0) + 1
+        if route_name not in specialist_names:
+            problems.append(
+                f"{HUB_SKILL_NAME}/references/routing.md: orphan route targets missing specialist {route_name!r}"
+            )
+    return route_counts, problems
+
+
+def _route_coverage_problems(
+    route_counts: dict[str, int], specialist_names: set[str], hub_links: set[str]
+) -> list[str]:
+    problems: list[str] = []
+    for missing in sorted(specialist_names - route_counts.keys()):
+        problems.append(f"{HUB_SKILL_NAME}/references/routing.md: missing route for specialist {missing!r}")
+    for duplicate, count in sorted(route_counts.items()):
+        if count > 1:
+            problems.append(
+                f"{HUB_SKILL_NAME}/references/routing.md: duplicate route for specialist {duplicate!r} ({count} links)"
+            )
+    for route_name in sorted(route_counts):
+        if route_name not in hub_links:
+            problems.append(
+                f"{HUB_SKILL_NAME}/SKILL.md: missing direct link for routed specialist {route_name!r}"
+            )
+    return problems
+
+
+def _validate_hub_contract(skills_root: Path, specialist_names: set[str]) -> list[str]:
+    problems: list[str] = []
     hub_path = skills_root / HUB_SKILL_NAME / "SKILL.md"
     if not hub_path.is_file():
-        problems.append(f"{HUB_SKILL_NAME}/SKILL.md is required as the installed SHAFT skill hub")
-    else:
-        hub_content = hub_path.read_text(encoding="utf-8")
-        routing_path = hub_path.parent / "references" / "routing.md"
-        if routing_path not in _local_link_targets(hub_path, hub_content, skills_root):
-            problems.append(f"{HUB_SKILL_NAME}/SKILL.md: direct link to references/routing.md is required")
-        if not routing_path.is_file():
-            problems.append(f"{HUB_SKILL_NAME}/references/routing.md is required")
-        else:
-            route_counts: dict[str, int] = {}
-            for target in _local_link_targets(
-                routing_path, routing_path.read_text(encoding="utf-8"), skills_root
-            ):
-                if target.name != "SKILL.md" or not target.parent.name.startswith("shaft-"):
-                    continue
-                route_name = target.parent.name
-                route_counts[route_name] = route_counts.get(route_name, 0) + 1
-                if route_name not in specialist_names:
-                    problems.append(
-                        f"{HUB_SKILL_NAME}/references/routing.md: orphan route targets missing specialist {route_name!r}"
-                    )
-            for missing in sorted(specialist_names - route_counts.keys()):
-                problems.append(
-                    f"{HUB_SKILL_NAME}/references/routing.md: missing route for specialist {missing!r}"
-                )
-            for duplicate, count in sorted(route_counts.items()):
-                if count > 1:
-                    problems.append(
-                        f"{HUB_SKILL_NAME}/references/routing.md: duplicate route for specialist {duplicate!r} ({count} links)"
-                    )
-            hub_links = {
-                target.parent.name
-                for target in _local_link_targets(hub_path, hub_content, skills_root)
-                if target.name == "SKILL.md" and target.parent.name.startswith("shaft-")
-            }
-            for route_name in sorted(route_counts):
-                if route_name not in hub_links:
-                    problems.append(
-                        f"{HUB_SKILL_NAME}/SKILL.md: missing direct link for routed specialist {route_name!r}"
-                    )
+        return [f"{HUB_SKILL_NAME}/SKILL.md is required as the installed SHAFT skill hub"]
 
+    hub_content = hub_path.read_text(encoding="utf-8")
+    routing_path = hub_path.parent / "references" / "routing.md"
+    if routing_path not in _local_link_targets(hub_path, hub_content, skills_root):
+        problems.append(f"{HUB_SKILL_NAME}/SKILL.md: direct link to references/routing.md is required")
+    if not routing_path.is_file():
+        problems.append(f"{HUB_SKILL_NAME}/references/routing.md is required")
+        return problems
+
+    route_counts, route_problems = _route_counts(routing_path, skills_root, specialist_names)
+    problems.extend(route_problems)
+    hub_links = {
+        target.parent.name
+        for target in _local_link_targets(hub_path, hub_content, skills_root)
+        if target.name == "SKILL.md" and target.parent.name.startswith("shaft-")
+    }
+    problems.extend(_route_coverage_problems(route_counts, specialist_names, hub_links))
+    return problems
+
+
+def _validate_local_references(skills_root: Path, canonical_names: set[str]) -> list[str]:
+    problems: list[str] = []
     for markdown_path in sorted(skills_root.rglob("*.md")):
         content = markdown_path.read_text(encoding="utf-8")
         display = _display(skills_root, markdown_path)
@@ -335,22 +357,44 @@ def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
                 problems.append(
                     f"{display}: literal MCP tool {tool_name!r} is absent from canonical tool-index.json"
                 )
+    return problems
 
+
+def _validate_tool_catalog(skills_root: Path, canonical_names: set[str]) -> list[str]:
     catalog_path = skills_root / "references" / "shaft-mcp-tools.md"
     if not catalog_path.is_file():
-        problems.append("references/shaft-mcp-tools.md: generated MCP catalog is required")
-    else:
-        catalog_names = CATALOG_TOOL_PATTERN.findall(catalog_path.read_text(encoding="utf-8"))
-        missing = sorted(canonical_names - set(catalog_names))
-        extra = sorted(set(catalog_names) - canonical_names)
-        duplicates = sorted(name for name in set(catalog_names) if catalog_names.count(name) > 1)
-        if missing or extra or duplicates:
-            problems.append(
-                "references/shaft-mcp-tools.md: generated catalog differs from canonical tool-index.json "
-                f"(missing={missing}, extra={extra}, duplicates={duplicates})"
-            )
+        return ["references/shaft-mcp-tools.md: generated MCP catalog is required"]
 
-    return sorted(set(problems))
+    catalog_names = CATALOG_TOOL_PATTERN.findall(catalog_path.read_text(encoding="utf-8"))
+    missing = sorted(canonical_names - set(catalog_names))
+    extra = sorted(set(catalog_names) - canonical_names)
+    duplicates = sorted(name for name in set(catalog_names) if catalog_names.count(name) > 1)
+    if missing or extra or duplicates:
+        return [
+            "references/shaft-mcp-tools.md: generated catalog differs from canonical tool-index.json "
+            f"(missing={missing}, extra={extra}, duplicates={duplicates})"
+        ]
+    return []
+
+
+def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
+    """Validate the portable shaft-skills tree and every literal MCP reference."""
+    skills_root = skills_root.resolve()
+    if not skills_root.is_dir():
+        return [f"{skills_root}: shaft-skills directory is missing"]
+
+    canonical_names = {tool["name"] for tool in tool_index.get("tools", []) if tool.get("name")}
+    skill_dirs = sorted(
+        path for path in skills_root.iterdir() if path.is_dir() and path.name != "references"
+    )
+    specialist_names = {path.name for path in skill_dirs} - {HUB_SKILL_NAME}
+
+    return sorted(set(
+        _validate_skill_contracts(skills_root, skill_dirs)
+        + _validate_hub_contract(skills_root, specialist_names)
+        + _validate_local_references(skills_root, canonical_names)
+        + _validate_tool_catalog(skills_root, canonical_names)
+    ))
 
 
 def validate_all(skills_root: Path, tool_index: dict) -> list[str]:

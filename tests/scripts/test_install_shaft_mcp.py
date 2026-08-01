@@ -4,7 +4,7 @@ import hashlib
 import io
 import json
 import os
-import subprocess
+import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
 import tempfile
 import unittest
 import zipfile
@@ -419,8 +419,11 @@ class InstallShaftMcpTest(unittest.TestCase):
             (legacy / "SKILL.md").write_text(
                 "---\nname: writing-shaft-tests\n---\n# Retired SHAFT skill\n", encoding="utf-8")
             (legacy / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
-            result = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(root / ".agents"), str(external)],
+            command_processor = (
+                Path(os.environ["SystemRoot"]) / "System32" / "cmd.exe"
+            ).resolve(strict=True)
+            result = subprocess.run(  # nosec B603 -- resolved OS binary, fixed switches, trusted temporary paths.
+                [str(command_processor), "/d", "/c", "mklink", "/J", str(root / ".agents"), str(external)],
                 capture_output=True, text=True, check=False)
             if result.returncode != 0:
                 self.skipTest(f"filesystem does not support junctions: {result.stderr.strip()}")
