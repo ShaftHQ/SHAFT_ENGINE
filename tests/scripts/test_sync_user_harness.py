@@ -96,9 +96,9 @@ class SyncUserHarnessTest(unittest.TestCase):
         self.assertEqual(self.run_sync().returncode, 0)
 
     def test_settings_merge_preserves_unowned_keys_and_secret_values(self):
-        secret = "fake-secret-must-survive"
+        personal_marker = "personal-value-must-survive"
         existing = {
-            "env": {"PERSONAL_API_KEY": secret, "ENABLE_TOOL_SEARCH": "old"},
+            "env": {"PERSONAL_API_KEY": personal_marker, "ENABLE_TOOL_SEARCH": "old"},
             "enabledPlugins": {"personal@local": True, "mempalace@mempalace": True},
             "personalSetting": {"nested": 7},
         }
@@ -107,9 +107,9 @@ class SyncUserHarnessTest(unittest.TestCase):
         completed = self.run_sync("--apply")
 
         self.assertEqual(completed.returncode, 0)
-        self.assertNotIn(secret, completed.stdout)
+        self.assertNotIn(personal_marker, completed.stdout)
         deployed = json.loads((self.target / "settings.json").read_text(encoding="utf-8"))
-        self.assertEqual(deployed["env"]["PERSONAL_API_KEY"], secret)
+        self.assertEqual(deployed["env"]["PERSONAL_API_KEY"], personal_marker)
         self.assertEqual(deployed["personalSetting"], {"nested": 7})
         self.assertIs(deployed["enabledPlugins"]["personal@local"], True)
         self.assertIs(deployed["enabledPlugins"]["mempalace@mempalace"], False)
@@ -117,7 +117,7 @@ class SyncUserHarnessTest(unittest.TestCase):
         self.assertEqual(self.run_sync().returncode, 0)
 
     def test_settings_merge_removes_retired_owned_keys_without_exposing_personal_data(self):
-        secret = "fake-retired-migration-secret"
+        personal_marker = "retired-migration-value"
         existing = {
             "model": "retired-model",
             "effortLevel": "retired-effort",
@@ -126,7 +126,7 @@ class SyncUserHarnessTest(unittest.TestCase):
             "extraKnownMarketplaces": {"mempalace": {"source": "retired-source"}},
             "env": {
                 "MEMPALACE_EMBEDDING_MODEL": "retired-embedder",
-                "PERSONAL_API_KEY": secret,
+                "PERSONAL_API_KEY": personal_marker,
             },
             "enabledPlugins": {"personal@local": True},
             "theme": "dark",
@@ -136,12 +136,12 @@ class SyncUserHarnessTest(unittest.TestCase):
         completed = self.run_sync("--apply")
 
         self.assertEqual(completed.returncode, 0)
-        self.assertNotIn(secret, completed.stdout + completed.stderr)
+        self.assertNotIn(personal_marker, completed.stdout + completed.stderr)
         deployed = json.loads((self.target / "settings.json").read_text(encoding="utf-8"))
         for retired in ("model", "effortLevel", "statusLine", "permissions", "extraKnownMarketplaces"):
             self.assertNotIn(retired, deployed)
         self.assertNotIn("MEMPALACE_EMBEDDING_MODEL", deployed["env"])
-        self.assertEqual(deployed["env"]["PERSONAL_API_KEY"], secret)
+        self.assertEqual(deployed["env"]["PERSONAL_API_KEY"], personal_marker)
         self.assertIs(deployed["enabledPlugins"]["personal@local"], True)
         self.assertEqual(deployed["theme"], "dark")
         self.assertEqual(self.run_sync().returncode, 0)
