@@ -641,3 +641,4 @@
 {"actor":"agent","event":"memory.deleted","id":"decision.guidance-budgets-are-per-surface-since-3745-no-global-byte-pool","timestamp":"2026-08-01T16:13:37+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py","timestamp":"2026-08-01T16:14:23+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.verify-intellij-platform-sdk-api-shapes-against-the-real-installed-jars-jar-tf-javap-not-memory-before-writing-an-implementation-spec","timestamp":"2026-08-01T16:14:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.live-launcher-retries-must-be-errexit-safe","timestamp":"2026-08-01T20:20:05+03:00"}
