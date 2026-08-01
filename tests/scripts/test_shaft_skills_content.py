@@ -1,22 +1,18 @@
-import re
 import unittest
 from pathlib import Path
 
 
-SKILL = Path(__file__).resolve().parents[2] / "shaft-skills" / "writing-shaft-tests" / "SKILL.md"
+PLAYBOOK = (Path(__file__).resolve().parents[2] / "shaft-skills"
+            / "shaft-automated-test-authoring" / "references" / "playbook.md")
 
 
-class WritingShaftTestsContentTest(unittest.TestCase):
-    def test_report_failures_and_assertion_apis_have_distinct_exception_contracts(self):
-        content = SKILL.read_text(encoding="utf-8")
+class AutomatedTestAuthoringContentTest(unittest.TestCase):
+    def test_authoring_is_grounded_guarded_and_free_of_raw_driver_shortcuts(self):
+        content = PLAYBOOK.read_text(encoding="utf-8")
 
-        self.assertRegex(
-            content,
-            re.compile(
-                r"- `Actions\.report\(\)` failure paths throw `RuntimeException`;\s*"
-                r"only validation/accessibility APIs throw `AssertionError`\."
-            ),
-        )
+        self.assertIn("Ground unfamiliar SHAFT syntax with `shaft_guide_search`", content)
+        self.assertIn("never add `Thread.sleep`, raw driver calls", content)
+        self.assertIn("Run `test_code_guardrails_check`", content)
 
 
 if __name__ == "__main__":

@@ -337,9 +337,18 @@ def main() -> int:
         shaft_skills = plugin_result.get("shaftSkills")
         if not isinstance(shaft_skills, dict):
             raise RuntimeError(f"Expected SHAFT skills metadata in IntelliJ plugin installer output: {plugin_result}")
-        skills_path = Path(str(shaft_skills.get("path", "")))
-        if not (skills_path / "writing-shaft-tests" / "SKILL.md").is_file():
-            raise RuntimeError(f"Expected SHAFT skills to be installed by the unattended plugin installer: {skills_path}")
+        skills_paths = [Path(str(path)).resolve() for path in shaft_skills.get("paths", ())]
+        expected_skills_paths = {
+            (root / ".agents" / "skills").resolve(),
+            (root / ".claude" / "skills").resolve(),
+            (root / ".github" / "skills").resolve(),
+        }
+        if set(skills_paths) != expected_skills_paths:
+            raise RuntimeError(f"Expected native SHAFT skill paths, got: {skills_paths}")
+        for skills_path in skills_paths:
+            if not (skills_path / "shaft-developer" / "SKILL.md").is_file():
+                raise RuntimeError(
+                    f"Expected SHAFT skills to be installed by the unattended plugin installer: {skills_path}")
         if verify_shaft_cli:
             shaft_cli_jar = installed_shaft_cli_jar(root, home, environment)
             shaft_cli_launcher = verify_shaft_cli_launcher(shaft_cli_jar)

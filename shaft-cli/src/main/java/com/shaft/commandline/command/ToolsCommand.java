@@ -29,9 +29,8 @@ public final class ToolsCommand implements Callable<Integer> {
     private boolean json;
 
     @Option(names = "--cached",
-            description = "List the tool catalog from the bundled offline snapshot, without connecting "
-                    + "to a live shaft-mcp server. Faster, but only as fresh as the last snapshot refresh "
-                    + "(see the snapshot's own \"note\" field).")
+            description = "List the generated tool-index snapshot bundled with this shaft-cli version, "
+                    + "without connecting to a live shaft-mcp server.")
     private boolean cached;
 
     @Spec
@@ -74,10 +73,8 @@ public final class ToolsCommand implements Callable<Integer> {
     }
 
     /**
-     * Renders the bundled offline catalog snapshot ({@link #CACHED_INDEX_RESOURCE}) without opening
-     * an MCP connection. This is a stop-gap over T2/#3868's canonical
-     * {@code shaft-mcp/.../META-INF/shaft-mcp/tool-index.json}: see the snapshot's own {@code note}
-     * field for the follow-up.
+     * Renders the bundled generated copy of
+     * {@code shaft-mcp/.../META-INF/shaft-mcp/tool-index.json} without opening an MCP connection.
      */
     private Integer callCached(PrintWriter out) {
         PrintWriter err = spec.commandLine().getErr();

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Case Design"
+  short_description: "Design precise test cases"
+  default_prompt: "Use $shaft-test-case-design to derive concise, traceable test cases from these criteria."

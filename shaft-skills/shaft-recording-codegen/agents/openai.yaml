@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Recording Codegen"
+  short_description: "Generate SHAFT code from recordings"
+  default_prompt: "Use $shaft-recording-codegen to generate reviewable SHAFT Java from this recording."

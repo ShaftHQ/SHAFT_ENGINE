@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,13 +39,11 @@ public class ShaftProjectService {
     private static final String EXAMPLES_ROOT = "META-INF/shaft-mcp/examples";
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
     private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
-    private static final String SKILL_FILE_NAME = "SKILL.md";
-    private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex", "opencode", "vscode");
-    private static final java.util.regex.Pattern SAFE_SKILL_NAME =
-            java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
-    private static final java.util.regex.Pattern FRONT_MATTER_PATTERN =
-            java.util.regex.Pattern.compile("^---\\R(.*?)\\R---", java.util.regex.Pattern.DOTALL);
-    private static final String FULL_DISTRIBUTION = "full";
+    private static final String ROUTER_SKILL_NAME = "shaft-developer";
+    private static final String SKILL_PACK_MANIFEST = ".shaft-mcp-managed-files";
+    private static final String SKILL_PACK_MANIFEST_HEADER = "# SHAFT MCP managed skill files";
+    private static final List<String> ALL_AGENT_HOSTS = List.of("codex", "claude", "vscode", "opencode");
+    private static final Set<String> AGENT_LOOPS = Set.of("all", "claude", "codex", "opencode", "vscode");
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
             "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
@@ -293,24 +292,26 @@ public class ShaftProjectService {
      * <p>Every bridge is generated at call time from the bundled {@code shaft-skills/&lt;skill&gt;/SKILL.md}
      * guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of the full skill text,
      * so the set of skills and their descriptions always tracks {@code shaft-skills/} as of the shaft-mcp
-     * build. Existing files are left untouched unless {@code overwrite} is {@code true}; a skipped file is
-     * reported as a warning instead of failing the call, because {@code targetDirectory} is expected to be
-     * an existing user repository that may already carry its own agent configuration.
+     * build. Existing skill files are left untouched unless {@code overwrite} is {@code true}; host
+     * instruction files always preserve user-authored bytes outside SHAFT's managed block. Existing
+     * recognized host adapters are refreshed alongside the selected loop, and {@code all} installs every
+     * supported host adapter.
      *
      * <p>A bundled skill whose {@code SKILL.md} frontmatter declares {@code distribution: full} is a
      * methodology skill whose value lives in its text, so it is scaffolded as its full body instead of a
      * thin bridge: verbatim for claude/codex/opencode, and with an injected {@code applyTo: "**"} frontmatter
      * key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.
      *
-     * @param loop claude, codex, opencode, or vscode
+     * @param loop all, claude, codex, opencode, or vscode
      * @param targetDirectory workspace-relative existing test repo directory
-     * @param overwrite whether existing generated files may be replaced
+     * @param overwrite whether existing SHAFT-owned skill files may be replaced
      * @return generated agent-scaffolding details
      */
     @Tool(name = "shaft_project_init_agents",
-            description = "scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file "
-                    + "into an existing test repo for a coding-agent loop (claude, codex, opencode, vscode), "
-                    + "without overwriting files that already exist unless overwrite=true")
+            description = "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing "
+                    + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode); "
+                    + "preserves user-authored instruction text and only overwrites SHAFT-owned skill files when "
+                    + "overwrite=true")
     public McpShaftProjectInitAgentsResult initAgents(String loop, String targetDirectory, boolean overwrite) {
         String selectedLoop = selectedAgentLoop(loop);
         Path target = workspacePolicy.output(text(targetDirectory).isBlank() ? "." : targetDirectory,
@@ -319,37 +320,12 @@ public class ShaftProjectService {
         List<String> warnings = new ArrayList<>();
         try {
             Files.createDirectories(target);
-            List<String> skillNames = bundledSkillNames();
-            if ("vscode".equals(selectedLoop)) {
-                Path instructionsDirectory = target.resolve(".github").resolve("instructions");
-                for (String skillName : skillNames) {
-                    String skillMarkdown = readResourceText(skillResource(skillName));
-                    Map<String, String> frontMatter = frontMatter(skillMarkdown);
-                    String name = frontMatter.getOrDefault("name", skillName);
-                    String description = frontMatter.getOrDefault("description", "");
-                    String instructions = isFullDistribution(frontMatter)
-                            ? vscodeFullInstructionsMarkdown(skillMarkdown, name, description)
-                            : vscodeInstructionsMarkdown(skillName, name, description);
-                    writeGeneratedFile(instructionsDirectory.resolve(skillName + ".instructions.md"), target,
-                            instructions, overwrite, generatedFiles, warnings);
-                }
-            } else {
-                Path skillsDirectory = target.resolve(agentLoopSkillsDirectory(selectedLoop));
-                for (String skillName : skillNames) {
-                    String skillMarkdown = readResourceText(skillResource(skillName));
-                    Map<String, String> frontMatter = frontMatter(skillMarkdown);
-                    String content = isFullDistribution(frontMatter)
-                            ? skillMarkdown
-                            : skillBridgeMarkdown(
-                                    skillName,
-                                    frontMatter.getOrDefault("name", skillName),
-                                    frontMatter.getOrDefault("description", ""));
-                    writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, content,
-                            overwrite, generatedFiles, warnings);
-                }
+            Set<String> hosts = agentHosts(target, selectedLoop);
+            Map<String, String> skills = bundledSkillFiles();
+            for (String host : hosts) {
+                installSkills(target, host, skills, overwrite, generatedFiles, warnings);
             }
-            writeGeneratedFile(target.resolve("SHAFT-AGENTS.md"), target,
-                    rootGuidanceMarkdown(selectedLoop, skillNames), overwrite, generatedFiles, warnings);
+            installHostAdapters(target, hosts, generatedFiles, warnings);
             return new McpShaftProjectInitAgentsResult(
                     McpShaftProjectInitAgentsResult.CURRENT_SCHEMA_VERSION,
                     target,
@@ -370,45 +346,264 @@ public class ShaftProjectService {
     }
 
     private static String agentLoopSkillsDirectory(String loop) {
-        return "." + loop + "/skills";
+        return switch (loop) {
+            case "codex" -> ".agents/skills";
+            case "claude" -> ".claude/skills";
+            case "opencode" -> ".opencode/skills";
+            default -> throw new IllegalArgumentException("Unsupported skill host: " + loop);
+        };
     }
 
-    private static void writeGeneratedFile(
+    private static Set<String> agentHosts(Path target, String selectedLoop) throws IOException {
+        Set<String> hosts = new LinkedHashSet<>();
+        if ("all".equals(selectedLoop)) {
+            hosts.addAll(ALL_AGENT_HOSTS);
+        } else {
+            hosts.add(selectedLoop);
+        }
+        Path agents = target.resolve("AGENTS.md");
+        if (Files.exists(agents)) {
+            String content = Files.readString(agents, StandardCharsets.UTF_8);
+            boolean openCodeManaged = content.contains(managedBlockStart("opencode"));
+            if (content.contains(managedBlockStart("codex")) || !openCodeManaged) {
+                hosts.add("codex");
+            }
+            if (openCodeManaged) {
+                hosts.add("opencode");
+            }
+        }
+        if (Files.exists(target.resolve("CLAUDE.md")) || Files.exists(target.resolve(".claude/CLAUDE.md"))) {
+            hosts.add("claude");
+        }
+        if (Files.exists(target.resolve(".github/copilot-instructions.md"))) {
+            hosts.add("vscode");
+        }
+        return hosts;
+    }
+
+    private static void installSkills(
+            Path target,
+            String host,
+            Map<String, String> skillFiles,
+            boolean overwrite,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        Path skillRoot = "vscode".equals(host)
+                ? target.resolve(".github/instructions")
+                : target.resolve(agentLoopSkillsDirectory(host));
+        Set<String> managedFiles = managedSkillFiles(skillRoot, target, warnings);
+        for (Map.Entry<String, String> skillFile : skillFiles.entrySet()) {
+            String relativePath = skillFile.getKey();
+            Path destination = safeArchiveDestination(skillRoot, relativePath);
+            if (writeGeneratedFile(destination, target, skillFile.getValue(), relativePath,
+                    managedFiles, overwrite, generatedFiles, warnings)) {
+                managedFiles.add(relativePath);
+            }
+        }
+        writeSkillPackManifest(skillRoot, target, managedFiles, generatedFiles, warnings);
+    }
+
+    private static void installHostAdapters(
+            Path target,
+            Set<String> hosts,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        if (hosts.contains("codex")) {
+            writeManagedBlock(target.resolve("AGENTS.md"), target, "codex",
+                    ".agents/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
+        }
+        if (hosts.contains("opencode")) {
+            writeManagedBlock(target.resolve("AGENTS.md"), target, "opencode",
+                    ".opencode/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
+        }
+        if (hosts.contains("claude")) {
+            Path rootAdapter = target.resolve("CLAUDE.md");
+            Path nestedAdapter = target.resolve(".claude/CLAUDE.md");
+            boolean rootExists = Files.exists(rootAdapter);
+            boolean nestedExists = Files.exists(nestedAdapter);
+            if (rootExists || !nestedExists) {
+                writeManagedBlock(rootAdapter, target, "claude", ".claude/skills/shaft-developer/SKILL.md",
+                        generatedFiles, warnings);
+            }
+            if (nestedExists) {
+                writeManagedBlock(nestedAdapter, target, "claude", "skills/shaft-developer/SKILL.md",
+                        generatedFiles, warnings);
+            }
+        }
+        if (hosts.contains("vscode")) {
+            writeManagedBlock(target.resolve(".github/copilot-instructions.md"), target, "vscode",
+                    "instructions/shaft-developer/SKILL.md", generatedFiles, warnings);
+        }
+    }
+
+    private static boolean writeGeneratedFile(
             Path destination,
             Path targetRoot,
             String content,
+            String relativePath,
+            Set<String> managedFiles,
             boolean overwrite,
             List<Path> generatedFiles,
             List<String> warnings) throws IOException {
         Path normalized = safeDestination(destination, targetRoot);
         if (Files.exists(normalized) && !overwrite) {
             warnings.add("Skipped existing file (overwrite=false): " + normalized);
+            return managedFiles.contains(relativePath);
+        }
+        if (Files.exists(normalized) && !managedFiles.contains(relativePath)) {
+            warnings.add("Skipped unowned existing file: " + normalized);
+            return false;
+        }
+        Files.createDirectories(normalized.getParent());
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        if (Files.exists(normalized) && Arrays.equals(Files.readAllBytes(normalized), bytes)) {
+            return true;
+        }
+        Files.write(normalized, bytes);
+        generatedFiles.add(normalized);
+        return true;
+    }
+
+    private static Set<String> managedSkillFiles(Path skillRoot, Path targetRoot, List<String> warnings)
+            throws IOException {
+        Path manifest = safeDestination(skillRoot.resolve(SKILL_PACK_MANIFEST), targetRoot);
+        if (!Files.exists(manifest)) {
+            return new LinkedHashSet<>();
+        }
+        List<String> lines = Files.readAllLines(manifest, StandardCharsets.UTF_8);
+        if (lines.isEmpty() || !SKILL_PACK_MANIFEST_HEADER.equals(lines.getFirst())) {
+            warnings.add("Skipped unowned skill-pack manifest: " + manifest);
+            return new LinkedHashSet<>();
+        }
+        Set<String> managed = new LinkedHashSet<>();
+        for (String line : lines.subList(1, lines.size())) {
+            Path relative = Path.of(line).normalize();
+            if (!line.isBlank() && !relative.isAbsolute() && !relative.startsWith("..")) {
+                managed.add(relative.toString().replace('\\', '/'));
+            }
+        }
+        return managed;
+    }
+
+    private static void writeSkillPackManifest(
+            Path skillRoot,
+            Path targetRoot,
+            Set<String> managedFiles,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        Path manifest = safeDestination(skillRoot.resolve(SKILL_PACK_MANIFEST), targetRoot);
+        if (Files.exists(manifest)) {
+            List<String> lines = Files.readAllLines(manifest, StandardCharsets.UTF_8);
+            if (lines.isEmpty() || !SKILL_PACK_MANIFEST_HEADER.equals(lines.getFirst())) {
+                warnings.add("Skipped unowned skill-pack manifest: " + manifest);
+                return;
+            }
+        }
+        String content = SKILL_PACK_MANIFEST_HEADER + "\n"
+                + managedFiles.stream().sorted().collect(java.util.stream.Collectors.joining("\n")) + "\n";
+        if (Files.exists(manifest) && content.equals(Files.readString(manifest, StandardCharsets.UTF_8))) {
+            return;
+        }
+        Files.createDirectories(manifest.getParent());
+        Files.writeString(manifest, content, StandardCharsets.UTF_8);
+        generatedFiles.add(manifest);
+    }
+
+    private static void writeManagedBlock(
+            Path destination,
+            Path targetRoot,
+            String host,
+            String routerPath,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        Path normalized = safeDestination(destination, targetRoot);
+        String current = Files.exists(normalized) ? Files.readString(normalized, StandardCharsets.UTF_8) : "";
+        String startMarker = managedBlockStart(host);
+        String endMarker = managedBlockEnd(host);
+        int start = current.indexOf(startMarker);
+        int end = current.indexOf(endMarker, Math.max(0, start + startMarker.length()));
+        int anyEnd = current.indexOf(endMarker);
+        boolean duplicate = start >= 0 && (current.indexOf(startMarker, start + startMarker.length()) >= 0
+                || (end >= 0 && current.indexOf(endMarker, end + endMarker.length()) >= 0));
+        if ((start >= 0 && end < 0) || (start < 0 && anyEnd >= 0) || (anyEnd >= 0 && anyEnd < start) || duplicate) {
+            warnings.add("Skipped file with malformed managed block: " + normalized);
+            return;
+        }
+
+        String newline = newline(current);
+        String block = managedBlock(host, routerPath, newline);
+        String updated;
+        if (start >= 0) {
+            updated = current.substring(0, start) + block + current.substring(end + endMarker.length());
+        } else {
+            updated = current + managedBlockSeparator(current, newline) + block;
+        }
+        if (current.equals(updated)) {
             return;
         }
         Files.createDirectories(normalized.getParent());
-        Files.writeString(normalized, content, StandardCharsets.UTF_8);
+        Files.writeString(normalized, updated, StandardCharsets.UTF_8);
         generatedFiles.add(normalized);
     }
 
-    private static String skillResource(String skillName) {
-        String resourceName = SHAFT_SKILLS_ROOT + "/" + skillName + "/" + SKILL_FILE_NAME;
-        // Normalize-and-verify barrier: skill names are derived from jar entry names, so prove the
-        // constructed resource path cannot traverse outside the skills root (zip-slip guard).
+    private static String managedBlock(String host, String routerPath, String newline) {
+        return managedBlockStart(host) + newline
+                + "## SHAFT " + titleCase(host) + newline + newline
+                + "Before any SHAFT task, read and follow [`shaft-developer`](" + routerPath + ") as the "
+                + "mandatory router before using any other SHAFT skill or tool." + newline
+                + managedBlockEnd(host);
+    }
+
+    private static String managedBlockStart(String host) {
+        return "<!-- SHAFT-MANAGED:BEGIN shaft-developer:" + host + " -->";
+    }
+
+    private static String managedBlockEnd(String host) {
+        return "<!-- SHAFT-MANAGED:END shaft-developer:" + host + " -->";
+    }
+
+    private static String newline(String content) {
+        return content.contains("\r\n") ? "\r\n" : "\n";
+    }
+
+    private static String managedBlockSeparator(String content, String newline) {
+        if (content.isEmpty() || content.endsWith(newline + newline)) {
+            return "";
+        }
+        return content.endsWith(newline) ? newline : newline + newline;
+    }
+
+    /**
+     * Reads the canonical skill pack verbatim so that relative links between the hub, specialist
+     * skills, playbooks, shared references, and examples remain valid in every supported host.
+     */
+    private static Map<String, String> bundledSkillFiles() throws IOException {
+        Map<String, String> files = new LinkedHashMap<>();
+        for (String relativePath : bundledSkillFileNames()) {
+            files.put(relativePath, readResourceText(skillResource(relativePath)));
+        }
+        return files;
+    }
+
+    private static String skillResource(String relativePath) {
+        String normalizedPath = normalizedSkillRelativePath(relativePath);
+        String resourceName = SHAFT_SKILLS_ROOT + "/" + normalizedPath;
         if (!Path.of(resourceName).normalize().startsWith(Path.of(SHAFT_SKILLS_ROOT))) {
-            throw new IllegalArgumentException("Unsafe skill name: " + skillName);
+            throw new IllegalArgumentException("Unsafe SHAFT skill resource: " + relativePath);
         }
         return resourceName;
     }
 
-    private static List<String> bundledSkillNames() throws IOException {
+    private static List<String> bundledSkillFileNames() throws IOException {
         URL url = resource(SHAFT_SKILLS_ROOT);
         try {
             if ("file".equalsIgnoreCase(url.getProtocol())) {
                 Path source = Path.of(url.toURI());
-                try (var children = Files.list(source)) {
-                    return children.filter(Files::isDirectory)
-                            .filter(dir -> Files.isRegularFile(dir.resolve(SKILL_FILE_NAME)))
-                            .map(dir -> dir.getFileName().toString())
+                try (var files = Files.walk(source)) {
+                    return files.filter(Files::isRegularFile)
+                            .map(source::relativize)
+                            .map(Path::toString)
+                            .map(ShaftProjectService::normalizedSkillRelativePath)
                             .sorted()
                             .toList();
                 }
@@ -416,22 +611,14 @@ public class ShaftProjectService {
             if ("jar".equalsIgnoreCase(url.getProtocol())) {
                 JarURLConnection connection = (JarURLConnection) url.openConnection();
                 String prefix = connection.getEntryName() + "/";
-                String suffix = "/" + SKILL_FILE_NAME;
                 try (JarFile jar = connection.getJarFile()) {
-                    Set<String> names = new LinkedHashSet<>();
+                    Set<String> paths = new LinkedHashSet<>();
                     for (JarEntry entry : jar.stream().filter(candidate -> !candidate.isDirectory())
-                            .filter(candidate -> candidate.getName().startsWith(prefix))
-                            .filter(candidate -> candidate.getName().endsWith(suffix)).toList()) {
+                            .filter(candidate -> candidate.getName().startsWith(prefix)).toList()) {
                         String remainder = entry.getName().substring(prefix.length());
-                        String skillName = remainder.substring(0, remainder.length() - suffix.length());
-                        // Only accept direct child directories with simple names; jar entry names are
-                        // attacker-influenceable in principle ('..', nested slashes) and flow into
-                        // generated file paths, so validate instead of trusting them (zip-slip guard).
-                        if (SAFE_SKILL_NAME.matcher(skillName).matches()) {
-                            names.add(skillName);
-                        }
+                        paths.add(normalizedSkillRelativePath(remainder));
                     }
-                    return names.stream().sorted().toList();
+                    return paths.stream().sorted().toList();
                 }
             }
             throw new IOException("Unsupported SHAFT skills resource protocol: " + url.getProtocol());
@@ -442,83 +629,25 @@ public class ShaftProjectService {
         }
     }
 
+    private static String normalizedSkillRelativePath(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("SHAFT skill resource path must not be blank.");
+        }
+        Path path = Path.of(relativePath).normalize();
+        if (path.isAbsolute() || path.getNameCount() == 0 || path.startsWith("..")) {
+            throw new IllegalArgumentException("Unsafe SHAFT skill resource: " + relativePath);
+        }
+        String normalized = path.toString().replace('\\', '/');
+        if (normalized.equals(".") || normalized.startsWith("../") || normalized.contains(":")) {
+            throw new IllegalArgumentException("Unsafe SHAFT skill resource: " + relativePath);
+        }
+        return normalized;
+    }
+
     private static String readResourceText(String resourceName) throws IOException {
         try (var input = resource(resourceName).openStream()) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
-    }
-
-    private static Map<String, String> frontMatter(String skillMarkdown) {
-        Matcher matcher = FRONT_MATTER_PATTERN.matcher(skillMarkdown);
-        Map<String, String> values = new LinkedHashMap<>();
-        if (matcher.find()) {
-            for (String line : matcher.group(1).split("\\R")) {
-                int colon = line.indexOf(':');
-                if (colon > 0) {
-                    values.put(line.substring(0, colon).trim(), line.substring(colon + 1).trim());
-                }
-            }
-        }
-        return values;
-    }
-
-    private static boolean isFullDistribution(Map<String, String> frontMatter) {
-        return FULL_DISTRIBUTION.equalsIgnoreCase(frontMatter.getOrDefault("distribution", ""));
-    }
-
-    /**
-     * Returns the skill body after its frontmatter block, verbatim apart from stripping the purely
-     * blank line(s) that separate the frontmatter's closing {@code ---} from the first line of body text.
-     */
-    private static String bodyAfterFrontMatter(String skillMarkdown) {
-        Matcher matcher = FRONT_MATTER_PATTERN.matcher(skillMarkdown);
-        if (!matcher.find()) {
-            return skillMarkdown;
-        }
-        return skillMarkdown.substring(matcher.end()).replaceFirst("^\\R+", "");
-    }
-
-    private static String skillBridgeMarkdown(String skillName, String name, String description) {
-        return "---\n"
-                + "name: " + name + "\n"
-                + "description: " + description + "\n"
-                + "---\n\n"
-                + "# " + titleCase(skillName) + " (SHAFT bridge)\n\n"
-                + "Generated by `shaft_project_init_agents`; do not hand-edit. Re-run with `overwrite=true` "
-                + "after upgrading `shaft-mcp` to refresh this bridge from the latest SHAFT skill guidance.\n\n"
-                + "Use the `shaft-mcp` MCP server (`shaft-mcp:` or `mcp__shaft-mcp__` tool prefix depending on "
-                + "the client) to carry out this skill. Call `shaft-mcp:shaft_guide_search` first for official "
-                + "SHAFT guidance, then the tools that match \"" + skillName + "\" (source playbook: SHAFT_ENGINE "
-                + "`shaft-skills/" + skillName + "/SKILL.md`). Treat generated or recorded code as a draft: "
-                + "preview it with `shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, "
-                + "and verify with `shaft-mcp:verify_run_focused` before treating it as done.\n";
-    }
-
-    private static String vscodeInstructionsMarkdown(String skillName, String name, String description) {
-        return "---\n"
-                + "name: " + name + "\n"
-                + "description: " + description + "\n"
-                + "applyTo: \"**\"\n"
-                + "---\n\n"
-                + "# " + titleCase(skillName) + " (SHAFT bridge)\n\n"
-                + "Generated by `shaft_project_init_agents`; do not hand-edit. Re-run with `overwrite=true` "
-                + "after upgrading `shaft-mcp` to refresh this bridge from the latest SHAFT skill guidance.\n\n"
-                + "Use the `shaft-mcp` MCP server (`shaft-mcp:` or `mcp__shaft-mcp__` tool prefix depending on "
-                + "your GitHub Copilot MCP configuration) to carry out this skill. Call "
-                + "`shaft-mcp:shaft_guide_search` first for official SHAFT guidance, then the tools that match \""
-                + skillName + "\" (source playbook: SHAFT_ENGINE `shaft-skills/" + skillName + "/SKILL.md`). "
-                + "Treat generated or recorded code as a draft: preview it with "
-                + "`shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, and verify with "
-                + "`shaft-mcp:verify_run_focused` before treating it as done.\n";
-    }
-
-    private static String vscodeFullInstructionsMarkdown(String skillMarkdown, String name, String description) {
-        return "---\n"
-                + "name: " + name + "\n"
-                + "description: " + description + "\n"
-                + "applyTo: \"**\"\n"
-                + "---\n\n"
-                + bodyAfterFrontMatter(skillMarkdown);
     }
 
     private static String titleCase(String skillName) {
@@ -532,31 +661,6 @@ public class ShaftProjectService {
                     : Character.toUpperCase(word.charAt(0)) + word.substring(1));
         }
         return title.toString();
-    }
-
-    private static String rootGuidanceMarkdown(String loop, List<String> skillNames) {
-        StringBuilder guidance = new StringBuilder();
-        guidance.append("# SHAFT Agent Guidance (generated)\n\n")
-                .append("> Generated by `shaft_project_init_agents` (shaft-mcp) for the `").append(loop)
-                .append("` loop. This file is intentionally standalone so the tool never edits a file you "
-                        + "already maintain. Review it, then MERGE the relevant parts into your own "
-                        + "`AGENTS.md`/`CLAUDE.md` (or your loop's equivalent guidance file -- "
-                        + "`.github/copilot-instructions.md` for vscode/GitHub Copilot, `AGENTS.md` for "
-                        + "opencode), and delete this file once merged.\n\n")
-                .append("## Generated skill bridges\n\n")
-                .append("Each bridge below points a coding agent at using `shaft-mcp` MCP tools for a SHAFT "
-                        + "workflow:\n\n");
-        for (String skillName : skillNames) {
-            guidance.append("- `").append(skillName).append("`\n");
-        }
-        guidance.append("\n## Using shaft-mcp\n\n")
-                .append("- Prefer `shaft-mcp:shaft_guide_search` before guessing tool behavior.\n")
-                .append("- Treat generated or recorded code as a draft: preview it with "
-                        + "`shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, then "
-                        + "verify with `shaft-mcp:verify_run_focused`.\n")
-                .append("- Do not insert SHAFT code without review; this is SHAFT's evidence-gated AI "
-                        + "governance model, not a fire-and-forget generator.\n");
-        return guidance.toString();
     }
 
     private static Map<String, Map<String, String>> projects() {
@@ -640,13 +744,7 @@ public class ShaftProjectService {
                 JarURLConnection connection = (JarURLConnection) url.openConnection();
                 String prefix = connection.getEntryName() + "/";
                 try (JarFile jar = connection.getJarFile()) {
-                    for (JarEntry entry : jar.stream().filter(entry -> !entry.isDirectory())
-                            .filter(entry -> entry.getName().startsWith(prefix)).toList()) {
-                        Path destination = safeResourceDestination(target, entry.getName().substring(prefix.length()));
-                        try (var input = jar.getInputStream(entry)) {
-                            copyFile(input.readAllBytes(), destination, target, overwrite);
-                        }
-                    }
+                    extractArchiveEntries(jar, prefix, target, overwrite);
                 }
                 return;
             }
@@ -656,6 +754,41 @@ public class ShaftProjectService {
         } catch (Exception exception) {
             throw new IOException("Project generator resources could not be read.", exception);
         }
+    }
+
+    static void extractArchiveEntries(JarFile archive, String prefix, Path extractionRoot, boolean overwrite)
+            throws IOException {
+        for (JarEntry entry : archive.stream()
+                .filter(candidate -> candidate.getName().startsWith(prefix)).toList()) {
+            String relativePath = entry.getName().substring(prefix.length());
+            if (relativePath.isEmpty()) {
+                continue;
+            }
+            Path destination = safeArchiveDestination(extractionRoot, relativePath);
+            if (entry.isDirectory()) {
+                Files.createDirectories(destination);
+                continue;
+            }
+            try (var input = archive.getInputStream(entry)) {
+                copyFile(input.readAllBytes(), destination, extractionRoot, overwrite);
+            }
+        }
+    }
+
+    static Path safeArchiveDestination(Path extractionRoot, String archiveEntryName) {
+        if (archiveEntryName == null || archiveEntryName.isBlank()) {
+            throw new IllegalArgumentException("Archive entry name must not be blank.");
+        }
+        Path root = extractionRoot.toAbsolutePath().normalize();
+        Path entryPath = Path.of(archiveEntryName.replace('\\', '/')).normalize();
+        if (entryPath.isAbsolute()) {
+            throw new IllegalArgumentException("Archive entry escaped the extraction directory.");
+        }
+        Path destination = root.resolve(entryPath).normalize();
+        if (!destination.startsWith(root)) {
+            throw new IllegalArgumentException("Archive entry escaped the extraction directory.");
+        }
+        return safeDestination(destination, root);
     }
 
     private static void copyResourceFile(String resourceName, Path destination, Path targetRoot, boolean overwrite)
@@ -688,19 +821,33 @@ public class ShaftProjectService {
 
     private static Path safeDestination(Path destination, Path targetRoot) {
         Path normalized = destination.toAbsolutePath().normalize();
-        if (targetRoot != null && !normalized.startsWith(targetRoot.toAbsolutePath().normalize())) {
+        if (targetRoot == null) {
+            return normalized;
+        }
+        Path root = targetRoot.toAbsolutePath().normalize();
+        if (!normalized.startsWith(root)) {
             throw new IllegalArgumentException("Generated project file escaped the output directory.");
+        }
+        try {
+            Path existingRoot = root;
+            while (existingRoot != null && !Files.exists(existingRoot)) {
+                existingRoot = existingRoot.getParent();
+            }
+            if (existingRoot == null) {
+                throw new IllegalArgumentException("Generated project file could not be safely resolved.");
+            }
+            Path realRoot = existingRoot.toRealPath();
+            Path existing = normalized;
+            while (existing != null && !Files.exists(existing)) {
+                existing = existing.getParent();
+            }
+            if (existing == null || !existing.toRealPath().startsWith(realRoot)) {
+                throw new IllegalArgumentException("Generated project file escaped the output directory.");
+            }
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Generated project file could not be safely resolved.", exception);
         }
         return normalized;
-    }
-
-    static Path safeResourceDestination(Path targetRoot, String resourceName) {
-        Path normalizedRoot = targetRoot.toAbsolutePath().normalize();
-        Path normalizedDestination = normalizedRoot.resolve(resourceName).normalize();
-        if (!normalizedDestination.startsWith(normalizedRoot)) {
-            throw new IllegalArgumentException("Generated project file escaped the output directory.");
-        }
-        return normalizedDestination;
     }
 
     private static URL resource(String resourceName) throws IOException {

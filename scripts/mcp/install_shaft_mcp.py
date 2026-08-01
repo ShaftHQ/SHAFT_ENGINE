@@ -10,6 +10,7 @@ import platform
 import queue
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -40,34 +41,25 @@ FALLBACK_WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.fallbackWorkspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
-SHAFT_SKILLS_SOURCE_FILES = (
-    "evaluation-prompts.md",
-    "references/shaft-mcp-tools.md",
-    "references/shaft-cli-commands.md",
-    "writing-shaft-tests/SKILL.md",
-    "writing-shaft-tests/agents/openai.yaml",
-    "choosing-shaft-locators/SKILL.md",
-    "choosing-shaft-locators/agents/openai.yaml",
-    "recording-shaft-tests-with-mcp/SKILL.md",
-    "recording-shaft-tests-with-mcp/agents/openai.yaml",
-    "analyzing-shaft-failures/SKILL.md",
-    "analyzing-shaft-failures/agents/openai.yaml",
-    "verifying-and-applying-shaft-changes/SKILL.md",
-    "verifying-and-applying-shaft-changes/agents/openai.yaml",
-    "planning-shaft-tests/SKILL.md",
-    "planning-shaft-tests/agents/openai.yaml",
-    "act-as-shaft-dev/SKILL.md",
-    "act-as-shaft-dev/agents/openai.yaml",
-)
-SHAFT_SKILLS_SOURCE_MARKERS = (
-    "writing-shaft-tests/SKILL.md",
-    "choosing-shaft-locators/SKILL.md",
-    "recording-shaft-tests-with-mcp/SKILL.md",
-    "analyzing-shaft-failures/SKILL.md",
-    "verifying-and-applying-shaft-changes/SKILL.md",
-    "planning-shaft-tests/SKILL.md",
-    "act-as-shaft-dev/SKILL.md",
-)
+SHAFT_SKILLS_ROUTER = "shaft-developer"
+SHAFT_SKILLS_NATIVE_DIRECTORIES = {
+    "codex": (".agents/skills",),
+    "claude": (".claude/skills",),
+    "claude-desktop": (".claude/skills",),
+    "copilot": (".github/skills",),
+    "copilot-intellij": (".github/skills",),
+    "intellij-plugin": (".agents/skills", ".claude/skills", ".github/skills"),
+}
+SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills", ".github/skills")
+RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
+    "act-as-shaft-dev",
+    "analyzing-shaft-failures",
+    "choosing-shaft-locators",
+    "planning-shaft-tests",
+    "recording-shaft-tests-with-mcp",
+    "verifying-and-applying-shaft-changes",
+    "writing-shaft-tests",
+))
 AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/validate_agent_setup.py",
     "scripts/ci/validate_agent_guidance.py",
@@ -814,7 +806,75 @@ def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:
 
 
 def is_shaft_skills_source(path: Path) -> bool:
-    return path.is_dir() and all((path / marker).is_file() for marker in SHAFT_SKILLS_SOURCE_MARKERS)
+    return path.is_dir() and (path / SHAFT_SKILLS_ROUTER / "SKILL.md").is_file()
+
+
+def is_owned_retired_shaft_skill(directory: Path, name: str) -> bool:
+    """Recognize the two-file signature used by SHAFT's retired skill packages."""
+    skill = directory / "SKILL.md"
+    descriptor = directory / "agents" / "openai.yaml"
+    if directory.is_symlink() or not (directory.is_dir() and skill.is_file() and descriptor.is_file()):
+        return False
+    try:
+        content = skill.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return re.search(rf"(?m)^name:\s*{re.escape(name)}\s*$", content) is not None
+
+
+def remove_retired_shaft_skills(target: Path) -> None:
+    """Remove only verifiably SHAFT-owned legacy skill directories from a target."""
+    target = target.resolve()
+    for name in RETIRED_SHAFT_SKILL_DIRECTORIES:
+        candidate = target / name
+        if is_owned_retired_shaft_skill(candidate, name):
+            shutil.rmtree(candidate)
+
+
+def shaft_skill_files(source: Path) -> tuple[str, ...]:
+    """Discover the portable pack from its canonical skill directories."""
+    source = source.resolve()
+    skill_directories = {skill.parent for skill in source.glob("*/SKILL.md")}
+    files = {path for path in source.iterdir() if path.is_file()}
+    references = source / "references"
+    if references.is_dir():
+        files.update(path for path in references.rglob("*") if path.is_file())
+    for directory in skill_directories:
+        files.update(path for path in directory.rglob("*") if path.is_file())
+    return tuple(sorted(path.relative_to(source).as_posix() for path in files))
+
+
+def remote_shaft_skill_files() -> tuple[str, ...]:
+    """Discover the current portable pack from GitHub's recursive tree."""
+    ref = os.environ.get("SHAFT_MCP_INSTALLER_REF", "main").strip() or "main"
+    quoted_ref = urllib.parse.quote(ref, safe="")
+    url = f"https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/git/trees/{quoted_ref}?recursive=1"
+    try:
+        payload = json.loads(download_bytes(url).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"SHAFT skills manifest discovery returned invalid JSON: {exc}", 4)
+    if payload.get("truncated"):
+        fail("SHAFT skills manifest discovery was truncated by GitHub.", 4)
+    tree_paths = tuple(sorted(
+        entry["path"] for entry in payload.get("tree", ())
+        if entry.get("type") == "blob" and entry.get("path", "").startswith("shaft-skills/")
+    ))
+    skill_directories = {
+        path.split("/", 2)[1]
+        for path in tree_paths
+        if path.count("/") == 2 and path.endswith("/SKILL.md")
+    }
+    files = tuple(
+        path.removeprefix("shaft-skills/")
+        for path in tree_paths
+        if (relative := path.removeprefix("shaft-skills/"))
+        and ("/" not in relative
+             or relative.startswith("references/")
+             or relative.split("/", 1)[0] in skill_directories)
+    )
+    if f"{SHAFT_SKILLS_ROUTER}/SKILL.md" not in files:
+        fail("SHAFT skills manifest did not contain the shaft-developer router.", 4)
+    return files
 
 
 def local_shaft_skills_source() -> Path | None:
@@ -832,12 +892,10 @@ def copy_shaft_skills(source: Path, target: Path) -> Path:
     if source == target:
         return target
     target.mkdir(parents=True, exist_ok=True)
-    for item in source.iterdir():
-        destination = target / item.name
-        if item.is_dir():
-            shutil.copytree(item, destination, dirs_exist_ok=True)
-        elif item.is_file():
-            shutil.copy2(item, destination)
+    for relative in shaft_skill_files(source):
+        destination = target / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / relative, destination)
     return target
 
 
@@ -858,7 +916,7 @@ def shaft_agent_validation_raw_file_url(relative: str) -> str:
 def download_shaft_skills_files(target: Path) -> Path:
     target = target.resolve()
     target.mkdir(parents=True, exist_ok=True)
-    for relative in SHAFT_SKILLS_SOURCE_FILES:
+    for relative in remote_shaft_skill_files():
         destination = (target / relative).resolve()
         if target != destination and target not in destination.parents:
             fail(f"SHAFT skills manifest contains an unsafe path: {relative}", 4)
@@ -904,12 +962,46 @@ def download_agent_validation_script_files(target: Path) -> Path:
     return target / "scripts" / "ci"
 
 
-def install_shaft_skills(current_directory: Path, root: Path) -> Path:
-    target = current_directory.resolve() / SHAFT_SKILLS_DIRECTORY
+def is_link_or_junction(path: Path) -> bool:
+    """Whether a path can redirect native skill installation outside the project."""
+    try:
+        if path.is_symlink():
+            return True
+        if os.name != "nt":
+            return False
+        attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+        return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400))
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+
+
+def native_skill_target(current_directory: Path, directory: str) -> Path:
+    """Return an unlinked native skill path without resolving any native component."""
+    target = Path(os.path.abspath(current_directory))
+    for component in Path(directory).parts:
+        target /= component
+        if is_link_or_junction(target):
+            fail(f"Refusing linked native skill path: {target}", 4)
+    return target
+
+
+def shaft_skills_targets(current_directory: Path, client: str | None) -> list[Path]:
+    directories = (SHAFT_SKILLS_NATIVE_DIRECTORIES.get(client, SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
+                   if client else SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
+    return [native_skill_target(current_directory, directory) for directory in directories]
+
+
+def install_shaft_skills(current_directory: Path, root: Path, client: str | None = None) -> list[Path]:
+    targets = shaft_skills_targets(current_directory, client)
+    for target in targets:
+        remove_retired_shaft_skills(target)
     source = local_shaft_skills_source()
     if source is not None:
-        return copy_shaft_skills(source, target)
-    return download_shaft_skills_files(target)
+        return [copy_shaft_skills(source, target) for target in targets]
+    downloaded = download_shaft_skills_files(targets[0])
+    return [downloaded, *(copy_shaft_skills(downloaded, target) for target in targets[1:])]
 
 
 def should_install_shaft_skills(args: argparse.Namespace, current_directory: Path) -> bool:
@@ -1400,12 +1492,14 @@ def install(args: argparse.Namespace) -> None:
         log(f"Configuring shaft-mcp for {args.client}...")
         configure_client(args.client, java, args_file)
     current_directory = Path.cwd().resolve()
-    skills_path = current_directory / SHAFT_SKILLS_DIRECTORY
+    skills_paths = shaft_skills_targets(current_directory, args.client)
+    skills_path = skills_paths[0]
     skills_installed = False
     validation_script_dir = None
     if should_install_shaft_skills(args, current_directory):
-        log(f"Installing SHAFT skills to {skills_path}...")
-        skills_path = install_shaft_skills(current_directory, root)
+        log("Installing SHAFT skills to " + ", ".join(str(path) for path in skills_paths) + "...")
+        skills_paths = install_shaft_skills(current_directory, root, args.client)
+        skills_path = skills_paths[0]
         skills_installed = True
         if has_agent_guidance_scaffold(current_directory):
             log("Fetching agent validation script files...")
@@ -1427,6 +1521,7 @@ def install(args: argparse.Namespace) -> None:
             "shaftSkills": {
                 "installed": skills_installed,
                 "path": str(skills_path),
+                "paths": [str(path) for path in skills_paths],
             },
         }
         if validation_script_dir:
@@ -1442,7 +1537,11 @@ def install(args: argparse.Namespace) -> None:
     else:
         components = {}
         if args.install_shaft_skills:
-            components["shaftSkills"] = {"installed": skills_installed, "path": str(skills_path)}
+            components["shaftSkills"] = {
+                "installed": skills_installed,
+                "path": str(skills_path),
+                "paths": [str(path) for path in skills_paths],
+            }
         if validation_script_dir:
             components["agentValidationScript"] = {
                 "installed": True,

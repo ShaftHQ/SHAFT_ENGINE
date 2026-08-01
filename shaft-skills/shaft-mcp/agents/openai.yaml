@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT MCP"
+  short_description: "Use stateful SHAFT MCP tools"
+  default_prompt: "Use $shaft-mcp to choose and call the correct stateful SHAFT MCP capability."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Stakeholder Reporting"
+  short_description: "Translate evidence into business risk"
+  default_prompt: "Use $shaft-stakeholder-reporting to turn these verified results into a decision-ready business report."

@@ -167,6 +167,40 @@ class GenerateToolIndexCheckModeTest(unittest.TestCase):
                           "shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json is out of date; "
                           "run 'python3 scripts/mcp/generate_tool_index.py' and commit the result")
 
+    def test_write_and_check_keep_cli_cache_identical_to_canonical_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            mechanical_path = tmp_path / "tool-index-mechanical.json"
+            overlay_path = tmp_path / "tool-index-overlay.json"
+            index_path = tmp_path / "tool-index.json"
+            cli_cache_path = tmp_path / "tool-index-cache.json"
+            mechanical_path.write_text(json.dumps(_mechanical([
+                {"name": "driver_quit", "service": "EngineService", "description": "quits", "params": []},
+            ])), encoding="utf-8")
+            overlay_path.write_text(json.dumps(_overlay({
+                "driver_quit": {"mutation": True, "sensitive": False},
+            })), encoding="utf-8")
+
+            write_exit_code = MODULE.main([
+                "--mechanical-path", str(mechanical_path),
+                "--overlay-path", str(overlay_path),
+                "--output-path", str(index_path),
+                "--cli-cache-path", str(cli_cache_path),
+            ])
+
+            self.assertEqual(0, write_exit_code)
+            self.assertEqual(index_path.read_bytes(), cli_cache_path.read_bytes())
+
+            cli_cache_path.write_text("{}\n", encoding="utf-8")
+            check_exit_code = MODULE.main([
+                "--check",
+                "--mechanical-path", str(mechanical_path),
+                "--overlay-path", str(overlay_path),
+                "--output-path", str(index_path),
+                "--cli-cache-path", str(cli_cache_path),
+            ])
+            self.assertEqual(1, check_exit_code, "stale shaft-cli cache must fail generated drift check")
+
 
 if __name__ == "__main__":
     unittest.main()

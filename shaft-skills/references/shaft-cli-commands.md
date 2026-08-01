@@ -45,15 +45,12 @@ Stateless tools (guide search, doctor analysis) need no session.
 
 ## Discovery
 
-`shaft-cli tools [--json]` lists every tool with its description at runtime —
-prefer the cached `shaft-mcp-tools.md` to save tokens. `shaft-cli tools --cached
-[--json]` instead reads a bundled offline snapshot with no MCP server involved
-at all (not even a one-shot child process) — the fastest discovery path when
-you don't need live server state. The snapshot is a stop-gap assembled from
-the frozen 90-tool catalog (`mcp-tool-manifest.json` +
-`shaft-mcp-tools.md`); it will move onto the canonical `tool-index.json`
-generated for #3868 once that lands, so treat it as "recent", not
-"authoritative live state".
+`shaft-cli tools [--json]` lists every tool with its description at runtime.
+`shaft-cli tools --cached [--json]` reads the bundled generated copy of the
+canonical `tool-index.json` with no MCP server or one-shot child process. Its
+names, descriptions, parameter schemas, and curated metadata exactly match the
+shaft-mcp version shipped with that CLI; use the live command only when the
+running server may be a different version.
 
 ## Codegen (deterministic, no MCP session)
 

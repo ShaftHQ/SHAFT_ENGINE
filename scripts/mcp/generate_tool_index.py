@@ -11,8 +11,8 @@ schemas (policy-driven defaults, generated `required`/`type` shapes). Instead:
      param schemas).
   2. tool-index-overlay.json is hand-curated (mutation/sensitive/intentKeywords/slashAlias/
      cliCommand/example/paramDefaults), keyed by tool name.
-  3. This script merges the two into tool-index.json -- the single file shaft-cli, the IntelliJ
-     plugin, and skills all read.
+  3. This script merges the two into tool-index.json and writes an identical generated copy into
+     shaft-cli for ``tools --cached``. ``--check`` rejects drift in either artifact.
 
 This is a deterministic, offline generator: no LLM, no Maven, no network -- it only reads the two
 already-materialized JSON files.
@@ -34,6 +34,7 @@ RESOURCE_DIR = REPO_ROOT / "shaft-mcp" / "src" / "main" / "resources" / "META-IN
 DEFAULT_MECHANICAL_PATH = RESOURCE_DIR / "tool-index-mechanical.json"
 DEFAULT_OVERLAY_PATH = RESOURCE_DIR / "tool-index-overlay.json"
 DEFAULT_OUTPUT_PATH = RESOURCE_DIR / "tool-index.json"
+DEFAULT_CLI_CACHE_PATH = REPO_ROOT / "shaft-cli" / "src" / "main" / "resources" / "tool-index-cache.json"
 GENERATOR_RELATIVE_PATH = "scripts/mcp/generate_tool_index.py"
 
 
@@ -113,11 +114,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--mechanical-path", type=Path, default=DEFAULT_MECHANICAL_PATH)
     parser.add_argument("--overlay-path", type=Path, default=DEFAULT_OVERLAY_PATH)
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
+    parser.add_argument(
+        "--cli-cache-path",
+        type=Path,
+        help="Generated shaft-cli cache copy. Defaults to shaft-cli/src/main/resources/tool-index-cache.json "
+             "when --output-path is the canonical repository path.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    cli_cache_path = args.cli_cache_path
+    if cli_cache_path is None and args.output_path.resolve() == DEFAULT_OUTPUT_PATH.resolve():
+        cli_cache_path = DEFAULT_CLI_CACHE_PATH
     try:
         content = build(args.mechanical_path, args.overlay_path)
     except (ToolIndexMergeError, FileNotFoundError, json.JSONDecodeError) as exc:
@@ -138,12 +148,33 @@ def main(argv: list[str]) -> int:
                   f"{args.mechanical_path.name}/{args.overlay_path.name}. Re-run "
                   f"'python3 {GENERATOR_RELATIVE_PATH}' and commit the result.", file=sys.stderr)
             return 1
-        print(f"{args.output_path} is up to date.")
+        if cli_cache_path is not None:
+            if not cli_cache_path.is_file():
+                print(
+                    f"generate_tool_index: {cli_cache_path} does not exist; run "
+                    f"'python3 {GENERATOR_RELATIVE_PATH}' to generate it.",
+                    file=sys.stderr,
+                )
+                return 1
+            cached = cli_cache_path.read_bytes().replace(b"\r\n", b"\n")
+            if cached != expected:
+                print(
+                    f"generate_tool_index: {cli_cache_path} is out of date with {args.output_path}. "
+                    f"Re-run 'python3 {GENERATOR_RELATIVE_PATH}' and commit both generated files.",
+                    file=sys.stderr,
+                )
+                return 1
+        suffix = f" and {cli_cache_path}" if cli_cache_path is not None else ""
+        print(f"{args.output_path}{suffix} are up to date.")
         return 0
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
     args.output_path.write_text(content, encoding="utf-8", newline="\n")
-    print(f"Generated {args.output_path}")
+    if cli_cache_path is not None:
+        cli_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cli_cache_path.write_text(content, encoding="utf-8", newline="\n")
+    suffix = f" and {cli_cache_path}" if cli_cache_path is not None else ""
+    print(f"Generated {args.output_path}{suffix}")
     return 0
 
 

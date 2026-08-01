@@ -70,6 +70,12 @@ class PluginInstallContractTest(unittest.TestCase):
             source,
         )
 
+    def test_release_probe_checks_the_canonical_router(self):
+        source = Path(verify.__file__).read_text(encoding="utf-8")
+
+        self.assertIn('skills_path / "shaft-developer" / "SKILL.md"', source)
+        self.assertNotIn('skills_path / "writing-shaft-tests" / "SKILL.md"', source)
+
 
 if __name__ == "__main__":
     unittest.main()

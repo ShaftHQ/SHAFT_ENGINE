@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Environment"
+  short_description: "Make test environments trustworthy"
+  default_prompt: "Use $shaft-test-environment to define and verify the environment needed for this SHAFT test run."
