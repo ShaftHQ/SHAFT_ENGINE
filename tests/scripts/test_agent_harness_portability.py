@@ -85,6 +85,21 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             self.assertNotIn(retired_link, content)
 
+    def test_act_as_mohab_requires_fresh_task_branch_from_fetched_main(self):
+        content = (ROOT / ".agents/skills/act-as-mohab/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        compact = re.sub(r"\s+", " ", content)
+        for required in (
+            "## Task isolation",
+            "Before task-specific discovery or edits",
+            "successfully fetch and prune",
+            "fresh `ChaosEngine/*` branch/worktree",
+            "fetched `origin/main`",
+            "Never reuse that branch for a later user task",
+        ):
+            self.assertIn(required, compact)
+
     def test_host_token_budgets_include_mandatory_entrypoint(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
