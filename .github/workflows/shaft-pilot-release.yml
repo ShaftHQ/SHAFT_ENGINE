@@ -85,7 +85,7 @@ jobs:
       - name: Verify IntelliJ plugin release candidate
         uses: ./.github/actions/intellij-verify
       - name: Set up JDK 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           java-version: "25"
           distribution: "zulu"
