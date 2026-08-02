@@ -5,9 +5,9 @@ name an implementation detail they could not reasonably know.
 
 ## Always
 
-Use `caveman.md`, `ponytail.md`, and lightweight PDCA. Use
-`test-driven-development.md` for behavior changes and refactors. Main thread
-uses `delegation.md`; each role uses `roles.md`.
+Apply the entrypoint's embedded Caveman, Ponytail, and lightweight PDCA rules;
+apply its TDD workflow to behavior changes and refactors. Main thread uses
+`delegation.md`; each role uses `roles.md`.
 
 ## Knowledge and discovery
 
