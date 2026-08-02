@@ -617,6 +617,7 @@ jobs:
           path: appium-flutter-server
           sparse-checkout: |
             demo-app
+            server
       - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
         # Recipe verbatim from Android_Flutter_Emulator_E2E below (itself taken
         # from appium-flutter-server's own .github/workflows/main.yml at the
@@ -827,6 +828,7 @@ jobs:
           path: appium-flutter-server
           sparse-checkout: |
             demo-app
+            server
       - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
         # Recipe taken verbatim from appium-flutter-server's own
         # .github/workflows/main.yml at the pinned commit -- their CI runs this
