@@ -949,3 +949,4 @@
 {"actor":"agent","event":"relation.created","relation_id":"rel.worktree-reclamation-related-to-housekeeping","timestamp":"2026-08-01T22:08:11+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly","timestamp":"2026-08-01T22:13:06+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly","timestamp":"2026-08-01T22:15:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-plugin-ui-ux-visual-contract","timestamp":"2026-08-01T22:36:56+03:00"}

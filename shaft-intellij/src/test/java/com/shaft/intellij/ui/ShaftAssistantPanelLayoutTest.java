@@ -4,14 +4,24 @@ import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
+import javax.swing.JButton;
+import javax.swing.JScrollPane;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JToggleButton;
+import javax.swing.SwingUtilities;
 import java.awt.Component;
+import java.awt.Container;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * Covers issue #3694: the notices banner strip (setup notice + fresh-project hint) above the chat
@@ -71,6 +81,114 @@ class ShaftAssistantPanelLayoutTest {
                 + "grouped chip must stay hidden exactly like the two controls it wraps used to");
     }
 
+    @Test
+    void runSettingsDisclosureStartsCollapsedAndKeepsRouteControlsTogether() throws ReflectiveOperationException {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+
+        JToggleButton toggle = (JToggleButton) fieldOf(panel, "runSettingsToggle");
+        JPanel settings = (JPanel) fieldOf(panel, "runSettingsPanel");
+        Component mode = fieldOf(panel, "mode");
+
+        assertAll(
+                () -> assertEquals("Run settings", toggle.getAccessibleContext().getAccessibleName()),
+                () -> assertFalse(toggle.isSelected(), "the everyday composer must start compact"),
+                () -> assertFalse(settings.isVisible(), "route and configuration controls belong behind Run settings"),
+                () -> assertTrue(containsDescendant(settings, mode), "mode must remain in the settings disclosure"),
+                () -> assertTrue(toggle.getText().contains("CLI"),
+                        "the collapsed summary must name the effective agent/runtime"),
+                () -> assertTrue(toggle.getText().toLowerCase(java.util.Locale.ROOT).contains("effort"),
+                        "the collapsed summary must name the selected effort"));
+
+        toggle.doClick();
+
+        assertTrue(settings.isVisible(), "Run settings must expand with the keyboard-accessible toggle");
+
+        ((javax.swing.JComboBox<?>) mode).setSelectedItem("PLAN");
+        assertTrue(toggle.getText().contains("Plan"), "the summary must update with the selected mode");
+    }
+
+    @Test
+    void expandedRunSettingsUseOneAlignedNativeSettingsGroup() throws ReflectiveOperationException {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+        JPanel settings = (JPanel) fieldOf(panel, "runSettingsPanel");
+
+        assertTrue(Arrays.stream(settings.getComponents()).allMatch(component -> component instanceof Container row
+                        && row.getLayout() instanceof BorderLayout),
+                "Run settings must use aligned label/control rows, not independent FlowLayout rows");
+    }
+
+    @Test
+    void expandedRunSettingsStackLabelsAboveControlsAtNarrowWidth() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+        JToggleButton toggle = (JToggleButton) fieldOf(panel, "runSettingsToggle");
+        JPanel settings = (JPanel) fieldOf(panel, "runSettingsPanel");
+        JScrollPane settingsScroll = (JScrollPane) fieldOf(panel, "runSettingsScroll");
+
+        SwingUtilities.invokeAndWait(() -> {
+            panel.setSize(new Dimension(860, 780));
+            layoutTree(panel);
+            toggle.doClick();
+            panel.setSize(new Dimension(360, 780));
+            layoutTree(panel);
+            layoutTree(panel);
+        });
+
+        assertTrue(settingsScroll.getVerticalScrollBar().isVisible(),
+                "the narrow disclosure must scroll rather than clip settings rows vertically");
+
+        for (Component component : settings.getComponents()) {
+            if (!(component instanceof JPanel row) || !row.isVisible()) {
+                continue;
+            }
+            assertTrue(row.getLayout() instanceof javax.swing.BoxLayout,
+                    "narrow Run settings must use a one-column label/control layout (settings width "
+                            + settings.getWidth() + ")");
+            Component label = row.getComponent(0);
+            Component control = row.getComponent(1);
+            assertAll(
+                    () -> assertTrue(control.getY() >= label.getY() + label.getHeight(),
+                            "the control must sit below its label at narrow width: " + ((JLabel) label).getText()
+                                    + " (label=" + label.getBounds() + ", control=" + control.getBounds() + ")"),
+                    () -> assertTrue(control.getX() >= 0 && control.getX() + control.getWidth() <= row.getWidth(),
+                            "the narrow control must remain contained within its settings row"));
+        }
+    }
+
+    @Test
+    void activeRunUsesOneStableStatusStripWithCancelOnTheRight() throws ReflectiveOperationException {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+        JPanel statusStrip = (JPanel) fieldOf(panel, "transcriptStatusStrip");
+        JPanel actionRow = (JPanel) fieldOf(panel, "actionRow");
+        JButton cancel = (JButton) fieldOf(panel, "cancel");
+        JProgressBar progress = (JProgressBar) fieldOf(panel, "progress");
+        JLabel status = (JLabel) fieldOf(panel, "status");
+
+        panel.setRunning(true, "Thinking...");
+        panel.setSize(new Dimension(360, 780));
+        layoutTree(panel);
+
+        BorderLayout layout = (BorderLayout) statusStrip.getLayout();
+        assertAll(
+                () -> assertTrue(statusStrip.isVisible(), "the active run status strip must remain visible"),
+                () -> assertEquals(cancel, layout.getLayoutComponent(BorderLayout.EAST),
+                        "Cancel must occupy the stable right edge of the status strip"),
+                () -> assertTrue(containsDescendant(statusStrip, progress)),
+                () -> assertTrue(containsDescendant(statusStrip, status)),
+                () -> assertFalse(containsDescendant(actionRow, cancel),
+                        "Cancel must not be duplicated in the transcript action row"),
+                () -> assertTrue(cancel.isVisible() && cancel.isEnabled()),
+                () -> assertTrue(cancel.getX() > status.getX(), "Cancel must remain to the right of status text"),
+                () -> assertTrue(cancel.getX() + cancel.getWidth() <= statusStrip.getWidth(),
+                        "Cancel must remain contained at narrow width"));
+
+        panel.setRunning(false, "Ready");
+        assertFalse(statusStrip.isVisible(), "the status strip must collapse when the run finishes");
+    }
+
     /** MCP configured (hides the setup notice) with a {@code null} project (never "fresh", hides that notice too). */
     private static ShaftSettingsState.Settings readySettingsForExistingProject() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
@@ -97,5 +215,19 @@ class ShaftAssistantPanelLayoutTest {
 
     private static boolean containsComponent(JComponent container, Component target) {
         return Arrays.stream(container.getComponents()).anyMatch(child -> child == target);
+    }
+
+    private static boolean containsDescendant(Container container, Component target) {
+        return Arrays.stream(container.getComponents()).anyMatch(child -> child == target
+                || child instanceof Container nested && containsDescendant(nested, target));
+    }
+
+    private static void layoutTree(Container container) {
+        container.doLayout();
+        for (Component child : container.getComponents()) {
+            if (child instanceof Container nested) {
+                layoutTree(nested);
+            }
+        }
     }
 }

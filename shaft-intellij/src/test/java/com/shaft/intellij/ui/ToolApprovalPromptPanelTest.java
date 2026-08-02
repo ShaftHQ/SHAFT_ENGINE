@@ -5,7 +5,7 @@ import com.shaft.intellij.approval.ToolApprovalDecision;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
-import java.awt.Color;
+import javax.swing.JToggleButton;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -13,16 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolApprovalPromptPanelTest {
-    // Issue #3782: a leaked dark-theme UIManager override (e.g. Button.background 0x45494A, a
-    // near-gray with red/green/blue only 1-5 units apart) from another test's L&F install can read
-    // as "blueish" under a plain greater-than comparison. Requiring a real minimum gap between the
-    // dominant channel and the others keeps these heuristics meaningful for genuinely color-coded
-    // buttons while no longer misclassifying an ambient near-gray leak as a hue.
-    private static final int HUE_DOMINANCE_THRESHOLD = 15;
-
     @Test
     void standardCapabilityShowsAllScopesPlusDeny() {
         AtomicReference<ToolApprovalDecision> decided = new AtomicReference<>();
@@ -34,6 +28,7 @@ class ToolApprovalPromptPanelTest {
 
         assertAll(
                 () -> assertEquals(4, buttons.size()),
+                () -> assertEquals("Deny", buttons.get(0).getText(), "Deny must be the safe first choice"),
                 () -> assertTrue(labels.contains("Approve once")),
                 () -> assertTrue(labels.contains("Approve tool always")),
                 () -> assertTrue(labels.contains("Approve all tools")),
@@ -146,17 +141,9 @@ class ToolApprovalPromptPanelTest {
                         "arguments JSON must not be truncated with a trailing ellipsis"));
     }
 
-    /**
-     * Issue #3696: previously {@code APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} rendered
-     * with a smaller, gray, unbordered "de-emphasized" look while {@code APPROVE_ONCE} kept full
-     * default emphasis -- the opposite of the intended nudge toward broader approval scopes. Now
-     * all three scope buttons share equal font weight and are color-coded by scope breadth: green
-     * (broadest) for "Approve all tools", blue (medium) for "Approve tool always", yellow
-     * (narrowest) for "Approve once". {@code Deny} is not a scope to weight and keeps the platform
-     * default look.
-     */
+    /** Permanent scopes remain explicit but visually secondary to the safe first decision. */
     @Test
-    void approvalScopeButtonsShareEqualVisualWeightAndAreColorCodedByScopeBreadth() {
+    void broadAndPermanentApprovalScopesAreNotVisuallyPromoted() {
         ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
                 "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
         List<JButton> buttons = panel.decisionButtonsForTest();
@@ -164,40 +151,19 @@ class ToolApprovalPromptPanelTest {
         JButton approveOnce = findByLabel(buttons, "Approve once");
         JButton approveToolAlways = findByLabel(buttons, "Approve tool always");
         JButton approveAllTools = findByLabel(buttons, "Approve all tools");
-        JButton deny = findByLabel(buttons, "Deny");
-
         assertAll(
+                () -> assertEquals(approveOnce.getBackground(), approveToolAlways.getBackground(),
+                        "permanent approval must keep the native neutral treatment"),
+                () -> assertEquals(approveOnce.getBackground(), approveAllTools.getBackground(),
+                        "broad approval must not look like the preferred action"),
+                () -> assertFalse(approveToolAlways.isContentAreaFilled(),
+                        "permanent approval must not use an opaque primary-button fill"),
+                () -> assertFalse(approveAllTools.isContentAreaFilled(),
+                        "broad approval must not use an opaque primary-button fill"),
                 () -> assertEquals(approveOnce.getFont().getSize2D(), approveToolAlways.getFont().getSize2D(),
                         "Approve tool always must not be font-shrunk relative to Approve once"),
                 () -> assertEquals(approveOnce.getFont().getSize2D(), approveAllTools.getFont().getSize2D(),
-                        "Approve all tools must not be font-shrunk relative to Approve once"),
-                () -> assertTrue(isGreenish(approveAllTools.getBackground()),
-                        "Approve all tools (broadest scope) should be highlighted green: "
-                                + approveAllTools.getBackground()),
-                () -> assertTrue(isBlueish(approveToolAlways.getBackground()),
-                        "Approve tool always (medium scope) should be highlighted blue: "
-                                + approveToolAlways.getBackground()),
-                () -> assertTrue(isYellowish(approveOnce.getBackground()),
-                        "Approve once (narrowest scope) should be highlighted yellow: "
-                                + approveOnce.getBackground()),
-                () -> assertFalse(isGreenish(deny.getBackground()) || isBlueish(deny.getBackground())
-                                || isYellowish(deny.getBackground()),
-                        "Deny should keep the platform default button color, not a scope color"));
-    }
-
-    private static boolean isGreenish(Color color) {
-        return color.getGreen() - color.getRed() > HUE_DOMINANCE_THRESHOLD
-                && color.getGreen() - color.getBlue() > HUE_DOMINANCE_THRESHOLD;
-    }
-
-    private static boolean isBlueish(Color color) {
-        return color.getBlue() - color.getRed() > HUE_DOMINANCE_THRESHOLD
-                && color.getBlue() - color.getGreen() > HUE_DOMINANCE_THRESHOLD;
-    }
-
-    private static boolean isYellowish(Color color) {
-        return color.getRed() - color.getBlue() > HUE_DOMINANCE_THRESHOLD
-                && color.getGreen() - color.getBlue() > HUE_DOMINANCE_THRESHOLD;
+                        "Approve all tools must not gain a larger visual weight than Approve once"));
     }
 
     private static JButton findByLabel(List<JButton> buttons, String label) {
@@ -224,6 +190,69 @@ class ToolApprovalPromptPanelTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("arguments text area not found"))
                 .getText();
+    }
+
+    @Test
+    void rawArgumentsStayHiddenUntilTechnicalDetailsAreRequested() {
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+        javax.swing.JTextArea arguments = findArgumentsArea(panel);
+        JToggleButton details = findToggle(panel, "Show technical details");
+
+        assertAll(
+                () -> assertFalse(arguments.isVisible(), "raw JSON must not be permanent approval chrome"),
+                () -> assertNotNull(details));
+
+        details.doClick();
+
+        assertAll(
+                () -> assertTrue(arguments.isVisible()),
+                () -> assertEquals("Hide technical details", details.getText()));
+    }
+
+    @Test
+    void permanentApprovalScopesStayBehindReviewOptions() {
+        ToolApprovalPromptPanel panel = new ToolApprovalPromptPanel(
+                "capture_start", arguments(), ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+        List<JButton> buttons = panel.decisionButtonsForTest();
+        JToggleButton review = findToggle(panel, "Review options");
+        JButton always = findByLabel(buttons, "Approve tool always");
+        JButton all = findByLabel(buttons, "Approve all tools");
+
+        assertAll(
+                () -> assertNotNull(review),
+                () -> assertFalse(always.isVisible()),
+                () -> assertFalse(all.isVisible()));
+
+        review.doClick();
+
+        assertAll(
+                () -> assertTrue(always.isVisible()),
+                () -> assertTrue(all.isVisible()),
+                () -> assertEquals("Hide options", review.getText()));
+    }
+
+    private static javax.swing.JTextArea findArgumentsArea(ToolApprovalPromptPanel panel) {
+        List<javax.swing.JTextArea> textAreas = new java.util.ArrayList<>();
+        collectTextAreas(panel, textAreas);
+        return textAreas.stream()
+                .filter(area -> "Tool approval arguments".equals(area.getAccessibleContext().getAccessibleName()))
+                .findFirst().orElseThrow();
+    }
+
+    private static JToggleButton findToggle(java.awt.Container container, String text) {
+        for (java.awt.Component component : container.getComponents()) {
+            if (component instanceof JToggleButton toggle && text.equals(toggle.getText())) {
+                return toggle;
+            }
+            if (component instanceof java.awt.Container child) {
+                JToggleButton nested = findToggle(child, text);
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
     }
 
     private static void collectTextAreas(java.awt.Container container, List<javax.swing.JTextArea> found) {
