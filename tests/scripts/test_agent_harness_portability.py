@@ -72,6 +72,42 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertFalse(Path(target).is_absolute())
         self.assertEqual((adapter.parent / target).resolve(), canonical.resolve())
 
+    def test_act_as_mohab_embeds_core_working_rules(self):
+        content = (ROOT / ".agents/skills/act-as-mohab/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        for heading in ("### Caveman", "### Ponytail", "### Test-driven development"):
+            self.assertIn(heading, content)
+        for retired_link in (
+            "references/caveman.md",
+            "references/ponytail.md",
+            "references/test-driven-development.md",
+        ):
+            self.assertNotIn(retired_link, content)
+
+    def test_host_token_budgets_include_mandatory_entrypoint(self):
+        budget = json.loads(
+            (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        mandatory = ".agents/skills/act-as-mohab/SKILL.md"
+        for host, paths in budget["host_contexts"].items():
+            self.assertIn(mandatory, paths, host)
+
+    def test_downstream_rule_docs_are_tiny_entrypoint_redirects(self):
+        references = ROOT / ".agents/skills/act-as-mohab/references"
+        for relative in (
+            "caveman.md",
+            "ponytail.md",
+            "test-driven-development.md",
+            "tdd/resisting-rationalization.md",
+            "tdd/testing-anti-patterns.md",
+        ):
+            path = references / relative
+            self.assertTrue(path.is_file(), relative)
+            body = markdown_body(path)
+            self.assertLess(len(body), 250, relative)
+            self.assertIn("SKILL.md#", body, relative)
+
     def test_all_hosts_reach_the_same_entrypoint_without_grok_duplication(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")

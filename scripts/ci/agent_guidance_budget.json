@@ -22,21 +22,25 @@
   },
   "host_contexts": {
     "codex": [
-      "AGENTS.md"
+      "AGENTS.md",
+      ".agents/skills/act-as-mohab/SKILL.md"
     ],
     "claude": [
       "AGENTS.md",
-      "CLAUDE.md"
+      "CLAUDE.md",
+      ".agents/skills/act-as-mohab/SKILL.md"
     ],
     "grok": [
       "AGENTS.md",
-      "CLAUDE.md"
+      "CLAUDE.md",
+      ".agents/skills/act-as-mohab/SKILL.md"
     ],
     "copilot": [
       "AGENTS.md",
       ".github/copilot-instructions.md",
       ".github/instructions/framework-source.instructions.md",
-      ".github/instructions/java-tests.instructions.md"
+      ".github/instructions/java-tests.instructions.md",
+      ".agents/skills/act-as-mohab/SKILL.md"
     ]
   },
   "host_skill_metadata_globs": {
@@ -101,7 +105,7 @@
   "skill_budgets": {
     ".agents/skills": {
       "max_description_chars": 220,
-      "max_skill_md_bytes": 8192,
+      "max_skill_md_bytes": 7168,
       "require_openai_yaml": true
     },
     ".claude/skills": {
@@ -173,5 +177,5 @@
     ".github/skills/deepseek/",
     ".github/skills/qwen/"
   ],
-  "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Host token budgets count only auto-loaded fronts and metadata. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks. Byte counts are LF-normalized via read_text()."
+  "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Host token budgets count mandatory fronts, the always-loaded entrypoint, and discovery metadata. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks. Byte counts are LF-normalized via read_text()."
 }
