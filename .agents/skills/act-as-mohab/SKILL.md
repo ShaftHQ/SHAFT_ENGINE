@@ -11,6 +11,14 @@ Single entrypoint for every host, main thread, and delegate. Load this file
 before task-specific discovery or work. Host adapters may point here; they
 must not restate its policy.
 
+## Task isolation
+
+Before task-specific discovery or edits, main thread must successfully fetch
+and prune. Create or verify a fresh `ChaosEngine/*` branch/worktree from fetched
+`origin/main`. Reuse it only for dependent work in the same user task. Never
+reuse that branch for a later user task. Stop and report if fetch or base
+verification fails.
+
 ## Operating contract
 
 1. Orient on requested outcome and concrete proof of done.
