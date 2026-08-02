@@ -1,0 +1,1 @@
+PlaywrightNaturalActionExecutorTest is Mockito-only and must be excluded from GLOBAL_TESTING_SCOPE while explicitly included in pr-gate's shaft-engine unit selector; otherwise Grid's dynamic parallel suite can fail setup with Mockito WrongTypeOfReturnValue.

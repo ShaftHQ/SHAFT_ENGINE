@@ -1,0 +1,1 @@
+The six e2eTests.yml Playwright installation steps must use org.codehaus.mojo:exec-maven-plugin:3.6.3:java rather than exec:java. Maven plugin-prefix resolution fetches group metadata and can fail on a transient Central 403 before tests begin.
