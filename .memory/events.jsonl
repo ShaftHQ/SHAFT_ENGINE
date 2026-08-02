@@ -953,3 +953,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.playwright-ci-installation-must-use-an-explicit-exec-maven-plugin-goal","timestamp":"2026-08-02T08:33:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.flutter-demo-app-sparse-checkout-requires-its-server-path-dependency","timestamp":"2026-08-02T08:33:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.playwrightnaturalactionexecutortest-belongs-in-unit-tests-not-grid-e2e","timestamp":"2026-08-02T08:33:50+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.rest-countries-junit-api-example-deprecated","timestamp":"2026-08-02T19:07:30+03:00"}

@@ -1,0 +1,1 @@
+The official shaft-junit-api example calls restcountries.com/v3.1 and asserts [0].name.common. In the 2026-08-02 first-time SHAFT evaluation, the service returned HTTP 200 with a deprecation error envelope, making the JSONPath fail. Track repair and a semantic error-envelope assertion in GitHub issue #4410.
