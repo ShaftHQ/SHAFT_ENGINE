@@ -73,7 +73,7 @@ env:
   # runs in the native Selenium Grid jobs (Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid),
   # where the extra remote-dispatch/network latency doesn't leave the readiness wait enough
   # margin for the fixture's in-flight delayed fetch, failing the assertion consistently.
-  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*], !%regex[.*MoonTests.*], !%regex[.*playwright.*PlaywrightActionsE2ETest.*], !%regex[.*LazyLoadingFixtureLiveTest.*], !%regex[.*testPackage.unitTests.*], !%regex[.*DriverFactoryHelperAugmentationUnitTest.*], !%regex[.*DriverFactoryHelperCoverageUnitTest.*], !%regex[.*DriverFactoryHelperStorageStateUnitTest.*], !%regex[.*OptionsManagerCoverageUnitTest.*], !%regex[.*RemoteGridPreflightUnitTest.*], !%regex[.*ActionsCoverageUnitTest.*], !%regex[.*ActionsExceptionDetailsUnitTest.*], !%regex[.*ElementInformationCoverageUnitTest.*], !%regex[.*ElementsHelperCoverageUnitTest.*], !%regex[.*AriaSnapshotHelperUnitTest.*], !%regex[.*MobileAccessibilityTreeConverterUnitTest.*], !%regex[.*AnimatedGifManagerCoverageUnitTest.*], !%regex[.*ImageProcessingActionsReportingUnitTest.*], !%regex[.*ImageProcessingActionsScreenshotBaselineUnitTest.*], !%regex[.*ScreenshotHelperCoverageUnitTest.*], !%regex[.*ScreenshotManagerCoverageUnitTest.*], !%regex[.*LocatorHealthReporterUnitTest.*], !%regex[.*RecordManagerCoverageUnitTest.*], !%regex[.*PlaywrightSessionFactoryStorageStateUnitTest.*], !%regex[.*ShardPartitionerUnitTest.*], !%regex[.*UpdateCheckerUnitTest.*], !%regex[.*LightHouseGenerateReportCoverageUnitTest.*], !%regex[.*PropertiesHelperDownloadRetryUnitTest.*], !%regex[.*PropertyFileManagerInternalUnitTest.*], !%regex[.*AllureManagerCoverageUnitTest.*], !%regex[.*BrowserPerformanceExecutionReportUnitTest.*], !%regex[.*FlakeProfilerUnitTest.*], !%regex[.*ProgressBarLoggerCoverageUnitTest.*], !%regex[.*ValidationsHelperCoverageUnitTest.*], !%regex[.*ValidationsHelperNewPatternCoverageUnitTest.*], !%regex[.*VisualValidationsBuilderUnitTest.*], !%regex[.*WebDriverElementValidationsBuilderAriaSnapshotUnitTest.*], !%regex[.*WebDriverElementValidationsBuilderCoverageUnitTest.*], !%regex[.*AssertionEvidenceReporterTest.*], !%regex[.*FailureTraceReporterTest.*]"
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*], !%regex[.*MoonTests.*], !%regex[.*playwright.*PlaywrightActionsE2ETest.*], !%regex[.*LazyLoadingFixtureLiveTest.*], !%regex[.*testPackage.unitTests.*], !%regex[.*DriverFactoryHelperAugmentationUnitTest.*], !%regex[.*DriverFactoryHelperCoverageUnitTest.*], !%regex[.*DriverFactoryHelperStorageStateUnitTest.*], !%regex[.*OptionsManagerCoverageUnitTest.*], !%regex[.*RemoteGridPreflightUnitTest.*], !%regex[.*ActionsCoverageUnitTest.*], !%regex[.*ActionsExceptionDetailsUnitTest.*], !%regex[.*ElementInformationCoverageUnitTest.*], !%regex[.*ElementsHelperCoverageUnitTest.*], !%regex[.*AriaSnapshotHelperUnitTest.*], !%regex[.*MobileAccessibilityTreeConverterUnitTest.*], !%regex[.*AnimatedGifManagerCoverageUnitTest.*], !%regex[.*ImageProcessingActionsReportingUnitTest.*], !%regex[.*ImageProcessingActionsScreenshotBaselineUnitTest.*], !%regex[.*ScreenshotHelperCoverageUnitTest.*], !%regex[.*ScreenshotManagerCoverageUnitTest.*], !%regex[.*LocatorHealthReporterUnitTest.*], !%regex[.*RecordManagerCoverageUnitTest.*], !%regex[.*PlaywrightSessionFactoryStorageStateUnitTest.*], !%regex[.*PlaywrightNaturalActionExecutorTest.*], !%regex[.*ShardPartitionerUnitTest.*], !%regex[.*UpdateCheckerUnitTest.*], !%regex[.*LightHouseGenerateReportCoverageUnitTest.*], !%regex[.*PropertiesHelperDownloadRetryUnitTest.*], !%regex[.*PropertyFileManagerInternalUnitTest.*], !%regex[.*AllureManagerCoverageUnitTest.*], !%regex[.*BrowserPerformanceExecutionReportUnitTest.*], !%regex[.*FlakeProfilerUnitTest.*], !%regex[.*ProgressBarLoggerCoverageUnitTest.*], !%regex[.*ValidationsHelperCoverageUnitTest.*], !%regex[.*ValidationsHelperNewPatternCoverageUnitTest.*], !%regex[.*VisualValidationsBuilderUnitTest.*], !%regex[.*WebDriverElementValidationsBuilderAriaSnapshotUnitTest.*], !%regex[.*WebDriverElementValidationsBuilderCoverageUnitTest.*], !%regex[.*AssertionEvidenceReporterTest.*], !%regex[.*FailureTraceReporterTest.*]"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   
 jobs:
@@ -392,7 +392,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright Chrome
-        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chrome"
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chrome"
       - name: Run Playwright Chrome E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'ChromePlaywrightActionsE2ETest' }}"
@@ -426,7 +426,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright Edge
-        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps msedge"
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps msedge"
       - name: Run Playwright Edge E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'EdgePlaywrightActionsE2ETest' }}"
@@ -460,7 +460,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright WebKit
-        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
       - name: Run Playwright WebKit E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WebKitPlaywrightActionsE2ETest' }}"
@@ -494,7 +494,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright Firefox
-        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps firefox"
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps firefox"
       - name: Run Playwright Firefox E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'FirefoxPlaywrightActionsE2ETest' }}"
@@ -528,7 +528,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright Chromium
-        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chromium"
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chromium"
       - name: Run Playwright Galaxy S26 Ultra E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'GalaxyS26UltraPlaywrightActionsE2ETest' }}"
@@ -562,7 +562,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright WebKit
-        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
       - name: Run Playwright iPhone 17 Pro Max E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'IPhone17ProMaxPlaywrightActionsE2ETest' }}"
@@ -617,6 +617,7 @@ jobs:
           path: appium-flutter-server
           sparse-checkout: |
             demo-app
+            server
       - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
         # Recipe verbatim from Android_Flutter_Emulator_E2E below (itself taken
         # from appium-flutter-server's own .github/workflows/main.yml at the
@@ -827,6 +828,7 @@ jobs:
           path: appium-flutter-server
           sparse-checkout: |
             demo-app
+            server
       - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
         # Recipe taken verbatim from appium-flutter-server's own
         # .github/workflows/main.yml at the pinned commit -- their CI runs this

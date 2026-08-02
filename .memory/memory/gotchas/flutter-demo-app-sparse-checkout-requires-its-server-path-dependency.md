@@ -1,0 +1,1 @@
+At pinned appium-flutter-server revision 78ba97a, demo-app pubspec depends on ../server. Every workflow sparse checkout that builds demo-app must include both demo-app and server.
