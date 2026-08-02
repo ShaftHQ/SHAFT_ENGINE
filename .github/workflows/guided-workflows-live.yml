@@ -54,7 +54,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle 9
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           gradle-version: '9.0.0'
       - name: Run live guided workflows through the plugin panel
