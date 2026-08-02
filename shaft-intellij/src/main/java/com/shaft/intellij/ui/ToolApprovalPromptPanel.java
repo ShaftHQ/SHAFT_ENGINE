@@ -12,9 +12,11 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.JToggleButton;
 import java.awt.BorderLayout;
-import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,11 +93,23 @@ final class ToolApprovalPromptPanel extends JPanel {
         argumentsLabel.getAccessibleContext().setAccessibleName("Tool approval arguments");
         argumentsLabel.getAccessibleContext().setAccessibleDescription(
                 "Arguments for the " + toolName + " tool call awaiting approval: " + argumentsSummary(arguments));
+        argumentsLabel.setVisible(false);
+        JToggleButton technicalDetails = new JToggleButton("Show technical details");
+        technicalDetails.getAccessibleContext().setAccessibleName("Show technical details");
+        technicalDetails.getAccessibleContext().setAccessibleDescription(
+                "Show or hide the raw arguments for the " + toolName + " tool call.");
+        technicalDetails.addActionListener(event -> {
+            boolean visible = technicalDetails.isSelected();
+            argumentsLabel.setVisible(visible);
+            technicalDetails.setText(visible ? "Hide technical details" : "Show technical details");
+            argumentsLabel.getParent().revalidate();
+        });
 
         JPanel argumentsPanel = new JPanel();
         argumentsPanel.setOpaque(false);
         argumentsPanel.setLayout(new BoxLayout(argumentsPanel, BoxLayout.Y_AXIS));
         argumentsPanel.add(plainLanguageArea);
+        argumentsPanel.add(technicalDetails);
         argumentsPanel.add(argumentsLabel);
 
         JPanel header = new JPanel(new BorderLayout(2, 2));
@@ -105,13 +119,46 @@ final class ToolApprovalPromptPanel extends JPanel {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.setOpaque(false);
-        for (ToolApprovalDecision decision : capability == null ? List.<ToolApprovalDecision>of() : capability.scopes()) {
-            actions.add(decisionButton(toolName, decision));
-        }
         actions.add(decisionButton(toolName, ToolApprovalDecision.DENY));
+        List<ToolApprovalDecision> scopes = capability == null ? List.of() : capability.scopes();
+        if (scopes.contains(ToolApprovalDecision.APPROVE_ONCE)) {
+            actions.add(decisionButton(toolName, ToolApprovalDecision.APPROVE_ONCE));
+        }
+        JPanel permanentActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        permanentActions.setOpaque(false);
+        for (ToolApprovalDecision decision : scopes) {
+            if (decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS
+                    || decision == ToolApprovalDecision.APPROVE_ALL_TOOLS) {
+                JButton button = decisionButton(toolName, decision);
+                button.setVisible(false);
+                permanentActions.add(button);
+            }
+        }
+        if (permanentActions.getComponentCount() > 0) {
+            JToggleButton reviewOptions = new JToggleButton("Review options");
+            reviewOptions.getAccessibleContext().setAccessibleName("Review options");
+            reviewOptions.getAccessibleContext().setAccessibleDescription(
+                    "Show or hide permanent tool approval choices.");
+            reviewOptions.addActionListener(event -> {
+                boolean visible = reviewOptions.isSelected();
+                permanentActions.setVisible(visible);
+                for (Component component : permanentActions.getComponents()) {
+                    component.setVisible(visible);
+                }
+                reviewOptions.setText(visible ? "Hide options" : "Review options");
+                permanentActions.getParent().revalidate();
+            });
+            permanentActions.setVisible(false);
+            actions.add(reviewOptions);
+        }
 
         add(header, BorderLayout.NORTH);
-        add(actions, BorderLayout.SOUTH);
+        JPanel actionStack = new JPanel();
+        actionStack.setOpaque(false);
+        actionStack.setLayout(new BoxLayout(actionStack, BoxLayout.Y_AXIS));
+        actionStack.add(actions);
+        actionStack.add(permanentActions);
+        add(actionStack, BorderLayout.SOUTH);
     }
 
     private JButton decisionButton(String toolName, ToolApprovalDecision decision) {
@@ -120,49 +167,15 @@ final class ToolApprovalPromptPanel extends JPanel {
         button.getAccessibleContext().setAccessibleDescription(buttonDescription(toolName, decision));
         button.setToolTipText(buttonDescription(toolName, decision));
         button.addActionListener(event -> decide(decision));
-        applyScopeEmphasis(button, decision);
+        if (decision == ToolApprovalDecision.DENY) {
+            button.setFont(button.getFont().deriveFont(Font.BOLD));
+        } else if (decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS
+                || decision == ToolApprovalDecision.APPROVE_ALL_TOOLS) {
+            button.setContentAreaFilled(false);
+            button.setOpaque(false);
+        }
         decisionButtons.add(button);
         return button;
-    }
-
-    /**
-     * Color-codes each approval-scope button by how much trust it grants, nudging users toward
-     * the broader scopes instead of dimming them (issue #3696). Previously {@code
-     * APPROVE_TOOL_ALWAYS} and {@code APPROVE_ALL_TOOLS} rendered with a smaller font, gray
-     * foreground, and no border -- a "de-emphasized, avoid me" look -- while {@code APPROVE_ONCE}
-     * kept the full default emphasis, the opposite of the intended nudge. All three scope buttons
-     * now share equal font size and an opaque, bordered fill; only the hue differs by scope.
-     * {@code DENY} is not a scope to weight and keeps the platform default look.
-     */
-    private static void applyScopeEmphasis(JButton button, ToolApprovalDecision decision) {
-        JBColor fill = scopeColor(decision);
-        if (fill == null) {
-            return;
-        }
-        button.setOpaque(true);
-        button.setContentAreaFilled(true);
-        button.setBackground(fill);
-        // The light-theme leg of every scopeColor() below is a light/medium pastel (black reads
-        // clearly on it); the dark-theme leg is a deep, saturated shade (white reads clearly on
-        // it) -- so one black/white pair covers both themes without per-color contrast math.
-        button.setForeground(new JBColor(Color.BLACK, Color.WHITE));
-        button.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(fill.darker(), 1),
-                JBUI.Borders.empty(2, 8)));
-    }
-
-    /**
-     * Scope-breadth color: green (broadest) for {@code APPROVE_ALL_TOOLS}, blue (medium) for
-     * {@code APPROVE_TOOL_ALWAYS}, yellow (narrowest) for {@code APPROVE_ONCE}. {@code null} for
-     * {@code DENY}, which keeps the platform default button look.
-     */
-    private static JBColor scopeColor(ToolApprovalDecision decision) {
-        return switch (decision) {
-            case APPROVE_ALL_TOOLS -> new JBColor(new Color(0x8FCB8F), new Color(0x2E7D32));
-            case APPROVE_TOOL_ALWAYS -> new JBColor(new Color(0x8FB6E8), new Color(0x1565C0));
-            case APPROVE_ONCE -> new JBColor(new Color(0xE8D26B), new Color(0x8D7A1E));
-            case DENY -> null;
-        };
     }
 
     private static String buttonDescription(String toolName, ToolApprovalDecision decision) {

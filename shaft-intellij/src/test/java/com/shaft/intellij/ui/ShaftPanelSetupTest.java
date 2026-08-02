@@ -1639,12 +1639,15 @@ class ShaftPanelSetupTest {
                 : ShaftMcpToolResult.failure("not found"));
         JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> target = findByAccessibleName(panel, "MCP installer target", JComboBox.class);
+        JLabel recommendation = findByAccessibleName(panel, "Recommended assistant agent", JLabel.class);
 
         assertAll(
                 () -> assertEquals("CODEX", family.getSelectedItem()),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
                 () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
-                () -> assertTrue(containsText(panel, "Recommended: Claude Code CLI detected")));
+                () -> assertEquals("Recommended: Claude Code CLI", recommendation.getText()),
+                () -> assertEquals("Recommended: Claude Code CLI detected",
+                        recommendation.getAccessibleContext().getAccessibleDescription()));
     }
 
     @Test
@@ -1656,13 +1659,17 @@ class ShaftPanelSetupTest {
         saved.assistantFamily = "CLAUDE";
         ShaftMcpSetupPanel savedSelection = new ShaftMcpSetupPanel(fakeProject(), saved, () -> {
         }, (client, runtime) -> ShaftMcpToolResult.failure("not found"));
+        JLabel freshRecommendation = findByAccessibleName(freshMachine, "Recommended assistant agent", JLabel.class);
+        JLabel savedRecommendation = findByAccessibleName(savedSelection, "Recommended assistant agent", JLabel.class);
 
         assertAll(
                 // "detected" is a real-check claim: with every probe failing it must never appear.
-                () -> assertFalse(containsText(freshMachine, "Recommended: Codex CLI detected")),
-                () -> assertTrue(containsText(freshMachine, "not detected yet")),
-                () -> assertFalse(containsText(savedSelection, "Recommended: Claude Code CLI detected")),
-                () -> assertTrue(containsText(savedSelection, "Recommended: Claude Code CLI (your saved selection)")));
+                () -> assertEquals("Install recommended Codex CLI", freshRecommendation.getText()),
+                () -> assertTrue(freshRecommendation.getAccessibleContext().getAccessibleDescription()
+                        .contains("not detected yet")),
+                () -> assertEquals("Selected: Claude Code CLI", savedRecommendation.getText()),
+                () -> assertTrue(savedRecommendation.getAccessibleContext().getAccessibleDescription()
+                        .contains("your saved selection")));
     }
 
     @Test
@@ -2266,6 +2273,22 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelHidesAncillaryControlsBehindKeyboardReachableMoreOptions() {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), unverifiedMcpSettings(), () -> {
+        }, readyProbe());
+
+        JCheckBox moreOptions = findByAccessibleName(panel, "Show more setup options", JCheckBox.class);
+        assertNotNull(moreOptions, "Ancillary installer and recovery controls need one native disclosure");
+        assertFalse(moreOptions.isSelected(), "The first-run flow should start with only its active task visible");
+
+        moreOptions.doClick();
+        assertAll(
+                () -> assertTrue(moreOptions.isSelected()),
+                () -> assertNotNull(findByAccessibleName(panel, "Show advanced installer options", JCheckBox.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Reset and reinstall SHAFT MCP", JButton.class)));
+    }
+
+    @Test
     void setupPanelAccessibleDescriptionsTrackLiveStatusRecoveryChecklistAndToastAcrossUpdates() throws Exception {
         // Issue #3603: status/recoveryStatus/readyChecklist/toast keep a short, stable accessible
         // NAME (test-id-safe, e.g. "SHAFT MCP setup next step"), but a screen reader also needs the
@@ -2471,9 +2494,9 @@ class ShaftPanelSetupTest {
         String detectedDescription = detectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
         String notDetectedDescription = notDetectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
         assertAll(
-                () -> assertEquals(detectedRecommendedAgent.getText(), detectedDescription),
+                () -> assertEquals("Recommended: Codex CLI", detectedRecommendedAgent.getText()),
                 () -> assertTrue(detectedDescription.contains("detected"), detectedDescription),
-                () -> assertEquals(notDetectedRecommendedAgent.getText(), notDetectedDescription),
+                () -> assertEquals("Install recommended Codex CLI", notDetectedRecommendedAgent.getText()),
                 () -> assertTrue(notDetectedDescription.contains("not detected yet"), notDetectedDescription),
                 () -> assertNotEquals(detectedDescription, notDetectedDescription,
                         "two panels with genuinely different real recommendation outcomes must carry "
@@ -2486,7 +2509,7 @@ class ShaftPanelSetupTest {
         family.setSelectedItem("CLAUDE");
         String afterUpdateDescription = detectedRecommendedAgent.getAccessibleContext().getAccessibleDescription();
         assertAll(
-                () -> assertEquals(detectedRecommendedAgent.getText(), afterUpdateDescription),
+                () -> assertEquals("Selected: Claude Code CLI", detectedRecommendedAgent.getText()),
                 () -> assertNotEquals(detectedDescription, afterUpdateDescription,
                         "issue #3625: recommendedAgentText() must track the live combo selection instead "
                                 + "of staying frozen at the value computed once at construction"),
@@ -2597,6 +2620,16 @@ class ShaftPanelSetupTest {
         settings.agentLaneReady = true;
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         });
+        // This test exercises the post-agent install step; make host-tool discovery deterministic
+        // so a missing unrelated local prerequisite cannot become the active task instead.
+        setField(panel, "prerequisitesDetector",
+                (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family -> List.of());
+        Method refresh = ShaftMcpSetupPanel.class.getDeclaredMethod("refreshPrerequisites");
+        refresh.setAccessible(true);
+        refresh.invoke(panel);
+        Method updateActionState = ShaftMcpSetupPanel.class.getDeclaredMethod("updateActionState", boolean.class);
+        updateActionState.setAccessible(true);
+        updateActionState.invoke(panel, false);
 
         JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
         JPanel installRow = (JPanel) getField(panel, "installRow");
@@ -2744,26 +2777,29 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void firstRunCoachShowsOnceAndDismissPersists() {
+    void emptyAssistantUsesThreePrefillSuggestionsWithoutFirstRunWelcomeEssay() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
 
-        // Issue #3540: the first-run coach moved from a bottom strip under the chips into the
-        // transcript itself, as the Assistant's own first (non-persisted) message.
-        assertNotNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
-                "The first-run welcome must show as the Assistant's first transcript message before dismissal.");
-        JButton dismiss = findByAccessibleName(toolWindow, "Dismiss first run coach", JButton.class);
-        assertNotNull(dismiss);
-        dismiss.doClick();
-        assertAll(
-                () -> assertTrue(settings.firstRunCoachDismissed,
-                        "Dismissing the coach must persist the acknowledgment."),
-                () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
-                        "Dismissing must remove the welcome bubble from the transcript immediately."));
+        JButton record = findByAccessibleName(toolWindow, "Record a sample flow", JButton.class);
+        JButton assertHelp = findByAccessibleName(toolWindow, "Ask how to assert", JButton.class);
+        JButton diagnose = findByAccessibleName(toolWindow, "Diagnose my last failure", JButton.class);
+        JLabel invitation = findByAccessibleName(toolWindow, "Assistant empty state invitation", JLabel.class);
 
-        ShaftToolWindowPanel reopened = new ShaftToolWindowPanel(fakeProject(), settings);
-        assertNull(findByAccessibleName(reopened, "Assistant welcome message bubble", JComponent.class),
-                "The welcome must never reappear once acknowledged.");
+        assertAll(
+                () -> assertNull(findByAccessibleName(toolWindow, "Assistant welcome message bubble", JComponent.class),
+                        "an empty Assistant should not lead with a long, persistent welcome essay"),
+                () -> assertNotNull(record),
+                () -> assertNotNull(assertHelp),
+                () -> assertNotNull(diagnose),
+                () -> assertEquals("What would you like to do?", invitation.getText()),
+                () -> assertFalse(settings.firstRunCoachDismissed,
+                        "there is no coach dismissal state to persist when no coach is rendered"));
+
+        record.doClick();
+        ShaftAssistantPanel panel = findAssistantPanel(toolWindow);
+        assertTrue(panel.promptText().contains("Record a sample web flow"),
+                "an empty-state suggestion must prefill for review, never auto-send");
     }
 
     /**
