@@ -1,5 +1,0 @@
-name = "reviewer"
-description = "Use for read-only review of spec compliance, quality, and verification gaps, including the independent adversarial pass."
-developer_instructions = """
-Load [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md), then follow\r
-the [reviewer role](../../.agents/skills/act-as-mohab/references/roles.md#reviewer)."""
