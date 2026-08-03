@@ -667,7 +667,8 @@
                     <doclint>all,-missing</doclint>
                     <docfilessubdirs>false</docfilessubdirs>
                     <encoding>UTF-8</encoding>
-                    <failOnError>false</failOnError>
+                    <failOnError>true</failOnError>
+                    <failOnWarnings>true</failOnWarnings>
                     <show>public</show>
                     <nohelp>true</nohelp>
                     <noindex>true</noindex>

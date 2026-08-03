@@ -84,7 +84,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object is equal to the expected value
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isEqualTo(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -97,7 +97,7 @@ public class NativeValidationsBuilder {
     }
 
     /**
-     * Overrides the default object method equals and is the same as calling isEqualTo(expectedValue).perform();
+     * Overrides the default object method equals and runs the equivalent object comparison.
      *
      * @param expectedValue the test data / expected value for the object under test
      * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
@@ -113,7 +113,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object is not equal to the expected value
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotEqual(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -129,7 +129,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object contains the expected value
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor contains(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -145,7 +145,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object does not contain the expected value
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotContain(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -161,7 +161,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object matches the expected regular expression
      *
      * @param expectedValue the test data / expected regular expression for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor matchesRegex(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -177,7 +177,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object does not match the expected regular expression
      *
      * @param expectedValue the test data / expected regular expression for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotMatchRegex(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -193,7 +193,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object is equal to the expected value (ignoring case sensitivity)
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor equalsIgnoringCaseSensitivity(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -209,7 +209,7 @@ public class NativeValidationsBuilder {
      * Use this to check that the actual object is not equal to the expected value (ignoring case sensitivity)
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotEqualIgnoringCaseSensitivity(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -224,7 +224,7 @@ public class NativeValidationsBuilder {
     /**
      * Use this to check that the actual object is null
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isNull() {
         this.expectedValue = null;
@@ -239,7 +239,7 @@ public class NativeValidationsBuilder {
     /**
      * Use this to check that the actual object is not null
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isNotNull() {
         this.expectedValue = null;
@@ -254,7 +254,7 @@ public class NativeValidationsBuilder {
     /**
      * Use this to check that the actual object is true
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isTrue() {
         this.expectedValue = true;
@@ -269,7 +269,7 @@ public class NativeValidationsBuilder {
     /**
      * Use this to check that the actual object is false
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isFalse() {
         this.expectedValue = false;
@@ -336,7 +336,7 @@ public class NativeValidationsBuilder {
     /**
      * Convenience method that validates Arabic text characters and RTL direction.
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      * @throws IllegalStateException if called outside text-based assertions
      */
     public ValidationsExecutor isArabic() {

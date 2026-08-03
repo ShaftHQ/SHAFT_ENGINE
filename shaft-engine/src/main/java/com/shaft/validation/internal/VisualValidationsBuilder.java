@@ -12,9 +12,8 @@ import java.util.List;
 /**
  * Fluent options builder for the {@code matchesScreenshot()} visual-regression assertion.
  *
- * <p>Unlike most SHAFT validation builders (which execute immediately on their terminal call),
- * this builder gathers optional diff-budget/mask options before {@link #perform()} triggers the
- * comparison, mirroring Playwright's {@code toHaveScreenshot()} options.</p>
+ * <p>This builder gathers optional diff-budget and mask options before the visual comparison
+ * runs, mirroring Playwright's {@code toHaveScreenshot()} options.</p>
  */
 @SuppressWarnings("unused")
 public class VisualValidationsBuilder {
@@ -95,7 +94,7 @@ public class VisualValidationsBuilder {
      * Executes the visual-regression comparison (or saves a new baseline on first run / when
      * {@code -Dshaft.updateSnapshots=true} is set).
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor perform() {
         var executor = new ValidationsExecutor(this);

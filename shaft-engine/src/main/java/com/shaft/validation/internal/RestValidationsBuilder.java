@@ -28,7 +28,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object is equal to the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isEqualToFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -46,7 +46,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object is equal to the expected file content (Ignoring Order)
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isEqualToFileContentIgnoringOrder(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -64,7 +64,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object is not equal to the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotEqualFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -82,7 +82,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object is not equal to the expected file content (Ignoring Order)
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotEqualFileContentIgnoringOrder(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -100,7 +100,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object contains the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor containsFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -118,7 +118,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object does not contain the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotContainFileContent(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -180,7 +180,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object matches the schema for the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor matchesSchema(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);
@@ -198,7 +198,7 @@ public class RestValidationsBuilder {
      * Use this to check if the content of the provided actual response object matches the schema for the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotMatchSchema(String fileRelativePath) {
         fileRelativePath = JavaHelper.appendTestDataToRelativePath(fileRelativePath);

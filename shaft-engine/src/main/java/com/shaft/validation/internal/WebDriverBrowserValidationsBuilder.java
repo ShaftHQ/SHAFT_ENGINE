@@ -88,8 +88,8 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
     /**
      * Use this to check that the current page matches its visual-regression baseline screenshot
      * (full-page pixel diff via OpenCV). On the first test run this method takes a full-page screenshot
-     * and the test passes, saving it as the baseline for subsequent runs. The comparison executes
-     * immediately &mdash; no {@code perform()} is required.
+     * and the test passes, saving it as the baseline for subsequent runs. The comparison runs
+     * when this terminal assertion is called.
      *
      * @return a ValidationsExecutor object to optionally set a custom validation message
      */

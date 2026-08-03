@@ -2,10 +2,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.assemble_javadocs import MODULES, assemble_javadocs
+from scripts.ci.assemble_javadocs import MODULES, assemble_javadocs, reactor_java_modules
 
 
 class AssembleJavadocsTest(unittest.TestCase):
+    def test_module_inventory_covers_every_java_bearing_reactor_module(self):
+        root = Path(__file__).resolve().parents[2]
+
+        self.assertEqual(set(MODULES), set(reactor_java_modules(root)))
+
     def test_assembles_all_module_sites_with_navigation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

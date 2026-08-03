@@ -19,8 +19,7 @@ public class TestClass {
     @Test
     void getCountryInfoUsingCapitalName() {
         driver.get("capital/{capital}".replace("{capital}", "Cairo"))
-                .perform()
-                .assertThatResponse().extractedJsonValue("[0].name.common").isEqualTo(testData.get("expectedCountryName")).perform();
+                .assertThatResponse().extractedJsonValue("[0].name.common").isEqualTo(testData.get("expectedCountryName"));
     }
 
     @BeforeEach

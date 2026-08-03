@@ -23,7 +23,7 @@ public class TextLanguageValidationsBuilder {
      * Validates that the target text contains characters from the selected language preset.
      *
      * @param language expected language preset
-     * @return validations executor for optional custom message and perform
+     * @return validations executor retained for source compatibility
      */
     public ValidationsExecutor is(ValidationEnums.TextLanguage language) {
         return nativeValidationsBuilder.matchesRegex(language.getDetectionRegex());
@@ -33,7 +33,7 @@ public class TextLanguageValidationsBuilder {
      * Validates that the target text does not contain characters from the selected language preset.
      *
      * @param language unexpected language preset
-     * @return validations executor for optional custom message and perform
+     * @return validations executor retained for source compatibility
      */
     public ValidationsExecutor isNot(ValidationEnums.TextLanguage language) {
         return nativeValidationsBuilder.doesNotMatchRegex(language.getDetectionRegex());
@@ -43,7 +43,7 @@ public class TextLanguageValidationsBuilder {
      * Validates that the target text matches a supported language code.
      *
      * @param languageCode two-letter language code (e.g., ar, en, es, fr, de)
-     * @return validations executor for optional custom message and perform
+     * @return validations executor retained for source compatibility
      * @throws IllegalArgumentException when the language code is unsupported
      */
     public ValidationsExecutor is(String languageCode) {
@@ -54,7 +54,7 @@ public class TextLanguageValidationsBuilder {
      * Validates that the target text does not match a supported language code.
      *
      * @param languageCode two-letter language code (e.g., ar, en, es, fr, de)
-     * @return validations executor for optional custom message and perform
+     * @return validations executor retained for source compatibility
      * @throws IllegalArgumentException when the language code is unsupported
      */
     public ValidationsExecutor isNot(String languageCode) {

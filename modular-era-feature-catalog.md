@@ -24,6 +24,7 @@ feature each one proves.
 | Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
 | Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
 | Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
+| Configure browser, mobile, reporting, healing, AI, or test-run behavior. | [Properties](#properties) | One source-derived table for typed properties, defaults, and bundled property files. |
 
 ## What Changed
 
@@ -103,6 +104,484 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | Consumer fixture | A combined-module fixture validates that optional modules can be consumed together. | `mvn -f tools/modularization/consumer-fixtures/combined-modules/pom.xml test '-DskipTests'` |
 
 <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" alt="Current module map" width="760">
+
+## Properties
+
+The property surface is easiest to use from a small project file. Read a value through `SHAFT.Properties`; override it in `src/main/resources/properties/custom.properties` or with a system property.
+
+```java
+SHAFT.Properties.web.targetBrowserName();
+SHAFT.Properties.web.set().targetBrowserName("firefox").headlessExecution(true);
+```
+
+```properties
+targetBrowserName=firefox
+headlessExecution=true
+```
+
+The typed interfaces are the complete `SHAFT.Properties` catalog. The `Default` column uses the bundled file when that file supplies the key, otherwise the interface `@DefaultValue`. `(blank)` means an empty string. Credential-shaped defaults are intentionally redacted; provide them through secure project configuration.
+
+| Interface | What it controls |
+| --- | --- |
+| `API` | Swagger/OpenAPI validation, contract redaction lists, and coverage thresholds. |
+| `Allure` | Allure generation, history, archive, theme, language, and grouping. |
+| `BrowserStack` | BrowserStack desktop and native-mobile execution capabilities. |
+| `Capture` | Optional API request/response capture limits and URL filters. |
+| `Cucumber` | Cucumber execution, filtering, glue, plugins, and snippets. |
+| `Flags` | Engine-wide execution switches for waits, retries, scrolling, clicks, and telemetry. |
+| `Healenium` | Optional Healenium recovery service and score settings. |
+| `Healing` | Optional SHAFT Heal strategy, confidence, evidence, history, visual, and AI controls. |
+| `Internal` | Engine metadata and managed Allure/Appium/Android tool versions. |
+| `Jira` | Jira/Xray reporting, authorization, and Allure link patterns. |
+| `LambdaTest` | LambdaTest remote browser/mobile execution capabilities. |
+| `Log4j` | Log4j appenders, layouts, logger names, and thresholds. |
+| `Mobile` | Appium device, application, browser, Flutter, and native-session settings. |
+| `NaturalActions` | Deterministic and optional provider-assisted natural-language GUI actions. |
+| `Paths` | Project, artifact, download, cache, and service directories. |
+| `Pattern` | Test-data column prefixes and Allure issue-link patterns. |
+| `Performance` | Lighthouse and browser/API performance budgets. |
+| `Pilot` | Optional AI provider, consent, budget, redaction, and endpoint controls. |
+| `Platform` | Local/remote execution, operating system, proxies, BiDi, and preflight. |
+| `Playwright` | Playwright browser, connection, timeout, artifact, download, and tracing settings. |
+| `Reporting` | Evidence, diagnostics, traces, locator health, flake profiling, and report output. |
+| `TestNG` | Parallel execution, verbosity, ordering, data-provider threads, and suite timeout. |
+| `Timeouts` | Browser, UI, API, shell, SSH, Docker, database, and remote-server timeouts. |
+| `Tinkey` | Google Tink keyset and KMS settings. |
+| `Visuals` | Screenshots, visual thresholds, GIF/video capture, snapshots, and watermarking. |
+| `Web` | Browser, headless, window, page-load, readiness, storage-state, and mobile emulation settings. |
+
+### Complete typed property table
+
+| Interface | Property | Type | Default |
+| --- | --- | --- | --- |
+| `Allure` | `allure.automaticallyOpen` | `boolean` | `true` |
+| `Allure` | `allure.accumulateHistory` | `boolean` | `true` |
+| `Allure` | `allure.accumulateReports` | `boolean` | `true` |
+| `Allure` | `allure.cleanResultsDirectory` | `boolean` | `true` |
+| `Allure` | `allure.generateArchive` | `boolean` | `false` |
+| `Allure` | `allure.generateReport` | `boolean` | `true` |
+| `Allure` | `allure.customLogo` | `String` | `https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/shaft-engine/src/main/resources/images/shaft_report_logo.png?raw=true` |
+| `Allure` | `allure.customTitle` | `String` | `SHAFT-powered test report` |
+| `Allure` | `allure.theme` | `String` | `auto` |
+| `Allure` | `allure.forceConfiguredCliVersion` | `boolean` | `true` |
+| `Allure` | `allure.realtimeMonitoring` | `boolean` | `false` |
+| `Allure` | `allure.singleFile` | `boolean` | `true` |
+| `Allure` | `allure.reportLanguage` | `String` | `en` |
+| `Allure` | `allure.open` | `boolean` | `false` |
+| `Allure` | `allure.groupBy` | `String` | `package,testClass` |
+| `API` | `swagger.validation.enabled` | `boolean` | `false` |
+| `API` | `swagger.validation.url` | `String` | `(blank)` |
+| `API` | `openapi.coverage.report.enabled` | `boolean` | `false` |
+| `API` | `openapi.coverage.threshold` | `int` | `0` |
+| `API` | `shaft.contract.sensitiveKeys` | `String` | `authorization,cookie,set-cookie,password,passwd,secret,token,api-key,apikey,access-key,accesskey` |
+| `API` | `shaft.contract.volatileKeys` | `String` | `requestId,traceId,spanId,sessionId,nonce,timestamp,createdAt,updatedAt,expiresAt,date,etag` |
+| `BrowserStack` | `browserStack.userName` | `String` | `[redacted]` |
+| `BrowserStack` | `browserStack.accessKey` | `String` | `[redacted]` |
+| `BrowserStack` | `browserStack.platformVersion` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.deviceName` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.appUrl` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.customID` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.appName` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.appRelativeFilePath` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.osVersion` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.browserVersion` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.local` | `boolean` | `false` |
+| `BrowserStack` | `browserStack.seleniumVersion` | `String` | `4.40.0` |
+| `BrowserStack` | `browserStack.acceptInsecureCerts` | `boolean` | `true` |
+| `BrowserStack` | `browserStack.debug` | `boolean` | `false` |
+| `BrowserStack` | `browserStack.networkLogs` | `boolean` | `false` |
+| `BrowserStack` | `browserStack.geoLocation` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.appiumVersion` | `String` | `3.1.0` |
+| `BrowserStack` | `browserStack.buildName` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.projectName` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.parallelsPerPlatform` | `int` | `1` |
+| `BrowserStack` | `browserStack.browserstackAutomation` | `boolean` | `true` |
+| `BrowserStack` | `browserStack.platformsList` | `String` | `(blank)` |
+| `BrowserStack` | `browserStack.customBrowserStackYmlPath` | `String` | `(blank)` |
+| `Capture` | `capture.api.enabled` | `boolean` | `false` |
+| `Capture` | `capture.api.maxBodyBytes` | `int` | `1048576` |
+| `Capture` | `capture.api.includeAssets` | `boolean` | `false` |
+| `Capture` | `capture.api.firstPartyOnly` | `boolean` | `true` |
+| `Capture` | `capture.api.storeSecretsLocally` | `boolean` | `false` |
+| `Capture` | `capture.api.maxTransactions` | `int` | `500` |
+| `Capture` | `capture.api.urlIncludeGlobs` | `String` | `(blank)` |
+| `Capture` | `capture.api.urlExcludeGlobs` | `String` | `(blank)` |
+| `Cucumber` | `cucumber.ansi-colors.disabled` | `boolean` | `false` |
+| `Cucumber` | `cucumber.execution.dry-run` | `boolean` | `false` |
+| `Cucumber` | `cucumber.execution.limit` | `String` | `(blank)` |
+| `Cucumber` | `cucumber.execution.order` | `String` | `lexical` |
+| `Cucumber` | `cucumber.execution.strict` | `boolean` | `true` |
+| `Cucumber` | `cucumber.execution.wip` | `boolean` | `false` |
+| `Cucumber` | `cucumber.features` | `String` | `src/test/resources` |
+| `Cucumber` | `cucumber.filter.name` | `String` | `(blank)` |
+| `Cucumber` | `cucumber.filter.tags` | `String` | `(blank)` |
+| `Cucumber` | `cucumber.glue` | `String` | `customCucumberSteps, com.shaft.cucumber` |
+| `Cucumber` | `cucumber.plugin` | `String` | `pretty, json:allure-results/cucumber.json, html:allure-results/cucumberReport.html, com.shaft.listeners.CucumberTestRunnerListener` |
+| `Cucumber` | `cucumber.object-factory` | `String` | `(blank)` |
+| `Cucumber` | `cucumber.snippet-type` | `String` | `underscore` |
+| `Cucumber` | `cucumber.publish.quiet` | `boolean` | `true` |
+| `Flags` | `automaticallyAddRecommendedChromeOptions` | `boolean` | `false` |
+| `Flags` | `retryMaximumNumberOfAttempts` | `int` | `0` |
+| `Flags` | `forceCaptureSupportingEvidenceOnRetry` | `boolean` | `true` |
+| `Flags` | `autoMaximizeBrowserWindow` | `boolean` | `true` |
+| `Flags` | `forceCheckForElementVisibility` | `boolean` | `true` |
+| `Flags` | `forceCheckElementLocatorIsUnique` | `boolean` | `true` |
+| `Flags` | `forceCheckTextWasTypedCorrectly` | `boolean` | `false` |
+| `Flags` | `scrollingMode` | `String` | `javascript` |
+| `Flags` | `clearBeforeTypingMode` | `String` | `native` |
+| `Flags` | `forceCheckNavigationWasSuccessful` | `boolean` | `false` |
+| `Flags` | `respectBuiltInWaitsInNativeMode` | `boolean` | `true` |
+| `Flags` | `forceCheckStatusOfRemoteServer` | `boolean` | `false` |
+| `Flags` | `clickUsingJavascriptWhenWebDriverClickFails` | `boolean` | `false` |
+| `Flags` | `autoCloseDriverInstance` | `boolean` | `true` |
+| `Flags` | `automaticallyAssertResponseStatusCode` | `boolean` | `true` |
+| `Flags` | `maximumPerformanceMode` | `int` | `0` |
+| `Flags` | `skipTestsWithLinkedIssues` | `boolean` | `false` |
+| `Flags` | `attemptToClickBeforeTyping` | `boolean` | `false` |
+| `Flags` | `disableCache` | `boolean` | `false` |
+| `Flags` | `enableTrueNativeMode` | `boolean` | `false` |
+| `Flags` | `handleNonSelectDropDown` | `boolean` | `true` |
+| `Flags` | `validateSwipeToElement` | `boolean` | `false` |
+| `Flags` | `disableSslCertificateCheck` | `boolean` | `false` |
+| `Flags` | `telemetry.enabled` | `boolean` | `true` |
+| `Healenium` | `recovery-tries` | `int` | `1` |
+| `Healenium` | `score-cap` | `String` | `0.5` |
+| `Healenium` | `heal-enabled` | `boolean` | `false` |
+| `Healenium` | `serverHost` | `String` | `localhost` |
+| `Healenium` | `serverPort` | `int` | `7878` |
+| `Healenium` | `imitatePort` | `int` | `8000` |
+| `Healing` | `healing.strategy` | `String` | `disabled` |
+| `Healing` | `healing.minimumConfidence` | `double` | `0.75` |
+| `Healing` | `healing.minimumTrustPercentage` | `int` | `-1` |
+| `Healing` | `healing.ambiguityMargin` | `double` | `0.10` |
+| `Healing` | `healing.evidenceCategories` | `String` | `accessibility,label,test-id,stable-id-name,semantic,dom-fingerprint,native-state,ancestor-context,history` |
+| `Healing` | `healing.testIdAttributes` | `String` | `data-testid,data-test,data-qa` |
+| `Healing` | `healing.history.enabled` | `boolean` | `true` |
+| `Healing` | `healing.history.path` | `String` | `target/shaft-heal/history.json` |
+| `Healing` | `healing.history.maxEntries` | `int` | `500` |
+| `Healing` | `healing.history.retentionDays` | `int` | `30` |
+| `Healing` | `healing.visual.enabled` | `boolean` | `false` |
+| `Healing` | `healing.ai.enabled` | `boolean` | `false` |
+| `Healing` | `healing.ai.trigger` | `String` | `ambiguous` |
+| `Healing` | `healing.sourcePatch.enabled` | `boolean` | `false` |
+| `Healing` | `healing.ladder.budgetSeconds` | `int` | `0` |
+| `Internal` | `shaftEngineVersion` | `String` | `10.3.20260801` |
+| `Internal` | `watermarkImagePath` | `String` | `https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-engine/src/main/resources/images/shaft_white_bg.png` |
+| `Internal` | `allure3Version` | `String` | `3.14.3` |
+| `Internal` | `nodeLtsVersion` | `String` | `24.18.1` |
+| `Internal` | `appiumServerVersion` | `String` | `3.6.0` |
+| `Internal` | `appiumInspectorPluginVersion` | `String` | `2026.7.1` |
+| `Internal` | `appiumUiAutomator2DriverVersion` | `String` | `8.2.2` |
+| `Internal` | `appiumXcuitestDriverVersion` | `String` | `12.1.4` |
+| `Internal` | `androidCommandLineToolsVersion` | `String` | `15859902` |
+| `Internal` | `androidEmulatorApiLevel` | `int` | `36` |
+| `Internal` | `androidEmulatorDeviceProfile` | `String` | `pixel_8` |
+| `Internal` | `androidEmulatorImageTag` | `String` | `google_apis` |
+| `Internal` | `androidEmulatorRamMb` | `int` | `4096` |
+| `Internal` | `androidEmulatorCores` | `int` | `2` |
+| `Internal` | `ga4MeasurementId` | `String` | `G-4L9L79WZBV` |
+| `Internal` | `ga4ApiSecret` | `String` | `[redacted]` |
+| `Jira` | `jiraInteraction` | `boolean` | `false` |
+| `Jira` | `jiraUrl` | `String` | `https://` |
+| `Jira` | `projectKey` | `String` | `(blank)` |
+| `Jira` | `authorization` | `String` | `:` |
+| `Jira` | `authType` | `String` | `basic` |
+| `Jira` | `reportTestCasesExecution` | `boolean` | `false` |
+| `Jira` | `reportPath` | `String` | `target/surefire-reports/testng-results.xml` |
+| `Jira` | `ExecutionName` | `String` | `(blank)` |
+| `Jira` | `ExecutionDescription` | `String` | `(blank)` |
+| `Jira` | `ReportBugs` | `boolean` | `false` |
+| `Jira` | `assignee` | `String` | `(blank)` |
+| `Jira` | `allure.link.tms.pattern` | `String` | `https:///{}` |
+| `Jira` | `allure.link.custom.pattern` | `String` | `{}` |
+| `LambdaTest` | `LambdaTest.username` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.accessKey` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.platformVersion` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.deviceName` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.appUrl` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.appProfiling` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.osVersion` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.visual` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.video` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.appName` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.appRelativeFilePath` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.resolution` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.headless` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.timezone` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.project` | `String` | `shaft-engine` |
+| `LambdaTest` | `LambdaTest.build` | `String` | `Build Name` |
+| `LambdaTest` | `LambdaTest.tunnel` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.tunnelName` | `String` | `false` |
+| `LambdaTest` | `LambdaTest.buildName` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.selenium_version` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.driver_version` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.w3c` | `boolean` | `true` |
+| `LambdaTest` | `LambdaTest.browserVersion` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.geoLocation` | `String` | `(blank)` |
+| `LambdaTest` | `LambdaTest.debug` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.acceptInsecureCerts` | `boolean` | `true` |
+| `LambdaTest` | `LambdaTest.networkLogs` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.appiumVersion` | `String` | `3.0.2` |
+| `LambdaTest` | `LambdaTest.autoGrantPermissions` | `boolean` | `true` |
+| `LambdaTest` | `LambdaTest.autoAcceptAlerts` | `boolean` | `true` |
+| `LambdaTest` | `LambdaTest.isRealMobile` | `boolean` | `true` |
+| `LambdaTest` | `LambdaTest.console` | `boolean` | `false` |
+| `LambdaTest` | `LambdaTest.customID` | `String` | `(blank)` |
+| `Log4j` | `name` | `String` | `PropertiesConfig` |
+| `Log4j` | `appender.console.type` | `String` | `Console` |
+| `Log4j` | `appender.console.name` | `String` | `STDOUT` |
+| `Log4j` | `appender.console.layout.type` | `String` | `PatternLayout` |
+| `Log4j` | `appender.console.layout.disableAnsi` | `boolean` | `false` |
+| `Log4j` | `appender.console.layout.noConsoleNoAnsi` | `boolean` | `false` |
+| `Log4j` | `appender.console.layout.charset` | `String` | `UTF-8` |
+| `Log4j` | `appender.console.layout.pattern` | `String` | `%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%d{HH:mm:ss}}{bright_black} %style{\\u2502}{bright_black} %m%n` |
+| `Log4j` | `appender.console.filter.threshold.type` | `String` | `ThresholdFilter` |
+| `Log4j` | `appender.console.filter.threshold.level` | `String` | `info` |
+| `Log4j` | `appender.file.type` | `String` | `RollingFile` |
+| `Log4j` | `appender.file.name` | `String` | `LOGFILE` |
+| `Log4j` | `appender.file.fileName` | `String` | `${logFilePath}` |
+| `Log4j` | `appender.file.layout.type` | `String` | `PatternLayout` |
+| `Log4j` | `appender.file.layout.pattern` | `String` | `[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n` |
+| `Log4j` | `appender.file.layout.charset` | `String` | `UTF-8` |
+| `Log4j` | `appender.file.filter.threshold.type` | `String` | `ThresholdFilter` |
+| `Log4j` | `appender.file.filter.threshold.level` | `String` | `debug` |
+| `Log4j` | `rootLogger` | `String` | `info, ASYNC_STDOUT, ASYNC_LOGFILE, ASYNC_REPORT_PORTAL` |
+| `Log4j` | `logger.app.name` | `String` | `org.apache.http.impl.client` |
+| `Log4j` | `logger.app.level` | `String` | `WARN` |
+| `Mobile` | `platformName` | `String` | `(blank)` |
+| `Mobile` | `mobile_platformVersion` | `String` | `(blank)` |
+| `Mobile` | `mobile_deviceName` | `String` | `(blank)` |
+| `Mobile` | `mobile_udid` | `String` | `(blank)` |
+| `Mobile` | `browserName` | `String` | `(blank)` |
+| `Mobile` | `MobileBrowserVersion` | `String` | `(blank)` |
+| `Mobile` | `mobile_app` | `String` | `(blank)` |
+| `Mobile` | `mobile_appPackage` | `String` | `(blank)` |
+| `Mobile` | `mobile_appActivity` | `String` | `(blank)` |
+| `Mobile` | `mobile_bundleId` | `String` | `(blank)` |
+| `Mobile` | `mobile_flutterElementWaitTimeout` | `int` | `0` |
+| `Mobile` | `mobile_flutterServerLaunchTimeout` | `int` | `0` |
+| `Mobile` | `mobile_flutterSystemPort` | `int` | `0` |
+| `Mobile` | `mobile_flutterEnableMockCamera` | `boolean` | `false` |
+| `NaturalActions` | `naturalActions.enabled` | `boolean` | `false` |
+| `NaturalActions` | `naturalActions.minimumTrustPercentage` | `int` | `85` |
+| `NaturalActions` | `naturalActions.planner` | `String` | `deterministic` |
+| `NaturalActions` | `naturalActions.aiFallback.enabled` | `boolean` | `false` |
+| `NaturalActions` | `naturalActions.aiFallback.threshold` | `double` | `0` |
+| `NaturalActions` | `naturalActions.allowedActions` | `String` | `browser,element,touch` |
+| `Paths` | `propertiesFolderPath` | `String` | `src/main/resources/properties/` |
+| `Paths` | `defaultPropertiesFolderPath` | `String` | `src/main/resources/properties/default` |
+| `Paths` | `aiAgentWorkspaceRoot` | `String` | `(blank)` |
+| `Paths` | `dynamicObjectRepositoryPath` | `String` | `src/main/resources/dynamicObjectRepository/` |
+| `Paths` | `ariaSnapshotFolderPath` | `String` | `src/test/resources/aria/` |
+| `Paths` | `testDataFolderPath` | `String` | `src/test/resources/testDataFiles/` |
+| `Paths` | `downloadsFolderPath` | `String` | `target/downloadedFiles` |
+| `Paths` | `allureResultsFolderPath` | `String` | `allure-results/` |
+| `Paths` | `extentReportsFolderPath` | `String` | `extent-reports/` |
+| `Paths` | `executionSummaryReportFolderPath` | `String` | `execution-summary/` |
+| `Paths` | `PerformanceReportFolderPath` | `String` | `performanceReport/` |
+| `Paths` | `video.folder` | `String` | `allure-results/videos` |
+| `Paths` | `applitoolsApiKey` | `String` | `(blank)` |
+| `Paths` | `servicesFolderPath` | `String` | `src/test/resources/META-INF/services/` |
+| `Paths` | `authCacheFolderPath` | `String` | `target/auth-cache/` |
+| `Paths` | `mobileSessionCacheFolderPath` | `String` | `target/mobile-session-cache/` |
+| `Pattern` | `testDataColumnNamePrefix` | `String` | `Data` |
+| `Pattern` | `allure.link.issue.pattern` | `String` | `(blank)` |
+| `Performance` | `lightHouseExecution` | `boolean` | `false` |
+| `Performance` | `lightHouseExecution.port` | `int` | `8888` |
+| `Performance` | `apiEndpointPerformanceBudgets` | `String` | `(blank)` |
+| `Performance` | `failOnApiPerformanceBudgetViolation` | `boolean` | `false` |
+| `Performance` | `browserActionPerformanceBudgets` | `String` | `(blank)` |
+| `Performance` | `pageLoadPerformanceBudgets` | `String` | `(blank)` |
+| `Performance` | `failOnBrowserPerformanceBudgetViolation` | `boolean` | `false` |
+| `Pilot` | `pilot.ai.enabled` | `boolean` | `false` |
+| `Pilot` | `pilot.ai.provider` | `String` | `none` |
+| `Pilot` | `pilot.ai.consent.local` | `boolean` | `false` |
+| `Pilot` | `pilot.ai.consent.onPrem` | `boolean` | `false` |
+| `Pilot` | `pilot.ai.consent.remote` | `boolean` | `false` |
+| `Pilot` | `pilot.ai.allowedEvidenceCategories` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.telemetry.enabled` | `boolean` | `false` |
+| `Pilot` | `pilot.ai.timeoutSeconds` | `int` | `300` |
+| `Pilot` | `pilot.ai.maxRequestBytes` | `int` | `1048576` |
+| `Pilot` | `pilot.ai.maxInputTokens` | `int` | `16000` |
+| `Pilot` | `pilot.ai.maxOutputTokens` | `int` | `8000` |
+| `Pilot` | `pilot.ai.maxCostUsd` | `String` | `0` |
+| `Pilot` | `pilot.ai.retryMaxAttempts` | `int` | `2` |
+| `Pilot` | `pilot.ai.maxConcurrency` | `int` | `2` |
+| `Pilot` | `pilot.ai.circuitBreaker.failureThreshold` | `int` | `3` |
+| `Pilot` | `pilot.ai.circuitBreaker.cooldownSeconds` | `int` | `60` |
+| `Pilot` | `pilot.ai.redaction.selectors` | `String` | `input[type=password],[autocomplete=current-password],[autocomplete=new-password]` |
+| `Pilot` | `pilot.ai.redaction.attributes` | `String` | `authorization,cookie,set-cookie,password,passwd,secret,token,api-key,apikey,access-key` |
+| `Pilot` | `pilot.ai.redaction.patterns` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.openai.endpoint` | `String` | `https://api.openai.com/v1/responses` |
+| `Pilot` | `pilot.ai.openai.model` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.openai.apiKeyEnvironmentVariable` | `String` | `OPENAI_API_KEY` |
+| `Pilot` | `pilot.ai.openai.processingLocation` | `String` | `remote` |
+| `Pilot` | `pilot.ai.anthropic.endpoint` | `String` | `https://api.anthropic.com/v1/messages` |
+| `Pilot` | `pilot.ai.anthropic.model` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.anthropic.apiKeyEnvironmentVariable` | `String` | `ANTHROPIC_API_KEY` |
+| `Pilot` | `pilot.ai.anthropic.processingLocation` | `String` | `remote` |
+| `Pilot` | `pilot.ai.anthropic.version` | `String` | `2023-06-01` |
+| `Pilot` | `pilot.ai.gemini.endpoint` | `String` | `https://generativelanguage.googleapis.com/v1beta/models` |
+| `Pilot` | `pilot.ai.gemini.model` | `String` | `gemini-3.5-flash` |
+| `Pilot` | `pilot.ai.gemini.apiKeyEnvironmentVariable` | `String` | `GEMINI_API_KEY` |
+| `Pilot` | `pilot.ai.gemini.processingLocation` | `String` | `remote` |
+| `Pilot` | `pilot.ai.github.endpoint` | `String` | `https://models.github.ai/inference/chat/completions` |
+| `Pilot` | `pilot.ai.github.model` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.github.apiKeyEnvironmentVariable` | `String` | `GITHUB_TOKEN` |
+| `Pilot` | `pilot.ai.github.processingLocation` | `String` | `remote` |
+| `Pilot` | `pilot.ai.ollama.endpoint` | `String` | `http://127.0.0.1:11434/api/chat` |
+| `Pilot` | `pilot.ai.ollama.model` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.ollama.processingLocation` | `String` | `local` |
+| `Pilot` | `pilot.ai.ollama.apiKeyEnvironmentVariable` | `String` | `(blank)` |
+| `Pilot` | `pilot.ai.ollama.apiKeyHeader` | `String` | `Authorization` |
+| `Pilot` | `pilot.ai.ollama.apiKeyPrefix` | `String` | `Bearer ` |
+| `Platform` | `SHAFT.CrossBrowserMode` | `String` | `off` |
+| `Platform` | `executionAddress` | `String` | `local` |
+| `Platform` | `targetOperatingSystem` | `String` | `Linux` |
+| `Platform` | `com.SHAFT.proxySettings` | `String` | `(blank)` |
+| `Platform` | `driverProxySettings` | `boolean` | `true` |
+| `Platform` | `jvmProxySettings` | `boolean` | `true` |
+| `Platform` | `enableBiDi` | `boolean` | `true` |
+| `Platform` | `remotePreflightEnabled` | `boolean` | `false` |
+| `Platform` | `remoteAdaptiveSessionThrottling` | `boolean` | `false` |
+| `Platform` | `remotePreflightFailFast` | `boolean` | `false` |
+| `Platform` | `remotePreflightTimeoutSeconds` | `int` | `5` |
+| `Playwright` | `playwright.browserName` | `String` | `(blank)` |
+| `Playwright` | `playwright.deviceName` | `String` | `(blank)` |
+| `Playwright` | `playwright.connectionMode` | `String` | `local` |
+| `Playwright` | `playwright.endpoint` | `String` | `(blank)` |
+| `Playwright` | `playwright.channel` | `String` | `(blank)` |
+| `Playwright` | `playwright.slowMo` | `int` | `0` |
+| `Playwright` | `playwright.launchTimeoutMilliseconds` | `int` | `30000` |
+| `Playwright` | `playwright.defaultTimeoutMilliseconds` | `int` | `30000` |
+| `Playwright` | `playwright.navigationTimeoutMilliseconds` | `int` | `30000` |
+| `Playwright` | `playwright.artifactsDirectory` | `String` | `target/playwright-artifacts` |
+| `Playwright` | `playwright.downloadsDirectory` | `String` | `(blank)` |
+| `Playwright` | `playwright.acceptDownloads` | `boolean` | `true` |
+| `Playwright` | `playwright.tracing.enabled` | `boolean` | `false` |
+| `Playwright` | `playwright.tracing.onRetryOnly` | `boolean` | `true` |
+| `Playwright` | `playwright.tracing.screenshots` | `boolean` | `true` |
+| `Playwright` | `playwright.tracing.snapshots` | `boolean` | `true` |
+| `Playwright` | `playwright.tracing.sources` | `boolean` | `true` |
+| `Reporting` | `captureElementName` | `boolean` | `true` |
+| `Reporting` | `captureWebDriverLogs` | `boolean` | `false` |
+| `Reporting` | `alwaysLogDiscreetly` | `boolean` | `false` |
+| `Reporting` | `debugMode` | `boolean` | `false` |
+| `Reporting` | `openLighthouseReportWhileExecution` | `boolean` | `false` |
+| `Reporting` | `cleanSummaryReportsDirectoryBeforeExecution` | `boolean` | `true` |
+| `Reporting` | `openExecutionSummaryReportAfterExecution` | `boolean` | `false` |
+| `Reporting` | `disableLogging` | `boolean` | `false` |
+| `Reporting` | `attachFullLog` | `boolean` | `false` |
+| `Reporting` | `evidenceLevel` | `String` | `FAILURE_ONLY` |
+| `Reporting` | `locatorHealthReportEnabled` | `boolean` | `false` |
+| `Reporting` | `slowLocatorThresholdMillis` | `int` | `750` |
+| `Reporting` | `failOnLocatorHealthWarnings` | `boolean` | `false` |
+| `Reporting` | `shaft.locatorHealth.enabled` | `boolean` | `false` |
+| `Reporting` | `shaft.locatorHealth.warnBelowScore` | `int` | `70` |
+| `Reporting` | `shaft.locatorHealth.attachDashboard` | `boolean` | `true` |
+| `Reporting` | `shaft.locatorHealth.failBelowScore` | `int` | `-1` |
+| `Reporting` | `shaft.diagnostics.enabled` | `boolean` | `true` |
+| `Reporting` | `shaft.diagnostics.maxArtifactMb` | `int` | `50` |
+| `Reporting` | `shaft.trace.enabled` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.mode` | `String` | `auto` |
+| `Reporting` | `shaft.trace.retainFailedAttempts` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeCodeContext` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeFullPageSnapshots` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeDomSnapshots` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeScreenshots` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeNativePageSource` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeNetwork` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.includeConsole` | `boolean` | `true` |
+| `Reporting` | `shaft.trace.maxArtifactMb` | `int` | `50` |
+| `Reporting` | `shaft.flakeProfiler.enabled` | `boolean` | `false` |
+| `Reporting` | `shaft.flakeProfiler.attachPerTest` | `boolean` | `true` |
+| `Reporting` | `shaft.flakeProfiler.failOnSevereFlakeRisk` | `boolean` | `false` |
+| `Reporting` | `shaft.flakeProfiler.slowActionThresholdMs` | `int` | `2000` |
+| `TestNG` | `setParallel` | `String` | `NONE` |
+| `TestNG` | `setParallelMode` | `String` | `STATIC` |
+| `TestNG` | `setThreadCount` | `double` | `1` |
+| `TestNG` | `setVerbose` | `Integer` | `0` |
+| `TestNG` | `setPreserveOrder` | `boolean` | `false` |
+| `TestNG` | `setGroupByInstances` | `boolean` | `false` |
+| `TestNG` | `setDataProviderThreadCount` | `int` | `1` |
+| `TestNG` | `testSuiteTimeout` | `long` | `1440` |
+| `Timeouts` | `waitForLazyLoading` | `Boolean` | `true` |
+| `Timeouts` | `browserNavigationTimeout` | `int` | `30` |
+| `Timeouts` | `pageLoadTimeout` | `int` | `30` |
+| `Timeouts` | `scriptExecutionTimeout` | `int` | `30` |
+| `Timeouts` | `waitForLazyLoadingTimeout` | `int` | `30` |
+| `Timeouts` | `lazyLoadingNetworkIdleInitialObservationMillis` | `int` | `200` |
+| `Timeouts` | `lazyLoadingNetworkIdleQuietWindowMillis` | `int` | `500` |
+| `Timeouts` | `lazyLoadingPollingIntervalMillis` | `int` | `200` |
+| `Timeouts` | `lazyLoadingDomStabilityQuietWindowMillis` | `int` | `0` |
+| `Timeouts` | `lazyLoadingScrollSweepMaxSteps` | `int` | `20` |
+| `Timeouts` | `defaultElementIdentificationTimeout` | `double` | `10` |
+| `Timeouts` | `waitForUiStateTimeout` | `int` | `600` |
+| `Timeouts` | `apiSocketTimeout` | `int` | `30` |
+| `Timeouts` | `apiConnectionTimeout` | `int` | `30` |
+| `Timeouts` | `apiConnectionManagerTimeout` | `int` | `30` |
+| `Timeouts` | `shellSessionTimeout` | `long` | `30` |
+| `Timeouts` | `sshServerAliveInterval` | `int` | `60` |
+| `Timeouts` | `dockerCommandTimeout` | `int` | `30` |
+| `Timeouts` | `databaseLoginTimeout` | `int` | `30` |
+| `Timeouts` | `databaseNetworkTimeout` | `int` | `30` |
+| `Timeouts` | `databaseQueryTimeout` | `int` | `30` |
+| `Timeouts` | `waitForRemoteServerToBeUp` | `Boolean` | `false` |
+| `Timeouts` | `timeoutForRemoteServerToBeUp` | `int` | `1` |
+| `Timeouts` | `remoteServerInstanceCreationTimeout` | `int` | `5` |
+| `Timeouts` | `remoteServerConnectionAttemptTimeout` | `int` | `120` |
+| `Tinkey` | `tinkey.keysetFilename` | `String` | `(blank)` |
+| `Tinkey` | `tinkey.kms.serverType` | `String` | `(blank)` |
+| `Tinkey` | `tinkey.kms.credentialPath` | `String` | `(blank)` |
+| `Tinkey` | `tinkey.kms.masterKeyUri` | `String` | `(blank)` |
+| `Visuals` | `visualMatchingThreshold` | `double` | `0.90` |
+| `Visuals` | `screenshotParams_scalingFactor` | `double` | `1.0` |
+| `Visuals` | `screenshotParams_whenToTakeAScreenshot` | `String` | `ValidationPointsOnly` |
+| `Visuals` | `screenshotParams_screenshotType` | `String` | `fullPage` |
+| `Visuals` | `screenshotParams_highlightElements` | `boolean` | `true` |
+| `Visuals` | `screenshotParams_highlightMethod` | `String` | `AI` |
+| `Visuals` | `screenshotParams_skippedElementsFromScreenshot` | `String` | `(blank)` |
+| `Visuals` | `screenshotParams_watermark` | `boolean` | `true` |
+| `Visuals` | `screenshotParams_watermarkOpacity` | `float` | `0.2` |
+| `Visuals` | `createAnimatedGif` | `boolean` | `false` |
+| `Visuals` | `animatedGif_frameDelay` | `int` | `500` |
+| `Visuals` | `videoParams_recordVideo` | `boolean` | `false` |
+| `Visuals` | `videoParams_scope` | `String` | `DriverSession` |
+| `Visuals` | `whenToTakePageSourceSnapshot` | `String` | `Never` |
+| `Visuals` | `shaft.updateSnapshots` | `boolean` | `false` |
+| `Web` | `targetBrowserName` | `String` | `chrome` |
+| `Web` | `forceBrowserDownload` | `boolean` | `false` |
+| `Web` | `headlessExecution` | `boolean` | `false` |
+| `Web` | `incognitoMode` | `boolean` | `false` |
+| `Web` | `isMobileEmulation` | `boolean` | `false` |
+| `Web` | `mobileEmulation.isCustomDevice` | `boolean` | `false` |
+| `Web` | `mobileEmulation.deviceName` | `String` | `(blank)` |
+| `Web` | `mobileEmulation.width` | `int` | `(blank)` |
+| `Web` | `mobileEmulation.height` | `int` | `(blank)` |
+| `Web` | `mobileEmulation.pixelRatio` | `double` | `1.0` |
+| `Web` | `mobileEmulation.userAgent` | `String` | `(blank)` |
+| `Web` | `baseURL` | `String` | `(blank)` |
+| `Web` | `browserWindowWidth` | `int` | `1920` |
+| `Web` | `browserWindowHeight` | `int` | `1080` |
+| `Web` | `pageLoadStrategy` | `String` | `none` |
+| `Web` | `readinessState` | `String` | `none` |
+| `Web` | `storageStatePath` | `String` | `(blank)` |
+
+### Bundled default files
+
+These files are copied or loaded as the project-level defaults. They also contain third-party settings that do not have a typed `SHAFT.Properties` interface.
+
+| File | Use |
+| --- | --- |
+| [`default/custom.properties`](shaft-engine/src/main/resources/properties/default/custom.properties) | Starter overrides for execution address/OS, browser/headless mode, retries, healing, natural actions, and API capture. |
+| [`default/TestNG.properties`](shaft-engine/src/main/resources/properties/default/TestNG.properties) | TestNG parallel mode, thread counts, verbosity, ordering, and suite timeout. |
+| [`default/cucumber.properties`](shaft-engine/src/main/resources/properties/default/cucumber.properties) | Cucumber execution, filtering, glue, plugins, and publish settings. |
+| [`default/customWebdriverCapabilities.properties`](shaft-engine/src/main/resources/properties/default/customWebdriverCapabilities.properties) | Extra `capabilities.*` values passed to WebDriver/Appium. |
+| [`default/junit-platform.properties`](shaft-engine/src/main/resources/properties/default/junit-platform.properties) | JUnit parallel execution and extension autodetection. |
+| [`default/log4j2.properties`](shaft-engine/src/main/resources/properties/default/log4j2.properties) | Console/file/ReportPortal appenders, patterns, and log thresholds. |
+| [`default/reportportal.properties`](shaft-engine/src/main/resources/properties/default/reportportal.properties) | ReportPortal endpoint, project, launch, enablement, and API-key settings. Supply credentials yourself. |
+
+File-only namespaces such as `capabilities.*`, `junit.*`, `rp.*`, `appender.*`, and `logger.*` stay in their owning files; the typed table above covers every key exposed by the property interfaces.
 
 ## MCP and Agent Workflows
 
@@ -338,8 +817,8 @@ The modular era keeps classic WebDriver/Appium flows, adds a first-class Playwri
 | Playwright facade | `SHAFT.GUI.Playwright` sits beside WebDriver under the shared GUI driver concept. | `SHAFT.GUI.Playwright driver = new SHAFT.GUI.Playwright();` |
 | Playwright parity | Browser actions, element actions, assertions, verifications, tracing, contract replay, natural action executor, screenshots, and Doctor hooks. | `playwright_capture_code_blocks`, `playwright_replay_recording`, `playwright_doctor_suggest_fix` |
 | Capture CLI backend selection | The same persisted Capture session can now generate WebDriver or SHAFT Playwright replay from local CLI use. | `capture generate --session recordings/example.json --backend playwright` |
-| Browser network control | Intercept, mock, assert, verify, throttle, block resources, bridge API/browser auth state, and record contracts. | `driver.browser().interceptRequest().get().urlContains("/api/users")...perform();` |
-| API facade | GraphQL builder, retry policies, typed JSON mapping to classes/records/lists, and OpenAPI coverage thresholds. | `api.get("/health").withRetry(RetryPolicy.transientFailures().maxAttempts(3)).perform();` |
+| Browser network control | Intercept, mock, assert, verify, throttle, block resources, bridge API/browser auth state, and record contracts. | `driver.browser().interceptRequest().get().urlContains("/api/users")` |
+| API facade | GraphQL builder, retry policies, typed JSON mapping to classes/records/lists, and OpenAPI coverage thresholds. | `api.get("/health").withRetry(RetryPolicy.transientFailures().maxAttempts(3))` |
 | Browser/mobile polish | UI state wait timeout, touch end-scroll, image invisibility waits, Appium recursion fallback, and mobile trace enrichment. | `SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600);` |
 | CLI and grid | SSH terminal sessions, SFTP, port forwarding, redaction, remote WebDriver timeout, Selenium Grid preflight, remote video, and BrowserStack app capability handling. | `SHAFT.CLI.remoteTerminal(host, 22, user, keyFolder, keyName, true);` |
 
@@ -358,30 +837,28 @@ driver.browser()
       .urlContains("/api/users")
       .respond()
       .statusCode(200)
-      .jsonBody("{\"ok\":true}")
-      .perform();
+      .jsonBody("{\"ok\":true}");
 driver.browser().throttleNetwork(250, 64, 32);
 driver.browser().blockNetworkResources("*.png", "*.jpg");
 ```
 
 ```java
 SHAFT.Contracts.startRecording("src/test/resources/contracts/checkout.json", "/api/checkout");
-api.post("/api/checkout").setRequestBody(order).perform();
+api.post("/api/checkout").setRequestBody(order);
 SHAFT.Contracts.stopRecording();
 
 SHAFT.Contracts.startAssertMode("src/test/resources/contracts/checkout.json");
-api.post("/api/checkout").setRequestBody(order).perform();
+api.post("/api/checkout").setRequestBody(order);
 SHAFT.Contracts.stopValidation();
 ```
 
 ```java
-api.sendGraphQlRequest("/graphql", "query { viewer { id } }").perform();
+api.sendGraphQlRequest("/graphql", "query { viewer { id } }");
 
 api.get("/health")
-   .withRetry(RetryPolicy.transientFailures().maxAttempts(3))
-   .perform();
+   .withRetry(RetryPolicy.transientFailures().maxAttempts(3));
 
-User user = api.get("/users/1").perform().getResponseAs(User.class);
+var userRequest = api.get("/users/1");
 ```
 
 <table>

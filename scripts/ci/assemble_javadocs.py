@@ -14,6 +14,7 @@ MODULES = {
     "shaft-engine": "Core engine",
     "shaft-pilot-core": "SHAFT Pilot contracts and security",
     "shaft-capture": "Deterministic browser capture model",
+    "shaft-capture-proxy": "API capture proxy integration",
     "shaft-doctor": "Offline deterministic failure diagnosis",
     "shaft-ai": "Optional direct AI providers",
     "shaft-heal": "Deterministic explainable element recovery",
@@ -22,7 +23,19 @@ MODULES = {
     "shaft-visual": "Visual processing integration",
     "shaft-sikulix": "SikuliX desktop automation",
     "shaft-mcp": "Model Context Protocol server",
+    "shaft-cli": "SHAFT command-line tools",
+    "report-aggregate": "Aggregated SHAFT test reports",
 }
+
+
+def reactor_java_modules(root: Path = ROOT) -> list[str]:
+    """Return reactor modules that contain production Java sources."""
+    modules = ET.parse(root / "pom.xml").getroot().findall("m:modules/m:module", namespaces=NS)
+    return [
+        module.text.strip()
+        for module in modules
+        if module.text and list((root / module.text.strip() / "src" / "main" / "java").rglob("*.java"))
+    ]
 
 
 def project_version(root: Path = ROOT) -> str:

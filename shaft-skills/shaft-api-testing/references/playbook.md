@@ -15,7 +15,8 @@
 
 ## Valid examples
 
-- Execute `api.get("/posts/1").setTargetStatusCode(200).perform()` and assert stable response fields with `api.assertThatResponse()`.
+- Execute the request, then assert the response: `api.get("/posts/1").setTargetStatusCode(200);` followed by `api.assertThatResponse().extractedJsonValue("$.id").isNotNull();`.
+- After the request completes, assert stable response fields with `api.assertThatResponse().extractedJsonValue("$.id").isNotNull()`.
 - Test a create/read/delete workflow with unique data and guaranteed deletion in cleanup.
 - Verify an unauthorized request returns the specified status and safe error shape without logging the credential.
 - Validate an eventually consistent job with bounded polling for the documented terminal state.
