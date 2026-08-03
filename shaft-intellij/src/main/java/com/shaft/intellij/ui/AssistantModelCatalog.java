@@ -24,7 +24,8 @@ final class AssistantModelCatalog {
      * Returns the suggested models for a cloud provider selected in the Assistant chat view.
      *
      * @param provider cloud provider identifier: gemini, openai, anthropic, or github
-     * @return non-empty model list, most capable defaults first
+     * @return fallback model list; Codex deliberately falls back to its CLI default because
+     * account entitlements are not discoverable when the CLI cannot list models
      */
     static List<String> cloudModels(String provider) {
         return switch (normalizeLower(provider)) {
@@ -46,7 +47,7 @@ final class AssistantModelCatalog {
         return switch (normalizeUpper(family)) {
             case "CLAUDE" -> CLAUDE_MODELS;
             case "COPILOT" -> List.of("gpt-5.2", "claude-sonnet-5", "gemini-3.5-pro");
-            default -> List.of("gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-mini");
+            default -> List.of();
         };
     }
 

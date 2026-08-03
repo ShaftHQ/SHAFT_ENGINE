@@ -26,10 +26,9 @@ class AssistantModelCatalogTest {
     void localCatalogCoversEveryAssistantFamily() {
         assertAll(
                 () -> assertTrue(AssistantModelCatalog.localModels("CLAUDE").contains("claude-sonnet-5")),
-                () -> assertFalse(AssistantModelCatalog.localModels("CODEX").isEmpty()),
+                () -> assertEquals(List.of(), AssistantModelCatalog.localModels("CODEX")),
                 () -> assertFalse(AssistantModelCatalog.localModels("COPILOT").isEmpty()),
-                () -> assertEquals(AssistantModelCatalog.localModels("CODEX"),
-                        AssistantModelCatalog.localModels("unknown-family")));
+                () -> assertEquals(List.of(), AssistantModelCatalog.localModels("unknown-family")));
     }
 
     @Test
