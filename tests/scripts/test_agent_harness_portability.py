@@ -170,19 +170,33 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ]
         self.assertEqual(offenders, [])
 
-    def test_pdca_personas_are_main_thread_phases_that_assign_implementation(self):
+    def test_pdca_personas_are_main_thread_phases_that_follow_the_mode(self):
+        """PDCA is one task, so it is normally worked solo.
+
+        This previously required Bob to dispatch unconditionally, which put the
+        playbook in direct conflict with the entrypoint's solo-or-orchestrate
+        rule: a single task means one work stream, and one stream is worked by
+        the same thread. Bob now follows the mode instead of overriding it.
+        """
         pdca = (
             ROOT
             / ".agents/skills/act-as-mohab/references/playbooks/agentic-pdca-loop.md"
         ).read_text(encoding="utf-8")
-        for forbidden in ("Bob implements", "closing remaining gaps himself"):
-            self.assertNotIn(forbidden, pdca)
         compact = re.sub(r"\s+", " ", pdca)
-        self.assertRegex(
-            compact, r"Bob phase[^.]*dispatches[^.]*default-capability implementation owner"
-        )
-        self.assertRegex(compact, r"Bruce[^.]*assigns?[^.]*patch")
         self.assertIn("personas are phases, not agent identities", pdca.lower())
+        self.assertRegex(
+            compact,
+            r"solo-or-orchestrate rule",
+            "the playbook must defer to the mode rule rather than state its own",
+        )
+        self.assertRegex(
+            compact,
+            r"Bob phase[^.]*through observed TDD[^.]*when orchestrating",
+            "Bob implements in solo mode and shepherds only when orchestrating",
+        )
+        self.assertRegex(compact, r"Bruce[^.]*judges the actual diff")
+        for forbidden in ("orchestrator never edits", "closing remaining gaps himself"):
+            self.assertNotIn(forbidden, pdca)
 
     def test_hook_configs_share_one_cwd_independent_pretooluse_contract(self):
         claude_hooks = hook_groups(ROOT / ".claude/settings.json")

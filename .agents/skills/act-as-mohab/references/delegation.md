@@ -36,7 +36,8 @@ realignment and delegate questions. The entrypoint's solo-or-orchestrate rule
 decides whether it also implements; this file governs the orchestrated mode.
 
 Run only independent file scopes concurrently. Each writer owns an isolated
-worktree. Hard cap four active agents. Check real progress for any agent or
+worktree. Hard cap four concurrent writing agents; a read-only reviewer does not
+consume a slot. Check real progress for any agent or
 command unexamined for about twenty minutes, and supply a decision, a solved
 subproblem, or a re-spec — never a heartbeat.
 

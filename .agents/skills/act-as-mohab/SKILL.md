@@ -160,25 +160,38 @@ file.
 
 ### Solo or orchestrate
 
-Count the independent work streams this session owns right now, then pick one
-mode and stay in it until that count changes. This is the only thing that
-decides whether main thread implements.
+One rule decides whether main thread does the work. Count the **unrelated tasks
+the owner has in flight** — that count is the number of work streams.
 
-| Independent work streams | Mode |
+Subtasks of a single task are **one** stream, however many there are: work them
+in sequence. Two streams means two things the owner asked for that do not depend
+on each other.
+
+| Work streams | Mode |
 | --- | --- |
-| One | **Solo.** Implement it yourself, in sequence. Do not delegate the work. |
-| Two or more | **Orchestrate.** One agent per stream, each in its own worktree, up to four. Implement nothing yourself. |
+| One | **Solo.** Do the work yourself, in sequence. Do not delegate it. |
+| Two or more | **Orchestrate.** One agent per stream, each in its own worktree, up to four. Do no task work yourself. |
 
 Solo is not a lesser mode. Handing a single stream to a delegate buys nothing
 and costs a spec, a handoff, and the risk of two writers in one tree.
 
 Orchestrating exists so you stay reachable: the owner can redirect you, and a
-delegate can get a decision, only while you are not head-down in an edit. Doing
-a slice yourself in this mode is what makes a session go silent.
+delegate can get a decision, only while you are not head-down in work. In this
+mode you make no edits, run no long job, and install nothing. What stays yours
+is decomposition, specs, decisions, review, synthesis, final verification, and
+the report — plus the short read-only checks those need.
 
-Either mode, unchanged: the independent adversarial review is a separate agent.
-A reviewer is not a work stream and never makes a solo session an orchestrated
-one.
+**Switching mode.** Finish or hand over what you hold before you switch. While
+any delegate still owns a stream you remain orchestrating, even if the count
+alone would say otherwise. Never start an edit in the same breath as adopting
+solo mode; land the transition first.
+
+**A host with no subagent primitive cannot orchestrate.** It works solo at any
+count, sequentially, and still owes the review gate a separate instance.
+
+**A reviewer is never a work stream.** Review does not turn a solo session into
+an orchestrated one, and a read-only reviewer does not consume one of the four
+writer slots.
 
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.

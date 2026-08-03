@@ -99,7 +99,9 @@ invalidates an
 assumption, better to learn that before three other items are built on top
 of it.
 
-For each item, decide dispatch shape:
+One issue is one work stream, so the entrypoint's solo-or-orchestrate rule
+normally puts this session in solo mode and the shapes below apply only while
+orchestrating. For each item, decide dispatch shape:
 
 - **Scout it yourself first** when it requires an architectural or
   data-model decision (e.g. "where does this state actually live, and can a

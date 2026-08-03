@@ -671,13 +671,39 @@ class SoloOrOrchestrateTest(unittest.TestCase):
     session owns -- lives in the entrypoint and every other file defers to it.
     """
 
+    # Every tracked surface an agent can read, not just the files that happened
+    # to state the rule when this test was written.
     GUIDANCE_GLOBS = (
         "AGENTS.md",
         "CLAUDE.md",
+        ".agents/skills/README.md",
         ".agents/skills/*/SKILL.md",
         ".agents/skills/act-as-mohab/references/**/*.md",
         ".claude/agents/*.md",
+        ".claude/skills/*/SKILL.md",
+        ".claude/user-harness/*.md",
+        ".codex/agents/*.toml",
+        ".github/copilot-instructions.md",
+        ".github/instructions/*.md",
+        ".github/skills/*/SKILL.md",
+        ".github/skills/README.md",
+        "shaft-skills/*/SKILL.md",
     )
+    # Both poles of the original conflict, with the subject anchored so the
+    # reviewer role's legitimate "Never edits" does not trip it.
+    SUBJECT = r"(?:orchestrator|main thread|main session)"
+    ACTION = r"(?:implement|edit|writ\w+ (?:the )?code|do(?:es|ing)? the work)"
+    ABSOLUTE = re.compile(
+        rf"{SUBJECT}[^.]{{0,90}}?(?:never|does not|do not|must not|cannot)[^.]{{0,40}}?{ACTION}"
+        rf"|(?:never|do not|don't) delegate"
+        rf"|always (?:do|implement)[^.]{{0,40}}yourself",
+        re.I,
+    )
+    # A sentence that names the mode it applies to is scoped, not absolute.
+    # "orchestrator" is deliberately absent: it is the SUBJECT of the rule, so
+    # treating it as a mode name made every sentence about the orchestrator
+    # look already-scoped and let the original conflict back through.
+    SCOPED = re.compile(r"\b(?:mode|solo|orchestrate|orchestrating|orchestrated)\b", re.I)
 
     def section(self) -> str:
         sections = re.split(r"(?m)^#{2,3} ", ENTRYPOINT.read_text(encoding="utf-8"))
@@ -685,22 +711,37 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         self.assertEqual(len(found), 1, "entrypoint needs exactly one solo-or-orchestrate rule")
         return found[0]
 
-    def test_the_rule_keys_on_concurrent_work_streams(self):
+    def test_the_rule_keys_on_unrelated_tasks_in_flight(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("independent work streams", content)
-        self.assertIn("one", content)
+        self.assertIn("unrelated tasks", content, "the trigger is the owner's asks, not any decomposition")
+        self.assertRegex(content, r"subtasks of a single task are \*?\*?one", "subtasks are one stream")
         self.assertIn("two or more", content)
         rows = [line for line in self.section().splitlines() if line.strip().startswith("|")]
         self.assertGreaterEqual(len(rows), 4, "the rule needs a mode table")
 
+    def test_the_rule_resolves_mode_transitions_and_hostless_delegation(self):
+        content = re.sub(r"\s+", " ", self.section()).lower()
+        self.assertRegex(
+            content,
+            r"while any delegate still owns a stream",
+            "a finishing delegate must not silently flip the mode",
+        )
+        self.assertRegex(
+            content,
+            r"no subagent primitive cannot orchestrate",
+            "a host that cannot delegate needs a stated fallback",
+        )
+
     def test_solo_mode_forbids_delegating_the_work(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"implement it yourself")
+        self.assertRegex(content, r"do the work yourself")
         self.assertRegex(content, r"do not delegate")
 
-    def test_orchestrated_mode_keeps_main_thread_out_of_the_edits(self):
+    def test_orchestrated_mode_keeps_main_thread_out_of_all_task_work(self):
         content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"implement nothing yourself")
+        self.assertRegex(content, r"do no task work yourself")
+        self.assertRegex(content, r"no edits, run no long job, and install nothing",
+                         "barring only implementation leaves installs and long jobs allowed")
         self.assertRegex(content, r"reachable", "the rule must state why main thread stays free")
         self.assertRegex(content, r"four", "orchestrated mode states the concurrency cap")
 
@@ -708,26 +749,54 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         content = re.sub(r"\s+", " ", self.section()).lower()
         self.assertRegex(
             content,
-            r"reviewer is not a work stream|never makes a solo session",
+            r"reviewer is never a work stream|not turn a solo session",
             "a review must not be counted as a second work stream",
         )
 
-    def test_no_other_file_states_an_unconditional_implement_rule(self):
-        """Every other mention must be scoped to a mode or defer to the rule."""
-        absolute = re.compile(
-            r"(?:orchestrator|main thread)[^.]{0,80}\bnever implements\b"
-            r"|\bit does not implement\b(?![^.]{0,60}mode)",
-            re.I,
-        )
+    def unscoped_absolutes(self, text: str) -> list[str]:
+        """Return sentences stating either pole without naming the mode."""
+        offenders = []
+        for sentence in re.split(r"(?<=[.:])\s+", re.sub(r"\s+", " ", text)):
+            if self.ABSOLUTE.search(sentence) and not self.SCOPED.search(sentence):
+                offenders.append(sentence.strip()[:90])
+        return offenders
+
+    def test_no_other_file_states_an_unconditional_implement_or_delegate_rule(self):
+        """Every other mention must name the mode it applies to.
+
+        The original conflict had two poles -- "never implement" and "never
+        delegate" -- so both are checked, across every tracked surface an agent
+        can read rather than only the files that stated it first.
+        """
         offenders = []
         for pattern in self.GUIDANCE_GLOBS:
             for path in ROOT.glob(pattern):
                 if not path.is_file() or path.resolve() == ENTRYPOINT.resolve():
                     continue
-                text = re.sub(r"\s+", " ", path.read_text(encoding="utf-8"))
-                if absolute.search(text):
-                    offenders.append(path.relative_to(ROOT).as_posix())
-        self.assertEqual(offenders, [], "unconditional implement rule outside the entrypoint")
+                for sentence in self.unscoped_absolutes(path.read_text(encoding="utf-8")):
+                    offenders.append(f"{path.relative_to(ROOT).as_posix()}: {sentence}")
+        self.assertEqual(offenders, [], "unscoped implement/delegate absolute outside the entrypoint")
+
+    def test_the_guard_catches_the_phrasings_that_previously_slipped_through(self):
+        """A guard that only matches its own example sentence is not a guard."""
+        must_catch = (
+            "Main thread does not implement. Delegate everything.",
+            "The orchestrator must never implement; always dispatch.",
+            "The main thread never writes code; delegate every change.",
+            "The main session, whose orchestrator never edits, runs the phases.",
+            "Always do the work yourself; never delegate anything.",
+            "Do not delegate; the main thread owns every edit.",
+        )
+        missed = [text for text in must_catch if not self.unscoped_absolutes(text)]
+        self.assertEqual(missed, [], "guard does not catch a reintroduced conflict")
+
+        must_allow = (
+            "Read-only. Reads the full diff, verifies claims. Never edits.",
+            "In orchestrated mode main thread does no task work while it dispatches.",
+            "A host with no subagent primitive cannot orchestrate; it works solo.",
+        )
+        false_positives = [text for text in must_allow if self.unscoped_absolutes(text)]
+        self.assertEqual(false_positives, [], "guard trips on legitimate scoped text")
 
 
 class DisciplineTest(unittest.TestCase):
@@ -750,7 +819,7 @@ class DisciplineTest(unittest.TestCase):
             self.assertIn(phrase, content, f"red-flag phrase missing: {phrase}")
 
     def test_delegation_states_the_parallel_agent_cap(self):
-        self.assertRegex(compact(DELEGATION), r"(?:four|4) (?:active |concurrent |parallel )?agents")
+        self.assertRegex(compact(DELEGATION), r"(?:four|4) (?:active |concurrent |parallel |writing )*agents")
 
     def test_delegation_requires_an_independent_adversarial_review_per_step(self):
         content = compact(DELEGATION)
