@@ -11,6 +11,9 @@ import com.shaft.pilot.config.PilotConfiguration;
 import com.shaft.pilot.config.ProviderConfiguration;
 
 import java.net.http.HttpClient;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -74,5 +77,19 @@ public final class GitHubModelsProvider extends AbstractHttpAiProvider {
     protected AiUsage usage(JsonNode response) {
         JsonNode usage = response.path("usage");
         return new AiUsage(usage.path("prompt_tokens").asLong(), usage.path("completion_tokens").asLong(), null);
+    }
+
+    @Override protected URI modelDiscoveryEndpoint(ProviderConfiguration configuration) {
+        return URI.create(configuration.endpoint().getScheme() + "://" + configuration.endpoint().getAuthority() + "/catalog/models");
+    }
+
+    @Override protected List<String> modelNames(JsonNode response) {
+        if (!response.isArray()) return null;
+        List<String> models = new ArrayList<>();
+        for (JsonNode model : response) {
+            if (!model.path("id").isTextual() || model.path("id").asText().isBlank()) return null;
+            models.add(model.path("id").asText());
+        }
+        return models;
     }
 }

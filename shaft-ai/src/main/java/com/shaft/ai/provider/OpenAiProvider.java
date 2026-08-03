@@ -20,7 +20,7 @@ import java.util.function.Function;
 /**
  * Direct OpenAI Responses API adapter.
  */
-public final class OpenAiProvider extends AbstractHttpAiProvider {
+public class OpenAiProvider extends AbstractHttpAiProvider {
     /**
      * Creates the service-loadable provider.
      */

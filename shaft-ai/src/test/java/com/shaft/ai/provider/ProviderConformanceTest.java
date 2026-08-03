@@ -19,6 +19,7 @@ import com.shaft.doctor.model.Finding;
 import com.shaft.doctor.model.RedactionSummary;
 import com.shaft.pilot.ai.AiBudget;
 import com.shaft.pilot.ai.AiExecutionService;
+import com.shaft.pilot.ai.AiModelDiscovery;
 import com.shaft.pilot.ai.AiProvider;
 import com.shaft.pilot.ai.AiProviderRegistry;
 import com.shaft.pilot.ai.AiRequest;
@@ -91,7 +92,7 @@ class ProviderConformanceTest {
         assertFalse(capturedBody.get().contains("test-credential"));
         assertTrue(capturedBody.get().contains("[REDACTED]"));
         assertTrue(capturedBody.get().contains("answer"));
-        if (!"ollama".equals(providerId)) {
+        if (!"ollama".equals(providerId) && !"lmstudio".equals(providerId)) {
             assertTrue(capturedCredential.get().contains("test-credential"));
         }
         if ("gemini".equals(providerId)) {
@@ -112,7 +113,7 @@ class ProviderConformanceTest {
             respond(exchange, 200, successfulResponse(providerId, doctorPayload()));
         });
         configure(providerId, server.getAddress().getPort());
-        boolean local = "ollama".equals(providerId);
+        boolean local = "ollama".equals(providerId) || "lmstudio".equals(providerId);
         ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
         AiProviderRegistry registry = new AiProviderRegistry();
         registry.registerForCurrentThread(provider(providerId));
@@ -179,7 +180,98 @@ class ProviderConformanceTest {
     void serviceLoaderDiscoversAllDirectProviders() {
         var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
 
-        assertEquals(List.of("anthropic", "gemini", "github", "ollama", "openai"), ids);
+        assertEquals(List.of("anthropic", "gemini", "github", "lmstudio", "ollama", "openai"), ids);
+    }
+
+    @ParameterizedTest
+    @MethodSource("localModelListings")
+    void localProvidersDiscoverModelsWithoutLeakingResponses(String providerId, String response,
+                                                               AiModelDiscovery.Status expected,
+                                                               List<String> models) throws Exception {
+        server = server(exchange -> respond(exchange, 200, response));
+        configure(providerId, server.getAddress().getPort());
+
+        AiModelDiscovery discovery = provider(providerId).discoverModels();
+
+        assertEquals(expected, discovery.status());
+        assertEquals(models, discovery.models());
+        assertFalse(discovery.toString().contains("secret-response"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("discoveryFailures")
+    void modelDiscoveryMapsUnsafeFailuresWithoutLeakingSecrets(int status, String body,
+                                                                 AiModelDiscovery.Status expected) throws Exception {
+        server = server(exchange -> respond(exchange, status, body));
+        configure("lmstudio", server.getAddress().getPort());
+
+        AiModelDiscovery discovery = provider("lmstudio").discoverModels();
+
+        assertEquals(expected, discovery.status());
+        assertTrue(discovery.models().isEmpty());
+        assertFalse(discovery.toString().contains("secret-response"));
+    }
+
+    @Test
+    void githubDiscoveryUsesCatalogEndpointAndTopLevelIds() throws Exception {
+        AtomicReference<String> method = new AtomicReference<>();
+        AtomicReference<String> path = new AtomicReference<>();
+        AtomicReference<String> authorization = new AtomicReference<>();
+        server = server(exchange -> { method.set(exchange.getRequestMethod()); path.set(exchange.getRequestURI().getPath()); authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            respond(exchange, 200, "[{\"id\":\"openai/gpt-4.1\"}]"); });
+        configure("github", server.getAddress().getPort());
+        SHAFT.Properties.pilot.set().githubEndpoint("http://127.0.0.1:" + server.getAddress().getPort() + "/inference/chat/completions");
+        AiModelDiscovery discovery = provider("github").discoverModels();
+        assertEquals(AiModelDiscovery.Status.AVAILABLE, discovery.status());
+        assertEquals(List.of("openai/gpt-4.1"), discovery.models());
+        assertEquals("GET", method.get());
+        assertEquals("/catalog/models", path.get());
+        assertEquals("Bearer test-credential", authorization.get());
+    }
+
+    @Test
+    void discoveryRejectsWrongCollectionShapes() throws Exception {
+        server = server(exchange -> respond(exchange, 200, "{\"data\":{\"id\":\"not-an-array\"}}"));
+        configure("lmstudio", server.getAddress().getPort());
+        assertEquals(AiModelDiscovery.Status.FAILED, provider("lmstudio").discoverModels().status());
+    }
+
+    @ParameterizedTest
+    @MethodSource("malformedDiscoveryLists")
+    void discoveryRejectsNonEmptyMalformedLists(String providerId, String body) throws Exception {
+        server = server(exchange -> respond(exchange, 200, body));
+        configure(providerId, server.getAddress().getPort());
+        assertEquals(AiModelDiscovery.Status.FAILED, provider(providerId).discoverModels().status());
+    }
+
+    @Test
+    void lmStudioNeverFollowsRedirectsOffLoopback() throws Exception {
+        AtomicReference<String> remoteAuthorization = new AtomicReference<>("");
+        try {
+            AtomicReference<String> initialAuthorization = new AtomicReference<>("");
+            server = server(exchange -> {
+                initialAuthorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                exchange.getResponseHeaders().set("Location", "http://192.0.2.1/v1/responses");
+                exchange.sendResponseHeaders(307, -1);
+                exchange.close();
+            });
+            configure("lmstudio", server.getAddress().getPort());
+            SHAFT.Properties.pilot.set().lmStudioApiKeyEnvironmentVariable("LMSTUDIO_TOKEN");
+            AiResponse response = new LmStudioProvider(HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.NORMAL).build(), ignored -> "local-secret")
+                    .execute(request("lmstudio", Duration.ofSeconds(1)));
+
+            assertEquals(AiResponseStatus.ERROR, response.status());
+            assertEquals("Bearer local-secret", initialAuthorization.get());
+            assertEquals("", remoteAuthorization.get());
+        } finally {
+        }
+    }
+
+    @Test
+    void lmStudioRejectsHostnameEndpoints() {
+        SHAFT.Properties.pilot.set().lmStudioEndpoint("http://localhost:1234/v1/responses").lmStudioModel("test-model");
+        assertFalse(new LmStudioProvider().availability().available());
     }
 
     @Test
@@ -280,6 +372,7 @@ class ProviderConformanceTest {
             case "gemini" -> new GeminiProvider(client, ignored -> "test-credential");
             case "github" -> new GitHubModelsProvider(client, ignored -> "test-credential");
             case "ollama" -> new OllamaProvider(client, ignored -> "");
+            case "lmstudio" -> new LmStudioProvider(client, ignored -> "");
             default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
         };
     }
@@ -290,7 +383,7 @@ class ProviderConformanceTest {
                 .set("properties", JSON.createObjectNode()
                         .set("answer", JSON.createObjectNode().put("type", "string")));
         ((tools.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
-        boolean local = "ollama".equals(providerId);
+        boolean local = "ollama".equals(providerId) || "lmstudio".equals(providerId);
         ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
         return AiRequest.builder("provider-conformance", schema)
                 .text("Authorization: Bearer do-not-transmit")
@@ -353,7 +446,7 @@ class ProviderConformanceTest {
     }
 
     private static void configure(String providerId, int port) {
-        boolean local = "ollama".equals(providerId);
+        boolean local = "ollama".equals(providerId) || "lmstudio".equals(providerId);
         var properties = SHAFT.Properties.pilot.set()
                 .enabled(true)
                 .provider(providerId)
@@ -369,12 +462,37 @@ class ProviderConformanceTest {
             case "gemini" -> properties.geminiEndpoint(base + "/v1beta/models").geminiModel("test-model");
             case "github" -> properties.githubEndpoint(base + "/inference/chat/completions").githubModel("test-model");
             case "ollama" -> properties.ollamaEndpoint(base + "/api/chat").ollamaModel("test-model");
+            case "lmstudio" -> properties.lmStudioEndpoint(base + "/v1/responses").lmStudioModel("test-model");
             default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
         }
     }
 
     private static Stream<String> providerIds() {
-        return Stream.of("openai", "anthropic", "gemini", "github", "ollama");
+        return Stream.of("openai", "anthropic", "gemini", "github", "lmstudio", "ollama");
+    }
+
+    private static Stream<Arguments> localModelListings() {
+        return Stream.of(
+                Arguments.of("ollama", "{\"models\":[{\"name\":\"qwen3\"},{\"name\":\"llama3\"}]}",
+                        AiModelDiscovery.Status.AVAILABLE, List.of("llama3", "qwen3")),
+                Arguments.of("lmstudio", "{\"data\":[{\"id\":\"local-model\"}]}",
+                        AiModelDiscovery.Status.AVAILABLE, List.of("local-model")),
+                Arguments.of("lmstudio", "{\"data\":[]}", AiModelDiscovery.Status.EMPTY, List.of()));
+    }
+
+    private static Stream<Arguments> discoveryFailures() {
+        return Stream.of(
+                Arguments.of(401, "{\"error\":\"secret-response\"}", AiModelDiscovery.Status.AUTHENTICATION_FAILED),
+                Arguments.of(503, "{\"error\":\"secret-response\"}", AiModelDiscovery.Status.UNAVAILABLE),
+                Arguments.of(200, "{secret-response", AiModelDiscovery.Status.FAILED));
+    }
+
+    private static Stream<Arguments> malformedDiscoveryLists() {
+        return Stream.of(
+                Arguments.of("lmstudio", "{\"data\":[{}]}"),
+                Arguments.of("ollama", "{\"models\":[{}]}"),
+                Arguments.of("gemini", "{\"models\":[{}]}"),
+                Arguments.of("github", "[{}]"));
     }
 
     private static Stream<Arguments> providerFailures() {
@@ -466,6 +584,8 @@ class ProviderConformanceTest {
                     + escaped + "\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}";
             case "ollama" -> "{\"model\":\"test-model\",\"message\":{\"role\":\"assistant\",\"content\":\""
                     + escaped + "\"},\"prompt_eval_count\":3,\"eval_count\":2}";
+            case "lmstudio" -> "{\"model\":\"test-model\",\"output\":[{\"content\":[{\"type\":\"output_text\","
+                    + "\"text\":\"" + escaped + "\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
             default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
         };
     }
