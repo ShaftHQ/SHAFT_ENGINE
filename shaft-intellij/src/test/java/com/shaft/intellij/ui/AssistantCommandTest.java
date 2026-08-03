@@ -512,10 +512,11 @@ class AssistantCommandTest {
         // Deliberate flag change (R3-T1): codex exec now always adds the experimental --json flag,
         // and claude always adds --output-format stream-json --verbose, so the runner receives
         // incremental NDJSON events instead of a single buffered blob. Custom commands are untouched.
-        assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "--json", "-"),
+        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "--json", "-"),
                 AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
         assertEquals(List.of(
                 "codex", "exec",
+                "--skip-git-repo-check",
                 "--sandbox", "workspace-write",
                 "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                 "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
@@ -527,6 +528,7 @@ class AssistantCommandTest {
         // hard-coded unconditionally as it was before.
         assertEquals(List.of(
                 "codex", "exec",
+                "--skip-git-repo-check",
                 "--sandbox", "read-only",
                 "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
                 "--json",
@@ -556,6 +558,7 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertEquals(List.of(
                                 "codex", "exec",
+                                "--skip-git-repo-check",
                                 "--model", "gpt-5.2-codex",
                                 "-c", "model_reasoning_effort=\"high\"",
                                 "--sandbox", "read-only", "--json", "-"),

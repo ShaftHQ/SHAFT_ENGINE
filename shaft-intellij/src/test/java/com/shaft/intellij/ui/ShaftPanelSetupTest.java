@@ -2124,6 +2124,37 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantClearsPersistedCodexFallbackWhenModelDiscoveryIsEmpty() throws Exception {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.localModel = "gpt-5.2-codex";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+
+        applyLocalModels(panel, "CODEX", List.of());
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", selectedRoute(panel), "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals("", settings.localModel),
+                () -> assertFalse(AssistantLocalAgentRunner.commandFor(invocation.arguments()).contains("--model")));
+    }
+
+    @Test
+    void assistantKeepsExplicitCodexModelWhenModelDiscoveryIsEmpty() throws Exception {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.localModel = "account-compatible-model";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+
+        applyLocalModels(panel, "CODEX", List.of());
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", selectedRoute(panel), "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals("account-compatible-model", settings.localModel),
+                () -> assertTrue(AssistantLocalAgentRunner.commandFor(invocation.arguments())
+                        .contains("account-compatible-model")));
+    }
+
+    @Test
     void assistantRefreshLocalModelsButtonIsVisibleForLocalCliAndResetsModelListFamily() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JButton refresh = findByAccessibleName(panel, "Refresh local agent models", JButton.class);
@@ -8058,6 +8089,12 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("applyLocalModels", String.class, List.class);
         method.setAccessible(true);
         method.invoke(panel, family, models);
+    }
+
+    private static AssistantCommand.Selection selectedRoute(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("selectedRoute");
+        method.setAccessible(true);
+        return (AssistantCommand.Selection) method.invoke(panel);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {
