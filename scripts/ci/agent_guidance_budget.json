@@ -1,11 +1,11 @@
 {
   "limit_sources": {
-    "max_always_loaded_body_chars": "Codex concatenates AGENTS.md layers up to project_doc_max_bytes (32768 bytes) and stops at the cap. Capped at half so no host approaches truncation.",
-    "max_skill_listing_chars": "Codex renders its skill listing in at most 8000 characters when the context window is unknown, and omits skills entirely on overflow. Capped at half.",
-    "max_description_chars": "Agent Skills spec caps description at 1024 characters; Claude Code truncates description plus when_to_use at 1536. Capped tighter so the aggregate listing ceiling binds first.",
-    "max_skill_md_bytes": "Agent Skills spec recommends a SKILL.md body under 5000 tokens, and Claude Code re-attaches only the first 5000 tokens of an invoked skill after auto-compaction. 20000 characters approximates that window.",
-    "max_skill_md_lines": "Agent Skills spec: keep SKILL.md under 500 lines so a host never truncates it.",
-    "measurement": "Characters, not estimated tokens: hosts budget their listings in characters, and a chars/4 proxy adds false precision. Counts are LF-normalized via read_text()."
+    "max_always_loaded_body_chars": "Codex concatenates AGENTS.md layers up to project_doc_max_bytes (32768 bytes, documented default) and stops at the cap. Halved so no host approaches truncation.",
+    "max_skill_listing_chars": "Codex renders its skill listing within a small fixed character budget and drops entries on overflow; Claude Code allots roughly 1 percent of the context window. 4000 is a conservative floor across both. NOT a quoted constant -- treat as this repository's own ceiling, re-derive if a host publishes an exact figure.",
+    "max_description_chars": "Agent Skills spec caps description at 1024 characters. Capped far tighter at 220 because descriptions are always resident for every skill on every task, and the longest description in this repository is 197 characters.",
+    "max_skill_md_bytes": "Agent Skills spec recommends a SKILL.md body under 5000 tokens. Tokens are not directly measurable here, so this is a deliberately coarse character proxy and max_skill_md_lines below is the primary gate.",
+    "max_skill_md_lines": "Agent Skills spec, quoted: keep SKILL.md under 500 lines. This is the exact published limit and the primary body gate.",
+    "measurement": "Characters and lines, never estimated tokens, wherever a host publishes a character or line limit. Where only a token limit exists (max_skill_md_bytes) the character figure is an explicit coarse proxy, not a measurement. Counts are LF-normalized via read_text()."
   },
   "max_always_loaded_body_chars": 16384,
   "max_skill_listing_chars": 4000,
@@ -73,7 +73,7 @@
       ".claude/skills",
       "shaft-skills"
     ],
-    "names": [
+    "required_names": [
       "consult-first",
       "shaft-developer"
     ]
@@ -127,17 +127,17 @@
   },
   "skill_budgets": {
     ".agents/skills": {
-      "max_description_chars": 320,
+      "max_description_chars": 220,
       "max_skill_md_bytes": 20000,
       "max_skill_md_lines": 500,
       "require_openai_yaml": true
     },
     ".claude/skills": {
-      "max_description_chars": 320,
+      "max_description_chars": 220,
       "max_skill_md_bytes": 1024
     },
     ".github/skills": {
-      "max_description_chars": 320,
+      "max_description_chars": 220,
       "max_skill_md_bytes": 4096
     }
   },
@@ -191,8 +191,8 @@
       "message": "automatic remote PR creation"
     },
     {
-      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable)\\b|\\bgpt-[\\w.]+|\\bgrok-[\\w.]+",
-      "message": "named model instead of a capability level"
+      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable|gemini|gemma|deepseek|qwen|llama|mistral|codex-[\\w.]+|gpt-?[0-9][\\w.]*|grok-?[0-9][\\w.]*|o[1-9][\\w.]*-(?:mini|preview))\\b",
+      "message": "named model or product instead of a capability level"
     }
   ],
   "stale_references": [
@@ -212,7 +212,8 @@
     "references/test-driven-development.md",
     "references/tdd/",
     "playbooks/README.md",
-    "shaft-ui-design-standards.md"
+    "shaft-ui-design-standards.md",
+    "references/shaft-mastery.md"
   ],
   "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Ceilings are derived from documented host limits and measured in characters -- see limit_sources. Always-loaded body counts the mandatory fronts plus the entrypoint; the skill listing counts discovery metadata only. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks."
 }

@@ -26,7 +26,9 @@ before using it.
 Spec-exact repetitive edits, inventory, formatting, deterministic
 transformation, and log or result triage. It does not choose architecture,
 expand scope, reinterpret ambiguous requirements, or delegate again. It returns
-ambiguity upward instead of guessing.
+ambiguity upward instead of guessing. No host exposes it as a subagent type, so
+the mechanical helper role in [roles](roles.md) is carried in the dispatch
+prompt.
 
 ## Main-thread duties
 

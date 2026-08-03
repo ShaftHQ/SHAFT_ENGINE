@@ -42,17 +42,34 @@ continue with the others. A stale index never outranks a live file.
 | Any visible SHAFT interface, visual QA, UX copy, accessibility | [UI design](playbooks/shaft-ui-design.md) |
 | Marketing or promotional material | [marketing](playbooks/shaft-marketing-ad-producer.md) |
 | One issue through a merged PR | [GitHub playbook](work-github-playbook.md) |
-| Deep SHAFT internals in one expert domain | [SHAFT mastery](shaft-mastery.md), then the one matching chapter |
 | Reviewing a diff for behavior that no check would catch | [verification-gap lens](verification-gap-lens.md) |
 | Holding main thread at session start | [orchestrator bootstrap](orchestrator-bootstrap.md) |
+
+## Deep SHAFT internals
+
+Read the one chapter the task actually touches, and skip the rest. Each encodes
+incident history that is expensive to re-derive.
+
+| Task touches | Load exactly this |
+| --- | --- |
+| Recorder, preload scripts, network capture, browser lifecycle | [Selenium BiDi](shaft-mastery/selenium-bidi.md) |
+| Report generation or patching, results JSON, verdict analysis | [Allure internals](shaft-mastery/allure-internals.md) |
+| Mobile recording and replay, emulators, Appium or WinAppDriver CI | [Appium mobile](shaft-mastery/appium-mobile.md) |
+| Versioning, Central publishing, BOM, dependency convergence | [Maven release](shaft-mastery/maven-release.md) |
+| Listeners, forked JVMs, properties precedence, scoped runs | [TestNG lifecycle](shaft-mastery/testng-lifecycle.md) |
+| The IntelliJ plugin, its desktop UI, tool windows, Gradle or JDK setup | [IntelliJ plugin](shaft-mastery/intellij-plugin.md) |
+| MCP tools, stdio transport, workspace roots, clients | [MCP protocol](shaft-mastery/mcp-protocol.md) |
+| Red CI runs, scheduled suites, workflow YAML, sharding | [CI forensics](shaft-mastery/ci-forensics.md) |
+| Races, synchronization, deterministic reproduction | [Wait strategies](shaft-mastery/wait-strategies.md) |
+| Locator choice, semantic selectors, healer or doctor | [Locator healing](shaft-mastery/locator-healing.md) |
 
 ## SHAFT product and test authoring
 
 Writing, planning, recording, executing, diagnosing, or reporting SHAFT tests is
 a different surface with its own router. Hand off to `shaft-developer` in the
-`shaft-skills` pack and let it select the single lifecycle, implementation, or
-tool specialist. Do not duplicate its rows here, and do not guess SHAFT syntax,
-tool names, or CLI flags from this file.
+distributed skills pack and let it select the single lifecycle, implementation,
+or tool specialist. Do not duplicate its rows here, and do not guess SHAFT
+syntax, tool names, or CLI flags from this file.
 
 ## External facts
 

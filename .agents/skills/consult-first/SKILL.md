@@ -13,27 +13,12 @@ deciding what good looks like and how much rigor this change earns. No edits
 yet.
 
 The gate is unconditional. Its weight is not: depth scales with the change, so
-a typo costs three lines and a cross-cutting change earns the full pass.
+a cross-cutting change earns the full pass and a typo never gets here at all.
 
-## Triage
-
-Answer both, one line each:
-
-- **Blast radius** — who breaks if this is wrong? One file, one module, or a
-  public contract and its callers.
-- **Reversibility** — can this be undone by deleting the diff, or does it touch
-  persisted data, a published artifact, or an external system?
-
-Take depth from the worse of the two:
-
-| Triage result | Depth |
-| --- | --- |
-| One file, reversible | Points 1 and 8. Three lines total. |
-| One module, reversible | Points 1-4 and 8. |
-| Public contract, many callers, or hard to reverse | Full pass, points 1-8. |
-
-Never skip triage. Never pay full depth for a typo. If triage and the user's
-framing disagree about size, say so in one line and use the larger.
+Triage lives in the entrypoint, not in this file, so a trivial task does not pay
+to learn it was trivial. Arrive here already knowing which points you owe. If
+triage and the user's framing disagree about size, say so in one line and work
+to the larger.
 
 ## Full pass
 
@@ -73,12 +58,6 @@ before the next one starts. The reviewer is a separate agent prompted to refute
 the work, never its author, at the depth this task's triage set. Apply what
 survives; drop what is refuted; re-review until nothing viable remains. See
 [delegation](../act-as-mohab/references/delegation.md) for tier and cap rules.
-
-## When to re-run this gate
-
-Re-run when the approach stops holding, not on a schedule: a premise turned out
-false, the third fix for one symptom failed, the blast radius grew, the user
-added scope, or you are about to take a step you cannot undo.
 
 ## Output
 

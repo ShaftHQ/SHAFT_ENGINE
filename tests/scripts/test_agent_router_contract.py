@@ -102,7 +102,7 @@ def read_chain_depth(start: Path) -> dict[Path, int]:
 class ConsultGateTest(unittest.TestCase):
     """The deliberation skill exists and runs before any task-specific work."""
 
-    def test_consult_claude_exists_on_every_host_discovery_path(self):
+    def test_consult_skill_exists_on_every_host_discovery_path(self):
         for path in (CONSULT, CLAUDE_SKILLS / "consult-first/SKILL.md"):
             self.assertTrue(path.is_file(), f"missing skill: {path}")
         self.assertTrue((CONSULT.parent / "agents/openai.yaml").is_file())
@@ -122,15 +122,23 @@ class ConsultGateTest(unittest.TestCase):
             content, r"before (?:any |task-specific )?(?:discovery|work|edits|implementation)"
         )
 
-    def test_consult_gate_scales_depth_instead_of_fixed_ceremony(self):
-        content = compact(CONSULT)
-        self.assertRegex(content, r"blast radius")
+    def test_triage_lives_in_the_always_loaded_entrypoint(self):
+        """Triage must be readable without loading the gate, or a trivial task
+        pays a full skill read just to learn it was trivial."""
+        sections = re.split(r"(?m)^## ", ENTRYPOINT.read_text(encoding="utf-8"))
+        triage = [body for body in sections if body.lower().startswith("triage")]
+        self.assertEqual(len(triage), 1, "entrypoint needs exactly one Triage section")
+        content = re.sub(r"\s+", " ", triage[0]).lower()
+        self.assertIn("blast radius", content)
         self.assertRegex(content, r"reversib")
-        self.assertRegex(
-            content,
-            r"(?:depth|weight|scale|proportional)",
-            "the gate must state that its depth scales with the change",
-        )
+        rows = [line for line in triage[0].splitlines() if line.strip().startswith("|")]
+        self.assertGreaterEqual(len(rows), 5, "triage needs a depth table")
+        self.assertIn("consult-first", content, "deeper triage rows must route to the gate")
+
+    def test_gate_does_not_restate_the_triage_it_is_routed_by(self):
+        """One rule, one home: the gate owns the full pass, not the triage."""
+        gate = compact(CONSULT)
+        self.assertNotIn("| triage result |", gate)
 
     def test_consult_skill_states_the_enforced_delivery_lifecycle(self):
         content = compact(CONSULT)
@@ -156,10 +164,35 @@ class ConsultGateTest(unittest.TestCase):
 class RouterTableTest(unittest.TestCase):
     """The router reaches every skill surface it owns, in one hop from itself."""
 
+    def routing_rows(self) -> list[tuple[str, str]]:
+        """Return (deliverable, target) for every real routing row."""
+        rows = []
+        for line in ROUTING.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line.startswith("|") or set(line) <= set("|- "):
+                continue
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if len(cells) == 2 and cells[0].lower() not in {"deliverable in front of you", "task touches"}:
+                rows.append((cells[0], cells[1]))
+        return rows
+
     def test_routing_reference_carries_a_deterministic_table(self):
-        rows = [line for line in ROUTING.read_text(encoding="utf-8").splitlines()
-                if line.strip().startswith("|")]
+        rows = self.routing_rows()
         self.assertGreaterEqual(len(rows), 12, "routing table is missing or too small")
+        for deliverable, target in rows:
+            with self.subTest(row=deliverable):
+                self.assertTrue(deliverable, "every row names a deliverable")
+                match = re.search(r"\[[^]]+\]\(([^)]+)\)", target)
+                self.assertIsNotNone(match, f"row target is not a link: {target}")
+                resolved = (ROUTING.parent / match.group(1).split("#", 1)[0]).resolve()
+                self.assertTrue(resolved.is_file(), f"row points at a missing file: {target}")
+
+    def test_router_links_every_mastery_chapter_directly(self):
+        linked = {(ROUTING.parent / target).resolve() for target in local_links(ROUTING)}
+        chapters = sorted((REFERENCES / "shaft-mastery").glob("*.md"))
+        self.assertTrue(chapters, "no mastery chapters found to route to")
+        unreachable = [path.name for path in chapters if path.resolve() not in linked]
+        self.assertEqual(unreachable, [], "mastery chapters not linked directly from routing.md")
 
     def test_router_links_every_repository_playbook_directly(self):
         linked = {
@@ -262,6 +295,56 @@ class ProgressiveDisclosureTest(unittest.TestCase):
                 )
 
 
+class FrontmatterIsRealYamlTest(unittest.TestCase):
+    """Hosts parse frontmatter with a real YAML parser, so the repo must too.
+
+    The in-repo helpers here and in validate_agent_guidance.py are naive
+    split-on-first-colon parsers. They happily accept `description: Use for X:
+    Y`, which a YAML parser rejects with "mapping values are not allowed here"
+    -- and the host, not the helper, is what decides whether a skill loads.
+    """
+
+    def frontmatter_blocks(self) -> list[tuple[Path, str]]:
+        paths = [
+            *CLAUDE_AGENTS.glob("*.md"),
+            *CANONICAL_SKILLS.glob("*/SKILL.md"),
+            *CLAUDE_SKILLS.glob("*/SKILL.md"),
+            *(ROOT / ".github/skills").glob("*/SKILL.md"),
+            *(ROOT / "shaft-skills").glob("*/SKILL.md"),
+        ]
+        blocks = []
+        for path in sorted(paths):
+            content = path.read_text(encoding="utf-8")
+            if not content.startswith("---\n"):
+                continue
+            marker = content.find("\n---\n", 4)
+            if marker >= 0:
+                blocks.append((path, content[4:marker]))
+        return blocks
+
+    def test_every_frontmatter_block_parses_as_yaml(self):
+        yaml = __import__("yaml")
+        invalid = []
+        for path, block in self.frontmatter_blocks():
+            try:
+                parsed = yaml.safe_load(block)
+            except yaml.YAMLError as error:
+                invalid.append(f"{path.relative_to(ROOT).as_posix()}: {type(error).__name__}")
+                continue
+            if not isinstance(parsed, dict) or not parsed.get("name"):
+                invalid.append(f"{path.relative_to(ROOT).as_posix()}: missing name")
+        self.assertEqual(invalid, [])
+
+    def test_no_skill_name_uses_a_reserved_word(self):
+        """Anthropic's skill spec rejects "anthropic" and "claude" in a name."""
+        offenders = []
+        for path in sorted(CANONICAL_SKILLS.glob("*/SKILL.md")):
+            name = frontmatter(path).get("name", "")
+            if re.search(r"anthropic|claude", name, re.I) or not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name):
+                offenders.append(f"{path.parent.name}: {name}")
+        self.assertEqual(offenders, [])
+
+
 class HostParityTest(unittest.TestCase):
     """Codex and Claude resolve the same policy from their own discovery paths."""
 
@@ -280,17 +363,40 @@ class HostParityTest(unittest.TestCase):
                     (CANONICAL_SKILLS / adapter.parent.name / "SKILL.md").resolve(),
                 )
 
-    def test_every_role_has_one_portable_definition_and_a_host_adapter(self):
-        roles = {
-            heading.strip().lower()
+    def test_every_host_adapter_anchors_a_real_portable_role(self):
+        """Anchors must resolve to actual roles.md headings, so a renamed role
+        breaks the build instead of silently orphaning its adapter."""
+        headings = {
+            re.sub(r"[^a-z0-9]+", "-", heading.strip().lower()).strip("-")
             for heading in re.findall(r"(?m)^##\s+(.+)$", ROLES.read_text(encoding="utf-8"))
         }
-        self.assertTrue(roles, "roles.md must define the role set")
-        adapters = {path.stem for path in CLAUDE_AGENTS.glob("*.md")}
+        self.assertTrue(headings, "roles.md must define the role set")
+        adapters = sorted(CLAUDE_AGENTS.glob("*.md"))
+        self.assertTrue(adapters, "no host role adapters found")
         for adapter in adapters:
-            with self.subTest(adapter=adapter):
-                body = (CLAUDE_AGENTS / f"{adapter}.md").read_text(encoding="utf-8")
-                self.assertIn("roles.md#", body, "adapter must anchor a portable role")
+            with self.subTest(adapter=adapter.stem):
+                anchors = re.findall(r"roles\.md#([a-z0-9-]+)", adapter.read_text(encoding="utf-8"))
+                self.assertTrue(anchors, "adapter must anchor a portable role")
+                for anchor in anchors:
+                    self.assertIn(anchor, headings, f"anchor matches no roles.md heading: {anchor}")
+
+    def test_every_portable_role_is_reachable(self):
+        """A role nobody can select is dead guidance: it must either have a
+        host adapter or be named by delegation as a prompt-carried role."""
+        headings = [
+            heading.strip()
+            for heading in re.findall(r"(?m)^##\s+(.+)$", ROLES.read_text(encoding="utf-8"))
+        ]
+        anchored = set()
+        for adapter in CLAUDE_AGENTS.glob("*.md"):
+            anchored.update(re.findall(r"roles\.md#([a-z0-9-]+)", adapter.read_text(encoding="utf-8")))
+        delegation = compact(DELEGATION)
+        orphaned = []
+        for heading in headings:
+            slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
+            if slug not in anchored and heading.lower() not in delegation:
+                orphaned.append(heading)
+        self.assertEqual(orphaned, [], "role is defined but nothing routes to it")
 
     def test_hosts_without_a_subagent_primitive_carry_the_covenant_in_prompt(self):
         content = compact(DELEGATION)
@@ -328,8 +434,13 @@ class DisciplineTest(unittest.TestCase):
         self.assertRegex(compact(ENTRYPOINT), r"stop and (?:report|escalate|ask)")
 
     def test_entrypoint_lists_self_check_red_flags_in_the_agents_own_words(self):
-        content = compact(ENTRYPOINT)
-        for phrase in ("should", "probably", "just this once"):
+        """Scoped to the Red flags section: asserting "should" appears anywhere
+        in the file would pass on almost any English prose."""
+        sections = re.split(r"(?m)^## ", ENTRYPOINT.read_text(encoding="utf-8"))
+        red_flags = [body for body in sections if body.lower().startswith("red flags")]
+        self.assertEqual(len(red_flags), 1, "entrypoint needs exactly one Red flags section")
+        content = re.sub(r"\s+", " ", red_flags[0]).lower()
+        for phrase in ("should", "probably", "just this once", "close enough"):
             self.assertIn(phrase, content, f"red-flag phrase missing: {phrase}")
 
     def test_delegation_states_the_parallel_agent_cap(self):

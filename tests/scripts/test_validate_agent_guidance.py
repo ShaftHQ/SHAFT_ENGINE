@@ -195,35 +195,57 @@ steps:
         self.assertIn("host-listing-budget", codes)
         self.assertNotIn("host-body-budget", codes)
 
-    def test_rejects_routing_bridge_with_no_skill_file(self):
-        self.write(
-            ".agents/skills/act-as-mohab/references/routing.md",
-            "# Routing\n\nHand off to `ghost-skill`.\n",
-        )
+    def configure_routing_bridges(self, **overrides) -> None:
         self.budget["routing_bridges"] = {
             "source": ".agents/skills/act-as-mohab/references/routing.md",
             "skill_roots": [".agents/skills"],
-            "names": ["ghost-skill"],
+            **overrides,
         }
         self.write_budget()
+
+    def test_rejects_a_routed_skill_that_does_not_exist(self):
+        """The table itself is parsed, so a new ghost row fails without anyone
+        remembering to register it in the budget."""
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\n| Deliverable | Load |\n| --- | --- |\n| Anything | `ghost-skill` |\n",
+        )
+        self.configure_routing_bridges()
         errors = validate_repository(self.root, self.budget_path)
         self.assertIn("routing-bridge-missing", {error["code"] for error in errors})
 
-    def test_rejects_declared_bridge_the_router_no_longer_mentions(self):
+    def test_accepts_a_routed_skill_that_exists(self):
+        self.write(
+            ".agents/skills/real-skill/SKILL.md",
+            "---\nname: real-skill\ndescription: Use when the router points here.\n---\n\n# Real\n",
+        )
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\n| Deliverable | Load |\n| --- | --- |\n| Anything | `real-skill` |\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        bridge_errors = [e for e in errors if e["code"].startswith("routing-bridge")]
+        self.assertEqual(bridge_errors, [])
+
+    def test_ignores_paths_and_filenames_that_are_not_skill_names(self):
+        """`src/main/java` and `AGENTS.md` are backticked in real routing prose
+        and must not be mistaken for skills."""
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\nEdit `src/main/java` per `AGENTS.md`, verify with `rg`.\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        bridge_errors = [e for e in errors if e["code"].startswith("routing-bridge")]
+        self.assertEqual(bridge_errors, [])
+
+    def test_rejects_a_required_handoff_the_router_no_longer_mentions(self):
         self.write(
             ".agents/skills/act-as-mohab/references/routing.md",
             "# Routing\n\nNothing is routed here.\n",
         )
-        self.write(
-            ".agents/skills/orphan-skill/SKILL.md",
-            "---\nname: orphan-skill\ndescription: Use when nothing routes here.\n---\n\n# Orphan\n",
-        )
-        self.budget["routing_bridges"] = {
-            "source": ".agents/skills/act-as-mohab/references/routing.md",
-            "skill_roots": [".agents/skills"],
-            "names": ["orphan-skill"],
-        }
-        self.write_budget()
+        self.configure_routing_bridges(required_names=["consult-first"])
         errors = validate_repository(self.root, self.budget_path)
         self.assertIn("routing-bridge-unrouted", {error["code"] for error in errors})
 

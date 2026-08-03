@@ -129,13 +129,26 @@ def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
     return errors
 
 
+# A backticked kebab identifier with no slash and no dot is how the routing
+# table names a skill to hand off to. Paths (`src/main/java`), commands (`rg`)
+# and filenames (`AGENTS.md`) are excluded by construction.
+ROUTED_SKILL_NAME = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
+
+
+def routed_skill_names(content: str) -> list[str]:
+    """Return every skill name the routing table hands off to."""
+    return sorted(set(ROUTED_SKILL_NAME.findall(content)))
+
+
 def validate_routing_bridges(root: Path, budget: dict) -> list[dict[str, str]]:
-    """Prove every name the router hands off to resolves to a real skill.
+    """Prove every skill the router names resolves to a real SKILL.md.
 
     A router that points at a skill nobody ships fails silently at run time:
-    the agent reads the row, cannot find the file, and improvises. This check
-    is the regression test for that. It also fails the other way -- a declared
-    bridge that the routing table no longer mentions is dead configuration.
+    the agent reads the row, cannot find the file, and improvises. This parses
+    the routing table itself rather than a hand-maintained allowlist, so a new
+    row naming a skill that does not exist fails without anyone remembering to
+    register it. ``required_names`` additionally catches the reverse drift --
+    a handoff silently dropped from the table.
     """
     configured = budget.get("routing_bridges")
     if not configured:
@@ -147,17 +160,26 @@ def validate_routing_bridges(root: Path, budget: dict) -> list[dict[str, str]]:
     content = source.read_text(encoding="utf-8")
     roots = configured.get("skill_roots", [])
     errors: list[dict[str, str]] = []
-    for name in configured.get("names", []):
-        if name not in content:
-            errors.append(
-                issue("routing-bridge-unrouted", source_relative, f"declared bridge is not routed: {name}")
-            )
-        if not any((root / skills_root / name / "SKILL.md").is_file() for skills_root in roots):
+
+    def resolves(name: str) -> bool:
+        return any((root / skills_root / name / "SKILL.md").is_file() for skills_root in roots)
+
+    for name in routed_skill_names(content):
+        if not resolves(name):
             errors.append(
                 issue(
                     "routing-bridge-missing",
                     source_relative,
                     f"routed skill has no SKILL.md under {', '.join(roots)}: {name}",
+                )
+            )
+    for name in configured.get("required_names", []):
+        if name not in content:
+            errors.append(
+                issue(
+                    "routing-bridge-unrouted",
+                    source_relative,
+                    f"required handoff is not routed: {name}",
                 )
             )
     return errors

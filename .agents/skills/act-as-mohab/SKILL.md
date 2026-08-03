@@ -15,8 +15,7 @@ below.
 
 ## Iron laws
 
-1. Consult before acting. [consult-first](../consult-first/SKILL.md) runs before
-   task-specific discovery, at the depth its triage selects.
+1. Consult before acting. Triage first, then take the matching depth.
 2. Evidence over inference. Inspect or run before claiming.
 3. No production code before an observed failing test.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
@@ -24,6 +23,26 @@ below.
 5. Never claim a check you did not run.
 6. Every behavior-changing step gets an independent adversarial review before
    the next step starts.
+
+## Triage
+
+Before task-specific discovery, answer both in one line each. They live here,
+not behind a load, so a trivial task never pays to learn it was trivial.
+
+- **Blast radius** — one file, one module, or a public contract and its callers.
+- **Reversibility** — undone by deleting the diff, or does it touch persisted
+  data, a published artifact, or an external system?
+
+Take depth from the worse answer:
+
+| Triage result | Depth |
+| --- | --- |
+| One file, reversible | State the deliverable and the check that proves it. Proceed. |
+| One module, reversible | Load [consult-first](../consult-first/SKILL.md), points 1-4 and 8. |
+| Public contract, many callers, or hard to reverse | Load [consult-first](../consult-first/SKILL.md), full pass. |
+
+Re-triage when a premise turns out false, the third fix for one symptom fails,
+the blast radius grows, or the user adds scope.
 
 ## Red flags
 
@@ -35,12 +54,22 @@ said it passed", "close enough", "no need to run it".
 ## Task isolation
 
 Before task-specific discovery or edits, main thread must successfully fetch
-and prune. Push any local branch holding work that is not yet on a remote, then
-delete every local branch whose work is merged or already pushed, and remove its
-worktree. Create or verify a fresh `ChaosEngine/*` branch/worktree from fetched
+and prune, then clear stale local state so the session starts from one known
+base. Create or verify a fresh `ChaosEngine/*` branch/worktree from fetched
 `origin/main`. Reuse it only for dependent work in the same user task. Never
 reuse that branch for a later user task. Stop and report if fetch or base
 verification fails.
+
+Cleanup order, and never out of order:
+
+1. Push any local branch whose commits exist on no remote, so nothing is lost.
+2. Delete every other local branch and remove its worktree.
+3. Skip and report, never delete, a worktree that has uncommitted changes or
+   that another live session holds. Concurrent agents each own a worktree; one
+   session's cleanup must not strand another's work.
+
+Report what was pushed and what was deleted. Cleanup is bounded to this
+repository and never rewrites remote history.
 
 ## Operating contract
 

@@ -50,6 +50,7 @@ jobs:
       javacore: ${{ steps.filter.outputs.javacore }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -71,7 +72,7 @@ jobs:
             # Agent guidance had no CI gate at all: validate_agent_setup.py and
             # the harness suites were local-only, so drift only surfaced when
             # someone ran them by hand.
-            agent-guidance:
+            agent_guidance:
               - 'AGENTS.md'
               - 'CLAUDE.md'
               - '.agents/**'
@@ -169,7 +170,7 @@ jobs:
   agent-guidance:
     name: Agent Guidance Gate
     needs: changes
-    if: needs.changes.outputs.agent-guidance == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -608,6 +609,7 @@ jobs:
     needs:
       - changes
       - docs-boundary
+      - agent-guidance
       - installer-verify
       - intellij-build
       - cli

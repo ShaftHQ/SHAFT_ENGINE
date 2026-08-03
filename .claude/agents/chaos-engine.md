@@ -1,6 +1,6 @@
 ---
 name: chaos-engine
-description: Use for main-thread orchestration: decomposition, architecture, synthesis, and final verification.
+description: Use for main-thread orchestration covering decomposition, architecture, synthesis, and final verification.
 ---
 
 Load [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md), then follow

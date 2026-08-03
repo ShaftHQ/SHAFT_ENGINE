@@ -26,8 +26,10 @@ guidance. All operational paths in tracked guidance/config stay relative.
 
 ## Work lifecycle
 
-At session start fetch/prune, push any local branch holding work not yet on a
-remote, delete every other local branch and its worktree, then use a fresh
+At session start fetch/prune, then clear stale local state in the order the
+entrypoint states: push branches whose commits exist on no remote, delete the
+rest with their worktrees, and skip plus report any worktree holding
+uncommitted changes or belonging to a live session. Then use a fresh
 `ChaosEngine/*` branch/worktree from `origin/main`; reuse one session and make
 dependent subtasks commits. Before PR: sync default, resolve conflicts, rerun
 affected checks, commit, push, and maintain tracker plus linked subtask issues
