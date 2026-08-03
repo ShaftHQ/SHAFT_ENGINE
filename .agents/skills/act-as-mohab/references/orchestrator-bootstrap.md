@@ -1,7 +1,9 @@
 # Orchestrator bootstrap
 
-Use when holding main thread. This phase gathers evidence and dispatches; it
-does not implement.
+Use when the entrypoint's solo-or-orchestrate rule selects the orchestrated
+mode: two or more independent work streams. This phase gathers evidence and
+dispatches; in this mode main thread does not implement. A single stream skips
+this file and is worked solo, in sequence.
 
 1. Establish repositories in scope. Default current repo; add companion docs
    only when behavior requires it.

@@ -31,9 +31,9 @@ travels in the dispatch prompt.
 ## Main-thread duties
 
 Orchestrator retains decomposition, architecture, consultation, assignment,
-synthesis, integration, and final verification. It stays available for owner
-realignment and delegate questions, and assigns implementation wherever the
-host can delegate.
+synthesis, integration, and final verification, and stays available for owner
+realignment and delegate questions. The entrypoint's solo-or-orchestrate rule
+decides whether it also implements; this file governs the orchestrated mode.
 
 Run only independent file scopes concurrently. Each writer owns an isolated
 worktree. Hard cap four active agents. Check real progress for any agent or

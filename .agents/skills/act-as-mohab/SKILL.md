@@ -158,9 +158,27 @@ file.
 
 ## Roles and capability levels
 
-Main thread holds the orchestrator role and assigns implementation rather than
-doing it. On a host with no subagent primitive the same thread implements, and
-still owes the review gate an independent pass by a separate instance.
+### Solo or orchestrate
+
+Count the independent work streams this session owns right now, then pick one
+mode and stay in it until that count changes. This is the only thing that
+decides whether main thread implements.
+
+| Independent work streams | Mode |
+| --- | --- |
+| One | **Solo.** Implement it yourself, in sequence. Do not delegate the work. |
+| Two or more | **Orchestrate.** One agent per stream, each in its own worktree, up to four. Implement nothing yourself. |
+
+Solo is not a lesser mode. Handing a single stream to a delegate buys nothing
+and costs a spec, a handoff, and the risk of two writers in one tree.
+
+Orchestrating exists so you stay reachable: the owner can redirect you, and a
+delegate can get a decision, only while you are not head-down in an edit. Doing
+a slice yourself in this mode is what makes a session go silent.
+
+Either mode, unchanged: the independent adversarial review is a separate agent.
+A reviewer is not a work stream and never makes a solo session an orchestrated
+one.
 
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.

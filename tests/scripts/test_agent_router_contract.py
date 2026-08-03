@@ -662,6 +662,74 @@ class RetrievalParityTest(unittest.TestCase):
         self.assertRegex(content, r"search before writing|search first", "must prevent duplicates")
 
 
+class SoloOrOrchestrateTest(unittest.TestCase):
+    """Whether main thread implements has exactly one rule, in one place.
+
+    Two statements previously disagreed: "the orchestrator never implements"
+    against "do the work yourself". Both are right in their own mode and wrong
+    as absolutes, so the discriminator -- how many independent work streams the
+    session owns -- lives in the entrypoint and every other file defers to it.
+    """
+
+    GUIDANCE_GLOBS = (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".agents/skills/*/SKILL.md",
+        ".agents/skills/act-as-mohab/references/**/*.md",
+        ".claude/agents/*.md",
+    )
+
+    def section(self) -> str:
+        sections = re.split(r"(?m)^#{2,3} ", ENTRYPOINT.read_text(encoding="utf-8"))
+        found = [body for body in sections if body.lower().startswith("solo or orchestrate")]
+        self.assertEqual(len(found), 1, "entrypoint needs exactly one solo-or-orchestrate rule")
+        return found[0]
+
+    def test_the_rule_keys_on_concurrent_work_streams(self):
+        content = re.sub(r"\s+", " ", self.section()).lower()
+        self.assertIn("independent work streams", content)
+        self.assertIn("one", content)
+        self.assertIn("two or more", content)
+        rows = [line for line in self.section().splitlines() if line.strip().startswith("|")]
+        self.assertGreaterEqual(len(rows), 4, "the rule needs a mode table")
+
+    def test_solo_mode_forbids_delegating_the_work(self):
+        content = re.sub(r"\s+", " ", self.section()).lower()
+        self.assertRegex(content, r"implement it yourself")
+        self.assertRegex(content, r"do not delegate")
+
+    def test_orchestrated_mode_keeps_main_thread_out_of_the_edits(self):
+        content = re.sub(r"\s+", " ", self.section()).lower()
+        self.assertRegex(content, r"implement nothing yourself")
+        self.assertRegex(content, r"reachable", "the rule must state why main thread stays free")
+        self.assertRegex(content, r"four", "orchestrated mode states the concurrency cap")
+
+    def test_review_never_flips_the_mode(self):
+        content = re.sub(r"\s+", " ", self.section()).lower()
+        self.assertRegex(
+            content,
+            r"reviewer is not a work stream|never makes a solo session",
+            "a review must not be counted as a second work stream",
+        )
+
+    def test_no_other_file_states_an_unconditional_implement_rule(self):
+        """Every other mention must be scoped to a mode or defer to the rule."""
+        absolute = re.compile(
+            r"(?:orchestrator|main thread)[^.]{0,80}\bnever implements\b"
+            r"|\bit does not implement\b(?![^.]{0,60}mode)",
+            re.I,
+        )
+        offenders = []
+        for pattern in self.GUIDANCE_GLOBS:
+            for path in ROOT.glob(pattern):
+                if not path.is_file() or path.resolve() == ENTRYPOINT.resolve():
+                    continue
+                text = re.sub(r"\s+", " ", path.read_text(encoding="utf-8"))
+                if absolute.search(text):
+                    offenders.append(path.relative_to(ROOT).as_posix())
+        self.assertEqual(offenders, [], "unconditional implement rule outside the entrypoint")
+
+
 class DisciplineTest(unittest.TestCase):
     """Rules the published failure evidence says an agent will otherwise break."""
 

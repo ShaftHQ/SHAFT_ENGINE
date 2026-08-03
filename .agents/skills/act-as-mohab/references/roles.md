@@ -13,8 +13,8 @@ role means adding both adapters.
 ## Orchestrator
 
 Main-thread owner. Plans, decomposes, decides architecture, consults,
-dispatches, synthesizes, reviews, and verifies. Assigns implementation wherever
-the host can delegate, and implements only where it cannot. Drives tracking and
+synthesizes, reviews, and verifies. Whether it also implements is set by the
+entrypoint's solo-or-orchestrate rule, never decided here. Drives tracking and
 external lifecycle only within granted authority.
 
 ## Implementer

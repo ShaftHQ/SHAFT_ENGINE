@@ -68,6 +68,27 @@ sequenceDiagram
     A-->>U: outcome, checks run, what was refuted
 ```
 
+## Solo or orchestrate
+
+One rule decides whether the main thread writes code, and it keys on how many
+independent work streams the session owns — not on the host, and not on the
+size of any one change.
+
+```mermaid
+flowchart TD
+    Q{"How many independent<br/>work streams?"}
+    Q -->|one| S["<b>Solo</b><br/>implement it yourself, in sequence"]
+    Q -->|"two or more"| O["<b>Orchestrate</b><br/>one agent per stream, up to four"]
+    S --> RV["independent adversarial review<br/><i>always a separate agent</i>"]
+    O --> OW["main thread implements nothing<br/>and stays reachable"]
+    OW --> RV
+```
+
+Solo avoids two writers in one tree and the cost of specifying a handoff nobody
+needed. Orchestrating keeps the main thread free to answer the owner and
+re-spec a delegate. A reviewer is never counted as a work stream, so review does
+not turn a solo session into an orchestrated one.
+
 ## Delivery loop
 
 Every phase that changes behaviour ends with a review by an agent that did not
@@ -98,7 +119,7 @@ Reached from the entrypoint or the routing table, never loaded by default.
 | Reference | What it does |
 | --- | --- |
 | [routing](act-as-mohab/references/routing.md) | The deterministic table: one deliverable, one surface. Also orders knowledge retrieval before manual discovery begins. |
-| [delegation](act-as-mohab/references/delegation.md) | Defines the three capability levels, the four-agent concurrency cap, the delegate covenant, and the independent adversarial review gate. |
+| [delegation](act-as-mohab/references/delegation.md) | Governs the orchestrated mode: the three capability levels, the four-agent concurrency cap, the delegate covenant, and the independent adversarial review gate. |
 | [roles](act-as-mohab/references/roles.md) | The five portable roles and their boundaries. Each host exposes them with whatever primitive it has, so policy stays identical across hosts. |
 | [heuristics](act-as-mohab/references/heuristics.md) | Field technique for harder work: how to investigate, how to plan under uncertainty, how to verify, and how to judge risk. |
 | [orchestrator bootstrap](act-as-mohab/references/orchestrator-bootstrap.md) | The opening sequence when a session holds the main thread: gather live state, queue by priority, ticket, dispatch. |
