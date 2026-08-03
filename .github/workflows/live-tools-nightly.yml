@@ -77,7 +77,7 @@ jobs:
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 17 (Gradle)
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: '17'
           distribution: 'zulu'
@@ -121,7 +121,7 @@ jobs:
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 17 (Gradle)
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: '17'
           distribution: 'zulu'
@@ -163,7 +163,7 @@ jobs:
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 17 (Gradle)
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: '17'
           distribution: 'zulu'
@@ -232,7 +232,7 @@ jobs:
         uses: ./.github/actions/build-shaft-mcp-live-jar
       - name: Set up JDK 17 (Gradle)
         if: env.GEMINI_API_KEY != ''
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: '17'
           distribution: 'zulu'
