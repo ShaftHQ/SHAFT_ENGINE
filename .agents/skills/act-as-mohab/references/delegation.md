@@ -24,17 +24,16 @@ before using it.
 ### Mechanical model
 
 Spec-exact repetitive edits, inventory, formatting, deterministic
-transformation, and log or result triage. It does not choose architecture,
-expand scope, reinterpret ambiguous requirements, or delegate again. It returns
-ambiguity upward instead of guessing. No host exposes it as a subagent type, so
-the mechanical helper role in [roles](roles.md) is carried in the dispatch
-prompt.
+transformation, and log or result triage. No host exposes it as a subagent
+type, so the mechanical helper role in [roles](roles.md), which defines its
+limits, is carried in the dispatch prompt.
 
 ## Main-thread duties
 
 Orchestrator retains decomposition, architecture, consultation, assignment,
 synthesis, integration, and final verification. It stays available for owner
-realignment and delegate questions; it never implements.
+realignment and delegate questions, and assigns implementation wherever the
+host can delegate.
 
 Run only independent file scopes concurrently. Each writer owns an isolated
 worktree. Hard cap four active agents. Check real progress for any agent or
@@ -55,8 +54,7 @@ property that makes it work is independence, so it is not optional:
 - Escalate to the most intelligent model for a new subsystem, a migration, a
   dependency swap, or any decision that is expensive to unwind.
 - Record each finding as `confirmed`, `refuted`, or `unproven`. A refuted
-  finding is dropped, not softened. An empty result is a valid outcome; say so
-  rather than padding with noise.
+  finding is dropped, not softened.
 - Re-review after applying findings, until a pass yields nothing viable.
 
 A self-review is not a review. Neither is a delegate's own report on its own
@@ -64,9 +62,8 @@ work.
 
 ## Delegate covenant
 
-Hosts differ in how they carry this: where the host has a subagent primitive,
-the role adapter carries it; hosts without one embed the same meaning in the
-prompt. Either way, every dispatch carries it:
+[Roles](roles.md) states how each host carries this. Either way, every dispatch
+carries it:
 
 > Load the act-as-mohab entrypoint before all other work. Evidence over
 > inference: read or run before claiming. Stay inside assigned scope; report
@@ -83,7 +80,7 @@ using it. The mechanical model omits that clause because it may not delegate.
 
 ## Returned-work review
 
-Read diff and tests. First pass checks spec compliance; second checks quality.
+Read diff and tests in the two passes [roles](roles.md) gives the reviewer.
 Route every finding to `decision_needed`, `patch`, `defer`, or `dismiss`.
 Orchestrator owns final severity because it has full context. Use the
 [verification-gap lens](verification-gap-lens.md) for behavior that could break

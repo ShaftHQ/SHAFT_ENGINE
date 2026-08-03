@@ -1,8 +1,3 @@
----
-name: agentic-pdca-loop
-description: Use for SHAFT PDCA, Kevin/Bob/Bruce roles, or refinement loops.
----
-
 # PDCA
 
 Personas are phases, not agent identities. They run sequentially in the main

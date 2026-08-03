@@ -424,6 +424,122 @@ class HostParityTest(unittest.TestCase):
                 self.assertIn(".agents/skills/act-as-mohab/SKILL.md", paths)
 
 
+class CiGateIsBlockingTest(unittest.TestCase):
+    """A leg in `needs` that the summary script never reads cannot block a merge.
+
+    The summary job is the required status check and runs with `if: always()`,
+    so adding a leg to `needs` alone is cosmetic: the script decides the exit
+    code from a hardcoded list of result variables. This pins that every needed
+    leg is actually evaluated.
+    """
+
+    WORKFLOW = ROOT / ".github/workflows/pr-gate.yml"
+
+    def summary_step(self) -> dict:
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        return workflow["jobs"]["summary"], workflow["jobs"]
+
+    def test_every_needed_leg_is_evaluated_by_the_summary(self):
+        summary, jobs = self.summary_step()
+        step = summary["steps"][0]
+        environment, script = step["env"], step["run"]
+        loop = script.split("for result in", 1)[1].split("; do", 1)[0]
+        unevaluated = []
+        for leg in summary["needs"]:
+            if leg == "changes":
+                continue  # checked separately, and fails the summary outright
+            variables = [
+                name for name, value in environment.items()
+                if f"needs.{leg}.result" in str(value)
+            ]
+            if not variables:
+                unevaluated.append(f"{leg}: no result variable")
+            elif not any(f"${{{name}}}" in loop for name in variables):
+                unevaluated.append(f"{leg}: variable never read by the loop")
+        self.assertEqual(unevaluated, [], "needed legs that cannot fail the required check")
+
+    def test_the_guidance_gate_installs_what_its_tests_import(self):
+        """The runner's tool-cache Python has no PyYAML; the frontmatter test
+        imports it, so the job must install it or fail on every run."""
+        _, jobs = self.summary_step()
+        steps = jobs["agent-guidance"]["steps"]
+        commands = " ".join(str(step.get("run", "")) for step in steps)
+        self.assertIn("pyyaml", commands.lower())
+
+    def test_the_guidance_filter_covers_what_the_validator_checks(self):
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        filters = yaml.safe_load(workflow["jobs"]["changes"]["steps"][1]["with"]["filters"])
+        guarded = set(filters["agent_guidance"])
+        for required in ("AGENTS.md", ".agents/**", ".claude/**", ".memory/**", "shaft-skills/**"):
+            self.assertIn(required, guarded, f"guidance filter misses {required}")
+        outputs = workflow["jobs"]["changes"]["outputs"]
+        self.assertIn("agent_guidance", outputs, "filter result is never exported")
+
+
+class NoDuplicationTest(unittest.TestCase):
+    """One rule, one home.
+
+    The validator's duplicate-paragraph check only catches verbatim blocks of
+    180+ characters, which paraphrased restatements slip under -- and a
+    paraphrase that drifts is how two files end up asserting opposite policy.
+    These checks close the cheaper half of that gap: identical lines, and
+    orphaned files nothing routes to.
+    """
+
+    GUIDANCE_GLOBS = (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".agents/skills/*/SKILL.md",
+        ".agents/skills/act-as-mohab/references/**/*.md",
+        ".claude/skills/*/SKILL.md",
+        ".claude/agents/*.md",
+        ".github/skills/*/SKILL.md",
+        ".github/copilot-instructions.md",
+        ".github/instructions/*.instructions.md",
+    )
+    # Host discovery requires each adapter to carry its own pointer line; there
+    # is no include mechanism, so this repetition is the correct price.
+    ALLOWED_REPEATS = ("Load [act-as-mohab](", "Do not restate policy here.")
+    MIN_DUPLICATE_LINE_CHARS = 40
+
+    def guidance_files(self) -> list[Path]:
+        paths: set[Path] = set()
+        for pattern in self.GUIDANCE_GLOBS:
+            paths.update(path for path in ROOT.glob(pattern) if path.is_file())
+        return sorted(paths)
+
+    def test_no_substantive_line_is_repeated_across_guidance_files(self):
+        seen: dict[str, list[str]] = {}
+        for path in self.guidance_files():
+            for raw in path.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if len(line) < self.MIN_DUPLICATE_LINE_CHARS:
+                    continue
+                if set(line) <= set("|- "):
+                    continue
+                if any(line.startswith(allowed) for allowed in self.ALLOWED_REPEATS):
+                    continue
+                seen.setdefault(line, []).append(path.relative_to(ROOT).as_posix())
+        duplicates = {
+            line: sorted(set(files)) for line, files in seen.items() if len(set(files)) > 1
+        }
+        self.assertEqual(duplicates, {}, "identical guidance line in more than one file")
+
+    def test_every_reference_file_is_routed_or_linked(self):
+        """A reference nothing points at is guidance no agent will ever read."""
+        reachable = set()
+        for skill in CANONICAL_SKILLS.glob("*/SKILL.md"):
+            reachable.update(read_chain_depth(skill))
+        orphaned = [
+            path.relative_to(ROOT).as_posix()
+            for path in REFERENCES.rglob("*.md")
+            if path.resolve() not in reachable
+        ]
+        self.assertEqual(orphaned, [], "reference file is not reachable from any skill")
+
+
 class DisciplineTest(unittest.TestCase):
     """Rules the published failure evidence says an agent will otherwise break."""
 

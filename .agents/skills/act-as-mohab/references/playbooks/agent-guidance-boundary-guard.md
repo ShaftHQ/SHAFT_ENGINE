@@ -1,8 +1,3 @@
----
-name: agent-guidance-boundary-guard
-description: Use when auditing SHAFT agent guidance, host adapters, hooks, guidance budgets, or retrieval setup.
----
-
 # Agent Guidance Boundary Guard
 
 Use for agent guidance and retrieval/config surfaces. Keep one substantive entrypoint; make every host surface a thin relative adapter.

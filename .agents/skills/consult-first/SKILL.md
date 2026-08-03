@@ -8,17 +8,13 @@ description: >-
 
 # Consult
 
-Run this before task-specific discovery, on every task, on every host. You are
-deciding what good looks like and how much rigor this change earns. No edits
-yet.
+You are here because the entrypoint's triage selected a depth beyond the
+trivial row. Decide what good looks like and how the change will be proved
+before touching anything. No edits yet.
 
-The gate is unconditional. Its weight is not: depth scales with the change, so
-a cross-cutting change earns the full pass and a typo never gets here at all.
-
-Triage lives in the entrypoint, not in this file, so a trivial task does not pay
-to learn it was trivial. Arrive here already knowing which points you owe. If
-triage and the user's framing disagree about size, say so in one line and work
-to the larger.
+Triage is unconditional and lives in the entrypoint, so a trivial task never
+loads this file. Arrive already knowing which points you owe. If triage and the
+user's framing disagree about size, say so in one line and work to the larger.
 
 ## Full pass
 
@@ -53,14 +49,12 @@ Work runs in this order, and each phase ends before the next begins:
 analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
 pull request -> babysit to green -> merge.
 
-Every phase that changes behavior ends with an independent adversarial review
-before the next one starts. The reviewer is a separate agent prompted to refute
-the work, never its author, at the depth this task's triage set. Apply what
-survives; drop what is refuted; re-review until nothing viable remains. See
-[delegation](../act-as-mohab/references/delegation.md) for tier and cap rules.
+Every phase that changes behavior ends with the independent adversarial review
+defined in [delegation](../act-as-mohab/references/delegation.md), at the depth
+this task's triage set.
 
 ## Output
 
-Report the triage result, the depth you took, the chosen approach, the rejected
-approach and why its steelman lost, and the RED check. Keep it to the depth
-triage selected — a three-line consult reports three lines.
+Report the triage result, the depth you took, and only the points that depth
+included. A partial pass reports partially; do not pad it with points you were
+told to skip.

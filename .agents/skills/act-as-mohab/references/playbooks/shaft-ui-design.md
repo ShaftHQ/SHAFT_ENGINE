@@ -1,8 +1,3 @@
----
-name: shaft-ui-design
-description: Use for SHAFT UI design, redesign, optimization, review, visual QA, UX copy, accessibility, responsive behavior, reports, core tools, and public guide work.
----
-
 # SHAFT UI Design
 
 Use for every visible SHAFT interface: reports, core tools, the public guide,

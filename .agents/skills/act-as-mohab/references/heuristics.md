@@ -26,13 +26,10 @@ files and observations outrank this guidance.
 
 - Test the unknown most likely to invalidate the approach first. Estimate work
   by unknowns and blast radius, not line count.
-- Name invariants before editing: public API, persisted or wire format, safety,
-  performance, and affected user behavior.
 - Fix small blockers in the direct path. Keep larger adjacent findings out of
   the diff and route them through the repository's issue process.
-- Prefer reversible steps. When two designs hold, choose the one easier to
-  remove. Use a throwaway probe for high uncertainty, then discard it before
-  TDD implementation.
+- Use a throwaway probe for high uncertainty, then discard it before TDD
+  implementation.
 - Match surrounding naming and idioms. Comments record constraints; they do
   not narrate code. Keep style-only cleanup separate.
 - For user-facing work, verify the cheapest faithful rendering or real flow

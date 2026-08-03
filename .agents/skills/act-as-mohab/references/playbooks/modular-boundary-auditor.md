@@ -1,8 +1,3 @@
----
-name: modular-boundary-auditor
-description: Use when auditing Maven module boundaries, BOM wiring, legacy coordinates, bundled examples, or clean consumer fixtures.
----
-
 # Modular Boundary Auditor
 
 Use for module boundary and packaging drift across Maven reactor modules, examples, BOM, legacy coordinate, and clean consumer fixtures.

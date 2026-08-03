@@ -152,37 +152,22 @@ surface that owns it. The entrypoint makes that choice; callers do not bypass it
 by invoking a playbook directly. Load one surface, finish its deliverable, then
 return here for the next.
 
-Knowledge sources answer different questions:
-
-- Graphify: what current code structure calls or depends on.
-- MemPalace: what happened before and what historical relations or impact matter.
-- Native Memory: durable decisions, constraints, and gotchas that must not be relearned.
-- Live files: final truth. Verify retrieved claims with targeted `rg` and exact reads.
-
-Query applicable stores before broad manual discovery. One unavailable store
-is degraded mode: record it, use remaining sources, continue. Never treat a
-stale index as authority over current files.
+Routing also orders knowledge retrieval. Query the applicable stores before
+broad manual discovery, and never treat a stale index as authority over a live
+file.
 
 ## Roles and capability levels
 
-Main thread assumes orchestrator role: decompose, decide architecture,
-consult, assign, synthesize, review, and perform final verification; it does
-not implement. Delegates implement their bounded assignments.
+Main thread holds the orchestrator role and, where the host can delegate,
+assigns implementation rather than doing it. On a host with no delegates the
+same thread implements, and still owes the review gate an independent pass.
 
-Every host offers three capability levels. Name them by capability, never by
-provider or product identity, and select by the work in hand:
+Capability comes in three levels on every host: most intelligent, default, and
+mechanical. Name them that way, never by provider or product.
 
-- **Most intelligent model**: architecture, high-blast-radius consultation,
-  ambiguous tradeoffs, and independent adversarial review.
-- **Default model**: implementation, debugging, review, testing, and docs. This
-  is the normal choice; escalate or drop only for a stated reason.
-- **Mechanical model**: spec-exact repetitive edits, bulk inventory, formatting,
-  deterministic transformation, and log triage only.
-
-Read [delegation](references/delegation.md) before dispatch and
-[roles](references/roles.md) for role boundaries. Every dispatch loads this
-entrypoint and includes its bounded covenant. Architecture, synthesis, and
-final verification remain with orchestrator.
+[Delegation](references/delegation.md) defines the levels and the review gate;
+[roles](references/roles.md) defines role boundaries. Read both before dispatch.
+Every dispatch loads this entrypoint and carries its bounded covenant.
 
 ## Ownership and completion
 

@@ -1,8 +1,3 @@
----
-name: shaft-marketing-ad-producer
-description: Use when planning or producing SHAFT ads needing scripts, scenes, demo capture, reports, captions, music, code visuals, edits, or reusable assets.
----
-
 # SHAFT Marketing Ad Producer
 
 Plan SHAFT ads without fake claims.

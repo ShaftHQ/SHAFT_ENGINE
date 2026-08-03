@@ -1,8 +1,3 @@
----
-name: ci-failure-investigator
-description: Investigate GitHub Actions and SHAFT Allure failures from a run, PR, or job; separate code defects from infrastructure and provider failures.
----
-
 # CI Failure Investigator
 
 Use this playbook only for CI failure triage.

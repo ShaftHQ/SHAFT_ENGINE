@@ -83,6 +83,7 @@ jobs:
               - '.github/copilot-instructions.md'
               - 'shaft-skills/**'
               - '.claude-plugin/marketplace.json'
+              - '.memory/**'
               - 'scripts/agents/**'
               - 'scripts/ci/validate_agent_setup.py'
               - 'scripts/ci/validate_agent_guidance.py'
@@ -180,6 +181,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml --quiet
       - name: Run agent harness unit tests
         run: >-
           python3 -m unittest
@@ -628,6 +631,7 @@ jobs:
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
+          AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
           INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
           CLI_RESULT: ${{ needs.cli.result }}
@@ -646,6 +650,7 @@ jobs:
             echo "| --- | --- |"
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
+            echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
             echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
@@ -664,7 +669,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

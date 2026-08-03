@@ -1,8 +1,3 @@
----
-name: flaky-test-stabilizer
-description: Diagnose and stabilize intermittent SHAFT tests, especially TestNG parallelism, shared state, files, drivers, timing, and external dependencies.
----
-
 # Flaky Test Stabilizer
 
 Use this playbook for intermittent, retry-only, parallel-only, or

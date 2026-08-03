@@ -9,8 +9,9 @@ know. Infer the row from what they asked for.
 
 ## Always, before any row
 
-Run [consult-first](../../consult-first/SKILL.md) at the depth its triage
-selects. Apply the entrypoint's Caveman, Ponytail, and TDD rules; use
+Take the depth the entrypoint's triage already selected, loading
+[consult-first](../../consult-first/SKILL.md) only when that triage sends you
+there. Apply the entrypoint's Caveman, Ponytail, and TDD rules; use
 [delegation](delegation.md) before dispatch and [roles](roles.md) for role
 boundaries.
 
@@ -44,6 +45,9 @@ continue with the others. A stale index never outranks a live file.
 | One issue through a merged PR | [GitHub playbook](work-github-playbook.md) |
 | Reviewing a diff for behavior that no check would catch | [verification-gap lens](verification-gap-lens.md) |
 | Holding main thread at session start | [orchestrator bootstrap](orchestrator-bootstrap.md) |
+| A repository CI script or its guard test, outside agent guidance | [framework source](playbooks/framework-source.md) conventions, then the guard's own test |
+| In-repo Markdown for humans, such as README or CONTRIBUTING | [public docs](playbooks/public-behavior-docs-synchronizer.md) |
+| The `.memory` store itself: entries, relations, or hygiene | [agent guidance](playbooks/agent-guidance-boundary-guard.md) |
 
 ## Deep SHAFT internals
 

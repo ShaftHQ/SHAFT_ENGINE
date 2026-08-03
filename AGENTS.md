@@ -13,9 +13,9 @@ Before every task, read and follow
 provider-agnostic router for intent, capability levels, skills, MCPs, Caveman,
 Ponytail, TDD, PDCA, Memory, MemPalace, Graphify, delegation, and completion.
 Every main thread and delegate loads it; repo playbooks are reached through
-that entrypoint, never as competing policy. It opens every task with
-[consult-first](.agents/skills/consult-first/SKILL.md), whose triage sets how
-much rigor the change earns.
+that entrypoint, never as competing policy. Its triage runs before every task
+and decides whether the change also earns
+[consult-first](.agents/skills/consult-first/SKILL.md).
 
 Name capability only as most intelligent, default, or mechanical. Never name a
 model or product in tracked guidance.
@@ -26,19 +26,12 @@ guidance. All operational paths in tracked guidance/config stay relative.
 
 ## Work lifecycle
 
-At session start fetch/prune, then clear stale local state in the order the
-entrypoint states: push branches whose commits exist on no remote, delete the
-rest with their worktrees, and skip plus report any worktree holding
-uncommitted changes or belonging to a live session. Then use a fresh
-`ChaosEngine/*` branch/worktree from `origin/main`; reuse one session and make
+Session branch and worktree cleanup, and the fresh `ChaosEngine/*` base, are
+owned by the entrypoint's Task isolation section. Reuse one session and make
 dependent subtasks commits. Before PR: sync default, resolve conflicts, rerun
 affected checks, commit, push, and maintain tracker plus linked subtask issues
 per the routed GitHub playbook. `.memory/events.jsonl` alone may report
 `CONFLICTING`; its union merge is authoritative locally (#4137).
-
-Work runs analyze, plan, design, RED, GREEN, refactor, commit, PR, merge. Every
-behavior-changing step ends with an independent adversarial review by an agent
-that did not author it, at the depth the consult gate selected.
 
 Role boundaries and capability-level delegation live only in the mandatory
 act-as-mohab entrypoint.
