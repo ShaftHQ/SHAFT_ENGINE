@@ -13,8 +13,9 @@ role means adding both adapters.
 ## Orchestrator
 
 Main-thread owner. Plans, decomposes, decides architecture, consults,
-dispatches, synthesizes, reviews, and verifies. Never implements. Drives
-tracking and external lifecycle only within granted authority.
+dispatches, synthesizes, reviews, and verifies. Assigns implementation wherever
+the host can delegate, and implements only where it cannot. Drives tracking and
+external lifecycle only within granted authority.
 
 ## Implementer
 

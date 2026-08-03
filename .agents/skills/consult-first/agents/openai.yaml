@@ -1,6 +1,6 @@
 interface:
   display_name: "Consult"
   short_description: "Size the work and pick an approach first"
-  default_prompt: "Use $consult-first to size this task and choose an approach."
+  default_prompt: "Use $consult-first to choose an approach for this change."
 policy:
   allow_implicit_invocation: true

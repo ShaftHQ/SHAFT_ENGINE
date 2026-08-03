@@ -1,9 +1,9 @@
 ---
 name: consult-first
 description: >-
-  Deliberation gate. Use at the start of every task before discovery or edits to
-  size the work and choose an approach, and use again before any hard-to-reverse
-  step or when an approach stops holding.
+  Deliberation gate. Use when the entrypoint's triage selects a depth beyond a
+  single reversible file, before any hard-to-reverse step, or when an approach
+  stops holding.
 ---
 
 # Consult

@@ -636,8 +636,8 @@ class RetrievalParityTest(unittest.TestCase):
         tomllib = __import__("tomllib")
         codex = set(tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))["mcp_servers"])
         claude = set(json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
-        # Codex nests per-tool tables under the server name; ignore those.
-        codex = {name for name in codex if "." not in name}
+        # tomllib nests `[mcp_servers.x.tools.y]` under x, so these are the
+        # server names only.
         self.assertEqual(codex, claude, "retrieval servers differ between hosts")
 
     def test_routing_states_when_each_knowledge_store_is_required(self):

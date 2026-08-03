@@ -56,8 +56,8 @@ honor that by not manufacturing more checkpoints than the one they granted.
 
 ### Mid-session realignment: named HALT conditions
 
-Per the entrypoint's Ownership and completion section, a new ask mid-run
-joins the same owned plan —
+Per the ownership rules in [field heuristics](heuristics.md), a new ask
+mid-run joins the same owned plan —
 absorb and keep going, in most cases. But absorbing on missing evidence is
 how a session drifts silently off the owner's actual intent. HALT and ask,
 by name, when any of these hold (adapted from bmad-method's

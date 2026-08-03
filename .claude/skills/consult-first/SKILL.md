@@ -1,6 +1,6 @@
 ---
 name: consult-first
-description: Use at the start of every task and before any hard-to-reverse step; redirects to the canonical deliberation gate.
+description: Use when triage selects a depth beyond a single reversible file, or before any hard-to-reverse step; redirects to the canonical deliberation gate.
 ---
 
 # Consult adapter

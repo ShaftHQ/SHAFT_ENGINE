@@ -75,7 +75,7 @@ write it, prompted to refute rather than approve. Depth follows the same triage.
 
 ```mermaid
 flowchart LR
-    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PR[pull request] --> MG[merge]
+    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PR[pull request] --> BG[babysit to green] --> MG[merge]
     RD -.-> RV{{independent<br/>adversarial review}}
     GR -.-> RV
     RF -.-> RV
@@ -185,8 +185,8 @@ pull request that touches the harness:
   point at something nobody ships.
 - Every playbook and mastery chapter is linked directly from the routing table,
   and every reference is reachable from a skill.
-- No identical line appears in two guidance files, and no reference is a
-  redirect stub.
+- No substantive line is repeated across two guidance files, apart from the
+  host pointers that have to be, and no reference is a redirect stub.
 - Frontmatter parses as real YAML, and no skill name uses a reserved word.
 - The always-loaded body and the skill listing each stay under a ceiling
   derived from a documented host limit.

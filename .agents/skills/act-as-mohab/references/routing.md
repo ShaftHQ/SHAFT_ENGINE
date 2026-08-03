@@ -54,7 +54,7 @@ failure this table exists to prevent.
 | One issue through a merged PR | [GitHub playbook](work-github-playbook.md) |
 | Reviewing a diff for behavior that no check would catch | [verification-gap lens](verification-gap-lens.md) |
 | Holding main thread at session start | [orchestrator bootstrap](orchestrator-bootstrap.md) |
-| A repository CI script or its guard test, outside agent guidance | [framework source](playbooks/framework-source.md) conventions, then the guard's own test |
+| A repository CI script or guard under `scripts/`, outside agent guidance | [agent guidance](playbooks/agent-guidance-boundary-guard.md), then the guard's own test |
 | In-repo Markdown for humans, such as README or CONTRIBUTING | [public docs](playbooks/public-behavior-docs-synchronizer.md) |
 | The `.memory` store itself: entries, relations, or hygiene | [agent guidance](playbooks/agent-guidance-boundary-guard.md) |
 
