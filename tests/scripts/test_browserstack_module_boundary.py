@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -68,7 +69,9 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
 
         self.assertTrue(commands)
         for command in commands:
-            if "exec:java" in command:
+            if "exec:java" in command or re.search(
+                r"exec-maven-plugin:[^ ]+:java(?:\s|$)", command
+            ):
                 self.assertIn("-f shaft-engine/pom.xml", command)
                 self.assertNotIn("shaft-browserstack", command)
                 continue
