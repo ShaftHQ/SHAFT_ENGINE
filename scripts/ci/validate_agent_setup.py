@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import re
 import shutil
 import subprocess
@@ -17,9 +16,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.ci.validate_agent_guidance import (  # noqa: E402
+    always_loaded_body_chars,
     expand_globs,
     load_budget,
-    parse_frontmatter,
+    skill_listing_chars,
     validate_repository as validate_guidance,
 )
 from scripts.ci.validate_documentation_boundaries import (  # noqa: E402
@@ -297,20 +297,14 @@ def collect_metrics(root: Path = ROOT) -> dict:
     """Collect stable context and memory size metrics."""
     budget = load_budget(root / "scripts/ci/agent_guidance_budget.json")
     guidance_paths = expand_globs(root, budget.get("total_guidance_globs", []))
-    host_tokens: dict[str, int] = {}
+    # Two surfaces, two documented limits -- see limit_sources in the budget.
+    host_body_chars: dict[str, int] = {}
     for host, configured_paths in budget.get("host_contexts", {}).items():
-        characters = sum(
-            len((root / path).read_text(encoding="utf-8"))
-            for path in configured_paths
-            if (root / path).is_file()
-        )
-        for path in expand_globs(
-            root, budget.get("host_skill_metadata_globs", {}).get(host, [])
-        ):
-            frontmatter = parse_frontmatter(path.read_text(encoding="utf-8")) or {}
-            characters += len(frontmatter.get("name", ""))
-            characters += len(frontmatter.get("description", ""))
-        host_tokens[host] = math.ceil(characters / 4)
+        host_body_chars[host] = always_loaded_body_chars(root, configured_paths)[0]
+    host_listing_chars = {
+        host: skill_listing_chars(root, patterns)
+        for host, patterns in budget.get("host_skill_metadata_globs", {}).items()
+    }
     baseline = budget.get("reduction_baseline_bytes", 0)
     # LF-normalized to match validate_total_reduction and the LF blobs CI sees.
     guidance_bytes = sum(
@@ -330,7 +324,8 @@ def collect_metrics(root: Path = ROOT) -> dict:
     return {
         "guidance_bytes": guidance_bytes,
         "guidance_reduction_percent": reduction,
-        "estimated_host_tokens": host_tokens,
+        "always_loaded_body_chars": host_body_chars,
+        "skill_listing_chars": host_listing_chars,
         "memory_objects": len(list(memory_root.rglob("*.json")))
         if memory_root.is_dir()
         else 0,

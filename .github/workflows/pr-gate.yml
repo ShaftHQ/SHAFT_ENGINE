@@ -50,6 +50,7 @@ jobs:
       javacore: ${{ steps.filter.outputs.javacore }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -68,6 +69,33 @@ jobs:
               - "**/*.md"
               - "**/*.mdx"
               - "scripts/ci/validate_documentation_boundaries.py"
+            # Agent guidance had no CI gate at all: validate_agent_setup.py and
+            # the harness suites were local-only, so drift only surfaced when
+            # someone ran them by hand.
+            agent_guidance:
+              - 'AGENTS.md'
+              - 'CLAUDE.md'
+              - '.agents/**'
+              - '.claude/**'
+              - '.codex/**'
+              - '.github/skills/**'
+              - '.github/instructions/**'
+              - '.github/copilot-instructions.md'
+              - 'shaft-skills/**'
+              - '.claude-plugin/marketplace.json'
+              - '.memory/**'
+              - 'scripts/agents/**'
+              - 'scripts/ci/validate_agent_setup.py'
+              - 'scripts/ci/validate_agent_guidance.py'
+              - 'scripts/ci/validate_skills.py'
+              - 'scripts/ci/agent_guidance_budget.json'
+              - 'tests/scripts/test_agent_router_contract.py'
+              - 'tests/scripts/test_agent_harness_portability.py'
+              - 'tests/scripts/test_validate_agent_guidance.py'
+              - 'tests/scripts/test_validate_agent_setup.py'
+              - 'tests/scripts/test_validate_skills.py'
+              - 'tests/scripts/test_sync_user_harness.py'
+              - 'tests/scripts/test_shaft_skills_content.py'
             intellij:
               - 'shaft-intellij/**'
               - '.github/workflows/publish-intellij-plugin.yml'
@@ -135,6 +163,39 @@ jobs:
         uses: actions/checkout@v7
       - name: Validate documentation boundaries
         run: python3 scripts/ci/validate_documentation_boundaries.py
+
+  # Guards the agent harness: router reachability, host parity, character
+  # budgets derived from documented host limits, and skill hygiene.
+  # --skip-external omits the pinned Memory CLI and git diff checks, which
+  # need npm state a PR runner does not carry.
+  agent-guidance:
+    name: Agent Guidance Gate
+    needs: changes
+    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml --quiet
+      - name: Run agent harness unit tests
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_agent_router_contract
+          tests.scripts.test_agent_harness_portability
+          tests.scripts.test_validate_agent_guidance
+          tests.scripts.test_validate_agent_setup
+          tests.scripts.test_validate_skills
+          tests.scripts.test_sync_user_harness
+          tests.scripts.test_shaft_skills_content
+          -v
+      - name: Validate agent guidance budgets and routing
+        run: python3 scripts/ci/validate_agent_setup.py --skip-external
 
   # intellij-plugin.yml runs two independent PR jobs today (installer
   # verification across three OSes, and the Gradle plugin build); both are
@@ -551,6 +612,7 @@ jobs:
     needs:
       - changes
       - docs-boundary
+      - agent-guidance
       - installer-verify
       - intellij-build
       - cli
@@ -569,6 +631,7 @@ jobs:
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
+          AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
           INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
           CLI_RESULT: ${{ needs.cli.result }}
@@ -587,6 +650,7 @@ jobs:
             echo "| --- | --- |"
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
+            echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
             echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
@@ -605,7 +669,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

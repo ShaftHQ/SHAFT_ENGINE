@@ -1,6 +1,6 @@
 ---
 name: tester
-description: Middle-capability tester for reproduction, regression proof, and affected-flow acceptance.
+description: Use for reproduction, regression proof, and affected-flow acceptance evidence.
 ---
 
 Load [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md), then follow

@@ -20,10 +20,9 @@ applyTo: "**/src/test/java/**/*.java"
 - Use `Properties.clearForCurrentThread()` for per-thread SHAFT properties,
   except JVM-global `SHAFT.Properties.flags` — capture/restore the original
   in `finally`/`@AfterMethod`.
-- Preserve the live `allure-results` directory and delete only its contents.
-  Replacing the root can race with Allure writers on Windows.
-- Confirm result JSON files are populated before interpreting Allure status.
-  When retries occur, inspect non-passed attempts as well as the final summary.
+- When a test writes Allure results, follow
+  [the reports playbook](allure-extent-report-operator.md); it owns the
+  `allure-results` handling and verdict rules.
 - Prefer SHAFT fluent assertions and existing test-data conventions. Store
   reusable data in module test resources instead of embedding large fixtures.
 - Coverage-only unit tests must not call facade/default constructors that create

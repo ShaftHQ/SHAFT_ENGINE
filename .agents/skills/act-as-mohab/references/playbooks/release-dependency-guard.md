@@ -1,8 +1,3 @@
----
-name: release-dependency-guard
-description: Use when preparing or reviewing a SHAFT release, dependency updates, static versions, or Maven Central safeguards.
----
-
 # Release And Dependency Guard
 
 Use only for release preparation, release review, or dependency-currency work.

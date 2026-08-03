@@ -1,10 +1,73 @@
----
-name: shaft-ui-design
-description: Use for SHAFT UI design, redesign, optimization, review, visual QA, UX copy, accessibility, responsive behavior, reports, core tools, and public guide work.
----
-
 # SHAFT UI Design
 
-Use for visible SHAFT interfaces. Always read
-[the standards](shaft-ui-design-standards.md) before planning, editing,
+Use for every visible SHAFT interface: reports, core tools, the public guide,
+and app-like product UI. Read this file fully before planning, editing,
 reviewing, or validating UI work.
+
+## Sources Of Truth
+
+- Current repo rules win: `AGENTS.md`, `CLAUDE.md`, matching skills, Memory, and the target repo's `AGENTS.md`.
+- Read existing tokens, CSS, theme files, components, and representative pages before designing. Reuse what works.
+- For guide work, preserve Docusaurus behavior, dark mode, reduced motion, semantic HTML, copyable fenced code, search exclusions, archive `noindex`, redirects, AutoBot HTTP contracts, and source-backed claims.
+- Do not add dependencies, systems, or generated artifacts unless the current task needs them.
+
+## Workflow
+
+1. Define the surface: core report/tool/workbench, docs/user guide, homepage/marketing, or app-like product UI.
+2. Inspect the current design language and one representative rendered state. For revamps, capture a before screenshot first.
+3. Make a short design plan: audience, one job, 4-6 color roles, type roles, layout idea, and one memorable SHAFT-specific signature element.
+4. Build the smallest complete change. Prefer existing components, tokens, CSS, and native browser features over new abstractions.
+5. Validate in a browser at desktop and mobile widths. Check contrast, focus, keyboard use, reduced motion, dark mode when supported, loading/empty/error states, and text overflow.
+6. Share real screenshots every time: before/after for revamps, after-only for new UI. PRs that touch visible UI or reporting must include those links/paths in the PR body or a PR comment. If capture is blocked, keep the PR draft or report the exact blocker.
+
+## Design Direction
+
+- Make the interface feel like SHAFT: precise, evidence-first, automation-native, confident, and readable under real debugging pressure.
+- Ground visual choices in the subject: test evidence, reports, traces, locators, flows, timelines, browser/device surfaces, or docs learning paths.
+- Use one bold idea, not many decorations. A signature visualization or interaction should explain the product better than a generic hero/card pattern.
+- For operational/report UI, prioritize dense scanning, stable layout, clear status, comparison, filtering, and repeat use. For guide/marketing pages, let the brand voice carry more personality while keeping claims verifiable.
+- UI copy is part of design: plain verbs, sentence case, consistent action names, specific errors, useful empty states, no vague apology copy, no unsupported superlatives.
+
+## Quality Floor
+
+- Contrast: body and placeholder text at least 4.5:1; large text at least 3:1.
+- Layout: no incoherent overlap, no clipping, no text overflow, no layout shift from hover or dynamic content, stable dimensions for grids/boards/toolbars/cards.
+- Typography: readable line lengths, clear hierarchy, no viewport-scaled font sizes, no negative letter spacing, headings balanced when supported.
+- Components: icon buttons use existing icon libraries when available; familiar controls beat custom widgets.
+- Motion: purposeful and sparse; never gate visibility on animations; avoid layout-property animation; always respect `prefers-reduced-motion`.
+- Assets: prefer real product/report/docs imagery or deterministic screenshots. Do not use generated images for exact UI text, code, logos, or claims.
+- Color: never pure `#000000` or `#ffffff` for surfaces or body text; keep one accent role and let neutrals carry the rest. Accent saturation above ~80% reads as a default theme, not a choice.
+- States: every interactive surface ships focus, loading, empty, and error states. A loading state mirrors the real layout's dimensions rather than a centered spinner, so the page does not jump when content arrives.
+
+## Unslop Rules
+
+Reject and rewrite these unless the brief explicitly requires them and the choice is justified:
+
+- Generic SaaS hero metrics, endless equal card grids, decorative glassmorphism, gradient text, bokeh/orbs, diagonal stripe backgrounds, sketchy SVG scenes, side-stripe accents, and dark blurred stock imagery.
+- Tiny uppercase eyebrows or `01 / 02 / 03` markers as section scaffolding. Numbers only when order matters.
+- One-note palettes: default cream/sand, purple-blue gradients, dark navy/slate, brown/espresso, or a single hue ramp. Existing SHAFT brand tokens can stay.
+- Ghost cards: decorative `1px` border plus wide soft shadow. Pick a border or a restrained shadow.
+- Over-rounded cards/sections/inputs. Keep cards at 8px radius or less unless an existing design system already requires otherwise.
+- Hover transforms on images that are not action targets. Animate the card state, border, shadow, or content affordance instead.
+- Text in visible UI that explains the feature instead of letting the feature work.
+
+## SHAFT-Specific Checks
+
+- Core generated reports and workbenches must keep evidence readable: status chips, tables, wrapping, trace/code panels, screenshots, and diagnostics must remain inspectable.
+- User guide pages must keep one canonical page per concept and verify commands, APIs, properties, dependencies, and compatibility against engine source.
+- Public docs changes that alter behavior need the matching docs PR; pure agent-guidance changes do not.
+- PR evidence must include the smallest useful validation plus real screenshot links/paths for any UI or reporting enhancement.
+
+## IntelliJ Plugin UI
+
+- Follow JetBrains IntelliJ icon standards first: https://intellij-icons.jetbrains.design/ and https://plugins.jetbrains.com/docs/intellij/icons.html.
+- Reuse IntelliJ Platform icons from `AllIcons` when they render correctly in runtime and screenshot evidence. Use plugin-owned SVGs only when platform icons do not satisfy the UI, licensing, theme, or deterministic screenshot need.
+- Keep action icons as 16x16 SVGs under `shaft-intellij/src/main/resources/icons/actions`, with matching `_dark.svg` variants when needed. Use the IntelliJ New UI action colors: light `#6C707E`, dark `#CED0D6`.
+- Tool window icons must keep the existing 16x16 and 20x20 SVG light/dark variants registered in `plugin.xml`.
+- Do not hand-draw replacement glyphs in screenshot renderers or paint fake icons over components. If screenshots show blank or broken icons, fix the shared icon source (`ShaftIcons` or assets) so runtime UI and screenshots use the same real icon.
+- Preserve icon-only button shape, size, tooltip, and accessible-name behavior through `ShaftIconButtons`; do not add one-off button styling in individual panels.
+- Validate IntelliJ icon/UI changes with the smallest relevant set: `ShaftIconAssetsTest`, focused panel tests that assert icons paint visible pixels, screenshot renderer output, and visual inspection of light, dark, and narrow states.
+- Swing surfaces obey the same states and color rules as the web surfaces above: focus, loading, empty, and error states are required; one accent role; never pure black or white. The plugin-screenshot renderer is where you verify them, not a browser.
+- Keep icon stroke weight and metaphor consistent across a panel. Avoid cliche metaphors (rocket for run, shield for security) when a platform `AllIcons` entry already names the concept.
+
+Portions of the color/state rules above are re-expressed from leonxlnx/taste-skill (MIT, Copyright (c) 2026 Leonxlnx).

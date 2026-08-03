@@ -1,8 +1,3 @@
----
-name: public-behavior-docs-synchronizer
-description: Use when planning or verifying user-guide updates for public SHAFT behavior, docs links, release text, or API/config changes.
----
-
 # Public Behavior Docs Synchronizer
 
 Use for user-visible SHAFT behavior changes. Keep docs work separate from code unless the task explicitly asks for both.

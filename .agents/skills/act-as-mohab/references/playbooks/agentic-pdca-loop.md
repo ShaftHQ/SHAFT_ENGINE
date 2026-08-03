@@ -1,16 +1,14 @@
----
-name: agentic-pdca-loop
-description: Use for SHAFT PDCA, Kevin/Bob/Bruce roles, or refinement loops.
----
-
 # PDCA
 
 Personas are phases, not agent identities. They run sequentially in the main
-session, whose orchestrator never edits:
+session. PDCA is a single task, so the entrypoint's solo-or-orchestrate rule
+normally puts it in solo mode: the same thread runs every phase and does the
+work. Only when the session also owns other unrelated streams does Bob dispatch
+instead of implementing.
 
 - Kevin phase plans spec, value, acceptance, risks, and any useful Mermaid or wireframe.
-- Bob phase dispatches and shepherds a bounded middle-tier implementation
-  owner, which makes the smallest cross-platform change through observed TDD.
+- Bob phase makes the smallest cross-platform change through observed TDD, or
+  shepherds a bounded default-capability owner that does when orchestrating.
 - Bruce reviews the actual diff and evidence for defects, ambiguity, and
   confidence, then assigns any required patch to an implementation owner.
 
@@ -21,7 +19,7 @@ smallest check each pass. Stop at >=90% confidence or a blocker.
 ## Execution
 
 Switch persona by switching main-thread phase, never by creating persona
-agents, workflows, or orchestrators. Bob shepherds at most three implementation
-rounds. Bruce judges the actual diff plus real checks, never an owner's
-self-report; hunt stubs and weakened assertions, and assign gaps rather than
-closing them on the main thread. Record which phase produced each commit.
+agents, workflows, or orchestrators. Bob takes at most three implementation
+rounds. Bruce judges the actual diff plus real checks, never a self-report;
+hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
+implements. Record which phase produced each commit.

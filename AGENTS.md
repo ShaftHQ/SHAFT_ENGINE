@@ -10,10 +10,15 @@ Config wins. Start from requested goal and affected files.
 
 Before every task, read and follow
 [act-as-mohab](.agents/skills/act-as-mohab/SKILL.md). It is the single
-provider-agnostic router for intent, capability tiers, skills, MCPs, Caveman,
+provider-agnostic router for intent, capability levels, skills, MCPs, Caveman,
 Ponytail, TDD, PDCA, Memory, MemPalace, Graphify, delegation, and completion.
 Every main thread and delegate loads it; repo playbooks are reached through
-that entrypoint, never as competing policy.
+that entrypoint, never as competing policy. Its triage runs before every task
+and decides whether the change also earns
+[consult-first](.agents/skills/consult-first/SKILL.md).
+
+Name capability only as most intelligent, default, or mechanical. Never name a
+model or product in tracked guidance.
 
 `CLAUDE.md` and `.claude/skills/act-as-mohab/SKILL.md` are thin adapters.
 Grok uses `AGENTS.md` plus that compatible adapter; do not add duplicate Grok
@@ -21,14 +26,14 @@ guidance. All operational paths in tracked guidance/config stay relative.
 
 ## Work lifecycle
 
-At session start fetch/prune and use a fresh `ChaosEngine/*` branch/worktree
-from `origin/main`; reuse one session and make dependent subtasks commits.
-Before PR: sync default, resolve conflicts, rerun affected checks, commit,
-push, and maintain tracker plus linked subtask issues per the routed GitHub
-playbook. `.memory/events.jsonl` alone may report `CONFLICTING`; its union
-merge is authoritative locally (#4137).
+Session branch and worktree cleanup, and the fresh `ChaosEngine/*` base, are
+owned by the entrypoint's Task isolation section. Reuse one session and make
+dependent subtasks commits. Before PR: sync default, resolve conflicts, rerun
+affected checks, commit, push, and maintain tracker plus linked subtask issues
+per the routed GitHub playbook. `.memory/events.jsonl` alone may report
+`CONFLICTING`; its union merge is authoritative locally (#4137).
 
-Role boundaries and capability-tier delegation live only in the mandatory
+Role boundaries and capability-level delegation live only in the mandatory
 act-as-mohab entrypoint.
 
 ## Working rules

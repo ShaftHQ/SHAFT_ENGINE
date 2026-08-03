@@ -172,20 +172,82 @@ steps:
         self.write_budget()
         self.assertNotIn("skill-md-byte-budget", self.codes())
 
-    def test_counts_skill_metadata_in_host_budget(self):
+    def test_budgets_always_loaded_body_separately_from_skill_listing(self):
+        """Body and listing hit different documented host caps, so they are
+        counted against different ceilings and reported with different codes."""
         self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
         self.budget["host_skill_metadata_globs"] = {
             "codex": [".agents/skills/*/SKILL.md"]
         }
-        self.budget["max_estimated_tokens_per_host"] = 10
+        self.budget["max_always_loaded_body_chars"] = 10
+        self.budget["max_skill_listing_chars"] = 10_000
         self.write_budget()
         errors = validate_repository(self.root, self.budget_path)
-        self.assertTrue(
-            any(
-                error["code"] == "host-token-budget" and error["path"] == "codex"
-                for error in errors
-            )
+        codes = {error["code"] for error in errors if error["path"] == "codex"}
+        self.assertIn("host-body-budget", codes)
+        self.assertNotIn("host-listing-budget", codes)
+
+        self.budget["max_always_loaded_body_chars"] = 10_000
+        self.budget["max_skill_listing_chars"] = 5
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        codes = {error["code"] for error in errors if error["path"] == "codex"}
+        self.assertIn("host-listing-budget", codes)
+        self.assertNotIn("host-body-budget", codes)
+
+    def configure_routing_bridges(self, **overrides) -> None:
+        self.budget["routing_bridges"] = {
+            "source": ".agents/skills/act-as-mohab/references/routing.md",
+            "skill_roots": [".agents/skills"],
+            **overrides,
+        }
+        self.write_budget()
+
+    def test_rejects_a_routed_skill_that_does_not_exist(self):
+        """The table itself is parsed, so a new ghost row fails without anyone
+        remembering to register it in the budget."""
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\n| Deliverable | Load |\n| --- | --- |\n| Anything | `ghost-skill` |\n",
         )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn("routing-bridge-missing", {error["code"] for error in errors})
+
+    def test_accepts_a_routed_skill_that_exists(self):
+        self.write(
+            ".agents/skills/real-skill/SKILL.md",
+            "---\nname: real-skill\ndescription: Use when the router points here.\n---\n\n# Real\n",
+        )
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\n| Deliverable | Load |\n| --- | --- |\n| Anything | `real-skill` |\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        bridge_errors = [e for e in errors if e["code"].startswith("routing-bridge")]
+        self.assertEqual(bridge_errors, [])
+
+    def test_ignores_paths_and_filenames_that_are_not_skill_names(self):
+        """`src/main/java` and `AGENTS.md` are backticked in real routing prose
+        and must not be mistaken for skills."""
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\nEdit `src/main/java` per `AGENTS.md`, verify with `rg`.\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        bridge_errors = [e for e in errors if e["code"].startswith("routing-bridge")]
+        self.assertEqual(bridge_errors, [])
+
+    def test_rejects_a_required_handoff_the_router_no_longer_mentions(self):
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\nNothing is routed here.\n",
+        )
+        self.configure_routing_bridges(required_names=["consult-first"])
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn("routing-bridge-unrouted", {error["code"] for error in errors})
 
     def test_rejects_duplicate_long_paragraphs(self):
         paragraph = "This duplicated instruction is deliberately long enough for deterministic detection. " * 2

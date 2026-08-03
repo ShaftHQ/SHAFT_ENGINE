@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Read-only middle-capability reviewer for spec compliance, quality, and verification gaps.
+description: Use for read-only review of spec compliance, quality, and verification gaps, including the independent adversarial pass.
 tools: Skill, Read, Grep, Glob, Bash, PowerShell, Agent
 ---
 

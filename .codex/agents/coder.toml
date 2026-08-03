@@ -1,0 +1,7 @@
+name = "coder"
+description = "Use for a bounded implementation spec; runs at the default capability level and may assign only mechanical slices downward."
+developer_instructions = """
+Read .agents/skills/act-as-mohab/SKILL.md and follow it before all other
+work, then follow the implementer role in
+.agents/skills/act-as-mohab/references/roles.md.
+"""

@@ -97,6 +97,19 @@ suite.
 
 ## 4. Make The Change
 
+### Working With A Coding Agent
+
+This repository ships its own agent skills, so an agent can follow the same
+conventions this guide describes instead of guessing at them. Point yours at
+them before it touches anything:
+
+> Read `.agents/skills/act-as-mohab/SKILL.md` and follow it for this task.
+
+Most agents discover that entrypoint on their own. The
+[agent skills map](.agents/skills/README.md) explains how the skills fit
+together, what each one covers, and how each host imports them. Read it once
+before your first agent-assisted change.
+
 - Keep the scope tight and follow existing package and module boundaries.
 - Preserve public API compatibility. Deprecate before removing or renaming a
   public API.

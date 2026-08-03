@@ -64,16 +64,16 @@ def sources(root: Path, claude_dir: Path, agents_dir: Path) -> dict[str, tuple[P
     for source in sorted((root / ".claude/agents").glob("*.md")):
         result[f"agents/{source.name}"] = (source, claude_dir / "agents" / source.name)
 
-    adapter = root / ".claude/skills/act-as-mohab/SKILL.md"
-    result["skills/act-as-mohab/SKILL.md"] = (
-        adapter,
-        claude_dir / "skills/act-as-mohab/SKILL.md",
-    )
-    canonical = root / ".agents/skills/act-as-mohab"
-    for source in sorted(path for path in canonical.rglob("*") if path.is_file()):
-        relative = source.relative_to(canonical)
-        label = f"../.agents/skills/act-as-mohab/{relative.as_posix()}"
-        result[label] = (source, agents_dir / "skills/act-as-mohab" / relative)
+    # Deploy every canonical skill and its host adapter, not just the router:
+    # the router links sibling skills, so a partial deploy leaves dead links.
+    for adapter in sorted((root / ".claude/skills").glob("*/SKILL.md")):
+        relative = adapter.relative_to(root / ".claude/skills")
+        result[f"skills/{relative.as_posix()}"] = (adapter, claude_dir / "skills" / relative)
+    canonical_root = root / ".agents/skills"
+    for source in sorted(path for path in canonical_root.rglob("*") if path.is_file()):
+        relative = source.relative_to(canonical_root)
+        label = f"../.agents/skills/{relative.as_posix()}"
+        result[label] = (source, agents_dir / "skills" / relative)
     return result
 
 

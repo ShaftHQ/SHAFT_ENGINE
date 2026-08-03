@@ -15,7 +15,13 @@
       "Bash(py -3 tools/repository-map/resolve_graph_out.py *)",
       "Bash(python3 tools/repository-map/resolve_graph_out.py *)",
       "Bash(memory *)",
-      "Bash(mempalace *)"
+      "Bash(mempalace *)",
+      "mcp__shaft-memory__load_memory",
+      "mcp__shaft-memory__search_memory",
+      "mcp__shaft-memory__inspect_memory"
+    ],
+    "ask": [
+      "mcp__shaft-memory__remember_memory"
     ]
   },
   "hooks": {

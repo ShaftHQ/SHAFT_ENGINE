@@ -34,7 +34,7 @@ This repo's `AGENTS.md` defaults to one branch/worktree per session with
 sub-tasks as commits, grouped into one PR per group of related subtasks (Sec.
 3b below) — not the older single-PR-per-session convention it supersedes.
 Do not silently pick an interpretation; do not ask piecemeal mid-session
-either. Surface the real decisions in **one** `AskUserQuestion` call, grounded
+either. Surface the real decisions in **one** batched question, grounded
 in what step 0 found:
 
 - **Branch/PR shape** — one branch, one tracking issue, one issue per
@@ -56,7 +56,8 @@ honor that by not manufacturing more checkpoints than the one they granted.
 
 ### Mid-session realignment: named HALT conditions
 
-Per act-as-mohab's Ownership, a new ask mid-run joins the same owned plan —
+Per the ownership rules in [field heuristics](heuristics.md), a new ask
+mid-run joins the same owned plan —
 absorb and keep going, in most cases. But absorbing on missing evidence is
 how a session drifts silently off the owner's actual intent. HALT and ask,
 by name, when any of these hold (adapted from bmad-method's
@@ -65,7 +66,7 @@ not its PRD/epic machinery, which doesn't apply here):
 
 - **HALT if the realignment changes the branch/PR/merge-authority shape
   agreed in step 1.** A broad "keep going" for the original scope is not
-  authorization for a different shape — re-run `AskUserQuestion` for the
+  authorization for a different shape — re-ask for the
   delta, don't silently reinterpret.
 - **HALT if you cannot ground the new ask in real code.** No matching
   symptom, file, or prior art after an honest search means you'd be
@@ -75,7 +76,8 @@ not its PRD/epic machinery, which doesn't apply here):
   scope, contradictory requirement, or it obsoletes a sub-item mid-commit).
   Surface the conflict and the two options; don't quietly drop either side.
 - **HALT if merge authority for the newly-added scope was never granted.**
-  Authorization doesn't transfer (act-as-mohab, When judging risk) — an
+  Authorization doesn't transfer (see the risk and ownership rules in
+  [field heuristics](heuristics.md)) — an
   auto-merge mandate for the original item set doesn't extend to scope
   added after the fact.
 
@@ -92,18 +94,21 @@ not its PRD/epic machinery, which doesn't apply here):
 ## 3. Work items in dependency order, front-loading risk
 
 Order sub-items so the riskiest/least-understood one goes first (per
-`act-as-mohab`'s "front-load the riskiest unknown") — if it invalidates an
+the entrypoint's operating contract, "test riskiest premise first") — if it
+invalidates an
 assumption, better to learn that before three other items are built on top
 of it.
 
-For each item, decide dispatch shape:
+One issue is one work stream, so the entrypoint's solo-or-orchestrate rule
+normally puts this session in solo mode and the shapes below apply only while
+orchestrating. For each item, decide dispatch shape:
 
 - **Scout it yourself first** when it requires an architectural or
   data-model decision (e.g. "where does this state actually live, and can a
   fix live alongside an existing persistence contract without breaking it").
-  Per this repo's Agent Hierarchy, that judgment call belongs to the main
+  Per [roles](roles.md), that judgment call belongs to the main
   thread, not a subagent guessing at a spec you haven't written yet.
-- **Delegate to a middle-capability role** (`coder`; `reviewer`/`tester` for their
+- **Delegate at the default capability level** (`coder`; `reviewer`/`tester` for their
   lanes) once you can write a *detailed, concrete* spec: exact files, exact method/field names verified against the real
   code, the precedent pattern to follow (with a real file:line reference),
   what's explicitly out of scope, what tests to add and where, and the exact
@@ -115,7 +120,7 @@ For each item, decide dispatch shape:
   corrupt each other's edits — check each spec's file list against the
   others before deciding parallel vs. sequential dispatch. Only run
   independent-file items in parallel.
-- Low capability is for low-risk mechanical edits, log/report summarization, and bulk
+- The mechanical capability level is for low-risk mechanical edits, log/report summarization, and bulk
   repetitive triage — not for a spec that requires judgment calls mid-flight.
 
 ## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)
@@ -291,7 +296,7 @@ manufacturing a memory entry to fill the step.
   materially different blast radius; flag it for manual merge even under a
   broad unattended mandate unless the user's authorization explicitly
   covered it.
-- After a merge, compact (or let the harness's `/compact` fire) so the next
+- After a merge, compact the session if the host supports it so the next
   item — or the next session — starts with fresh context instead of a
   ballooning transcript.
 
