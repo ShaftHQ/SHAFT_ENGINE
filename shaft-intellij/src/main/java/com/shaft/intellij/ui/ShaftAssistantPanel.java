@@ -3431,6 +3431,9 @@ final class ShaftAssistantPanel extends JPanel {
         String previousSelection = localModel.getEditor() == null
                 ? null
                 : String.valueOf(localModel.getEditor().getItem());
+        String selectedModel = previousSelection != null && !previousSelection.isBlank()
+                ? previousSelection
+                : settings.localModel == null ? "" : settings.localModel.trim();
         // The CLI-reported list wins; the curated catalog keeps the selector useful when the CLI
         // cannot list its models (issue #3369).
         localModelListIsFallback = models.isEmpty();
@@ -3442,10 +3445,11 @@ final class ShaftAssistantPanel extends JPanel {
         if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
             localModelEditor.setToolTipText(tooltip);
         }
-        if (previousSelection != null && !previousSelection.isBlank()) {
-            localModel.setSelectedItem(previousSelection);
-        } else if (settings.localModel != null && !settings.localModel.isBlank()) {
-            localModel.setSelectedItem(settings.localModel.trim());
+        if (effectiveModels.isEmpty() && "CODEX".equals(family)
+                && "gpt-5.2-codex".equalsIgnoreCase(selectedModel)) {
+            localModel.setSelectedItem("");
+        } else if (!selectedModel.isBlank()) {
+            localModel.setSelectedItem(selectedModel);
         } else if (!effectiveModels.isEmpty()) {
             localModel.setSelectedItem(effectiveModels.get(0));
         }

@@ -49,6 +49,14 @@ class AssistantLocalAgentRunnerCommandTest {
     }
 
     @Test
+    void codexCommandSupportsNonGitWorkspaces() {
+        List<String> command = AssistantLocalAgentRunner.commandFor(arguments("CODEX", "ASK", false));
+
+        assertTrue(command.contains("--skip-git-repo-check"),
+                "The documented demo workspace is not a git repository: " + command);
+    }
+
+    @Test
     void claudeAgentCommandOnlyUsesAcceptEditsPermissionModeWhenApprovalStoreGrantsIt() {
         List<String> granted = AssistantLocalAgentRunner.commandFor(arguments("CLAUDE_CODE", "AGENT", true));
         List<String> ungranted = AssistantLocalAgentRunner.commandFor(arguments("CLAUDE_CODE", "AGENT", false));
