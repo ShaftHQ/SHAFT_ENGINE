@@ -103,6 +103,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JLabel shaftAiSection;
     private JLabel shaftAiProviderLabel;
     private JLabel shaftAiModelLabel;
+    private JLabel shaftAiEndpointLabel;
     private JLabel providerKeysSection;
     private JLabel shaftAiHelp;
     private JLabel providerKeysHelp;
@@ -111,6 +112,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JLabel anthropicKeyLabel;
     private JLabel geminiKeyLabel;
     private JLabel githubKeyLabel;
+    private JLabel lmStudioKeyLabel;
+    private JLabel ollamaKeyLabel;
     private JComboBox<String> assistantProviderType;
     private JComboBox<String> assistantFamily;
     private JComboBox<String> assistantRuntime;
@@ -120,6 +123,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JComboBox<String> defaultMode;
     private JComboBox<String> pilotAiProvider;
     private JBTextField pilotAiModel;
+    private JBTextField pilotAiEndpoint;
     private JBCheckBox passProviderKeys;
     private JBCheckBox advancedUiEnabled;
     private JBCheckBox watchModeEnabled;
@@ -133,10 +137,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JPasswordField anthropicKey;
     private JPasswordField geminiKey;
     private JPasswordField githubKey;
+    private JPasswordField lmStudioKey;
+    private JPasswordField ollamaKey;
     private JButton clearOpenAiKey;
     private JButton clearAnthropicKey;
     private JButton clearGeminiKey;
     private JButton clearGithubKey;
+    private JButton clearLmStudioKey;
+    private JButton clearOllamaKey;
     private JButton testOpenAiKey;
     private JButton testAnthropicKey;
     private JButton testGeminiKey;
@@ -145,10 +153,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JLabel anthropicKeyStatus;
     private JLabel geminiKeyStatus;
     private JLabel githubKeyStatus;
+    private JLabel lmStudioKeyStatus;
+    private JLabel ollamaKeyStatus;
     private boolean openAiClearRequested;
     private boolean anthropicClearRequested;
     private boolean geminiClearRequested;
     private boolean githubClearRequested;
+    private boolean lmStudioClearRequested;
+    private boolean ollamaClearRequested;
     private boolean editingAgentConfiguration;
     private boolean testMcpInFlight;
 
@@ -303,7 +315,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         watchModeEnabled.getAccessibleContext().setAccessibleDescription(
                 "Reruns the last SHAFT test run configuration when a src/test/ file changes, "
                         + "throttled to at most 6 reruns per rolling 5-minute window.");
-        pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "ollama"));
+        pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "lmstudio", "ollama"));
         ShaftUiLabels.applyFriendlyRenderer(pilotAiProvider);
         pilotAiProvider.getAccessibleContext().setAccessibleName("SHAFT AI provider");
         pilotAiProvider.getAccessibleContext().setAccessibleDescription(
@@ -312,6 +324,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         pilotAiModel.getEmptyText().setText("Provider model, for example gemini-3.5-flash");
         pilotAiModel.getAccessibleContext().setAccessibleName("SHAFT AI provider model");
         pilotAiModel.getAccessibleContext().setAccessibleDescription("Model name passed to SHAFT MCP provider tools.");
+        pilotAiEndpoint = new JBTextField();
+        pilotAiEndpoint.getEmptyText().setText("Ollama: http://127.0.0.1:11434/api/chat");
+        pilotAiEndpoint.getAccessibleContext().setAccessibleName("SHAFT AI local endpoint");
+        pilotAiEndpoint.getAccessibleContext().setAccessibleDescription(
+                "Absolute HTTP(S) endpoint for the selected LM Studio or Ollama provider.");
+        pilotAiProvider.addActionListener(event -> pilotAiEndpoint.setText(
+                settingsProvider.get().localEndpointFor(String.valueOf(pilotAiProvider.getSelectedItem()))));
         passProviderKeys = new JBCheckBox("Pass stored provider keys to SHAFT MCP environment");
         passProviderKeys.getAccessibleContext().setAccessibleDescription(
                 "If enabled, SHAFT MCP is started with stored provider keys in process environment.");
@@ -327,10 +346,18 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         githubKey = new JPasswordField();
         githubKey.getAccessibleContext().setAccessibleName("GitHub API key");
         githubKey.getAccessibleContext().setAccessibleDescription("Stored key remains masked; enter a replacement to save.");
+        lmStudioKey = new JPasswordField();
+        lmStudioKey.getAccessibleContext().setAccessibleName("LM Studio API key");
+        lmStudioKey.getAccessibleContext().setAccessibleDescription("Optional local gateway key stored in Password Safe.");
+        ollamaKey = new JPasswordField();
+        ollamaKey.getAccessibleContext().setAccessibleName("Ollama API key");
+        ollamaKey.getAccessibleContext().setAccessibleDescription("Optional local gateway key stored in Password Safe.");
         openAiKeyStatus = keyStatusLabel("OpenAI");
         anthropicKeyStatus = keyStatusLabel("Anthropic");
         geminiKeyStatus = keyStatusLabel("Gemini");
         githubKeyStatus = keyStatusLabel("GitHub");
+        lmStudioKeyStatus = keyStatusLabel("LM Studio");
+        ollamaKeyStatus = keyStatusLabel("Ollama");
         clearOpenAiKey = new JButton("Clear");
         configureClearButton(clearOpenAiKey, "Clear stored OpenAI API key", openAiKey, openAiKeyStatus, () -> openAiClearRequested = true);
         testOpenAiKey = new JButton("Test");
@@ -351,6 +378,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 GEMINI_PROVIDER_KEY, geminiKey, geminiKeyStatus, testGeminiKey, "Gemini", ProviderKeyProbe::testGemini));
         clearGithubKey = new JButton("Clear");
         configureClearButton(clearGithubKey, "Clear stored GitHub API key", githubKey, githubKeyStatus, () -> githubClearRequested = true);
+        clearLmStudioKey = new JButton("Clear");
+        configureClearButton(clearLmStudioKey, "Clear stored LM Studio API key", lmStudioKey, lmStudioKeyStatus,
+                () -> lmStudioClearRequested = true);
+        clearOllamaKey = new JButton("Clear");
+        configureClearButton(clearOllamaKey, "Clear stored Ollama API key", ollamaKey, ollamaKeyStatus,
+                () -> ollamaClearRequested = true);
         testGithubKey = new JButton("Test");
         ShaftIconButtons.apply(testGithubKey, "Test GitHub API key", "Test GitHub API key", ShaftIcons.CHECK);
         testGithubKey.addActionListener(event -> testProviderKey(
@@ -365,6 +398,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         defaultModeLabel = label("Default assistant mode", 'D', defaultMode);
         shaftAiSection = section("Advanced");
         shaftAiProviderLabel = label("Provider for Doctor/Healer AI features", 'P', pilotAiProvider);
+        shaftAiEndpointLabel = label("Local endpoint", 'E', pilotAiEndpoint);
         shaftAiModelLabel = label("Model", 'L', pilotAiModel);
         providerKeysSection = section("Credentials");
         shaftAiHelp = help("This provider powers only SHAFT MCP's own AI-assisted tools, such as Doctor/Healer diagnosis, separate and independent from the Assistant's cloud provider selection above.");
@@ -374,6 +408,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         anthropicKeyLabel = label("Anthropic API key", 'A', anthropicKey);
         geminiKeyLabel = label("Gemini API key", 'I', geminiKey);
         githubKeyLabel = label("GitHub API key", 'G', githubKey);
+        lmStudioKeyLabel = label("LM Studio API key", 'S', lmStudioKey);
+        ollamaKeyLabel = label("Ollama API key", 'K', ollamaKey);
 
         panel = FormBuilder.createFormBuilder()
                 .addComponent(section("Connection"))
@@ -400,6 +436,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(watchModeEnabled)
                 .addComponent(shaftAiSection)
                 .addLabeledComponent(shaftAiProviderLabel, pilotAiProvider)
+                .addLabeledComponent(shaftAiEndpointLabel, pilotAiEndpoint)
                 .addLabeledComponent(shaftAiModelLabel, pilotAiModel)
                 .addComponent(shaftAiHelp)
                 .addComponent(providerKeysSection)
@@ -414,6 +451,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(keyRow(clearGeminiKey, testGeminiKey, geminiKeyStatus))
                 .addLabeledComponent(githubKeyLabel, githubKey)
                 .addComponent(keyRow(clearGithubKey, testGithubKey, githubKeyStatus))
+                .addLabeledComponent(lmStudioKeyLabel, lmStudioKey)
+                .addComponent(keyRow(clearLmStudioKey, null, lmStudioKeyStatus))
+                .addLabeledComponent(ollamaKeyLabel, ollamaKey)
+                .addComponent(keyRow(clearOllamaKey, null, ollamaKeyStatus))
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         panel.setBorder(JBUI.Borders.empty(8));
@@ -439,20 +480,28 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 || !Objects.equals(state.defaultAutobotMode, defaultMode.getSelectedItem())
                 || !Objects.equals(state.pilotAiProvider, pilotAiProvider.getSelectedItem())
                 || !Objects.equals(state.pilotAiModel, pilotAiModel.getText())
+                || !Objects.equals(state.localEndpointFor(String.valueOf(pilotAiProvider.getSelectedItem())), pilotAiEndpoint.getText())
                 || state.passProviderApiKeysToMcp != passProviderKeys.isSelected()
                 || openAiClearRequested
                 || anthropicClearRequested
                 || geminiClearRequested
                 || githubClearRequested
+                || lmStudioClearRequested
+                || ollamaClearRequested
                 || hasPassword(openAiKey)
                 || hasPassword(anthropicKey)
                 || hasPassword(geminiKey)
                 || hasPassword(githubKey)
+                || hasPassword(lmStudioKey)
+                || hasPassword(ollamaKey)
                 || testExecutionModified();
     }
 
     @Override
     public void apply() throws ConfigurationException {
+        String provider = String.valueOf(pilotAiProvider.getSelectedItem());
+        String endpoint = pilotAiEndpoint.getText();
+        validateLocalEndpoint(provider, endpoint);
         ShaftSettingsState.Settings state = settingsProvider.get();
         String command = mcpCommand.getText().trim();
         if (!Objects.equals(state.mcpCommand, command)) {
@@ -471,8 +520,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.cloudModel = cloudModel.getText().trim();
         state.defaultAutobotClient = clientFromFamily(state.assistantFamily);
         state.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
-        state.pilotAiProvider = String.valueOf(pilotAiProvider.getSelectedItem());
+        state.pilotAiProvider = provider;
         state.pilotAiModel = pilotAiModel.getText().trim();
+        saveLocalEndpoint(state, provider, endpoint);
         state.passProviderApiKeysToMcp = passProviderKeys.isSelected();
 
         CredentialAccess credentials = credentialsProvider.get();
@@ -480,15 +530,21 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         CompletableFuture<Void> anthropicFuture = applyCredentialChange(credentials, ANTHROPIC_PROVIDER_KEY, anthropicKey, anthropicClearRequested);
         CompletableFuture<Void> geminiFuture = applyCredentialChange(credentials, GEMINI_PROVIDER_KEY, geminiKey, geminiClearRequested);
         CompletableFuture<Void> githubFuture = applyCredentialChange(credentials, GITHUB_PROVIDER_KEY, githubKey, githubClearRequested);
+        CompletableFuture<Void> lmStudioFuture = applyCredentialChange(credentials, "LMSTUDIO_API_KEY", lmStudioKey, lmStudioClearRequested);
+        CompletableFuture<Void> ollamaFuture = applyCredentialChange(credentials, "OLLAMA_API_KEY", ollamaKey, ollamaClearRequested);
         // Deliberately not thenRunAsync with an extra executor here (issue #3623): each input future
         // already hops onto the EDT internally (ShaftCredentialService.*Async completes on the EDT;
         // the test fake's pre-completed futures run inline). A second executor hop would be redundant.
-        CompletableFuture.allOf(openAiFuture, anthropicFuture, geminiFuture, githubFuture)
+        CompletableFuture.allOf(openAiFuture, anthropicFuture, geminiFuture, githubFuture, lmStudioFuture, ollamaFuture)
                 .thenRun(() -> updateStoredKeyStatus(credentials));
         openAiClearRequested = false;
         anthropicClearRequested = false;
         geminiClearRequested = false;
         githubClearRequested = false;
+        lmStudioClearRequested = false;
+        ollamaClearRequested = false;
+        lmStudioClearRequested = false;
+        ollamaClearRequested = false;
         editingAgentConfiguration = false;
         updateAgentConfigurationControls();
         applyTestExecutionOverrides();
@@ -513,6 +569,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         pilotAiProvider.setSelectedItem(state.pilotAiProvider == null || state.pilotAiProvider.isBlank()
                 ? "none" : state.pilotAiProvider);
         pilotAiModel.setText(state.pilotAiModel == null ? "" : state.pilotAiModel);
+        pilotAiEndpoint.setText(state.localEndpointFor(String.valueOf(pilotAiProvider.getSelectedItem())));
         passProviderKeys.setSelected(state.passProviderApiKeysToMcp);
         openAiClearRequested = false;
         anthropicClearRequested = false;
@@ -522,6 +579,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         clear(anthropicKey);
         clear(geminiKey);
         clear(githubKey);
+        clear(lmStudioKey);
+        clear(ollamaKey);
         updateStoredKeyStatus(credentialsProvider.get());
         editingAgentConfiguration = false;
         updateAgentConfigurationControls();
@@ -555,6 +614,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         defaultMode = null;
         pilotAiProvider = null;
         pilotAiModel = null;
+        pilotAiEndpoint = null;
         passProviderKeys = null;
         advancedUiEnabled = null;
         watchModeEnabled = null;
@@ -568,6 +628,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         shaftAiSection = null;
         shaftAiProviderLabel = null;
         shaftAiModelLabel = null;
+        shaftAiEndpointLabel = null;
         providerKeysSection = null;
         shaftAiHelp = null;
         providerKeysHelp = null;
@@ -576,14 +637,20 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         anthropicKeyLabel = null;
         geminiKeyLabel = null;
         githubKeyLabel = null;
+        lmStudioKeyLabel = null;
+        ollamaKeyLabel = null;
         openAiKey = null;
         anthropicKey = null;
         geminiKey = null;
         githubKey = null;
+        lmStudioKey = null;
+        ollamaKey = null;
         clearOpenAiKey = null;
         clearAnthropicKey = null;
         clearGeminiKey = null;
         clearGithubKey = null;
+        clearLmStudioKey = null;
+        clearOllamaKey = null;
         testOpenAiKey = null;
         testAnthropicKey = null;
         testGeminiKey = null;
@@ -592,6 +659,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         anthropicKeyStatus = null;
         geminiKeyStatus = null;
         githubKeyStatus = null;
+        lmStudioKeyStatus = null;
+        ollamaKeyStatus = null;
         editingAgentConfiguration = false;
     }
 
@@ -717,7 +786,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private static JPanel keyRow(JButton clearButton, JButton testButton, JLabel statusLabel) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         row.add(clearButton);
-        row.add(testButton);
+        if (testButton != null) {
+            row.add(testButton);
+        }
         row.add(statusLabel);
         return row;
     }
@@ -789,6 +860,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         updateStoredStateAsync(credentials, ANTHROPIC_PROVIDER_KEY, anthropicKeyStatus);
         updateStoredStateAsync(credentials, GEMINI_PROVIDER_KEY, geminiKeyStatus);
         updateStoredStateAsync(credentials, GITHUB_PROVIDER_KEY, githubKeyStatus);
+        updateStoredStateAsync(credentials, "LMSTUDIO_API_KEY", lmStudioKeyStatus);
+        updateStoredStateAsync(credentials, "OLLAMA_API_KEY", ollamaKeyStatus);
     }
 
     private static void updateStoredStateAsync(CredentialAccess credentials, String key, JLabel label) {
@@ -860,6 +933,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         if (testMcpInFlight) {
+            return;
+        }
+        if (!validFormLocalEndpoint()) {
+            statusLabel.setEnabled(true);
+            statusLabel.setText(ShaftStatusPresentation.ERROR_ICON + " Invalid local endpoint");
+            statusLabel.getAccessibleContext().setAccessibleDescription(statusLabel.getText());
+            statusLabel.setForeground(ShaftStatusPresentation.error());
             return;
         }
         testMcpInFlight = true;
@@ -1125,6 +1205,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         settings.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         settings.pilotAiProvider = String.valueOf(pilotAiProvider.getSelectedItem());
         settings.pilotAiModel = pilotAiModel.getText() == null ? "" : pilotAiModel.getText().trim();
+        saveLocalEndpoint(settings, settings.pilotAiProvider, pilotAiEndpoint.getText() == null ? "" : pilotAiEndpoint.getText());
         settings.passProviderApiKeysToMcp = passProviderKeys.isSelected();
         return settings;
     }
@@ -1143,6 +1224,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.defaultAutobotMode = form.defaultAutobotMode;
         state.pilotAiProvider = form.pilotAiProvider;
         state.pilotAiModel = form.pilotAiModel;
+        state.ollamaEndpoint = form.ollamaEndpoint;
+        state.lmStudioEndpoint = form.lmStudioEndpoint;
         state.passProviderApiKeysToMcp = form.passProviderApiKeysToMcp;
         state.mcpSetupComplete = true;
     }
@@ -1183,21 +1266,26 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         cloudModel.setVisible(cloud && !showSummary);
         defaultModeLabel.setVisible(advanced && !showSummary);
         defaultMode.setVisible(advanced && !showSummary);
-        setVisible(advanced, shaftAiSection, shaftAiProviderLabel, shaftAiModelLabel, shaftAiHelp,
+        setVisible(advanced, shaftAiSection, shaftAiProviderLabel, shaftAiEndpointLabel, shaftAiModelLabel, shaftAiHelp,
                 providerKeysSection, providerKeysHelp, providerKeysStorageHelp, openAiKeyLabel,
-                anthropicKeyLabel, geminiKeyLabel, githubKeyLabel, openAiKeyStatus, anthropicKeyStatus,
-                geminiKeyStatus, githubKeyStatus);
+                anthropicKeyLabel, geminiKeyLabel, githubKeyLabel, lmStudioKeyLabel, ollamaKeyLabel,
+                openAiKeyStatus, anthropicKeyStatus, geminiKeyStatus, githubKeyStatus, lmStudioKeyStatus, ollamaKeyStatus);
         pilotAiProvider.setVisible(advanced);
         pilotAiModel.setVisible(advanced);
+        pilotAiEndpoint.setVisible(advanced);
         passProviderKeys.setVisible(advanced);
         openAiKey.setVisible(advanced);
         anthropicKey.setVisible(advanced);
         geminiKey.setVisible(advanced);
         githubKey.setVisible(advanced);
+        lmStudioKey.setVisible(advanced);
+        ollamaKey.setVisible(advanced);
         clearOpenAiKey.setVisible(advanced);
         clearAnthropicKey.setVisible(advanced);
         clearGeminiKey.setVisible(advanced);
         clearGithubKey.setVisible(advanced);
+        clearLmStudioKey.setVisible(advanced);
+        clearOllamaKey.setVisible(advanced);
         testOpenAiKey.setVisible(advanced);
         testAnthropicKey.setVisible(advanced);
         testGeminiKey.setVisible(advanced);
@@ -1212,6 +1300,34 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
     private static boolean mcpReady(ShaftSettingsState.Settings state) {
         return state != null && state.mcpReady();
+    }
+
+    private boolean validFormLocalEndpoint() {
+        String provider = String.valueOf(pilotAiProvider.getSelectedItem());
+        if (!"ollama".equals(provider) && !"lmstudio".equals(provider)) {
+            return true;
+        }
+        return pilotAiEndpoint.getText().isBlank() || ShaftSettingsState.validLocalEndpoint(provider, pilotAiEndpoint.getText());
+    }
+
+    private static void validateLocalEndpoint(String provider, String endpoint) throws ConfigurationException {
+        if (!"ollama".equals(provider) && !"lmstudio".equals(provider)) {
+            return;
+        }
+        if (endpoint.isBlank()) {
+            return;
+        }
+        if (!ShaftSettingsState.validLocalEndpoint(provider, endpoint)) {
+            throw new ConfigurationException("Local endpoint must be a literal loopback HTTP(S) URL without credentials, query, fragment, or whitespace.");
+        }
+    }
+
+    private static void saveLocalEndpoint(ShaftSettingsState.Settings settings, String provider, String endpoint) {
+        if ("ollama".equals(provider)) {
+            settings.ollamaEndpoint = endpoint;
+        } else if ("lmstudio".equals(provider)) {
+            settings.lmStudioEndpoint = endpoint;
+        }
     }
 
     private static String currentAgentConfigurationText(ShaftSettingsState.Settings state) {

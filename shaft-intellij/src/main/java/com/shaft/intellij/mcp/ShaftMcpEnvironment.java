@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
 final class ShaftMcpEnvironment {
     private ShaftMcpEnvironment() {
@@ -15,8 +16,17 @@ final class ShaftMcpEnvironment {
     }
 
     static Map<String, String> forSettings(ShaftSettingsState.Settings settings) {
+        return forSettings(settings, key -> ShaftCredentialService.getInstance().apiKey(key));
+    }
+
+    static Map<String, String> forSettings(ShaftSettingsState.Settings settings, Function<String, String> credentialLookup) {
         String provider = selectedProvider(settings);
-        Map<String, String> environment = providerKeys(settings != null && settings.passProviderApiKeysToMcp, provider);
+        if (isLocalProvider(provider) && !selectedEndpoint(settings).isBlank()
+                && !ShaftSettingsState.validLocalEndpoint(provider, selectedEndpoint(settings))) {
+            return Map.of();
+        }
+        Map<String, String> environment = providerKeys(settings != null && settings.passProviderApiKeysToMcp, provider,
+                credentialLookup);
         addPilotOptions(environment, settings);
         return environment.isEmpty() ? Map.of() : Map.copyOf(environment);
     }
@@ -26,22 +36,25 @@ final class ShaftMcpEnvironment {
     }
 
     static Map<String, String> providerKeys(boolean passProviderKeys, String provider) {
+        return providerKeys(passProviderKeys, provider, key -> ShaftCredentialService.getInstance().apiKey(key));
+    }
+
+    private static Map<String, String> providerKeys(boolean passProviderKeys, String provider,
+                                                     Function<String, String> credentialLookup) {
         if (!passProviderKeys) {
             return new LinkedHashMap<>();
         }
         String keyName = providerKeyName(provider);
         if (!keyName.isBlank()) {
-            ShaftCredentialService credentials = ShaftCredentialService.getInstance();
             Map<String, String> environment = new LinkedHashMap<>();
-            putIfPresent(environment, keyName, credentials.apiKey(keyName));
+            putIfPresent(environment, keyName, credentialLookup.apply(keyName));
             return environment;
         }
-        ShaftCredentialService credentials = ShaftCredentialService.getInstance();
         Map<String, String> environment = new LinkedHashMap<>();
-        putIfPresent(environment, "OPENAI_API_KEY", credentials.apiKey("OPENAI_API_KEY"));
-        putIfPresent(environment, "ANTHROPIC_API_KEY", credentials.apiKey("ANTHROPIC_API_KEY"));
-        putIfPresent(environment, "GEMINI_API_KEY", credentials.apiKey("GEMINI_API_KEY"));
-        putIfPresent(environment, "GITHUB_TOKEN", credentials.apiKey("GITHUB_TOKEN"));
+        putIfPresent(environment, "OPENAI_API_KEY", credentialLookup.apply("OPENAI_API_KEY"));
+        putIfPresent(environment, "ANTHROPIC_API_KEY", credentialLookup.apply("ANTHROPIC_API_KEY"));
+        putIfPresent(environment, "GEMINI_API_KEY", credentialLookup.apply("GEMINI_API_KEY"));
+        putIfPresent(environment, "GITHUB_TOKEN", credentialLookup.apply("GITHUB_TOKEN"));
         return environment;
     }
 
@@ -51,6 +64,8 @@ final class ShaftMcpEnvironment {
             case "anthropic" -> "ANTHROPIC_API_KEY";
             case "gemini" -> "GEMINI_API_KEY";
             case "github" -> "GITHUB_TOKEN";
+            case "lmstudio" -> "LMSTUDIO_API_KEY";
+            case "ollama" -> "OLLAMA_API_KEY";
             default -> "";
         };
     }
@@ -63,7 +78,7 @@ final class ShaftMcpEnvironment {
         List<String> options = new ArrayList<>();
         options.add("-Dpilot.ai.enabled=true");
         options.add("-Dpilot.ai.provider=" + provider);
-        if ("ollama".equals(provider)) {
+        if (isLocalProvider(provider)) {
             options.add("-Dpilot.ai.consent.local=true");
         } else {
             options.add("-Dpilot.ai.consent.remote=true");
@@ -71,6 +86,13 @@ final class ShaftMcpEnvironment {
         String model = selectedModel(settings);
         if (!model.isBlank()) {
             options.add("-Dpilot.ai." + provider + ".model=" + model);
+        }
+        if (isLocalProvider(provider)) {
+            String endpoint = selectedEndpoint(settings);
+            if (!endpoint.isBlank()) {
+                options.add("-Dpilot.ai." + provider + ".endpoint=" + endpoint);
+            }
+            options.add("-Dpilot.ai." + provider + ".apiKeyEnvironmentVariable=" + providerKeyName(provider));
         }
         String existing = environment.getOrDefault("JAVA_TOOL_OPTIONS", System.getenv("JAVA_TOOL_OPTIONS"));
         environment.put("JAVA_TOOL_OPTIONS", (existing == null || existing.isBlank())
@@ -104,5 +126,13 @@ final class ShaftMcpEnvironment {
         }
         String model = "CLOUD".equalsIgnoreCase(settings.assistantProviderType) ? settings.cloudModel : settings.pilotAiModel;
         return model == null ? "" : model.trim();
+    }
+
+    private static String selectedEndpoint(ShaftSettingsState.Settings settings) {
+        return settings == null ? "" : settings.localEndpointFor(selectedProvider(settings));
+    }
+
+    private static boolean isLocalProvider(String provider) {
+        return "ollama".equals(provider) || "lmstudio".equals(provider);
     }
 }

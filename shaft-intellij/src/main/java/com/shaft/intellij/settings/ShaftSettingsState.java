@@ -7,11 +7,16 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.util.xmlb.XmlSerializerUtil;
 import org.jetbrains.annotations.NotNull;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 /**
  * Persistent SHAFT IntelliJ plugin settings.
  */
 @State(name = "ShaftSettings", storages = @Storage("shaft.xml"))
 public final class ShaftSettingsState implements PersistentStateComponent<ShaftSettingsState.Settings> {
+    public static final String OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/chat";
+    public static final String LMSTUDIO_ENDPOINT = "http://127.0.0.1:1234/v1/responses";
     private Settings settings = new Settings();
 
     /**
@@ -47,6 +52,28 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         defaults.mcpCommand = "";
         defaults.mcpSetupComplete = false;
         return defaults;
+    }
+
+    public static boolean validLocalEndpoint(String provider, String endpoint) {
+        if (!("ollama".equals(provider) || "lmstudio".equals(provider)) || endpoint == null || endpoint.isBlank()
+                || !endpoint.equals(endpoint.trim())) {
+            return false;
+        }
+        try {
+            URI uri = new URI(endpoint);
+            if (!uri.isAbsolute() || uri.getHost() == null || uri.getUserInfo() != null || uri.getQuery() != null
+                    || uri.getFragment() != null || !("http".equalsIgnoreCase(uri.getScheme())
+                    || "https".equalsIgnoreCase(uri.getScheme()))) {
+                return false;
+            }
+            return "127.0.0.1".equals(uri.getHost()) || "::1".equals(uri.getHost());
+        } catch (URISyntaxException exception) {
+            return false;
+        }
+    }
+
+    public static String defaultLocalEndpoint(String provider) {
+        return "lmstudio".equals(provider) ? LMSTUDIO_ENDPOINT : OLLAMA_ENDPOINT;
     }
 
     /**
@@ -89,6 +116,12 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String defaultAutobotMode = "AGENT";
         public String pilotAiProvider = "none";
         public String pilotAiModel = "";
+        /** Non-secret endpoint for the selected local SHAFT AI provider. */
+        public String pilotAiEndpoint = OLLAMA_ENDPOINT;
+        /** Explicit Ollama endpoint; blank preserves the legacy {@link #pilotAiEndpoint} fallback. */
+        public String ollamaEndpoint = "";
+        /** Explicit LM Studio endpoint, independent of historical Ollama configuration. */
+        public String lmStudioEndpoint = LMSTUDIO_ENDPOINT;
         public boolean passProviderApiKeysToMcp = false;
         public boolean advancedUiEnabled = false;
         public boolean autoCompactEnabled = false;
@@ -119,6 +152,17 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
          */
         public boolean mcpReady() {
             return mcpSetupComplete && mcpCommand != null && !mcpCommand.isBlank();
+        }
+
+        public String localEndpointFor(String provider) {
+            if ("lmstudio".equals(provider)) {
+                return lmStudioEndpoint == null ? "" : lmStudioEndpoint;
+            }
+            if ("ollama".equals(provider)) {
+                return ollamaEndpoint == null || ollamaEndpoint.isBlank()
+                        ? (pilotAiEndpoint == null ? "" : pilotAiEndpoint) : ollamaEndpoint;
+            }
+            return "";
         }
     }
 }
