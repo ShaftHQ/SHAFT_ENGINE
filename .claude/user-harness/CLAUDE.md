@@ -2,7 +2,7 @@
 
 Before every task, load the deployed relative entrypoint
 `../.agents/skills/act-as-mohab/SKILL.md`. It selects working
-method, capability tier, skills, MCPs, and knowledge sources. Project
+method, capability level, skills, MCPs, and knowledge sources. Project
 `AGENTS.md` files add repository-specific constraints.
 
 This file, thin role adapters, and canonical entrypoint are deployed from a

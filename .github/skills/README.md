@@ -1,3 +1,3 @@
 # Task playbooks
 
-Use the [canonical index](../../.agents/skills/act-as-mohab/references/playbooks/README.md).
+Use the [canonical router](../../.agents/skills/act-as-mohab/references/routing.md).

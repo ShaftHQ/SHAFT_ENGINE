@@ -14,14 +14,15 @@ does not implement.
 5. Ticket substantial multi-part work before dispatch: tracker plus linked
    subtask issues.
 6. Dispatch bounded specs: exact behavior, files, precedent, exclusions,
-   expected RED, and proof command. Select top/middle/low capability using
-   [delegation](delegation.md), never provider identity.
+   expected RED, and proof command. Select the most intelligent, default, or
+   mechanical capability using [delegation](delegation.md), never provider
+   identity.
 7. Stay available for architecture/consult decisions. Inspect real progress
    near twenty minutes and provide a decision or re-spec.
 8. Review actual diff/tests in spec and quality passes. Main thread owns
    synthesis and final verification.
 9. File adjacent findings and route durable Learning Loop output before close.
 
-For branch/tracker/PR mechanics use [work GitHub](work-github.md). Role
+For branch/tracker/PR mechanics use [work GitHub](work-github-playbook.md). Role
 boundaries live in [roles](roles.md); every dispatch embeds covenant from
 [delegation](delegation.md).

@@ -10,10 +10,15 @@ Config wins. Start from requested goal and affected files.
 
 Before every task, read and follow
 [act-as-mohab](.agents/skills/act-as-mohab/SKILL.md). It is the single
-provider-agnostic router for intent, capability tiers, skills, MCPs, Caveman,
+provider-agnostic router for intent, capability levels, skills, MCPs, Caveman,
 Ponytail, TDD, PDCA, Memory, MemPalace, Graphify, delegation, and completion.
 Every main thread and delegate loads it; repo playbooks are reached through
-that entrypoint, never as competing policy.
+that entrypoint, never as competing policy. It opens every task with
+[consult-first](.agents/skills/consult-first/SKILL.md), whose triage sets how
+much rigor the change earns.
+
+Name capability only as most intelligent, default, or mechanical. Never name a
+model or product in tracked guidance.
 
 `CLAUDE.md` and `.claude/skills/act-as-mohab/SKILL.md` are thin adapters.
 Grok uses `AGENTS.md` plus that compatible adapter; do not add duplicate Grok
@@ -21,14 +26,19 @@ guidance. All operational paths in tracked guidance/config stay relative.
 
 ## Work lifecycle
 
-At session start fetch/prune and use a fresh `ChaosEngine/*` branch/worktree
-from `origin/main`; reuse one session and make dependent subtasks commits.
-Before PR: sync default, resolve conflicts, rerun affected checks, commit,
-push, and maintain tracker plus linked subtask issues per the routed GitHub
-playbook. `.memory/events.jsonl` alone may report `CONFLICTING`; its union
-merge is authoritative locally (#4137).
+At session start fetch/prune, push any local branch holding work not yet on a
+remote, delete every other local branch and its worktree, then use a fresh
+`ChaosEngine/*` branch/worktree from `origin/main`; reuse one session and make
+dependent subtasks commits. Before PR: sync default, resolve conflicts, rerun
+affected checks, commit, push, and maintain tracker plus linked subtask issues
+per the routed GitHub playbook. `.memory/events.jsonl` alone may report
+`CONFLICTING`; its union merge is authoritative locally (#4137).
 
-Role boundaries and capability-tier delegation live only in the mandatory
+Work runs analyze, plan, design, RED, GREEN, refactor, commit, PR, merge. Every
+behavior-changing step ends with an independent adversarial review by an agent
+that did not author it, at the depth the consult gate selected.
+
+Role boundaries and capability-level delegation live only in the mandatory
 act-as-mohab entrypoint.
 
 ## Working rules

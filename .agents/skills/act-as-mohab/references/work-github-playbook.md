@@ -103,7 +103,7 @@ For each item, decide dispatch shape:
   fix live alongside an existing persistence contract without breaking it").
   Per this repo's Agent Hierarchy, that judgment call belongs to the main
   thread, not a subagent guessing at a spec you haven't written yet.
-- **Delegate to a middle-capability role** (`coder`; `reviewer`/`tester` for their
+- **Delegate at the default capability level** (`coder`; `reviewer`/`tester` for their
   lanes) once you can write a *detailed, concrete* spec: exact files, exact method/field names verified against the real
   code, the precedent pattern to follow (with a real file:line reference),
   what's explicitly out of scope, what tests to add and where, and the exact
@@ -115,7 +115,7 @@ For each item, decide dispatch shape:
   corrupt each other's edits — check each spec's file list against the
   others before deciding parallel vs. sequential dispatch. Only run
   independent-file items in parallel.
-- Low capability is for low-risk mechanical edits, log/report summarization, and bulk
+- The mechanical capability level is for low-risk mechanical edits, log/report summarization, and bulk
   repetitive triage — not for a spec that requires judgment calls mid-flight.
 
 ## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)

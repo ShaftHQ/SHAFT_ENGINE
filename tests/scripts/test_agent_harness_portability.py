@@ -108,20 +108,24 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for host, paths in budget["host_contexts"].items():
             self.assertIn(mandatory, paths, host)
 
-    def test_downstream_rule_docs_are_tiny_entrypoint_redirects(self):
+    def test_rule_docs_are_embedded_rather_than_redirected(self):
+        """Redirect stubs cost a read and carry no content, so the rules live in
+        the entrypoint and the stubs are gone. Attribution must survive."""
         references = ROOT / ".agents/skills/act-as-mohab/references"
-        for relative in (
+        for retired in (
             "caveman.md",
             "ponytail.md",
             "test-driven-development.md",
             "tdd/resisting-rationalization.md",
             "tdd/testing-anti-patterns.md",
         ):
-            path = references / relative
-            self.assertTrue(path.is_file(), relative)
-            body = markdown_body(path)
-            self.assertLess(len(body), 250, relative)
-            self.assertIn("SKILL.md#", body, relative)
+            self.assertFalse((references / retired).exists(), retired)
+        for licence in (
+            "caveman.LICENSE",
+            "ponytail.LICENSE",
+            "test-driven-development.LICENSE",
+        ):
+            self.assertTrue((references / licence).is_file(), licence)
 
     def test_all_hosts_reach_the_same_entrypoint_without_grok_duplication(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -174,7 +178,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for forbidden in ("Bob implements", "closing remaining gaps himself"):
             self.assertNotIn(forbidden, pdca)
         compact = re.sub(r"\s+", " ", pdca)
-        self.assertRegex(compact, r"Bob phase[^.]*dispatches[^.]*middle-tier implementation owner")
+        self.assertRegex(
+            compact, r"Bob phase[^.]*dispatches[^.]*default-capability implementation owner"
+        )
         self.assertRegex(compact, r"Bruce[^.]*assigns?[^.]*patch")
         self.assertIn("personas are phases, not agent identities", pdca.lower())
 
@@ -273,9 +279,12 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertEqual(completed.stdout, "")
 
     def test_deployed_canonical_subtree_has_no_external_or_broken_markdown_links(self):
-        canonical = ROOT / ".agents/skills/act-as-mohab"
+        # The deployment unit is the whole skills tree, not one skill: the
+        # router links sibling skills, so a per-skill copy would report false
+        # breaks and a per-skill deploy would create real ones.
+        canonical = ROOT / ".agents/skills"
         with tempfile.TemporaryDirectory() as temporary_directory:
-            deployed = Path(temporary_directory) / ".agents/skills/act-as-mohab"
+            deployed = Path(temporary_directory) / ".agents/skills"
             shutil.copytree(canonical, deployed)
             broken = []
             for path in deployed.rglob("*.md"):

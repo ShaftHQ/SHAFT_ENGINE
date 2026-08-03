@@ -9,7 +9,7 @@ Personas are phases, not agent identities. They run sequentially in the main
 session, whose orchestrator never edits:
 
 - Kevin phase plans spec, value, acceptance, risks, and any useful Mermaid or wireframe.
-- Bob phase dispatches and shepherds a bounded middle-tier implementation
+- Bob phase dispatches and shepherds a bounded default-capability implementation
   owner, which makes the smallest cross-platform change through observed TDD.
 - Bruce reviews the actual diff and evidence for defects, ambiguity, and
   confidence, then assigns any required patch to an implementation owner.

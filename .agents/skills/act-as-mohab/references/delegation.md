@@ -1,64 +1,88 @@
-# Capability-tier delegation
+# Delegation
 
-Delegation distributes work, never responsibility. Select tier from
-uncertainty, blast radius, and reversibility; do not bind policy to a vendor,
-named engine, or fixed runtime setting.
+Delegation distributes work, never responsibility. Select capability from
+uncertainty, blast radius, and reversibility. Never bind policy to a vendor,
+product name, or runtime setting.
 
-## Tiers
+## Capability levels
 
-### Top
+Every host exposes three levels. Refer to them only by these names.
 
-Use for architecture, cross-cutting or hard-to-reverse decisions,
-high-blast-radius consultation, and one independent adversarial pass. Top tier
-owns tradeoffs and returns a decision/spec; it does not become default labor.
+### Most intelligent model
 
-### Middle
+Architecture, cross-cutting or hard-to-reverse decisions, high-blast-radius
+consultation, and independent adversarial review. It owns tradeoffs and returns
+a decision or a spec; it does not become default labor.
 
-Default for bounded implementation, debugging, review, testing, docs, and
-normal research. A middle-tier owner may delegate only fully-specified
-mechanical slices downward and must verify returned work.
+### Default model
 
-### Low
+Bounded implementation, debugging, review, testing, docs, and normal research.
+This is the standard choice. A default-model owner may assign only
+fully-specified mechanical slices downward, and must inspect the returned work
+before using it.
 
-Use for spec-exact repetitive edits, inventory, formatting, deterministic
-transformations, and log/result triage. Low tier does not choose architecture,
-expand scope, reinterpret ambiguous requirements, or delegate again. Return
-ambiguity upward without guessing.
+### Mechanical model
+
+Spec-exact repetitive edits, inventory, formatting, deterministic
+transformation, and log or result triage. It does not choose architecture,
+expand scope, reinterpret ambiguous requirements, or delegate again. It returns
+ambiguity upward instead of guessing.
 
 ## Main-thread duties
 
 Orchestrator retains decomposition, architecture, consultation, assignment,
 synthesis, integration, and final verification. It stays available for owner
-realignment and delegate questions; it never implements. New subsystems,
-migrations, dependency swaps, and cross-cutting decisions receive one
-independent top-tier adversarial review before commitment.
+realignment and delegate questions; it never implements.
 
 Run only independent file scopes concurrently. Each writer owns an isolated
 worktree. Hard cap four active agents. Check real progress for any agent or
-command unexamined for about twenty minutes; provide a decision, solved
-subproblem, or re-spec, not a heartbeat.
+command unexamined for about twenty minutes, and supply a decision, a solved
+subproblem, or a re-spec — never a heartbeat.
+
+## Independent adversarial review
+
+Every behavior-changing step ends with a review before the next step starts. The
+property that makes it work is independence, so it is not optional:
+
+- The reviewer is a **separate agent instance, never the author** of the work.
+- The reviewer is prompted to **refute** the work — find where it is wrong,
+  unverified, or over-claimed — not to approve it.
+- Depth scales with the step, matching the consult triage: one reviewer for
+  bounded reversible work; three reviewers with distinct lenses (correctness,
+  does-it-reproduce, blast radius) for hard-to-reverse or cross-cutting change.
+- Escalate to the most intelligent model for a new subsystem, a migration, a
+  dependency swap, or any decision that is expensive to unwind.
+- Record each finding as `confirmed`, `refuted`, or `unproven`. A refuted
+  finding is dropped, not softened. An empty result is a valid outcome; say so
+  rather than padding with noise.
+- Re-review after applying findings, until a pass yields nothing viable.
+
+A self-review is not a review. Neither is a delegate's own report on its own
+work.
 
 ## Delegate covenant
 
-Embed this meaning in every dispatch:
+Hosts differ in how they carry this: where the host has a subagent primitive,
+the role adapter carries it; hosts without one embed the same meaning in the
+prompt. Either way, every dispatch carries it:
 
-> Load `.agents/skills/act-as-mohab/SKILL.md` before all other work. Evidence
-> over inference: read or run before claiming. Stay inside assigned scope;
-> report adjacent findings. Cite repository-relative `file:line` evidence.
-> Behavior changes use observed RED, minimal implementation, observed GREEN.
-> Never claim an unrun check. Escalate architecture or ambiguity instead of
-> deciding it. Report failures plainly. Before waiting or after a material
-> finding, send a substantive handoff: done evidence, current step, blockers,
-> and whether a decision is needed.
+> Load the act-as-mohab entrypoint before all other work. Evidence over
+> inference: read or run before claiming. Stay inside assigned scope; report
+> adjacent findings. Cite repository-relative `file:line` evidence. Behavior
+> changes use observed RED, minimal implementation, observed GREEN. Never claim
+> an unrun check. Escalate architecture or ambiguity instead of deciding it.
+> Report failures plainly. Before waiting or after a material finding, send a
+> substantive handoff: done evidence, current step, blockers, and whether a
+> decision is needed.
 
-Middle-tier delegates may add: mechanical/spec-exact/bulk slices may go to low
-tier with this covenant; inspect their actual output before using it. Low tier
-omits that clause because it may not delegate.
+A default-model delegate may add: mechanical, spec-exact, or bulk slices may go
+to the mechanical model with this covenant; inspect their actual output before
+using it. The mechanical model omits that clause because it may not delegate.
 
 ## Returned-work review
 
 Read diff and tests. First pass checks spec compliance; second checks quality.
 Route every finding to `decision_needed`, `patch`, `defer`, or `dismiss`.
-Orchestrator owns final severity because it has full context. Use
-[verification-gap lens](verification-gap-lens.md) for behavior that could
-break without a failing check.
+Orchestrator owns final severity because it has full context. Use the
+[verification-gap lens](verification-gap-lens.md) for behavior that could break
+without a failing check.

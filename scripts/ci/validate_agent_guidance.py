@@ -66,39 +66,98 @@ def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
     return errors
 
 
+def always_loaded_body_chars(root: Path, configured_paths: list[str]) -> tuple[int, list[str]]:
+    """Count characters a host loads before it sees the task."""
+    characters = 0
+    missing: list[str] = []
+    for configured_path in configured_paths:
+        path = root / configured_path
+        if path.is_file():
+            characters += len(path.read_text(encoding="utf-8"))
+        else:
+            missing.append(configured_path)
+    return characters, missing
+
+
+def skill_listing_chars(root: Path, patterns: list[str]) -> int:
+    """Count the discovery metadata a host keeps resident for every skill."""
+    characters = 0
+    for path in expand_globs(root, patterns):
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8")) or {}
+        characters += len(frontmatter.get("name", ""))
+        characters += len(frontmatter.get("description", ""))
+    return characters
+
+
 def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
-    """Estimate auto-loaded host context with the documented character proxy."""
+    """Check the two surfaces a host pays for, against documented host limits.
+
+    Always-loaded body and skill-listing metadata hit different caps and are
+    budgeted separately -- see ``limit_sources`` in the budget file. Both are
+    measured in characters because that is the unit the hosts document.
+    """
     errors: list[dict[str, str]] = []
-    maximum = budget.get("max_estimated_tokens_per_host")
-    if maximum is None:
-        return errors
+    body_maximum = budget.get("max_always_loaded_body_chars")
+    listing_maximum = budget.get("max_skill_listing_chars")
     for host, configured_paths in budget.get("host_contexts", {}).items():
-        characters = 0
-        missing: list[str] = []
-        for configured_path in configured_paths:
-            path = root / configured_path
-            if path.is_file():
-                characters += len(path.read_text(encoding="utf-8"))
-            else:
-                missing.append(configured_path)
-        metadata_patterns = budget.get("host_skill_metadata_globs", {}).get(host, [])
-        for path in expand_globs(root, metadata_patterns):
-            frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
-            if frontmatter:
-                characters += len(frontmatter.get("name", ""))
-                characters += len(frontmatter.get("description", ""))
+        characters, missing = always_loaded_body_chars(root, configured_paths)
         if missing:
             errors.append(
                 issue("host-context-missing", host, f"missing context files: {', '.join(missing)}")
             )
             continue
-        estimated_tokens = math.ceil(characters / 4)
-        if estimated_tokens > maximum:
+        if body_maximum is not None and characters > body_maximum:
             errors.append(
                 issue(
-                    "host-token-budget",
+                    "host-body-budget",
                     host,
-                    f"estimated {estimated_tokens} tokens exceeds configured maximum {maximum}",
+                    f"{characters} always-loaded characters exceeds configured maximum {body_maximum}",
+                )
+            )
+    if listing_maximum is None:
+        return errors
+    for host, patterns in budget.get("host_skill_metadata_globs", {}).items():
+        characters = skill_listing_chars(root, patterns)
+        if characters > listing_maximum:
+            errors.append(
+                issue(
+                    "host-listing-budget",
+                    host,
+                    f"{characters} skill-listing characters exceeds configured maximum {listing_maximum}",
+                )
+            )
+    return errors
+
+
+def validate_routing_bridges(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Prove every name the router hands off to resolves to a real skill.
+
+    A router that points at a skill nobody ships fails silently at run time:
+    the agent reads the row, cannot find the file, and improvises. This check
+    is the regression test for that. It also fails the other way -- a declared
+    bridge that the routing table no longer mentions is dead configuration.
+    """
+    configured = budget.get("routing_bridges")
+    if not configured:
+        return []
+    source_relative = configured.get("source", "")
+    source = root / source_relative
+    if not source.is_file():
+        return [issue("routing-bridge-source", source_relative, "routing source is missing")]
+    content = source.read_text(encoding="utf-8")
+    roots = configured.get("skill_roots", [])
+    errors: list[dict[str, str]] = []
+    for name in configured.get("names", []):
+        if name not in content:
+            errors.append(
+                issue("routing-bridge-unrouted", source_relative, f"declared bridge is not routed: {name}")
+            )
+        if not any((root / skills_root / name / "SKILL.md").is_file() for skills_root in roots):
+            errors.append(
+                issue(
+                    "routing-bridge-missing",
+                    source_relative,
+                    f"routed skill has no SKILL.md under {', '.join(roots)}: {name}",
                 )
             )
     return errors
@@ -317,6 +376,17 @@ def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
                         f"body exceeds {maximum_body} characters",
                     )
                 )
+            maximum_lines = limits.get("max_skill_md_lines")
+            if maximum_lines is not None:
+                actual_lines = len(markdown_body(content).splitlines())
+                if actual_lines > maximum_lines:
+                    errors.append(
+                        issue(
+                            "skill-line-budget",
+                            skill_relative,
+                            f"{actual_lines} body lines exceeds configured maximum {maximum_lines}",
+                        )
+                    )
             maximum_skill_bytes = limits.get("max_skill_md_bytes")
             if maximum_skill_bytes is not None:
                 # LF-normalized bytes: content came from read_text(), which
@@ -472,6 +542,7 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_host_contexts(root, budget),
         *validate_total_reduction(root, budget),
         *validate_skills(root, budget),
+        *validate_routing_bridges(root, budget),
         *validate_local_references(root, reference_files),
         *validate_scopes(root, budget),
         *validate_forbidden_patterns(root, active_files, budget),

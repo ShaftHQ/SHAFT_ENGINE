@@ -1,4 +1,14 @@
 {
+  "limit_sources": {
+    "max_always_loaded_body_chars": "Codex concatenates AGENTS.md layers up to project_doc_max_bytes (32768 bytes) and stops at the cap. Capped at half so no host approaches truncation.",
+    "max_skill_listing_chars": "Codex renders its skill listing in at most 8000 characters when the context window is unknown, and omits skills entirely on overflow. Capped at half.",
+    "max_description_chars": "Agent Skills spec caps description at 1024 characters; Claude Code truncates description plus when_to_use at 1536. Capped tighter so the aggregate listing ceiling binds first.",
+    "max_skill_md_bytes": "Agent Skills spec recommends a SKILL.md body under 5000 tokens, and Claude Code re-attaches only the first 5000 tokens of an invoked skill after auto-compaction. 20000 characters approximates that window.",
+    "max_skill_md_lines": "Agent Skills spec: keep SKILL.md under 500 lines so a host never truncates it.",
+    "measurement": "Characters, not estimated tokens: hosts budget their listings in characters, and a chars/4 proxy adds false precision. Counts are LF-normalized via read_text()."
+  },
+  "max_always_loaded_body_chars": 16384,
+  "max_skill_listing_chars": 4000,
   "file_budgets": {
     "AGENTS.md": {
       "max_bytes": 6528
@@ -56,7 +66,18 @@
       ".claude/agents/*.md"
     ]
   },
-  "max_estimated_tokens_per_host": 2900,
+  "routing_bridges": {
+    "source": ".agents/skills/act-as-mohab/references/routing.md",
+    "skill_roots": [
+      ".agents/skills",
+      ".claude/skills",
+      "shaft-skills"
+    ],
+    "names": [
+      "consult-first",
+      "shaft-developer"
+    ]
+  },
   "active_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
@@ -83,10 +104,12 @@
   ],
   "expected_skill_names": {
     ".agents/skills": [
-      "act-as-mohab"
+      "act-as-mohab",
+      "consult-first"
     ],
     ".claude/skills": [
-      "act-as-mohab"
+      "act-as-mohab",
+      "consult-first"
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",
@@ -104,14 +127,17 @@
   },
   "skill_budgets": {
     ".agents/skills": {
-      "max_description_chars": 220,
-      "max_skill_md_bytes": 7168,
+      "max_description_chars": 320,
+      "max_skill_md_bytes": 20000,
+      "max_skill_md_lines": 500,
       "require_openai_yaml": true
     },
     ".claude/skills": {
+      "max_description_chars": 320,
       "max_skill_md_bytes": 1024
     },
     ".github/skills": {
+      "max_description_chars": 320,
       "max_skill_md_bytes": 4096
     }
   },
@@ -163,6 +189,10 @@
     {
       "pattern": "(?i)open a draft pr before",
       "message": "automatic remote PR creation"
+    },
+    {
+      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable)\\b|\\bgpt-[\\w.]+|\\bgrok-[\\w.]+",
+      "message": "named model instead of a capability level"
     }
   ],
   "stale_references": [
@@ -175,7 +205,14 @@
     ".github/skills/google-gemma/",
     ".github/skills/claude-code/",
     ".github/skills/deepseek/",
-    ".github/skills/qwen/"
+    ".github/skills/qwen/",
+    ".agents/routing-bridges.txt",
+    "references/caveman.md",
+    "references/ponytail.md",
+    "references/test-driven-development.md",
+    "references/tdd/",
+    "playbooks/README.md",
+    "shaft-ui-design-standards.md"
   ],
-  "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Host token budgets count mandatory fronts, the always-loaded entrypoint, and discovery metadata. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks. Byte counts are LF-normalized via read_text()."
+  "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Ceilings are derived from documented host limits and measured in characters -- see limit_sources. Always-loaded body counts the mandatory fronts plus the entrypoint; the skill listing counts discovery metadata only. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks."
 }
