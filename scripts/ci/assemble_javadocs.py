@@ -30,7 +30,7 @@ MODULES = {
 
 def reactor_java_modules(root: Path = ROOT) -> list[str]:
     """Return reactor modules that contain production Java sources."""
-    modules = ET.parse(root / "pom.xml").getroot().findall("m:modules/m:module", namespaces=NS)
+    modules = ET.parse(root / "pom.xml").getroot().findall("m:modules/m:module", namespaces=NS)  # nosec B314 - repository-local Maven metadata
     return [
         module.text.strip()
         for module in modules
