@@ -1142,6 +1142,7 @@ final class AssistantLocalAgentRunner {
      */
     private static List<String> codexCommand(String mode, boolean allowSourceMutation, String model, String effort) {
         List<String> command = new ArrayList<>(List.of("codex", "exec"));
+        command.add("--skip-git-repo-check");
         if (!model.isBlank()) {
             command.add("--model");
             command.add(model);
