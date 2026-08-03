@@ -34,7 +34,7 @@ public class NumberValidationsBuilder {
      * Use this to check that the actual number is equal to the expected value
      *
      * @param expectedValue the test data / expected value for the number under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isEqualTo(Number expectedValue) {
         this.expectedValue = expectedValue;
@@ -47,7 +47,7 @@ public class NumberValidationsBuilder {
     }
 
     /**
-     * Overrides the default object method equals and is the same as calling isEqualTo((Number) expectedValue).perform();
+     * Overrides the default object method equals and runs the equivalent numeric comparison.
      *
      * @param expectedValue the test data / expected value for the number under test
      * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
@@ -63,7 +63,7 @@ public class NumberValidationsBuilder {
      * Use this to check that the actual number does not equal the expected value
      *
      * @param expectedValue the test data / expected value for the number under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotEqual(Number expectedValue) {
         this.expectedValue = expectedValue;
@@ -79,7 +79,7 @@ public class NumberValidationsBuilder {
      * Use this to check that the actual number is greater than or equal to the expected value
      *
      * @param expectedValue the test data / expected value for the number under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isGreaterThanOrEquals(Number expectedValue) {
         this.expectedValue = expectedValue;
@@ -95,7 +95,7 @@ public class NumberValidationsBuilder {
      * Use this to check that the actual number is greater than the expected value
      *
      * @param expectedValue the test data / expected value for the number under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isGreaterThan(Number expectedValue) {
         this.expectedValue = expectedValue;
@@ -111,7 +111,7 @@ public class NumberValidationsBuilder {
      * Use this to check that the actual number is less than or equal to the expected value
      *
      * @param expectedValue the test data / expected value for the number under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isLessThanOrEquals(Number expectedValue) {
         this.expectedValue = expectedValue;
@@ -127,7 +127,7 @@ public class NumberValidationsBuilder {
      * Use this to check that the actual number is less than the expected value
      *
      * @param expectedValue the test data / expected value for the number under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor isLessThan(Number expectedValue) {
         this.expectedValue = expectedValue;

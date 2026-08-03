@@ -84,7 +84,7 @@ public class ValidationsBuilder {
     /**
      * Force fails the current validation
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor forceFail() {
         return forceFail("Force fail.");

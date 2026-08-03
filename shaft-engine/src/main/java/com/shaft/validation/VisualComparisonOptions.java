@@ -12,9 +12,8 @@ import java.util.List;
  * {@code toHaveScreenshot()} options.
  *
  * <p>Build with {@link #create()} and the fluent setters, then pass the result to
- * {@code assertThat(...).matchesScreenshot(options)}. Like every other SHAFT assertion,
- * {@code matchesScreenshot(...)} executes immediately &mdash; no trailing {@code perform()} is
- * required.</p>
+ * {@code assertThat(...).matchesScreenshot(options)}. The comparison runs when the terminal
+ * assertion is called.</p>
  *
  * <pre>{@code
  * driver.element().assertThat(By.id("logo"))

@@ -775,8 +775,8 @@ public class SHAFT {
      * <p><b>Usage example:</b>
      * <pre>{@code
      * SHAFT.API api = new SHAFT.API("https://jsonplaceholder.typicode.com");
-     * api.get("/posts/1").setTargetStatusCode(200).perform();
-     * api.assertThatResponse().extractedJsonValue("$.title").isNotNull().perform();
+     * api.get("/posts/1").setTargetStatusCode(200);
+     * api.assertThatResponse().extractedJsonValue("$.title").isNotNull();
      * }</pre>
      *
      * @see RequestBuilder
@@ -1335,11 +1335,11 @@ public class SHAFT {
      * <p><b>Usage example:</b>
      * <pre>{@code
      * SHAFT.Contracts.startRecording("src/test/resources/contracts/checkout.json", "/api/checkout");
-     * api.post("/api/checkout").setRequestBody(order).perform();
+     * api.post("/api/checkout").setRequestBody(order);
      * SHAFT.Contracts.stopRecording();
      *
      * SHAFT.Contracts.startAssertMode("src/test/resources/contracts/checkout.json");
-     * api.post("/api/checkout").setRequestBody(order).perform();
+     * api.post("/api/checkout").setRequestBody(order);
      * SHAFT.Contracts.stopValidation();
      * }</pre>
      */
@@ -1583,8 +1583,8 @@ public class SHAFT {
      *
      * <p><b>Usage example:</b>
      * <pre>{@code
-     * SHAFT.Validations.assertThat().object(actualValue).isEqualTo(expectedValue).perform();
-     * SHAFT.Validations.verifyThat().number(count).isGreaterThan(0).perform();
+     * SHAFT.Validations.assertThat().object(actualValue).isEqualTo(expectedValue);
+     * SHAFT.Validations.verifyThat().number(count).isGreaterThan(0);
      * }</pre>
      */
     public static class Validations {

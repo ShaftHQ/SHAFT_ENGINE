@@ -12,7 +12,7 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
      * Use this to check that the actual json response is equal to the expected json value (ignoring ordering)
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor equalsIgnoringOrder(Object expectedValue) {
         this.expectedValue = expectedValue;
@@ -29,7 +29,7 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
      * Use this to check that the actual json response is not equal to the expected json value (ignoring ordering)
      *
      * @param expectedValue the test data / expected value for the object under test
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     public ValidationsExecutor doesNotEqualIgnoringOrder(Object expectedValue) {
         this.expectedValue = expectedValue;

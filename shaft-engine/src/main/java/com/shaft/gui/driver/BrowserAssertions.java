@@ -27,7 +27,7 @@ public interface BrowserAssertions {
 
     /**
      * Asserts that the current page matches its baseline full-page screenshot. Executes immediately,
-     * like every other assertion &mdash; no {@code perform()} is required.
+     * like every other assertion.
      *
      * @return a ValidationsExecutor object to optionally set a custom validation message
      */

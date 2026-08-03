@@ -30,7 +30,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     /**
      * Use this to check that the target element exists
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor exists() {
@@ -45,7 +45,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     /**
      * Use this to check that the target element does not exist
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor doesNotExist() {
@@ -62,7 +62,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      * On the first test run this method will take a screenshot of the target element and the test will pass, and on following runs the element will be compared against that reference image.
      * The reference images are stored under src/test/resources/DynamicObjectRepository for later maintenance
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor matchesReferenceImage() {
@@ -79,7 +79,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      * Use this to check that the target element matches a reference image.
      *
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
@@ -97,7 +97,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      * On the first test run this method will take a screenshot of the target element and the test will pass, and on following runs the element will be compared against that reference image.
      * The reference images are stored under src/test/resources/DynamicObjectRepository for later maintenance
      *
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor doesNotMatchReferenceImage() {
@@ -114,7 +114,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      * Use this to check that the target element does not match a reference image.
      *
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
@@ -132,7 +132,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      * (pixel diff via OpenCV). On the first test run this method takes a screenshot of the target
      * element and the test passes, saving it as the baseline for subsequent runs. Baselines are stored
      * alongside the other visual baselines under the configured {@code dynamicObjectRepositoryPath}.
-     * The comparison executes immediately &mdash; no {@code perform()} is required.
+     * The comparison runs when this terminal assertion is called.
      *
      * @return a ValidationsExecutor object to optionally set a custom validation message
      */
@@ -164,7 +164,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      * under the configured {@code ariaSnapshotFolderPath}.
      *
      * @param snapshotFileName the baseline file name (without extension) to compare against or create
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     @Override
     public ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {

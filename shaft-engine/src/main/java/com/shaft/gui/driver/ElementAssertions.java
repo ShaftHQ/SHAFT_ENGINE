@@ -53,7 +53,7 @@ public interface ElementAssertions {
 
     /**
      * Asserts that the element matches its baseline screenshot. Executes immediately, like every other
-     * assertion &mdash; no {@code perform()} is required.
+     * assertion.
      *
      * @return a ValidationsExecutor object to optionally set a custom validation message
      */
@@ -76,7 +76,7 @@ public interface ElementAssertions {
      * Starts an accessible-name-tree regression assertion against the element's baseline aria snapshot.
      *
      * @param snapshotFileName the baseline file name (under the configured aria snapshot folder) to compare against or create
-     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     * @return a ValidationsExecutor object retained for source compatibility
      */
     default ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {
         throw new UnsupportedOperationException("matchesAriaSnapshot is not supported by this element assertions implementation.");

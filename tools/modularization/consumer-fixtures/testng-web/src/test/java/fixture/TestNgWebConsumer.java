@@ -15,18 +15,18 @@ import java.util.ServiceLoader;
 public class TestNgWebConsumer {
     @Test
     public void shaftAssertionPassesInTestNgConsumerProject() {
-        SHAFT.Validations.assertThat().object("SHAFT").isEqualTo("SHAFT").perform();
+        SHAFT.Validations.assertThat().object("SHAFT").isEqualTo("SHAFT");
     }
 
     @Test
     public void expectedShaftAssertionFailureIsAssertionErrorInTestNgConsumerProject() {
         Assert.expectThrows(AssertionError.class,
-                () -> SHAFT.Validations.assertThat().object("actual").isEqualTo("expected").perform());
+                () -> SHAFT.Validations.assertThat().object("actual").isEqualTo("expected"));
     }
 
     @Test
     public void softVerificationFailureIsAvailableToTestNgListenerPath() {
-        SHAFT.Validations.verifyThat().object("actual").isEqualTo("expected").perform();
+        SHAFT.Validations.verifyThat().object("actual").isEqualTo("expected");
 
         Assert.assertNotNull(ValidationsHelper.getVerificationErrorToForceFail());
         ValidationsHelper.resetVerificationStateAfterFailing();

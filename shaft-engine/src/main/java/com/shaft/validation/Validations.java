@@ -11,8 +11,8 @@ import com.shaft.validation.internal.ValidationsBuilder;
  *
  * <p><b>Usage example:</b>
  * <pre>{@code
- * Validations.assertThat().object(actual).isEqualTo(expected).perform();
- * Validations.verifyThat().number(count).isGreaterThan(0).perform();
+ * Validations.assertThat().object(actual).isEqualTo(expected);
+ * Validations.verifyThat().number(count).isGreaterThan(0);
  * }</pre>
  *
  * @see com.shaft.driver.SHAFT.Validations

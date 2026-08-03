@@ -1,6 +1,6 @@
 ---
 name: shaft-fluent-api
-description: Use when composing, reviewing, or repairing SHAFT fluent browser, element, touch, assertion, verification, report-message, and perform chains.
+description: Use when composing, reviewing, or repairing SHAFT fluent browser, element, touch, assertion, verification, and report-message chains.
 ---
 
 # SHAFT Fluent API

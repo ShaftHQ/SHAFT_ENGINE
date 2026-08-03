@@ -347,7 +347,7 @@ public final class ApiTestRenderer {
         line(source, "        driver.browser().interceptRequest()");
         line(source, "                .urlContains(\"" + escape(relativePath(transaction)) + "\")");
         line(source, "                .assertResponse(v -> {");
-        line(source, "                    v.time().isLessThan(30000L).perform();");
+        line(source, "                    v.time().isLessThan(30000L);");
         renderHybridBodyAssertion(source, artifacts, className, transaction, depth);
         line(source, "                });");
     }
@@ -367,11 +367,11 @@ public final class ApiTestRenderer {
         if (depth == ApiValidationDepth.SCHEMA) {
             String relativePath = "api-capture/" + className + "-" + sanitizeIdentifier(transaction.transactionId()) + "-schema.json";
             artifacts.put(relativePath, JsonSchemaInferencer.infer(transaction.responseBody()));
-            line(source, "                    v.matchesSchema(\"" + escape(relativePath) + "\").perform();");
+            line(source, "                    v.matchesSchema(\"" + escape(relativePath) + "\");");
         } else {
             String relativePath = "api-capture/" + className + "-" + sanitizeIdentifier(transaction.transactionId()) + "-body.json";
             artifacts.put(relativePath, normalizeForGoldenFile(transaction.responseBody(), transaction.responseLeaves()));
-            line(source, "                    v.isEqualToFileContentIgnoringOrder(\"" + escape(relativePath) + "\").perform();");
+            line(source, "                    v.isEqualToFileContentIgnoringOrder(\"" + escape(relativePath) + "\");");
         }
     }
 
@@ -777,8 +777,7 @@ public final class ApiTestRenderer {
         line(source, "        SHAFT.Validations.assertThat()");
         line(source, "                .object(" + apiField + ".getResponseJSONValue(\""
                 + escape(leaf.jsonPath()) + "\"))");
-        line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\")");
-        line(source, "                .perform();");
+        line(source, "                .isEqualTo(\"" + escape(leaf.value()) + "\");");
     }
 
     private static void renderHeaderAssertions(StringBuilder source, String apiField, ApiTransaction transaction) {
@@ -791,8 +790,7 @@ public final class ApiTestRenderer {
             line(source, "        SHAFT.Validations.assertThat()");
             line(source, "                .object(" + apiField + ".getResponse().getHeader(\""
                     + escape(header.getKey()) + "\"))");
-            line(source, "                .isEqualTo(\"" + escape(header.getValue()) + "\")");
-            line(source, "                .perform();");
+            line(source, "                .isEqualTo(\"" + escape(header.getValue()) + "\");");
         }
     }
 
@@ -804,7 +802,7 @@ public final class ApiTestRenderer {
         }
         String relativePath = "api-capture/" + className + "-" + sanitizeIdentifier(transaction.transactionId()) + "-schema.json";
         artifacts.put(relativePath, JsonSchemaInferencer.infer(transaction.responseBody()));
-        line(source, "        " + apiField + ".assertThatResponse().matchesSchema(\"" + escape(relativePath) + "\").perform();");
+        line(source, "        " + apiField + ".assertThatResponse().matchesSchema(\"" + escape(relativePath) + "\");");
     }
 
     private static void renderFullBodyAssertion(
@@ -816,7 +814,7 @@ public final class ApiTestRenderer {
         String relativePath = "api-capture/" + className + "-" + sanitizeIdentifier(transaction.transactionId()) + "-body.json";
         artifacts.put(relativePath, normalizeForGoldenFile(transaction.responseBody(), leaves));
         line(source, "        " + apiField + ".assertThatResponse().isEqualToFileContentIgnoringOrder(\""
-                + escape(relativePath) + "\").perform();");
+                + escape(relativePath) + "\");");
     }
 
     private static void renderHelperMethods(StringBuilder source) {

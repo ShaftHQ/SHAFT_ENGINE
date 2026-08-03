@@ -6,7 +6,7 @@
 2. Assert the smallest stable observable state that proves the behavior, close to the action that produced it. [`ISTQB-CTFL`, `SELENIUM-PRACTICES`]
 3. Use `assertThat()` for a blocking invariant and `verifyThat()` only when continued execution intentionally collects useful independent evidence. [`SHAFT-GUIDE`]
 4. Select the typed SHAFT surface that owns the actual value: browser, element, API response, object, number, file, or image. [`SHAFT-GUIDE`]
-5. Complete the selected validation builder with `.perform()` when required; builder construction alone provides no verdict. [`SHAFT-GUIDE`]
+5. Terminal validation methods execute immediately and return an executor only for optional report-message customization; creating a builder alone provides no verdict. [`SHAFT-GUIDE`]
 6. Compare exact values only when exactness is contractual; otherwise use contains, regex, range, presence, state, or schema assertions that express the real tolerance. [`ISTQB-CTFL`]
 7. Keep expected and actual orientation clear, normalize only contractually irrelevant variation, and never weaken an assertion to make a flaky result green. [`ISTQB-CTFL`, `ALLURE-STABILITY`]
 8. Add a concise custom report message when domain intent would otherwise be unclear, naming expected behavior and relevant identity without secrets. [`SHAFT-REPORTING`]
@@ -15,10 +15,10 @@
 
 ## Valid examples
 
-- Assert `driver.assertThat().browser().url().contains("/dashboard").perform()` after successful sign-in.
-- Assert `driver.element().assertThat(status).text().isEqualTo("Paid").perform()` after payment capture.
-- Assert `api.assertThatResponse().extractedJsonValue("id").isEqualTo(expectedId).perform()` for a service contract.
-- Use `SHAFT.Validations.verifyThat().object(warning).contains("deprecated").perform()` only when later independent checks remain valuable.
+- Assert `driver.assertThat().browser().url().contains("/dashboard")` after successful sign-in.
+- Assert `driver.element().assertThat(status).text().isEqualTo("Paid")` after payment capture.
+- Assert `api.assertThatResponse().extractedJsonValue("$.id").isEqualTo(expectedId)` for a service contract.
+- Use `SHAFT.Validations.verifyThat().object(warning).contains("deprecated")` only when later independent checks remain valuable.
 
 ## Boundary
 

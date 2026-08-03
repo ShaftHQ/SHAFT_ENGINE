@@ -18,18 +18,18 @@ class JUnitWebConsumer {
     @Test
     void shaftAssertionPassesInJunitConsumerProject() {
         Assertions.assertDoesNotThrow(
-                () -> SHAFT.Validations.assertThat().object("SHAFT").isEqualTo("SHAFT").perform());
+                () -> SHAFT.Validations.assertThat().object("SHAFT").isEqualTo("SHAFT"));
     }
 
     @Test
     void expectedShaftAssertionFailureIsAssertionErrorInJunitConsumerProject() {
         Assertions.assertThrows(AssertionError.class,
-                () -> SHAFT.Validations.assertThat().object("actual").isEqualTo("expected").perform());
+                () -> SHAFT.Validations.assertThat().object("actual").isEqualTo("expected"));
     }
 
     @Test
     void softVerificationFailureIsAvailableToJunitExtensionPath() {
-        SHAFT.Validations.verifyThat().object("actual").isEqualTo("expected").perform();
+        SHAFT.Validations.verifyThat().object("actual").isEqualTo("expected");
 
         Assertions.assertNotNull(ValidationsHelper.getVerificationErrorToForceFail());
         ValidationsHelper.resetVerificationStateAfterFailing();
