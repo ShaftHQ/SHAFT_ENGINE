@@ -17,13 +17,22 @@ boundaries.
 
 ## Knowledge before discovery
 
-1. Native Memory for durable constraints and gotchas.
-2. MemPalace for cross-session history, relations, and impact.
-3. [Graphify](graphify.md) for the current structural map.
-4. Targeted `rg` and exact reads to verify live files.
+Each store answers a different question. Query the ones whose trigger fires
+before broad manual discovery, not all of them by reflex.
 
-Use every applicable available source. If one fails, name degraded mode and
-continue with the others. A stale index never outranks a live file.
+| Question you actually have | Store | Query it when |
+| --- | --- | --- |
+| Has this constraint or gotcha already bitten us? | native Memory | Required before any non-trivial change, and before filing an issue. |
+| What happened around this before, and what does it touch? | MemPalace | The change spans entities, sessions, or a history you were not part of. |
+| What calls or depends on this? | [Graphify](graphify.md) | Blast radius is unknown, or you are about to change a shared symbol. |
+| What does the code do right now? | targeted `rg` and exact reads | Always. This is the only source that settles a disagreement. |
+
+A retrieved claim is a lead, never a verdict: confirm it against the live file
+before acting on it, and a stale index never outranks what is on disk.
+
+If a store is unavailable, name the degraded mode in your report and continue
+with the rest. Skipping a store whose trigger fired, without saying so, is the
+failure this table exists to prevent.
 
 ## Repository engineering
 

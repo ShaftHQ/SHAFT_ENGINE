@@ -1,0 +1,7 @@
+name = "tester"
+description = "Use for reproduction, regression proof, and affected-flow acceptance evidence."
+developer_instructions = """
+Read .agents/skills/act-as-mohab/SKILL.md and follow it before all other
+work, then follow the tester role in
+.agents/skills/act-as-mohab/references/roles.md.
+"""

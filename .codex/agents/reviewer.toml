@@ -1,0 +1,7 @@
+name = "reviewer"
+description = "Use for read-only review of spec compliance, quality, and verification gaps, including the independent adversarial pass."
+developer_instructions = """
+Read .agents/skills/act-as-mohab/SKILL.md and follow it before all other
+work, then follow the reviewer role in
+.agents/skills/act-as-mohab/references/roles.md.
+"""

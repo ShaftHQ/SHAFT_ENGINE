@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILLS = ROOT / ".agents/skills"
 CLAUDE_SKILLS = ROOT / ".claude/skills"
 CLAUDE_AGENTS = ROOT / ".claude/agents"
+CODEX_AGENTS = ROOT / ".codex/agents"
 ENTRYPOINT = CANONICAL_SKILLS / "act-as-mohab/SKILL.md"
 REFERENCES = CANONICAL_SKILLS / "act-as-mohab/references"
 ROUTING = REFERENCES / "routing.md"
@@ -363,22 +364,50 @@ class HostParityTest(unittest.TestCase):
                     (CANONICAL_SKILLS / adapter.parent.name / "SKILL.md").resolve(),
                 )
 
-    def test_every_host_adapter_anchors_a_real_portable_role(self):
-        """Anchors must resolve to actual roles.md headings, so a renamed role
-        breaks the build instead of silently orphaning its adapter."""
-        headings = {
-            re.sub(r"[^a-z0-9]+", "-", heading.strip().lower()).strip("-")
+    def role_headings(self) -> set[str]:
+        return {
+            heading.strip().lower()
             for heading in re.findall(r"(?m)^##\s+(.+)$", ROLES.read_text(encoding="utf-8"))
         }
-        self.assertTrue(headings, "roles.md must define the role set")
+
+    def test_every_claude_adapter_anchors_a_real_portable_role(self):
+        """Anchors must resolve to actual roles.md headings, so a renamed role
+        breaks the build instead of silently orphaning its adapter."""
+        slugs = {re.sub(r"[^a-z0-9]+", "-", name).strip("-") for name in self.role_headings()}
         adapters = sorted(CLAUDE_AGENTS.glob("*.md"))
-        self.assertTrue(adapters, "no host role adapters found")
+        self.assertTrue(adapters, "no Claude role adapters found")
         for adapter in adapters:
             with self.subTest(adapter=adapter.stem):
                 anchors = re.findall(r"roles\.md#([a-z0-9-]+)", adapter.read_text(encoding="utf-8"))
                 self.assertTrue(anchors, "adapter must anchor a portable role")
                 for anchor in anchors:
-                    self.assertIn(anchor, headings, f"anchor matches no roles.md heading: {anchor}")
+                    self.assertIn(anchor, slugs, f"anchor matches no roles.md heading: {anchor}")
+
+    def test_both_subagent_hosts_ship_the_same_role_adapters(self):
+        """Codex has a subagent primitive too -- built-in explorer/worker/default
+        plus project-scoped `.codex/agents/*.toml`. Parity means the same roles
+        exist on both, not that one host improvises from prose."""
+        claude = {path.stem for path in CLAUDE_AGENTS.glob("*.md")}
+        codex = {path.stem for path in CODEX_AGENTS.glob("*.toml")}
+        self.assertEqual(claude, codex, "role adapters differ between subagent hosts")
+
+    def test_codex_role_adapters_use_the_documented_schema(self):
+        tomllib = __import__("tomllib")
+        headings = self.role_headings()
+        adapters = sorted(CODEX_AGENTS.glob("*.toml"))
+        self.assertTrue(adapters, "no Codex role adapters found")
+        for adapter in adapters:
+            with self.subTest(adapter=adapter.stem):
+                parsed = tomllib.loads(adapter.read_text(encoding="utf-8"))
+                for key in ("name", "description", "developer_instructions"):
+                    self.assertIn(key, parsed, f"missing required key: {key}")
+                self.assertEqual(parsed["name"], adapter.stem, "name is the source of truth")
+                instructions = parsed["developer_instructions"]
+                self.assertNotIn("\r", instructions, "carriage return leaked into the string")
+                self.assertIn("act-as-mohab/SKILL.md", instructions)
+                self.assertIn("roles.md", instructions)
+                named = [role for role in headings if role in instructions.lower()]
+                self.assertTrue(named, "adapter must name a portable role")
 
     def test_every_portable_role_is_reachable(self):
         """A role nobody can select is dead guidance: it must either have a
@@ -538,6 +567,99 @@ class NoDuplicationTest(unittest.TestCase):
             if path.resolve() not in reachable
         ]
         self.assertEqual(orphaned, [], "reference file is not reachable from any skill")
+
+
+class SkillsMapTest(unittest.TestCase):
+    """The map is the contributor-facing summary; it must stay complete.
+
+    A map that silently omits a surface is worse than none: a contributor reads
+    it as the whole system and never learns what it left out.
+    """
+
+    MAP = CANONICAL_SKILLS / "README.md"
+
+    def test_the_map_exists_and_is_linked_from_the_contribution_guide(self):
+        self.assertTrue(self.MAP.is_file())
+        contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertIn(".agents/skills/README.md", contributing)
+
+    def test_the_map_covers_every_skill_playbook_and_chapter(self):
+        content = self.MAP.read_text(encoding="utf-8")
+        surfaces = [
+            *CANONICAL_SKILLS.glob("*/SKILL.md"),
+            *(REFERENCES / "playbooks").glob("*.md"),
+            *(REFERENCES / "shaft-mastery").glob("*.md"),
+            *(path for path in REFERENCES.glob("*.md")),
+        ]
+        missing = []
+        for path in sorted(surfaces):
+            target = path.relative_to(CANONICAL_SKILLS).as_posix()
+            if target not in content:
+                missing.append(target)
+        self.assertEqual(missing, [], "skills map omits a surface")
+
+    def test_the_map_links_resolve(self):
+        broken = [
+            target
+            for target in local_links(self.MAP)
+            if not (self.MAP.parent / target.split("#", 1)[0]).exists()
+        ]
+        self.assertEqual(broken, [])
+
+    def test_the_map_tells_agents_to_load_the_entrypoint_rather_than_itself(self):
+        content = compact(self.MAP)
+        self.assertIn("act-as-mohab/skill.md", content)
+        self.assertRegex(content, r"do not work from this file|map, not the territory")
+
+
+class RetrievalParityTest(unittest.TestCase):
+    """Both hosts must gate memory writes the same way.
+
+    Codex restricts the shaft-memory surface to four tools and prompts before
+    `remember_memory`. Claude reached the same server with no gate at all, so a
+    write that one host asks about the other performed silently -- the same
+    policy resolving two different ways.
+    """
+
+    def test_memory_writes_are_gated_on_every_host(self):
+        tomllib = __import__("tomllib")
+        codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))
+        remember = codex["mcp_servers"]["shaft-memory"]["tools"]["remember_memory"]
+        self.assertEqual(remember["approval_mode"], "prompt")
+
+        settings = json.loads((ROOT / ".claude/settings.json").read_text(encoding="utf-8"))
+        permissions = settings["permissions"]
+        self.assertIn("mcp__shaft-memory__remember_memory", permissions.get("ask", []))
+        self.assertNotIn("mcp__shaft-memory__remember_memory", permissions.get("allow", []))
+
+    def test_both_hosts_declare_the_same_retrieval_servers(self):
+        tomllib = __import__("tomllib")
+        codex = set(tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))["mcp_servers"])
+        claude = set(json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
+        # Codex nests per-tool tables under the server name; ignore those.
+        codex = {name for name in codex if "." not in name}
+        self.assertEqual(codex, claude, "retrieval servers differ between hosts")
+
+    def test_routing_states_when_each_knowledge_store_is_required(self):
+        """"Use every source" is unenforceable; a trigger per store is not."""
+        sections = re.split(r"(?m)^## ", ROUTING.read_text(encoding="utf-8"))
+        knowledge = [body for body in sections if body.lower().startswith("knowledge")]
+        self.assertEqual(len(knowledge), 1)
+        content = re.sub(r"\s+", " ", knowledge[0]).lower()
+        for store in ("native memory", "mempalace", "graphify", "rg"):
+            self.assertIn(store, content, f"knowledge table omits {store}")
+        self.assertIn("query it when", content, "each store needs a stated trigger")
+        self.assertIn("degraded", content, "unavailable stores must be reported")
+
+    def test_the_learning_loop_routes_each_outcome_to_one_destination(self):
+        sections = re.split(r"(?m)^## ", ENTRYPOINT.read_text(encoding="utf-8"))
+        loop = [body for body in sections if body.lower().startswith("learning loop")]
+        self.assertEqual(len(loop), 1, "entrypoint needs exactly one Learning loop section")
+        content = re.sub(r"\s+", " ", loop[0]).lower()
+        for destination in ("native memory", "mempalace", "graphify", "issue"):
+            self.assertIn(destination, content, f"learning loop omits {destination}")
+        self.assertRegex(content, r"nothing durable is a valid result|no durable learning")
+        self.assertRegex(content, r"search before writing|search first", "must prevent duplicates")
 
 
 class DisciplineTest(unittest.TestCase):

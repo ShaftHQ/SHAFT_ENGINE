@@ -4,9 +4,11 @@ Every role first loads the act-as-mohab entrypoint. Role says what the agent is
 accountable for; capability level says how much intelligence the assignment
 earns. The two are chosen separately — see [delegation](delegation.md).
 
-Where a host has a subagent primitive, its role adapter names one of these
-sections. Hosts without one carry the same role text in the dispatch prompt, so
-the resolved policy is identical either way.
+Claude and Codex both expose a subagent primitive, and each ships a role
+adapter per role that names one of these sections: `.claude/agents/*.md` and
+`.codex/agents/*.toml`. A host without that primitive carries the same role text
+in the dispatch prompt, so the resolved policy is identical either way. Adding a
+role means adding both adapters.
 
 ## Orchestrator
 

@@ -158,9 +158,9 @@ file.
 
 ## Roles and capability levels
 
-Main thread holds the orchestrator role and, where the host can delegate,
-assigns implementation rather than doing it. On a host with no delegates the
-same thread implements, and still owes the review gate an independent pass.
+Main thread holds the orchestrator role and assigns implementation rather than
+doing it. On a host with no subagent primitive the same thread implements, and
+still owes the review gate an independent pass by a separate instance.
 
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.
@@ -175,10 +175,22 @@ For issue-to-merged-PR work, use the [GitHub playbook](references/work-github-pl
 Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
-Before completion, route each learning once: durable decision or gotcha to
-native Memory with evidence; structural change to Graphify refresh or flag;
-reusable corrected procedure to this entrypoint or its canonical playbook;
-non-blocking adjacent work to an existing or new issue. No durable learning is a
-valid result; state it rather than manufacturing diary entries.
+## Learning loop
+
+Before reporting done, route every learning exactly once. One row per learning;
+never two, never a diary.
+
+| What surfaced | Where it goes |
+| --- | --- |
+| A fact that cost you time and would cost the next agent the same | native Memory, with the evidence that proves it |
+| A decision with a rationale someone will otherwise re-litigate | native Memory as a decision, superseding the entry it replaces |
+| A relation or impact that spans entities or sessions | MemPalace |
+| A structural change to what calls or depends on what | flag Graphify for refresh |
+| A procedure that misled you, or one you had to invent | fix the guidance file that should have carried it |
+| Adjacent work you deliberately did not do | search first, then an existing or new issue |
+
+Nothing durable is a valid result. Say so rather than manufacturing an entry.
+Re-record nothing already stored: search before writing, and update the existing
+object instead of adding a near-duplicate.
 
 Gambaru.

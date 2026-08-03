@@ -20,6 +20,11 @@ ALLOWED_EXACT = {
     ".github/copilot-instructions.md",
     ".github/pull_request_template.md",
     ".github/RELEASE_BODY_TEMPLATE.md",
+    # Internal agent guidance, not a public guide or a module README. Needs an
+    # exact entry because ALLOWED_GLOBS uses fnmatch, where "**" is ordinary
+    # "*" and so ".agents/skills/**/*.md" requires a second path segment --
+    # the same reason ".github/skills/README.md" is listed here.
+    ".agents/skills/README.md",
     ".github/skills/README.md",
     ".github/workflows/README.md",
     "shaft-mcp/.github/copilot-instructions.md",
