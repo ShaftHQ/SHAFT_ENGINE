@@ -28,6 +28,10 @@
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
       }
     },
+    "autobot_provider_models": {
+      "mutation": false,
+      "sensitive": false
+    },
     "browser_accessibility_audit": {
       "mutation": false,
       "sensitive": true
