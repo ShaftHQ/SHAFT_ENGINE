@@ -100,9 +100,10 @@ public final class LocalAgentService {
 
     private static List<String> codexCommand(LocalAgentMode mode, boolean allowSourceMutation) {
         return switch (mode) {
-            case ASK, PLAN -> List.of("codex", "exec", "--sandbox", "read-only", "-");
+            case ASK, PLAN -> List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-");
             case AGENT -> List.of(
                     "codex", "exec",
+                    "--skip-git-repo-check",
                     "--sandbox", allowSourceMutation ? "workspace-write" : "read-only",
                     "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                     "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
