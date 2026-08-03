@@ -108,8 +108,12 @@ final class ShaftAssistantPanel extends JPanel {
     private static final int NARROW_RUN_SETTINGS_WIDTH = 420;
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_MODEL_TOOLTIP_LIVE = "Model reported by the connected agent CLI";
-    private static final String LOCAL_MODEL_TOOLTIP_FALLBACK =
-            "Fallback model list (CLI did not report models) — click refresh to try again";
+    private static final String LOCAL_MODEL_TOOLTIP_EMPTY =
+            "CLI did not report models — type a model name or click refresh to try again";
+    private static final String LOCAL_MODEL_TOOLTIP_UNAVAILABLE =
+            "CLI is unavailable — type a model name or click refresh to try again";
+    private static final String LOCAL_MODEL_TOOLTIP_FAILED =
+            "CLI model discovery failed — type a model name or click refresh to try again";
     /**
      * Prefix applied to a local-agent CLI's own tool names (e.g. {@code "Bash"}, {@code "Write"})
      * before recording/checking approval decisions, so they can never collide with SHAFT MCP tool
@@ -222,8 +226,6 @@ final class ShaftAssistantPanel extends JPanel {
     /** True once the user's second cancel click escalates to a kill for the current invocation. */
     private boolean killRequested;
     private boolean refreshingChats;
-    /** True when {@link #localModel} shows the curated catalog because the CLI reported no models. */
-    private boolean localModelListIsFallback;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
     private int killedLocalAgentStreamToken = -1;
@@ -434,8 +436,8 @@ final class ShaftAssistantPanel extends JPanel {
             localModelEditor.getAccessibleContext().setAccessibleName("Assistant local agent model text");
             localModelEditor.setToolTipText(LOCAL_MODEL_TOOLTIP_LIVE);
         }
-        // Seed the selector from the curated catalog so it is never empty; the async CLI listing
-        // replaces these entries when the connected agent can report its own models.
+        // Local model names are account-specific; only the CLI can offer choices, while this
+        // editable selector always permits manual entry.
         applyLocalModels(resolveFamily(settings), List.of());
         modelListFamily = "";
         refreshLocalModels = button("Refresh", "Refresh local agent models", event -> {
@@ -3423,10 +3425,12 @@ final class ShaftAssistantPanel extends JPanel {
         long requestGeneration = ++modelListRequestGeneration;
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
-        CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.listModels(arguments),
+        CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.discoverModels(arguments),
                         ShaftPluginExecutor.getInstance().executor())
                 .whenComplete((models, error) -> runOnEdt(
-                        () -> applyLocalModels(family, error == null ? models : List.of(), requestGeneration)));
+                        () -> applyLocalModels(family, error == null ? models
+                                : new AssistantLocalAgentRunner.ModelDiscovery(List.of(),
+                                        AssistantLocalAgentRunner.ModelDiscoveryState.FAILED), requestGeneration)));
     }
 
     private void applyLocalModels(String family, List<String> models) {
@@ -3434,6 +3438,13 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void applyLocalModels(String family, List<String> models, long requestGeneration) {
+        applyLocalModels(family, new AssistantLocalAgentRunner.ModelDiscovery(models,
+                models.isEmpty() ? AssistantLocalAgentRunner.ModelDiscoveryState.EMPTY
+                        : AssistantLocalAgentRunner.ModelDiscoveryState.AVAILABLE), requestGeneration);
+    }
+
+    private void applyLocalModels(
+            String family, AssistantLocalAgentRunner.ModelDiscovery discovery, long requestGeneration) {
         if (requestGeneration != modelListRequestGeneration
                 || !family.equals(String.valueOf(assistantFamily.getSelectedItem()))) {
             if (modelListRefreshing && requestGeneration == modelListRequestGeneration
@@ -3452,21 +3463,20 @@ final class ShaftAssistantPanel extends JPanel {
         String selectedModel = previousSelection != null && !previousSelection.isBlank()
                 ? previousSelection
                 : settings.localModel == null ? "" : settings.localModel.trim();
-        // The CLI-reported list wins; the curated catalog keeps the selector useful when the CLI
-        // cannot list its models (issue #3369).
-        localModelListIsFallback = models.isEmpty();
-        List<String> effectiveModels = localModelListIsFallback ? AssistantModelCatalog.localModels(family) : models;
+        List<String> effectiveModels = discovery.models();
         DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(effectiveModels.toArray(new String[0]));
         localModel.setModel(model);
-        String tooltip = localModelListIsFallback ? LOCAL_MODEL_TOOLTIP_FALLBACK : LOCAL_MODEL_TOOLTIP_LIVE;
+        String tooltip = switch (discovery.state()) {
+            case AVAILABLE -> LOCAL_MODEL_TOOLTIP_LIVE;
+            case EMPTY -> LOCAL_MODEL_TOOLTIP_EMPTY;
+            case UNAVAILABLE -> LOCAL_MODEL_TOOLTIP_UNAVAILABLE;
+            case FAILED -> LOCAL_MODEL_TOOLTIP_FAILED;
+        };
         localModel.setToolTipText(tooltip);
         if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
             localModelEditor.setToolTipText(tooltip);
         }
-        if (effectiveModels.isEmpty() && "CODEX".equals(family)
-                && "gpt-5.2-codex".equalsIgnoreCase(selectedModel)) {
-            localModel.setSelectedItem("");
-        } else if (!selectedModel.isBlank()) {
+        if (!selectedModel.isBlank()) {
             localModel.setSelectedItem(selectedModel);
         } else if (!effectiveModels.isEmpty()) {
             localModel.setSelectedItem(effectiveModels.get(0));

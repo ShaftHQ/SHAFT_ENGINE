@@ -174,7 +174,7 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantCancelledPendingAnswerScreenshot =
                 outputPath.resolve("intellij-plugin-assistant-cancelled-pending-answer.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
-        Path assistantModelFallbackScreenshot = outputPath.resolve("intellij-plugin-assistant-model-fallback.png");
+        Path assistantModelUnavailableScreenshot = outputPath.resolve("intellij-plugin-assistant-model-unavailable.png");
         Path assistantSlashCommandsScreenshot = outputPath.resolve("intellij-plugin-assistant-slash-commands.png");
         Path toolsHumanizedDoctorCardScreenshot = outputPath.resolve("intellij-plugin-tools-humanized-doctor-card.png");
         Path assistantDefaultModePrefillScreenshot = outputPath.resolve("intellij-plugin-assistant-default-mode-prefill.png");
@@ -222,7 +222,7 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantKilledScreenshot, renderAssistantKilled(LIGHT_THEME, false));
         write(assistantCancelledPendingAnswerScreenshot, renderAssistantCancelledPendingAnswer(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
-        write(assistantModelFallbackScreenshot, renderAssistantModelFallback(LIGHT_THEME, false));
+        write(assistantModelUnavailableScreenshot, renderAssistantModelUnavailable(LIGHT_THEME, false));
         write(assistantSlashCommandsScreenshot, renderAssistantSlashCommands(LIGHT_THEME, false));
         write(toolsHumanizedDoctorCardScreenshot, renderToolsHumanizedDoctorCard(LIGHT_THEME, false));
         write(assistantDefaultModePrefillScreenshot, renderAssistantDefaultModePrefill(LIGHT_THEME, false));
@@ -274,7 +274,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantCancelledPendingAnswerScreenshot) > 0,
                         assistantCancelledPendingAnswerScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(assistantModelFallbackScreenshot) > 0, assistantModelFallbackScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantModelUnavailableScreenshot) > 0,
+                        assistantModelUnavailableScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantSlashCommandsScreenshot) > 0, assistantSlashCommandsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsHumanizedDoctorCardScreenshot) > 0, toolsHumanizedDoctorCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDefaultModePrefillScreenshot) > 0, assistantDefaultModePrefillScreenshot + " should be non-empty"),
@@ -319,7 +320,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantCancelledScreenshot),
                 () -> assertDimensions(assistantKilledScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
-                () -> assertDimensions(assistantModelFallbackScreenshot),
+                () -> assertDimensions(assistantModelUnavailableScreenshot),
                 () -> assertDimensions(toolsHumanizedDoctorCardScreenshot),
                 () -> assertDimensions(assistantDefaultModePrefillScreenshot),
                 () -> assertDimensions(mcpSetupPostSetupScreenshot),
@@ -1134,17 +1135,16 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     /**
-     * Renders the Assistant local-model refresh control in its fallback state (issue #3551): when
-     * the connected local CLI reports no models, {@code applyLocalModels} falls back to the curated
-     * {@link AssistantModelCatalog} list and sets {@code localModelListIsFallback}, and the "Refresh
-     * local agent models" button stays visible so the user can retry the live CLI listing. {@code
+     * Renders the Assistant local-model refresh control after no models are reported (issue #3551):
+     * the editable selector stays empty and the "Refresh local agent models" button stays visible
+     * so the user can retry the live CLI listing. {@code
      * defaultSettings()} already normalizes to provider=LOCAL/runtime=CLI, so the panel starts in
      * the local-CLI configuration this control only appears in; the empty live list is then forced
      * through the same {@code applyLocalModels} seam production uses after a real CLI listing call
      * (via reflection, since it is private), rather than racing the panel's own async CLI probe
      * that already runs once at construction time.
      */
-    private static BufferedImage renderAssistantModelFallback(String lookAndFeelClassName, boolean dark)
+    private static BufferedImage renderAssistantModelUnavailable(String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -1170,7 +1170,7 @@ class ShaftPluginScreenshotRendererTest {
             method.setAccessible(true);
             method.invoke(component, family, models);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Unable to apply the local-model fallback state", exception);
+            throw new IllegalStateException("Unable to apply the local-model unavailable state", exception);
         }
     }
 
