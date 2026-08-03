@@ -2124,6 +2124,42 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantIgnoresStaleLocalModelCallbackAfterFamilyChanges() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<String> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+
+        family.setSelectedItem("CLAUDE");
+        applyLocalModels(panel, "CLAUDE", List.of("claude-new"));
+        localModel.getEditor().setItem("manual-model");
+
+        applyLocalModels(panel, "CODEX", List.of("codex-stale"));
+
+        assertAll(
+                () -> assertEquals("CLAUDE", family.getSelectedItem()),
+                () -> assertEquals("manual-model", localModel.getEditor().getItem()),
+                () -> assertEquals("claude-new", localModel.getItemAt(0)));
+    }
+
+    @Test
+    void assistantKeepsNewerSameFamilyRefreshWhileOlderCallbackCompletes() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        // CLAUDE gen1 starts, CODEX gen2 starts, then CLAUDE gen3 becomes the active request.
+        family.setSelectedItem("CLAUDE");
+        setField(panel, "modelListRefreshing", true);
+        setField(panel, "modelListRefreshingFamily", "CLAUDE");
+        setField(panel, "modelListRequestGeneration", 3L);
+
+        applyLocalModels(panel, "CLAUDE", List.of("claude-gen1"), 1L);
+
+        assertAll(
+                () -> assertTrue((Boolean) getField(panel, "modelListRefreshing")),
+                () -> assertEquals("CLAUDE", getField(panel, "modelListRefreshingFamily")),
+                () -> assertEquals(3L, getField(panel, "modelListRequestGeneration")));
+    }
+
+    @Test
     void assistantClearsPersistedCodexFallbackWhenModelDiscoveryIsEmpty() throws Exception {
         ShaftSettingsState.Settings settings = blankMcpSettings();
         settings.localModel = "gpt-5.2-codex";
@@ -8089,6 +8125,14 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("applyLocalModels", String.class, List.class);
         method.setAccessible(true);
         method.invoke(panel, family, models);
+    }
+
+    private static void applyLocalModels(
+            ShaftAssistantPanel panel, String family, List<String> models, long requestGeneration) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "applyLocalModels", String.class, List.class, long.class);
+        method.setAccessible(true);
+        method.invoke(panel, family, models, requestGeneration);
     }
 
     private static AssistantCommand.Selection selectedRoute(ShaftAssistantPanel panel) throws Exception {

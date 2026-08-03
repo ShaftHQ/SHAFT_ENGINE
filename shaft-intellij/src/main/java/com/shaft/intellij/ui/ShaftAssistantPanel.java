@@ -335,6 +335,8 @@ final class ShaftAssistantPanel extends JPanel {
     private int contextTruncationBoundaryIndex = -1;
     private String modelListFamily = "";
     private boolean modelListRefreshing;
+    private String modelListRefreshingFamily = "";
+    private long modelListRequestGeneration;
     /**
      * Banner strip (setup notice + fresh-project hint) above the chat header. A field, not a
      * constructor-local, purely so {@code ShaftAssistantPanelLayoutTest} can assert its collapsed
@@ -3413,20 +3415,36 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String family = String.valueOf(assistantFamily.getSelectedItem());
-        if (modelListRefreshing || family.equals(modelListFamily)) {
+        if (family.equals(modelListFamily) || (modelListRefreshing && family.equals(modelListRefreshingFamily))) {
             return;
         }
         modelListRefreshing = true;
+        modelListRefreshingFamily = family;
+        long requestGeneration = ++modelListRequestGeneration;
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
         CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.listModels(arguments),
                         ShaftPluginExecutor.getInstance().executor())
                 .whenComplete((models, error) -> runOnEdt(
-                        () -> applyLocalModels(family, error == null ? models : List.of())));
+                        () -> applyLocalModels(family, error == null ? models : List.of(), requestGeneration)));
     }
 
     private void applyLocalModels(String family, List<String> models) {
+        applyLocalModels(family, models, modelListRequestGeneration);
+    }
+
+    private void applyLocalModels(String family, List<String> models, long requestGeneration) {
+        if (requestGeneration != modelListRequestGeneration
+                || !family.equals(String.valueOf(assistantFamily.getSelectedItem()))) {
+            if (modelListRefreshing && requestGeneration == modelListRequestGeneration
+                    && family.equals(modelListRefreshingFamily)) {
+                modelListRefreshing = false;
+                modelListRefreshingFamily = "";
+            }
+            return;
+        }
         modelListRefreshing = false;
+        modelListRefreshingFamily = "";
         modelListFamily = family;
         String previousSelection = localModel.getEditor() == null
                 ? null
