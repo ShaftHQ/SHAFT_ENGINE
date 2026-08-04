@@ -202,10 +202,10 @@ class AssistantCommandToolIndexRoutingTest {
     }
 
     // ---- Routing-accuracy suite (design doc Decision 5 last bullet): parameterized from the real
-    // bundled index, not a hand-picked sample, across every surviving tool in the 90-tool catalog. ----
+    // bundled index, not a hand-picked sample, across every surviving tool in the 91-tool catalog. ----
 
     // Named exception allowlist for any future, deliberately-accepted exclusion from 100% explicit
-    // -tool-mention routing (PR #3882 review, Finding 2). Empty today: the full 90-tool catalog
+    // -tool-mention routing (PR #3882 review, Finding 2). Empty today: the full 91-tool catalog
     // routes deterministically with no exceptions. Add a tool name here only with a comment
     // explaining why it cannot route deterministically -- never to silence a real regression.
     private static final Set<String> TOOL_MENTION_ROUTING_EXCEPTIONS = Set.of();

@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Curated {@code capture} aliases must stay in sync with the 90-tool catalog (tracker #3866
+ * Curated {@code capture} aliases must stay in sync with the 91-tool catalog (tracker #3866
  * T3/#3869): {@code capture_step_delete}/{@code capture_step_reorder} (W1 commit 3) had no curated
  * shortcut yet.
  */

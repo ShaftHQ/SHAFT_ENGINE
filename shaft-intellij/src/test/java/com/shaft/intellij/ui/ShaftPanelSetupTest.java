@@ -5875,6 +5875,9 @@ class ShaftPanelSetupTest {
                 // logs applies depends on the failure category, which an icon alone cannot convey
                 // (issue #3626).
                 .filter(button -> !"SHAFT tool recovery action".equals(accessibleName(button)))
+                // Provider discovery failures expose a direct, visible retry label; the focused
+                // provider-model layout contract verifies that text independently.
+                .filter(button -> !"Retry provider models".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
