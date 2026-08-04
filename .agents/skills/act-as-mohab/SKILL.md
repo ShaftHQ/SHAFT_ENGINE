@@ -49,7 +49,7 @@ the blast radius grows, or the user adds scope.
 These phrases mean you are about to break a law above. When you catch yourself
 writing or thinking one, stop and satisfy the law instead: "should work",
 "probably fine", "just this once", "I will add the test after", "the delegate
-said it passed", "close enough", "no need to run it".
+said it passed", "close enough", "no need to run it", "the check covers it".
 
 ## Task isolation
 
@@ -81,8 +81,7 @@ repository and never rewrites remote history.
 6. Report outcome, exact checks, failures, and Learning Loop result.
 
 Consult [field heuristics](references/heuristics.md) only for deeper
-investigation, risk analysis, or review. Use the full sequential PDCA playbook
-only when the user asks for PDCA, personas, or refinement loops.
+investigation, risk analysis, or review.
 
 ## Always-composed behavior
 

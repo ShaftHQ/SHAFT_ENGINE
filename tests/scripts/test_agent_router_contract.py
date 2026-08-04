@@ -61,6 +61,7 @@ PINNED_CLAUSES: tuple[tuple[str, str], ...] = (
     (TDD, "revert that new code and restart"),
     (TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
     (TDD, "never backfill tests after implementation"),
+    (RED_FLAGS, "the check covers it"),
 )
 
 # Words that leave every pinned word in place and turn the rule into a
@@ -1090,6 +1091,25 @@ class DisciplineTest(unittest.TestCase):
             with self.subTest(clause=clause):
                 defects = clause_defects(self.mutate(clause, insertion))
                 self.assertTrue(defects, f"the review's own counter-example passes: {insertion!r}")
+
+    def test_red_flags_name_the_sentence_that_ships_a_check_protecting_nothing(self):
+        """The always-loaded half of #4471.
+
+        Every other red flag here is something an agent says instead of running
+        a check. This one is what it says *after* running one: the check was
+        green, so the thing it names is covered. Four defects in a single
+        session had that shape -- a metric whose input was absent reporting the
+        absence as a value, a test asserting against its own copy of the
+        regexes the shipped script uses, a fix whose mechanism could be
+        reverted with the suite green, and an author routing around a linter
+        they wrote. Green proves the check ran; only breaking the protected
+        thing proves it binds.
+
+        It belongs in the always-loaded list rather than only in the review
+        lens because the failure happens while authoring the check, hours
+        before any reviewer loads a reference.
+        """
+        self.assert_clause_holds("the check covers it")
 
     def test_delegation_states_the_parallel_agent_cap(self):
         self.assertRegex(compact(DELEGATION), r"(?:four|4) (?:active |concurrent |parallel |writing )*agents")
