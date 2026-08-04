@@ -83,6 +83,10 @@ final class ClaudeStreamEventMapper implements StreamEventMapper {
     }
 
     private String describeToolUseBlock(JsonObject block) {
+        // Issue #4424 round 2: a tool_use block means a tool call was attempted, regardless of what it
+        // turns out to be (including ExitPlanMode's plan-proposal branch below) -- see
+        // StructuredStreamParser#toolCallObserved.
+        state.recordToolCallObserved();
         String toolName = StreamJson.stringField(block, "name");
         String toolUseId = StreamJson.stringField(block, "id");
         if (toolUseId != null && toolName != null) {

@@ -131,6 +131,9 @@ final class CodexStreamEventMapper implements StreamEventMapper {
     }
 
     private MapResult describeToolCallItem(String type, JsonObject item) {
+        // Issue #4424 round 2: a command_execution/mcp_tool_call/collab_tool_call item means a tool
+        // call was attempted, regardless of outcome -- see StructuredStreamParser#toolCallObserved.
+        state.recordToolCallObserved();
         String toolName = StreamJson.firstNonBlank(StreamJson.stringField(item, "name"),
                 StreamJson.stringField(item, "tool"), StreamJson.stringField(item, "command"));
         String label = toolName == null ? "(unknown)" : toolName;

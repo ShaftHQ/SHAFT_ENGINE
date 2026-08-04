@@ -456,13 +456,25 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         assertTrue(output.contains("Denied tool calls: Bash ×2, mcp__shaft-mcp__shaft_coding_partner_plan"), output);
     }
 
+    /**
+     * Issue #4424 review round 2: distinguishes the two sides of the widened "no silent bare
+     * confirmation" guarantee. A plain Q&A run that never attempted a tool call AND never received
+     * any stderr has genuinely nothing to report, so it must stay exactly as terse as before this
+     * issue -- contrast {@code successfulRunWithNonBootstrapStderrAndZeroToolCallsStillSurfacesIt
+     * RegardlessOfVerbose} below, which pins the opposite case (identical zero-tool-call shape, but
+     * WITH stderr) to prove the new rule fires on the stderr signal, not on "no tool calls" alone.
+     * Uses {@code successfulRun} (explicit blank stderr, Verbose ON) instead of the shorter {@code
+     * finalOutput} helper specifically to make that precondition textual, not merely implicit in a
+     * stub default.
+     */
     @Test
     void finalOutputStaysCleanWhenNothingWasWrittenAndNothingWasDenied() throws Exception {
-        String output = finalOutput(claudeInvocation(),
-                claudeAssistantTextEvent("plain answer") + "\n" + claudeResultEvent("plain answer") + "\n");
+        ShaftMcpToolResult result = successfulRun(claudeInvocation(),
+                claudeAssistantTextEvent("plain answer") + "\n" + claudeResultEvent("plain answer") + "\n", "", true);
 
-        assertTrue(!output.contains("Local agent activity"),
-                "A plain Q&A run must not grow an activity footer: " + output);
+        assertTrue(result.success(), result.output());
+        assertTrue(!result.output().contains("Local agent activity"),
+                "A plain Q&A run with no stderr must not grow an activity footer: " + result.output());
     }
 
     /**
@@ -506,12 +518,17 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         assertTrue(output.contains("Failed or denied tool calls: file_change"), output);
     }
 
+    /**
+     * Codex-side sibling of {@code finalOutputStaysCleanWhenNothingWasWrittenAndNothingWasDenied}
+     * above (issue #4424 review round 2): explicit blank stderr, Verbose ON.
+     */
     @Test
     void finalOutputStaysCleanForCodexWhenNothingWasWrittenAndNothingFailed() throws Exception {
-        String output = finalOutput(codexInvocation(), codexTurnCompletedEvent() + "\n");
+        ShaftMcpToolResult result = successfulRun(codexInvocation(), codexTurnCompletedEvent() + "\n", "", true);
 
-        assertTrue(!output.contains("Local agent activity"),
-                "A plain Codex Q&A run must not grow an activity footer: " + output);
+        assertTrue(result.success(), result.output());
+        assertTrue(!result.output().contains("Local agent activity"),
+                "A plain Codex Q&A run with no stderr must not grow an activity footer: " + result.output());
     }
 
     /**
@@ -635,6 +652,51 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     }
 
     /**
+     * Issue #4424 review round 2, finding 3: {@code run()}'s buffered/custom-command success path
+     * had its own, unreachable-by-the-structured-stream-fix instance of the same bug. {@link
+     * AssistantLocalAgentRunner#agentOutput} itself keeps its original short-circuit (a custom
+     * command's success answer no longer routes through it -- see {@code bufferedSuccessOutput}'s
+     * javadoc for why that short-circuit is a deliberate, separately-pinned contract for its other
+     * caller, {@code runCompactPreamble}). {@code bufferedSuccessOutput} folds {@code stdout} and
+     * {@code verbose}-gated {@code stderr} together the same way whether or not {@code stdout} also
+     * has content, closing the "Verbose is ignored on success" gap the reviewer's probe found.
+     */
+    @Test
+    void bufferedSuccessOutputSurfacesStderrAlongsideNonBlankStdoutWhenVerboseIsOn() {
+        assertEquals("ok\n\nsandbox-setup.exe failed to launch: Access is denied (os error 5)",
+                AssistantLocalAgentRunner.bufferedSuccessOutput(
+                        "ok", "sandbox-setup.exe failed to launch: Access is denied (os error 5)", true));
+    }
+
+    /**
+     * Companion pin: Verbose off keeps withholding stderr here too (matching the already-established
+     * #3965 contract), since (unlike the structured-stream path) there is no reliable "nothing else
+     * happened" signal here to distinguish a silent failure from ordinary successful-run stderr
+     * chatter.
+     */
+    @Test
+    void bufferedSuccessOutputStillWithholdsStderrAlongsideNonBlankStdoutWhenVerboseIsOff() {
+        assertEquals("ok", AssistantLocalAgentRunner.bufferedSuccessOutput("ok", "some stderr chatter", false));
+    }
+
+    /**
+     * End-to-end reproduction of the reviewer's exact probe: a custom command whose stdout looks like
+     * a complete, confident answer while its stderr carries the sandbox-bootstrap failure, Verbose
+     * ON. Before this fix, {@code result.output()} was bare {@code "ok"} with zero trace.
+     */
+    @Test
+    void customCommandSurfacesStderrAlongsideNonBlankStdoutWhenVerboseIsOn() throws Exception {
+        String stderr = "sandbox-setup.exe failed to launch: Access is denied (os error 5)";
+
+        ShaftMcpToolResult result = successfulRun(customCommandInvocation(), "ok", stderr, true);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("Access is denied (os error 5)"),
+                "A custom command's stderr must surface alongside its stdout when Verbose is on: "
+                        + result.output());
+    }
+
+    /**
      * Regression coverage for issue #4424: on a <em>successful</em> exit (unlike the failure paths
      * exercised above), {@code rawStderr} used to be computed and then discarded entirely once a
      * structured stream had a terminal event, so a sandbox/environment bootstrap failure that
@@ -672,6 +734,115 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
                 claudeAssistantTextEvent("plain answer") + "\n" + claudeResultEvent("plain answer") + "\n");
 
         assertEquals("plain answer\n\n{\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}", output);
+    }
+
+    /**
+     * Issue #4424 review round 2, finding 1: the fix above must not be fitted to the one observed
+     * "sandbox-setup" string. The actual rule is broader -- a zero-exit run with zero tool calls,
+     * zero files touched and zero denials, but non-blank stderr, must never be silent, whatever the
+     * stderr says. An MCP-server startup failure is a different, unrelated cause from the sandbox
+     * bootstrap failure and must surface all the same, with Verbose ON (matching the reviewer's
+     * probe exactly: the bug reproduced even with Verbose on, since {@code finalOutput()} never took
+     * stderr into account at all before this issue).
+     */
+    @Test
+    void successfulRunWithNonBootstrapStderrAndZeroToolCallsStillSurfacesItRegardlessOfVerbose()
+            throws Exception {
+        String stderr = "Error: MCP server 'shaft-tools' failed to start (ECONNREFUSED 127.0.0.1:5173)";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(), codexTurnCompletedEvent() + "\n", stderr, true);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("ECONNREFUSED"),
+                "Any stderr on an otherwise-silent successful run must surface, not only the "
+                        + "sandbox-setup shape: " + result.output());
+    }
+
+    /**
+     * Same as above, Verbose OFF -- proves the rule is genuinely ungated by Verbose, not merely
+     * coincidentally true for Verbose-on inputs.
+     */
+    @Test
+    void successfulRunWithNonBootstrapStderrSurfacesItEvenWithVerboseOff() throws Exception {
+        String stderr = "Error: MCP server 'shaft-tools' failed to start (ECONNREFUSED 127.0.0.1:5173)";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(), codexTurnCompletedEvent() + "\n", stderr, false);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("ECONNREFUSED"), result.output());
+    }
+
+    /**
+     * Issue #4424 review round 2, finding 2: detection fitted to one exact string is exactly the
+     * failure mode issue #4469 recorded against a directive list fitted to its known offenders. Only
+     * the hyphen changed here (a plausible naming-convention drift); "Access is denied (os error 5)"
+     * is verbatim present. The general stderr-surfacing rule must not depend on recognizing
+     * "sandbox-setup" literally -- it must surface this too.
+     */
+    @Test
+    void successfulRunWithASandboxSetupNamingVariantStillSurfacesTheStderr() throws Exception {
+        String stderr = "SandboxSetup.exe failed to launch: Access is denied (os error 5)";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(), codexTurnCompletedEvent() + "\n", stderr, false);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("Access is denied (os error 5)"), result.output());
+    }
+
+    /**
+     * Boundary regression proving the fix is not "always surface any stderr on a successful run":
+     * a run that DID attempt a tool call (so it is not the "silently did nothing" shape #4424
+     * reported), touched no files, and had no denials must keep withholding incidental stderr noise
+     * when Verbose is off -- exactly the ordinary-noise contract issue #3965 established. This is
+     * what proves {@code toolCallObserved} genuinely narrows the new rule instead of widening
+     * {@code activitySummary}'s guard unconditionally.
+     */
+    @Test
+    void successfulCodexRunWithAToolCallButNothingToReportWithholdsIncidentalStderrWhenVerboseIsOff()
+            throws Exception {
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\","
+                + "\"name\":\"shell\",\"command\":\"ls\",\"aggregated_output\":\"\",\"exit_code\":0}}";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(),
+                toolEvent + "\n" + codexTurnCompletedEvent() + "\n", "some incidental progress chatter", false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("incidental progress chatter"), result.output());
+    }
+
+    /**
+     * Same boundary proof on the Claude side, confirming {@code ClaudeStreamEventMapper} also wires
+     * a {@code tool_use} block into {@code toolCallObserved}.
+     */
+    @Test
+    void successfulClaudeRunWithAToolCallButNothingToReportWithholdsIncidentalStderrWhenVerboseIsOff()
+            throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Read\",\"input\":{\"file_path\":\"a.txt\"}}]}}";
+
+        ShaftMcpToolResult result = successfulRun(claudeInvocation(),
+                toolUseEvent + "\n" + claudeResultEvent("done") + "\n", "incidental chatter", false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("incidental chatter"), result.output());
+    }
+
+    /**
+     * Edge case: when the terminal answer text is itself blank, the stderr notice becomes the whole
+     * core -- must not leave a leading blank line from the (skipped) "core + notice" concatenation.
+     */
+    @Test
+    void successfulRunWithNoAnswerTextAtAllStillSurfacesTheStderrNoticeCleanly() throws Exception {
+        String emptyResultEvent =
+                "{\"type\":\"result\",\"result\":\"\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}";
+        String stderr = "Error: MCP server 'shaft-tools' failed to start (ECONNREFUSED 127.0.0.1:5173)";
+
+        ShaftMcpToolResult result = successfulRun(claudeInvocation(), emptyResultEvent + "\n", stderr, true);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("ECONNREFUSED"), result.output());
+        assertFalse(result.output().startsWith("\n\n"),
+                "A blank core must not leave a leading blank line: " + result.output());
     }
 
     private static ShaftMcpToolResult successfulRun(
