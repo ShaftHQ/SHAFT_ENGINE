@@ -138,8 +138,8 @@ sends you there; the rest by
 
 Caveman, Ponytail and the TDD cycle are not references — they live in the
 entrypoint body, because a rule that governs every task must not cost a second
-read. What the cycle fails as is a reference, because it is read while writing
-one test rather than on every task. Only their MIT notices are files:
+read. How the cycle fails is a reference, because it is read while writing one
+test rather than on every task. Only their MIT notices are files:
 [Caveman](act-as-mohab/references/caveman.LICENSE),
 [Ponytail](act-as-mohab/references/ponytail.LICENSE),
 [TDD](act-as-mohab/references/test-driven-development.LICENSE).

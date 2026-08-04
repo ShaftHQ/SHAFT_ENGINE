@@ -10,7 +10,7 @@ act on it. That is what is here: a rebuttal per excuse, and a gate per failure.
 
 ## Rationalizations, answered
 
-Recognising the phrase is not enough, because each one arrives wearing a
+Recognizing the phrase is not enough, because each one arrives wearing a
 reason. These are the reasons and what is wrong with them.
 
 | Excuse | Answer |
@@ -29,7 +29,7 @@ reason. These are the reasons and what is wrong with them.
 
 ## Test-only methods in production
 
-A method only tests call is production surface with no production caller. It
+A method that only tests call is production surface with no production caller. It
 reads as real API to everyone downstream, it can be invoked by mistake, and it
 usually parks a resource's teardown on a class that does not own that
 resource's lifecycle. Test cleanup belongs in test utilities.
@@ -44,7 +44,7 @@ Mocking broadly to be safe is how a test starts passing for the wrong reason.
 The usual shape: the mocked call carried a side effect the test's premise
 depended on, so the condition under test can no longer arise and the assertion
 proves nothing. Mocking the slow thing at too high a level removes the
-behaviour along with the slowness.
+behavior along with the slowness.
 
 **Gate, before mocking anything.** Name the real method's side effects, then
 say which of them this test depends on. If it depends on any, mock further down
@@ -73,10 +73,10 @@ The entrypoint already rules this out, so treat an assertion on a mock as a
 symptom and go after the cause: you arrive here by adding mocks without first
 watching the test fail against real code, which means the fix is upstream of
 the assertion rather than in it. Delete the assertion or unmock the collaborator
-and test the real behaviour.
+and test the real behavior.
 
 Tells: an assertion matching a mock's own identifier, a mock whose removal turns
-the test red for no behavioural reason, a mock you cannot justify out loud.
+the test red for no behavioral reason, a mock you cannot justify out loud.
 
 ## When the mock is the problem
 

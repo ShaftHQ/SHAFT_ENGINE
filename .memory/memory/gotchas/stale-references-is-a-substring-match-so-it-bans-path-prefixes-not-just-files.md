@@ -29,10 +29,21 @@ files nobody has created yet. That is not apparent from the key's name, which
 reads like a list of dead files.
 
 The failure is reported against the file holding the **link**, not the new file
-whose name caused it. Add `references/tdd/anything.md` and the red names
-`SKILL.md`, `README.md` and `routing.md` -- three files you did not think you
-were breaking, none of them the one to rename. Expect to lose time here unless
-you recognise the shape.
+whose name caused it. Add `references/tdd/anything.md` and link it from all
+three of the usual places, and the red names two files you did not think you
+were breaking -- `.agents/skills/README.md` and
+`.agents/skills/act-as-mohab/SKILL.md` -- neither of them the one to rename.
+Expect to lose time unless you recognize the shape.
+
+Which files are named depends on how each one **spells** the link, and that is
+the whole mechanism:
+
+- `SKILL.md` links it `references/tdd/failure-modes.md` -- contains the banned
+  substring, flagged.
+- `README.md` links it `act-as-mohab/references/tdd/failure-modes.md` --
+  contains it, flagged.
+- `routing.md` already lives in `references/`, so it links it
+  `tdd/failure-modes.md` -- the substring never appears, **not** flagged.
 
 ## The entries are not reproduced here on purpose
 
@@ -46,6 +57,17 @@ exactly that on its first draft).
 
 Two entries are worth knowing without looking: `references/tdd/` and
 `references/test-driven-development.md`. They are why #4502 / PR #4503 shipped
-one flat `tdd-failure-modes.md` rather than a `tdd/` subdirectory holding two
-files. That layout was forced, not preferred -- if you are revisiting it, this
-is the constraint to re-check first.
+one flat `tdd-failure-modes.md`.
+
+Be precise about how far that goes, because the first draft of this memory
+overstated it and a reviewer refuted it by experiment. A `references/tdd/`
+subdirectory is **not** impossible. It is unusable only if the entrypoint or
+the skills map links it by full path. Linked only relatively from inside
+`references/`, it passes: `validate_agent_guidance.py` returns 0 and the
+reachability suite runs 19 tests OK. Measured both ways, on this repository.
+
+The flat file was therefore **chosen, not forced** -- chosen because it is the
+only layout where the entrypoint *and* the map can both link the file, and
+losing the entrypoint link is what puts the pointer out of reach at the moment
+an agent is actually writing a mock. If you are revisiting the layout, that is
+the trade to weigh, not a prohibition.
