@@ -648,8 +648,22 @@ final class AssistantLocalAgentRunner {
                     effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
             OutputStream stdinStream = null;
             try {
+                // A cancel/kill that arrives before this point cannot reach the process: cancel()
+                // reads processReference, which is still null until the line below. Everything ahead
+                // of it -- commandFor, the approval bridge, and isCommandAvailable's full PATH scan --
+                // takes long enough for that to be a routine race rather than a corner case (issue
+                // #4500), so re-check the flag on both sides of publishing the handle. Without the
+                // second check the run launches the CLI, throws its CancellationException below and
+                // leaves the child process and both readAsync reader threads alive.
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
                 Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
                 processReference.set(process);
+                if (cancellationRequested.get()) {
+                    process.destroyForcibly();
+                    throw new CancellationException("Operation cancelled");
+                }
                 InputStream stdoutStream = process.getInputStream();
                 InputStream stderrStream = process.getErrorStream();
                 stdinStream = process.getOutputStream();
@@ -666,6 +680,9 @@ final class AssistantLocalAgentRunner {
                 stdinStream.close();
 
                 if (cancellationRequested.get()) {
+                    // Same reason as the guard around the launch above: a kill that landed while the
+                    // handle was unpublished set only the flag, so this path owns the destroy.
+                    process.destroyForcibly();
                     throw new CancellationException("Operation cancelled");
                 }
                 if (!awaitProcessWithApprovalExtension(process, timeout, bridge)) {

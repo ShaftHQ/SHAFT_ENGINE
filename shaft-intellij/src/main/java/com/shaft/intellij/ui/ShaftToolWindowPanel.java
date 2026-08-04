@@ -525,6 +525,21 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private void disposeActiveChildren() {
         disposeApiRecordingPanel();
         disposeGuidedWorkflowPanel();
+        disposeAssistantPanel();
+    }
+
+    /**
+     * Disposes the current Assistant panel, if any, killing the local-agent CLI process it may still
+     * be running and stopping its output-flush timer (issue #4500). The assistant panel used to be
+     * the one child this method dropped without disposing -- {@link #showSetupView()} simply nulls
+     * the field -- so a run in flight at project close kept a real Codex/Claude process and one of
+     * {@code ShaftPluginExecutor}'s bounded worker threads alive until its own timeout.
+     */
+    private void disposeAssistantPanel() {
+        if (assistantPanel != null) {
+            Disposer.dispose(assistantPanel);
+            assistantPanel = null;
+        }
     }
 
     /**

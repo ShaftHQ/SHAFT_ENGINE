@@ -3416,10 +3416,9 @@ class ShaftPanelSetupTest {
                 "The bogus main class must make the real java process exit non-zero: " + result.output());
         // The real stderr line reaching send()'s live outputConsumer schedules the coalescer's real
         // ~100ms one-shot javax.swing.Timer (ShaftAssistantPanel.java's LocalAgentOutputCoalescer
-        // wiring); this test never pumps the EDT to let it fire and self-stop, so without this wait
-        // the platform's SwingTimerWatcherExtension flags it as "Not disposed" in afterEach even
-        // though the assertions above already have everything they need.
-        Thread.sleep(250);
+        // wiring). This used to need a fixed 250ms wait to let the timer fire and self-stop before
+        // the platform's SwingTimerWatcherExtension ran; issue #4500 gave that timer an owner, so the
+        // panel's own disposal stops it deterministically and the sleep is gone.
         return result;
     }
 
