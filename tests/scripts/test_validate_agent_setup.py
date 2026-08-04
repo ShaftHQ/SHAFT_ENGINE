@@ -470,15 +470,49 @@ approval_mode = "prompt"
         self.assertEqual(metrics["memory_objects"], on_disk)
         self.assertGreater(on_disk, 0)
 
-    def test_an_absent_store_reports_zero_verified_not_unverified(self):
-        # `(0, None)` rendered as "unverified: git could not answer", which is
-        # false: git answered fine, there was simply no store to count. Zero is
-        # settled by the filesystem alone here, so it is a verified zero. The
-        # same class of false statement as the refusal message this change
-        # already retracted once.
+    def test_a_store_missing_from_the_worktree_still_reports_what_git_holds(self):
+        # Two earlier attempts at this case each put a false statement in the
+        # banner. `(0, None)` said "unverified: git could not answer" when git
+        # was never asked. `(0, 0)` said "zero, verified" for a tree where git
+        # could still see committed objects -- the bare, quotable wording, for
+        # the exact discrepancy #4495 exists to expose. Both returned BEFORE
+        # either query, which is what made them wrong.
+        #
+        # The earlier test could not catch it: its fixture never called
+        # `init_repository`, so nothing was in HEAD there either. It pinned the
+        # empty-repository case and passed while the real one was broken. The
+        # committed objects here are the whole point.
+        #
+        # Not hypothetical: R9 in the guard exists because plain `git worktree
+        # add` aborts part-way through checking out over-long `.memory/**`
+        # paths (#4126), leaving precisely this state.
         import shutil as _shutil
 
+        self.init_repository()
+        self.write(".memory/memory/gotchas/committed.json", "{}")
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        landed = self.metrics_for_budget()["memory_objects"]
+        self.assertGreater(landed, 0)
+
         _shutil.rmtree(self.root / ".memory/memory")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], landed)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_an_empty_repository_with_no_store_reports_a_plain_zero(self):
+        # The case the previous test used to cover, kept because it is the one
+        # where zero really is the whole truth.
+        import shutil as _shutil
+
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        _shutil.rmtree(self.root / ".memory/memory")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "drop the store")
+
         metrics = self.metrics_for_budget()
         self.assertEqual(metrics["memory_objects"], 0)
         self.assertEqual(metrics["memory_objects_untracked"], 0)

@@ -585,13 +585,21 @@ def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None
     publish a non-measurement in the units of a measurement (see
     `reduction_percent`).
     """
-    if not memory_root.is_dir():
-        # Zero, and verified: there is no store, which the filesystem settles on
-        # its own. Returning None here rendered as "unverified: git could not
-        # answer" -- git answered fine, there was simply nothing to count. That
-        # is the same class of false statement as the refusal message this PR
-        # already retracted once.
-        return 0, 0
+    # No special case for a missing directory, deliberately. Two earlier
+    # attempts both put a false statement in the banner: `(0, None)` said
+    # "unverified: git could not answer" when git was never asked, and `(0, 0)`
+    # said "zero, verified" for a tree where git could still see committed
+    # objects. Both fired BEFORE either query, which is what made them wrong.
+    #
+    # Reachable here rather than hypothetical: R9 exists because plain `git
+    # worktree add` aborts part-way through checking out over-long `.memory/**`
+    # paths (#4126), leaving exactly that state -- no store on disk, a HEAD full
+    # of objects. A sparse checkout does the same.
+    #
+    # Letting the queries answer needs no guard. `relative_to` is a pure path
+    # operation, and git accepts a pathspec matching nothing with exit 0 and
+    # empty output, so `landed` is what HEAD holds and `present` is empty. The
+    # fallback below still covers the genuinely unanswerable case.
     relative = memory_root.relative_to(root).as_posix()
     # `-z` must precede the `--`, or git reads it as a pathspec and matches
     # nothing -- silently, with exit code 0 and an empty result.
@@ -609,7 +617,8 @@ def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None
         relative,
     )
     if landed is None or visible is None:
-        return len(list(memory_root.rglob("*.json"))), None
+        walked = len(list(memory_root.rglob("*.json"))) if memory_root.is_dir() else 0
+        return walked, None
     objects = {path for path in landed if path.endswith(".json")}
     present = {path for path in visible if path.endswith(".json")}
     return len(objects), len(present - objects)

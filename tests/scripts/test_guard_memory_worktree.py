@@ -27,6 +27,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import sys
 import tempfile
@@ -320,6 +321,94 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         pointer = (decoy / ".git").read_text(encoding="utf-8")
         self.assertIn("worktrees", pointer)
         self.assertFalse(is_linked_worktree(str(decoy)))
+
+    def synthetic_admin(self, name: str, *files: str) -> Path:
+        """A checkout whose `.git` points at an admin dir holding only `files`."""
+        checkout = self.container / name
+        admin = self.container / f"{name}-admin"
+        checkout.mkdir()
+        admin.mkdir()
+        for filename in files:
+            (admin / filename).write_text("x\n", encoding="utf-8")
+        (checkout / ".git").write_text(f"gitdir: {admin}\n", encoding="utf-8")
+        return checkout
+
+    def test_both_admin_files_are_required_not_either(self):
+        # The predicate rests on git writing BOTH `gitdir` and `commondir`
+        # inside a linked worktree's admin directory. Nothing verified the
+        # conjunction: the only negative fixture -- the separate-git-dir decoy
+        # -- has NEITHER, so each half alone still classified it correctly and
+        # either could be deleted with the suite green.
+        self.assertFalse(is_linked_worktree(str(self.synthetic_admin("only-gitdir", "gitdir"))))
+        self.assertFalse(
+            is_linked_worktree(str(self.synthetic_admin("only-commondir", "commondir")))
+        )
+        self.assertTrue(
+            is_linked_worktree(str(self.synthetic_admin("both", "gitdir", "commondir")))
+        )
+
+    def test_a_submodule_is_not_a_linked_worktree(self):
+        # The docstring names submodules as a case the path-based predicates got
+        # wrong, so it needs a fixture rather than an assertion.
+        #
+        # Built to git's real submodule layout instead of by running `git
+        # submodule add`: that needs `protocol.file.allow=always` for a local
+        # source and is refused outright in some environments, which turned this
+        # into a permanent skip -- and a test that always skips is not a test.
+        # What the predicate reads is the admin directory's contents, and a
+        # submodule's `.git/modules/<name>` carries neither marker file.
+        parent = self.container / "super"
+        admin = parent / ".git" / "modules" / "sub"
+        submodule = parent / "sub"
+        admin.mkdir(parents=True)
+        submodule.mkdir(parents=True)
+        # Real submodule admin dirs hold these; neither is `gitdir`/`commondir`.
+        (admin / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+        (admin / "config").write_text("[core]\n", encoding="utf-8")
+        (submodule / ".git").write_text(f"gitdir: {admin}\n", encoding="utf-8")
+        self.assertFalse(is_linked_worktree(str(submodule)))
+
+    def test_a_gitdir_pointer_with_a_bom_is_still_read(self):
+        # `str.strip()` does not remove U+FEFF, so a BOM made the `gitdir:`
+        # match miss and the rule fail open silently. Git never writes one; an
+        # editor that rewrote the file might. The `utf-8-sig` that handles it
+        # was unbound.
+        checkout = self.container / "bom"
+        admin = self.container / "bom-admin"
+        checkout.mkdir()
+        admin.mkdir()
+        for filename in ("gitdir", "commondir"):
+            (admin / filename).write_text("x\n", encoding="utf-8")
+        (checkout / ".git").write_bytes(
+            "﻿".encode("utf-8") + f"gitdir: {admin}\n".encode("utf-8")
+        )
+        self.assertTrue(is_linked_worktree(str(checkout)))
+
+    def test_a_pruned_admin_directory_fails_open(self):
+        # `git worktree prune`, a moved repository before `git worktree repair`,
+        # or a half-deleted worktree leaves a `.git` file pointing at an admin
+        # dir that is gone. R11 then stops firing. That is the documented
+        # fail-open direction rather than a false denial, and it is new relative
+        # to the path-based predicate, so pin the direction deliberately.
+        checkout = self.synthetic_admin("pruned", "gitdir", "commondir")
+        self.assertTrue(is_linked_worktree(str(checkout)))
+        shutil.rmtree(self.container / "pruned-admin")
+        self.assertFalse(is_linked_worktree(str(checkout)))
+
+    def test_an_absolute_target_outside_any_repository_is_denied(self):
+        # The "cannot prove it" branch of the project_root check: if the target
+        # resolves to no checkout at all, nothing has been proven and the write
+        # must still be refused. Inverting that branch left the suite green.
+        outside = self.container / "not-a-repo"
+        outside.mkdir()
+        reason = self.denial_reason(
+            self.decision(
+                "mcp__shaft-memory__remember_memory",
+                self.linked,
+                {"project_root": str(outside)},
+            )
+        )
+        self.assertIsNotNone(reason)
 
     def test_a_relative_gitdir_pointer_is_still_detected(self):
         # `git worktree add --relative-paths` writes `gitdir: ../p/.git/

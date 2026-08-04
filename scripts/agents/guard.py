@@ -1158,8 +1158,11 @@ def check_r11_memory_write_worktree(
     """Return a block reason for an untargeted MCP memory write from a linked worktree."""
     if tool_name not in _MEMORY_WRITE_TOOLS:
         return None
+    # `is_linked_worktree` already returns False whenever `worktree_root` is
+    # None, so a `root is None` disjunct here could never be the reason and was
+    # dead code.
     root = worktree_root(cwd)
-    if root is None or not is_linked_worktree(cwd):
+    if not is_linked_worktree(cwd):
         return None
     if _targets_this_worktree(tool_input, root):
         return None
