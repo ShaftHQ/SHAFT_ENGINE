@@ -362,6 +362,14 @@ steps:
         self.assertIn("host-listing-budget", codes)
         self.assertNotIn("host-body-budget", codes)
 
+    def test_always_loaded_body_uses_utf8_bytes(self):
+        self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
+        self.budget["max_always_loaded_body_chars"] = 1
+        (self.root / "AGENTS.md").write_text("é", encoding="utf-8")
+        self.write_budget()
+        codes = {error["code"] for error in validate_repository(self.root, self.budget_path)}
+        self.assertIn("host-body-budget", codes)
+
     def configure_routing_bridges(self, **overrides) -> None:
         self.budget["routing_bridges"] = {
             "source": ".agents/skills/act-as-mohab/references/routing.md",

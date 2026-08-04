@@ -133,6 +133,7 @@ sends you there; the rest by
 - [orchestrator bootstrap](act-as-mohab/references/orchestrator-bootstrap.md)
 - [verification-gap lens](act-as-mohab/references/verification-gap-lens.md)
 - [work GitHub playbook](act-as-mohab/references/work-github-playbook.md)
+- [work GitHub planning](act-as-mohab/references/work-github-planning.md)
 - [graphify](act-as-mohab/references/graphify.md)
 - [TDD failure modes](act-as-mohab/references/tdd-failure-modes.md)
 

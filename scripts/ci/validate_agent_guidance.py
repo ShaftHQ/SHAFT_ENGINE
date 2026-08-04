@@ -151,13 +151,13 @@ def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
 
 
 def always_loaded_body_chars(root: Path, configured_paths: list[str]) -> tuple[int, list[str]]:
-    """Count characters a host loads before it sees the task."""
+    """Count LF-normalized UTF-8 bytes a host loads before it sees the task."""
     characters = 0
     missing: list[str] = []
     for configured_path in configured_paths:
         path = root / configured_path
         if path.is_file():
-            characters += len(path.read_text(encoding="utf-8"))
+            characters += len(path.read_text(encoding="utf-8").encode("utf-8"))
         else:
             missing.append(configured_path)
     return characters, missing
@@ -178,7 +178,7 @@ def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
 
     Always-loaded body and skill-listing metadata hit different caps and are
     budgeted separately -- see ``limit_sources`` in the budget file. Both are
-    measured in characters because that is the unit the hosts document.
+    measured in the unit each host documents.
     """
     errors: list[dict[str, str]] = []
     body_maximum = budget.get("max_always_loaded_body_chars")
@@ -195,7 +195,7 @@ def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
                 issue(
                     "host-body-budget",
                     host,
-                    f"{characters} always-loaded characters exceeds configured maximum {body_maximum}",
+                    f"{characters} always-loaded UTF-8 bytes exceeds configured maximum {body_maximum}",
                 )
             )
     if listing_maximum is None:

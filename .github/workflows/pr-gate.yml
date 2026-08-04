@@ -158,6 +158,24 @@ jobs:
               - 'shaft-heal/**'
               - 'shaft-mcp/**'
               - 'pom.xml'
+            # Issue #4506: tests/scripts/test_pilot_module_boundary.py pins the
+            # shaft-engine -> shaft-pilot-core -> shaft-capture/shaft-ai
+            # dependency direction and the AiProvider ServiceLoader
+            # registration, and it was run by no workflow at all -- so it sat
+            # red on main indefinitely. Its inputs span four filters that
+            # already exist and two paths that belong to none of them
+            # (shaft-bom, the consumer fixture), so it gets its own leg naming
+            # exactly what it reads rather than being bolted onto the closest
+            # one.
+            module_boundary:
+              - 'shaft-engine/pom.xml'
+              - 'shaft-pilot-core/pom.xml'
+              - 'shaft-capture/pom.xml'
+              - 'shaft-ai/**'
+              - 'shaft-bom/pom.xml'
+              - 'tools/modularization/consumer-fixtures/pilot-core/pom.xml'
+              - '.github/workflows/shaft-mcp.yml'
+              - 'tests/scripts/test_pilot_module_boundary.py'
             infra:
               - '.github/workflows/pr-gate.yml'
               # Composite actions this gate's jobs call (issue #4440 added
@@ -549,6 +567,29 @@ jobs:
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
 
+  # Issue #4506: this module's other five tests pin a real architectural
+  # boundary -- shaft-engine carries no Pilot or provider dependency, and the
+  # direction runs engine -> pilot-core -> capture/ai and never back -- and it
+  # was unguarded the whole time it lived in the same directory as modules the
+  # agent-guidance leg runs. An enforcement module CI never runs is a rule
+  # nobody enforces, which is the same reason
+  # test_agent_harness_reachability.py exists for the harness surface.
+  module-boundary:
+    name: Pilot Module Boundary Gate
+    needs: changes
+    if: needs.changes.outputs.module_boundary == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Run pilot module boundary tests
+        run: python3 -m unittest tests.scripts.test_pilot_module_boundary -v
+
   # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
   # references is invisible -- unlike a failing test, nothing reports it, so
   # it can sit unused indefinitely looking like coverage (this is exactly how
@@ -671,6 +712,7 @@ jobs:
       - unit-tests
       - template-coupling
       - workflow-timeouts
+      - module-boundary
       - orphaned-suite-files
       - pr-body-autoclose-guard
       - dependency-review
@@ -690,6 +732,7 @@ jobs:
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
+          MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
           ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
           PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
@@ -709,6 +752,7 @@ jobs:
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
+            echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
             echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
             echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
@@ -720,7 +764,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+          for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

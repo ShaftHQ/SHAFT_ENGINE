@@ -1,12 +1,13 @@
 {
   "body_path": "memory/workflows/new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n.md",
-  "content_hash": "sha256:4a4caf6a72078ae05b41781400ea97395d2d3e8d3f0acbfdc8712b0b8871eab9",
+  "content_hash": "sha256:0e25219a399e0fcb4ccd48592bcc852f36583758c668f2ba8eda94f274f1a4b7",
   "created_at": "2026-07-20T23:29:00+03:00",
   "evidence": [],
   "facets": {
     "applies_to": [
       "AGENTS.md",
-      ".agents/skills/act-as-mohab/references/work-github-playbook.md"
+      ".agents/skills/act-as-mohab/references/work-github-playbook.md",
+      ".agents/skills/act-as-mohab/references/work-github-planning.md"
     ],
     "category": "workflow"
   },
@@ -31,5 +32,5 @@
   ],
   "title": "New work requests get a tracking issue, one linked issue per unit of work, and grouped PRs with multiple Closes #N",
   "type": "workflow",
-  "updated_at": "2026-08-01T16:09:11+03:00"
+  "updated_at": "2026-08-04T23:33:23+03:00"
 }

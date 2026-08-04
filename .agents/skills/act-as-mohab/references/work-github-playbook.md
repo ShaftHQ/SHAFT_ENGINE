@@ -1,320 +1,61 @@
 # Work GitHub — playbook
 
-A session-shaped methodology for taking one GitHub issue (or a small set of
-open issues) from "filed" to "merged," doing as much of the middle
-unattended as the user allows. Load `act-as-mohab` alongside this skill and
-every subagent you dispatch — this skill governs the *shape* of the session,
-`act-as-mohab` governs how each step inside it gets done.
-
-## 0. Ground the scope before asking anything
-
-Never ask the user a question you could answer yourself by reading the repo.
-Before the first question:
-
-- Read the target issue(s) in full (`gh issue view <n> --repo <owner>/<repo>`),
-  including every linked/carried-over sub-item — issue bodies in this repo
-  often list explicitly deferred items from a prior closed issue; treat those
-  as first-class scope, not footnotes.
-- Check for anything that already closes part of the scope: merged PRs,
-  already-shipped commits referencing the issue number, a linked companion
-  PR in another repo (`gh pr list`/`gh pr view` there too).
-- List open issues/PRs across the repos actually in play (`gh issue list
-  --state open`, `gh pr list --state open`) so "any currently open tickets"
-  means a concrete, enumerated set, not a guess.
-- Re-ground every sub-item's *file location* against the current code, not
-  the issue text's possibly-stale line numbers or assumed files — grep for
-  the symptom before assigning a sub-item to a file.
-
-Only once you know the real, current shape of the work should you ask the
-user anything.
-
-## 1. Ask once, at the start, then go unattended
-
-This repo's `AGENTS.md` defaults to one branch/worktree per session with
-sub-tasks as commits, grouped into one PR per group of related subtasks (Sec.
-3b below) — not the older single-PR-per-session convention it supersedes.
-Do not silently pick an interpretation; do not ask piecemeal mid-session
-either. Surface the real decisions in **one** batched question, grounded
-in what step 0 found:
-
-- **Branch/PR shape** — one branch, one tracking issue, one issue per
-  subtask, and one PR per group of related subtasks (the default per Sec.
-  3b) vs. a separate branch+PR per item looped sequentially, for cases
-  genuinely too disjoint to group.
-- **Merge authority** — auto-merge each PR once CI is green, vs. hold for
-  manual review.
-- **Any item whose scope is genuinely ambiguous** — e.g. an item the issue
-  itself flags as borderline against the issue's own stated constraints
-  (a "no new features" issue containing a deferred item that needs a real
-  data-model change). Give the user the real tradeoff you found, not a vague
-  "how should I proceed?".
-
-Once answered, do not re-ask for the rest of the session unless you hit a
-genuine blocker (a decision only the user can make, not a step you could
-resolve by reading more code). The user asked for unattended execution —
-honor that by not manufacturing more checkpoints than the one they granted.
-
-### Mid-session realignment: named HALT conditions
-
-Per the ownership rules in [field heuristics](heuristics.md), a new ask
-mid-run joins the same owned plan —
-absorb and keep going, in most cases. But absorbing on missing evidence is
-how a session drifts silently off the owner's actual intent. HALT and ask,
-by name, when any of these hold (adapted from bmad-method's
-`bmad-correct-course/checklist.md` halt-condition pattern, MIT-licensed —
-not its PRD/epic machinery, which doesn't apply here):
-
-- **HALT if the realignment changes the branch/PR/merge-authority shape
-  agreed in step 1.** A broad "keep going" for the original scope is not
-  authorization for a different shape — re-ask for the
-  delta, don't silently reinterpret.
-- **HALT if you cannot ground the new ask in real code.** No matching
-  symptom, file, or prior art after an honest search means you'd be
-  building on a guess — say what you searched and ask, don't proceed on
-  inference.
-- **HALT if the new ask conflicts with work already in flight** (same file
-  scope, contradictory requirement, or it obsoletes a sub-item mid-commit).
-  Surface the conflict and the two options; don't quietly drop either side.
-- **HALT if merge authority for the newly-added scope was never granted.**
-  Authorization doesn't transfer (see the risk and ownership rules in
-  [field heuristics](heuristics.md)) — an
-  auto-merge mandate for the original item set doesn't extend to scope
-  added after the fact.
-
-## 2. Branch and track
-
-- Fetch and prune, then branch fresh off `origin/main` (or the target repo's
-  default branch — check, don't assume `main`; companion docs repos in this
-  org default to `master`).
-- Create a task list (one task per sub-item plus scaffolding tasks: docs/
-  catalog update, memory commit, skill/graphify updates if applicable, final
-  push+PR+merge). Update task status as you go — it's how you and the user
-  both track a long unattended run.
-
-## 3. Work items in dependency order, front-loading risk
-
-Order sub-items so the riskiest/least-understood one goes first (per
-the entrypoint's operating contract, "test riskiest premise first") — if it
-invalidates an
-assumption, better to learn that before three other items are built on top
-of it.
-
-One issue is one work stream, so the entrypoint's solo-or-orchestrate rule
-normally puts this session in solo mode and the shapes below apply only while
-orchestrating. The mechanics of a dispatch — the covenant every prompt opens
-with, which file scopes may run concurrently and in what isolation, and what the
-mechanical capability level may be handed — belong to
-[delegation](delegation.md) and are not restated here. What is specific to
-working an issue is which items to dispatch at all:
-
-- **Scout it yourself first** when it requires an architectural or
-  data-model decision (e.g. "where does this state actually live, and can a
-  fix live alongside an existing persistence contract without breaking it").
-  Per [roles](roles.md), that judgment call belongs to the main
-  thread, not a subagent guessing at a spec you haven't written yet.
-- **Delegate at the default capability level** (`coder`; `reviewer`/`tester` for their
-  lanes) once you can write a *detailed, concrete* spec: exact files, exact method/field names verified against the real
-  code, the precedent pattern to follow (with a real file:line reference),
-  what's explicitly out of scope, what tests to add and where, and the exact
-  validation command to run. A vague spec produces a vague implementation —
-  the spec is where your scouting work pays off.
-
-## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)
-
-Owner directive (2026-07-20): this is the binding default for **every** new
-substantial work request from the very start — not only for an issue that
-later turns out to need multiple phases. Analyze, plan, and architect the
-request *before* any code lands, then open the tracking issue. It supersedes
-any older "1 PR per session" framing found elsewhere in this repo's docs: a
-session may open several grouped PRs, one per group of related subtasks.
-
-- **Title prefix**: the tracking issue's title starts with `Tracking: `
-  (rename an issue when it turns out to need phasing, keep the rest of the
-  title).
-- **Subtask issues**: every subtask gets its own real, linked GitHub issue in
-  the repo the work lands in — never just a checkbox with no ticket behind
-  it. The tracking issue's body holds a `## Tracking` section with one
-  checkbox per subtask, each linking its issue (`- [ ] Subtask N — <name>
-  (#<subtask-issue>)`).
-- **Grouped PRs, multiple `Closes #N`**: group related subtasks into one PR
-  rather than opening one PR per subtask. Each PR body carries one
-  `Closes #N` line per subtask issue that PR completes — never the tracking
-  issue itself, and never a plain `#N` reference (see the "closing keywords"
-  memory constraint). A session doing several unrelated groups of subtasks
-  opens several such PRs.
-- **On each subtask close**: check that subtask's box in the tracking
-  issue's body and post a progress comment on the tracking issue summarizing
-  what shipped (PR link) and what remains — the tracking issue must read as
-  a current status page, not a stale plan.
-- **Close-out**: when the *last* subtask closes and every checkbox is
-  checked, close the tracking issue itself in the same session, with a final
-  summary comment — don't leave it open awaiting a human close.
-
-When a tracking issue's checkbox list will be worked by more than one agent,
-suffix each line that is safe to run concurrently with `[P]` — meaning its
-file scope is disjoint from every other `[P]` line. Lines without the marker
-are sequential. This records the pre-dispatch disjoint-scope check on the line
-it applies to instead of re-deriving it per dispatch (convention adapted from
-github/spec-kit, MIT, Copyright GitHub, Inc.).
-
-### Example `gh` invocations
-
-Open the tracking issue with a checkbox list (subtask issues don't exist yet,
-so the checkboxes start unlinked and get backfilled with issue links once
-each subtask issue is filed):
-
-```bash
-gh issue create --title "Tracking: <feature/program name>" --body "$(cat <<'EOF'
-## Summary
-<one-paragraph plan/architecture for the whole request>
-
-## Tracking
-- [ ] Subtask 1 — <name> (#TBD)
-- [ ] Subtask 2 — <name> (#TBD)
-- [ ] Subtask 3 — <name> (#TBD)
-EOF
-)"
-```
-
-File one real issue per subtask, then backfill its number into the tracking
-issue body (`gh issue edit <tracker> --body-file -` or a targeted PATCH via
-`gh api`):
-
-```bash
-gh issue create --title "<Subtask 1 name>" --body "Subtask of #<tracker>. <scope>"
-```
-
-Open a PR for a group of related subtasks, closing every subtask issue that
-group completes:
-
-```bash
-gh pr create --title "<group summary>" --body "$(cat <<'EOF'
-## Summary
-- <what this group of subtasks does and why>
-
-Closes #<subtask-1>
-Closes #<subtask-2>
-
-## Test plan
-- [ ] <check>
-EOF
-)"
-```
-
-After that PR merges, check the completed subtasks' boxes and post the
-progress comment on the tracker in the same session:
-
-```bash
-gh issue edit <tracker> --body-file updated-tracker-body.md   # boxes now [x]
-gh issue comment <tracker> --body "Landed #<subtask-1>, #<subtask-2> via PR #<pr>. Remaining: #<subtask-3>."
-```
-
-When the last subtask closes, close the tracker itself with a final summary:
-
-```bash
-gh issue comment <tracker> --body "All subtasks complete. <final summary>."
-gh issue close <tracker>
-```
+A session-shaped method for taking an issue from filed to merged. Load
+`act-as-mohab` alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
 ## 4. Review before you commit — every time
 
-A subagent's self-report describes what it intended, not necessarily what it
-did. Before reviewing or shipping any nontrivial diff, run a `graphify` query
-against the touched symbols to check blast radius — the index is already
-built, so this is free. Before committing any subagent's work:
+A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
-- Read the actual diff (`git diff`), not just the report.
-- Skim the new/changed tests for real assertions, not tautologies.
-- If the subagent claims something empirically ("no screenshot impact",
-  "nothing else broke") without showing the trace that proves it, either
-  verify it yourself or send it back to prove it — don't accept an
-  unverified empirical claim at face value, even from a subagent that
-  otherwise did good work.
-- Scan the report/diff, and once opened, the PR body itself, for deferred/
-  out-of-scope/adjacent-finding/follow-up language — file a tracked issue for
-  each before treating the sub-item as done. This is AGENTS.md's Working
-  Rules out-of-scope-finding rule applied at PR-review time; see there for
-  the full rule.
-
-One commit per sub-item once it passes review, using this repo's normal
-commit-message conventions (issue number in the subject line).
+Commit one reviewed sub-item at a time using the repository's normal message
+convention, including its issue number.
 
 ## 5. Docs, catalog, and screenshots — only where real
 
-Update the user guide / `modular-era-feature-catalog.md` / companion docs
-repo for whatever actually shipped. Regenerate screenshots only for panels
-whose code you actually changed — a headless renderer will often show diffs
-in unrelated panels from rendering-environment noise; leave those files
-untouched and don't let unrelated churn into the diff. If a function's
-externally-documented behavior changed, that's a companion docs-repo PR, not
-a bundle into this repo's PR — open it separately and say so.
+Update user documentation and the feature catalog only for shipped behavior.
+Regenerate screenshots only for changed panels. Externally documented behavior
+changes in the companion documentation repository require their own PR.
 
 ## 6. Learning Loop before wrapping up
 
-Route everything durable that surfaced mid-session through the entrypoint's
-Learning-loop table, which owns the destinations and the rule that nothing
-durable is a valid result. This section adds only the timing: do it *before* the
-final push, while the session still remembers what it learned. A learning routed
-after the push is a learning nobody wrote down.
+Route durable findings through the entrypoint's Learning Loop before the final
+push; a later push loses the context needed to record it accurately.
 
 ### Learned-lessons workflow
 
-1. Collect what outlives this session: costs paid, decisions taken, structure
-   moved, procedures that misled you, work deliberately not done.
-2. Classify each against the entrypoint's Learning-loop table and take the one
-   destination that row names.
-3. Write it there, or record that nothing durable surfaced. Both are results;
-   only silence is not.
+1. Collect durable costs, decisions, structural changes, procedure gaps, and
+   deliberately deferred work.
+2. Classify each with the entrypoint's Learning-loop table and use exactly one
+   destination.
+3. Write it there, or explicitly record that nothing durable surfaced.
 
 ## 7. Push, PR, green, merge, compact
 
-- Push the branch, open one PR per the shape decided in step 1, with a
-  description that lists each sub-item and its commit.
-- **Verify no accidental auto-close, every time.** GitHub auto-closes an
-  issue when a closing keyword appears anywhere in the PR body — `close`/
-  `closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`
-  immediately before `#N` — and a later disclaimer sentence does not
-  neutralize an earlier match. The matcher also ignores negation:
-  `"does not close #4046"` auto-closes #4046 too, because `close #4046` is
-  the match — the disclaimer itself is the trigger, not something ordering
-  can save. A partial-fix PR (`Related to #N`, never `Closes #N`) must
-  avoid every keyword above anywhere in its body, including ordinary prose.
-  Immediately after opening, run `gh pr view <n> --json
-  closingIssuesReferences`; if it lists an issue this PR does not fully
-  resolve, unlink it from the PR's Development sidebar.
-- Merge only within the authority actually granted in step 1 — a "merge this
-  PR" authorization is scoped to *that* PR, not to every PR the session
-  touches. A companion PR in a different, live-publishing repo is a
-  materially different blast radius; flag it for manual merge even under a
-  broad unattended mandate unless the user's authorization explicitly
-  covered it.
-- After a merge, compact the session if the host supports it so the next
-  item — or the next session — starts with fresh context instead of a
-  ballooning transcript.
+- Push the branch and open the agreed PR shape with a description that lists each sub-item and its commit.
+- Verify `closingIssuesReferences` after opening: GitHub matches closing words
+  even inside negated or illustrative prose, so partial work says `Related to
+  #N`, never a closing keyword adjacent to an issue number. If it lists an issue
+  this PR does not fully resolve, unlink it from the PR's Development sidebar.
+- Merge only within granted authority. A companion PR in another publishing
+  repository needs its own authority.
+- Compact after a confirmed merge if the host supports it.
 
 ### PR-merger workflow: arm, watch, fix, confirm
 
-The entrypoint makes this a duty; here is how it runs. Four terminal shapes —
-merged, red, conflicting, stale — and the watcher observes only two of them.
+The entrypoint makes this a duty. The terminal states are merged, red,
+conflicting, and stale; a watcher observes only green and red.
 
-1. **Arm** the moment the review gate passes: `gh pr merge <n> --auto --squash`.
-2. **Watch** with `py -3 scripts/ci/watch_pr_checks.py --pr <n>`. Exit 0 is
-   green, 1 is red and prints the failing jobs as JSON, 2 is still pending, 3 is
-   an environment error.
-3. **Ask for the shapes it cannot see**: `gh pr view <n> --json
-   mergeStateStatus,mergedAt`. `DIRTY` is a conflict and `BEHIND` is stale;
-   neither produces an event, which is why a notification-only watch drops them.
-4. **Fix** on the branch — a fixing commit for red, `git merge origin/main` for
-   a conflict or a stale head — then return to step 2. Never force-push over
-   history the owner may want to inspect.
-5. **Confirm** against the remote: `mergedAt` is non-null. Arming succeeded is
-   not merged.
+1. **Arm** after the review gate: `gh pr merge <n> --auto --squash`.
+2. **Watch** with `py -3 scripts/ci/watch_pr_checks.py --pr <n>`; exit 0 is
+   green, 1 is red, 2 is pending, and 3 is an environment error.
+3. **Ask for unseen states** with `gh pr view <n> --json
+   mergeStateStatus,mergedAt`; `DIRTY` conflicts and `BEHIND` stale heads need
+   action even when no event fires.
+4. **Fix** red checks on the branch, or merge `origin/main` for a conflict or
+   stale head, then return to watch. Never force-push away owner-visible history.
+5. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 ## 8. Report
 
-One clear summary at the end (or after each merge, if the user asked for a
-report per item): what shipped, what was deferred and why, what's still
-open (including anything filed as a follow-up issue or left for manual
-review), and any surprise worth flagging. State verified facts plainly —
-don't hedge on work you actually confirmed, and don't claim something is
-done if you only believe it should be.
+Report what shipped, what was deferred and why, what remains open, and any
+surprise worth flagging. State only verified facts.

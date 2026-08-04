@@ -1,3 +1,4 @@
+import re
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -5,6 +6,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
+PROVIDER_SOURCE = ROOT / "shaft-ai/src/main/java/com/shaft/ai/provider"
+PROVIDER_SERVICE = (
+    ROOT / "shaft-ai/src/main/resources/META-INF/services/com.shaft.pilot.ai.AiProvider"
+)
 
 
 def artifacts(path: Path) -> set[str]:
@@ -13,6 +18,33 @@ def artifacts(path: Path) -> set[str]:
         dependency.findtext("m:artifactId", namespaces=NS)
         for dependency in root.findall("m:dependencies/m:dependency", NS)
     }
+
+
+def class_declaration(path: Path) -> str:
+    """Return the line declaring the class this file is named for."""
+    match = re.search(
+        rf"^[^\n]*\bclass\s+{re.escape(path.stem)}\b",
+        path.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if match is None:
+        raise AssertionError(f"{path.name} declares no class named {path.stem}")
+    return match.group(0)
+
+
+def concrete_provider_classes() -> list[str]:
+    """Every provider a ServiceLoader could actually instantiate, from the sources.
+
+    Abstract is decided from the class's own declaration line rather than by
+    searching the file for the word, so a comment or a nested type cannot
+    change the answer. `AbstractHttpAiProvider` matches `*Provider.java` and is
+    excluded here for the same reason ServiceLoader could not construct it.
+    """
+    return sorted(
+        f"com.shaft.ai.provider.{path.stem}"
+        for path in PROVIDER_SOURCE.glob("*Provider.java")
+        if "abstract" not in class_declaration(path)
+    )
 
 
 class PilotModuleBoundaryTest(unittest.TestCase):
@@ -36,20 +68,30 @@ class PilotModuleBoundaryTest(unittest.TestCase):
         self.assertIn("shaft-pilot-core", ai_dependencies)
 
     def test_direct_provider_module_uses_service_loader_without_provider_sdks(self):
-        ai_dependencies = artifacts(ROOT / "shaft-ai/pom.xml")
-        service = ROOT / "shaft-ai/src/main/resources/META-INF/services/com.shaft.pilot.ai.AiProvider"
-        providers = service.read_text(encoding="utf-8").splitlines()
+        """The registration and the classes are one set, derived rather than typed twice.
 
-        self.assertEqual(
-            providers,
-            [
-                "com.shaft.ai.provider.AnthropicProvider",
-                "com.shaft.ai.provider.GeminiProvider",
-                "com.shaft.ai.provider.GitHubModelsProvider",
-                "com.shaft.ai.provider.OllamaProvider",
-                "com.shaft.ai.provider.OpenAiProvider",
-            ],
-        )
+        The expected list was five hardcoded entries, and it went stale the day
+        `LmStudioProvider` was added (`daacce6b77`), staying red on `main` ever
+        since because no workflow ran this module (#4506). The hardcoded list
+        was the wrong instrument, not merely an out-of-date one: registering a
+        provider means editing two files, and only one of them failed when you
+        forgot -- so the list could only ever drift toward whichever file
+        someone remembered.
+
+        Derived from the sources, both directions fail. A class added without a
+        registration is missing from the file; a registration with no class
+        behind it is an entry ServiceLoader would throw on. The sorted
+        comparison also keeps the file ordered and free of duplicates, which
+        `assertEqual` on a list gives for nothing.
+        """
+        ai_dependencies = artifacts(ROOT / "shaft-ai/pom.xml")
+        providers = PROVIDER_SERVICE.read_text(encoding="utf-8").splitlines()
+        concrete = concrete_provider_classes()
+
+        # An empty derivation would make the comparison vacuous the moment the
+        # glob stopped matching -- a moved package would read as agreement.
+        self.assertTrue(concrete, f"no concrete provider classes under {PROVIDER_SOURCE}")
+        self.assertEqual(providers, concrete)
         self.assertTrue(all("openai" not in artifact.lower() for artifact in ai_dependencies))
         self.assertTrue(all("anthropic" not in artifact.lower() for artifact in ai_dependencies))
         self.assertTrue(all("gemini" not in artifact.lower() for artifact in ai_dependencies))

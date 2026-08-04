@@ -985,3 +985,9 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened-never-require-an-exemption-list-to-be-non-empty","timestamp":"2026-08-04T21:59:34+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.prove-a-check-binds-on-windows-commit-first-mutate-bytes","timestamp":"2026-08-04T22:41:59+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.mutation-test-guard-pys-crlf-files-via-python-not-a-powershell-regex","timestamp":"2026-08-04T22:09:13+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.one-branch-one-worktree-one-pr-per-session","timestamp":"2026-08-04T23:28:39+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.commit-and-push-incrementally-within-a-sessions-single-branch-pr-not-just-once-at-the-end","timestamp":"2026-08-04T23:28:39+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-08-04T23:28:39+03:00"}
+{"actor":"agent","event":"memory.updated","id":"decision.guidance-budgets-bound-each-surface-by-who-pays-not-by-a-shared-pool","timestamp":"2026-08-04T23:28:39+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-08-04T23:33:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve","timestamp":"2026-08-04T23:52:26+03:00"}

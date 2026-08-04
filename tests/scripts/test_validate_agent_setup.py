@@ -301,6 +301,13 @@ approval_mode = "prompt"
         self.write("AGENTS.md", "x" * 1_000)
         return collect_metrics(self.root)
 
+    def test_metrics_keep_legacy_body_character_semantics(self):
+        self.metrics_for_budget(host_contexts={"codex": ["AGENTS.md"]})
+        self.write("AGENTS.md", "é")
+        metrics = collect_metrics(self.root)
+        self.assertEqual(metrics["always_loaded_body_chars"]["codex"], 1)
+        self.assertEqual(metrics["always_loaded_body_bytes"]["codex"], 2)
+
     def test_unconfigured_reduction_is_reported_as_absent_not_as_zero_percent(self):
         # #3745 retired the global reduction floor on purpose, so the
         # percentage branch never runs while no baseline is configured.
@@ -332,6 +339,7 @@ approval_mode = "prompt"
         banner = format_banner(
             {
                 "guidance_bytes": 129_090,
+                "guidance_bytes_untracked": 0,
                 "guidance_reduction_percent": None,
                 "memory_objects": 336,
                 "memory_objects_untracked": 0,
@@ -341,6 +349,7 @@ approval_mode = "prompt"
         measured = format_banner(
             {
                 "guidance_bytes": 75_000,
+                "guidance_bytes_untracked": 0,
                 "guidance_reduction_percent": 50.0,
                 "memory_objects": 336,
                 "memory_objects_untracked": 0,
@@ -353,6 +362,103 @@ approval_mode = "prompt"
         self.git("init", "-q", "-b", "main", ".")
         self.git("config", "user.email", "harness@example.invalid")
         self.git("config", "user.name", "Harness")
+
+    GUIDANCE_FIXTURE_GLOBS = ["AGENTS.md", "docs/*.md"]
+
+    def committed_guidance_fixture(self) -> dict:
+        """Commit the fixture and return its metrics, so later deltas are real."""
+        self.init_repository()
+        self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        return self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+
+    def test_an_untracked_guidance_file_does_not_move_the_reported_byte_count(self):
+        # #4509: `guidance_bytes` summed `expand_globs`, a filesystem walk with
+        # no git view, so a guidance file that was never `git add`ed weighed
+        # exactly as much as a committed one -- the same defect #4495 reported
+        # for the object count beside it in the same banner line, and the one
+        # #4507 fixed there.
+        #
+        # Not theoretical, and arguably the commonest sequence there is:
+        # `active_guidance_globs` includes `.agents/skills/*/SKILL.md` and
+        # `.claude/agents/*.md`, so authoring a new skill or role adapter and
+        # running the validator to see whether it fits the budget happens
+        # before the `git add`, every time.
+        baseline = self.committed_guidance_fixture()
+        self.assertEqual(baseline["guidance_bytes"], 1_000)
+
+        self.write("docs/never-added.md", "z" * 291)
+
+        metrics = self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+        self.assertEqual(metrics["guidance_bytes"], 1_000)
+        self.assertEqual(metrics["guidance_bytes_untracked"], 291)
+        # The bytes are disclosed, not discarded. Dropping them silently would
+        # answer the honesty complaint by hiding the one figure an author
+        # authoring a new skill is running this command to see.
+        self.assertIn("(+291 untracked)", format_banner(metrics))
+
+    def test_a_committed_guidance_file_does_move_the_reported_byte_count(self):
+        # The negative half: fixing the untracked case must not be bought by
+        # making the figure blind to real work.
+        baseline = self.committed_guidance_fixture()
+
+        self.write("docs/added.md", "z" * 291)
+        self.git("add", ".")
+        self.git("commit", "-qm", "add guidance")
+
+        metrics = self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+        self.assertEqual(metrics["guidance_bytes"], baseline["guidance_bytes"] + 291)
+        self.assertEqual(metrics["guidance_bytes_untracked"], 0)
+        self.assertNotIn("untracked", format_banner(metrics))
+
+    def test_a_staged_guidance_file_is_not_yet_landed(self):
+        # "Has this landed" is a question about HEAD and nothing else, which is
+        # the distinction `memory_object_counts` already draws. Staging is not
+        # landing, and a figure that counted the index would be quotable as a
+        # claim about `main` while describing something no one else can see.
+        baseline = self.committed_guidance_fixture()
+
+        self.write("docs/staged.md", "z" * 291)
+        self.git("add", "docs/staged.md")
+
+        metrics = self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+        self.assertEqual(metrics["guidance_bytes"], baseline["guidance_bytes"])
+        self.assertEqual(metrics["guidance_bytes_untracked"], 291)
+
+    def test_an_ignored_guidance_file_weighs_nothing_either_way(self):
+        # `--exclude-standard` is what makes the untracked figure mean
+        # "present and nobody is hiding it". An ignored file is not part of the
+        # surface at all, so it belongs in neither half -- reporting it as
+        # untracked would ask an author to commit a file the repository has
+        # already decided not to keep.
+        baseline = self.committed_guidance_fixture()
+
+        self.write(".gitignore", (self.root / ".gitignore").read_text(encoding="utf-8")
+                   + "docs/ignored.md\n")
+        self.write("docs/ignored.md", "z" * 291)
+
+        metrics = self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+        self.assertEqual(metrics["guidance_bytes"], baseline["guidance_bytes"])
+        self.assertEqual(metrics["guidance_bytes_untracked"], 0)
+
+    def test_when_git_cannot_answer_the_byte_figure_is_labelled_not_quoted_silently(self):
+        # Same three states the object count has, for the same reason: a figure
+        # git could not verify must not print in the wording reserved for one
+        # it could. The fallback is the pre-fix filesystem sum, and the label is
+        # what stops it being quoted as a measurement of `main`.
+        self.init_repository()  # no commit: HEAD is unborn, `ls-tree HEAD` fails
+        self.write("docs/never-committed.md", "z" * 291)
+
+        metrics = self.metrics_for_budget(total_guidance_globs=self.GUIDANCE_FIXTURE_GLOBS)
+        self.assertIsNone(metrics["guidance_bytes_untracked"])
+        banner = format_banner(metrics)
+        self.assertIn("unverified", banner)
+        self.assertNotRegex(banner, r"^Agent setup is valid: \d+ guidance bytes,")
+        # And the fallback's arithmetic stays bound. Asserting only the label
+        # would leave `return 0, None` green, which is how the same test for
+        # the object count was killed during #4507's review.
+        self.assertEqual(metrics["guidance_bytes"], 1_291)
 
     def test_an_untracked_memory_object_does_not_move_the_reported_count(self):
         # #4495: the count was `memory_root.rglob("*.json")` -- a filesystem
@@ -523,14 +629,22 @@ approval_mode = "prompt"
         # bare, quotable wording by default -- the one outcome the labelling
         # exists to prevent. Omission must be loud rather than silently
         # optimistic.
-        with self.assertRaises(KeyError):
-            format_banner(
-                {
-                    "guidance_bytes": 129_090,
-                    "guidance_reduction_percent": None,
-                    "memory_objects": 338,
-                }
-            )
+        #
+        # One case per field. A single dict missing both is satisfied by
+        # whichever the code happens to read first, which would have left the
+        # object count's guard unpinned the moment the byte figure gained one.
+        complete = {
+            "guidance_bytes": 129_090,
+            "guidance_bytes_untracked": 0,
+            "guidance_reduction_percent": None,
+            "memory_objects": 338,
+            "memory_objects_untracked": 0,
+        }
+        for omitted in ("guidance_bytes_untracked", "memory_objects_untracked"):
+            with self.subTest(omitted=omitted):
+                partial = {k: v for k, v in complete.items() if k != omitted}
+                with self.assertRaises(KeyError):
+                    format_banner(partial)
 
     def test_banner_labels_untracked_objects_so_the_figure_cannot_be_misquoted(self):
         # `339 memory objects` is quotable as a claim about main. `338 memory
@@ -539,6 +653,7 @@ approval_mode = "prompt"
             format_banner(
                 {
                     "guidance_bytes": 129_090,
+                    "guidance_bytes_untracked": 0,
                     "guidance_reduction_percent": None,
                     "memory_objects": 338,
                     "memory_objects_untracked": 1,
@@ -550,12 +665,39 @@ approval_mode = "prompt"
             format_banner(
                 {
                     "guidance_bytes": 129_090,
+                    "guidance_bytes_untracked": 0,
                     "guidance_reduction_percent": None,
                     "memory_objects": 338,
                     "memory_objects_untracked": 0,
                 }
             ),
             "Agent setup is valid: 129090 guidance bytes, 338 memory objects.",
+        )
+        # The byte figure's three states, rendered the same way as the count's.
+        self.assertEqual(
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_bytes_untracked": 291,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                    "memory_objects_untracked": 0,
+                }
+            ),
+            "Agent setup is valid: 129090 guidance bytes (+291 untracked), 338 memory objects.",
+        )
+        self.assertEqual(
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_bytes_untracked": None,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                    "memory_objects_untracked": 0,
+                }
+            ),
+            "Agent setup is valid: 129090 guidance bytes"
+            " (unverified: git could not answer), 338 memory objects.",
         )
 
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
