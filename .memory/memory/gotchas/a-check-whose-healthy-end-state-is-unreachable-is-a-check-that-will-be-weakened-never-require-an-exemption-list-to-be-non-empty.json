@@ -1,0 +1,39 @@
+{
+  "body_path": "memory/gotchas/a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened-never-require-an-exemption-list-to-be-non-empty.md",
+  "content_hash": "sha256:8e4d982816b9177c29d26037528e9b0efb19c29a4dbcefee96fc8e49a09227d3",
+  "created_at": "2026-08-04T21:59:34+03:00",
+  "evidence": [
+    {
+      "id": "tests/scripts/test_agent_harness_portability.py",
+      "kind": "file"
+    },
+    {
+      "id": "b18ab52e0444cb414fe8cff90858a59d129e8269",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "category": "testing"
+  },
+  "id": "gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened-never-require-an-exemption-list-to-be-non-empty",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the design doctrine and the anti-pattern from #4484 / PR #4513, the fourth review round on the superseded-policy scan"
+  },
+  "status": "active",
+  "tags": [
+    "testing",
+    "review",
+    "agent-harness",
+    "ci"
+  ],
+  "title": "A check whose healthy end state is unreachable is a check that will be weakened -- never require an exemption list to be non-empty",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T21:59:34+03:00"
+}
