@@ -990,3 +990,4 @@
 {"actor":"agent","event":"memory.updated","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-08-04T23:28:39+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.guidance-budgets-bound-each-surface-by-who-pays-not-by-a-shared-pool","timestamp":"2026-08-04T23:28:39+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-08-04T23:33:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve","timestamp":"2026-08-04T23:52:26+03:00"}

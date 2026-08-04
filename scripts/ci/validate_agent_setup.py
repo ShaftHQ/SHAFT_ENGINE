@@ -724,8 +724,14 @@ def collect_metrics(root: Path = ROOT) -> dict:
     guidance_paths = expand_globs(root, budget.get("total_guidance_globs", []))
     # Two surfaces, two documented limits -- see limit_sources in the budget.
     host_body_chars: dict[str, int] = {}
+    host_body_bytes: dict[str, int] = {}
     for host, configured_paths in budget.get("host_contexts", {}).items():
-        host_body_chars[host] = always_loaded_body_chars(root, configured_paths)[0]
+        host_body_chars[host] = sum(
+            len(path.read_text(encoding="utf-8"))
+            for configured_path in configured_paths
+            if (path := root / configured_path).is_file()
+        )
+        host_body_bytes[host] = always_loaded_body_chars(root, configured_paths)[0]
     host_listing_chars = {
         host: skill_listing_chars(root, patterns)
         for host, patterns in budget.get("host_skill_metadata_globs", {}).items()
@@ -750,7 +756,9 @@ def collect_metrics(root: Path = ROOT) -> dict:
         "guidance_bytes": guidance_bytes,
         "guidance_bytes_untracked": untracked_guidance_bytes,
         "guidance_reduction_percent": reduction,
+        # Keep the legacy character report alongside the byte budget metric.
         "always_loaded_body_chars": host_body_chars,
+        "always_loaded_body_bytes": host_body_bytes,
         "skill_listing_chars": host_listing_chars,
         "memory_objects": landed_objects,
         "memory_objects_untracked": unlanded_objects,

@@ -301,6 +301,13 @@ approval_mode = "prompt"
         self.write("AGENTS.md", "x" * 1_000)
         return collect_metrics(self.root)
 
+    def test_metrics_keep_legacy_body_character_semantics(self):
+        self.metrics_for_budget(host_contexts={"codex": ["AGENTS.md"]})
+        self.write("AGENTS.md", "é")
+        metrics = collect_metrics(self.root)
+        self.assertEqual(metrics["always_loaded_body_chars"]["codex"], 1)
+        self.assertEqual(metrics["always_loaded_body_bytes"]["codex"], 2)
+
     def test_unconfigured_reduction_is_reported_as_absent_not_as_zero_percent(self):
         # #3745 retired the global reduction floor on purpose, so the
         # percentage branch never runs while no baseline is configured.

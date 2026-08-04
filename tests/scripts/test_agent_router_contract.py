@@ -670,7 +670,7 @@ class HostParityTest(unittest.TestCase):
             "delegation must say how a host lacking subagents carries the covenant",
         )
 
-    def test_budget_measures_characters_against_documented_host_limits(self):
+    def test_budget_measures_documented_host_units(self):
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
         for key in ("max_always_loaded_body_chars", "max_skill_listing_chars"):
             self.assertIn(key, budget)
@@ -680,6 +680,14 @@ class HostParityTest(unittest.TestCase):
             "the pooled token estimate is replaced by character ceilings",
         )
         self.assertIn("limit_sources", budget, "each ceiling must name its documented source")
+
+    def test_always_loaded_ceiling_keeps_a_documented_quarter_cap_reserve(self):
+        budget = json.loads(BUDGET.read_text(encoding="utf-8"))
+        self.assertEqual(budget["max_always_loaded_body_chars"], 24_576)
+        source = budget["limit_sources"]["max_always_loaded_body_chars"]
+        for clause in ("32768", "75 percent", "8192", "UTF-8 bytes"):
+            with self.subTest(clause=clause):
+                self.assertIn(clause, source)
 
     def test_every_host_context_loads_the_entrypoint(self):
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
