@@ -47,31 +47,37 @@ def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
     """Validate byte, character, and line budgets.
 
     A key may be a literal path or a glob. A glob binds each matched file on
-    its own, which is what bounds a surface an agent loads one file at a time:
-    the cost paid is the largest single file, not the sum. Summing them was the
-    retired global pool (#3745) -- it charged every file for its neighbours, so
-    the only way to fund one file's growth was to delete unrelated prose.
-    Either form reports ``missing-file`` when it resolves to nothing, so a cap
-    on a surface that moved away cannot silently stop enforcing anything.
+    its own and never their sum, which bounds the worst single file on a
+    surface rather than a session total. Summing was the retired global pool
+    (#3745): it charged every file for its neighbours, so the only way to fund
+    one file's growth was deleting unrelated prose that no session had loaded
+    anyway. Either form reports ``missing-file`` when it resolves to nothing,
+    so a cap on a surface that moved away cannot silently stop enforcing
+    anything.
     """
     errors: list[dict[str, str]] = []
     for configured_path, limits in budget.get("file_budgets", {}).items():
         if any(character in configured_path for character in "*?["):
-            paths = expand_globs(root, [configured_path])
+            matches = [
+                (relative(root, path), path)
+                for path in expand_globs(root, [configured_path])
+            ]
         else:
             candidate = root / configured_path
-            paths = [candidate] if candidate.is_file() else []
-        if not paths:
+            # A literal key keeps reporting the configured string verbatim.
+            # relative() resolves before it subtracts the root, so a key
+            # written with `..` would raise there rather than report a budget.
+            matches = [(configured_path, candidate)] if candidate.is_file() else []
+        if not matches:
             errors.append(issue("missing-file", configured_path, "required guidance file is missing"))
             continue
-        for path in paths:
+        for reported, path in matches:
             content = path.read_text(encoding="utf-8")
             checks = (
                 ("max_bytes", len(content.encode("utf-8")), "size-budget", "bytes"),
                 ("max_chars", len(content), "character-budget", "characters"),
                 ("max_lines", len(content.splitlines()), "line-budget", "lines"),
             )
-            reported = relative(root, path)
             for key, actual, code, unit in checks:
                 maximum = limits.get(key)
                 if maximum is not None and actual > maximum:

@@ -36,6 +36,7 @@ flowchart TD
     R --> P["Repository playbooks<br/><i>13</i>"]
     R --> M["SHAFT mastery chapters<br/><i>10</i>"]
     R --> D["Method references<br/><i>delegation, roles, heuristics</i>"]
+    E --> D
     R --> S["<b>shaft-developer</b><br/>product test-authoring pack"]
 ```
 
@@ -121,8 +122,8 @@ step with the first.
 
 ### Method references
 
-Never loaded by default. The first four are reached from the entrypoint, which
-says what each is for as it sends you there; the rest are reached from
+Never loaded by default. The first four are described by the entrypoint as it
+sends you there; the rest by
 [routing](act-as-mohab/references/routing.md).
 
 - [routing](act-as-mohab/references/routing.md)
