@@ -43,6 +43,34 @@ def expand_globs(root: Path, patterns: list[str]) -> list[Path]:
     return sorted(paths)
 
 
+def expand_reported_globs(
+    root: Path, patterns: list[str], config_key: str
+) -> tuple[list[Path], list[dict[str, str]]]:
+    """Expand a list-valued guidance glob, reporting any pattern matching nothing.
+
+    ``expand_globs`` merges every pattern's matches into one set, so a pattern
+    that resolves to zero files -- the references directory moved or was
+    renamed, a typo -- leaves no trace in the result: the merged set just
+    ends up a little smaller, and a check that iterates it for
+    ``all(...)``-shaped assertions keeps passing having verified nothing for
+    that pattern (#4481). ``validate_file_budgets`` already closes this for
+    its own glob keys with a ``missing-file`` issue; every other list-valued
+    glob key the budget defines -- ``active_guidance_globs``,
+    ``total_guidance_globs``, ``reference_scan_globs`` -- routes through here
+    instead of ``expand_globs`` directly so the same ``empty-glob`` issue
+    fires no matter which list it is missing from.
+    """
+    errors: list[dict[str, str]] = []
+    paths: set[Path] = set()
+    for pattern in patterns:
+        matched = expand_globs(root, [pattern])
+        if not matched:
+            errors.append(issue("empty-glob", pattern, f"{config_key} pattern matched no files"))
+            continue
+        paths.update(matched)
+    return sorted(paths), errors
+
+
 def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
     """Validate byte, character, and line budgets.
 
@@ -220,21 +248,23 @@ def validate_total_reduction(root: Path, budget: dict) -> list[dict[str, str]]:
     minimum_reduction = budget.get("minimum_reduction_percent")
     if baseline is None or minimum_reduction is None:
         return []
-    paths = expand_globs(root, budget.get("total_guidance_globs", []))
+    paths, errors = expand_reported_globs(
+        root, budget.get("total_guidance_globs", []), "total_guidance_globs"
+    )
     # Count LF-normalized bytes (read_text collapses CRLF) so the metric matches
     # the per-file byte check and the LF blobs CI checks out, not the CRLF a
     # Windows working tree carries.
     current = sum(len(path.read_text(encoding="utf-8").encode("utf-8")) for path in paths)
     maximum = math.floor(baseline * (1 - minimum_reduction / 100))
     if current > maximum:
-        return [
+        errors.append(
             issue(
                 "total-reduction",
                 "agent-guidance",
                 f"{current} bytes exceeds {maximum}; minimum reduction is {minimum_reduction}%",
             )
-        ]
-    return []
+        )
+    return errors
 
 
 _BLOCK_SCALAR_HEADER = re.compile(r"^[|>][+-]?\d*$")
@@ -586,8 +616,12 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
     """Run every guidance validation and return sorted issues."""
     selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
     budget = load_budget(selected_budget)
-    active_files = expand_globs(root, budget.get("active_guidance_globs", []))
-    reference_files = expand_globs(root, budget.get("reference_scan_globs", []))
+    active_files, active_glob_errors = expand_reported_globs(
+        root, budget.get("active_guidance_globs", []), "active_guidance_globs"
+    )
+    reference_files, reference_glob_errors = expand_reported_globs(
+        root, budget.get("reference_scan_globs", []), "reference_scan_globs"
+    )
     errors = [
         *validate_file_budgets(root, budget),
         *validate_host_contexts(root, budget),
@@ -599,6 +633,8 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_forbidden_patterns(root, active_files, budget),
         *validate_stale_references(root, reference_files, budget),
         *validate_duplicate_paragraphs(root, active_files, budget),
+        *active_glob_errors,
+        *reference_glob_errors,
     ]
     return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -204,6 +205,25 @@ def markdown_body(path: Path) -> str:
 def compact(path: Path) -> str:
     """Return whitespace-collapsed lowercase content for phrase assertions."""
     return re.sub(r"\s+", " ", path.read_text(encoding="utf-8")).lower()
+
+
+def glob_files(root: Path, patterns: tuple[str, ...]) -> list[Path]:
+    """Expand a fixed list of guidance globs, asserting every pattern hits.
+
+    Callers use this to build the file set an ``all(...)``-shaped assertion
+    (no duplicate line, no unscoped absolute) checks across every configured
+    surface. A pattern that resolves to zero files -- a moved or renamed
+    directory, a typo -- would otherwise shrink that set silently: "for every
+    file in []" is trivially true, so the assertion keeps passing having
+    checked nothing for that pattern (#4481). Raising here is what makes a
+    moved surface fail the test instead of dropping out of it unnoticed.
+    """
+    paths: set[Path] = set()
+    for pattern in patterns:
+        matched = [path for path in root.glob(pattern) if path.is_file()]
+        assert matched, f"guidance glob matched no files: {pattern}"
+        paths.update(matched)
+    return sorted(paths)
 
 
 def local_links(path: Path) -> list[str]:
@@ -640,6 +660,36 @@ class CiGateIsBlockingTest(unittest.TestCase):
         self.assertIn("agent_guidance", outputs, "filter result is never exported")
 
 
+class GlobFilesHelperTest(unittest.TestCase):
+    """The resolver every GUIDANCE_GLOBS consumer in this file shares.
+
+    NoDuplicationTest and SoloOrOrchestrateTest each declare their own tuple
+    of guidance globs -- that duplication is the documented cost of host
+    discovery having no include mechanism -- but both feed their tuple
+    through this one resolver, so a pattern matching zero files reports the
+    same way regardless of which check's list it dropped out of (#4481).
+    """
+
+    def test_returns_every_matched_file_across_patterns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs/a.md").write_text("a", encoding="utf-8")
+            (root / "docs/b.md").write_text("b", encoding="utf-8")
+            (root / "AGENTS.md").write_text("agents", encoding="utf-8")
+            found = glob_files(root, ("AGENTS.md", "docs/*.md"))
+        self.assertEqual(
+            {path.name for path in found}, {"AGENTS.md", "a.md", "b.md"}
+        )
+
+    def test_raises_when_a_pattern_matches_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "AGENTS.md").write_text("agents", encoding="utf-8")
+            with self.assertRaises(AssertionError):
+                glob_files(root, ("AGENTS.md", "moved-away/**/*.md"))
+
+
 class NoDuplicationTest(unittest.TestCase):
     """One rule, one home.
 
@@ -667,10 +717,7 @@ class NoDuplicationTest(unittest.TestCase):
     MIN_DUPLICATE_LINE_CHARS = 40
 
     def guidance_files(self) -> list[Path]:
-        paths: set[Path] = set()
-        for pattern in self.GUIDANCE_GLOBS:
-            paths.update(path for path in ROOT.glob(pattern) if path.is_file())
-        return sorted(paths)
+        return glob_files(ROOT, self.GUIDANCE_GLOBS)
 
     def test_no_substantive_line_is_repeated_across_guidance_files(self):
         seen: dict[str, list[str]] = {}
@@ -902,12 +949,11 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         can read rather than only the files that stated it first.
         """
         offenders = []
-        for pattern in self.GUIDANCE_GLOBS:
-            for path in ROOT.glob(pattern):
-                if not path.is_file() or path.resolve() == ENTRYPOINT.resolve():
-                    continue
-                for sentence in self.unscoped_absolutes(path.read_text(encoding="utf-8")):
-                    offenders.append(f"{path.relative_to(ROOT).as_posix()}: {sentence}")
+        for path in glob_files(ROOT, self.GUIDANCE_GLOBS):
+            if path.resolve() == ENTRYPOINT.resolve():
+                continue
+            for sentence in self.unscoped_absolutes(path.read_text(encoding="utf-8")):
+                offenders.append(f"{path.relative_to(ROOT).as_posix()}: {sentence}")
         self.assertEqual(offenders, [], "unscoped implement/delegate absolute outside the entrypoint")
 
     def test_the_guard_catches_the_phrasings_that_previously_slipped_through(self):
