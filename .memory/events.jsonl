@@ -979,3 +979,4 @@
 {"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:10:45+03:00"}
 {"actor":"agent","event":"memory.updated","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-08-04T18:37:09+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop","timestamp":"2026-08-04T18:37:44+03:00"}
+{"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:17:07+03:00"}

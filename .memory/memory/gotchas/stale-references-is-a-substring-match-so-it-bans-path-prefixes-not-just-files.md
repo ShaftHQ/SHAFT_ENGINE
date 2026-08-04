@@ -34,13 +34,18 @@ whose name caused it. Add `references/tdd/anything.md` and the red names
 were breaking, none of them the one to rename. Expect to lose time here unless
 you recognise the shape.
 
-## Live entries that constrain naming right now
+## The entries are not reproduced here on purpose
 
-`references/tdd/`, `references/test-driven-development.md`,
-`references/caveman.md`, `references/ponytail.md`, `references/shaft-mastery.md`,
-`playbooks/README.md`, `.agents/routing-bridges.txt`.
+Read them from the budget file with the command above. Copying the list into
+memory would give it a second home to drift in, and several entries name paths
+that active memory is separately forbidden to mention
+(`test_active_memory_has_no_retired_harness_contracts` in
+`tests/scripts/test_agent_harness_portability.py` matches retired harness
+contracts by regex and fails the object that names one -- this memory tripped
+exactly that on its first draft).
 
-The first two are why #4502 / PR #4503 shipped one flat `tdd-failure-modes.md`
-instead of a `tdd/` subdirectory holding two files. That was a forced layout,
-not a preference -- if you are revisiting that decision, this is the constraint
-to re-check first.
+Two entries are worth knowing without looking: `references/tdd/` and
+`references/test-driven-development.md`. They are why #4502 / PR #4503 shipped
+one flat `tdd-failure-modes.md` rather than a `tdd/` subdirectory holding two
+files. That layout was forced, not preferred -- if you are revisiting it, this
+is the constraint to re-check first.
