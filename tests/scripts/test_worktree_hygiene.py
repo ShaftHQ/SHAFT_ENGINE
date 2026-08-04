@@ -10,8 +10,10 @@
 
 from __future__ import annotations
 
+import os
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -67,6 +69,36 @@ class WorktreeHygieneTest(unittest.TestCase):
         git(path, "config", "user.email", "harness@example.invalid")
         git(path, "config", "user.name", "Harness")
         return path
+
+    def push_and_remove_worktree(
+        self, name: str, branch: str, *, commit_epoch: int | None = None
+    ) -> str:
+        """Simulate a session that pushed `branch` to origin, then cleaned up
+
+        locally -- exactly the shape issue #4450 describes: a real commit only
+        `refs/remotes/origin/<branch>` still references, no worktree, no local
+        branch, and (by default) no pull request.
+        """
+        worktree = self.add_worktree(name, branch)
+        self.write(worktree, "notes.md", "session work\n")
+        git(worktree, "add", "-A")
+        env = None
+        if commit_epoch is not None:
+            stamp = f"{commit_epoch} +0000"
+            env = {**os.environ, "GIT_AUTHOR_DATE": stamp, "GIT_COMMITTER_DATE": stamp}
+        subprocess.run(  # nosec B603 B607 - fixed git command on a temp fixture.
+            ["git", "-c", "core.longpaths=true", "commit", "-qm", "session work"],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        head = git(worktree, "rev-parse", branch).stdout.strip()
+        git(self.main, "update-ref", f"refs/remotes/origin/{branch}", head)
+        git(self.main, "worktree", "remove", "--force", str(worktree))
+        git(self.main, "branch", "-D", branch)
+        return head
 
     def entry(self, report: list[dict], name: str) -> dict:
         matches = [item for item in report if Path(item["path"]).name == name]
@@ -390,6 +422,163 @@ class WorktreeHygieneTest(unittest.TestCase):
         entry = self.entry(collect_worktree_report(self.main), "landed")
         self.assertIsNone(entry["unique_commits"])
         self.assertNotEqual(entry["state"], "superseded")
+
+    # --- orphaned: pushed to origin, no worktree, no PR, no activity --------
+    # Issue #4450: `ChaosEngine/user-evaluation-20260802` was pushed, its
+    # worktree cleaned up, and no PR was ever opened. Its one commit -- a
+    # durable memory object -- was invisible to this report (local worktrees
+    # only) and to `--check-pull-requests` (open pull requests only).
+
+    def test_orphaned_remote_branch_with_no_worktree_is_reported(self):
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree(
+            "gone", "ChaosEngine/gone-4450", commit_epoch=old_epoch
+        )
+
+        report = collect_worktree_report(self.main, open_pull_requests=lambda _b: 0)
+        advisories = format_advisories(report)
+
+        self.assertTrue(
+            any("ChaosEngine/gone-4450" in advisory for advisory in advisories),
+            f"expected an advisory naming the orphaned branch, got: {advisories}",
+        )
+        entry = next(item for item in report if item["path"] == "origin/ChaosEngine/gone-4450")
+        self.assertEqual(entry["state"], "orphaned")
+        self.assertTrue(entry["is_remote_only"])
+
+    def test_a_branch_pushed_minutes_ago_is_not_yet_orphaned(self):
+        # A session mid-task, or one about to open its pull request in the
+        # same turn, must not be flagged before it has had a chance to.
+        recent_epoch = int(time.time()) - 3600
+        self.push_and_remove_worktree(
+            "brand-new", "ChaosEngine/brand-new", commit_epoch=recent_epoch
+        )
+
+        report = collect_worktree_report(self.main, open_pull_requests=lambda _b: 0)
+        self.assertEqual(
+            [item for item in report if item.get("is_remote_only")],
+            [],
+        )
+        self.assertEqual(format_advisories(report), [])
+
+    def test_orphaned_branch_with_an_open_pull_request_is_not_flagged(self):
+        # It is already visible through the normal review flow -- the actual
+        # gap this guard closes is a branch with no worktree AND no PR.
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree(
+            "reviewed", "ChaosEngine/reviewed-elsewhere", commit_epoch=old_epoch
+        )
+
+        report = collect_worktree_report(
+            self.main, open_pull_requests=lambda branch: 1
+        )
+        self.assertEqual(
+            [item for item in report if item.get("is_remote_only")],
+            [],
+        )
+        self.assertEqual(format_advisories(report), [])
+
+    def test_orphaned_branch_advisory_caveats_an_unchecked_pull_request(self):
+        # `--check-pull-requests` is opt-in and hits the network; the default
+        # local-only run must still surface the branch, honestly qualified.
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree(
+            "unchecked", "ChaosEngine/unchecked-pr", commit_epoch=old_epoch
+        )
+
+        report = collect_worktree_report(self.main)  # no open_pull_requests callback
+        entry = next(
+            item for item in report if item["path"] == "origin/ChaosEngine/unchecked-pr"
+        )
+        self.assertEqual(entry["state"], "orphaned")
+        self.assertIsNone(entry["open_pull_requests"])
+
+        advisory = next(
+            item for item in format_advisories(report) if "unchecked-pr" in item
+        )
+        self.assertIn("not checked", advisory)
+        self.assertIn("--check-pull-requests", advisory)
+
+    def test_a_failing_pull_request_lookup_still_reports_the_orphaned_branch(self):
+        # gh missing or unauthenticated must not hide the branch, and must not
+        # be mistaken for a confirmed "no open pull request" either.
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree(
+            "flaky-gh", "ChaosEngine/flaky-gh-lookup", commit_epoch=old_epoch
+        )
+
+        def pull_requests(branch: str) -> int:
+            raise RuntimeError("gh is unavailable")
+
+        report = collect_worktree_report(self.main, open_pull_requests=pull_requests)
+        entry = next(
+            item for item in report if item["path"] == "origin/ChaosEngine/flaky-gh-lookup"
+        )
+        self.assertEqual(entry["state"], "orphaned")
+        self.assertIsNone(entry["open_pull_requests"])
+
+        advisory = next(
+            item for item in format_advisories(report) if "flaky-gh-lookup" in item
+        )
+        self.assertIn("not checked", advisory)
+
+    def test_orphaned_branch_advisory_does_not_claim_ahead_count_as_proof(self):
+        # The issue's own correctness point, in bold: this repo squash-merges,
+        # so a landed branch still shows commits ahead of main. The advisory
+        # must send the reader to a content diff, never assert "unmerged".
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree(
+            "maybe-landed", "ChaosEngine/maybe-landed", commit_epoch=old_epoch
+        )
+
+        advisory = next(
+            item
+            for item in format_advisories(
+                collect_worktree_report(self.main, open_pull_requests=lambda _b: 0)
+            )
+            if "maybe-landed" in item
+        )
+        self.assertIn("squash-merges", advisory)
+        self.assertIn("not evidence", advisory)
+        self.assertIn("Diff its tip against main", advisory)
+
+    def test_a_branch_that_still_has_a_local_worktree_is_not_reported_as_orphaned(self):
+        # The remote-only scan must not double-report a branch the ordinary
+        # worktree walk already covers.
+        old_epoch = int(time.time()) - (10 * 86400)
+        worktree = self.add_worktree("still-here", "ChaosEngine/still-here")
+        self.write(worktree, "notes.md", "session work\n")
+        git(worktree, "add", "-A")
+        env = {**os.environ, "GIT_AUTHOR_DATE": f"{old_epoch} +0000",
+               "GIT_COMMITTER_DATE": f"{old_epoch} +0000"}
+        subprocess.run(  # nosec B603 B607 - fixed git command on a temp fixture.
+            ["git", "-c", "core.longpaths=true", "commit", "-qm", "session work"],
+            cwd=worktree, capture_output=True, text=True, env=env, check=False,
+        )
+        head = git(worktree, "rev-parse", "ChaosEngine/still-here").stdout.strip()
+        git(self.main, "update-ref", "refs/remotes/origin/ChaosEngine/still-here", head)
+
+        report = collect_worktree_report(self.main, open_pull_requests=lambda _b: 0)
+        self.assertEqual(
+            [item for item in report if item.get("is_remote_only")],
+            [],
+        )
+
+    def test_origin_main_is_never_reported_as_orphaned(self):
+        old_epoch = int(time.time()) - (10 * 86400)
+        env = {**os.environ, "GIT_AUTHOR_DATE": f"{old_epoch} +0000",
+               "GIT_COMMITTER_DATE": f"{old_epoch} +0000"}
+        subprocess.run(  # nosec B603 B607 - fixed git command on a temp fixture.
+            ["git", "-c", "core.longpaths=true", "commit", "--allow-empty", "-qm", "old"],
+            cwd=self.main, capture_output=True, text=True, env=env, check=False,
+        )
+        self.publish_main()
+
+        report = collect_worktree_report(self.main, open_pull_requests=lambda _b: 0)
+        self.assertEqual(
+            [item for item in report if item.get("is_remote_only")],
+            [],
+        )
 
 
 class OpenPullRequestLookupTest(unittest.TestCase):
