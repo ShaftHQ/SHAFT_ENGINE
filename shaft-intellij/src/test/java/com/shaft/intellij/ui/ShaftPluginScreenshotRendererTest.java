@@ -69,6 +69,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
+    private static final Path PROVIDER_MODEL_SCREENSHOT_DIRECTORY = Path.of("build", "provider-model-screenshots");
+    private static final Path PROVIDER_MODEL_VALIDATING_SCREENSHOT =
+            PROVIDER_MODEL_SCREENSHOT_DIRECTORY.resolve("intellij-plugin-assistant-provider-model-validating.png");
+    private static final Path PROVIDER_MODEL_UNAVAILABLE_SCREENSHOT =
+            PROVIDER_MODEL_SCREENSHOT_DIRECTORY.resolve("intellij-plugin-assistant-provider-model-unavailable.png");
     static {
         // Without an activated IconLoader this headless JVM paints placeholder glyphs instead of
         // the plugin's SVG action icons, which makes screenshot evidence unrepresentative.
@@ -174,7 +179,11 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantCancelledPendingAnswerScreenshot =
                 outputPath.resolve("intellij-plugin-assistant-cancelled-pending-answer.png");
         Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
-        Path assistantModelFallbackScreenshot = outputPath.resolve("intellij-plugin-assistant-model-fallback.png");
+        Path assistantModelUnavailableScreenshot = outputPath.resolve("intellij-plugin-assistant-model-unavailable.png");
+        Path assistantProviderModelUnavailableScreenshot =
+                outputPath.resolve("intellij-plugin-assistant-provider-model-unavailable.png");
+        Path assistantProviderModelValidatingScreenshot =
+                outputPath.resolve("intellij-plugin-assistant-provider-model-validating.png");
         Path assistantSlashCommandsScreenshot = outputPath.resolve("intellij-plugin-assistant-slash-commands.png");
         Path toolsHumanizedDoctorCardScreenshot = outputPath.resolve("intellij-plugin-tools-humanized-doctor-card.png");
         Path assistantDefaultModePrefillScreenshot = outputPath.resolve("intellij-plugin-assistant-default-mode-prefill.png");
@@ -222,7 +231,9 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantKilledScreenshot, renderAssistantKilled(LIGHT_THEME, false));
         write(assistantCancelledPendingAnswerScreenshot, renderAssistantCancelledPendingAnswer(LIGHT_THEME, false));
         write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
-        write(assistantModelFallbackScreenshot, renderAssistantModelFallback(LIGHT_THEME, false));
+        write(assistantModelUnavailableScreenshot, renderAssistantModelUnavailable(LIGHT_THEME, false));
+        write(assistantProviderModelUnavailableScreenshot, renderAssistantProviderModelUnavailable(LIGHT_THEME, false));
+        write(assistantProviderModelValidatingScreenshot, renderAssistantProviderModelValidating(LIGHT_THEME, false));
         write(assistantSlashCommandsScreenshot, renderAssistantSlashCommands(LIGHT_THEME, false));
         write(toolsHumanizedDoctorCardScreenshot, renderToolsHumanizedDoctorCard(LIGHT_THEME, false));
         write(assistantDefaultModePrefillScreenshot, renderAssistantDefaultModePrefill(LIGHT_THEME, false));
@@ -274,7 +285,12 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantCancelledPendingAnswerScreenshot) > 0,
                         assistantCancelledPendingAnswerScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(assistantModelFallbackScreenshot) > 0, assistantModelFallbackScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantModelUnavailableScreenshot) > 0,
+                        assistantModelUnavailableScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantProviderModelUnavailableScreenshot) > 0,
+                        assistantProviderModelUnavailableScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantProviderModelValidatingScreenshot) > 0,
+                        assistantProviderModelValidatingScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantSlashCommandsScreenshot) > 0, assistantSlashCommandsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsHumanizedDoctorCardScreenshot) > 0, toolsHumanizedDoctorCardScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDefaultModePrefillScreenshot) > 0, assistantDefaultModePrefillScreenshot + " should be non-empty"),
@@ -319,7 +335,9 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantCancelledScreenshot),
                 () -> assertDimensions(assistantKilledScreenshot),
                 () -> assertDimensions(assistantApprovalPromptScreenshot),
-                () -> assertDimensions(assistantModelFallbackScreenshot),
+                () -> assertDimensions(assistantModelUnavailableScreenshot),
+                () -> assertDimensions(assistantProviderModelUnavailableScreenshot),
+                () -> assertDimensions(assistantProviderModelValidatingScreenshot),
                 () -> assertDimensions(toolsHumanizedDoctorCardScreenshot),
                 () -> assertDimensions(assistantDefaultModePrefillScreenshot),
                 () -> assertDimensions(mcpSetupPostSetupScreenshot),
@@ -1134,17 +1152,16 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     /**
-     * Renders the Assistant local-model refresh control in its fallback state (issue #3551): when
-     * the connected local CLI reports no models, {@code applyLocalModels} falls back to the curated
-     * {@link AssistantModelCatalog} list and sets {@code localModelListIsFallback}, and the "Refresh
-     * local agent models" button stays visible so the user can retry the live CLI listing. {@code
+     * Renders the Assistant local-model refresh control after no models are reported (issue #3551):
+     * the editable selector stays empty and the "Refresh local agent models" button stays visible
+     * so the user can retry the live CLI listing. {@code
      * defaultSettings()} already normalizes to provider=LOCAL/runtime=CLI, so the panel starts in
      * the local-CLI configuration this control only appears in; the empty live list is then forced
      * through the same {@code applyLocalModels} seam production uses after a real CLI listing call
      * (via reflection, since it is private), rather than racing the panel's own async CLI probe
      * that already runs once at construction time.
      */
-    private static BufferedImage renderAssistantModelFallback(String lookAndFeelClassName, boolean dark)
+    private static BufferedImage renderAssistantModelUnavailable(String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -1170,7 +1187,90 @@ class ShaftPluginScreenshotRendererTest {
             method.setAccessible(true);
             method.invoke(component, family, models);
         } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Unable to apply the local-model fallback state", exception);
+            throw new IllegalStateException("Unable to apply the local-model unavailable state", exception);
+        }
+    }
+
+    @Test
+    void writesValidatingProviderModelEvidenceToBuildDirectory() throws Exception {
+        Files.createDirectories(PROVIDER_MODEL_SCREENSHOT_DIRECTORY);
+        write(PROVIDER_MODEL_VALIDATING_SCREENSHOT, renderAssistantProviderModelValidating(LIGHT_THEME, false));
+        write(PROVIDER_MODEL_UNAVAILABLE_SCREENSHOT, renderAssistantProviderModelUnavailable(LIGHT_THEME, false));
+
+        assertAll(
+                () -> assertTrue(Files.exists(PROVIDER_MODEL_VALIDATING_SCREENSHOT)),
+                () -> assertTrue(Files.size(PROVIDER_MODEL_VALIDATING_SCREENSHOT) > 0),
+                () -> assertDimensions(PROVIDER_MODEL_VALIDATING_SCREENSHOT),
+                () -> assertTrue(Files.exists(PROVIDER_MODEL_UNAVAILABLE_SCREENSHOT)),
+                () -> assertTrue(Files.size(PROVIDER_MODEL_UNAVAILABLE_SCREENSHOT) > 0),
+                () -> assertDimensions(PROVIDER_MODEL_UNAVAILABLE_SCREENSHOT));
+    }
+
+    /** Provider discovery failure is visible, announced by the real panel state, and leaves no selectable model. */
+    private static BufferedImage renderAssistantProviderModelUnavailable(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.assistantProviderType = "CLOUD";
+            settings.advancedUiEnabled = true;
+            settings.defaultAutobotMode = "PLAN";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings,
+                    new ShaftAssistantChatState(), () -> { });
+            invokeApplyProviderModels(component, "gemini", "UNAVAILABLE", List.of());
+            JButton retry = findByAccessibleName(component, "Retry provider models", JButton.class);
+            assertTrue(retry.isVisible() && retry.isEnabled(),
+                    "the rendered unavailable state must expose an enabled provider retry action");
+            findByAccessibleName(component, "Run settings", JToggleButton.class).doClick();
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /** Provider discovery's explicit validating state is visible before any model result arrives. */
+    private static BufferedImage renderAssistantProviderModelValidating(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.assistantProviderType = "CLOUD";
+            settings.advancedUiEnabled = true;
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings,
+                    new ShaftAssistantChatState(), () -> { });
+            try {
+                Method method = ShaftAssistantPanel.class.getDeclaredMethod("invalidateProviderModels");
+                method.setAccessible(true);
+                method.invoke(component);
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Unable to apply the provider-model validating state", exception);
+            }
+            findByAccessibleName(component, "Run settings", JToggleButton.class).doClick();
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static void invokeApplyProviderModels(
+            ShaftAssistantPanel component, String provider, String state, List<String> models) {
+        try {
+            Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                    "applyProviderModels", String.class, String.class, List.class, long.class);
+            method.setAccessible(true);
+            method.invoke(component, provider, state, models, 0L);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to apply the provider-model unavailable state", exception);
         }
     }
 

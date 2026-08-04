@@ -76,6 +76,19 @@ final class AssistantLocalAgentRunner {
      */
     static final String RAW_STDOUT_MARKER = "\u0000raw-stdout\u0000";
 
+    enum ModelDiscoveryState {
+        AVAILABLE,
+        EMPTY,
+        UNAVAILABLE,
+        FAILED
+    }
+
+    record ModelDiscovery(List<String> models, ModelDiscoveryState state) {
+        ModelDiscovery {
+            models = List.copyOf(models);
+        }
+    }
+
     private AssistantLocalAgentRunner() {
         throw new IllegalStateException("Utility class");
     }
@@ -1268,15 +1281,10 @@ final class AssistantLocalAgentRunner {
 
     /**
      * Queries the connected agent CLI for its supported model list. Returns an empty list when the
-     * CLI is unavailable, unsupported, or the query fails or times out — callers should fall back to
-     * their own default model set in that case.
+     * CLI is unavailable or the query fails or times out.
      */
     static List<String> listModels(JsonObject arguments) {
-        List<String> command = modelsCommandFor(arguments);
-        if (command.isEmpty() || !isCommandAvailable(command.get(0))) {
-            return List.of();
-        }
-        return listModels(arguments, AssistantLocalAgentRunner::launchProcess);
+        return discoverModels(arguments).models();
     }
 
     /**
@@ -1284,10 +1292,19 @@ final class AssistantLocalAgentRunner {
      * availability check that gates the real CLI in {@link #listModels(JsonObject)}.
      */
     static List<String> listModels(JsonObject arguments, ProcessLauncher processLauncher) {
+        return discoverModels(arguments, processLauncher).models();
+    }
+
+    static ModelDiscovery discoverModels(JsonObject arguments) {
         List<String> command = modelsCommandFor(arguments);
-        if (command.isEmpty()) {
-            return List.of();
+        if (!isCommandAvailable(command.get(0))) {
+            return new ModelDiscovery(List.of(), ModelDiscoveryState.UNAVAILABLE);
         }
+        return discoverModels(arguments, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    static ModelDiscovery discoverModels(JsonObject arguments, ProcessLauncher processLauncher) {
+        List<String> command = modelsCommandFor(arguments);
         Path workingDirectory = workingDirectory(arguments);
         try {
             Process process = processLauncher.launch(command, workingDirectory, Map.of());
@@ -1297,19 +1314,22 @@ final class AssistantLocalAgentRunner {
             boolean finished = process.waitFor(MODEL_LIST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                return List.of();
+                return new ModelDiscovery(List.of(), ModelDiscoveryState.FAILED);
             }
             String output = process.exitValue() == 0 ? stdoutNow(stdout) : "";
             if (output.isBlank()) {
                 stderrNow(stderr);
-                return List.of();
+                return new ModelDiscovery(List.of(), process.exitValue() == 0
+                        ? ModelDiscoveryState.EMPTY : ModelDiscoveryState.FAILED);
             }
-            return parseModelNames(output);
+            List<String> models = parseModelNames(output);
+            return new ModelDiscovery(models, models.isEmpty()
+                    ? ModelDiscoveryState.EMPTY : ModelDiscoveryState.AVAILABLE);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            return List.of();
+            return new ModelDiscovery(List.of(), ModelDiscoveryState.FAILED);
         } catch (IOException | RuntimeException exception) {
-            return List.of();
+            return new ModelDiscovery(List.of(), ModelDiscoveryState.FAILED);
         }
     }
 

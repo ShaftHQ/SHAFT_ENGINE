@@ -27,7 +27,9 @@ public final class ShaftCredentialService {
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "GEMINI_API_KEY",
-            "GITHUB_TOKEN");
+            "GITHUB_TOKEN",
+            "LMSTUDIO_API_KEY",
+            "OLLAMA_API_KEY");
 
     private final Executor backgroundExecutor;
     private final Executor edtExecutor;

@@ -189,6 +189,39 @@ class AssistantLocalAgentRunnerModelDiscoveryTest {
         assertTrue(models.isEmpty(), models.toString());
     }
 
+    @Test
+    void discoveryDistinguishesUnavailableFailedAndEmptyResults() {
+        AssistantLocalAgentRunner.ModelDiscovery unavailable = AssistantLocalAgentRunner.discoverModels(arguments("COPILOT_CLI"));
+        AssistantLocalAgentRunner.ModelDiscovery failed = AssistantLocalAgentRunner.discoverModels(
+                arguments("CODEX"), (command, workingDirectory, environment) -> new StubProcess("", "boom", 1, true));
+        AssistantLocalAgentRunner.ModelDiscovery empty = AssistantLocalAgentRunner.discoverModels(
+                arguments("CODEX"), (command, workingDirectory, environment) -> new StubProcess("", "", 0, true));
+
+        assertAll(
+                () -> assertEquals(AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE, unavailable.state()),
+                () -> assertEquals(AssistantLocalAgentRunner.ModelDiscoveryState.FAILED, failed.state()),
+                () -> assertEquals(AssistantLocalAgentRunner.ModelDiscoveryState.EMPTY, empty.state()),
+                () -> assertTrue(unavailable.models().isEmpty()),
+                () -> assertTrue(failed.models().isEmpty()),
+                () -> assertTrue(empty.models().isEmpty()));
+    }
+
+    @Test
+    void discoveryKeepsTimeoutAndLaunchFailuresDistinctFromUnavailable() {
+        AssistantLocalAgentRunner.ModelDiscovery timeout = AssistantLocalAgentRunner.discoverModels(
+                arguments("CODEX"), (command, workingDirectory, environment) -> new StubProcess("", "", 0, false));
+        AssistantLocalAgentRunner.ModelDiscovery launchFailure = AssistantLocalAgentRunner.discoverModels(
+                arguments("CODEX"), (command, workingDirectory, environment) -> {
+                    throw new java.io.IOException("simulated launch failure");
+                });
+
+        assertAll(
+                () -> assertEquals(AssistantLocalAgentRunner.ModelDiscoveryState.FAILED, timeout.state()),
+                () -> assertEquals(AssistantLocalAgentRunner.ModelDiscoveryState.FAILED, launchFailure.state()),
+                () -> assertTrue(timeout.models().isEmpty()),
+                () -> assertTrue(launchFailure.models().isEmpty()));
+    }
+
     // -- listModels(JsonObject): PATH-availability short-circuit --------------------------------
 
     /**

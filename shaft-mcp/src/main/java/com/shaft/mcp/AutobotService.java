@@ -5,6 +5,8 @@ import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.pilot.ai.AiBudget;
 import com.shaft.pilot.ai.AiExecutionService;
+import com.shaft.pilot.ai.AiModelDiscovery;
+import com.shaft.pilot.ai.AiProviderRegistry;
 import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.ApprovalPolicy;
@@ -14,6 +16,7 @@ import com.shaft.pilot.agent.LocalAgentMode;
 import com.shaft.pilot.agent.LocalAgentRequest;
 import com.shaft.pilot.agent.LocalAgentResponse;
 import com.shaft.pilot.agent.LocalAgentService;
+import com.shaft.pilot.config.PilotConfiguration;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
@@ -43,23 +46,26 @@ public class AutobotService {
     private final LocalAgentService localAgentService;
     private final Function<AiRequest, AiResponse> aiExecutor;
     private final Function<String, String> environmentReader;
+    private final AiProviderRegistry providerRegistry;
 
     /**
      * Creates the default Autobot MCP adapter.
      */
     public AutobotService() {
-        this(McpWorkspacePolicy.current(), new LocalAgentService(), new AiExecutionService()::execute);
+        this(McpWorkspacePolicy.current(), new LocalAgentService(), new AiExecutionService()::execute,
+                System::getenv, new AiProviderRegistry());
     }
 
     AutobotService(McpWorkspacePolicy workspacePolicy, LocalAgentService localAgentService) {
-        this(workspacePolicy, localAgentService, new AiExecutionService()::execute);
+        this(workspacePolicy, localAgentService, new AiExecutionService()::execute,
+                System::getenv, new AiProviderRegistry());
     }
 
     AutobotService(
             McpWorkspacePolicy workspacePolicy,
             LocalAgentService localAgentService,
             Function<AiRequest, AiResponse> aiExecutor) {
-        this(workspacePolicy, localAgentService, aiExecutor, System::getenv);
+        this(workspacePolicy, localAgentService, aiExecutor, System::getenv, new AiProviderRegistry());
     }
 
     AutobotService(
@@ -67,10 +73,20 @@ public class AutobotService {
             LocalAgentService localAgentService,
             Function<AiRequest, AiResponse> aiExecutor,
             Function<String, String> environmentReader) {
+        this(workspacePolicy, localAgentService, aiExecutor, environmentReader, new AiProviderRegistry());
+    }
+
+    AutobotService(
+            McpWorkspacePolicy workspacePolicy,
+            LocalAgentService localAgentService,
+            Function<AiRequest, AiResponse> aiExecutor,
+            Function<String, String> environmentReader,
+            AiProviderRegistry providerRegistry) {
         this.workspacePolicy = Objects.requireNonNull(workspacePolicy, "workspacePolicy");
         this.localAgentService = Objects.requireNonNull(localAgentService, "localAgentService");
         this.aiExecutor = Objects.requireNonNull(aiExecutor, "aiExecutor");
         this.environmentReader = Objects.requireNonNull(environmentReader, "environmentReader");
+        this.providerRegistry = Objects.requireNonNull(providerRegistry, "providerRegistry");
     }
 
     /**
@@ -235,6 +251,30 @@ public class AutobotService {
                 List.copyOf(warnings));
     }
 
+    /**
+     * Discovers configured provider model identifiers without returning provider response details.
+     *
+     * @param provider provider identifier
+     * @param model selected provider model, or blank to use its configured default
+     * @return safe model-discovery state and identifiers
+     */
+    @Tool(name = "autobot_provider_models",
+            description = "discovers model IDs from the configured SHAFT provider without exposing responses, headers, or credentials")
+    public AutobotProviderModels providerModels(String provider, String model) {
+        String normalizedProvider = normalizeProvider(provider);
+        try {
+            configureProvider(normalizedProvider, model);
+            AiModelDiscovery discovery = providerRegistry.resolve(PilotConfiguration.current()).discoverModels();
+            return new AutobotProviderModels("1.0", normalizedProvider, discovery.status().name(), discovery.models(),
+                    modelDiscoveryWarnings(discovery.status()));
+        } catch (RuntimeException exception) {
+            return new AutobotProviderModels("1.0", normalizedProvider, AiModelDiscovery.Status.FAILED.name(), List.of(),
+                    List.of("Provider model discovery failed."));
+        } finally {
+            SHAFT.Properties.clearForCurrentThread();
+        }
+    }
+
     private static JsonNode codegenSchema() {
         var schema = JSON.createObjectNode().put("type", "object");
         var properties = JSON.createObjectNode();
@@ -367,11 +407,12 @@ public class AutobotService {
     }
 
     private static void configureProvider(String provider, String model) {
+        boolean localProvider = "ollama".equals(provider) || "lmstudio".equals(provider);
         var properties = SHAFT.Properties.pilot.set()
                 .enabled(true)
                 .provider(provider)
-                .localConsent(false)
-                .remoteConsent(true)
+                .localConsent(localProvider)
+                .remoteConsent(!localProvider)
                 .allowedEvidenceCategories("TEXT");
         if (model == null || model.isBlank()) {
             return;
@@ -381,9 +422,20 @@ public class AutobotService {
             case "anthropic" -> properties.anthropicModel(model);
             case "gemini" -> properties.geminiModel(model);
             case "github" -> properties.githubModel(model);
+            case "ollama" -> properties.ollamaModel(model);
+            case "lmstudio" -> properties.lmStudioModel(model);
             default -> {
             }
         }
+    }
+
+    private static List<String> modelDiscoveryWarnings(AiModelDiscovery.Status status) {
+        return switch (status) {
+            case AVAILABLE, EMPTY -> List.of();
+            case UNAVAILABLE -> List.of("Provider is unavailable for model discovery.");
+            case AUTHENTICATION_FAILED -> List.of("Provider authentication is required for model discovery.");
+            case FAILED -> List.of("Provider model discovery failed.");
+        };
     }
 
     private static String normalizeMode(String mode) {

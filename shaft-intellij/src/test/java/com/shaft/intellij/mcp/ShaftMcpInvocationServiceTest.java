@@ -1,5 +1,7 @@
 package com.shaft.intellij.mcp;
 
+import com.google.gson.JsonObject;
+import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +50,13 @@ class ShaftMcpInvocationServiceTest {
     }
 
     @Test
+    void exposesPublicToolInvocationWithCallerOwnedSettingsSnapshot() throws Exception {
+        assertTrue(java.lang.reflect.Modifier.isPublic(ShaftMcpInvocationService.class.getMethod(
+                "startTool", String.class, JsonObject.class, ShaftSettingsState.Settings.class).getModifiers()),
+                "UI callers need one public path that carries their immutable selected-route settings snapshot");
+    }
+
+    @Test
     void changedCommandClosesOldClientAndCreatesNew() throws IOException {
         RecordingFactory factory = new RecordingFactory();
         ShaftMcpInvocationService service = new ShaftMcpInvocationService(null, factory);
@@ -77,6 +86,21 @@ class ShaftMcpInvocationServiceTest {
         assertNotSame(first, second, "A dead shared client must be replaced even when the command is unchanged.");
         assertEquals(2, factory.created.size());
         assertTrue(second.isAlive());
+    }
+
+    @Test
+    void providerDiscoveryUsesSeparateClientWhenItsEnvironmentChanges() throws IOException {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(null, factory);
+        List<String> command = echoToolCommand();
+        ShaftMcpStdioClient active = service.acquireClient(command, Path.of("."), Map.of("JAVA_TOOL_OPTIONS", "-Dpilot.ai.gemini.model=active"));
+
+        ShaftMcpStdioClient discovery = service.acquireClient(command, Path.of("."),
+                Map.of("JAVA_TOOL_OPTIONS", "-Dpilot.ai.gemini.model=discovery"), true);
+
+        assertNotSame(active, discovery, "discovery needs its own changed environment");
+        assertTrue(active.isAlive(), "discovery must not close the shared capture/WebDriver client");
+        assertEquals(2, factory.created.size());
     }
 
     private static List<String> echoToolCommand() {

@@ -148,6 +148,33 @@
       "example": null
     },
     {
+      "name": "autobot_provider_models",
+      "service": "AutobotService",
+      "description": "discovers model IDs from the configured SHAFT provider without exposing responses, headers, or credentials",
+      "params": [
+        {
+          "name": "model",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
       "name": "autobot_provider_status",
       "service": "AutobotService",
       "description": "reports the configured SHAFT cloud provider, model, API-key presence (never the value), and structured-output support for the IntelliJ readiness view",

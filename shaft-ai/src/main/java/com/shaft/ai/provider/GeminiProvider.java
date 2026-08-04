@@ -18,6 +18,8 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -143,5 +145,22 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
     @Override
     protected String responseModel(JsonNode response, ProviderConfiguration configuration) {
         return response.path("modelVersion").asText(configuration.model());
+    }
+
+    @Override
+    protected URI modelDiscoveryEndpoint(ProviderConfiguration configuration) {
+        return configuration.endpoint();
+    }
+
+    @Override
+    protected List<String> modelNames(JsonNode response) {
+        if (!response.path("models").isArray()) return null;
+        List<String> models = new ArrayList<>();
+        for (JsonNode model : response.path("models")) {
+            String name = model.path("name").asText("");
+            if (name.isBlank()) return null;
+            models.add(name.replaceFirst("^models/", ""));
+        }
+        return models;
     }
 }

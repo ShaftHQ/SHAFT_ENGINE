@@ -13,6 +13,10 @@ import com.shaft.pilot.config.PilotConfiguration;
 import com.shaft.pilot.config.ProviderConfiguration;
 
 import java.net.http.HttpClient;
+import java.net.URI;
+import tools.jackson.databind.JsonNode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Base64;
 import java.util.Map;
 import java.util.function.Function;
@@ -94,5 +98,21 @@ public final class OllamaProvider extends AbstractHttpAiProvider {
     protected AiUsage usage(JsonNode response) {
         return new AiUsage(response.path("prompt_eval_count").asLong(),
                 response.path("eval_count").asLong(), null);
+    }
+
+    @Override
+    protected URI modelDiscoveryEndpoint(ProviderConfiguration configuration) {
+        return URI.create(configuration.endpoint().toString().replaceFirst("/api/[^/]+/?$", "/api/tags"));
+    }
+
+    @Override
+    protected List<String> modelNames(JsonNode response) {
+        if (!response.path("models").isArray()) return null;
+        List<String> models = new ArrayList<>();
+        for (JsonNode model : response.path("models")) {
+            if (!model.path("name").isTextual() || model.path("name").asText().isBlank()) return null;
+            models.add(model.path("name").asText());
+        }
+        return models;
     }
 }

@@ -5,6 +5,15 @@ package com.shaft.pilot.ai;
  */
 public interface AiProvider {
     /**
+     * Discovers provider models without exposing credentials or raw responses.
+     *
+     * @return safe discovery result
+     */
+    default AiModelDiscovery discoverModels() {
+        return AiModelDiscovery.unavailable();
+    }
+
+    /**
      * Returns the stable provider identifier used by {@code pilot.ai.provider}.
      *
      * @return provider identifier

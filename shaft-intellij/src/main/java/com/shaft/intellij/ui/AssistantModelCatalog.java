@@ -6,9 +6,8 @@ import java.util.Locale;
 /**
  * Curated model and effort-level choices for the Assistant chat view.
  *
- * <p>Live CLI listings win when a local agent can report its own models; these lists keep the
- * model selector useful when a cloud provider or CLI cannot list models. Model combos stay
- * editable so newer model names can always be typed in.</p>
+ * <p>Local model choices are reported only by the connected CLI. Model combos stay editable so
+ * a user can always type a model name.</p>
  */
 final class AssistantModelCatalog {
     static final String DEFAULT_EFFORT = "DEFAULT";
@@ -24,8 +23,7 @@ final class AssistantModelCatalog {
      * Returns the suggested models for a cloud provider selected in the Assistant chat view.
      *
      * @param provider cloud provider identifier: gemini, openai, anthropic, or github
-     * @return fallback model list; Codex deliberately falls back to its CLI default because
-     * account entitlements are not discoverable when the CLI cannot list models
+     * @return curated cloud model list
      */
     static List<String> cloudModels(String provider) {
         return switch (normalizeLower(provider)) {
@@ -37,18 +35,13 @@ final class AssistantModelCatalog {
     }
 
     /**
-     * Returns the fallback models for a local agent family when its CLI cannot report a model
-     * list of its own.
+     * Local agent CLIs do not have a static model catalog because account entitlements vary.
      *
      * @param family local assistant family: CODEX, CLAUDE, or COPILOT
-     * @return non-empty model list, most capable defaults first
+     * @return an empty list; local choices come from discovery or manual entry
      */
     static List<String> localModels(String family) {
-        return switch (normalizeUpper(family)) {
-            case "CLAUDE" -> CLAUDE_MODELS;
-            case "COPILOT" -> List.of("gpt-5.2", "claude-sonnet-5", "gemini-3.5-pro");
-            default -> List.of();
-        };
+        return List.of();
     }
 
     /**

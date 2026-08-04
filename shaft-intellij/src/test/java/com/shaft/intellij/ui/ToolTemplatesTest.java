@@ -64,7 +64,7 @@ class ToolTemplatesTest {
 
     @Test
     void workflowTemplatesExposePlaywrightAndInspectorCoverage() {
-        // Tool sweep W1 (90-tool catalog): Playwright no longer has its own tool names -- it is
+        // Tool sweep W1 (the former 90-tool catalog): Playwright no longer has its own tool names -- it is
         // reached through the same capture_*/browser_* tools as WebDriver and Mobile, dispatching
         // on whichever engine is active (or an explicit backend:"playwright" argument). Coverage
         // for Playwright is therefore proven by the presence of a "backend":"playwright" template,

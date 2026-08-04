@@ -258,6 +258,21 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("Bearer ")
     String ollamaApiKeyPrefix();
 
+    /** @return LM Studio OpenAI-compatible Responses endpoint */
+    @Key("pilot.ai.lmstudio.endpoint")
+    @DefaultValue("http://127.0.0.1:1234/v1/responses")
+    String lmStudioEndpoint();
+
+    /** @return configured LM Studio model */
+    @Key("pilot.ai.lmstudio.model")
+    @DefaultValue("")
+    String lmStudioModel();
+
+    /** @return optional LM Studio gateway credential environment variable */
+    @Key("pilot.ai.lmstudio.apiKeyEnvironmentVariable")
+    @DefaultValue("")
+    String lmStudioApiKeyEnvironmentVariable();
+
     /**
      * Returns a fluent builder for current-thread overrides.
      *
@@ -522,5 +537,12 @@ public interface Pilot extends EngineProperties<Pilot> {
             setProperty("pilot.ai.ollama.apiKeyPrefix", value);
             return this;
         }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty lmStudioEndpoint(String value) { setProperty("pilot.ai.lmstudio.endpoint", value); return this; }
+        /** @param value model identifier @return this builder */
+        public SetProperty lmStudioModel(String value) { setProperty("pilot.ai.lmstudio.model", value); return this; }
+        /** @param value environment variable name @return this builder */
+        public SetProperty lmStudioApiKeyEnvironmentVariable(String value) { setProperty("pilot.ai.lmstudio.apiKeyEnvironmentVariable", value); return this; }
     }
 }

@@ -83,7 +83,9 @@ public record PilotConfiguration(
                         parseLocation(properties.ollamaProcessingLocation(), ProcessingLocation.LOCAL),
                         Map.of(
                                 "api-key-header", properties.ollamaApiKeyHeader(),
-                                "api-key-prefix", properties.ollamaApiKeyPrefix())));
+                                "api-key-prefix", properties.ollamaApiKeyPrefix())),
+                "lmstudio", provider("lmstudio", properties.lmStudioEndpoint(), properties.lmStudioModel(),
+                        properties.lmStudioApiKeyEnvironmentVariable(), ProcessingLocation.LOCAL));
         return new PilotConfiguration(
                 properties.enabled(),
                 normalize(properties.provider()),

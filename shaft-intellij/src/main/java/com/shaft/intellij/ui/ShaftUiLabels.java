@@ -68,7 +68,8 @@ public final class ShaftUiLabels {
             case "ANTHROPIC" -> "Anthropic";
             case "GEMINI" -> "Gemini";
             case "GITHUB" -> "GitHub";
-            case "OLLAMA" -> "Ollama";
+            case "OLLAMA" -> "Ollama (local)";
+            case "LMSTUDIO" -> "LM Studio (local)";
             case "NONE" -> "None";
             case "DEFAULT" -> "Default effort";
             case "LOW" -> "Low effort";

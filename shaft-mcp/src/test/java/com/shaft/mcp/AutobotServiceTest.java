@@ -8,7 +8,14 @@ import com.shaft.pilot.agent.LocalAgentService;
 import com.shaft.pilot.agent.LocalAgentStatus;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiResponseStatus;
+import com.shaft.pilot.ai.AiProvider;
+import com.shaft.pilot.ai.AiProviderAvailability;
+import com.shaft.pilot.ai.AiProviderRegistry;
+import com.shaft.pilot.ai.AiCapabilities;
+import com.shaft.pilot.ai.AiModelDiscovery;
+import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.config.PilotConfiguration;
+import com.shaft.driver.SHAFT;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutobotServiceTest {
@@ -36,7 +44,7 @@ class AutobotServiceTest {
                 "", List.of(), Map.of("SHAFT_AUTOBOT_TOKEN", "secret-value"), 10, false);
 
         assertEquals(LocalAgentStatus.SUCCESS, response.status());
-        assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "-"), runner.command.get());
+        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"), runner.command.get());
         assertEquals(workspace.toRealPath(), runner.workingDirectory.get());
         assertEquals("Explain the selected Java method.", runner.stdin.get());
         assertFalse(response.toString().contains("secret-value"));
@@ -54,7 +62,7 @@ class AutobotServiceTest {
 
         assertEquals(LocalAgentStatus.SUCCESS, response.status());
         assertEquals(List.of(
-                        "codex", "exec",
+                        "codex", "exec", "--skip-git-repo-check",
                         "--sandbox", "read-only",
                         "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                         "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
@@ -171,6 +179,142 @@ class AutobotServiceTest {
     }
 
     @Test
+    void providerModelsUsesTheResolvedProviderWithoutStaticFallbackAndConfiguresLocalConsent() {
+        AtomicReference<PilotConfiguration> capturedConfiguration = new AtomicReference<>();
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new DiscoveringProvider("ollama", configuration -> {
+            capturedConfiguration.set(configuration);
+            return new AiModelDiscovery(AiModelDiscovery.Status.AVAILABLE, List.of("runtime-model"));
+        }));
+        try {
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                        throw new AssertionError("Provider chat executor is not used for model discovery");
+                    });
+
+            AutobotProviderModels response = service.providerModels("ollama", "selected-local-model");
+
+            assertEquals("1.0", response.schemaVersion());
+            assertEquals("ollama", response.provider());
+            assertEquals("AVAILABLE", response.state());
+            assertEquals(List.of("runtime-model"), response.modelIds());
+            assertTrue(response.warnings().isEmpty());
+            assertEquals("ollama", capturedConfiguration.get().provider());
+            assertEquals("selected-local-model", capturedConfiguration.get().provider("ollama").model());
+            assertTrue(capturedConfiguration.get().approvalPolicy().localInferenceAllowed());
+            assertFalse(capturedConfiguration.get().approvalPolicy().remoteInferenceAllowed());
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void providerModelsNeverSerializesCredentialOrEndpointShapedModelIds() {
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new DiscoveringProvider("gemini", configuration ->
+                new AiModelDiscovery(AiModelDiscovery.Status.AVAILABLE, List.of(
+                        "models/gemini-2.5-flash", "org/model", "llama3.2:latest",
+                        "sk-proj-secret", "AKIA1234567890ABCDEF", "https://provider.example/models",
+                        "provider.example:443", "model name", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzZWNyZXQifQ.signature",
+                        "glpat-abc123", "hf_Abc123", "npm_Abc123"))));
+        try {
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> null);
+
+            AutobotProviderModels response = service.providerModels("gemini", "");
+
+            assertEquals(List.of("llama3.2:latest", "models/gemini-2.5-flash", "org/model"), response.modelIds());
+            assertFalse(response.toString().contains("sk-proj-secret"));
+            assertFalse(response.toString().contains("AKIA1234567890ABCDEF"));
+            assertFalse(response.toString().contains("provider.example:443"));
+            assertFalse(response.toString().contains("eyJhbGciOiJIUzI1NiJ9"));
+            assertFalse(response.toString().contains("glpat-abc123"));
+            assertFalse(response.toString().contains("hf_Abc123"));
+            assertFalse(response.toString().contains("npm_Abc123"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void providerModelsConfiguresLmStudioLocalConsentAndSelectedModel() {
+        AtomicReference<PilotConfiguration> capturedConfiguration = new AtomicReference<>();
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new DiscoveringProvider("lmstudio", configuration -> {
+            capturedConfiguration.set(configuration);
+            return new AiModelDiscovery(AiModelDiscovery.Status.EMPTY, List.of());
+        }));
+        try {
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> null);
+
+            AutobotProviderModels response = service.providerModels("lmstudio", "selected-lmstudio-model");
+
+            assertEquals("EMPTY", response.state());
+            assertEquals("lmstudio", capturedConfiguration.get().provider());
+            assertEquals("selected-lmstudio-model", capturedConfiguration.get().provider("lmstudio").model());
+            assertTrue(capturedConfiguration.get().approvalPolicy().localInferenceAllowed());
+            assertFalse(capturedConfiguration.get().approvalPolicy().remoteInferenceAllowed());
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void providerModelsFailureDoesNotExposeProviderExceptionDetails() {
+        AtomicReference<PilotConfiguration> capturedConfiguration = new AtomicReference<>();
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new DiscoveringProvider("gemini", configuration -> {
+            capturedConfiguration.set(configuration);
+            throw new IllegalStateException("Bearer secret-value; response body; Authorization header");
+        }));
+        try {
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                        throw new AssertionError("Provider chat executor is not used for model discovery");
+                    });
+
+            AutobotProviderModels response = service.providerModels("gemini", "gemini-test-model");
+
+            assertEquals("FAILED", response.state());
+            assertEquals("gemini", capturedConfiguration.get().provider());
+            assertFalse(capturedConfiguration.get().approvalPolicy().localInferenceAllowed());
+            assertTrue(capturedConfiguration.get().approvalPolicy().remoteInferenceAllowed());
+            assertFalse(response.toString().contains("secret-value"));
+            assertFalse(response.toString().contains("Authorization"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void providerModelsClearsThreadPropertiesAfterSuccessAndFailure() {
+        AiProviderRegistry registry = new AiProviderRegistry();
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> null);
+        try {
+            registry.registerForCurrentThread(new DiscoveringProvider("ollama",
+                    configuration -> new AiModelDiscovery(AiModelDiscovery.Status.AVAILABLE, List.of("runtime-model"))));
+            SHAFT.Properties.pilot.set().provider("thread-only-before-success");
+
+            service.providerModels("ollama", "runtime-model");
+
+            assertNotEquals("ollama", PilotConfiguration.current().provider());
+            registry.registerForCurrentThread(new DiscoveringProvider("gemini", configuration -> {
+                throw new IllegalStateException("secret-value");
+            }));
+            SHAFT.Properties.pilot.set().provider("thread-only-before-failure");
+
+            service.providerModels("gemini", "gemini-test-model");
+
+            assertNotEquals("gemini", PilotConfiguration.current().provider());
+        } finally {
+            registry.clearForCurrentThread();
+            SHAFT.Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test
     void providerChatSurfacesStructuredCodeBlocksAndGuardrailStatus() {
         AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
                 new LocalAgentService(client -> true, new CapturingRunner()), request -> {
@@ -278,6 +422,31 @@ class AutobotServiceTest {
             this.workingDirectory.set(workingDirectory);
             this.stdin.set(stdin);
             return new LocalAgentProcessResult(0, "answer", "", false, Duration.ofMillis(10));
+        }
+    }
+
+    private record DiscoveringProvider(
+            String id,
+            java.util.function.Function<PilotConfiguration, AiModelDiscovery> discovery)
+            implements AiProvider {
+        @Override
+        public AiCapabilities capabilities() {
+            return null;
+        }
+
+        @Override
+        public AiProviderAvailability availability() {
+            return AiProviderAvailability.ready();
+        }
+
+        @Override
+        public AiModelDiscovery discoverModels() {
+            return discovery.apply(PilotConfiguration.current());
+        }
+
+        @Override
+        public AiResponse execute(AiRequest request) {
+            return null;
         }
     }
 }

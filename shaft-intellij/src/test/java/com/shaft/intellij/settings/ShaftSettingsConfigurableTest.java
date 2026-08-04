@@ -1,6 +1,9 @@
 package com.shaft.intellij.settings;
 
+import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.util.JDOMUtil;
 import com.intellij.ui.components.JBTextField;
+import com.intellij.util.xmlb.XmlSerializer;
 import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
@@ -37,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ShaftSettingsConfigurableTest {
     @Test
@@ -98,7 +102,7 @@ class ShaftSettingsConfigurableTest {
                 "Visit the SHAFT MCP user guide, install the MCP integration, paste the stdio command, then test the connection."));
 
         List<JButton> clearButtons = collectButtons(panel);
-        assertEquals(4, clearButtons.size());
+        assertEquals(6, clearButtons.size());
         assertTrue(clearButtons.stream().anyMatch(button ->
                 "Clear stored OpenAI API key".equals(button.getAccessibleContext().getAccessibleName())));
         assertTrue(clearButtons.stream().anyMatch(button ->
@@ -107,6 +111,10 @@ class ShaftSettingsConfigurableTest {
                 "Clear stored Gemini API key".equals(button.getAccessibleContext().getAccessibleName())));
         assertTrue(clearButtons.stream().anyMatch(button ->
                 "Clear stored GitHub API key".equals(button.getAccessibleContext().getAccessibleName())));
+        assertTrue(clearButtons.stream().anyMatch(button ->
+                "Clear stored LM Studio API key".equals(button.getAccessibleContext().getAccessibleName())));
+        assertTrue(clearButtons.stream().anyMatch(button ->
+                "Clear stored Ollama API key".equals(button.getAccessibleContext().getAccessibleName())));
         clearButtons.forEach(ShaftSettingsConfigurableTest::assertIcon);
 
         assertNotNull(findByAccessibleName(panel, "OpenAI key storage status"));
@@ -223,6 +231,88 @@ class ShaftSettingsConfigurableTest {
         assertAll(
                 () -> assertTrue(settings.advancedUiEnabled),
                 () -> assertTrue(advanced.isSelected()));
+    }
+
+    @Test
+    void localEndpointRejectsUnsafeUrlsWithoutPersistingRouteChanges() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        assertTrue(Arrays.stream(ShaftSettingsState.Settings.class.getFields())
+                .anyMatch(field -> "pilotAiEndpoint".equals(field.getName())), "local endpoint must be persisted separately");
+        setStringField(settings, "pilotAiEndpoint", "http://127.0.0.1:11434/api/chat");
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JCheckBox advanced = findByAccessibleName(panel, "Enable advanced SHAFT UI", JCheckBox.class);
+        JComboBox<?> provider = findByAccessibleName(panel, "SHAFT AI provider", JComboBox.class);
+        JBTextField endpoint = findByAccessibleName(panel, "SHAFT AI local endpoint", JBTextField.class);
+        advanced.setSelected(true);
+        provider.setSelectedItem("ollama");
+        endpoint.setText("https://token@example.test/api/chat?debug=true");
+
+        assertThrows(ConfigurationException.class, configurable::apply);
+        assertEquals("http://127.0.0.1:11434/api/chat", stringField(settings, "pilotAiEndpoint"));
+    }
+
+    @Test
+    void localEndpointAcceptsOnlyLiteralLoopbackWithoutRewritingAndStopsTheMcpProbe() throws Exception {
+        for (String unsafe : List.of("http://localhost:11434", "https://example.test/v1", "http://127.0.0.1:11434/a b",
+                "http://user@127.0.0.1:11434", "http://127.0.0.1:11434?x=1", "http://127.0.0.1:11434#x")) {
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "missing-shaft-mcp";
+            ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+            JComponent panel = (JComponent) configurable.createComponent();
+            findByAccessibleName(panel, "Enable advanced SHAFT UI", JCheckBox.class).setSelected(true);
+            findByAccessibleName(panel, "SHAFT AI provider", JComboBox.class).setSelectedItem("ollama");
+            findByAccessibleName(panel, "SHAFT AI local endpoint", JBTextField.class).setText(unsafe);
+
+            assertThrows(ConfigurationException.class, configurable::apply, unsafe);
+            invokeTestMcpConnection(configurable);
+            assertTrue(findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class).getText().contains("Invalid local endpoint"), unsafe);
+        }
+    }
+
+    @Test
+    void localTokenFieldsUseCredentialStorageAndNeverPersistIntoSettings() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        InMemoryCredentials credentials = new InMemoryCredentials();
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, credentials);
+        JComponent panel = (JComponent) configurable.createComponent();
+        findByAccessibleName(panel, "Enable advanced SHAFT UI", JCheckBox.class).setSelected(true);
+        JPasswordField lmStudio = findByAccessibleName(panel, "LM Studio API key", JPasswordField.class);
+        JPasswordField ollama = findByAccessibleName(panel, "Ollama API key", JPasswordField.class);
+        assertNotNull(lmStudio);
+        assertNotNull(ollama);
+        lmStudio.setText("lm-secret");
+        ollama.setText("ollama-secret");
+
+        configurable.apply();
+        String persistedSettings = JDOMUtil.writeElement(XmlSerializer.serialize(settings));
+
+        assertAll(
+                () -> assertEquals("lm-secret", credentials.apiKeyAsync("LMSTUDIO_API_KEY").join(),
+                        "LM Studio key should be stored in Password Safe"),
+                () -> assertEquals("ollama-secret", credentials.apiKeyAsync("OLLAMA_API_KEY").join(),
+                        "Ollama key should be stored in Password Safe"),
+                () -> assertFalse(persistedSettings.contains("lm-secret"),
+                        "shaft.xml must not contain the LM Studio key"),
+                () -> assertFalse(persistedSettings.contains("ollama-secret"),
+                        "shaft.xml must not contain the Ollama key"));
+    }
+
+    @Test
+    void legacyBlankLocalEndpointStaysBlankAndUnmodifiedUntilTheUserChangesIt() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.advancedUiEnabled = true;
+        settings.pilotAiProvider = "ollama";
+        settings.pilotAiEndpoint = "";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        assertAll(
+                () -> assertEquals("", findByAccessibleName(panel, "SHAFT AI local endpoint", JBTextField.class).getText()),
+                () -> assertFalse(configurable.isModified()));
+        configurable.apply();
+        assertEquals("", settings.pilotAiEndpoint);
     }
 
     @Test
@@ -951,6 +1041,23 @@ class ShaftSettingsConfigurableTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true); // NOPMD - test-only field inspection, matching the established getField/setField helpers in ShaftPanelSetupTest
         return field.get(target);
+    }
+
+    private static void setStringField(ShaftSettingsState.Settings settings, String name, String value) {
+        try {
+            Field field = ShaftSettingsState.Settings.class.getField(name);
+            field.set(settings, value);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("missing persisted route metadata", exception);
+        }
+    }
+
+    private static String stringField(ShaftSettingsState.Settings settings, String name) {
+        try {
+            return (String) ShaftSettingsState.Settings.class.getField(name).get(settings);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("missing persisted route metadata", exception);
+        }
     }
 
     private static boolean containsComponent(Container container, Component target) {

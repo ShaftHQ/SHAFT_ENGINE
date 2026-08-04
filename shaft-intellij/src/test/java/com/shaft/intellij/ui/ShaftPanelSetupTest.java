@@ -2112,19 +2112,91 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantLocalModelTooltipReflectsFallbackWhenCliReportsNoModels() throws Exception {
+    void assistantLocalModelTooltipExplainsWhenCliReportsNoModels() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
 
         applyLocalModels(panel, "CODEX", List.of());
-        assertTrue(localModel.getToolTipText().contains("Fallback model list"), localModel.getToolTipText());
+        assertTrue(localModel.getToolTipText().contains("did not report models"), localModel.getToolTipText());
 
         applyLocalModels(panel, "CODEX", List.of("o1", "o1-mini"));
-        assertFalse(localModel.getToolTipText().contains("Fallback model list"), localModel.getToolTipText());
+        assertFalse(localModel.getToolTipText().contains("did not report models"), localModel.getToolTipText());
     }
 
     @Test
-    void assistantClearsPersistedCodexFallbackWhenModelDiscoveryIsEmpty() throws Exception {
+    void assistantDoesNotOfferGuessedModelsWhenCliReportsNoModels() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+
+        family.setSelectedItem("CLAUDE");
+        applyLocalModels(panel, "CLAUDE", List.of());
+
+        assertAll(
+                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertTrue(localModel.isEditable()),
+                () -> assertTrue(localModel.getToolTipText().contains("did not report models"),
+                        localModel.getToolTipText()));
+    }
+
+    @Test
+    void assistantExplainsUnavailableAndFailedModelDiscoveryWithoutOfferingModels() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+        family.setSelectedItem("CLAUDE");
+
+        applyLocalModelDiscovery(panel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
+        assertAll(
+                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertTrue(localModel.isEditable()),
+                () -> assertTrue(localModel.getToolTipText().contains("unavailable"), localModel.getToolTipText()));
+
+        applyLocalModelDiscovery(panel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.FAILED);
+        assertAll(
+                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertTrue(localModel.isEditable()),
+                () -> assertTrue(localModel.getToolTipText().contains("failed"), localModel.getToolTipText()));
+    }
+
+    @Test
+    void assistantIgnoresStaleLocalModelCallbackAfterFamilyChanges() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<String> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+
+        family.setSelectedItem("CLAUDE");
+        applyLocalModels(panel, "CLAUDE", List.of("claude-new"));
+        localModel.getEditor().setItem("manual-model");
+
+        applyLocalModels(panel, "CODEX", List.of("codex-stale"));
+
+        assertAll(
+                () -> assertEquals("CLAUDE", family.getSelectedItem()),
+                () -> assertEquals("manual-model", localModel.getEditor().getItem()),
+                () -> assertEquals("claude-new", localModel.getItemAt(0)));
+    }
+
+    @Test
+    void assistantKeepsNewerSameFamilyRefreshWhileOlderCallbackCompletes() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        // CLAUDE gen1 starts, CODEX gen2 starts, then CLAUDE gen3 becomes the active request.
+        family.setSelectedItem("CLAUDE");
+        setField(panel, "modelListRefreshing", true);
+        setField(panel, "modelListRefreshingFamily", "CLAUDE");
+        setField(panel, "modelListRequestGeneration", 3L);
+
+        applyLocalModels(panel, "CLAUDE", List.of("claude-gen1"), 1L);
+
+        assertAll(
+                () -> assertTrue((Boolean) getField(panel, "modelListRefreshing")),
+                () -> assertEquals("CLAUDE", getField(panel, "modelListRefreshingFamily")),
+                () -> assertEquals(3L, getField(panel, "modelListRequestGeneration")));
+    }
+
+    @Test
+    void assistantKeepsPersistedCodexModelWhenModelDiscoveryIsEmpty() throws Exception {
         ShaftSettingsState.Settings settings = blankMcpSettings();
         settings.localModel = "gpt-5.2-codex";
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
@@ -2134,8 +2206,24 @@ class ShaftPanelSetupTest {
                 "Explain this failure", selectedRoute(panel), "ASK", ".", "", false);
 
         assertAll(
-                () -> assertEquals("", settings.localModel),
-                () -> assertFalse(AssistantLocalAgentRunner.commandFor(invocation.arguments()).contains("--model")));
+                () -> assertEquals("gpt-5.2-codex", settings.localModel),
+                () -> assertTrue(AssistantLocalAgentRunner.commandFor(invocation.arguments()).contains("gpt-5.2-codex")));
+    }
+
+    @Test
+    void assistantKeepsLegacyLookingManualModelWhenDiscoveryIsNotAvailable() throws Exception {
+        ShaftSettingsState.Settings claudeSettings = blankMcpSettings();
+        claudeSettings.assistantFamily = "CLAUDE";
+        claudeSettings.localModel = "claude-sonnet-5";
+        ShaftAssistantPanel claudePanel = new ShaftAssistantPanel(null, claudeSettings);
+        applyLocalModelDiscovery(claudePanel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
+        AssistantCommand.Invocation claudeInvocation = AssistantCommand.fromPrompt(
+                "Explain this failure", selectedRoute(claudePanel), "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals("claude-sonnet-5", claudeSettings.localModel),
+                () -> assertTrue(AssistantLocalAgentRunner.commandFor(claudeInvocation.arguments())
+                        .contains("claude-sonnet-5")));
     }
 
     @Test
@@ -2170,7 +2258,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantKeepsCloudRouteAndModelListFromSetupWithoutAdvancedMode() {
+    void assistantKeepsCloudRouteButWaitsForLiveModelsWithoutAdvancedMode() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.assistantProviderType = "CLOUD";
         settings.cloudProvider = "gemini";
@@ -2185,8 +2273,8 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("CLOUD", providerType.getSelectedItem()),
                 () -> assertTrue(cloudModel.isVisible()),
                 () -> assertTrue(effort.isVisible()),
-                () -> assertEquals("gemini-3.5-flash", String.valueOf(cloudModel.getSelectedItem())),
-                () -> assertTrue(cloudModel.getItemCount() >= 2));
+                () -> assertFalse(cloudModel.isEnabled()),
+                () -> assertEquals(0, cloudModel.getItemCount()));
     }
 
     private static ShaftMcpSetupPanel.CloudKeyStore fakeKeyStore(java.util.Map<String, String> storedKeys) {
@@ -5787,6 +5875,9 @@ class ShaftPanelSetupTest {
                 // logs applies depends on the failure category, which an icon alone cannot convey
                 // (issue #3626).
                 .filter(button -> !"SHAFT tool recovery action".equals(accessibleName(button)))
+                // Provider discovery failures expose a direct, visible retry label; the focused
+                // provider-model layout contract verifies that text independently.
+                .filter(button -> !"Retry provider models".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -8089,6 +8180,23 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("applyLocalModels", String.class, List.class);
         method.setAccessible(true);
         method.invoke(panel, family, models);
+    }
+
+    private static void applyLocalModels(
+            ShaftAssistantPanel panel, String family, List<String> models, long requestGeneration) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod(
+                "applyLocalModels", String.class, List.class, long.class);
+        method.setAccessible(true);
+        method.invoke(panel, family, models, requestGeneration);
+    }
+
+    private static void applyLocalModelDiscovery(
+            ShaftAssistantPanel panel, String family, AssistantLocalAgentRunner.ModelDiscoveryState state) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("applyLocalModels", String.class,
+                AssistantLocalAgentRunner.ModelDiscovery.class, long.class);
+        method.setAccessible(true);
+        method.invoke(panel, family, new AssistantLocalAgentRunner.ModelDiscovery(List.of(), state),
+                getField(panel, "modelListRequestGeneration"));
     }
 
     private static AssistantCommand.Selection selectedRoute(ShaftAssistantPanel panel) throws Exception {

@@ -26,6 +26,12 @@
       "deprecated": false
     },
     {
+      "name": "autobot_provider_models",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "browser_accessibility_audit",
       "mutation": false,
       "sensitive": true,

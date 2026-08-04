@@ -27,7 +27,8 @@ class LocalAgentServiceTest {
         LocalAgentResponse response = service.execute(request);
 
         assertEquals(LocalAgentStatus.SUCCESS, response.status());
-        assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "-"), runner.command.get());
+        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"),
+                runner.command.get());
         assertEquals("How should I test this?", runner.stdin.get());
         assertEquals("answer", response.stdout());
         assertFalse(response.requiresCloudApiKey());
@@ -49,6 +50,21 @@ class LocalAgentServiceTest {
     }
 
     @Test
+    void planModeUsesCodexDefaultWithoutGitRepositoryCheck() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.PLAN,
+                        "Plan the fix")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"),
+                runner.command.get());
+    }
+
+    @Test
     void agentModeWithoutMutationApprovalUsesNoSourceDefaultCommand() {
         CapturingRunner runner = new CapturingRunner();
         LocalAgentService service = new LocalAgentService(client -> true, runner);
@@ -61,6 +77,7 @@ class LocalAgentServiceTest {
         assertEquals(LocalAgentStatus.SUCCESS, response.status());
         assertEquals(List.of(
                         "codex", "exec",
+                        "--skip-git-repo-check",
                         "--sandbox", "read-only",
                         "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                         "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",

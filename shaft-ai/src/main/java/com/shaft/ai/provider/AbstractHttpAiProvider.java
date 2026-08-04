@@ -5,6 +5,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.shaft.pilot.ai.AiCapabilities;
+import com.shaft.pilot.ai.AiModelDiscovery;
 import com.shaft.pilot.ai.AiProvider;
 import com.shaft.pilot.ai.AiProviderAvailability;
 import com.shaft.pilot.ai.AiRequest;
@@ -23,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -77,6 +79,37 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
         return AiProviderAvailability.ready();
     }
 
+    @Override
+    public AiModelDiscovery discoverModels() {
+        ProviderConfiguration configuration;
+        try {
+            configuration = PilotConfiguration.current().provider(id());
+            HttpRequest.Builder builder = HttpRequest.newBuilder(modelDiscoveryEndpoint(configuration))
+                    .timeout(PilotConfiguration.current().timeout())
+                    .header("Accept", "application/json").GET();
+            headers(configuration).forEach(builder::header);
+            HttpResponse<String> response = client().send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401 || response.statusCode() == 403) {
+                return new AiModelDiscovery(AiModelDiscovery.Status.AUTHENTICATION_FAILED, List.of());
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return new AiModelDiscovery(response.statusCode() >= 500 ? AiModelDiscovery.Status.UNAVAILABLE
+                        : AiModelDiscovery.Status.FAILED, List.of());
+            }
+            List<String> models = modelNames(JSON.readTree(response.body()));
+            if (models == null) return new AiModelDiscovery(AiModelDiscovery.Status.FAILED, List.of());
+            return new AiModelDiscovery(models.isEmpty() ? AiModelDiscovery.Status.EMPTY : AiModelDiscovery.Status.AVAILABLE,
+                    models);
+        } catch (IOException exception) {
+            return new AiModelDiscovery(AiModelDiscovery.Status.UNAVAILABLE, List.of());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return new AiModelDiscovery(AiModelDiscovery.Status.UNAVAILABLE, List.of());
+        } catch (RuntimeException exception) {
+            return new AiModelDiscovery(AiModelDiscovery.Status.FAILED, List.of());
+        }
+    }
+
     /**
      * Executes an approved and redacted HTTP request.
      *
@@ -95,7 +128,7 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(payload)));
             headers(configuration).forEach(builder::header);
-            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client().send(builder.build(), HttpResponse.BodyHandlers.ofString());
             Duration duration = Duration.between(started, Instant.now());
             AiResponseStatus failureStatus = status(response.statusCode());
             if (failureStatus != null) {
@@ -147,6 +180,22 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
     protected URI endpoint(ProviderConfiguration configuration) {
         return configuration.endpoint();
     }
+
+    protected URI modelDiscoveryEndpoint(ProviderConfiguration configuration) {
+        return URI.create(configuration.endpoint().toString().replaceFirst("/[^/]+/?$", "/models"));
+    }
+
+    protected List<String> modelNames(JsonNode response) {
+        if (!response.path("data").isArray()) return null;
+        java.util.ArrayList<String> models = new java.util.ArrayList<>();
+        for (JsonNode model : response.path("data")) {
+            if (!model.path("id").isTextual() || model.path("id").asText().isBlank()) return null;
+            models.add(model.path("id").asText());
+        }
+        return models;
+    }
+
+    protected HttpClient client() { return httpClient; }
 
     protected Map<String, String> headers(ProviderConfiguration configuration) {
         return Map.of();

@@ -42,6 +42,7 @@ class ShaftPluginResetServiceTest {
                 () -> assertEquals("CODEX", factoryDefaults.defaultAutobotClient),
                 () -> assertEquals("AGENT", factoryDefaults.defaultAutobotMode),
                 () -> assertEquals("none", factoryDefaults.pilotAiProvider),
+                () -> assertEquals("http://127.0.0.1:11434/api/chat", factoryDefaults.pilotAiEndpoint),
                 () -> assertEquals("", factoryDefaults.pilotAiModel),
                 () -> assertFalse(factoryDefaults.passProviderApiKeysToMcp),
                 () -> assertFalse(factoryDefaults.advancedUiEnabled),
@@ -89,7 +90,7 @@ class ShaftPluginResetServiceTest {
     @Test
     void knownProvidersEnumeratesEveryKeyThePluginWrites() {
         assertEquals(
-                List.of("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GITHUB_TOKEN"),
+                List.of("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GITHUB_TOKEN", "LMSTUDIO_API_KEY", "OLLAMA_API_KEY"),
                 ShaftCredentialService.KNOWN_PROVIDERS);
     }
 
