@@ -499,6 +499,29 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.assertIn("not checked", advisory)
         self.assertIn("--check-pull-requests", advisory)
 
+    def test_a_failing_pull_request_lookup_still_reports_the_orphaned_branch(self):
+        # gh missing or unauthenticated must not hide the branch, and must not
+        # be mistaken for a confirmed "no open pull request" either.
+        old_epoch = int(time.time()) - (10 * 86400)
+        self.push_and_remove_worktree(
+            "flaky-gh", "ChaosEngine/flaky-gh-lookup", commit_epoch=old_epoch
+        )
+
+        def pull_requests(branch: str) -> int:
+            raise RuntimeError("gh is unavailable")
+
+        report = collect_worktree_report(self.main, open_pull_requests=pull_requests)
+        entry = next(
+            item for item in report if item["path"] == "origin/ChaosEngine/flaky-gh-lookup"
+        )
+        self.assertEqual(entry["state"], "orphaned")
+        self.assertIsNone(entry["open_pull_requests"])
+
+        advisory = next(
+            item for item in format_advisories(report) if "flaky-gh-lookup" in item
+        )
+        self.assertIn("not checked", advisory)
+
     def test_orphaned_branch_advisory_does_not_claim_ahead_count_as_proof(self):
         # The issue's own correctness point, in bold: this repo squash-merges,
         # so a landed branch still shows commits ahead of main. The advisory
