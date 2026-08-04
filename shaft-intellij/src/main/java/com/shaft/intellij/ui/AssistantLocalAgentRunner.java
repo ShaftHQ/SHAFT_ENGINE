@@ -685,9 +685,18 @@ final class AssistantLocalAgentRunner {
                 String rawStderr = stderrNow(stderr);
                 String output;
                 if (success) {
-                    output = streamParser != null && streamParser.hasTerminalEvent()
-                            ? streamParser.finalOutput()
-                            : agentOutput(true, rawStdout, rawStderr, "", verbose);
+                    if (streamParser != null && streamParser.hasTerminalEvent()) {
+                        output = streamParser.finalOutput(rawStderr);
+                    } else {
+                        // Issue #4424 review round 3, finding 4: when streamParser != null, this CLI
+                        // is structured (Claude stream-json / Codex --json), so rawStdout here is raw
+                        // NDJSON even though the run exited 0 -- never safe to hand to
+                        // bufferedSuccessOutput as literal stdout content, mirroring the failure
+                        // branch's guard three lines below (its own comment names thinking_tokens as
+                        // exactly the leak this prevents). A genuinely buffered/custom command
+                        // (streamParser == null) has ordinary text in rawStdout instead, unaffected.
+                        output = bufferedSuccessOutput(streamParser == null ? rawStdout : "", rawStderr, verbose);
+                    }
                 } else if (streamParser != null) {
                     // A structured (stream-json / --json) CLI writes machine NDJSON to stdout, so on a
                     // failed run the raw stream must never reach the transcript verbatim -- rerun/codegen
@@ -883,6 +892,12 @@ final class AssistantLocalAgentRunner {
         // after it), then carried through composeOutput's trailing metadata line so
         // AssistantLocalAgentRunner.parseQuestion can recover it, mirroring planProposal above.
         private AssistantQuestion structuredQuestion;
+        // Whether any tool call was ever attempted, regardless of its outcome (issue #4424 round 2):
+        // distinct from filesTouched/permissionDenialsByTool, which only record a tool call's *result*.
+        // A run that attempted a (successful, non-mutating) tool call must not be treated as "silent"
+        // by finalOutput(String) just because it had nothing file/denial-worthy to report -- only a run
+        // that never got to attempt anything at all is that shape.
+        private boolean toolCallObserved;
 
         StructuredStreamParser(Format format) {
             this.format = format;
@@ -922,7 +937,52 @@ final class AssistantLocalAgentRunner {
         }
 
         synchronized String finalOutput() {
-            return composeOutput(answer.strip());
+            return finalOutput(null);
+        }
+
+        /**
+         * Same as {@link #finalOutput()}, plus consulting {@code stderr} (issue #4424). {@code run()}'s
+         * success branch used to call the no-arg overload unconditionally, discarding {@code rawStderr}
+         * entirely once a terminal event had arrived. The general rule (round 2 of this issue, after an
+         * adversarial review showed a single-string {@code sandbox-setup} match was both incomplete --
+         * an unrelated MCP-startup failure hit the identical silent shape -- and fragile -- a bare
+         * naming-convention drift such as {@code SandboxSetup.exe} defeated it): <b>a zero-exit run that
+         * attempted zero tool calls, touched zero files and hit zero denials, but did emit stderr, must
+         * surface that stderr -- or a notice pointing at it -- regardless of the Verbose toggle.</b> That
+         * is not ordinary noise (contrast the Verbose-gated stderr fence in {@link #failureOutput}, issue
+         * #3965): if literally nothing else happened, the stderr is the only account of what went wrong,
+         * so withholding it makes the whole request silently impossible without a trace. {@code
+         * toolCallObserved} is what keeps this from becoming "always surface any stderr": a run that DID
+         * attempt a tool call but simply had nothing file/denial-worthy to report keeps withholding
+         * incidental stderr noise exactly as issue #3965 established.
+         *
+         * <p>{@code recognizedBootstrapFailure} (round 3): {@link #sandboxBootstrapFailureHeadline}
+         * recognizing the sandbox-bootstrap shape fires <em>on its own</em>, independent of {@code
+         * silentRun} -- round 2 had folded it in only as an enrichment gated behind {@code silentRun},
+         * which silently dropped a <em>recognized</em> bootstrap failure whenever the run also had real
+         * tool activity to report (e.g. a patch-application call that succeeded via one path while a
+         * different operation's sandbox helper failed to launch, leaving its only trace on stderr).
+         * That partially-degraded shape is precisely the case a user cannot diagnose alone, so a
+         * recognized failure surfaces regardless of tool activity, alongside (not instead of) the
+         * general {@code silentRun} rule for the unrecognized case. An unrecognized, non-{@code
+         * silentRun} shape (ordinary chatter from a run that also did real work) still stays withheld.
+         * A {@code null}/blank stderr, or a plain empty/empty/no-activity run with unrecognized
+         * stderr, leaves {@code core} untouched, so this overload is byte-identical to {@link
+         * #finalOutput()} for the overwhelmingly common case. This overload is deliberately separate
+         * from (rather than replacing) {@link #finalOutput()}, which stays in use where {@code
+         * terminalAnswerConsumer} recovers a cancelled/killed run's answer with no stderr in scope.
+         */
+        synchronized String finalOutput(String stderr) {
+            String core = answer.strip();
+            boolean silentRun = filesTouched.isEmpty() && permissionDenialsByTool.isEmpty() && !toolCallObserved;
+            String stderrText = stderr == null ? "" : stderr.strip();
+            boolean recognizedBootstrapFailure = sandboxBootstrapFailureHeadline(stderrText) != null;
+            boolean surfaceStderr = !stderrText.isBlank() && (silentRun || recognizedBootstrapFailure);
+            if (surfaceStderr) {
+                String notice = stderrNotice(stderrText);
+                core = core.isBlank() ? notice : core + "\n\n" + notice;
+            }
+            return composeOutput(core, surfaceStderr);
         }
 
         /**
@@ -949,9 +1009,53 @@ final class AssistantLocalAgentRunner {
             return composeOutput(core);
         }
 
+        /**
+         * Builds the notice {@link #finalOutput(String)} appends for a silent run that emitted stderr:
+         * a specific, actionable headline for the recognized sandbox-bootstrap-failure shape when
+         * {@link #sandboxBootstrapFailureHeadline} recognizes it, or a generic headline otherwise --
+         * either way the full raw {@code stderrText} always follows as a fenced block, so an
+         * unrecognized shape is never dropped just because it doesn't match a known pattern (issue
+         * #4424 review round 2, finding 2). {@code stderrText} is assumed already non-blank.
+         */
+        private static String stderrNotice(String stderrText) {
+            String headline = sandboxBootstrapFailureHeadline(stderrText);
+            if (headline == null) {
+                headline = "**Note:** no tool ran for this request, but the CLI reported this on stderr:";
+            }
+            return headline + "\n\n```\n" + stderrText + "\n```";
+        }
+
+        /**
+         * Recognizes the sandbox-bootstrap-failure shape (Codex's sandbox helper failing to launch,
+         * e.g. {@code sandbox-setup.exe ... Access is denied (os error 5)}) for a more specific,
+         * actionable headline than {@link #stderrNotice}'s generic fallback. This is deliberately an
+         * enrichment only, never a gate: {@link #finalOutput(String)} surfaces stderr on a silent run
+         * regardless of whether this recognizes it, so a naming-convention drift (e.g. {@code
+         * SandboxSetup.exe}, no hyphen) degrades to the generic headline instead of silently dropping
+         * the stderr the way a single fitted string match would (issue #4424 review round 2, finding
+         * 2). Matches on "sandbox" and "setup" as separate substrings (order- and separator-agnostic)
+         * rather than the literal token, plus an access/permission-denied signal.
+         */
+        private static String sandboxBootstrapFailureHeadline(String stderrText) {
+            String lower = stderrText.toLowerCase(Locale.ROOT);
+            if (!lower.contains("sandbox") || !lower.contains("setup")) {
+                return null;
+            }
+            if (!(lower.contains("access is denied") || lower.contains("permission denied")
+                    || lower.contains("os error 5"))) {
+                return null;
+            }
+            return "**Environment setup failed:** the sandbox helper could not launch, so no tool could "
+                    + "run for this request. Ask an administrator to grant it access, then try again.";
+        }
+
         private String composeOutput(String core) {
+            return composeOutput(core, false);
+        }
+
+        private String composeOutput(String core, boolean explicitNoActivityNotice) {
             StringBuilder output = new StringBuilder(core);
-            String activity = activitySummary();
+            String activity = activitySummary(explicitNoActivityNotice);
             if (!activity.isBlank()) {
                 output.append("\n\n").append(activity);
             }
@@ -1007,10 +1111,29 @@ final class AssistantLocalAgentRunner {
          * created or edited, and which tool calls were denied. This renders even with Verbose off,
          * so a run that silently lost most of its tool calls to permission denials can never end as
          * an unexplained bare confirmation with no visible trace of what happened.
+         *
+         * <p>{@code explicitNoActivityNotice} (issue #4424) widens that guarantee to the shape the
+         * original "no silent bare confirmation" guard missed: a run whose CLI process died before any
+         * tool executed (a sandbox/environment bootstrap failure, an MCP server that failed to start,
+         * or any other pre-tool-call collapse) leaves {@code filesTouched}, {@code
+         * permissionDenialsByTool}, <em>and</em> {@code toolCallObserved} all empty/false, so this
+         * footer used to render nothing at all between the answer and the usage line. {@link
+         * #finalOutput(String)} passes {@code true} whenever it has decided to surface stderr; when
+         * that happens for a recognized bootstrap failure alongside real activity (round 3), {@code
+         * filesTouched}/{@code permissionDenialsByTool} are non-empty anyway, so this method's
+         * empty/empty branch below never engages and the parameter is simply unused for that call --
+         * only a genuinely empty/empty run's rendering depends on it. A plain empty/empty run that
+         * genuinely has nothing to report (an ordinary Q&A that never needed a tool, or a tool call
+         * that ran but touched no files and was never denied) still renders {@code ""} exactly as
+         * before -- this stays additive, not a blanket "always explain an empty run" change.
          */
-        private String activitySummary() {
+        private String activitySummary(boolean explicitNoActivityNotice) {
             if (filesTouched.isEmpty() && permissionDenialsByTool.isEmpty()) {
-                return "";
+                if (!explicitNoActivityNotice) {
+                    return "";
+                }
+                return String.join("\n", "---", "**Local agent activity**",
+                        "- No files were created or edited, and no tool calls ran.");
             }
             List<String> lines = new ArrayList<>();
             lines.add("---");
@@ -1065,6 +1188,15 @@ final class AssistantLocalAgentRunner {
         /** Looks up a previously remembered tool name by its {@code tool_use_id}, or {@code null}. */
         String toolNameFor(String toolUseId) {
             return toolNamesByUseId.get(toolUseId);
+        }
+
+        /**
+         * Marks that a tool call was attempted, whatever its outcome (issue #4424 round 2) -- see
+         * {@link #toolCallObserved}. Called once per tool-call event from either mapper, regardless of
+         * whether the call also turns out to touch a file or fail/get denied.
+         */
+        void recordToolCallObserved() {
+            toolCallObserved = true;
         }
 
         /** Records that {@code path} was created or edited, for the final activity-summary footer. */
@@ -1793,7 +1925,10 @@ final class AssistantLocalAgentRunner {
      * stderr} is folded into the compact terminal answer only when {@code verbose} is {@code true} --
      * a non-verbose run withholds it here, but never loses it entirely, since the same raw stderr
      * already reached the live {@code outputConsumer} stream (Verbose-gated there, at the panel) while
-     * the process was running.
+     * the process was running. On success with non-blank {@code stdout}, {@code stderr} is never
+     * folded in at all, verbose or not -- see {@link #bufferedSuccessOutput} for why a successful
+     * {@link #run} answer needs different treatment than this general-purpose composer's other
+     * callers (issue #4424 review round 2, finding 3).
      */
     static String agentOutput(boolean success, String stdout, String stderr, String fallback, boolean verbose) {
         if (success && stdout != null && !stdout.isBlank()) {
@@ -1808,6 +1943,46 @@ final class AssistantLocalAgentRunner {
         }
         if (sections.isEmpty() && fallback != null && !fallback.isBlank()) {
             sections.add(fallback);
+        }
+        return String.join("\n\n", sections).trim();
+    }
+
+    /**
+     * Composes {@link #run}'s buffered/custom-command <em>success</em> answer for the interactive
+     * transcript. Issue #4424 review round 2, finding 3: {@link #agentOutput}'s short-circuit above
+     * (returning bare {@code stdout} on success, unconditionally) is a deliberate, tested design
+     * choice for its other caller ({@link #runCompactPreamble}'s low-stakes auxiliary status line,
+     * pinned by {@code AssistantCommandTest#directLocalAgentOutputPrefersStdoutOnSuccessAndIncludes
+     * StderrOnFailure}), but it is the wrong choice for a custom command's or Copilot's actual answer:
+     * a CLI that printed a confident-looking answer to stdout while its real failure reason went to
+     * stderr (the reviewer's reproduction: {@code sandbox-setup.exe ... Access is denied (os error
+     * 5)}) stayed silent about it even with Verbose on, since the short-circuit runs before {@code
+     * verbose}-gated stderr is ever considered. This dedicated composer folds {@code stdout} and
+     * {@code verbose}-gated {@code stderr} together the same way regardless of whether {@code stdout}
+     * is present, closing that gap for the one caller where it actually matters, without touching
+     * {@code agentOutput}'s existing contract elsewhere.
+     *
+     * <p>Issue #4424 review round 3, finding 2: round 2's javadoc claimed this path "has no reliable
+     * way to tell a silent failure apart from ordinary successful-run stderr chatter" -- that claim
+     * was too broad. Blank {@code stdout} <em>is</em> a reliable discriminator here, the buffered
+     * analogue of the structured-stream path's {@code toolCallObserved == false} (see {@link
+     * StructuredStreamParser#finalOutput(String)}): if the CLI produced no stdout at all, nothing
+     * else happened worth staying silent about, so {@code stderr} surfaces regardless of {@code
+     * verbose} in that case. A run that DID produce {@code stdout} keeps withholding {@code stderr}
+     * on {@code verbose} off exactly as before -- that part of the round-2 claim holds, since there
+     * genuinely is no signal to distinguish a real failure from ordinary chatter once the CLI has
+     * already produced real output.
+     */
+    static String bufferedSuccessOutput(String stdout, String stderr, boolean verbose) {
+        String stdoutText = stdout == null ? "" : stdout.strip();
+        String stderrText = stderr == null ? "" : stderr.strip();
+        if (stdoutText.isBlank()) {
+            return stderrText;
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(stdoutText);
+        if (verbose && !stderrText.isBlank()) {
+            sections.add(stderrText);
         }
         return String.join("\n\n", sections).trim();
     }

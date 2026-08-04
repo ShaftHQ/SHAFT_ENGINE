@@ -70,7 +70,12 @@ final class ClaudeStreamEventMapper implements StreamEventMapper {
                 }
             } else if ("redacted_thinking".equals(blockType)) {
                 lines.add("Thinking: (redacted by Claude for safety)");
-            } else if ("tool_use".equals(blockType)) {
+            } else if ("tool_use".equals(blockType) || "server_tool_use".equals(blockType)) {
+                // Issue #4424 review round 3, finding 1: server_tool_use (Claude's server-executed
+                // tools, e.g. its built-in web search) is a real tool-call block this mapper never
+                // recognized at all, so it never reached recordToolCallObserved() either -- treated
+                // identically to tool_use since both mean the same thing for our purposes: a tool was
+                // called.
                 lines.add(describeToolUseBlock(block));
             } else if ("text".equals(blockType)) {
                 String text = StreamJson.stringField(block, "text");
@@ -83,6 +88,10 @@ final class ClaudeStreamEventMapper implements StreamEventMapper {
     }
 
     private String describeToolUseBlock(JsonObject block) {
+        // Issue #4424 round 2: a tool_use block means a tool call was attempted, regardless of what it
+        // turns out to be (including ExitPlanMode's plan-proposal branch below) -- see
+        // StructuredStreamParser#toolCallObserved.
+        state.recordToolCallObserved();
         String toolName = StreamJson.stringField(block, "name");
         String toolUseId = StreamJson.stringField(block, "id");
         if (toolUseId != null && toolName != null) {
@@ -226,6 +235,11 @@ final class ClaudeStreamEventMapper implements StreamEventMapper {
             if (!"tool_result".equals(StreamJson.stringField(block, "type"))) {
                 continue;
             }
+            // Issue #4424 review round 3, finding 1: a tool_result block proves a tool call
+            // happened even if its requesting tool_use event was somehow missed (toolNameFor
+            // returning null just below is exactly that case) -- recordToolCallObserved() must not
+            // depend solely on having seen the request.
+            state.recordToolCallObserved();
             String toolName = state.toolNameFor(StreamJson.stringField(block, "tool_use_id"));
             String label = toolName == null ? "tool" : toolName;
             String text = toolResultText(block.get("content"));

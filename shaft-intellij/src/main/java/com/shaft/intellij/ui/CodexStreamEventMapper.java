@@ -104,6 +104,12 @@ final class CodexStreamEventMapper implements StreamEventMapper {
             return describeToolCallItem(type, item);
         }
         if ("file_change".equals(itemType)) {
+            // Issue #4424 review round 3, finding 1: a file_change item is a real tool call
+            // (Codex's patch-application counterpart to Claude's Write/Edit) regardless of whether
+            // it has a usable changes array -- recordCodexFileMutation below returns early for a
+            // missing/malformed array without marking toolCallObserved, which used to leave a run
+            // that genuinely edited a file misclassified as "silently did nothing".
+            state.recordToolCallObserved();
             if ("item.completed".equals(type)) {
                 recordCodexFileMutation(item);
             }
@@ -114,6 +120,10 @@ final class CodexStreamEventMapper implements StreamEventMapper {
             return text != null && !text.isBlank() ? MapResult.rendered(text) : MapResult.UNKNOWN;
         }
         if ("web_search".equals(itemType)) {
+            // Issue #4424 review round 3, finding 1: web_search is a real tool call per this
+            // mapper's own javadoc, not merely informational -- must count the same as
+            // command_execution/mcp_tool_call/collab_tool_call.
+            state.recordToolCallObserved();
             String query = StreamJson.stringField(item, "query");
             return query != null && !query.isBlank() ? MapResult.rendered("Web search: " + query) : MapResult.UNKNOWN;
         }
@@ -131,6 +141,9 @@ final class CodexStreamEventMapper implements StreamEventMapper {
     }
 
     private MapResult describeToolCallItem(String type, JsonObject item) {
+        // Issue #4424 round 2: a command_execution/mcp_tool_call/collab_tool_call item means a tool
+        // call was attempted, regardless of outcome -- see StructuredStreamParser#toolCallObserved.
+        state.recordToolCallObserved();
         String toolName = StreamJson.firstNonBlank(StreamJson.stringField(item, "name"),
                 StreamJson.stringField(item, "tool"), StreamJson.stringField(item, "command"));
         String label = toolName == null ? "(unknown)" : toolName;
