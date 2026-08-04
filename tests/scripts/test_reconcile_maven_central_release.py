@@ -1,6 +1,6 @@
 import json
 import os
-import subprocess
+import subprocess  # nosec B404 - tests monkeypatch subprocess, never running external commands.
 import tempfile
 import unittest
 from pathlib import Path

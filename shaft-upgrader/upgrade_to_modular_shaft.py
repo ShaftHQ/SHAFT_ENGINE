@@ -35,7 +35,7 @@ import re
 import shlex
 import shutil
 import stat
-import subprocess
+import subprocess  # nosec B404 - runs Maven builds and agent CLIs with controlled arguments.
 import sys
 import tempfile
 import urllib.error

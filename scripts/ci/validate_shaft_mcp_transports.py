@@ -9,7 +9,7 @@ import os
 import queue
 import re
 import socket
-import subprocess
+import subprocess  # nosec B404 - runs the packaged shaft-mcp server over stdio.
 import threading
 import time
 import urllib.error
