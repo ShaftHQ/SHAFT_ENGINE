@@ -52,14 +52,22 @@ class IntellijVerifyRetryTest(unittest.TestCase):
     def test_publishing_is_never_retried(self):
         # A JetBrains Marketplace version number is single-use. Re-running a
         # publish that failed after the upload landed cannot succeed, and a
-        # retry would bury the real reason under a second rejection.
-        for step in _run_steps():
-            if "publishPlugin" in step["run"]:
-                self.assertNotIn(
-                    "build_retry.sh",
-                    step["run"],
-                    f"step {step.get('name')!r} retries a Marketplace publish",
-                )
+        # retry would bury the real reason under a second rejection. So the
+        # publish cannot share a step with the verify build: whatever retries
+        # the one would retry the other.
+        publishing = [step for step in _run_steps() if "publishPlugin" in step["run"]]
+        self.assertTrue(publishing, "the action no longer publishes the plugin")
+        for step in publishing:
+            self.assertNotIn(
+                "build_retry.sh",
+                step["run"],
+                f"step {step.get('name')!r} retries a Marketplace publish",
+            )
+            self.assertNotIn(
+                "verifyPlugin",
+                step["run"],
+                f"step {step.get('name')!r} publishes from the retried build",
+            )
 
     def test_every_caller_leaves_room_for_a_second_attempt(self):
         callers = []

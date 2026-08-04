@@ -115,10 +115,6 @@ jobs:
               # what build_retry.sh needs (issue #4445).
               - 'scripts/ci/build_retry.sh'
               - 'tests/scripts/test_build_retry.py'
-              # The IntelliJ gate's own wiring to that script (issue #4494);
-              # `.github/actions/**` in the infra filter already covers the
-              # action itself, this covers an edit to the contract test alone.
-              - 'tests/scripts/test_intellij_verify_retry.py'
             intellij:
               - 'shaft-intellij/**'
               - '.github/workflows/publish-intellij-plugin.yml'
@@ -178,6 +174,11 @@ jobs:
               - '.github/workflows/**'
               - 'scripts/ci/validate_orphaned_suite_files.py'
               - 'tests/scripts/test_validate_orphaned_suite_files.py'
+              # Issue #4494's guard asserts a property of every workflow that
+              # calls the intellij-verify action -- that it allows the retried
+              # build a second attempt -- so it belongs to the same filter that
+              # re-runs on any workflow edit, not to the agent-guidance one.
+              - 'tests/scripts/test_intellij_verify_retry.py'
 
   docs-boundary:
     name: Documentation Boundary Gate
@@ -231,7 +232,6 @@ jobs:
           tests.scripts.test_shaft_skill_cli_examples
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_build_retry
-          tests.scripts.test_intellij_verify_retry
           -v
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
@@ -541,7 +541,11 @@ jobs:
       - name: Install PyYAML
         run: python3 -m pip install pyyaml --quiet
       - name: Run workflow timeout guard unit tests
-        run: python3 -m unittest tests.scripts.test_validate_workflow_timeouts -v
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_validate_workflow_timeouts
+          tests.scripts.test_intellij_verify_retry
+          -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
 
