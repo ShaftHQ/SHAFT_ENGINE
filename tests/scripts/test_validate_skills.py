@@ -30,13 +30,12 @@ Windows and case-sensitive on POSIX; this one sorts strings, which is neither),
 latent while every skill name is lowercase. Tracked separately rather than
 unified here.
 
-Both derive their unbacked/unlisted/order diff from `*/SKILL.md`, so a
-`shaft-skills/` directory with no `SKILL.md` never enters that set and cannot
-be reported as unlisted by either. `plugin_errors` below additionally
-enumerates directories first and requires the file (#4501), catching it
-before the diff even runs; the duplicate in `test_install_shaft_mcp.py` still
-has the original gap -- it is not in #4501's scope, since fixing it there
-would mean touching `installer-verify`'s trigger rather than this module.
+Both used to derive their unbacked/unlisted/order diff from `*/SKILL.md`, so a
+`shaft-skills/` directory with no `SKILL.md` never entered that set and could
+not be reported as unlisted by either. `plugin_errors` below enumerates
+directories first and requires the file (#4501), catching it before the diff
+even runs, and the duplicate in `test_install_shaft_mcp.py` took the same
+inversion in #4511 -- so neither leg is blind to it now.
 """
 
 import json

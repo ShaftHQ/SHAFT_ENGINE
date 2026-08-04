@@ -551,11 +551,39 @@ class InstallShaftMcpTest(unittest.TestCase):
                                   f"skill support file missing from download manifest: {relative}")
 
     def test_marketplace_lists_every_canonical_skill_directory(self):
+        """Directories first, `SKILL.md` required second, diff third (#4511).
+
+        Deriving the on-disk set FROM `*/SKILL.md` meant a `shaft-skills/`
+        directory that never got one -- half-authored, or one whose `SKILL.md`
+        was deleted or renamed -- never entered the set, so it could not be
+        reported as unlisted by the diff built from it. Enumerating the
+        directories and requiring the file the other way round catches it
+        before the diff runs, which is the inversion `test_validate_skills.py`
+        took in #4501. That module's copy of this assertion runs on the
+        `agent-harness` leg; this one runs on `installer-verify`, gated by the
+        `intellij` path filter, so both need it.
+
+        Directories are sorted as `Path` objects, not as names, because the
+        comparison list they feed is ordered and sorting `<dir>` reproduces the
+        order sorting `<dir>/SKILL.md` produced exactly -- the suffix is
+        constant. The `Path`-vs-string ordering difference between the two
+        modules is latent while every skill name is lowercase and stays tracked
+        separately rather than converged here.
+        """
         source = MODULE.local_shaft_skills_source()
         marketplace = json.loads((REPO_ROOT / ".claude-plugin" / "marketplace.json")
                                  .read_text(encoding="utf-8"))
         listed = marketplace["plugins"][0]["skills"]
-        expected = [f"./{path.parent.name}" for path in sorted(source.glob("*/SKILL.md"))]
+        directories = sorted(
+            entry for entry in source.iterdir()
+            if entry.is_dir() and entry.name != "references"
+        )
+        self.assertEqual(
+            [],
+            [entry.name for entry in directories if not (entry / "SKILL.md").is_file()],
+            "every shaft-skills/ directory must hold a SKILL.md to be installable",
+        )
+        expected = [f"./{entry.name}" for entry in directories]
 
         self.assertEqual(expected, listed)
         self.assertIn("./shaft-developer", listed)
