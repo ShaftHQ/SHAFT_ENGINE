@@ -179,6 +179,24 @@ steps:
             {(error["path"], error["code"]) for error in errors},
         )
 
+    def test_a_glob_file_budget_that_escapes_the_root_is_missing_not_a_crash(self):
+        # relative() resolves before it subtracts the root, so a match outside
+        # the root raises ValueError there and takes down the whole validation
+        # run -- a budget file typo turning into a stack trace instead of an
+        # issue. The literal branch was guarded against this; the glob branch
+        # was not.
+        outside = self.root.parent / "outside-the-root.md"
+        outside.write_text("x" * 400, encoding="utf-8")
+        self.addCleanup(outside.unlink)
+        self.budget["file_budgets"]["../outside-the-root.md"] = {"max_bytes": 10}
+        self.budget["file_budgets"]["../outside*.md"] = {"max_bytes": 10}
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            ("../outside*.md", "missing-file"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
     def test_rejects_oversized_skill_md_file(self):
         self.budget["skill_budgets"] = {".github/skills": {"max_skill_md_bytes": 10}}
         self.write_budget()

@@ -35,7 +35,7 @@ flowchart TD
     R["<b>routing</b><br/>deliverable to one surface"]
     R --> P["Repository playbooks<br/><i>13</i>"]
     R --> M["SHAFT mastery chapters<br/><i>10</i>"]
-    R --> D["Method references<br/><i>delegation, roles, heuristics</i>"]
+    R --> D["Method references"]
     E --> D
     R --> S["<b>shaft-developer</b><br/>product test-authoring pack"]
 ```

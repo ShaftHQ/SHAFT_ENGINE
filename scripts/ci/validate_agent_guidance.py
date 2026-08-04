@@ -51,22 +51,30 @@ def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
     surface rather than a session total. Summing was the retired global pool
     (#3745): it charged every file for its neighbours, so the only way to fund
     one file's growth was deleting unrelated prose that no session had loaded
-    anyway. Either form reports ``missing-file`` when it resolves to nothing,
+    anyway. The claim is incentive locality -- the file that grew is the file
+    that pays -- and nothing more; splitting a file relocates load rather than
+    removing it, because a split half is usually reached from the other.
+    Either form reports ``missing-file`` when it resolves to nothing,
     so a cap on a surface that moved away cannot silently stop enforcing
     anything.
     """
     errors: list[dict[str, str]] = []
     for configured_path, limits in budget.get("file_budgets", {}).items():
+        # relative() resolves before it subtracts the root, so anything outside
+        # the root raises there rather than reporting a budget. Both branches
+        # keep a key that escapes the root out of relative()'s way: the literal
+        # one reports the configured string verbatim, and the glob one drops
+        # the match, leaving `missing-file` below to report a pattern that
+        # resolved to nothing usable.
         if any(character in configured_path for character in "*?["):
-            matches = [
-                (relative(root, path), path)
-                for path in expand_globs(root, [configured_path])
-            ]
+            matches = []
+            for path in expand_globs(root, [configured_path]):
+                try:
+                    matches.append((relative(root, path), path))
+                except ValueError:
+                    continue
         else:
             candidate = root / configured_path
-            # A literal key keeps reporting the configured string verbatim.
-            # relative() resolves before it subtracts the root, so a key
-            # written with `..` would raise there rather than report a budget.
             matches = [(configured_path, candidate)] if candidate.is_file() else []
         if not matches:
             errors.append(issue("missing-file", configured_path, "required guidance file is missing"))
