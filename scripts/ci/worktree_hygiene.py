@@ -33,6 +33,7 @@ import json
 import shutil
 import subprocess  # nosec B404 - fixed, read-only git and gh queries.
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -49,8 +50,16 @@ PULL_REQUEST_TIMEOUT_SECONDS = 30
 # A checkout with more linked worktrees than this is already the problem this
 # report exists to surface; scanning every one of them is not worth the wait.
 MAX_REPORTED_WORKTREES = 50
+# Issue #4450: `ChaosEngine/user-evaluation-20260802` was pushed to origin, its
+# worktree was cleaned up, and no pull request was ever opened -- invisible to
+# this report (local worktrees only) and to `--check-pull-requests` (open pull
+# requests for worktrees that still exist, only). A short grace period keeps a
+# branch pushed minutes ago, mid-session, from being flagged before its author
+# has had a chance to open a pull request.
+DEFAULT_STALE_DAYS = 3
+SECONDS_PER_DAY = 86400
 
-ADVISORY_STATES = ("corrupt", "abandoned", "superseded", "uncommitted", "unknown")
+ADVISORY_STATES = ("corrupt", "abandoned", "superseded", "uncommitted", "unknown", "orphaned")
 
 
 def _git(cwd: Path, *arguments: str) -> str | None:
@@ -149,6 +158,82 @@ def _ahead_behind(root: Path, committish: str | None) -> tuple[int | None, int |
     return int(parts[1]), int(parts[0])  # ahead, behind
 
 
+def _remote_only_branch_names(root: Path, worktree_branches: set[str]) -> list[str]:
+    """Origin branches no linked worktree references, upstream excluded."""
+    # `git worktree list` already accounts for every branch that has a
+    # worktree; this only has to name the ones nothing local still holds.
+    output = _git(root, "for-each-ref", "--format=%(refname:strip=3)", "refs/remotes/origin")
+    if output is None:
+        return []
+    names = [line.strip() for line in output.splitlines() if line.strip()]
+    return [
+        name
+        for name in names
+        if name and name not in (UPSTREAM_BRANCH, "HEAD") and name not in worktree_branches
+    ]
+
+
+def _last_commit_epoch(root: Path, ref: str) -> int | None:
+    """Committer-date epoch of `ref`'s tip, or None when git could not answer."""
+    output = _git(root, "log", "-1", "--format=%ct", ref)
+    if output is None:
+        return None
+    value = output.strip()
+    return int(value) if value.isdigit() else None
+
+
+def _classify_remote_only(entry: dict) -> str:
+    """An open pull request means it is already visible; anything else is not."""
+    pull_request_status_known = entry["open_pull_requests"] is not None
+    has_open_pull_request = bool(entry["open_pull_requests"])
+    if pull_request_status_known and has_open_pull_request:
+        return "clean"
+    return "orphaned"
+
+
+def _collect_remote_only_entries(
+    root: Path,
+    worktree_branches: set[str],
+    *,
+    open_pull_requests: Callable[[str], int] | None,
+    stale_days: float,
+    now: float | None,
+) -> list[dict]:
+    """Stale origin branches with no worktree, as reportable entries."""
+    reference_time = time.time() if now is None else now
+    threshold = reference_time - (stale_days * SECONDS_PER_DAY)
+
+    entries: list[dict] = []
+    names = _remote_only_branch_names(root, worktree_branches)
+    for name in names[:MAX_REPORTED_WORKTREES]:
+        last_commit_epoch = _last_commit_epoch(root, f"refs/remotes/origin/{name}")
+        if last_commit_epoch is None or last_commit_epoch >= threshold:
+            continue  # too young to call idle, or git could not answer
+
+        pull_requests: int | None = None
+        if open_pull_requests is not None:
+            try:
+                pull_requests = int(open_pull_requests(name))
+            except Exception:  # noqa: BLE001 - a lookup failure must not hide the report
+                pull_requests = None
+
+        entry = {
+            "path": f"origin/{name}",
+            "branch": name,
+            "is_main": False,
+            "is_current": False,
+            "locked": False,
+            "is_remote_only": True,
+            "last_commit_epoch": last_commit_epoch,
+            "age_days": (reference_time - last_commit_epoch) / SECONDS_PER_DAY,
+            "open_pull_requests": pull_requests,
+        }
+        entry["state"] = _classify_remote_only(entry)
+        if entry["state"] != "clean":
+            entries.append(entry)
+    return entries
+
+
 def open_pull_requests_via_gh(branch: str) -> int:
     """Open pull requests for `branch`, via the GitHub CLI when it is available."""
     if shutil.which("gh") is None:
@@ -223,8 +308,16 @@ def collect_worktree_report(
     root: Path,
     *,
     open_pull_requests: Callable[[str], int] | None = None,
+    stale_days: float = DEFAULT_STALE_DAYS,
+    now: float | None = None,
 ) -> list[dict]:
-    """Describe every worktree of `root`'s repository, `root`'s own included."""
+    """Describe every worktree of `root`'s repository, `root`'s own included,
+
+    plus any origin branch old enough to call idle that no worktree here
+    references (issue #4450) -- local `git` only, same as the rest of this
+    report; `open_pull_requests` is the one call that can leave the machine,
+    and it is reused here exactly as it is for worktrees above.
+    """
     # Returns an empty list -- never an error -- when the directory is not a
     # repository or git cannot answer, so a caller can always report the
     # result.
@@ -283,14 +376,42 @@ def collect_worktree_report(
         }
         entry["state"] = _classify(entry)
         report.append(entry)
+
+    worktree_branches = {entry["branch"] for entry in report if entry["branch"]}
+    report.extend(
+        _collect_remote_only_entries(
+            root,
+            worktree_branches,
+            open_pull_requests=open_pull_requests,
+            stale_days=stale_days,
+            now=now,
+        )
+    )
     return report
 
 
 def _describe(entry: dict) -> str:
     branch = entry["branch"] or "detached HEAD"
     location = entry["path"]
-    uncommitted = entry["uncommitted_files"]
+    uncommitted = entry.get("uncommitted_files")
 
+    if entry["state"] == "orphaned":
+        age = int(entry["age_days"])
+        caveat = (
+            "no open pull request" if entry["open_pull_requests"] is not None
+            else "open pull requests were not checked -- rerun with "
+            "--check-pull-requests to confirm"
+        )
+        return (
+            f"branch-orphaned: {location} ({branch}): {age} day(s) since its last "
+            f"commit, no local worktree holds it, and {caveat}. This branch is "
+            "invisible to every other hygiene check. Its commit count relative to "
+            f"{UPSTREAM_REF} is not evidence either way -- this repo squash-merges, "
+            "so landed work can still show commits ahead of main. Diff its tip "
+            "against main over exactly the files it touched, then check whether "
+            "anything still differing ever existed on main, before opening a pull "
+            "request for it or deleting it."
+        )
     if entry["state"] == "corrupt":
         shown = ", ".join(entry["corrupt_paths"]) or "changed files"
         return (
