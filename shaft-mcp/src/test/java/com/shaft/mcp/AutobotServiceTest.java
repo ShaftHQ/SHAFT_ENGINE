@@ -209,6 +209,34 @@ class AutobotServiceTest {
     }
 
     @Test
+    void providerModelsNeverSerializesCredentialOrEndpointShapedModelIds() {
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new DiscoveringProvider("gemini", configuration ->
+                new AiModelDiscovery(AiModelDiscovery.Status.AVAILABLE, List.of(
+                        "models/gemini-2.5-flash", "org/model", "llama3.2:latest",
+                        "sk-proj-secret", "AKIA1234567890ABCDEF", "https://provider.example/models",
+                        "provider.example:443", "model name", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzZWNyZXQifQ.signature",
+                        "glpat-abc123", "hf_Abc123", "npm_Abc123"))));
+        try {
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> null);
+
+            AutobotProviderModels response = service.providerModels("gemini", "");
+
+            assertEquals(List.of("llama3.2:latest", "models/gemini-2.5-flash", "org/model"), response.modelIds());
+            assertFalse(response.toString().contains("sk-proj-secret"));
+            assertFalse(response.toString().contains("AKIA1234567890ABCDEF"));
+            assertFalse(response.toString().contains("provider.example:443"));
+            assertFalse(response.toString().contains("eyJhbGciOiJIUzI1NiJ9"));
+            assertFalse(response.toString().contains("glpat-abc123"));
+            assertFalse(response.toString().contains("hf_Abc123"));
+            assertFalse(response.toString().contains("npm_Abc123"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
     void providerModelsConfiguresLmStudioLocalConsentAndSelectedModel() {
         AtomicReference<PilotConfiguration> capturedConfiguration = new AtomicReference<>();
         AiProviderRegistry registry = new AiProviderRegistry();

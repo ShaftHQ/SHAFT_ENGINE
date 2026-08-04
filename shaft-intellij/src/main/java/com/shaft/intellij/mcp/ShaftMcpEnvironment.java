@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.function.Function;
 
 final class ShaftMcpEnvironment {
+    private static final List<String> PROVIDER_CREDENTIALS = List.of(
+            "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GITHUB_TOKEN",
+            "GITLAB_TOKEN", "HF_TOKEN", "HUGGINGFACE_HUB_TOKEN", "NPM_TOKEN", "OLLAMA_API_KEY", "LMSTUDIO_API_KEY");
     private ShaftMcpEnvironment() {
         throw new IllegalStateException("Utility class");
     }
@@ -37,6 +40,15 @@ final class ShaftMcpEnvironment {
 
     static Map<String, String> providerKeys(boolean passProviderKeys, String provider) {
         return providerKeys(passProviderKeys, provider, key -> ShaftCredentialService.getInstance().apiKey(key));
+    }
+
+    static Map<String, String> childEnvironment(Map<String, String> inherited, Map<String, String> configured) {
+        Map<String, String> environment = new LinkedHashMap<>(inherited == null ? Map.of() : inherited);
+        PROVIDER_CREDENTIALS.forEach(environment::remove);
+        if (configured != null) {
+            environment.putAll(configured);
+        }
+        return environment;
     }
 
     private static Map<String, String> providerKeys(boolean passProviderKeys, String provider,

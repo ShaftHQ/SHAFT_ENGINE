@@ -175,6 +175,7 @@ public final class ShaftMcpInvocationService implements Disposable {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> call(command, settings, clientReference, cancellationRequested,
+                        false,
                         client -> {
                             JsonElement result = client.listTools(DEFAULT_TIMEOUT);
                             updateToolsCache(client, result);
@@ -292,7 +293,7 @@ public final class ShaftMcpInvocationService implements Disposable {
      * @param settings  explicit settings, bypassing {@code ShaftSettingsState.getInstance()}
      * @return cancellable invocation
      */
-    ShaftMcpInvocation startTool(String toolName, JsonObject arguments, ShaftSettingsState.Settings settings) {
+    public ShaftMcpInvocation startTool(String toolName, JsonObject arguments, ShaftSettingsState.Settings settings) {
         return startTool(toolName, arguments, settings, null);
     }
 
@@ -318,8 +319,10 @@ public final class ShaftMcpInvocationService implements Disposable {
         }
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
+        boolean preserveActiveSession = "autobot_provider_models".equals(toolName);
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> call(command, settings, clientReference, cancellationRequested,
+                        preserveActiveSession,
                         client -> client.callTool(toolName,
                                 arguments == null ? new JsonObject() : arguments, DEFAULT_TIMEOUT, onProgress)),
                 ShaftPluginExecutor.getInstance().executor());
@@ -378,14 +381,22 @@ public final class ShaftMcpInvocationService implements Disposable {
             ShaftSettingsState.Settings settings,
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested,
+            boolean preserveActiveSession,
             McpRequest request) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
         ShaftMcpStdioClient client = null;
+        boolean temporaryDiscoveryClient = false;
         try {
             Map<String, String> environment = ShaftMcpProjectScope.environmentForProject(
                     ShaftMcpEnvironment.forSettings(settings), workingDirectory);
             List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workingDirectory);
-            client = acquireClient(scopedCommand, workingDirectory, environment);
+            client = acquireClient(scopedCommand, workingDirectory, environment, preserveActiveSession);
+            if (client == null) {
+                return ShaftMcpToolResult.failure(
+                        "Provider discovery is deferred until the active MCP session finishes. Retry provider models.",
+                        McpInvocationError.TOOL_ERROR, McpInvocationError.TOOL_ERROR.recoveryAction());
+            }
+            temporaryDiscoveryClient = preserveActiveSession && !isSharedClient(client);
             clientReference.set(client);
             if (cancellationRequested.get()) {
                 throw new CancellationException("Operation cancelled");
@@ -402,6 +413,9 @@ public final class ShaftMcpInvocationService implements Disposable {
                     McpInvocationError.detail(exception, category), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
+            if (temporaryDiscoveryClient && client != null) {
+                client.close();
+            }
         }
     }
 
@@ -474,6 +488,18 @@ public final class ShaftMcpInvocationService implements Disposable {
             List<String> scopedCommand,
             Path workingDirectory,
             Map<String, String> environment) throws IOException {
+        return acquireClient(scopedCommand, workingDirectory, environment, false);
+    }
+
+    /**
+     * Returns a short-lived client rather than replacing a live shared session when discovery needs
+     * a different environment. The caller closes that temporary client after the request completes.
+     */
+    ShaftMcpStdioClient acquireClient(
+            List<String> scopedCommand,
+            Path workingDirectory,
+            Map<String, String> environment,
+            boolean preserveActiveSession) throws IOException {
         synchronized (clientLock) {
             if (sharedClient != null
                     && sharedClient.isAlive()
@@ -482,12 +508,21 @@ public final class ShaftMcpInvocationService implements Disposable {
                     && workingDirectory.equals(sharedWorkingDirectory)) {
                 return sharedClient;
             }
+            if (preserveActiveSession && sharedClient != null && sharedClient.isAlive()) {
+                return clientFactory.create(scopedCommand, workingDirectory, environment);
+            }
             closeSharedClientLocked();
             sharedClient = clientFactory.create(scopedCommand, workingDirectory, environment);
             sharedCommand = List.copyOf(scopedCommand);
             sharedEnvironment = Map.copyOf(environment);
             sharedWorkingDirectory = workingDirectory;
             return sharedClient;
+        }
+    }
+
+    private boolean isSharedClient(ShaftMcpStdioClient client) {
+        synchronized (clientLock) {
+            return sharedClient == client;
         }
     }
 

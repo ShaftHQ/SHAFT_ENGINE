@@ -117,6 +117,22 @@ class ShaftMcpEnvironmentTest {
         assertFalse(options.contains("/api/chat"));
     }
 
+    @Test
+    void childEnvironmentStripsInheritedProviderCredentialsUnlessConfigured() {
+        Map<String, String> inherited = Map.of("OPENAI_API_KEY", "host-openai", "GITLAB_TOKEN", "host-gitlab",
+                "HF_TOKEN", "host-hf", "NPM_TOKEN", "host-npm", "PATH", "safe-path");
+
+        Map<String, String> withoutOptIn = ShaftMcpEnvironment.childEnvironment(inherited, Map.of());
+        Map<String, String> optedIn = ShaftMcpEnvironment.childEnvironment(inherited,
+                Map.of("OPENAI_API_KEY", "selected-key"));
+
+        assertEquals(Map.of("PATH", "safe-path"), withoutOptIn);
+        assertEquals("selected-key", optedIn.get("OPENAI_API_KEY"));
+        assertFalse(optedIn.containsKey("GITLAB_TOKEN"));
+        assertFalse(optedIn.containsKey("HF_TOKEN"));
+        assertFalse(optedIn.containsKey("NPM_TOKEN"));
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, String> environment(ShaftSettingsState.Settings settings, Function<String, String> lookup) {
         try {

@@ -78,7 +78,9 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(workingDirectory.toFile());
-        builder.environment().putAll(environment);
+        Map<String, String> childEnvironment = ShaftMcpEnvironment.childEnvironment(builder.environment(), environment);
+        builder.environment().clear();
+        builder.environment().putAll(childEnvironment);
         process = builder.start();
         input = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
         output = process.getOutputStream();
@@ -103,6 +105,10 @@ final class ShaftMcpStdioClient implements AutoCloseable {
      */
     boolean isInitialized() {
         return initialized;
+    }
+
+    boolean hasInFlightRequests() {
+        return !pendingRequests.isEmpty();
     }
 
     String initializeOnly(Duration timeout) throws IOException {

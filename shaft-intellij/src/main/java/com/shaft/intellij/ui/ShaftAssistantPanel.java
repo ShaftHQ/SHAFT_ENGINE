@@ -83,6 +83,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -91,6 +92,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -101,6 +104,15 @@ import java.util.regex.Pattern;
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
     private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
+    private static final Pattern SAFE_PROVIDER_MODEL_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:/@+\\-]{0,199}");
+    private static final Pattern SECRET_LIKE_PROVIDER_MODEL_ID = Pattern.compile(
+            "(?i)(authorization|bearer|token|api[-_]?key|secret|password|(^|[-_:/])key($|[-_:/]))");
+    private static final Pattern BARE_CREDENTIAL_PROVIDER_MODEL_ID = Pattern.compile(
+            "(?i)^(?:sk(?:-proj)?-|sk_(?:live|test)_|AIza|github_pat_|gh[oprsu]_|glpat-|hf_|npm_|xox[baprs]-|xapp-|xoxc-|xoxa-|rk_(?:live|test)_|pk_(?:live|test)_|whsec_)");
+    private static final Pattern ENDPOINT_PROVIDER_MODEL_ID = Pattern.compile(
+            "(?i)^(?:localhost|(?:\\d{1,3}\\.){3}\\d{1,3}|[a-z0-9-]+(?:\\.[a-z0-9-]+)*):\\d{1,5}(?:/.*)?$");
+    private static final Pattern AWS_ACCESS_KEY_ID = Pattern.compile("(?:AKIA|ASIA)[A-Z0-9]{16}");
+    private static final Pattern BASE64URL_TOKEN = Pattern.compile("(?:[A-Za-z0-9_-]{8,}\\.){2}[A-Za-z0-9_-]{8,}");
     static final String PROMPT_PLACEHOLDER =
             "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade "
                     + "(# adds project context, @ inserts a workflow)";
@@ -145,6 +157,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JComboBox<String> assistantRuntime;
     private final JComboBox<String> cloudProvider;
     private final JComboBox<String> cloudModel;
+    private final JButton retryProviderModels;
     private final JComboBox<String> localModel;
     private final JButton refreshLocalModels;
     private final JComboBox<String> effort;
@@ -214,6 +227,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JPanel transcriptStatusStrip;
     private final ShaftSettingsState.Settings settings;
     private final Runnable configureFlow;
+    private final BiFunction<String, char[], CompletableFuture<Void>> apiKeySaver;
     private String lastResponse = "";
     private String lastRawResponse = "";
     private String lastPrompt = "";
@@ -339,6 +353,15 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean modelListRefreshing;
     private String modelListRefreshingFamily = "";
     private long modelListRequestGeneration;
+    private String providerModelRequestKey = "";
+    private boolean providerModelRefreshing;
+    private boolean providerModelForwardingEnabled;
+    private boolean providerModelRetryRequested;
+    private ShaftMcpInvocation providerModelInvocation;
+    private long providerModelRequestGeneration;
+    private String providerModelState = "VALIDATING";
+    private boolean providerKeyReplacementRequired;
+    private BooleanSupplier selectedCloudKeySupplier = this::storedSelectedCloudKey;
     /**
      * Banner strip (setup notice + fresh-project hint) above the chat header. A field, not a
      * constructor-local, purely so {@code ShaftAssistantPanelLayoutTest} can assert its collapsed
@@ -366,11 +389,21 @@ final class ShaftAssistantPanel extends JPanel {
                         @NotNull ShaftSettingsState.Settings settings,
                         @NotNull ShaftAssistantChatState chatState,
                         Runnable setupFlow) {
+        this(project, settings, chatState, setupFlow,
+                (keyName, secret) -> ShaftCredentialService.getInstance().setApiKeyAsync(keyName, secret));
+    }
+
+    ShaftAssistantPanel(Project project,
+                        @NotNull ShaftSettingsState.Settings settings,
+                        @NotNull ShaftAssistantChatState chatState,
+                        Runnable setupFlow,
+                        BiFunction<String, char[], CompletableFuture<Void>> apiKeySaver) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.settings = settings;
         this.chatState = chatState;
         this.configureFlow = setupFlow;
+        this.apiKeySaver = apiKeySaver;
         setBorder(JBUI.Borders.empty(12));
 
         chatSelector = new JComboBox<>();
@@ -417,17 +450,16 @@ final class ShaftAssistantPanel extends JPanel {
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
                 "Read-only assistant agent configuration from the completed MCP setup flow.");
-        cloudProvider = combo("Assistant cloud provider", "gemini", "openai", "anthropic", "github");
+        cloudProvider = combo("Assistant provider", "gemini", "openai", "anthropic", "github", "ollama", "lmstudio");
         cloudProvider.setSelectedItem(normalizeLower(settings.cloudProvider, "gemini"));
         cloudModel = new JComboBox<>();
-        cloudModel.setEditable(true);
+        cloudModel.setEditable(false);
         cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
-        cloudModel.setToolTipText("Models available for the selected cloud provider; type any other model name");
-        if (cloudModel.getEditor().getEditorComponent() instanceof JTextComponent cloudModelEditor) {
-            cloudModelEditor.getAccessibleContext().setAccessibleName("Assistant cloud model text");
-            cloudModelEditor.setToolTipText("Models available for the selected cloud provider; type any other model name");
-        }
-        applyCloudModelChoices(settings.cloudModel);
+        cloudModel.setToolTipText("Discovering models from the selected provider");
+        retryProviderModels = button("Retry provider models", "Retry provider models", event -> retryProviderModels());
+        retryProviderModels.getAccessibleContext().setAccessibleName("Retry provider models");
+        retryProviderModels.setVisible(false);
+        applyProviderModels(normalizeLower(settings.cloudProvider, "gemini"), "VALIDATING", List.of(), 0L);
         localModel = new JComboBox<>();
         localModel.setEditable(true);
         localModel.getAccessibleContext().setAccessibleName("Assistant local agent model");
@@ -467,6 +499,7 @@ final class ShaftAssistantPanel extends JPanel {
         cloudKeyPanel.add(cloudKeyStatus);
         cloudKeyPanel.add(cloudApiKey);
         cloudKeyPanel.add(saveCloudApiKey);
+        cloudKeyPanel.add(retryProviderModels);
 
         allowSourceMutation = new JBCheckBox("Allow source edits");
         allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
@@ -643,8 +676,12 @@ final class ShaftAssistantPanel extends JPanel {
         assistantFamily.addActionListener(event -> updateControlVisibility());
         assistantRuntime.addActionListener(event -> updateControlVisibility());
         cloudProvider.addActionListener(event -> {
-            applyCloudModelChoices("");
+            invalidateProviderModels();
             updateControlVisibility();
+        });
+        cloudModel.addActionListener(event -> {
+            refreshCurrentAgentConfiguration();
+            announceProviderModelState();
         });
         bindKeyboard(project);
         bindContextInsertion();
@@ -711,9 +748,9 @@ final class ShaftAssistantPanel extends JPanel {
         runSettingsPanel.add(runSetting("Runtime", assistantRuntime));
         runSettingsPanel.add(runSetting("Current agent", currentAgentChip));
         runSettingsPanel.add(runSetting("Command", customCommand));
-        runSettingsPanel.add(runSetting("Cloud provider", cloudProvider));
-        runSettingsPanel.add(runSetting("Cloud model", cloudModel));
-        runSettingsPanel.add(runSetting("Cloud key", cloudKeyPanel));
+        runSettingsPanel.add(runSetting("Provider", cloudProvider));
+        runSettingsPanel.add(runSetting("Provider model", cloudModel));
+        runSettingsPanel.add(runSetting("Provider key", cloudKeyPanel));
         runSettingsPanel.add(runSetting("Local model", localModel));
         runSettingsPanel.add(runSetting("Refresh models", refreshLocalModels));
         runSettingsPanel.add(runSetting("Effort", effort));
@@ -980,9 +1017,18 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     @Override
+    public void addNotify() {
+        super.addNotify();
+        if (ApplicationManager.getApplication() != null && usesCloud()) {
+            refreshProviderModelsIfNeeded();
+        }
+    }
+
+    @Override
     public void removeNotify() {
         // Prevents a stuck-active recording key if the panel closes mid-recording (#3591 item 3).
         ShaftRecordingActivity.stopped(recordingKey);
+        invalidateProviderModels();
         super.removeNotify();
     }
 
@@ -1411,9 +1457,19 @@ final class ShaftAssistantPanel extends JPanel {
             setStatus("Enter a prompt");
             return;
         }
-        if (usesCloud() && !hasSelectedCloudKey()) {
+        if (usesCloud() && !localProviderSelected() && !hasSelectedCloudKey()) {
             setStatus("Enter " + ShaftUiLabels.friendly(cloudProvider.getSelectedItem()) + " key");
             updateCloudKeyStatus();
+            return;
+        }
+        if (usesCloud() && (!currentProviderRequestKey().equals(providerModelRequestKey)
+                || providerModelForwardingEnabled != settings.passProviderApiKeysToMcp)) {
+            invalidateProviderModels();
+            refreshProviderModelsIfNeeded();
+            return;
+        }
+        if (usesCloud() && !providerModelReady()) {
+            announceProviderModelState();
             return;
         }
         lastPrompt = text;
@@ -3217,7 +3273,7 @@ final class ShaftAssistantPanel extends JPanel {
         assistantFamily.setEnabled(!running);
         assistantRuntime.setEnabled(!running);
         cloudProvider.setEnabled(!running);
-        cloudModel.setEnabled(!running);
+        cloudModel.setEnabled(!running && providerModelReady() && !providerModelRefreshing);
         localModel.setEnabled(!running);
         effort.setEnabled(!running);
         customCommand.setEnabled(!running);
@@ -3272,6 +3328,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void updateSendButtonState() {
         if (!running) {
             sendCancelHover = false;
+            send.setEnabled(!usesCloud() || providerModelReady());
             send.setIcon(ShaftIcons.SEND);
             send.setToolTipText(SEND_TOOLTIP);
             return;
@@ -3283,6 +3340,11 @@ final class ShaftAssistantPanel extends JPanel {
         }
         send.setIcon(sendCancelHover ? ShaftIcons.CANCEL : AnimatedIcon.Default.INSTANCE);
         send.setToolTipText(sendCancelHover ? "Cancel assistant request" : "Assistant request running");
+    }
+
+    private boolean providerModelReady() {
+        return "AVAILABLE".equals(providerModelState) && cloudModel.getSelectedItem() != null
+                && cloudModel.getItemCount() > 0;
     }
 
     private void updateCancelButtonState() {
@@ -3352,13 +3414,7 @@ final class ShaftAssistantPanel extends JPanel {
         assistantRuntime.setVisible(advanced && !lockedRoute && !cloud);
         assistantFamily.setEnabled(controlsEnabled && advanced && !lockedRoute);
         assistantRuntime.setEnabled(controlsEnabled && advanced && !lockedRoute);
-        String currentAgentConfigurationText = currentAgentConfigurationText();
-        currentAgentConfiguration.setText(currentAgentConfigurationText);
-        // Accessible description mirrors the live agent configuration text (issue #3603): the name
-        // stays a stable category label, but a screen reader also needs to hear which agent/runtime
-        // is actually configured, which changes as the user reconfigures the route.
-        currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(currentAgentConfigurationText);
-        currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
+        refreshCurrentAgentConfiguration();
         currentAgentConfiguration.setVisible(lockedRoute);
         // Chip has no state of its own; it only needs to stay in lockstep with the label's and
         // configure button's own shared lockedRoute gate below so it never renders as an empty
@@ -3371,10 +3427,12 @@ final class ShaftAssistantPanel extends JPanel {
         // Model and effort selectors stay visible for the active route in every UI mode so the
         // user can always pick the right model after provider setup (issue #3369).
         cloudModel.setVisible(cloud);
-        cloudModel.setEnabled(controlsEnabled && cloud);
+        cloudModel.setEnabled(controlsEnabled && cloud && providerModelReady() && !providerModelRefreshing);
         cloudKeyPanel.setVisible(cloud);
         cloudApiKey.setEnabled(controlsEnabled && cloud);
         saveCloudApiKey.setEnabled(controlsEnabled && cloud);
+        retryProviderModels.setVisible(cloud && retryableProviderModelState());
+        retryProviderModels.setEnabled(controlsEnabled && retryableProviderModelState() && !providerModelRefreshing);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
@@ -3401,6 +3459,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (cloud) {
             updateCloudKeyStatus();
+            refreshProviderModelsIfNeeded();
         }
         syncRunSettingsRows();
         updateRunSettingsSummary();
@@ -3483,12 +3542,255 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private void applyCloudModelChoices(String preferredModel) {
+    private void refreshProviderModelsIfNeeded() {
+        if (ApplicationManager.getApplication() == null) {
+            return;
+        }
         String provider = normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini");
-        List<String> models = AssistantModelCatalog.cloudModels(provider);
-        cloudModel.setModel(new DefaultComboBoxModel<>(models.toArray(new String[0])));
-        String preferred = preferredModel == null ? "" : preferredModel.trim();
-        cloudModel.setSelectedItem(preferred.isBlank() ? models.get(0) : preferred);
+        String requestKey = currentProviderRequestKey();
+        if (requestKey.equals(providerModelRequestKey) && (providerModelRefreshing
+                || "AVAILABLE".equals(providerModelState) && providerModelReady())) {
+            return;
+        }
+        long requestGeneration = ++providerModelRequestGeneration;
+        cancelProviderModelInvocation();
+        providerModelRequestKey = requestKey;
+        providerModelForwardingEnabled = settings.passProviderApiKeysToMcp;
+        if (!localProviderSelected() && hasSelectedCloudKey() && !settings.passProviderApiKeysToMcp) {
+            applyProviderModels(provider, "KEY_FORWARDING_DISABLED", List.of(), requestGeneration);
+            return;
+        }
+        if (!localProviderSelected() && !hasSelectedCloudKey()) {
+            applyProviderModels(provider, "KEY_NEEDED", List.of(), requestGeneration);
+            return;
+        }
+        providerModelRefreshing = true;
+        providerModelState = "VALIDATING";
+        providerKeyReplacementRequired = false;
+        cloudModel.setModel(new DefaultComboBoxModel<>());
+        cloudModel.setEnabled(false);
+        announceProviderModelState();
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("provider", provider);
+        arguments.addProperty("model", "");
+        ShaftMcpInvocation invocation = ShaftMcpInvocationService.getInstance(project).startTool("autobot_provider_models", arguments,
+                providerDiscoverySettings(provider));
+        providerModelInvocation = invocation;
+        invocation.future()
+                .whenComplete((result, error) -> runOnEdt(() -> {
+                    if (providerModelInvocation == invocation) {
+                        providerModelInvocation = null;
+                    }
+                    ProviderModelDiscovery discovery = error == null && result != null && result.success()
+                            ? providerDiscovery(result.output(), provider)
+                            : ProviderModelDiscovery.failed();
+                    applyProviderModels(provider, discovery.state(), discovery.models(), requestGeneration);
+                }));
+    }
+
+    private void invalidateProviderModels() {
+        providerModelRequestGeneration++;
+        cancelProviderModelInvocation();
+        providerModelRequestKey = "";
+        providerModelRefreshing = false;
+        providerModelRetryRequested = false;
+        providerModelState = "VALIDATING";
+        providerKeyReplacementRequired = false;
+        cloudModel.setModel(new DefaultComboBoxModel<>());
+        cloudModel.setEnabled(false);
+        if (send != null) {
+            updateSendButtonState();
+        }
+        announceProviderModelState();
+    }
+
+    private void retryProviderModels() {
+        if (!retryableProviderModelState() || providerModelRefreshing) {
+            return;
+        }
+        providerModelRetryRequested = true;
+        providerModelRequestKey = "";
+        retryProviderModels.setEnabled(false);
+        refreshProviderModelsIfNeeded();
+    }
+
+    private boolean retryableProviderModelState() {
+        return switch (normalize(providerModelState, "FAILED")) {
+            case "EMPTY", "UNAVAILABLE", "FAILED" -> true;
+            default -> false;
+        };
+    }
+
+    private void cancelProviderModelInvocation() {
+        if (providerModelInvocation != null) {
+            providerModelInvocation.cancel();
+            providerModelInvocation = null;
+        }
+    }
+
+    private ShaftSettingsState.Settings providerDiscoverySettings(String provider) {
+        ShaftSettingsState.Settings snapshot = new ShaftSettingsState.Settings();
+        snapshot.mcpCommand = settings.mcpCommand;
+        snapshot.mcpSetupComplete = settings.mcpSetupComplete;
+        snapshot.assistantProviderType = "CLOUD";
+        snapshot.cloudProvider = provider;
+        snapshot.cloudModel = settings.cloudModel;
+        snapshot.ollamaEndpoint = settings.ollamaEndpoint;
+        snapshot.lmStudioEndpoint = settings.lmStudioEndpoint;
+        snapshot.pilotAiEndpoint = settings.pilotAiEndpoint;
+        snapshot.passProviderApiKeysToMcp = settings.passProviderApiKeysToMcp;
+        return snapshot;
+    }
+
+    private void applyProviderModels(String provider, String state, List<String> models, long requestGeneration) {
+        if (requestGeneration != 0L && (requestGeneration != providerModelRequestGeneration
+                || !provider.equals(normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini")))) {
+            return;
+        }
+        providerModelRefreshing = false;
+        providerModelState = normalize(state, "FAILED");
+        providerKeyReplacementRequired = "AUTHENTICATION_FAILED".equals(providerModelState);
+        List<String> discovered = models == null ? List.of() : models.stream()
+                .filter(ShaftAssistantPanel::safeProviderModelId).map(String::trim).distinct().sorted().toList();
+        boolean available = "AVAILABLE".equals(providerModelState) && !discovered.isEmpty();
+        cloudModel.setModel(new DefaultComboBoxModel<>(available ? discovered.toArray(new String[0]) : new String[0]));
+        if (available) {
+            String preferred = settings.cloudModel == null ? "" : settings.cloudModel.trim();
+            cloudModel.setSelectedItem(discovered.contains(preferred) ? preferred : discovered.get(0));
+        }
+        String statusText = available ? discovered.size() + " " + ShaftUiLabels.friendly(provider)
+                + " models available; selected " + editableComboText(cloudModel)
+                : providerModelStatus(provider, providerModelState);
+        cloudModel.setToolTipText(statusText);
+        cloudModel.getAccessibleContext().setAccessibleDescription(statusText);
+        cloudModel.setEnabled(!running && available);
+        if (cloudKeyStatus != null) {
+            cloudKeyStatus.setText(statusText);
+            cloudKeyStatus.setVisible(true);
+        }
+        if (providerKeyReplacementRequired) {
+            cloudApiKey.setVisible(true);
+            cloudApiKey.setEnabled(!running);
+            saveCloudApiKey.setVisible(true);
+            saveCloudApiKey.setEnabled(!running);
+        }
+        refreshCurrentAgentConfiguration();
+        boolean refocusRetry = providerModelRetryRequested;
+        providerModelRetryRequested = false;
+        retryProviderModels.setVisible(usesCloud() && retryableProviderModelState());
+        retryProviderModels.setEnabled(!running && retryableProviderModelState());
+        if (refocusRetry && retryProviderModels.isVisible()) {
+            retryProviderModels.requestFocusInWindow();
+        }
+        if (send != null) {
+            updateSendButtonState();
+        }
+        if (status != null && usesCloud()) {
+            setStatus(statusText);
+        }
+    }
+
+    private static List<String> providerModelIds(String output) {
+        JsonObject response = AssistantMarkdown.jsonObjectFromMcpOutput(output);
+        String schemaVersion = requiredJsonString(response, "schemaVersion");
+        String provider = requiredJsonString(response, "provider");
+        String state = requiredJsonString(response, "state");
+        if (response == null || !"1.0".equals(schemaVersion) || provider == null || provider.isBlank()
+                || !knownProviderModelState(state)
+                || !response.has("modelIds") || !response.get("modelIds").isJsonArray()) {
+            return List.of();
+        }
+        List<String> models = new ArrayList<>();
+        for (JsonElement element : response.getAsJsonArray("modelIds")) {
+            if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()
+                    && safeProviderModelId(element.getAsString())) {
+                models.add(element.getAsString().trim());
+            } else {
+                return List.of();
+            }
+        }
+        return models;
+    }
+
+    private static ProviderModelDiscovery providerDiscovery(String output, String expectedProvider) {
+        JsonObject response = AssistantMarkdown.jsonObjectFromMcpOutput(output);
+        String provider = requiredJsonString(response, "provider");
+        String state = requiredJsonString(response, "state");
+        if (response == null || provider == null || state == null
+                || !normalizeLower(expectedProvider, "").equals(normalizeLower(provider, ""))) {
+            return ProviderModelDiscovery.failed();
+        }
+        state = normalize(state, "FAILED");
+        List<String> models = providerModelIds(output);
+        return knownProviderModelState(state) && ("AVAILABLE".equals(state) ? !models.isEmpty() : models.isEmpty())
+                ? new ProviderModelDiscovery(state, models) : ProviderModelDiscovery.failed();
+    }
+
+    private static boolean knownProviderModelState(String state) {
+        return switch (normalize(state, "")) {
+            case "AVAILABLE", "EMPTY", "UNAVAILABLE", "AUTHENTICATION_FAILED", "FAILED" -> true;
+            default -> false;
+        };
+    }
+
+    private static String providerModelState(String output) {
+        return normalize(string(AssistantMarkdown.jsonObjectFromMcpOutput(output), "state", "FAILED"), "FAILED");
+    }
+
+    private static String providerModelStatus(String provider, String state) {
+        String label = ShaftUiLabels.friendly(provider);
+        return switch (normalize(state, "FAILED")) {
+            case "AUTHENTICATION_FAILED" -> "Replace invalid " + label + " key";
+            case "KEY_NEEDED" -> "Enter " + label + " key";
+            case "KEY_FORWARDING_DISABLED" -> label + " key saved locally — enable key forwarding to discover models";
+            case "VALIDATING" -> "Validating " + label + " models";
+            case "EMPTY" -> "No " + label + " models available";
+            case "UNAVAILABLE" -> label + " models unavailable — check the provider endpoint";
+            default -> label + " model discovery failed";
+        };
+    }
+
+    private void announceProviderModelState() {
+        if (!usesCloud()) {
+            return;
+        }
+        String provider = normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini");
+        String message = "AVAILABLE".equals(providerModelState) && cloudModel.getSelectedItem() != null
+                ? cloudModel.getItemCount() + " " + ShaftUiLabels.friendly(provider) + " models available; selected "
+                + editableComboText(cloudModel) : providerModelStatus(provider, providerModelState);
+        cloudModel.getAccessibleContext().setAccessibleDescription(message);
+        if (cloudKeyStatus != null) {
+            cloudKeyStatus.setText(message);
+            cloudKeyStatus.setVisible(true);
+        }
+        if (status != null) {
+            setStatus(message);
+        }
+    }
+
+    private record ProviderModelDiscovery(String state, List<String> models) {
+        private static ProviderModelDiscovery failed() {
+            return new ProviderModelDiscovery("FAILED", List.of());
+        }
+    }
+
+    private static boolean safeProviderModelId(String value) {
+        if (value == null) {
+            return false;
+        }
+        String modelId = value.trim();
+        return modelId.length() == value.length() && SAFE_PROVIDER_MODEL_ID.matcher(modelId).matches()
+                && !modelId.contains("://") && !SECRET_LIKE_PROVIDER_MODEL_ID.matcher(modelId).find()
+                && !BARE_CREDENTIAL_PROVIDER_MODEL_ID.matcher(modelId).find()
+                && !ENDPOINT_PROVIDER_MODEL_ID.matcher(modelId).matches()
+                && !AWS_ACCESS_KEY_ID.matcher(modelId).matches()
+                && !BASE64URL_TOKEN.matcher(modelId).matches();
+    }
+
+    private static String requiredJsonString(JsonObject object, String key) {
+        JsonElement value = object == null ? null : object.get(key);
+        return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()
+                ? value.getAsString() : null;
     }
 
     private static String editableComboText(JComboBox<String> combo) {
@@ -3765,30 +4067,91 @@ final class ShaftAssistantPanel extends JPanel {
     private void updateCloudKeyStatus() {
         String provider = String.valueOf(cloudProvider.getSelectedItem());
         String keyName = providerKeyName(provider);
+        if (keyName.isBlank()) {
+            cloudKeyStatus.setText("Local endpoint configured");
+            cloudKeyStatus.setVisible(false);
+            cloudApiKey.setVisible(false);
+            saveCloudApiKey.setVisible(false);
+            return;
+        }
         boolean stored = !keyName.isBlank() && storedCloudKey(keyName);
         String providerLabel = ShaftUiLabels.friendly(provider);
-        cloudKeyStatus.setText(stored ? providerLabel + " key stored" : "Enter " + providerLabel + " key");
-        cloudKeyStatus.setVisible(false);
-        cloudApiKey.setVisible(!stored);
-        saveCloudApiKey.setVisible(!stored);
+        boolean replace = providerKeyReplacementRequired;
+        boolean discoveryMessage = switch (normalize(providerModelState, "FAILED")) {
+            case "VALIDATING", "EMPTY", "UNAVAILABLE", "FAILED", "KEY_FORWARDING_DISABLED" -> true;
+            default -> false;
+        };
+        cloudKeyStatus.setText(discoveryMessage ? providerModelStatus(provider, providerModelState)
+                : replace ? "Replace invalid " + providerLabel + " key"
+                : stored ? providerLabel + " key stored" : "Enter " + providerLabel + " key");
+        cloudKeyStatus.setVisible(true);
+        cloudApiKey.setVisible(!stored || replace);
+        saveCloudApiKey.setVisible(!stored || replace);
     }
 
     private void saveCloudApiKey() {
         String keyName = providerKeyName(String.valueOf(cloudProvider.getSelectedItem()));
-        if (keyName.isBlank() || cloudApiKey.getPassword().length == 0) {
+        char[] secret = cloudApiKey.getPassword();
+        if (keyName.isBlank() || secret.length == 0) {
+            Arrays.fill(secret, '\0');
             setStatus("Enter provider key");
             return;
         }
-        ShaftCredentialService.getInstance().setApiKey(keyName, cloudApiKey.getPassword());
         cloudApiKey.setText("");
-        settings.passProviderApiKeysToMcp = true;
-        updateCloudKeyStatus();
-        setStatus("Saved key");
+        saveCloudApiKey.setEnabled(false);
+        boolean dispatched = false;
+        try {
+            apiKeySaver.apply(keyName, secret).whenComplete((ignored, error) ->
+                    runOnEdt(() -> {
+                        try {
+                            if (error != null) {
+                                setStatus("Could not save provider key");
+                                updateControlVisibility();
+                                return;
+                            }
+                            invalidateProviderModels();
+                            if (!settings.passProviderApiKeysToMcp && !localProviderSelected()) {
+                                applyProviderModels(normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini"),
+                                        "KEY_FORWARDING_DISABLED", List.of(), providerModelRequestGeneration);
+                            }
+                            updateCloudKeyStatus();
+                            refreshProviderModelsIfNeeded();
+                            setStatus("Saved key");
+                        } finally {
+                            Arrays.fill(secret, '\0');
+                        }
+                    }));
+            dispatched = true;
+        } catch (RuntimeException exception) {
+            setStatus("Could not save provider key");
+            updateControlVisibility();
+        } finally {
+            if (!dispatched) {
+                Arrays.fill(secret, '\0');
+            }
+        }
     }
 
     private boolean hasSelectedCloudKey() {
+        return selectedCloudKeySupplier.getAsBoolean();
+    }
+
+    private boolean storedSelectedCloudKey() {
         String keyName = providerKeyName(String.valueOf(cloudProvider.getSelectedItem()));
-        return !keyName.isBlank() && storedCloudKey(keyName);
+        return keyName.isBlank() || storedCloudKey(keyName);
+    }
+
+    private boolean localProviderSelected() {
+        return isLocalProvider(normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini"));
+    }
+
+    private static boolean isLocalProvider(String provider) {
+        return "ollama".equals(provider) || "lmstudio".equals(provider);
+    }
+
+    private String currentProviderRequestKey() {
+        String provider = normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini");
+        return provider + "|" + settings.localEndpointFor(provider) + "|" + hasSelectedCloudKey();
     }
 
     private static boolean storedCloudKey(String keyName) {
@@ -4909,11 +5272,20 @@ final class ShaftAssistantPanel extends JPanel {
     private void updateRunSettingsSummary() {
         String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
         String route = usesCloud()
-                ? ShaftUiLabels.friendly(String.valueOf(cloudProvider.getSelectedItem())) + " Cloud"
+                ? providerRouteLabel(String.valueOf(cloudProvider.getSelectedItem()))
                 : ShaftUiLabels.friendly(String.valueOf(assistantFamily.getSelectedItem())) + " "
                 + ShaftUiLabels.friendly(String.valueOf(assistantRuntime.getSelectedItem()));
         runSettingsToggle.setText("Run settings · " + selectedMode + " · " + route + " · Effort: "
                 + String.valueOf(effort.getSelectedItem()));
+    }
+
+    private static String providerRouteLabel(String provider) {
+        String normalized = normalizeLower(provider, "gemini");
+        return switch (normalized) {
+            case "ollama" -> "Ollama (local)";
+            case "lmstudio" -> "LM Studio (local)";
+            default -> ShaftUiLabels.friendly(normalized) + " provider";
+        };
     }
 
     static String trimChatTitleForWidth(String title, FontMetrics metrics, int maxWidth) {
@@ -4978,10 +5350,18 @@ final class ShaftAssistantPanel extends JPanel {
         return settings != null && settings.mcpReady();
     }
 
+    private void refreshCurrentAgentConfiguration() {
+        String text = currentAgentConfigurationText();
+        currentAgentConfiguration.setText(text);
+        currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(text);
+        currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
+    }
+
     private String currentAgentConfigurationText() {
         if ("CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
-            String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " " + settings.cloudModel.trim();
-            return ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "gemini")) + model;
+            String selectedModel = cloudModel == null ? "" : editableComboText(cloudModel);
+            String model = selectedModel.isBlank() ? "" : " " + selectedModel;
+            return providerRouteLabel(settings.cloudProvider) + model;
         }
         return ShaftUiLabels.friendly(resolveFamily(settings)) + " "
                 + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));
@@ -4989,8 +5369,9 @@ final class ShaftAssistantPanel extends JPanel {
 
     private String currentAgentConfigurationTooltip() {
         if ("CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
-            String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " / " + settings.cloudModel.trim();
-            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "gemini")) + model;
+            String selectedModel = cloudModel == null ? "" : editableComboText(cloudModel);
+            String model = selectedModel.isBlank() ? "" : " / " + selectedModel;
+            return "Agent: " + providerRouteLabel(settings.cloudProvider) + model;
         }
         return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(settings))
                 + " / " + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));

@@ -2258,7 +2258,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantKeepsCloudRouteAndModelListFromSetupWithoutAdvancedMode() {
+    void assistantKeepsCloudRouteButWaitsForLiveModelsWithoutAdvancedMode() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.assistantProviderType = "CLOUD";
         settings.cloudProvider = "gemini";
@@ -2273,8 +2273,8 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("CLOUD", providerType.getSelectedItem()),
                 () -> assertTrue(cloudModel.isVisible()),
                 () -> assertTrue(effort.isVisible()),
-                () -> assertEquals("gemini-3.5-flash", String.valueOf(cloudModel.getSelectedItem())),
-                () -> assertTrue(cloudModel.getItemCount() >= 2));
+                () -> assertFalse(cloudModel.isEnabled()),
+                () -> assertEquals(0, cloudModel.getItemCount()));
     }
 
     private static ShaftMcpSetupPanel.CloudKeyStore fakeKeyStore(java.util.Map<String, String> storedKeys) {
