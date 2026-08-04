@@ -22,14 +22,19 @@
 #      `stash pop` can pop and DROP an unrelated entry from another
 #      session/worktree (issue #4130). Read-only `git stash list` / `git
 #      stash show` stay allowed.
-#   R9 `git worktree add` guardrails (issue #4126): (B1) deny when the Bash
-#      tool's worktree path argument contains backslashes -- Git Bash/MSYS
+#   R9 `git worktree add` guardrails (issue #4126, #4496): (B1) deny when the
+#      Bash tool's worktree path argument contains backslashes -- Git Bash/MSYS
 #      consumes each backslash as an escape and the path silently collapses
 #      into one garbage segment at the repo root, exit 0. PowerShell is
 #      unaffected, so this check is Bash-only. (B2) deny any
 #      `git worktree add` missing `-c core.longpaths=true`, which otherwise
 #      aborts with `Filename too long` checking out existing over-long
-#      .memory/** paths. Both fail open on anything not confidently parsed.
+#      .memory/** paths. (B3) deny `-b`/`-B` with a branch name that does not
+#      start with `ChaosEngine/` -- the entrypoint's Task isolation section
+#      requires it, and tools that key off the prefix (PR watchers, worktree
+#      cleanup) go blind to a non-conforming branch. `--detach` and checking
+#      out an existing branch (no `-b`/`-B`) create no new branch, so neither
+#      is checked. All three fail open on anything not confidently parsed.
 #   R10 Deny `git add`/`git stage`/`git commit` when a changed file is almost
 #      entirely NUL bytes (issue #4437). After an unclean shutdown the
 #      filesystem can record an allocation without ever flushing the data
@@ -610,6 +615,28 @@ def _worktree_add_path(rest_after_add: list[str]) -> str | None:
     return None
 
 
+_CHAOS_ENGINE_BRANCH_PREFIX = "ChaosEngine/"
+
+
+def _worktree_add_branch(rest_after_add: list[str]) -> str | None:
+    """Return the `-b`/`-B` branch name in `rest_after_add`, or None if absent.
+
+    None also covers `--detach` and checking out an existing branch (no
+    `-b`/`-B` at all) -- neither creates a new branch, so neither is subject
+    to the ChaosEngine/* naming requirement.
+    """
+    index = 0
+    while index < len(rest_after_add):
+        token = rest_after_add[index]
+        if token in ("-b", "-B"):
+            return rest_after_add[index + 1] if index + 1 < len(rest_after_add) else None
+        if token in _GIT_WORKTREE_ADD_FLAGS_WITH_ARG:
+            index += 2
+            continue
+        index += 1
+    return None
+
+
 def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
     """Return a block reason for an unsafe `git worktree add` invocation, or None."""
     for segment in _git_segments(command):
@@ -633,6 +660,18 @@ def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
                     "#4126). Use forward slashes instead, e.g. "
                     f"'{path.replace(chr(92), '/')}'."
                 )
+
+        branch = _worktree_add_branch(rest_after_add)
+        if branch is not None and not branch.startswith(_CHAOS_ENGINE_BRANCH_PREFIX):
+            return (
+                "R9 (git worktree add non-conforming branch prefix): the "
+                "entrypoint's Task isolation section requires every session "
+                f"branch to be `{_CHAOS_ENGINE_BRANCH_PREFIX}*` off a fresh "
+                f"`origin/main` -- '{branch}' does not start with that prefix. "
+                "Tools that key off the prefix (PR watchers, worktree "
+                "cleanup) go blind to work on a non-conforming branch (issue "
+                f"#4496). Use `{_CHAOS_ENGINE_BRANCH_PREFIX}<slug>` instead."
+            )
 
         if not _LONGPATHS_RE.search(segment):
             match = re.search(r"\bworktree\b", segment, re.IGNORECASE)
@@ -1672,6 +1711,53 @@ def run_r9_worktree_self_test() -> int:
         'git commit -m "ran git worktree add worktrees\\w4067 earlier"', "Bash"
     )
     check("git worktree add mentioned in commit message prose is not a real command", reason is None)
+
+    # --- B3: non-ChaosEngine/* branch via -b is denied (issue #4496) ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x "
+        "-b not-chaos-engine/whatever origin/main",
+        "Bash",
+    )
+    check("non-ChaosEngine/* branch via -b is denied", reason is not None)
+    check(
+        "branch-prefix denial names ChaosEngine/",
+        reason is not None and "ChaosEngine/" in reason,
+    )
+
+    # --- B3 also applies to -B (force-create/reset) and to PowerShell ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x "
+        "-B not-chaos-engine/whatever origin/main",
+        "PowerShell",
+    )
+    check("non-ChaosEngine/* branch via -B is denied on PowerShell too", reason is not None)
+
+    # --- --detach (no branch created at all) stays allowed ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/probe --detach origin/main",
+        "Bash",
+    )
+    check("git worktree add --detach (no branch created) stays allowed", reason is None)
+
+    # --- Checking out an existing branch (no -b/-B) stays allowed ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x not-chaos-engine/existing",
+        "Bash",
+    )
+    check(
+        "worktree add checking out an existing branch (no -b/-B) stays allowed",
+        reason is None,
+    )
+
+    # --- A non-conforming branch mentioned in commit-message prose is not a real command ---
+    reason = check_r9_worktree_add(
+        'git commit -m "use git worktree add x -b not-chaos-engine/y next time"',
+        "Bash",
+    )
+    check(
+        "git worktree add -b mentioned in commit message prose is not a real command",
+        reason is None,
+    )
 
     total_checks = len(failures)
     print(f"\nR9 worktree-add self-test summary: {total_checks} failed.")
