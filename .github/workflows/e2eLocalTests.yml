@@ -78,8 +78,14 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Print Edge version
         continue-on-error: true
         run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
@@ -113,8 +119,14 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*]', env.GLOBAL_TESTING_SCOPE) }}"
@@ -149,8 +161,14 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
@@ -328,8 +346,14 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"

@@ -103,6 +103,11 @@ jobs:
               - 'tests/scripts/test_validate_skills.py'
               - 'tests/scripts/test_sync_user_harness.py'
               - 'tests/scripts/test_shaft_skills_content.py'
+              # Not agent guidance, but this is the only gate that runs the
+              # script suites on both a Linux and a Windows runner, which is
+              # what maven_retry.sh needs (issue #4445).
+              - 'scripts/ci/maven_retry.sh'
+              - 'tests/scripts/test_maven_retry.py'
             intellij:
               - 'shaft-intellij/**'
               - '.github/workflows/publish-intellij-plugin.yml'
@@ -211,6 +216,7 @@ jobs:
           tests.scripts.test_sync_user_harness
           tests.scripts.test_shaft_skills_content
           tests.scripts.test_worktree_hygiene
+          tests.scripts.test_maven_retry
           -v
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
