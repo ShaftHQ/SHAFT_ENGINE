@@ -565,6 +565,63 @@ def _git_paths(root: Path, *arguments: str) -> set[str] | None:
     return {entry for entry in completed.stdout.split("\0") if entry}
 
 
+def guidance_byte_counts(root: Path, paths: list[Path]) -> tuple[int, int | None]:
+    """Return (bytes of landed guidance, bytes present but not landed) for `paths`.
+
+    #4509: this was a bare sum over `expand_globs`, a filesystem walk with no
+    git view, so a guidance file that was never `git add`ed weighed exactly as
+    much as a committed one -- the defect #4495 reported for the object count
+    printed beside it on the same banner line, and #4507 fixed there. Same two
+    git views, same meaning of None, deliberately: half a verified banner reads
+    as a wholly verified one.
+
+    Bytes are read from the worktree, not from the HEAD blob. The figure has to
+    describe what an author just wrote, or the validator stops answering the
+    question it is run to answer -- whether the edit in hand fits the budget.
+    What git decides is which files are part of the surface, not what they say.
+
+    Untracked bytes are returned rather than discarded, because for this metric
+    the uncommitted figure is the interesting one: `active_guidance_globs`
+    covers `.agents/skills/*/SKILL.md` and `.claude/agents/*.md`, so a new skill
+    is measured before it is committed, every time. Disclosed and labelled, it
+    informs; folded into the total, it inflates a number agents quote as proof.
+    """
+    relative = {path.relative_to(root).as_posix(): path for path in paths}
+
+    def measured(names: set[str]) -> int:
+        # LF-normalized to match validate_total_reduction and the LF blobs CI
+        # sees. Read through the mapping, never re-joined from the name, so a
+        # path git reports but the glob did not produce cannot be read at all.
+        return sum(
+            len(relative[name].read_text(encoding="utf-8").encode("utf-8")) for name in names
+        )
+
+    if not relative:
+        # An empty pathspec list means "everything" to git, not "nothing", so
+        # both queries would answer about the whole repository. The intersection
+        # below would still be empty, but the queries are pointless and slow.
+        return 0, 0
+    # `-z` must precede the `--`, or git reads it as a pathspec and matches
+    # nothing -- silently, with exit code 0 and an empty result.
+    landed = _git_paths(
+        root, "ls-tree", "-r", "-z", "--name-only", "HEAD", "--", *sorted(relative)
+    )
+    visible = _git_paths(
+        root,
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--",
+        *sorted(relative),
+    )
+    if landed is None or visible is None:
+        return measured(set(relative)), None
+    tracked = set(relative) & landed
+    return measured(tracked), measured((set(relative) & visible) - landed)
+
+
 def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None]:
     """Return (landed objects, objects present but not landed) under `memory_root`.
 
@@ -626,7 +683,19 @@ def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None
 
 def format_banner(metrics: dict) -> str:
     """Render the one-line summary a passing run prints, omitting what was not measured."""
-    parts = [f"{metrics['guidance_bytes']} guidance bytes"]
+    # Both halves of this line carry the same three states, or the line is half
+    # verified and reads as wholly verified -- #4490's shape, and the reason
+    # #4509 was filed the day after #4507 landed the labelling next door.
+    # Indexed, not `.get`, for the reason spelled out below the object count.
+    guidance = f"{metrics['guidance_bytes']} guidance bytes"
+    untracked_bytes = metrics["guidance_bytes_untracked"]
+    if untracked_bytes is None:
+        guidance += " (unverified: git could not answer)"
+    elif untracked_bytes:
+        # `+`, because these bytes are additional to the figure rather than
+        # part of it. The object count's parenthetical reads the same way.
+        guidance += f" (+{untracked_bytes} untracked)"
+    parts = [guidance]
     if metrics.get("guidance_reduction_percent") is not None:
         parts.append(f"{metrics['guidance_reduction_percent']}% reduction")
     objects = f"{metrics['memory_objects']} memory objects"
@@ -662,10 +731,9 @@ def collect_metrics(root: Path = ROOT) -> dict:
         for host, patterns in budget.get("host_skill_metadata_globs", {}).items()
     }
     baseline = budget.get("reduction_baseline_bytes")
-    # LF-normalized to match validate_total_reduction and the LF blobs CI sees.
-    guidance_bytes = sum(
-        len(path.read_text(encoding="utf-8").encode("utf-8")) for path in guidance_paths
-    )
+    guidance_bytes, untracked_guidance_bytes = guidance_byte_counts(root, guidance_paths)
+    # Derived from the landed figure, so a percentage cannot be moved by bytes
+    # nobody else can see.
     reduction = reduction_percent(guidance_bytes, baseline)
     memory_config = root / ".memory/config.json"
     memory_budget = None
@@ -680,6 +748,7 @@ def collect_metrics(root: Path = ROOT) -> dict:
     landed_objects, unlanded_objects = memory_object_counts(root, memory_root)
     return {
         "guidance_bytes": guidance_bytes,
+        "guidance_bytes_untracked": untracked_guidance_bytes,
         "guidance_reduction_percent": reduction,
         "always_loaded_body_chars": host_body_chars,
         "skill_listing_chars": host_listing_chars,
