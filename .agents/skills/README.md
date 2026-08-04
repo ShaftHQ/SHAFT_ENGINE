@@ -103,7 +103,14 @@ flowchart LR
     RV -.->|refuted| RD
 ```
 
-## What each surface does
+## The surfaces
+
+This map describes a surface only where nothing it links to already describes
+it. The two skills below are a contributor's first contact, so they are
+described here. Every reference, playbook and chapter is described where it is
+reached from — the entrypoint or the routing table — and both are linked from
+this page, so repeating them here would only give a second copy to drift out of
+step with the first.
 
 ### Skills
 
@@ -114,18 +121,18 @@ flowchart LR
 
 ### Method references
 
-Reached from the entrypoint or the routing table, never loaded by default.
+Never loaded by default. The first four are reached from the entrypoint, which
+says what each is for as it sends you there; the rest are reached from
+[routing](act-as-mohab/references/routing.md).
 
-| Reference | What it does |
-| --- | --- |
-| [routing](act-as-mohab/references/routing.md) | The deterministic table: one deliverable, one surface. Also orders knowledge retrieval before manual discovery begins. |
-| [delegation](act-as-mohab/references/delegation.md) | Governs the orchestrated mode: the three capability levels, the four-agent concurrency cap, the delegate covenant, and the independent adversarial review gate. |
-| [roles](act-as-mohab/references/roles.md) | The five portable roles and their boundaries. Each host exposes them with whatever primitive it has, so policy stays identical across hosts. |
-| [heuristics](act-as-mohab/references/heuristics.md) | Field technique for harder work: how to investigate, how to plan under uncertainty, how to verify, and how to judge risk. |
-| [orchestrator bootstrap](act-as-mohab/references/orchestrator-bootstrap.md) | The opening sequence when a session holds the main thread: gather live state, queue by priority, ticket, dispatch. |
-| [verification-gap lens](act-as-mohab/references/verification-gap-lens.md) | A worked method for finding changed behaviour that would break without any check noticing. |
-| [work GitHub playbook](act-as-mohab/references/work-github-playbook.md) | Taking one issue from filed to merged: scope grounding, tracking issues, grouped PRs, review, and close-out. |
-| [graphify](act-as-mohab/references/graphify.md) | How to ask the structural index what calls what, and what to do when it is unavailable. |
+- [routing](act-as-mohab/references/routing.md)
+- [delegation](act-as-mohab/references/delegation.md)
+- [roles](act-as-mohab/references/roles.md)
+- [heuristics](act-as-mohab/references/heuristics.md)
+- [orchestrator bootstrap](act-as-mohab/references/orchestrator-bootstrap.md)
+- [verification-gap lens](act-as-mohab/references/verification-gap-lens.md)
+- [work GitHub playbook](act-as-mohab/references/work-github-playbook.md)
+- [graphify](act-as-mohab/references/graphify.md)
 
 ### Repository playbooks
 

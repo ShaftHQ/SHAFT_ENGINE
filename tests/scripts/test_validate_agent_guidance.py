@@ -144,6 +144,41 @@ steps:
         self.write("AGENTS.md", "x" * 500_000)
         self.assertNotIn("total-reduction", self.codes())
 
+    def test_a_glob_file_budget_caps_every_file_the_pattern_matches(self):
+        # The on-demand reference surface is many files under one directory, and
+        # the cost a task actually pays is the single largest one it loads --
+        # never their sum, which is what the retired global pool measured
+        # (#3745, #4458). Enumerating 31 paths in file_budgets to express that
+        # would rot on the next added file, so a budget key may be a glob and
+        # binds each matched file on its own.
+        self.write(".agents/skills/example-bridge/references/big.md", "x" * 400)
+        self.write(".agents/skills/example-bridge/references/small.md", "x\n")
+        self.budget["file_budgets"][".agents/skills/*/references/**/*.md"] = {
+            "max_bytes": 100
+        }
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        offenders = {
+            error["path"] for error in errors if error["code"] == "size-budget"
+        }
+        self.assertEqual(
+            offenders, {".agents/skills/example-bridge/references/big.md"}
+        )
+
+    def test_a_glob_file_budget_matching_nothing_is_reported_as_missing(self):
+        # A cap on a surface that no longer exists is stale config, and it fails
+        # open: the pattern quietly matches zero files and the budget looks
+        # enforced. Same verdict a configured literal path gets when it is gone.
+        self.budget["file_budgets"][".agents/skills/*/references/**/*.md"] = {
+            "max_bytes": 100
+        }
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/references/**/*.md", "missing-file"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
     def test_rejects_oversized_skill_md_file(self):
         self.budget["skill_budgets"] = {".github/skills": {"max_skill_md_bytes": 10}}
         self.write_budget()
