@@ -805,13 +805,17 @@ class DisciplineTest(unittest.TestCase):
     This repository's own selection history is the argument for pinning them by
     phrase. Rules that were only asserted got traded away -- the guard's rule
     numbering still skips R4 through R7, and two of the deleted ones were TDD
-    and Graphify nudges. Rules with a failing check behind them survived. A pin
-    is what turns "an agent should not do this" into "the build says no", which
-    is the only form that outlives the generation that wrote it.
+    and Graphify nudges. Rules with a failing check behind them survived.
 
     Each pin below asserts the clause that carries the rule, inside the section
     that owns it, and each was verified to fail when that clause is removed --
     a pin that passes on any prose is decoration.
+
+    Scope, stated plainly so the next reader does not overrate these: a presence
+    pin catches deletion and renaming. It does not catch weakening by addition.
+    "Never claim a check you did not run. Routine checks are exempt." keeps the
+    pinned phrase and guts the law, and every pin here passes on it. Closing
+    that is #4467.
     """
 
     def iron_laws(self) -> str:
