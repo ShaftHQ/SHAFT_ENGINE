@@ -11,9 +11,9 @@ WHAT THIS CATCHES
 
 1. A tracked harness element that is neither reachable from the entrypoint nor
    registered as an exemption with a stated reason. The element set comes from
-   globs over `git ls-files`, never a hand-written list, so a file added
-   tomorrow is an element tomorrow -- a hand list silently omits the next file,
-   which is exactly how the 38 accumulated.
+   globs over every committed and every untracked-but-unignored path, never a
+   hand-written list, so a file added tomorrow is an element tomorrow -- a hand
+   list silently omits the next file, which is exactly how the 38 accumulated.
 2. A markdown link in the reachable graph whose target does not exist. A broken
    link is worse than a missing one: it reads as coverage.
 3. A path token, in a code span or fence of a reachable file, that names a
