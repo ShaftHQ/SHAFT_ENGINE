@@ -697,6 +697,174 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     }
 
     /**
+     * Issue #4424 review round 3, finding 2: the round-2 PR body claimed the buffered path "has no
+     * reliable way to tell a silent failure apart from ordinary successful-run stderr chatter" --
+     * false for the sub-case that matters. {@code sections.isEmpty()} (blank stdout) IS the buffered
+     * analogue of the structured-stream path's {@code toolCallObserved == false}: nothing else
+     * happened, so stderr must surface regardless of Verbose. A run that DID produce stdout keeps
+     * withholding stderr on Verbose off exactly as before (pinned by the sibling test above and
+     * {@code bufferedSuccessOutputStillWithholdsStderrAlongsideNonBlankStdoutWhenVerboseIsOff}).
+     */
+    @Test
+    void bufferedSuccessOutputSurfacesStderrWhenStdoutIsBlankRegardlessOfVerbose() {
+        assertEquals("sandbox-setup.exe failed to launch: Access is denied (os error 5)",
+                AssistantLocalAgentRunner.bufferedSuccessOutput(
+                        "", "sandbox-setup.exe failed to launch: Access is denied (os error 5)", false));
+    }
+
+    /**
+     * End-to-end sibling of the probe above via a real custom-command invocation: concretely, this
+     * is the shape Copilot's default command (a first-party client with no structured stream at all)
+     * or any custom command hits when its CLI produced no stdout at all but reported a real reason on
+     * stderr.
+     */
+    @Test
+    void customCommandWithBlankStdoutSurfacesStderrEvenWithVerboseOff() throws Exception {
+        String stderr = "sandbox-setup.exe failed to launch: Access is denied (os error 5)";
+
+        ShaftMcpToolResult result = successfulRun(customCommandInvocation(), "", stderr, false);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("Access is denied (os error 5)"),
+                "Blank stdout with real stderr must surface it regardless of Verbose: " + result.output());
+    }
+
+    /**
+     * Issue #4424 review round 3, finding 4: a structured CLI (Claude/Codex) that exits 0 without
+     * ever emitting a terminal event has only raw NDJSON in its stdout -- {@code rawStdout} must
+     * never reach {@code bufferedSuccessOutput} as literal stdout content, mirroring the guard the
+     * failure branch a few lines below already has (its own comment names {@code thinking_tokens} as
+     * exactly the leak this prevents). A genuinely buffered/custom command ({@code streamParser ==
+     * null}) is unaffected -- its raw stdout is legitimate text, not NDJSON.
+     */
+    @Test
+    void successfulCodexRunWithoutATerminalEventNeverLeaksRawNdjson() throws Exception {
+        String rawLines = "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}\n{\"type\":\"turn.started\"}\n";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(), rawLines, "", true);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("thread.started"),
+                "Raw native NDJSON must never leak into a successful-but-terminal-eventless answer: "
+                        + result.output());
+    }
+
+    /**
+     * Same shape, combined with finding 2's blank-stdout discriminator: once the raw NDJSON is
+     * correctly discarded (not shown as "stdout"), the run's stdout is effectively blank, so a real
+     * sandbox-bootstrap stderr must surface instead of the composed answer staying silent.
+     */
+    @Test
+    void successfulCodexRunWithoutATerminalEventStillSurfacesStderrInsteadOfRawNdjson() throws Exception {
+        String rawLines = "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}\n{\"type\":\"turn.started\"}\n";
+        String stderr = "sandbox-setup.exe failed to launch: Access is denied (os error 5)";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(), rawLines, stderr, false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("thread.started"), result.output());
+        assertTrue(result.output().contains("Access is denied (os error 5)"), result.output());
+    }
+
+    /**
+     * Issue #4424 review round 3, finding 3: round 2 silently gated the recognized sandbox-bootstrap
+     * notice behind {@code silentRun}, so a partially-degraded run (a patch-application tool call
+     * that succeeded via one path, while a DIFFERENT operation's sandbox helper failed to launch and
+     * left its only trace on stderr) dropped the bootstrap failure entirely -- exactly the case a
+     * user cannot diagnose alone. A recognized bootstrap shape must surface regardless of tool
+     * activity, alongside (not instead of) the general {@code silentRun} rule.
+     */
+    @Test
+    void recognizedSandboxBootstrapFailureSurfacesEvenAlongsideSuccessfulFileActivity() throws Exception {
+        String fileChangeEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"file_change\","
+                + "\"status\":\"completed\",\"changes\":[{\"path\":\"a.txt\",\"kind\":\"update\"}]}}";
+        String stderr = "sandbox-setup.exe failed to launch: Access is denied (os error 5)";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(),
+                fileChangeEvent + "\n" + codexTurnCompletedEvent() + "\n", stderr, false);
+
+        assertTrue(result.success(), result.output());
+        assertTrue(result.output().contains("Access is denied (os error 5)"),
+                "A recognized bootstrap failure must surface even alongside real file activity: "
+                        + result.output());
+        assertTrue(result.output().contains("Files created or edited: `a.txt`"), result.output());
+    }
+
+    /**
+     * Issue #4424 review round 3, finding 1: {@code recordToolCallObserved()} was only wired into
+     * {@code describeToolCallItem} (command_execution/mcp_tool_call/collab_tool_call), so a Codex
+     * {@code web_search} item -- a real tool call per this mapper's own javadoc -- left {@code
+     * toolCallObserved} false, falsely classifying the run as "silently did nothing" and both
+     * re-injecting suppressed ordinary stderr noise into a successful Verbose-off run AND asserting
+     * a false "no tool calls ran" footer alongside a run that plainly used one.
+     */
+    @Test
+    void codexWebSearchItemCountsAsAToolCallObservedSoIncidentalStderrStaysWithheld() throws Exception {
+        String webSearchEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"web_search\","
+                + "\"id\":\"ws-1\",\"query\":\"latest Selenium 4 release notes\"}}";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(),
+                webSearchEvent + "\n" + codexTurnCompletedEvent() + "\n", "some incidental progress chatter", false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("incidental progress chatter"), result.output());
+        assertFalse(result.output().contains("no tool calls ran"), result.output());
+    }
+
+    /**
+     * Same gap, Codex {@code file_change} item -- including the edge case the reviewer specifically
+     * probed, a completed item with no {@code changes} array at all, which also makes {@code
+     * recordCodexFileMutation} return early without touching {@code filesTouched}.
+     */
+    @Test
+    void codexFileChangeItemWithNoChangesArrayStillCountsAsAToolCallObserved() throws Exception {
+        String fileChangeEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"file_change\",\"status\":\"completed\"}}";
+
+        ShaftMcpToolResult result = successfulRun(codexInvocation(),
+                fileChangeEvent + "\n" + codexTurnCompletedEvent() + "\n", "some incidental progress chatter", false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("incidental progress chatter"), result.output());
+        assertFalse(result.output().contains("no tool calls ran"), result.output());
+    }
+
+    /**
+     * Claude-side sibling: {@code server_tool_use} is a real content-block type (Claude's
+     * server-executed tools, e.g. web search) that {@code describeAssistantEvent} never recognized
+     * at all, so it never reached {@code recordToolCallObserved()} either.
+     */
+    @Test
+    void claudeServerToolUseBlockCountsAsAToolCallObserved() throws Exception {
+        String serverToolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"server_tool_use\","
+                + "\"id\":\"stu-1\",\"name\":\"web_search\",\"input\":{\"query\":\"selenium 4\"}}]}}";
+
+        ShaftMcpToolResult result = successfulRun(claudeInvocation(),
+                serverToolUseEvent + "\n" + claudeResultEvent("done") + "\n", "incidental chatter", false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("incidental chatter"), result.output());
+        assertFalse(result.output().contains("no tool calls ran"), result.output());
+    }
+
+    /**
+     * A {@code tool_result} block proves a tool call happened even if the requesting {@code
+     * tool_use} event was somehow missed -- correlated here to an id SHAFT never saw a {@code
+     * tool_use} block for.
+     */
+    @Test
+    void claudeToolResultWithNoPriorToolUseEventStillCountsAsAToolCallObserved() throws Exception {
+        String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
+                + "\"tool_use_id\":\"unseen-id\",\"content\":\"ok\",\"is_error\":false}]}}";
+
+        ShaftMcpToolResult result = successfulRun(claudeInvocation(),
+                toolResultEvent + "\n" + claudeResultEvent("done") + "\n", "incidental chatter", false);
+
+        assertTrue(result.success(), result.output());
+        assertFalse(result.output().contains("incidental chatter"), result.output());
+        assertFalse(result.output().contains("no tool calls ran"), result.output());
+    }
+
+    /**
      * Regression coverage for issue #4424: on a <em>successful</em> exit (unlike the failure paths
      * exercised above), {@code rawStderr} used to be computed and then discarded entirely once a
      * structured stream had a terminal event, so a sandbox/environment bootstrap failure that

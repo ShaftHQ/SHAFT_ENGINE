@@ -685,9 +685,18 @@ final class AssistantLocalAgentRunner {
                 String rawStderr = stderrNow(stderr);
                 String output;
                 if (success) {
-                    output = streamParser != null && streamParser.hasTerminalEvent()
-                            ? streamParser.finalOutput(rawStderr)
-                            : bufferedSuccessOutput(rawStdout, rawStderr, verbose);
+                    if (streamParser != null && streamParser.hasTerminalEvent()) {
+                        output = streamParser.finalOutput(rawStderr);
+                    } else {
+                        // Issue #4424 review round 3, finding 4: when streamParser != null, this CLI
+                        // is structured (Claude stream-json / Codex --json), so rawStdout here is raw
+                        // NDJSON even though the run exited 0 -- never safe to hand to
+                        // bufferedSuccessOutput as literal stdout content, mirroring the failure
+                        // branch's guard three lines below (its own comment names thinking_tokens as
+                        // exactly the leak this prevents). A genuinely buffered/custom command
+                        // (streamParser == null) has ordinary text in rawStdout instead, unaffected.
+                        output = bufferedSuccessOutput(streamParser == null ? rawStdout : "", rawStderr, verbose);
+                    }
                 } else if (streamParser != null) {
                     // A structured (stream-json / --json) CLI writes machine NDJSON to stdout, so on a
                     // failed run the raw stream must never reach the transcript verbatim -- rerun/codegen
@@ -945,21 +954,30 @@ final class AssistantLocalAgentRunner {
          * so withholding it makes the whole request silently impossible without a trace. {@code
          * toolCallObserved} is what keeps this from becoming "always surface any stderr": a run that DID
          * attempt a tool call but simply had nothing file/denial-worthy to report keeps withholding
-         * incidental stderr noise exactly as issue #3965 established. {@link
-         * #sandboxBootstrapFailureHeadline} still recognizes the sandbox-bootstrap shape for a more
-         * specific, actionable headline, but only as an enrichment on top of the general rule -- never
-         * as its gate -- so an unrecognized shape still surfaces via the generic headline. A {@code
-         * null}/blank stderr, or any tool-call/file/denial activity, leaves {@code core} untouched, so
-         * this overload is byte-identical to {@link #finalOutput()} for the overwhelmingly common case.
-         * This overload is deliberately separate from (rather than replacing) {@link #finalOutput()},
-         * which stays in use where {@code terminalAnswerConsumer} recovers a cancelled/killed run's
-         * answer with no stderr in scope.
+         * incidental stderr noise exactly as issue #3965 established.
+         *
+         * <p>{@code recognizedBootstrapFailure} (round 3): {@link #sandboxBootstrapFailureHeadline}
+         * recognizing the sandbox-bootstrap shape fires <em>on its own</em>, independent of {@code
+         * silentRun} -- round 2 had folded it in only as an enrichment gated behind {@code silentRun},
+         * which silently dropped a <em>recognized</em> bootstrap failure whenever the run also had real
+         * tool activity to report (e.g. a patch-application call that succeeded via one path while a
+         * different operation's sandbox helper failed to launch, leaving its only trace on stderr).
+         * That partially-degraded shape is precisely the case a user cannot diagnose alone, so a
+         * recognized failure surfaces regardless of tool activity, alongside (not instead of) the
+         * general {@code silentRun} rule for the unrecognized case. An unrecognized, non-{@code
+         * silentRun} shape (ordinary chatter from a run that also did real work) still stays withheld.
+         * A {@code null}/blank stderr, or a plain empty/empty/no-activity run with unrecognized
+         * stderr, leaves {@code core} untouched, so this overload is byte-identical to {@link
+         * #finalOutput()} for the overwhelmingly common case. This overload is deliberately separate
+         * from (rather than replacing) {@link #finalOutput()}, which stays in use where {@code
+         * terminalAnswerConsumer} recovers a cancelled/killed run's answer with no stderr in scope.
          */
         synchronized String finalOutput(String stderr) {
             String core = answer.strip();
             boolean silentRun = filesTouched.isEmpty() && permissionDenialsByTool.isEmpty() && !toolCallObserved;
             String stderrText = stderr == null ? "" : stderr.strip();
-            boolean surfaceStderr = silentRun && !stderrText.isBlank();
+            boolean recognizedBootstrapFailure = sandboxBootstrapFailureHeadline(stderrText) != null;
+            boolean surfaceStderr = !stderrText.isBlank() && (silentRun || recognizedBootstrapFailure);
             if (surfaceStderr) {
                 String notice = stderrNotice(stderrText);
                 core = core.isBlank() ? notice : core + "\n\n" + notice;
@@ -1100,11 +1118,14 @@ final class AssistantLocalAgentRunner {
          * or any other pre-tool-call collapse) leaves {@code filesTouched}, {@code
          * permissionDenialsByTool}, <em>and</em> {@code toolCallObserved} all empty/false, so this
          * footer used to render nothing at all between the answer and the usage line. {@link
-         * #finalOutput(String)} passes {@code true} only when it has already decided to surface stderr
-         * for exactly that silent-run shape, so a plain empty/empty run that genuinely has nothing to
-         * report (an ordinary Q&A that never needed a tool, or a tool call that ran but touched no
-         * files and was never denied) still renders {@code ""} exactly as before -- this stays
-         * additive, not a blanket "always explain an empty run" change.
+         * #finalOutput(String)} passes {@code true} whenever it has decided to surface stderr; when
+         * that happens for a recognized bootstrap failure alongside real activity (round 3), {@code
+         * filesTouched}/{@code permissionDenialsByTool} are non-empty anyway, so this method's
+         * empty/empty branch below never engages and the parameter is simply unused for that call --
+         * only a genuinely empty/empty run's rendering depends on it. A plain empty/empty run that
+         * genuinely has nothing to report (an ordinary Q&A that never needed a tool, or a tool call
+         * that ran but touched no files and was never denied) still renders {@code ""} exactly as
+         * before -- this stays additive, not a blanket "always explain an empty run" change.
          */
         private String activitySummary(boolean explicitNoActivityNotice) {
             if (filesTouched.isEmpty() && permissionDenialsByTool.isEmpty()) {
@@ -1939,19 +1960,29 @@ final class AssistantLocalAgentRunner {
      * verbose}-gated stderr is ever considered. This dedicated composer folds {@code stdout} and
      * {@code verbose}-gated {@code stderr} together the same way regardless of whether {@code stdout}
      * is present, closing that gap for the one caller where it actually matters, without touching
-     * {@code agentOutput}'s existing contract elsewhere. Scoped to the {@code verbose}-is-ignored
-     * inconsistency only, not to ungating Verbose generally: unlike the structured-stream path's
-     * {@code toolCallObserved} signal (see {@link StructuredStreamParser#finalOutput(String)}), this
-     * buffered path has no reliable way to tell a silent failure apart from ordinary successful-run
-     * stderr chatter, so {@code verbose} off still withholds {@code stderr} here exactly as before.
+     * {@code agentOutput}'s existing contract elsewhere.
+     *
+     * <p>Issue #4424 review round 3, finding 2: round 2's javadoc claimed this path "has no reliable
+     * way to tell a silent failure apart from ordinary successful-run stderr chatter" -- that claim
+     * was too broad. Blank {@code stdout} <em>is</em> a reliable discriminator here, the buffered
+     * analogue of the structured-stream path's {@code toolCallObserved == false} (see {@link
+     * StructuredStreamParser#finalOutput(String)}): if the CLI produced no stdout at all, nothing
+     * else happened worth staying silent about, so {@code stderr} surfaces regardless of {@code
+     * verbose} in that case. A run that DID produce {@code stdout} keeps withholding {@code stderr}
+     * on {@code verbose} off exactly as before -- that part of the round-2 claim holds, since there
+     * genuinely is no signal to distinguish a real failure from ordinary chatter once the CLI has
+     * already produced real output.
      */
     static String bufferedSuccessOutput(String stdout, String stderr, boolean verbose) {
-        List<String> sections = new ArrayList<>();
-        if (stdout != null && !stdout.isBlank()) {
-            sections.add(stdout.strip());
+        String stdoutText = stdout == null ? "" : stdout.strip();
+        String stderrText = stderr == null ? "" : stderr.strip();
+        if (stdoutText.isBlank()) {
+            return stderrText;
         }
-        if (verbose && stderr != null && !stderr.isBlank()) {
-            sections.add(stderr.strip());
+        List<String> sections = new ArrayList<>();
+        sections.add(stdoutText);
+        if (verbose && !stderrText.isBlank()) {
+            sections.add(stderrText);
         }
         return String.join("\n\n", sections).trim();
     }
