@@ -109,6 +109,45 @@ class AssistantLocalAgentRunnerCancellationTest {
                 () -> assertTrue(process.destroyForciblyCalled(), "kill() [force=true] must call Process#destroyForcibly()"));
     }
 
+    /**
+     * Issue #4500: a kill that lands before {@code processReference} is published used to set only the
+     * cancellation flag, and {@code run()} then launched the CLI anyway and threw its {@code
+     * CancellationException} without destroying it. The child process and both {@code readAsync}
+     * reader threads outlived the run, which is exactly the {@code Thread leaked: shaft-mcp-worker-N}
+     * signature #4500 is about — and that window is wide in practice, since the launch is preceded by a
+     * full PATH scan in {@code isCommandAvailable}.
+     */
+    @Test
+    void killingBeforeTheProcessIsPublishedStillDestroysTheProcessTheRunGoesOnToLaunch() throws Exception {
+        CountDownLatch launchReached = new CountDownLatch(1);
+        CountDownLatch releaseLaunch = new CountDownLatch(1);
+        BlockingStubProcess process = new BlockingStubProcess();
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAskInvocation(), line -> { },
+                (command, workingDirectory, environment) -> {
+                    launchReached.countDown();
+                    awaitQuietly(releaseLaunch);
+                    return process;
+                }, false);
+
+        assertTrue(launchReached.await(5, TimeUnit.SECONDS),
+                "The run must be inside the launcher before killing, or the race is nondeterministic");
+        running.kill();
+        releaseLaunch.countDown();
+
+        assertTrue(process.awaitDestroyed(5, TimeUnit.SECONDS),
+                "A kill that lands before the process reference is published must still destroy the process "
+                        + "the run goes on to launch, or the CLI and its reader threads outlive the run");
+    }
+
+    private static void awaitQuietly(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private static AssistantCommand.Invocation claudeAskInvocation() {
         return AssistantCommand.fromPrompt("Explain this failure", "CLAUDE_CODE", "ASK", ".", "", false);
     }
@@ -123,6 +162,10 @@ class AssistantLocalAgentRunnerCancellationTest {
         private final CountDownLatch destroyLatch = new CountDownLatch(1);
         private volatile boolean destroyCalled;
         private volatile boolean destroyForciblyCalled;
+
+        boolean awaitDestroyed(long timeout, TimeUnit unit) throws InterruptedException {
+            return destroyLatch.await(timeout, unit);
+        }
 
         boolean destroyCalled() {
             return destroyCalled;

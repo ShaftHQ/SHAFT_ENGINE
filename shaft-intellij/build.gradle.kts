@@ -37,6 +37,13 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
+// A SHAFT test run regenerates src/test/resources/META-INF/services/ from scratch (Allure and
+// TestNG listener registrations), deleting anything else that lives there. This module's own
+// JUnit 5 extension registration (ShaftPanelBackgroundWorkExtension, issue #4500) was silently
+// wiped that way after a few runs, so it keeps its own resources root that the generator does not
+// manage.
+sourceSets["test"].resources.srcDir("src/test/junit-extensions")
+
 intellijPlatform {
     // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows.
     // The plugin verifier still validates the built ZIP; track re-enabling this task separately.

@@ -49,18 +49,24 @@ class ShaftAssistantPanelDisposalTest {
     }
 
     @Test
-    void disposingTheAssistantPanelStopsThePendingLocalAgentFlushTimer() throws ReflectiveOperationException {
+    void disposingTheAssistantPanelStopsThePendingLocalAgentFlushTimer() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        scheduleLocalAgentFlush(panel);
+        AtomicBoolean flushed = new AtomicBoolean();
+        scheduleLocalAgentFlush(panel, () -> flushed.set(true));
         Timer flushTimer = (Timer) getField(panel, "localAgentFlushTimer");
         assertNotNull(flushTimer, "Precondition: scheduling a flush must produce a timer the panel owns");
         assertTrue(flushTimer.isRunning(), "Precondition: the scheduled flush timer must be pending");
 
         panel.dispose();
 
-        assertFalse(flushTimer.isRunning(),
-                "Disposing the panel must stop its pending output-flush timer instead of leaving it "
-                        + "in Swing's shared TimerQueue holding a reference to the dead panel");
+        // Well past the timer's own ~100ms delay: a stopped timer never fires, a merely forgotten one
+        // does, and only the second leaves a live entry in Swing's shared TimerQueue.
+        Thread.sleep(400);
+        assertAll(
+                () -> assertFalse(flushTimer.isRunning(),
+                        "Disposing the panel must stop its pending output-flush timer instead of leaving "
+                                + "it in Swing's shared TimerQueue holding a reference to the dead panel"),
+                () -> assertFalse(flushed.get(), "A stopped flush timer must never run its flush"));
     }
 
     @Test
@@ -70,13 +76,24 @@ class ShaftAssistantPanelDisposalTest {
 
         // Killing a run does not silence its reader threads instantly: the process's already-buffered
         // trailing lines still reach the coalescer, which schedules a flush for them.
-        scheduleLocalAgentFlush(panel);
+        AtomicBoolean flushed = new AtomicBoolean();
+        scheduleLocalAgentFlush(panel, () -> flushed.set(true));
 
-        assertNull(getField(panel, "localAgentFlushTimer"),
-                "A flush scheduled after disposal must start no timer, or a killed run's last line "
-                        + "puts a fresh one-shot timer back into Swing's shared TimerQueue");
+        assertAll(
+                () -> assertNull(getField(panel, "localAgentFlushTimer"),
+                        "A flush scheduled after disposal must start no timer, or a killed run's last "
+                                + "line puts a fresh one-shot timer back into Swing's shared TimerQueue"),
+                () -> assertFalse(flushed.get(), "Nothing must be scheduled to run against a dead panel"));
     }
 
+    /**
+     * The one test holding the production wiring in place. Every other panel in the module's test run
+     * is torn down directly by {@code ShaftPanelBackgroundWorkExtension}, so if
+     * {@code disposeActiveChildren()} ever stops disposing the assistant panel again, no leak check
+     * anywhere will notice — only this test, which goes through the real
+     * {@code Disposer.dispose(content)} path with no manual bookkeeping. Do not delete it without
+     * replacing that coverage.
+     */
     @Test
     void disposingTheToolWindowPanelCascadesToTheAssistantPanelsInFlightRun() throws ReflectiveOperationException {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
@@ -115,12 +132,12 @@ class ShaftAssistantPanelDisposalTest {
                         + "tree gives production");
     }
 
-    private static void scheduleLocalAgentFlush(ShaftAssistantPanel panel) throws ReflectiveOperationException {
+    private static void scheduleLocalAgentFlush(ShaftAssistantPanel panel, Runnable flush)
+            throws ReflectiveOperationException {
         Method scheduleLocalAgentFlush =
                 ShaftAssistantPanel.class.getDeclaredMethod("scheduleLocalAgentFlush", Runnable.class);
         scheduleLocalAgentFlush.setAccessible(true); // NOPMD - reflective test invocation of a private scheduler, matching the established pattern in ShaftPanelSetupTest
-        scheduleLocalAgentFlush.invoke(panel, (Runnable) () -> {
-        });
+        scheduleLocalAgentFlush.invoke(panel, flush);
     }
 
     private static ShaftSettingsState.Settings blankMcpSettings() {

@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import org.junit.jupiter.api.extension.DynamicTestInvocationContext;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
@@ -42,6 +43,18 @@ public final class ShaftPanelBackgroundWorkExtension implements InvocationInterc
     public void interceptTestTemplateMethod(Invocation<Void> invocation,
                                             ReflectiveInvocationContext<Method> invocationContext,
                                             ExtensionContext extensionContext) throws Throwable {
+        proceedThenDisposePanels(invocation);
+    }
+
+    /**
+     * {@code @TestFactory}'s dynamic tests take their own interception hook rather than either of the
+     * two above, so it is overridden here too -- the module has none today, and a first one would
+     * otherwise silently lose this teardown and bring the flake back for that test kind alone.
+     */
+    @Override
+    public void interceptDynamicTest(Invocation<Void> invocation,
+                                     DynamicTestInvocationContext invocationContext,
+                                     ExtensionContext extensionContext) throws Throwable {
         proceedThenDisposePanels(invocation);
     }
 

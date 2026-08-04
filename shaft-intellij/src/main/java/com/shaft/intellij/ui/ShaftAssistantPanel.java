@@ -115,6 +115,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
      * abandons them mid-run -- leaving a spawned CLI process on a bounded {@code ShaftPluginExecutor}
      * worker thread and a pending flush {@link Timer} to be reported as leaks against whichever later
      * test happens to cross their boundary (issue #4500).
+     *
+     * <p>ponytail: a static registry instead of routing the module's 300-plus direct panel
+     * constructions through a test factory. Ceiling: it covers this class only. Upgrade trigger: a
+     * second panel type needs the same headless teardown (see issue #4518) -- at that point put the
+     * registry on a shared base or a test factory rather than copying it.
      */
     private static final Set<ShaftAssistantPanel> LIVE_PANELS =
             Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
@@ -246,7 +251,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private String lastResponse = "";
     private String lastRawResponse = "";
     private String lastPrompt = "";
-    private ShaftMcpInvocation currentInvocation;
+    /** Volatile because {@link #dispose()} reads it off the EDT: production disposal runs on the EDT
+     * alongside every writer, but the module's per-test teardown disposes from the JUnit thread while
+     * an {@code invokeLater} completion callback may still be clearing this field (issue #4500). A
+     * stale read there would silently skip the kill. */
+    private volatile ShaftMcpInvocation currentInvocation;
     private Timer transientStatusTimer;
     private Timer captureStartDiagnosticTimer;
     /** The one-shot ~100ms timer that flushes {@link #localAgentOutputCoalescer}; see
@@ -254,6 +263,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private Timer localAgentFlushTimer;
     /** Guards {@link #localAgentFlushTimer} and {@link #disposed} against the run's reader threads. */
     private final Object localAgentFlushLock = new Object();
+    /** True once this run's terminal render has drained the coalescer; see {@link #closeLocalAgentFlush()}. */
+    private boolean localAgentFlushClosed;
     private boolean disposed;
     private boolean running;
     private boolean sendCancelHover;
@@ -1600,6 +1611,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             // readAsync calls its output consumer once per stdout/stderr line, from both reader
             // threads concurrently -- coalesce into throttled ~100ms batch flushes on the EDT instead
             // of one invokeLater per line (issue #3751 part 2, HIGH finding 2).
+            openLocalAgentFlush();
             localAgentOutputCoalescer = new LocalAgentOutputCoalescer(
                     batch -> batch.forEach(line -> appendLocalAgentOutput(streamToken, line)),
                     this::scheduleLocalAgentFlush);
@@ -2209,9 +2221,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // Drain any lines the coalescer is still holding for its next throttled flush before this
         // terminal path reads localAgentOutput below -- otherwise the run's very last streamed lines
         // could be missing from the partial-output snapshot (issue #3751 part 2, HIGH finding 2).
-        // Draining here also makes the run's pending flush timer redundant, so stop it rather than
-        // leave a one-shot timer waiting to flush an already-empty queue (issue #4500).
-        stopLocalAgentFlushTimer();
+        // Draining here also makes the run's pending flush timer redundant, so close the flush window
+        // rather than leave a one-shot timer waiting to flush an already-empty queue (issue #4500).
+        closeLocalAgentFlush();
         if (localAgentOutputCoalescer != null) {
             localAgentOutputCoalescer.flush();
         }
@@ -2807,7 +2819,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             // Same reasoning as showAgentResult: drain the coalescer's not-yet-flushed lines before
             // reading localAgentOutput for the "Killed" finalization below, and stop the now-redundant
             // pending flush timer with them (issue #4500).
-            stopLocalAgentFlushTimer();
+            closeLocalAgentFlush();
             if (localAgentOutputCoalescer != null) {
                 localAgentOutputCoalescer.flush();
             }
@@ -3399,7 +3411,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
      */
     private void scheduleLocalAgentFlush(Runnable flush) {
         synchronized (localAgentFlushLock) {
-            if (disposed) {
+            if (disposed || localAgentFlushClosed) {
                 return;
             }
             stopLocalAgentFlushTimer();
@@ -3407,6 +3419,28 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             timer.setRepeats(false);
             localAgentFlushTimer = timer;
             timer.start();
+        }
+    }
+
+    /** Opens the flush window for a starting run, undoing the previous run's {@link
+     * #closeLocalAgentFlush()}. */
+    private void openLocalAgentFlush() {
+        synchronized (localAgentFlushLock) {
+            localAgentFlushClosed = false;
+        }
+    }
+
+    /**
+     * Stops the pending flush and refuses further ones for this run. Called from both terminal
+     * renders, which drain the coalescer synchronously right after: a line the reader threads deliver
+     * after that point has nothing left to render (the stream token it carries is already stale), so
+     * scheduling a fresh one-shot timer for it would only leave a timer nothing stops until the next
+     * run or disposal (issue #4500).
+     */
+    private void closeLocalAgentFlush() {
+        synchronized (localAgentFlushLock) {
+            localAgentFlushClosed = true;
+            stopLocalAgentFlushTimer();
         }
     }
 
