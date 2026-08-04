@@ -1,4 +1,4 @@
-import subprocess
+import subprocess  # nosec B404 - test drives the local validation script.
 import sys
 import unittest
 from pathlib import Path
