@@ -129,42 +129,40 @@ Reached from the entrypoint or the routing table, never loaded by default.
 
 ### Repository playbooks
 
-One per kind of work in this repository. The routing table links all thirteen
-directly.
+One per kind of work in this repository. Which deliverable sends you to which
+playbook is stated once, in [routing](act-as-mohab/references/routing.md) — this
+list is the inventory, not a second copy of the triggers.
 
-| Playbook | Covers |
-| --- | --- |
-| [agent guidance](act-as-mohab/references/playbooks/agent-guidance-boundary-guard.md) | Changing the harness itself: skills, host adapters, hooks, budgets, retrieval setup. |
-| [PDCA](act-as-mohab/references/playbooks/agentic-pdca-loop.md) | The explicit plan-do-check-act loop, run as main-thread phases rather than persona agents. |
-| [framework source](act-as-mohab/references/playbooks/framework-source.md) | Production Java: public API compatibility, the properties layer, logging, reporting, and thread-local state. |
-| [Java tests](act-as-mohab/references/playbooks/java-tests.md) | Test Java: driver lifecycle, parallelism hazards, headless execution, and evidence reuse. |
-| [CI failures](act-as-mohab/references/playbooks/ci-failure-investigator.md) | Diagnosing a red run, job, or scheduled suite from real logs and reports. |
-| [flaky tests](act-as-mohab/references/playbooks/flaky-test-stabilizer.md) | Turning an inconsistent pass or fail into a deterministic reproduction and a real fix. |
-| [release and dependencies](act-as-mohab/references/playbooks/release-dependency-guard.md) | Versioning, BOM wiring, dependency updates, and Maven Central safeguards. |
-| [MCP transport](act-as-mohab/references/playbooks/mcp-transport-contract-auditor.md) | The MCP tool contract, its transport, and the clients that consume it. |
-| [module boundaries](act-as-mohab/references/playbooks/modular-boundary-auditor.md) | Keeping the Maven reactor's module edges honest, including consumer fixtures. |
-| [reports](act-as-mohab/references/playbooks/allure-extent-report-operator.md) | Generating and trusting Allure and Extent output, including the verdict rules. |
-| [public docs](act-as-mohab/references/playbooks/public-behavior-docs-synchronizer.md) | Keeping externally documented behaviour in step with what the code actually does. |
-| [UI design](act-as-mohab/references/playbooks/shaft-ui-design.md) | Any visible surface: design standards, visual QA, UX copy, accessibility, responsive behaviour. |
-| [marketing](act-as-mohab/references/playbooks/shaft-marketing-ad-producer.md) | Promotional material that has to stay true to what the product does. |
+- [agent guidance](act-as-mohab/references/playbooks/agent-guidance-boundary-guard.md)
+- [PDCA](act-as-mohab/references/playbooks/agentic-pdca-loop.md)
+- [framework source](act-as-mohab/references/playbooks/framework-source.md)
+- [Java tests](act-as-mohab/references/playbooks/java-tests.md)
+- [CI failures](act-as-mohab/references/playbooks/ci-failure-investigator.md)
+- [flaky tests](act-as-mohab/references/playbooks/flaky-test-stabilizer.md)
+- [release and dependencies](act-as-mohab/references/playbooks/release-dependency-guard.md)
+- [MCP transport](act-as-mohab/references/playbooks/mcp-transport-contract-auditor.md)
+- [module boundaries](act-as-mohab/references/playbooks/modular-boundary-auditor.md)
+- [reports](act-as-mohab/references/playbooks/allure-extent-report-operator.md)
+- [public docs](act-as-mohab/references/playbooks/public-behavior-docs-synchronizer.md)
+- [UI design](act-as-mohab/references/playbooks/shaft-ui-design.md)
+- [marketing](act-as-mohab/references/playbooks/shaft-marketing-ad-producer.md)
 
 ### SHAFT mastery chapters
 
 Ten expert domains. Each encodes incident history that is expensive to
-re-derive, so read the one the task touches and skip the rest.
+re-derive, so read the one the task touches and skip the rest — which one that
+is, [routing](act-as-mohab/references/routing.md) says.
 
-| Chapter | Read it when the task touches |
-| --- | --- |
-| [Selenium BiDi](act-as-mohab/references/shaft-mastery/selenium-bidi.md) | The recorder, preload scripts, network capture, browser lifecycle. |
-| [Allure internals](act-as-mohab/references/shaft-mastery/allure-internals.md) | Report generation and patching, results JSON, verdict analysis. |
-| [Appium mobile](act-as-mohab/references/shaft-mastery/appium-mobile.md) | Mobile recording and replay, emulators, mobile CI. |
-| [Maven release](act-as-mohab/references/shaft-mastery/maven-release.md) | Versioning, Central publishing, BOM, dependency convergence. |
-| [TestNG lifecycle](act-as-mohab/references/shaft-mastery/testng-lifecycle.md) | Listeners, forked JVMs, properties precedence, scoped runs. |
-| [IntelliJ plugin](act-as-mohab/references/shaft-mastery/intellij-plugin.md) | The plugin's desktop UI, tool windows, Gradle and JDK setup. |
-| [MCP protocol](act-as-mohab/references/shaft-mastery/mcp-protocol.md) | MCP tools, stdio transport, workspace roots, clients. |
-| [CI forensics](act-as-mohab/references/shaft-mastery/ci-forensics.md) | Red runs, scheduled suites, workflow YAML, sharding. |
-| [Wait strategies](act-as-mohab/references/shaft-mastery/wait-strategies.md) | Races, synchronization, deterministic reproduction. |
-| [Locator healing](act-as-mohab/references/shaft-mastery/locator-healing.md) | Locator choice, semantic selectors, the healer and doctor. |
+- [Selenium BiDi](act-as-mohab/references/shaft-mastery/selenium-bidi.md)
+- [Allure internals](act-as-mohab/references/shaft-mastery/allure-internals.md)
+- [Appium mobile](act-as-mohab/references/shaft-mastery/appium-mobile.md)
+- [Maven release](act-as-mohab/references/shaft-mastery/maven-release.md)
+- [TestNG lifecycle](act-as-mohab/references/shaft-mastery/testng-lifecycle.md)
+- [IntelliJ plugin](act-as-mohab/references/shaft-mastery/intellij-plugin.md)
+- [MCP protocol](act-as-mohab/references/shaft-mastery/mcp-protocol.md)
+- [CI forensics](act-as-mohab/references/shaft-mastery/ci-forensics.md)
+- [Wait strategies](act-as-mohab/references/shaft-mastery/wait-strategies.md)
+- [Locator healing](act-as-mohab/references/shaft-mastery/locator-healing.md)
 
 ### The product pack
 
