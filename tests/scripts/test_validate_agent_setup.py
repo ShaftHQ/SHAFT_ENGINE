@@ -338,6 +338,75 @@ approval_mode = "prompt"
         )
         self.assertIn("50.0% reduction", measured)
 
+    def init_repository(self):
+        """Make the fixture a real repository so the count can consult git."""
+        self.git("init", "-q", "-b", "main", ".")
+        self.git("config", "user.email", "harness@example.invalid")
+        self.git("config", "user.name", "Harness")
+
+    def test_an_untracked_memory_object_does_not_move_the_reported_count(self):
+        # #4495: the count was `memory_root.rglob("*.json")` -- a filesystem
+        # walk that never consults git, so an object present but never `git
+        # add`ed was counted exactly like a committed one. This banner is what
+        # agents are told to quote as proof of their change, so the one
+        # artefact the harness treats as proof-of-work was satisfiable by work
+        # that was never committed. It landed for real the day it was filed,
+        # when a delegate's `memory remember` wrote into the wrong tree
+        # (#4505) and the higher number was then reasoned about as `main`.
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/never-added.json", "{}")
+        self.write(".memory/memory/gotchas/never-added.md", "body\n")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked)
+        self.assertEqual(metrics["memory_objects_untracked"], 1)
+
+    def test_a_committed_memory_object_does_move_the_reported_count(self):
+        # The negative half: fixing the untracked case must not be bought by
+        # making the count blind to real work.
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/really-added.json", "{}")
+        self.git("add", ".memory/memory/gotchas/really-added.json")
+        self.git("commit", "-qm", "add object")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked + 1)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_banner_labels_untracked_objects_so_the_figure_cannot_be_misquoted(self):
+        # `339 memory objects` is quotable as a claim about main. `338 memory
+        # objects (1 untracked)` is not, which is the whole point of #4495.
+        self.assertEqual(
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                    "memory_objects_untracked": 1,
+                }
+            ),
+            "Agent setup is valid: 129090 guidance bytes, 338 memory objects (1 untracked).",
+        )
+        self.assertEqual(
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                    "memory_objects_untracked": 0,
+                }
+            ),
+            "Agent setup is valid: 129090 guidance bytes, 338 memory objects.",
+        )
+
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
         # Negative test: relaxing the relation-file message must not open a
         # hole for genuinely over-long non-relation memory objects, which

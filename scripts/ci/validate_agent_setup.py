@@ -532,12 +532,77 @@ def reduction_percent(guidance_bytes: int, baseline: int | None) -> float | None
     return round((1 - guidance_bytes / baseline) * 100, 2)
 
 
+def _git_paths(root: Path, *arguments: str) -> set[str] | None:
+    """Return repository-relative paths from a read-only git query, or None.
+
+    None means git could not answer -- no binary, or not a repository -- and is
+    deliberately distinct from the empty set, which means git answered "none".
+    """
+    executable = shutil.which("git")
+    if executable is None:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed, read-only git queries.
+            [executable, *arguments],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+
+
+def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None]:
+    """Return (landed objects, objects present but not landed) under `memory_root`.
+
+    #4495: this was `memory_root.rglob("*.json")`, a filesystem walk that never
+    consulted git, so an object that was never `git add`ed was counted exactly
+    like a committed one -- and this banner is what agents in this repository
+    are told to quote as proof of their change.
+
+    Two git views, because #4497 found the mirror defect by reading only one.
+    "Has this landed" is a question about HEAD and nothing else, so a staged
+    file is not landed. "Does this exist and is nobody hiding it" is a question
+    about the worktree minus ignored files, which is
+    `--cached --others --exclude-standard`. The index alone answers neither: it
+    is neither what is there nor what has landed.
+
+    The second element is None when git could not answer at all -- outside a
+    repository there is no "landed" to speak of, and reporting 0 there would
+    publish a non-measurement in the units of a measurement (see
+    `reduction_percent`).
+    """
+    if not memory_root.is_dir():
+        return 0, None
+    relative = memory_root.relative_to(root).as_posix()
+    landed = _git_paths(root, "ls-tree", "-r", "--name-only", "HEAD", "--", relative)
+    visible = _git_paths(
+        root, "ls-files", "--cached", "--others", "--exclude-standard", "--", relative
+    )
+    if landed is None or visible is None:
+        return len(list(memory_root.rglob("*.json"))), None
+    objects = {path for path in landed if path.endswith(".json")}
+    present = {path for path in visible if path.endswith(".json")}
+    return len(objects), len(present - objects)
+
+
 def format_banner(metrics: dict) -> str:
     """Render the one-line summary a passing run prints, omitting what was not measured."""
     parts = [f"{metrics['guidance_bytes']} guidance bytes"]
     if metrics.get("guidance_reduction_percent") is not None:
         parts.append(f"{metrics['guidance_reduction_percent']}% reduction")
-    parts.append(f"{metrics['memory_objects']} memory objects")
+    objects = f"{metrics['memory_objects']} memory objects"
+    # Labelled only when there is something to label. `338 memory objects` is
+    # quotable as a claim about main; `338 memory objects (1 untracked)` is not.
+    untracked = metrics.get("memory_objects_untracked")
+    if untracked:
+        objects += f" ({untracked} untracked)"
+    parts.append(objects)
     return f"Agent setup is valid: {', '.join(parts)}."
 
 
@@ -569,14 +634,14 @@ def collect_metrics(root: Path = ROOT) -> dict:
         except (OSError, json.JSONDecodeError):
             pass
     memory_root = root / ".memory/memory"
+    landed_objects, unlanded_objects = memory_object_counts(root, memory_root)
     return {
         "guidance_bytes": guidance_bytes,
         "guidance_reduction_percent": reduction,
         "always_loaded_body_chars": host_body_chars,
         "skill_listing_chars": host_listing_chars,
-        "memory_objects": len(list(memory_root.rglob("*.json")))
-        if memory_root.is_dir()
-        else 0,
+        "memory_objects": landed_objects,
+        "memory_objects_untracked": unlanded_objects,
         "memory_default_token_budget": memory_budget,
         "codex_memory_tools": sorted(MEMORY_TOOLS),
     }

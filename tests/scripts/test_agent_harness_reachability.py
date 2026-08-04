@@ -111,7 +111,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 99
+EXPECTED_ELEMENT_COUNT = 100
 
 # Inline `spans` and fenced blocks both carry instrument paths in this
 # repository's house style -- README.md writes the validate command in a bash

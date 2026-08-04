@@ -307,6 +307,7 @@ change it:
 | `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
 | `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
 | `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py` | The lifecycle guard's decisions and its behaviour on a corrupt state file. |
+| `tests/scripts/test_guard_memory_worktree.py` | That a memory write from a linked worktree is refused, and that each host actually invokes the guard for it. |
 | `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
 | `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
 | `tests/scripts/test_shaft_skills_content.py`, `tests/scripts/test_shaft_skill_cli_examples.py` | The published product pack's content and its CLI examples. |

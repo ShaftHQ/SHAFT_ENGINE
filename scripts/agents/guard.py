@@ -1039,6 +1039,71 @@ def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None
 _CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash)
 
 
+# ---------------------------------------------------------------------------
+# R11: refuse an MCP memory write issued from a linked worktree
+# ---------------------------------------------------------------------------
+
+# Only the write path. Reads are the session-entry point AGENTS.md mandates,
+# and a read cannot strand work in the wrong tree, so blocking them would make
+# worktree isolation cost an agent its memory for no safety gain.
+_MEMORY_WRITE_TOOLS = frozenset(
+    {
+        "mcp__shaft-memory__remember_memory",
+        "mcp__shaft-memory__save_memory_patch",
+    }
+)
+
+
+def is_linked_worktree(cwd: str | None) -> bool:
+    """True when `cwd` sits inside a linked worktree rather than the primary checkout.
+
+    Git's own layout is the tell: a linked worktree's `.git` is a *file* holding
+    a `gitdir:` pointer, while the primary checkout's is a directory. Read off
+    the filesystem rather than by shelling out, because this runs inside a
+    PreToolUse hook whose budget the host caps at 10 seconds and R10 already
+    spends two git queries of that.
+
+    Fails open -- outside a repository there is no linked worktree to be in, and
+    a guard that denies where it cannot tell would block memory writes in every
+    checkout it does not understand.
+    """
+    if not cwd:
+        return False
+    try:
+        current = os.path.abspath(cwd)
+    except (OSError, ValueError):
+        return False
+    while True:
+        marker = os.path.join(current, ".git")
+        if os.path.isfile(marker):
+            return True
+        if os.path.isdir(marker):
+            return False
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
+
+
+def check_r11_memory_write_worktree(tool_name: str, cwd: str | None) -> str | None:
+    """Return a block reason for an MCP memory write from a linked worktree, or None."""
+    if tool_name not in _MEMORY_WRITE_TOOLS or not is_linked_worktree(cwd):
+        return None
+    return (
+        "R11 (MCP memory write from a linked worktree): `.mcp.json` declares "
+        "shaft-memory with `\"cwd\": \".\"` and one server process serves the "
+        "whole session, so this write would land in the PRIMARY checkout -- "
+        "uncommitted, on whatever branch that tree holds, which belongs to a "
+        "different session. Observed twice in one session by two different "
+        "agents (issue #4505). `memory check` still passes, because the object "
+        "is valid; it is just in the wrong tree, so nothing in your own "
+        "verification can detect it. Run the CLI from this worktree instead -- "
+        "`memory remember --stdin` resolves its root with `git rev-parse "
+        "--show-toplevel` from its own cwd, so it writes here, where your "
+        "branch can commit it."
+    )
+
+
 def evaluate_command(command: str) -> str | None:
     """Return the first blocking reason found, or None if the command is allowed."""
     for check in _CHECKS:
@@ -1141,6 +1206,13 @@ def _print_deny(reason: str, host: str) -> None:
 
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
+
+    reason = check_r11_memory_write_worktree(
+        tool_name, _hook_working_directory(hook_input)
+    )
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
 
     if tool_name in ("Bash", "PowerShell"):
         command = _extract_command(hook_input)
