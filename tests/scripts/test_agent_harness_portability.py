@@ -11,7 +11,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from unittest import mock
 
 
@@ -77,7 +77,24 @@ ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".cla
 # judged as the prose it is. That also closes the malformed-first-link hole,
 # where an unclosed pair swallowed the prose between two citations and the whole
 # span read clean -- the swallowed span is not an id, so it no longer strips.
+#
+# Once the strip is a membership rather than a delimiter, the markup stops being
+# the thing that matters and the *object named* starts being it -- so the second
+# way this store names an object gets the same treatment. `[[id]]` is the house
+# style and a path is the exception, but two live ids carry a retired policy in
+# their own slug, and citing either as
+# `.memory/memory/constraints/<slug>.md` flagged where `[[<slug>]]` did not
+# (#4516). One object cites another by path today, and its slug happens to be
+# harmless, so this is a trap rather than a live failure -- which is the moment
+# to close it, since the escape it would otherwise cost is an allowlist entry
+# that exempts a whole object for a citation.
+#
+# The path form is anchored on `.memory/` and its last character must be a word
+# character or a hyphen, so a sentence-ending period is not swallowed into the
+# stem. Nothing else about it is grammar: the stem either names an object that
+# exists or it does not.
 WIKI_LINK = re.compile(r"\[\[([^\]]+)\]\]")
+MEMORY_PATH_CITATION = re.compile(r"\.memory/[\w./-]*[\w-]")
 
 SUPERSEDED_ONE_PR_PER_SESSION = re.compile(
     r"(?i)one[- ]pr[- ]per[- ]session"
@@ -105,17 +122,24 @@ ONE_PR_PER_SESSION_REASON = (
 # 2 minutes and needs no delegate" now flags -- and that cost is paid to the
 # allowlist rather than to a grammar, because a false positive with a one-line
 # reviewable escape does not tempt an agent into weakening the check, which iron
-# law 4 forbids. The trade is measured, not assumed: this pair flags zero of the
-# 338 active objects in the live store.
+# law 4 forbids. The trade is measured, not assumed: this pair flags two of the
+# 341 active objects in the live store, and both hold an allowlist entry below.
 #
-# Two spellings were simply absent, and both are #4484 Part B residuals that
-# outlive the grammar. `\s*` matched no `30-minute`, so the most idiomatic
+# Three spellings were simply absent. Two are #4484 Part B residuals that
+# outlive the grammar: `\s*` matched no `30-minute`, so the most idiomatic
 # English cadence -- the compound modifier -- was the one spelling that walked
-# past; `[\s-]?` takes it. And `subagent\b` rejected `subagents`, as
-# `background (?:task|job)\b` rejected `background jobs`, so a policy written
-# about more than one delegate missed on its plural. That mattered less when
-# the subject was one of three signals and a directive had to agree with it. It
-# is half the rule now.
+# past; and `subagent\b` rejected `subagents`, as `background (?:task|job)\b`
+# rejected `background jobs`, so a policy written about more than one delegate
+# missed on its plural.
+#
+# The third is `background agent`, and it is the same fitting problem #4469
+# found in the directive list, one layer down: the list was written from the two
+# objects in front of it, and a live object says "It idles as a frozen
+# background agent" while carrying `~20-30 min`. Renaming that phrase to
+# `background task` would have turned an unrelated PR red, which is a margin one
+# word wide rather than the comfortable zero the count suggested (#4516). The
+# subject is half the rule now, so a missing spelling here is half a rule
+# nothing enforces.
 #
 # The separator is an alternation and not a character class, because the two
 # things it has to admit are not one class. A body wraps, so "every 30\n
@@ -135,7 +159,7 @@ ONE_PR_PER_SESSION_REASON = (
 # refuses -- and the subject is half the rule now, so its edges have to be held
 # by a test rather than by whatever the store happens to contain today.
 DELEGATE_SUBJECT = re.compile(
-    r"(?i)\b(?:delegate[ds]?|subagents?|background (?:task|job)s?)\b"
+    r"(?i)\b(?:delegate[ds]?|subagents?|background (?:task|job|agent)s?)\b"
 )
 INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}(?:\s+|-|)min(?:ute)?s?\b")
 DELEGATE_INTERVAL_REASON = (
@@ -178,6 +202,16 @@ POLICY_RECORD_ALLOWLIST: dict[str, frozenset[str]] = {
         {
             "decision.a-lexical-guard-judges-tokens-only-legitimacy-comes-from"
             "-an-explicit-id-keyed-allowlist-not-from-parsing-prose",
+            # The object `background agent` was the live false negative in
+            # (#4516). It says "It idles as a frozen background agent" of a
+            # self-polling monitor, and separately gives `~20-30 min` as the
+            # size of a safety-net fallback. Neither is a delegate check-in
+            # cadence -- the whole object argues *against* polling -- and the
+            # figure belongs to a wakeup heartbeat, not to an interval anyone
+            # is meant to restate. The exact narrative-beside-a-figure shape
+            # the rule accepts by design, taking the escape it exists to give.
+            "workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
+            "-self-polling-monitor",
         }
     ),
 }
@@ -244,13 +278,23 @@ def memory_object_identifiers(memory_root: Path) -> frozenset[str]:
 
 
 def strip_citations(text: str, citable: frozenset[str]) -> str:
-    """Replace each `[[known-object]]` with a separator, leaving other markup alone.
+    """Replace each citation of a known object with a separator, in either spelling.
+
+    `[[id]]` is the house style and a `.memory/` path is the other way this
+    store names an object; both are pointers, and both are judged the same way
+    -- by whether what they name exists.
 
     A separator and not an empty string: closing the text up around a strip
     fuses the tail of one word to the head of the next and manufactures both
     subjects and phrases that nobody wrote.
     """
-    return WIKI_LINK.sub(lambda match: " " if match.group(1) in citable else match.group(0), text)
+    linked = WIKI_LINK.sub(
+        lambda match: " " if match.group(1) in citable else match.group(0), text
+    )
+    return MEMORY_PATH_CITATION.sub(
+        lambda match: " " if PurePosixPath(match.group(0)).stem in citable else match.group(0),
+        linked,
+    )
 
 
 def superseded_policy_offences(text: str, citable: frozenset[str] = frozenset()) -> list[str]:
@@ -936,6 +980,59 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             with self.subTest(fused=fused[:40]):
                 self.assertEqual(superseded_policy_offences(fused, citable), [])
 
+    def test_citing_a_memory_object_by_file_path_is_a_pointer_too(self):
+        """The residual the markup-only strip left behind (#4516).
+
+        `[[id]]` is the house style and a path is the exception, but the two
+        live ids that carry a retired policy in their own slug were exempt in
+        one spelling and flagged in the other -- and the escape that would have
+        cost was an allowlist entry exempting a whole object for a citation.
+        Once the strip is a membership rather than a delimiter, the object named
+        is what matters and the spelling is not.
+
+        Nothing in the store cites either of those two by path today, so this
+        closes a trap rather than a live failure. That is the moment to close
+        it: the alternative is discovering it as a red gate mid-edit, where the
+        cheapest repair is the allowlist.
+        """
+        citable = memory_object_identifiers(ROOT / ".memory")
+        for citation in (
+            "See .memory/memory/constraints/"
+            "one-branch-one-worktree-one-pr-per-session.md for the incident.",
+            "See .memory/memory/workflows/orchestrator-checks-in-on-any-delegated"
+            "-background-task-after-30-minutes.json.",
+        ):
+            with self.subTest(citation=citation[:45]):
+                self.assertEqual(superseded_policy_offences(citation, citable), [])
+        # A path that names no object is not a pointer, in either direction:
+        # this one reads like a citation and points at nothing.
+        self.assertEqual(
+            superseded_policy_offences(
+                "See .memory/memory/constraints/one-pr-per-session.md.", citable
+            ),
+            [ONE_PR_PER_SESSION_REASON],
+        )
+        # And the path ends where the path ends. A pattern that ran on into the
+        # sentence would take the claim with it -- which is the whole hazard of
+        # exempting anything by shape.
+        self.assertEqual(
+            superseded_policy_offences(
+                "See .memory/memory/constraints/one-branch-one-worktree-one-pr-per-session.md"
+                " and still one PR per session.",
+                citable,
+            ),
+            [ONE_PR_PER_SESSION_REASON],
+        )
+        # A separator, not an empty string, for this spelling too.
+        self.assertEqual(
+            superseded_policy_offences(
+                "The one.memory/memory/constraints/"
+                "one-branch-one-worktree-one-pr-per-session.md PR per session rule.",
+                citable,
+            ),
+            [],
+        )
+
     def test_a_bracket_wrap_around_a_policy_phrase_is_not_a_citation(self):
         """The cheapest repair an agent under pressure reaches for (#4521).
 
@@ -1340,6 +1437,12 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             ("background tasks", "Poll background tasks every 25 minutes."),
             ("background job", "Check in on a background job every 30 minutes."),
             ("background jobs", "Poll background jobs every 25 minutes."),
+            # The live false negative (#4516). A single object in the store
+            # calls a delegate a "background agent", so renaming that phrase
+            # anywhere would have turned an unrelated PR red -- a margin one
+            # word wide, not the zero the flagged count suggested.
+            ("background agent", "Check in on a background agent every 30 minutes."),
+            ("background agents", "Poll background agents every 25 minutes."),
             ("case fold", "Subagent output is read every 30 minutes."),
         ):
             with self.subTest(subject=subject):
@@ -1358,6 +1461,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "undelegated",  # leading boundary
             "subagentic",  # `subagent\w*`
             "background noise",  # `background \w+`
+            "background agency",  # trailing boundary on the new alternative
         ):
             with self.subTest(refuses=token):
                 self.assertNotRegex(token, DELEGATE_SUBJECT)
