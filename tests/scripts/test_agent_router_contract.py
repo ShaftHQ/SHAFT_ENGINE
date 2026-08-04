@@ -731,6 +731,10 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 unevaluated.append(f"{leg}: variable never read by the loop")
         self.assertEqual(unevaluated, [], "needed legs that cannot fail the required check")
 
+    def test_module_boundary_gate_is_needed_by_the_summary(self):
+        summary, _ = self.summary_step()
+        self.assertIn("module-boundary", summary["needs"])
+
     def test_the_guidance_gate_installs_what_its_tests_import(self):
         """The runner's tool-cache Python has no PyYAML; the frontmatter test
         imports it, so the job must install it or fail on every run."""
