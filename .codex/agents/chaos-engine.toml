@@ -1,7 +1,7 @@
+# Managed by the SHAFT user harness.
 name = "chaos-engine"
 description = "Use for main-thread orchestration covering decomposition, architecture, synthesis, and final verification."
 developer_instructions = """
-Read .agents/skills/act-as-mohab/SKILL.md and follow it before all other
-work, then follow the orchestrator role in
-.agents/skills/act-as-mohab/references/roles.md.
+Load [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md), then follow
+the [orchestrator role](../../.agents/skills/act-as-mohab/references/roles.md#orchestrator).
 """

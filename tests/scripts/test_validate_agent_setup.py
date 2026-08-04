@@ -1,4 +1,5 @@
 import json
+import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,7 +8,9 @@ from unittest.mock import patch
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
+    collect_worktree_metrics,
     run_memory_check,
+    validate_host_parity,
     validate_memory_setup,
     validate_repository,
 )
@@ -90,6 +93,81 @@ approval_mode = "prompt"
         errors, _ = validate_repository(repository_root, run_external=False)
         self.assertEqual(errors, [])
 
+    def test_current_host_parity_matrix_is_complete(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(validate_host_parity(repository_root), [])
+
+    def test_host_parity_rejects_missing_evidence_and_named_check(self):
+        self.write(
+            "scripts/ci/agent_harness_parity.json",
+            json.dumps(
+                {
+                    "version": 1,
+                    "hosts": ["claude", "codex"],
+                    "capabilities": [
+                        {
+                            "id": "entrypoint",
+                            "owner": "missing-owner.md",
+                            "claude": ["missing-claude.md"],
+                            "codex": ["missing-codex.md"],
+                            "check": "tests/scripts/test_validate_agent_setup.py::test_not_real",
+                            "mode": "shared",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        errors = validate_host_parity(self.root)
+
+        self.assertIn("host-parity-path", {error["code"] for error in errors})
+
+    def test_host_parity_reports_malformed_rows_without_crashing(self):
+        self.write(
+            "scripts/ci/agent_harness_parity.json",
+            json.dumps({"version": 1, "hosts": ["claude", "codex"], "capabilities": [{"id": []}, 7]}),
+        )
+
+        errors = validate_host_parity(self.root)
+
+        self.assertIn("host-parity-schema", {error["code"] for error in errors})
+
+    def test_host_parity_reports_non_object_document_without_crashing(self):
+        self.write("scripts/ci/agent_harness_parity.json", "[]")
+
+        errors = validate_host_parity(self.root)
+
+        self.assertEqual(errors[0]["code"], "host-parity-schema")
+
+    def test_host_parity_requires_named_check_to_run_in_ci(self):
+        self.write("owner.md", "owner")
+        self.write("host.md", "host")
+        self.write("tests/test_parity.py", "class TestParity:\n    def test_real(self):\n        pass\n")
+        self.write(".github/workflows/pr-gate.yml", "run: python -m unittest tests.test_other\n")
+        self.write(
+            "scripts/ci/agent_harness_parity.json",
+            json.dumps(
+                {
+                    "version": 1,
+                    "hosts": ["claude", "codex"],
+                    "capabilities": [
+                        {
+                            "id": "entrypoint",
+                            "owner": "owner.md",
+                            "claude": ["host.md"],
+                            "codex": ["host.md"],
+                            "check": "tests/test_parity.py::test_real",
+                            "mode": "shared",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        errors = validate_host_parity(self.root)
+
+        self.assertIn("host-parity-ci", {error["code"] for error in errors})
+
     def test_missing_memory_binary_reports_actionable_error(self):
         with patch("scripts.ci.validate_agent_setup.shutil.which", return_value=None):
             errors = run_memory_check(self.root)
@@ -153,6 +231,48 @@ approval_mode = "prompt"
         allowlisted_path = sorted(KNOWN_SECRET_SCANNER_LANDMINE_FILES)[0]
         self.write(allowlisted_path, "desk-abcdefghijklmnopqrstuvwxyz\n")
         self.assertNotIn("memory-secret-landmine", self.codes())
+
+    def git(self, *arguments):
+        return subprocess.run(  # nosec B603 B607 - fixed git commands on a temp fixture.
+            ["git", "-c", "core.longpaths=true", *arguments],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def test_worktree_metrics_report_uncommitted_work(self):
+        # Issue #4437: uncommitted work rotted in worktrees because nothing an
+        # agent runs ever mentioned it.
+        self.git("init", "-q", "-b", "main", ".")
+        self.git("config", "user.email", "harness@example.invalid")
+        self.git("config", "user.name", "Harness")
+        self.write("notes.md", "committed\n")
+        self.git("add", "notes.md")
+        self.git("commit", "-qm", "initial")
+        self.write("notes.md", "uncommitted edit\n")
+
+        metrics = collect_worktree_metrics(self.root, run_external=False)
+
+        advisories = metrics["worktree_advisories"]
+        self.assertEqual(len(advisories), 1)
+        self.assertIn("uncommitted", advisories[0])
+        self.assertEqual(metrics["worktrees"][0]["state"], "uncommitted")
+
+    def test_worktree_metrics_are_empty_outside_a_repository(self):
+        metrics = collect_worktree_metrics(self.root, run_external=False)
+        self.assertEqual(metrics["worktrees"], [])
+        self.assertEqual(metrics["worktree_advisories"], [])
+
+    def test_validator_carries_the_worktree_report_without_gating_on_it(self):
+        # The report must ride along with --skip-external, the invocation
+        # AGENTS.md prescribes -- and must never fail it, because concurrent
+        # sessions legitimately hold dirty worktrees of their own.
+        repository_root = Path(__file__).resolve().parents[2]
+        errors, metrics = validate_repository(repository_root, run_external=False)
+        self.assertIn("worktrees", metrics)
+        self.assertIn("worktree_advisories", metrics)
+        self.assertNotIn("worktree", {error["code"] for error in errors})
 
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
         # Negative test: relaxing the relation-file message must not open a

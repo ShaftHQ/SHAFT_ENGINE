@@ -1,14 +1,28 @@
 {
   "body_path": "memory/gotchas/agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows.md",
-  "content_hash": "sha256:8bf7e52950ba20b915f69ffd7ee6a2d3b8b9d005571ad2f5eb8b90db9e5b1fce",
+  "content_hash": "sha256:7c78082e031d9e8bfef25fadfde6fe5d41052aab3d24b8abcbc7e8cd2f161adf",
   "created_at": "2026-07-12T13:24:30+03:00",
   "evidence": [
     {
       "id": "92ca7393094399e50c0f14c6bbdbdf4a4cfff5b9",
       "kind": "commit"
+    },
+    {
+      "id": "523e86a5a4",
+      "kind": "commit"
+    },
+    {
+      "id": "#4438",
+      "kind": "task"
     }
   ],
   "facets": {
+    "applies_to": [
+      "shaft-upgrader/upgrade_to_modular_shaft.py",
+      "scripts/agents/guard.py",
+      ".claude/settings.json",
+      ".codex/hooks.json"
+    ],
     "category": "gotcha"
   },
   "id": "gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows",
@@ -26,9 +40,10 @@
   "tags": [
     "shaft-upgrader",
     "agent-cli",
+    "harness",
     "windows"
   ],
-  "title": "Agent CLI print-mode contracts: claude -p and codex exec - read stdin; codex stdout is noisy on Windows",
+  "title": "Agent CLI smoke contracts on Windows",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-04T07:54:51+03:00"
 }

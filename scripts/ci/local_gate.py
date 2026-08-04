@@ -53,7 +53,7 @@
 #         mvn -pl <modules> -am -DskipTests -Dgpg.skip=true verify
 #
 #     ``-DskipTests`` skips Surefire/Failsafe entirely (no JVM fork storm,
-#     compatible with the ``.claude/hooks/guard.py`` PreToolUse guard, which
+#     compatible with the ``scripts/agents/guard.py`` PreToolUse guard, which
 #     explicitly allows this exact shape) while still running full compile
 #     plus the Enforcer executions above, since Enforcer's default phase is
 #     ``validate``/``verify`` regardless of ``-DskipTests``.

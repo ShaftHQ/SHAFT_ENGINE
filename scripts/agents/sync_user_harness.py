@@ -1,5 +1,6 @@
 """Check or deploy the source-controlled user harness without touching secrets."""
 
+import hashlib
 import json
 import os
 import sys
@@ -14,6 +15,27 @@ RETIRED_OWNED_SETTINGS_PATHS = (
     ("extraKnownMarketplaces", "mempalace"),
     ("env", "MEMPALACE_EMBEDDING_MODEL"),
 )
+CODEX_AGENT_PREFIX = "../.codex/agents/"
+CODEX_AGENTS_LABEL = "../.codex/AGENTS.md"
+MANAGED_CODEX_AGENT_MARKER = b"Managed by the SHAFT user harness"
+LEGACY_CODEX_TARGET_HASHES = {
+    "../.codex/AGENTS.md": {
+        "58488d3c6f860afec44c078d060c280ef887b69d37bd82e6b2be713371268865",
+        "eae7709a4c36efd170327c4bfbdbbed626f14915c8c46b8d3f3eb9947b9fbb25",
+    },
+    "../.codex/agents/chaos-engine.toml": {
+        "e50c90620d99eaa2701cacedc2a5f2b1f0f01e0607c04548aa7a80d8e5126915"
+    },
+    "../.codex/agents/coder.toml": {
+        "3c0dc2baa41a29c5049d68a815e9a41333432725850b92a7c964a3a1c28814f6"
+    },
+    "../.codex/agents/reviewer.toml": {
+        "95b6f4d87be43a7b33bf173fddefd8589fb0950853e98bf9fca8e9645c386e99"
+    },
+    "../.codex/agents/tester.toml": {
+        "f08a90fcb3e8a595f3572559bbadcff2ced310adbd534f7de491555abe3d35ea"
+    },
+}
 
 
 def repo_root() -> Path:
@@ -30,8 +52,23 @@ def user_agents_dir(claude_dir: Path) -> Path:
     return Path(override) if override else claude_dir.parent / ".agents"
 
 
+def user_codex_dir(claude_dir: Path) -> Path:
+    override = os.environ.get("SHAFT_USER_CODEX_DIR")
+    return Path(override) if override else claude_dir.parent / ".codex"
+
+
 def normalize(data: bytes) -> bytes:
     return data.replace(b"\r\n", b"\n")
+
+
+def is_owned_codex_target(label: str, target: bytes) -> bool:
+    """Recognize current and legacy SHAFT-owned Codex guidance targets."""
+    if not (label.startswith(CODEX_AGENT_PREFIX) or label == CODEX_AGENTS_LABEL):
+        return True
+    if MANAGED_CODEX_AGENT_MARKER in target:
+        return True
+    digest = hashlib.sha256(normalize(target)).hexdigest()
+    return digest in LEGACY_CODEX_TARGET_HASHES.get(label, set())
 
 
 def merge_owned(existing: object, owned: object) -> object:
@@ -58,11 +95,19 @@ def remove_retired_owned_path(settings: dict, path: tuple[str, ...]) -> None:
         settings.pop(key, None)
 
 
-def sources(root: Path, claude_dir: Path, agents_dir: Path) -> dict[str, tuple[Path, Path]]:
+def sources(
+    root: Path, claude_dir: Path, agents_dir: Path, codex_dir: Path
+) -> dict[str, tuple[Path, Path]]:
     harness = root / ".claude/user-harness"
     result = {name: (harness / name, claude_dir / name) for name in MANIFEST}
     for source in sorted((root / ".claude/agents").glob("*.md")):
         result[f"agents/{source.name}"] = (source, claude_dir / "agents" / source.name)
+    result["../.codex/AGENTS.md"] = (harness / "CLAUDE.md", codex_dir / "AGENTS.md")
+    for source in sorted((root / ".codex/agents").glob("*.toml")):
+        result[f"../.codex/agents/{source.name}"] = (
+            source,
+            codex_dir / "agents" / source.name,
+        )
 
     # Deploy every canonical skill and its host adapter, not just the router:
     # the router links sibling skills, so a partial deploy leaves dead links.
@@ -81,7 +126,12 @@ def main() -> int:
     apply_mode = "--apply" in sys.argv[1:]
     root = repo_root()
     claude_dir = user_claude_dir()
-    manifest = sources(root, claude_dir, user_agents_dir(claude_dir))
+    manifest = sources(
+        root,
+        claude_dir,
+        user_agents_dir(claude_dir),
+        user_codex_dir(claude_dir),
+    )
 
     missing_sources = [str(source) for source, _ in manifest.values() if not source.is_file()]
     if missing_sources:
@@ -122,11 +172,18 @@ def main() -> int:
             continue
 
         all_in_sync = False
+        if not is_owned_codex_target(label, target_bytes):
+            print(f"CONFLICT  {label}  (unowned target exists: {target})")
+            hard_failure = True
+            continue
         print(f"DRIFTED  {label}  (differs from {target})")
         if apply_mode:
             backup = target.with_name(target.name + ".bak")
-            backup.write_bytes(target_bytes)
-            print(f"  -> backed up to {backup}")
+            if backup.exists():
+                print(f"  -> preserved existing backup {backup}")
+            else:
+                backup.write_bytes(target_bytes)
+                print(f"  -> backed up to {backup}")
             target.write_bytes(desired_bytes)
             print(f"  -> deployed {target}")
 

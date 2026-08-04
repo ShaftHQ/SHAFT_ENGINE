@@ -26,6 +26,10 @@ from scripts.ci.validate_documentation_boundaries import (  # noqa: E402
     validate_repository as validate_documentation,
 )
 from scripts.ci.validate_skills import validate_repository as validate_skill_hygiene  # noqa: E402
+from scripts.ci.worktree_hygiene import (  # noqa: E402
+    collect_worktree_report,
+    format_advisories,
+)
 
 MEMORY_PACKAGE = "@aictx/memory@0.1.55"
 MEMORY_TOOLS = {
@@ -241,6 +245,75 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
     return errors
 
 
+def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
+    """Validate the executable Claude/Codex capability map and its evidence."""
+    relative = Path("scripts/ci/agent_harness_parity.json")
+    try:
+        matrix = read_json(root / relative)
+    except (OSError, json.JSONDecodeError) as error:
+        return [issue("host-parity", relative.as_posix(), str(error))]
+    if not isinstance(matrix, dict):
+        return [issue("host-parity-schema", relative.as_posix(), "top level must be an object")]
+    errors: list[dict[str, str]] = []
+    workflow_path = root / ".github/workflows/pr-gate.yml"
+    workflow = workflow_path.read_text(encoding="utf-8") if workflow_path.is_file() else ""
+    raw_capabilities = matrix.get("capabilities", [])
+    capabilities = raw_capabilities if isinstance(raw_capabilities, list) else []
+    valid_rows = [
+        item
+        for item in capabilities
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    ]
+    row_ids = [item["id"] for item in valid_rows]
+    if matrix.get("version") != 1 or matrix.get("hosts") != ["claude", "codex"]:
+        errors.append(issue("host-parity-schema", relative.as_posix(), "invalid version or hosts"))
+    if len(valid_rows) != len(capabilities):
+        errors.append(issue("host-parity-schema", relative.as_posix(), "capabilities must be objects with string ids"))
+    if not valid_rows or len(row_ids) != len(set(row_ids)):
+        errors.append(issue("host-parity-schema", relative.as_posix(), "capability ids must be nonempty and unique"))
+    for item in valid_rows:
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", item["id"]):
+            errors.append(issue("host-parity-schema", relative.as_posix(), f"invalid capability id: {item['id']!r}"))
+        for field in ("owner", "claude", "codex"):
+            values = item.get(field, [])
+            values = values if isinstance(values, list) else [values]
+            if not values:
+                errors.append(issue("host-parity-path", relative.as_posix(), f"{item.get('id')}.{field} is empty"))
+            for value in values:
+                path = Path(value) if isinstance(value, str) else Path()
+                if not value or path.is_absolute() or ".." in path.parts or not (root / path).is_file():
+                    errors.append(
+                        issue(
+                            "host-parity-path",
+                            relative.as_posix(),
+                            f"{item.get('id')}.{field} has invalid evidence path: {value!r}",
+                        )
+                    )
+        check = item.get("check")
+        if not isinstance(check, str) or check.count("::") != 1:
+            errors.append(issue("host-parity-path", relative.as_posix(), f"{item['id']}.check must name file.py::test_method"))
+        else:
+            check_path_text, check_name = check.split("::")
+            check_path = Path(check_path_text)
+            valid_check = (
+                not check_path.is_absolute()
+                and ".." not in check_path.parts
+                and check_path.suffix == ".py"
+                and check_name.startswith("test_")
+                and (root / check_path).is_file()
+            )
+            source = (root / check_path).read_text(encoding="utf-8") if valid_check else ""
+            if not valid_check or not re.search(rf"(?m)^\s+def {re.escape(check_name)}\(", source):
+                errors.append(issue("host-parity-path", relative.as_posix(), f"{item['id']}.check is not a runnable test: {check!r}"))
+            elif ".".join(check_path.with_suffix("").parts) not in workflow:
+                errors.append(issue("host-parity-ci", relative.as_posix(), f"{item['id']}.check is not run by PR Gate: {check!r}"))
+        if item.get("mode") not in {"shared", "equivalent", "substitution"}:
+            errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')}.mode is invalid"))
+        if item.get("mode") == "substitution" and not item.get("note"):
+            errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')} substitution needs a note"))
+    return errors
+
+
 def run_memory_check(root: Path) -> list[dict[str, str]]:
     """Run `memory check` against the PATH-resolved Memory CLI.
 
@@ -334,6 +407,26 @@ def collect_metrics(root: Path = ROOT) -> dict:
     }
 
 
+def collect_worktree_metrics(root: Path = ROOT, *, run_external: bool = True) -> dict:
+    """Describe worktrees holding pending, superseded, or corrupt work.
+
+    Reported, never fatal (issue #4437). Concurrent sessions each own a
+    worktree, so a dirty one is normal and must not fail the gate agents run
+    constantly -- but a worktree that is corrupt, already upstream, or holding
+    uncommitted work nobody will return to has to be visible somewhere an agent
+    already looks.
+
+    Local git only, in both modes. Asking GitHub about each branch would add
+    one network round trip per worktree to a command contributors run by hand;
+    `scripts/ci/worktree_hygiene.py --check-pull-requests` owns that lookup.
+    `run_external` is accepted so this reads like its sibling collectors and
+    can gain an external check without a signature change.
+    """
+    del run_external
+    report = collect_worktree_report(root)
+    return {"worktrees": report, "worktree_advisories": format_advisories(report)}
+
+
 def validate_repository(
     root: Path = ROOT, *, run_external: bool = True
 ) -> tuple[list[dict[str, str]], dict]:
@@ -345,14 +438,17 @@ def validate_repository(
             for message in validate_documentation(root)
         ],
         *validate_memory_setup(root),
+        *validate_host_parity(root),
         *validate_skill_hygiene(root),
     ]
     if run_external:
         errors.extend(run_memory_check(root))
         errors.extend(run_command(root, ["git", "diff", "--check"], "diff-check"))
+    metrics = collect_metrics(root)
+    metrics.update(collect_worktree_metrics(root, run_external=run_external))
     return (
         sorted(errors, key=lambda item: (item["path"], item["code"], item["message"])),
-        collect_metrics(root),
+        metrics,
     )
 
 
@@ -377,7 +473,9 @@ def main() -> int:
     )
     if args.format == "json":
         print(json.dumps({"valid": not errors, "errors": errors, "metrics": metrics}, indent=2))
-    elif errors:
+        return 1 if errors else 0
+
+    if errors:
         for error in errors:
             print(f"{error['code']}: {error['path']}: {error['message']}", file=sys.stderr)
     else:
@@ -387,6 +485,11 @@ def main() -> int:
             f"{metrics['guidance_reduction_percent']}% reduction, "
             f"{metrics['memory_objects']} memory objects."
         )
+    # Advisories print whether or not the gate passed: they describe work that
+    # is at risk, not a broken setup, and a passing run is exactly when an
+    # agent would otherwise stop reading.
+    for advisory in metrics.get("worktree_advisories", []):
+        print(advisory)
     return 1 if errors else 0
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable SHAFT PreToolUse deny guard for Claude, Codex, and Grok."""
+"""Portable SHAFT lifecycle and PreToolUse guard for Claude, Codex, and Grok."""
 # Stdlib only. Input is normalized before evaluation; policy below is shared.
 # Rules:
 #
@@ -30,6 +30,19 @@
 #      `git worktree add` missing `-c core.longpaths=true`, which otherwise
 #      aborts with `Filename too long` checking out existing over-long
 #      .memory/** paths. Both fail open on anything not confidently parsed.
+#   R10 Deny `git add`/`git stage`/`git commit` when a changed file is almost
+#      entirely NUL bytes (issue #4437). After an unclean shutdown the
+#      filesystem can record an allocation without ever flushing the data
+#      blocks, leaving files of a plausible size filled with zeros -- 652 of
+#      653 files in one worktree, presented by `git status` as ordinary ` M`
+#      entries. Unlike R1-R9 this rule reads repository state, so it needs a
+#      working directory and is dispatched alongside R9 rather than from the
+#      pure `evaluate_command` path. Every uncertain step fails open.
+#      Deliberate limits: it targets WHOLLY zeroed files (>= 95% NUL across
+#      head, middle, and tail), not partial corruption of a large binary; it
+#      cannot resolve a user's `git` aliases, which are invisible in the
+#      command string; and it does not descend into submodules, whose gitlink
+#      is all `git diff` reports.
 #
 # Claude-compatible and Codex use snake_case input and hookSpecificOutput.
 # Grok may supply camelCase fields and uses top-level deny/reason. The
@@ -40,6 +53,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
 
 # ---------------------------------------------------------------------------
@@ -106,7 +120,47 @@ def _command_segments(command: str) -> list[str]:
 def _segment_tokens(segment: str) -> list[str]:
     stripped = segment.strip()
     stripped = re.sub(r"^&\s*", "", stripped)  # PowerShell call operator
-    return stripped.split()
+    tokens: list[str] = []
+    token: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(stripped):
+        character = stripped[index]
+        following = stripped[index + 1] if index + 1 < len(stripped) else ""
+        if quote is not None:
+            if character == quote:
+                if quote == "'" and following == "'":
+                    token.append("'")  # PowerShell's apostrophe escape.
+                    index += 2
+                    continue
+                quote = None
+            elif quote == '"' and character == "`" and following:
+                token.append(following)  # PowerShell escapes the next character.
+                index += 2
+                continue
+            elif quote == '"' and character == "\\" and following == '"':
+                token.append('"')
+                index += 2
+                continue
+            else:
+                token.append(character)
+            index += 1
+            continue
+        if character.isspace():
+            if token:
+                tokens.append("".join(token))
+                token = []
+        elif character in ("'", '"'):
+            quote = character
+        elif character == "\\" and following in ("'", '"', " "):
+            token.append(following)
+            index += 1
+        else:
+            token.append(character)
+        index += 1
+    if token:
+        tokens.append("".join(token))
+    return tokens
 
 
 def _head_executable_matches(segment: str, names: frozenset[str]) -> bool:
@@ -551,7 +605,7 @@ def _worktree_add_path(rest_after_add: list[str]) -> str | None:
         if token.startswith("-"):
             index += 1
             continue
-        return token.strip("\"'")
+        return token
     return None
 
 
@@ -595,6 +649,378 @@ def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
                 f"`{corrected.strip()}`"
             )
     return None
+
+
+# ---------------------------------------------------------------------------
+# R10: refuse to stage or commit NUL-corrupted files
+# ---------------------------------------------------------------------------
+
+_STAGING_SUBCOMMANDS = frozenset({"add", "stage", "commit"})
+
+# A file whose sampled bytes are almost entirely NUL is not content anyone
+# authored. 0.95 (rather than 1.0) keeps a partially-flushed tail in range
+# while staying far above any real format: an archive, image, or class file
+# is never near-uniformly zero across head, middle, and tail.
+_NUL_RATIO_THRESHOLD = 0.95
+# Sample three windows instead of a prefix: a legitimately zero-padded file
+# can open with a long run of NUL and still carry real content later. 8 KiB
+# per window matches git's own binary sniff (the first 8000 bytes) and keeps
+# the worst case -- _NUL_MAX_SCANNED_PATHS files -- to tens of megabytes read.
+_NUL_SAMPLE_WINDOW_BYTES = 8 * 1024
+_NUL_MAX_SCANNED_PATHS = 2000
+_NUL_MAX_REPORTED_PATHS = 5
+# Must leave room, inside the PreToolUse hook timeout the host configs declare
+# (10s in .claude/settings.json and .codex/hooks.json), for two git queries
+# plus the sampling loop -- measured at 0.84s for 700 zeroed files. Exceeding
+# the hook budget would have the host kill the guard mid-query instead of
+# letting this rule fail open.
+_GIT_QUERY_TIMEOUT_SECONDS = 4
+
+
+def nul_byte_ratio(path) -> float | None:
+    """Fraction of NUL bytes in `path`, or None when empty/unreadable.
+
+    Reads at most three windows (head, middle, tail) so a large file costs a
+    bounded number of reads and a zero-padded head cannot masquerade as
+    whole-file corruption.
+    """
+    try:
+        size = os.path.getsize(path)
+        if size <= 0:
+            return None
+        with open(path, "rb") as handle:
+            if size <= 3 * _NUL_SAMPLE_WINDOW_BYTES:
+                sample = handle.read()
+            else:
+                chunks = []
+                for offset in (
+                    0,
+                    (size // 2) - (_NUL_SAMPLE_WINDOW_BYTES // 2),
+                    size - _NUL_SAMPLE_WINDOW_BYTES,
+                ):
+                    handle.seek(offset)
+                    chunks.append(handle.read(_NUL_SAMPLE_WINDOW_BYTES))
+                sample = b"".join(chunks)
+    except OSError:
+        return None
+    if not sample:
+        return None
+    return sample.count(0) / len(sample)
+
+
+class _StagingInvocation:
+    """What a staging command stages, and where."""
+
+    def __init__(
+        self,
+        subcommand: str,
+        directories: list[str],
+        pathspecs: list[str],
+        include_worktree: bool = False,
+    ):
+        self.subcommand = subcommand
+        self.directories = directories  # -C / --work-tree, applied in order
+        self.pathspecs = pathspecs  # empty means "everything"
+        self.include_worktree = include_worktree
+
+
+def _normalize_pathspec(value: str) -> str | None:
+    """Reduce a pathspec to a repository-relative posix prefix, or None."""
+    cleaned = value.replace("\\", "/").strip()
+    while cleaned.startswith("./"):
+        cleaned = cleaned[2:]
+    cleaned = cleaned.rstrip("/")
+    if not cleaned or cleaned in (".", "*") or cleaned.startswith(":"):
+        return None  # "everything", or magic pathspec syntax: do not narrow
+    if "*" in cleaned or "?" in cleaned or "[" in cleaned:
+        return None  # a glob: matching it here would risk a false negative
+    return cleaned
+
+
+_NESTED_COMMAND_RE = re.compile(
+    r"(?:--?[Cc]ommand|-[Cc]|/[Cc])\s+(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+)
+_COMMIT_OPTIONS_WITH_ARGUMENT = frozenset(
+    {
+        "-C",
+        "-F",
+        "-c",
+        "-m",
+        "-t",
+        "--author",
+        "--cleanup",
+        "--date",
+        "--file",
+        "--fixup",
+        "--message",
+        "--reedit-message",
+        "--reuse-message",
+        "--squash",
+        "--template",
+        "--trailer",
+    }
+)
+
+
+def _staging_invocation(command: str) -> _StagingInvocation | None:
+    """Describe the first command that really stages content, or None.
+
+    A nested interpreter payload (`bash -c "git add -A"`) is retried as a
+    command of its own only when the outer command stages nothing, so the
+    common case keeps its quoted arguments intact -- unwrapping every quoted
+    string up front would blank a legitimate `--work-tree="<path>"` value.
+    """
+    direct = _staging_invocation_in(command)
+    if direct is not None:
+        return direct
+    for payload in _NESTED_COMMAND_RE.findall(command):
+        nested = _staging_invocation_in(payload[1:-1])
+        if nested is not None:
+            return nested
+    return None
+
+
+def _staging_invocation_in(command: str) -> _StagingInvocation | None:
+    """Describe the first git segment of `command` that stages content.
+
+    Every git segment is examined, not just the first: `git status && git add
+    -A` is an ordinary agent shape, and stopping at the leading read-only
+    segment would wave the commit through.
+    """
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, _GIT_NAMES)
+        if rest is None:
+            continue
+        directories: list[str] = []
+        index = 0
+        subcommand = None
+        while index < len(rest):
+            token = rest[index]
+            if token == "-C" and index + 1 < len(rest):
+                directories.append(rest[index + 1])
+                index += 2
+                continue
+            if token == "--work-tree" and index + 1 < len(rest):
+                directories.append(rest[index + 1])
+                index += 2
+                continue
+            if token.startswith("--work-tree="):
+                directories.append(token.split("=", 1)[1])
+                index += 1
+                continue
+            if token in _GIT_GLOBAL_OPTS_WITH_ARG:
+                index += 2
+                continue
+            if token.startswith("-"):
+                index += 1
+                continue
+            subcommand = token.lower()
+            index += 1
+            break
+        if subcommand not in _STAGING_SUBCOMMANDS:
+            continue
+
+        # `git add <path>` names what it stages, and honouring that lets an
+        # agent rescue healthy files while one corrupt file sits in the tree.
+        # `git commit -m <message>` does NOT: known option values are skipped,
+        # while remaining positional arguments are commit pathspecs.
+        pathspecs: list[str] = []
+        narrowable = subcommand in ("add", "stage")
+        include_worktree = False
+        after_separator = False
+        while index < len(rest):
+            token = rest[index]
+            index += 1
+            if token == "--":
+                after_separator = True
+                narrowable = True
+                continue
+            if token.startswith("--pathspec-from-file"):
+                pathspecs = []  # the list lives in a file: do not narrow
+                include_worktree = subcommand == "commit"
+                break
+            if subcommand == "commit" and not after_separator:
+                lowered = token.lower()
+                if lowered == "--all" or re.match(r"^-[^-]*a", lowered):
+                    include_worktree = True
+                if token in _COMMIT_OPTIONS_WITH_ARGUMENT:
+                    index += 1
+                    continue
+                if any(
+                    lowered.startswith(option.lower() + "=")
+                    for option in _COMMIT_OPTIONS_WITH_ARGUMENT
+                    if option.startswith("--")
+                ):
+                    continue
+                if re.match(r"^-[A-Za-z]*[mFCct]$", token):
+                    index += 1
+                    continue
+            if token.startswith("-") and not after_separator:
+                continue
+            if subcommand == "commit":
+                include_worktree = True
+                narrowable = True
+            if not (narrowable or after_separator):
+                continue
+            normalized = _normalize_pathspec(token)
+            if normalized is None:
+                pathspecs = []
+                break
+            pathspecs.append(normalized)
+        return _StagingInvocation(subcommand, directories, pathspecs, include_worktree)
+    return None
+
+
+def _git_paths(cwd: str, *arguments: str) -> list[str] | None:
+    """Run a NUL-delimited, read-only git path query, or None when untrusted.
+
+    Output is decoded with `os.fsdecode` rather than the process locale:
+    `text=True` on a non-UTF-8 host mangles a non-ASCII filename into one that
+    no longer resolves on disk, which silently exempts it from scanning.
+    `core.quotePath=false` stops git octal-escaping the same names.
+    """
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "-c", "core.quotePath=false", *arguments],
+            cwd=cwd,
+            capture_output=True,
+            timeout=_GIT_QUERY_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None  # no HEAD, not a repository, or git refused: allow
+    return [os.fsdecode(entry) for entry in completed.stdout.split(b"\0") if entry]
+
+
+def _candidate_paths(
+    cwd: str, *, staged_only: bool = False, include_untracked: bool = True
+) -> list[str] | None:
+    """Every path a stage/commit could capture: changed, staged, or untracked.
+
+    `git diff HEAD` spans the index and the working tree in one call, covering
+    `git add`, `git commit`, and `git commit -a`. It cannot see an untracked
+    file, so `git ls-files --others` supplies those -- without them a single
+    `git add -A && git commit` would carry a newly zeroed file straight
+    through. Ignored paths are excluded, so build output is never scanned.
+    """
+    diff_arguments = ["diff"]
+    if staged_only:
+        diff_arguments.append("--cached")
+    diff_arguments.extend(("--name-only", "-z", "HEAD"))
+    changed = _git_paths(cwd, *diff_arguments)
+    if changed is None:
+        return None
+    untracked = []
+    if include_untracked:
+        untracked = _git_paths(cwd, "ls-files", "--others", "--exclude-standard", "-z") or []
+    seen: dict[str, None] = {}
+    for path in (*changed, *untracked):
+        seen.setdefault(path, None)
+    return list(seen)
+
+
+def scan_for_nul_corruption(
+    cwd: str,
+    pathspecs: list[str] | None = None,
+    *,
+    staged_only: bool = False,
+    include_untracked: bool = True,
+) -> tuple[list[str], int, bool]:
+    """Return (corrupted paths, candidate count, scan truncated) for a directory.
+
+    Shared with the repository's worktree hygiene report so one definition of
+    "this file is zeroed" serves both the deny guard and the reporting path.
+    Fails open as an empty result whenever git cannot be trusted.
+
+    Every candidate is sampled directly rather than pre-filtered on the diff's
+    line counts: a `diff` attribute in .gitattributes can give a NUL-filled
+    file non-zero insertion/deletion counts, and a pre-filter keyed on those
+    counts would exempt exactly the file it needs to catch.
+    """
+    candidates = _candidate_paths(
+        cwd, staged_only=staged_only, include_untracked=include_untracked
+    )
+    if not candidates:
+        return [], 0, False
+    if pathspecs:
+        candidates = [
+            path
+            for path in candidates
+            if any(path == spec or path.startswith(spec + "/") for spec in pathspecs)
+        ]
+    candidate_count = len(candidates)
+    examined = candidates[:_NUL_MAX_SCANNED_PATHS]
+    corrupt = [
+        path
+        for path in examined
+        # An unreadable file yields None and is treated as healthy: this rule
+        # denies a tool call, so it must never block on what it cannot read.
+        if (nul_byte_ratio(os.path.join(cwd, path)) or 0.0) >= _NUL_RATIO_THRESHOLD
+    ]
+    return corrupt, candidate_count, candidate_count > len(examined)
+
+
+def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None:
+    """Return a block reason when staging/committing NUL-corrupted files."""
+    if not cwd:
+        return None
+    invocation = _staging_invocation(command)
+    if invocation is None:
+        return None
+
+    directory = cwd
+    for part in invocation.directories:
+        directory = os.path.join(directory, part)
+
+    plain_commit = (
+        invocation.subcommand == "commit"
+        and not invocation.include_worktree
+        and not invocation.pathspecs
+    )
+    corrupt, candidate_count, truncated = scan_for_nul_corruption(
+        directory,
+        invocation.pathspecs,
+        staged_only=plain_commit,
+        include_untracked=invocation.subcommand != "commit",
+    )
+    if truncated and not corrupt:
+        return (
+            f"R10 (NUL-byte corruption scan limit): {candidate_count} candidate "
+            f"files exceed the safe {_NUL_MAX_SCANNED_PATHS}-file scan. The "
+            "guard will not allow unchecked content through; name smaller path "
+            "sets in separate `git add <paths>` commands, then commit matching "
+            "sets with `git commit -- <paths>`."
+        )
+    if not corrupt:
+        return None
+
+    shown = ", ".join(corrupt[:_NUL_MAX_REPORTED_PATHS])
+    if len(corrupt) > _NUL_MAX_REPORTED_PATHS:
+        shown += f", ... (+{len(corrupt) - _NUL_MAX_REPORTED_PATHS} more)"
+    restore_target = (
+        corrupt[0] if len(corrupt) == 1 else "<each corrupt path listed above>"
+    )
+    return (
+        f"R10 (NUL-byte corruption): {len(corrupt)} of "
+        f"{min(candidate_count, _NUL_MAX_SCANNED_PATHS)} examined candidate "
+        "file(s) are almost entirely NUL bytes and would be committed as "
+        f"zeroed content: {shown}. Files of a plausible size filled with NUL "
+        "are the signature of an unclean shutdown -- the filesystem recorded "
+        "the allocation but never flushed the data blocks. This reads as "
+        "ordinary ' M' entries in `git status`, and `git diff --shortstat` "
+        "reports the changed files with 0 insertions(+) and 0 deletions(-), so "
+        "committing it looks like a large but unremarkable diff (issue #4437: "
+        "652 of 653 files in one worktree were zeroed this way). Do not stage "
+        "or commit the zeroed content. Confirm with `git diff --stat HEAD -- "
+        "<path>`, then restore only the corrupt paths: `git restore "
+        f"--source=HEAD --staged --worktree -- {restore_target}`. Do not "
+        "restore the whole worktree -- that would discard the healthy "
+        "uncommitted work alongside it. Healthy files can still be committed "
+        "by naming them, e.g. `git add <healthy path>`. Re-create any work "
+        "that existed only in the corrupt files."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -676,6 +1102,21 @@ def _extract_command(hook_input: dict) -> str:
     return ""
 
 
+def _hook_working_directory(hook_input: dict) -> str | None:
+    """Directory the guarded command will run in, or None when unknown.
+
+    Hosts that report the session directory win over the hook process's own
+    directory, which is not guaranteed to be the checkout the command targets.
+    """
+    supplied = hook_input.get("cwd")
+    if isinstance(supplied, str) and supplied.strip():
+        return supplied
+    try:
+        return os.getcwd()
+    except OSError:
+        return None
+
+
 def _print_deny(reason: str, host: str) -> None:
     if host == "grok":
         output = {"decision": "deny", "reason": reason}
@@ -700,11 +1141,137 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         reason = evaluate_command(command)
         if reason is None:
             reason = check_r9_worktree_add(command, tool_name)
+        if reason is None:
+            reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
         if reason is not None:
             _print_deny(reason, host)
         return 0
 
     return 0  # not a tool this hook checks
+
+
+def _harness_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _worktree_report(cwd: str | None) -> dict | None:
+    """Run the existing read-only hygiene reporter, without importing it circularly."""
+    helper = os.path.join(_harness_root(), "scripts", "ci", "worktree_hygiene.py")
+    if not cwd or not os.path.isfile(helper):
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed repository helper.
+            [sys.executable, helper, "--root", cwd, "--format", "json"],
+            cwd=_harness_root(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return None
+        result = json.loads(completed.stdout)
+        return result if isinstance(result, dict) else None
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+
+
+def _sync_advisory() -> str | None:
+    """Return a user-harness drift advisory; never mutate deployed state."""
+    helper = os.path.join(_harness_root(), "scripts", "agents", "sync_user_harness.py")
+    if not os.path.isfile(helper):
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed repository helper.
+            [sys.executable, helper],
+            cwd=_harness_root(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "User harness sync check was unavailable; verify it before completion."
+    if completed.returncode == 0:
+        return None
+    return (
+        "User harness drift detected. Review the tracked harness, then run "
+        "`py -3 scripts/agents/sync_user_harness.py --apply` and re-check it."
+    )
+
+
+def run_session_start(hook_input: dict) -> int:
+    """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
+    context = [
+        "Harness preflight: load and follow "
+        "`.agents/skills/act-as-mohab/SKILL.md` before task work."
+    ]
+    report = _worktree_report(_hook_working_directory(hook_input))
+    if report is None:
+        context.append("Worktree hygiene could not be verified; inspect it before cleanup.")
+    else:
+        context.extend(str(item) for item in report.get("advisories", []))
+    sync = _sync_advisory()
+    if sync:
+        context.append(sync)
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "SessionStart",
+                    "additionalContext": "\n".join(context),
+                }
+            }
+        )
+    )
+    return 0
+
+
+def run_stop(hook_input: dict) -> int:
+    """Continue incomplete repository work once, without creating a Stop loop."""
+    if hook_input.get("stop_hook_active") is True:
+        return 0
+    report = _worktree_report(_hook_working_directory(hook_input))
+    if report is None:
+        reason = "Completion hygiene could not be verified; inspect the current worktree."
+    else:
+        current = next(
+            (item for item in report.get("worktrees", []) if item.get("is_current")),
+            None,
+        )
+        state = current.get("state") if current else None
+        completion_route = (
+            "Re-read the act-as-mohab Completion section and apply its routed, "
+            "authorization-aware preservation, validation, delivery, and cleanup steps."
+        )
+        reasons = {
+            "corrupt": (
+                "Current worktree contains NUL-corrupt files. Preserve healthy work and "
+                "restore only confirmed corrupt paths before continuing."
+            ),
+            "uncommitted": (
+                "Current worktree has uncommitted work. " + completion_route
+            ),
+            "unknown": (
+                "Current worktree state is unknown. Inspect it and preserve any useful "
+                "work before cleanup."
+            ),
+            "pending": (
+                "Current branch still carries pending work. " + completion_route
+            ),
+            "abandoned": (
+                "Current work appears abandoned. " + completion_route
+            ),
+        }
+        reason = (
+            reasons.get(state)
+            if state is not None
+            else "The current worktree could not be identified; inspect it before stopping."
+        )
+        if reason is None:
+            return 0
+    print(json.dumps({"decision": "block", "reason": reason}))
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -844,6 +1411,19 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("non-stash git command allowed", "git status", False),
     ("git stash mentioned in commit message prose is not a real command",
      'git commit -m "ran git stash pop earlier"', False),
+
+    # --- R10: staging/committing is never blocked by command SHAPE alone
+    # (issue #4437). R10 reads repository state and is dispatched with a
+    # working directory, exactly like R9's tool-name-dependent checks. These
+    # rows fail the moment someone moves R10 into `_CHECKS`, which would make
+    # every `git add`/`git commit` deniable from the command string with no
+    # repository to justify it. The corruption behaviour itself is proven
+    # against a real fixture in run_r10_nul_corruption_self_test. ---
+    ("git add -A allowed without repository context", "git add -A", False),
+    ("git add . allowed without repository context", "git add .", False),
+    ("git commit allowed without repository context", 'git commit -m "message"', False),
+    ("git commit -am allowed without repository context", 'git commit -am "message"', False),
+    ("git stage allowed without repository context", "git stage src/Example.java", False),
 ]
 
 
@@ -940,11 +1520,132 @@ def run_r9_worktree_self_test() -> int:
     return 0
 
 
+def run_r10_nul_corruption_self_test() -> int:
+    """Exercises R10 against a real NUL-corrupted file in a throwaway repository.
+
+    The 2026-08-04 corruption was invisible to inspection -- `git status`
+    showed ordinary ' M' entries -- so this builds the failure on disk and
+    runs the real git rather than asserting against a hand-written diff.
+
+    Deliberately overlaps tests/scripts/test_guard_nul_corruption.py: the guard
+    ships to hosts that have neither this repository's test runner nor its test
+    tree, and `--self-test` is the only way to check it there.
+    """
+    import shutil
+    import tempfile
+
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    if shutil.which("git") is None:
+        print("[SKIP] R10 self-test: git is unavailable on PATH")
+        return 0
+
+    with tempfile.TemporaryDirectory() as directory:
+        def git(*arguments: str) -> int:
+            return subprocess.run(  # nosec B603 B607 - fixed git commands on a temp fixture.
+                ["git", *arguments],
+                cwd=directory,
+                capture_output=True,
+                text=True,
+                check=False,
+            ).returncode
+
+        git("init", "-q", "-b", "main", ".")
+        git("config", "user.email", "harness@example.invalid")
+        git("config", "user.name", "Harness")
+        source = os.path.join(directory, "Example.java")
+        with open(source, "wb") as handle:
+            handle.write(b"class Example {\n}\n")
+        healthy = os.path.join(directory, "notes.md")
+        with open(healthy, "wb") as handle:
+            handle.write(b"# Notes\n")
+        git("add", "-A")
+        git("commit", "-qm", "initial")
+
+        reason = check_r10_nul_corruption("git add -A", directory)
+        check("clean worktree is allowed", reason is None)
+
+        with open(healthy, "wb") as handle:
+            handle.write(b"# Notes\n\nAn ordinary edit.\n")
+        reason = check_r10_nul_corruption("git add -A", directory)
+        check("ordinary text edit is allowed", reason is None)
+
+        # The incident shape: a plausible size, every byte zero.
+        with open(source, "wb") as handle:
+            handle.write(b"\x00" * 68)
+
+        reason = check_r10_nul_corruption("git add -A", directory)
+        check("NUL-filled tracked file blocks `git add`", reason is not None)
+        check(
+            "denial names the corrupt path",
+            reason is not None and "Example.java" in reason,
+        )
+        check(
+            "denial names the restore command",
+            reason is not None and "git restore" in reason,
+        )
+
+        reason = check_r10_nul_corruption("git status && git add -A", directory)
+        check("staging chained after a read-only git command is inspected", reason is not None)
+
+        reason = check_r10_nul_corruption("git add notes.md", directory)
+        check("an explicit healthy pathspec is allowed", reason is None)
+
+        reason = check_r10_nul_corruption("git add Example.java", directory)
+        check("an explicit corrupt pathspec is denied", reason is not None)
+
+        with tempfile.TemporaryDirectory() as elsewhere:
+            reason = check_r10_nul_corruption(f'git -C "{directory}" add -A', elsewhere)
+            check("`git -C <repo>` inspects the repository it names", reason is not None)
+
+        git("add", "-A")
+        reason = check_r10_nul_corruption('git commit -m "wip"', directory)
+        check("NUL-filled staged file blocks `git commit`", reason is not None)
+
+        untracked = os.path.join(directory, "fresh.md")
+        with open(untracked, "wb") as handle:
+            handle.write(b"\x00" * 300)
+        reason = check_r10_nul_corruption('git add -A && git commit -m "wip"', directory)
+        check("an untracked NUL file is caught before `add && commit`", reason is not None)
+        os.remove(untracked)
+
+        reason = check_r10_nul_corruption("git status", directory)
+        check("read-only `git status` is not inspected", reason is None)
+
+        reason = check_r10_nul_corruption("git push origin main", directory)
+        check("`git push` is not inspected", reason is None)
+
+        reason = check_r10_nul_corruption(
+            'gh pr create --body "run git add -A first"', directory
+        )
+        check("prose mentioning `git add` is not a real command", reason is None)
+
+        reason = check_r10_nul_corruption("git add -A", None)
+        check("missing working directory fails open", reason is None)
+
+    with tempfile.TemporaryDirectory() as outside:
+        reason = check_r10_nul_corruption("git add -A", outside)
+        check("directory outside any repository fails open", reason is None)
+
+    print(f"\nR10 NUL-corruption self-test summary: {len(failures)} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
         r9_result = run_r9_worktree_self_test()
-        return command_result or r9_result
+        r10_result = run_r10_nul_corruption_self_test()
+        return command_result or r9_result or r10_result
 
     raw = sys.stdin.read()
     if not raw.strip():
@@ -956,9 +1657,15 @@ def main(argv: list[str]) -> int:
 
     if not isinstance(raw_hook_input, dict):
         return 0
-    host = hook_host(raw_hook_input)
     hook_input = normalize_hook_input(raw_hook_input)
-    return run_pretooluse(hook_input, host)
+    event = hook_input.get("hook_event_name") or "PreToolUse"
+    if event == "SessionStart":
+        return run_session_start(hook_input)
+    if event == "Stop":
+        return run_stop(hook_input)
+    if event == "PreToolUse":
+        return run_pretooluse(hook_input, hook_host(raw_hook_input))
+    return 0
 
 
 if __name__ == "__main__":

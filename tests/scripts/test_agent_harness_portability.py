@@ -198,12 +198,12 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for forbidden in ("orchestrator never edits", "closing remaining gaps himself"):
             self.assertNotIn(forbidden, pdca)
 
-    def test_hook_configs_share_one_cwd_independent_pretooluse_contract(self):
+    def test_hook_configs_share_one_cwd_independent_lifecycle_contract(self):
         claude_hooks = hook_groups(ROOT / ".claude/settings.json")
         codex_hooks = hook_groups(ROOT / ".codex/hooks.json")
-        self.assertEqual(claude_hooks, codex_hooks)
+        self.assertEqual(set(claude_hooks), set(codex_hooks))
         for hooks in (claude_hooks, codex_hooks):
-            self.assertEqual(set(hooks), {"PreToolUse"})
+            self.assertEqual(set(hooks), {"PreToolUse", "SessionStart", "Stop"})
             commands = {
                 handler["command"]
                 for groups in hooks.values()
@@ -213,9 +213,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertEqual(len(commands), 1)
             command = commands.pop()
             self.assertNotIn(str(ROOT), command)
+            handler = hooks["PreToolUse"][0]["hooks"][0]
+            invocation = [handler["command"], *handler.get("args", [])]
             completed = subprocess.run(
-                command,
-                shell=True,  # nosec B602 - execute tracked hook command exactly.
+                invocation if handler.get("args") else command,
+                shell=not bool(handler.get("args")),  # nosec B602 - tracked hook.
                 input=json.dumps(
                     {
                         "hook_event_name": "PreToolUse",
@@ -232,8 +234,31 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("R1", completed.stdout)
+        for groups in claude_hooks.values():
+            for group in groups:
+                for handler in group["hooks"]:
+                    self.assertEqual(handler["command"], "python3")
+                    self.assertEqual(handler["args"][0], "-c")
+                    self.assertIn("scripts/agents/guard.py", handler["args"][1])
+        for groups in codex_hooks.values():
+            for group in groups:
+                for handler in group["hooks"]:
+                    self.assertTrue(handler["commandWindows"].startswith("py -3 "))
+                    self.assertNotIn(str(ROOT), handler["commandWindows"])
         self.assertFalse((ROOT / ".claude/hooks/guard.py").exists())
         self.assertTrue(GUARD.is_file())
+
+    def test_hook_configs_are_tracked_for_host_local_trust(self):
+        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
+            ["git", "ls-files", "--error-unmatch", ".claude/settings.json", ".codex/hooks.json", "scripts/agents/guard.py"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(tracked.returncode, 0, tracked.stderr)
+        for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+            self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
 
     def test_equivalent_host_hook_events_produce_equivalent_outcomes(self):
         fixtures = {
@@ -264,14 +289,40 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertEqual(decisions[0][0], "deny")
         self.assertIn("R1", decisions[0][1])
 
-    def test_guard_has_only_portable_explicit_deny_semantics(self):
+    @unittest.skipUnless(os.name == "nt", "executes the tracked Windows hook commands")
+    def test_windows_hook_commands_execute_from_a_nested_directory(self):
+        payload = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "shell_command",
+                "tool_input": {"command": "mvn test"},
+            }
+        )
+        for config_path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+            handler = hook_groups(config_path)["PreToolUse"][0]["hooks"][0]
+            command = handler.get("commandWindows") or subprocess.list2cmdline(
+                [handler["command"], *handler.get("args", [])]
+            )
+            completed = subprocess.run(
+                command,
+                shell=True,  # nosec B602 - executes the repository's tracked hook definition.
+                input=payload,
+                cwd=ROOT / "shaft-engine",
+                env=dict(os.environ, SHAFT_GUARD_HOST=config_path.parent.name),
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("R1", completed.stdout)
+
+    def test_guard_ignores_events_and_tools_outside_its_contract(self):
         source = GUARD.read_text(encoding="utf-8")
         for removed in (
             "graphify_nudge",
             "tdd_nudge",
             "check_r7_orchestration_skill",
-            "additionalContext",
-            "SessionStart",
             "SubagentStart",
         ):
             self.assertNotIn(removed, source)
@@ -288,6 +339,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 "tool_input": {"skill": "work-github"},
                 "agent_type": "coder",
             },
+            {"hook_event_name": "PostToolUse", "tool_name": "Read", "tool_input": {}},
         ):
             completed = self.run_guard_completed(payload, "claude")
             self.assertEqual(completed.stdout, "")
