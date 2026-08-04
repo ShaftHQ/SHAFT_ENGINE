@@ -981,3 +981,4 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop","timestamp":"2026-08-04T18:37:44+03:00"}
 {"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:17:07+03:00"}
 {"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:40:48+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.mutation-test-guard-py-crlf-with-a-python-read-write-not-a-powershell-here-string-regex-a-non-matching-substitution-silently-no-ops-and-the-mutation-never-lands","timestamp":"2026-08-04T22:02:46+03:00"}
