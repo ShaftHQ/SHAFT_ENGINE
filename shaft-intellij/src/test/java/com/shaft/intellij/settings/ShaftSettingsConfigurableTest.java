@@ -1,7 +1,9 @@
 package com.shaft.intellij.settings;
 
 import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.util.JDOMUtil;
 import com.intellij.ui.components.JBTextField;
+import com.intellij.util.xmlb.XmlSerializer;
 import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
@@ -284,12 +286,17 @@ class ShaftSettingsConfigurableTest {
         ollama.setText("ollama-secret");
 
         configurable.apply();
+        String persistedSettings = JDOMUtil.writeElement(XmlSerializer.serialize(settings));
 
         assertAll(
-                () -> assertTrue(credentials.hasApiKey("LMSTUDIO_API_KEY")),
-                () -> assertTrue(credentials.hasApiKey("OLLAMA_API_KEY")),
-                () -> assertFalse(String.valueOf(settings).contains("lm-secret")),
-                () -> assertFalse(String.valueOf(settings).contains("ollama-secret")));
+                () -> assertEquals("lm-secret", credentials.apiKeyAsync("LMSTUDIO_API_KEY").join(),
+                        "LM Studio key should be stored in Password Safe"),
+                () -> assertEquals("ollama-secret", credentials.apiKeyAsync("OLLAMA_API_KEY").join(),
+                        "Ollama key should be stored in Password Safe"),
+                () -> assertFalse(persistedSettings.contains("lm-secret"),
+                        "shaft.xml must not contain the LM Studio key"),
+                () -> assertFalse(persistedSettings.contains("ollama-secret"),
+                        "shaft.xml must not contain the Ollama key"));
     }
 
     @Test
