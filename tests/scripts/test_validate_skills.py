@@ -25,6 +25,18 @@ class ValidateSkillsTest(unittest.TestCase):
             "See `references/detail.md` for more.\n",
         )
         self.write(".agents/skills/example/references/detail.md", "# Detail\n")
+        self.write("shaft-skills/example-pack/SKILL.md", "# Example pack\n")
+        self.marketplace = {
+            "name": "fixture",
+            "plugins": [
+                {
+                    "name": "fixture-pack",
+                    "source": "./shaft-skills",
+                    "skills": ["./example-pack"],
+                }
+            ],
+        }
+        self.write_marketplace()
 
     def tearDown(self):
         self.temporary_directory.cleanup()
@@ -37,6 +49,9 @@ class ValidateSkillsTest(unittest.TestCase):
     def write_budget(self):
         self.budget_path.parent.mkdir(parents=True, exist_ok=True)
         self.budget_path.write_text(json.dumps(self.budget), encoding="utf-8")
+
+    def write_marketplace(self):
+        self.write(".claude-plugin/marketplace.json", json.dumps(self.marketplace))
 
     def codes(self):
         return {error["code"] for error in validate_repository(self.root, self.budget_path)}
@@ -111,6 +126,39 @@ class ValidateSkillsTest(unittest.TestCase):
     def test_reports_missing_budget_config(self):
         self.budget_path.write_text(json.dumps({}), encoding="utf-8")
         self.assertIn("budget-config", self.codes())
+
+    def test_rejects_marketplace_entry_without_skill_directory(self):
+        self.marketplace["plugins"][0]["skills"] = ["./example-pack", "./ghost-pack"]
+        self.write_marketplace()
+        self.assertIn("marketplace-entry-unbacked", self.codes())
+
+    def test_rejects_skill_directory_missing_from_marketplace(self):
+        self.write("shaft-skills/unlisted-pack/SKILL.md", "# Unlisted\n")
+        self.assertIn("marketplace-skill-unlisted", self.codes())
+
+    def test_rejects_marketplace_entry_order_drift(self):
+        self.write("shaft-skills/second-pack/SKILL.md", "# Second\n")
+        self.marketplace["plugins"][0]["skills"] = ["./second-pack", "./example-pack"]
+        self.write_marketplace()
+        self.assertIn("marketplace-entry-order", self.codes())
+
+    def test_rejects_missing_marketplace_manifest(self):
+        (self.root / ".claude-plugin/marketplace.json").unlink()
+        self.assertIn("marketplace-missing", self.codes())
+
+    def test_rejects_missing_plugin_source_directory(self):
+        self.marketplace["plugins"][0]["source"] = "./no-such-pack-root"
+        self.write_marketplace()
+        self.assertIn("marketplace-source-missing", self.codes())
+
+    def test_rejects_plugin_without_a_skills_list(self):
+        del self.marketplace["plugins"][0]["skills"]
+        self.write_marketplace()
+        self.assertIn("marketplace-plugin-shape", self.codes())
+
+    def test_rejects_malformed_marketplace_manifest(self):
+        self.write(".claude-plugin/marketplace.json", "{not json")
+        self.assertIn("marketplace-malformed", self.codes())
 
     def test_current_repository_skills_are_valid(self):
         repository_root = Path(__file__).resolve().parents[2]

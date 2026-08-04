@@ -8,6 +8,17 @@ budget. The byte budget is read from the same `agent_guidance_budget.json`
 `validate_agent_setup.py` already uses, not duplicated here — see
 `skill_budgets[".agents/skills"].max_skill_md_bytes`.
 
+Also checks that `.claude-plugin/marketplace.json` still matches the skill
+directories on disk (issue #4478). That manifest is hand-maintained and is
+what an external `npx skills add` / Claude plugin install reads, so a stale,
+misspelled or unlisted entry breaks installs for users while every in-repo
+path keeps working. `test_install_shaft_mcp` asserts the same equality as a
+side effect of the installer suite, but that suite only runs in pr-gate's
+`installer-verify` leg, whose `intellij` path filter does not list the
+manifest -- a manifest-only edit ran no check at all. This validator runs
+from the `agent-guidance` leg, whose filter already lists both
+`.claude-plugin/marketplace.json` and `shaft-skills/**`.
+
 Adapted (not copied) from bmad-method's `tools/skill-validator.md` rule
 catalog (MIT-licensed), trimmed to the rules that fit this repo's skill
 authoring conventions: no `bmad-`-prefixed name requirement, no step-file or
@@ -34,6 +45,7 @@ from scripts.ci.validate_agent_guidance import (  # noqa: E402
 )
 
 SKILLS_ROOT = ".agents/skills"
+MARKETPLACE_PATH = ".claude-plugin/marketplace.json"
 MIN_DESCRIPTION_CHARS = 20
 # Loose, deliberately broad signal set for "states when to use it" -- this is
 # a MEDIUM-severity hygiene nudge, not a grammar check; see bmad's own
@@ -155,28 +167,124 @@ def validate_skill(
     return errors
 
 
+def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
+    """Check one marketplace plugin's skills[] against its source directory."""
+    label = plugin.get("name") if isinstance(plugin.get("name"), str) else f"plugins[{index}]"
+    source = plugin.get("source")
+    listed = plugin.get("skills")
+    if not isinstance(source, str) or not isinstance(listed, list):
+        return [
+            issue(
+                "marketplace-plugin-shape",
+                MARKETPLACE_PATH,
+                f"plugin '{label}' must declare a string source and a skills list",
+            )
+        ]
+
+    plugin_root = root / source
+    if not plugin_root.is_dir():
+        return [
+            issue(
+                "marketplace-source-missing",
+                MARKETPLACE_PATH,
+                f"plugin '{label}' source directory does not exist: {source}",
+            )
+        ]
+
+    # The vercel-labs skills CLI resolves each entry's PARENT as the scan
+    # container, so entries must name individual skill directories -- never a
+    # container -- for both it and Claude Code to discover the same set.
+    on_disk = sorted(f"./{path.parent.name}" for path in plugin_root.glob("*/SKILL.md"))
+    errors = [
+        issue(
+            "marketplace-entry-unbacked",
+            MARKETPLACE_PATH,
+            f"plugin '{label}' lists '{entry}' but "
+            f"{source}/{entry.removeprefix('./')}/SKILL.md does not exist",
+        )
+        for entry in sorted(set(map(str, listed)) - set(on_disk))
+    ]
+    errors.extend(
+        issue(
+            "marketplace-skill-unlisted",
+            MARKETPLACE_PATH,
+            f"plugin '{label}' does not list '{entry}', which exists under {source}",
+        )
+        for entry in sorted(set(on_disk) - set(map(str, listed)))
+    )
+    if not errors and listed != on_disk:
+        errors.append(
+            issue(
+                "marketplace-entry-order",
+                MARKETPLACE_PATH,
+                f"plugin '{label}' skills must be sorted and free of duplicates: {on_disk}",
+            )
+        )
+    return errors
+
+
+def marketplace_errors(root: Path) -> list[dict[str, str]]:
+    """Check the plugin marketplace manifest against the skill dirs on disk."""
+    manifest_path = root / MARKETPLACE_PATH
+    if not manifest_path.is_file():
+        return [
+            issue(
+                "marketplace-missing",
+                MARKETPLACE_PATH,
+                "the plugin marketplace manifest external installs read is missing",
+            )
+        ]
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return [issue("marketplace-malformed", MARKETPLACE_PATH, f"invalid JSON: {error}")]
+
+    plugins = manifest.get("plugins")
+    if not isinstance(plugins, list) or not plugins:
+        return [
+            issue("marketplace-malformed", MARKETPLACE_PATH, "plugins must be a non-empty list")
+        ]
+
+    errors: list[dict[str, str]] = []
+    for index, plugin in enumerate(plugins):
+        if not isinstance(plugin, dict):
+            errors.append(
+                issue(
+                    "marketplace-plugin-shape",
+                    MARKETPLACE_PATH,
+                    f"plugins[{index}] must be an object",
+                )
+            )
+            continue
+        errors.extend(plugin_errors(root, plugin, index))
+    return errors
+
+
 def validate_repository(
     root: Path = ROOT, budget_path: Path | None = None
 ) -> list[dict[str, str]]:
     """Run every skill-hygiene check across canonical skills and return sorted issues."""
+    marketplace = marketplace_errors(root)
     budget = load_budget(budget_path or root / "scripts/ci/agent_guidance_budget.json")
     max_skill_md_bytes = budget.get("skill_budgets", {}).get(SKILLS_ROOT, {}).get(
         "max_skill_md_bytes"
     )
+    errors: list[dict[str, str]] = list(marketplace)
     if max_skill_md_bytes is None:
-        return [
+        errors.append(
             issue(
                 "budget-config",
                 "scripts/ci/agent_guidance_budget.json",
                 f"skill_budgets[{SKILLS_ROOT!r}].max_skill_md_bytes is not configured",
             )
-        ]
+        )
+        return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))
 
     skills_root = root / SKILLS_ROOT
     if not skills_root.is_dir():
-        return [issue("skill-root-missing", SKILLS_ROOT, "skills root is missing")]
+        errors.append(issue("skill-root-missing", SKILLS_ROOT, "skills root is missing"))
+        return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))
 
-    errors: list[dict[str, str]] = []
     for skill_dir in sorted(path for path in skills_root.iterdir() if path.is_dir()):
         errors.extend(validate_skill(root, skill_dir, max_skill_md_bytes))
 
@@ -210,7 +318,7 @@ def main() -> int:
     else:
         print(
             "Canonical skill hygiene is valid: frontmatter, descriptions, "
-            "references, and byte budgets all pass."
+            "references, byte budgets, and the plugin marketplace manifest all pass."
         )
     return 1 if errors else 0
 
