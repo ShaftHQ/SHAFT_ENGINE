@@ -29,9 +29,8 @@ before broad manual discovery, not all of them by reflex.
 
 A retrieved claim is a lead, never a verdict: confirm it against the live file
 before acting on it, and a stale index never outranks what is on disk. Your own
-plan is a source too, and the oldest one you hold: it was written before the
-reads. When a plan step loses to a file, amend the plan then, rather than
-working around it.
+plan ranks here too, below every one of them: it is the oldest source you hold,
+written before the reads.
 
 If a store is unavailable, name the degraded mode in your report and continue
 with the rest. Skipping a store whose trigger fired, without saying so, is the

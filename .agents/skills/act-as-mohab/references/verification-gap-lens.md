@@ -52,9 +52,7 @@ never a fixture.
 Weakening counts as a mutation. A rule survives deletion and dies by
 addition — appending "unless time is short" leaves every pinned word in
 place — so mutate by qualifying as well as by removing. Make a metric move;
-one that cannot report failure is reporting its own absence. And check your
-own diff against the rule's text rather than against what you meant by it:
-you are the weakest available witness to a rule you wrote.
+one that cannot report failure is reporting its own absence.
 
 ## Evidence rules (non-negotiable)
 
@@ -67,7 +65,9 @@ you are the weakest available witness to a rule you wrote.
   proves nothing — read `surefire-reports/TEST-*.xml` counts before calling
   anything green).
 - Say what you actually checked ("none of the tests I read cover this") and
-  how far you looked.
+  how far you looked. An ungrounded finding gets dropped, not softened — that
+  is a wider rule than the refuted bucket, which is about a finding you did
+  ground and disproved.
 - Don't assign severity, confidence, or priority — that's the returned-work
   triage in delegation.md.
 

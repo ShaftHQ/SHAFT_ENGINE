@@ -49,11 +49,12 @@ BINDING = "proving a check binds"
 # Every clause this repository's guidance is not allowed to lose, as
 # (file, section, literal).
 #
-# This tuple lists *locations*, never a second copy of the rule: the mutations
-# in DisciplineTest are spliced into whatever the shipped file says at run
-# time, so a pin cannot end up verifying a private copy of the text it is
-# supposed to protect. Each clause's justification is in the named test that
-# asserts it.
+# The third element is verbatim shipped text, so this is a copy -- but the
+# direction is what matters: the copy is the specification and the file is
+# checked against it, never the reverse. What the mutation tests never hold is
+# a copy of the *surrounding* text; they splice into whatever the shipped file
+# says at run time, so a pin cannot pass by agreeing with itself. Each clause's
+# justification is in the named test that asserts it.
 PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, IRON_LAWS, "evidence over inference"),
     (ENTRYPOINT, IRON_LAWS, "inspect or run before claiming"),
@@ -96,6 +97,12 @@ EXEMPTION_MARKERS = (
     "where possible",
     "as appropriate",
     "not strictly",
+    "in most cases",
+    "need not",
+    "waived",
+    "does not apply",
+    "you may skip",
+    "judgement",
 )
 
 
@@ -145,7 +152,13 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
         source = overrides.get(path, path.read_text(encoding="utf-8"))
         sections = headed_sections(source, heading)
         if len(sections) != 1:
-            defects.append(f"{where}: expected one section, found {len(sections)}")
+            # Every defect names its clause. A defect that did not was filtered
+            # out by callers keying on the clause, so a renamed heading emptied
+            # the pins silently -- see the rename test below.
+            defects.append(
+                f"{where}: expected one section, found {len(sections)}; "
+                f"clause unverifiable: {clause!r}"
+            )
             continue
         pattern = clause_pattern(clause)
         matched = [block for block in rule_blocks(sections[0]) if re.search(pattern, block)]
@@ -939,18 +952,28 @@ class DisciplineTest(unittest.TestCase):
     `test_qualifying_any_pinned_clause_is_reported` splice their mutations into
     the shipped file at run time and fail if `clause_defects` stays quiet.
 
-    Scope, stated plainly so the next reader does not overrate these, and
-    corrected once already because the first version of this paragraph
-    understated it.
+    Scope, stated plainly so the next reader does not overrate these. This
+    paragraph has been corrected twice; both times it claimed more than the
+    code did, which is the failure this class exists to catch.
 
-    `EXEMPTION_MARKERS` is a denylist of hedge vocabulary, so a weakening
-    worded outside it is not reported even when it sits inside the law's own
-    rule item -- "Never claim a check you did not run. Use judgment on routine
-    checks." was demonstrated to pass before that phrasing was added. The
-    entries are demonstrations, never a claim of coverage. The scan is judged
-    per rule item, so a hedge in a separate *paragraph* after a law is also
-    missed. And nothing here observes whether an agent obeyed a law -- only
-    that the file still states it without one of the hedges already seen.
+    What is actually caught: deleting a pinned clause, renaming or duplicating
+    the section that owns it, moving it to another section, and hedging it with
+    vocabulary that has already been demonstrated.
+
+    What is not. `EXEMPTION_MARKERS` is a denylist, so it is both incomplete
+    and brittle -- "at your discretion" and "use judgment" were markers while
+    "at your own judgement" still walked through. More importantly, a rule can
+    be gutted with no hedge vocabulary at all, and none of these are reported:
+    a scope-narrowing prefix ("For public API changes: no production code
+    before an observed failing test"); an `### Exceptions` subsection after the
+    laws; a definition elsewhere in the file that redefines a term the law
+    depends on; a permissive restatement in the law's own item ("Relaying a
+    delegate's result is fine"); or demoting the whole section under a
+    `## Background` heading, which still matches.
+
+    So these pins raise the cost of losing a rule by accident. They do not make
+    one impossible to remove on purpose, and nothing here observes whether an
+    agent obeyed a law -- only what the file still says.
     """
 
     def source(self) -> str:
@@ -1087,15 +1110,25 @@ class DisciplineTest(unittest.TestCase):
         self.assertIsNotNone(match, f"clause is not in {path.name} at all: {clause!r}")
         return {path: source[: match.end()] + insertion + source[match.end() :]}
 
+    def assert_reports(self, overrides: dict[Path, str], clause: str, why: str) -> None:
+        """Assert the mutation is reported *for this clause*, not merely reported.
+
+        `assertTrue(clause_defects(...))` was the original assertion and it was
+        vacuous: any unrelated defect anywhere in the registry satisfied it, so
+        a single renamed heading made every mutation proof in this class pass
+        without testing anything. The defect has to name the clause that was
+        mutated.
+        """
+        defects = clause_defects(overrides)
+        self.assertTrue(any(clause in defect for defect in defects), f"{why}: {defects}")
+
     def test_deleting_any_pinned_clause_is_reported(self):
         for path, _, clause in PINNED_CLAUSES:
             with self.subTest(clause=clause):
                 source = path.read_text(encoding="utf-8")
                 mutated = re.sub(clause_pattern(clause), "", source, count=1, flags=re.I)
                 self.assertTrue(mutated != source, "the mutation did not apply")
-                self.assertTrue(
-                    clause_defects({path: mutated}), "deleting the clause is not reported"
-                )
+                self.assert_reports({path: mutated}, clause, "deleting the clause is not reported")
 
     def test_qualifying_any_pinned_clause_is_reported(self):
         """#4467: a pin that only checks presence passes on a gutted rule.
@@ -1106,8 +1139,11 @@ class DisciplineTest(unittest.TestCase):
         """
         for path, _, clause in PINNED_CLAUSES:
             with self.subTest(clause=clause):
-                mutated = self.mutate(path, clause, ", unless time is short")
-                self.assertTrue(clause_defects(mutated), "qualifying the clause is not reported")
+                self.assert_reports(
+                    self.mutate(path, clause, ", unless time is short"),
+                    clause,
+                    "qualifying the clause is not reported",
+                )
 
     # Hedges demonstrated to survive the marker list as first written. Each is
     # a real weakening of a law that left every pinned word in place.
@@ -1118,6 +1154,17 @@ class DisciplineTest(unittest.TestCase):
         ", where possible",
         ", as appropriate",
         ". Not strictly required for small changes",
+        # Second round, from the same review. "at your own judgement" is the
+        # instructive one: "at your discretion" and "use judgment" were both
+        # already markers, and the British spelling with a different
+        # preposition still walked through. Denylists are brittle as well as
+        # incomplete.
+        ", in most cases",
+        ", though you need not for routine checks",
+        ". This is waived for routine checks",
+        ". This does not apply to guidance edits",
+        "; you may skip this when the change is small",
+        ". Apply it at your own judgement",
     )
 
     def test_hedges_that_slipped_past_the_first_marker_list_are_reported(self):
@@ -1137,9 +1184,60 @@ class DisciplineTest(unittest.TestCase):
         clause = "never claim a check you did not run"
         for hedge in self.SURVIVING_HEDGES:
             with self.subTest(hedge=hedge):
-                self.assertTrue(
-                    clause_defects(self.mutate(ENTRYPOINT, clause, hedge)),
+                self.assert_reports(
+                    self.mutate(ENTRYPOINT, clause, hedge),
+                    clause,
                     "a hedge inside the law's own rule item is not reported",
+                )
+
+    def test_the_shipped_guidance_carries_no_clause_defect_at_all(self):
+        """The control every mutation proof in this class depends on.
+
+        Without it, `assert_clause_holds` filtering defects by clause meant a
+        defect that named no clause was computed and thrown away, and the
+        mutation loops -- which only asked whether *some* defect existed --
+        passed on a file that was already broken.
+        """
+        self.assertEqual(clause_defects(), [])
+
+    def test_renaming_a_pinned_section_is_reported_against_its_clauses(self):
+        """#4479's review: the hole this class had while claiming to close one.
+
+        Renaming `## Iron laws` to `## Laws` produced five section defects,
+        every one of them filtered out because it did not name a clause. The
+        suite stayed green with all five pins in that section vacuous, and both
+        mutation proofs stayed green too, because a section defect satisfied
+        their "some defect exists" assertion for whatever clause they were
+        testing. One word in a heading silenced the whole apparatus.
+        """
+        for path, heading, clause in PINNED_CLAUSES:
+            with self.subTest(section=heading, clause=clause):
+                source = path.read_text(encoding="utf-8")
+                renamed = re.sub(
+                    rf"(?mi)^(#{{2,3}} ){re.escape(heading)}\b", r"\1Renamed", source
+                )
+                self.assertTrue(renamed != source, "the rename did not apply")
+                self.assertTrue(
+                    any(clause in defect for defect in clause_defects({path: renamed})),
+                    "renaming the section leaves this clause's pin vacuous",
+                )
+
+    def test_a_pinned_clause_outside_its_own_section_is_reported(self):
+        """Section scoping is advertised by this class, so it needs its own check.
+
+        With `headed_sections` gutted to hand back the whole file, every other
+        test here still passed -- which made "inside the section that owns it"
+        an unbound claim about the very property the pins are sold on.
+        """
+        for path, heading, clause in PINNED_CLAUSES:
+            with self.subTest(section=heading, clause=clause):
+                source = path.read_text(encoding="utf-8")
+                relocated = re.sub(clause_pattern(clause), "", source, count=1, flags=re.I)
+                self.assertTrue(relocated != source, "the removal did not apply")
+                relocated += f"\n\n## Appendix\n\n{clause}\n"
+                self.assertTrue(
+                    any(clause in defect for defect in clause_defects({path: relocated})),
+                    "a clause moved out of its own section is not reported",
                 )
 
     def test_the_two_weakenings_named_in_the_review_are_reported(self):
@@ -1155,8 +1253,11 @@ class DisciplineTest(unittest.TestCase):
         )
         for clause, insertion in cases:
             with self.subTest(clause=clause):
-                defects = clause_defects(self.mutate(ENTRYPOINT, clause, insertion))
-                self.assertTrue(defects, f"the review's own counter-example passes: {insertion!r}")
+                self.assert_reports(
+                    self.mutate(ENTRYPOINT, clause, insertion),
+                    clause,
+                    f"the review's own counter-example passes: {insertion!r}",
+                )
 
     def test_red_flags_name_the_sentence_that_ships_a_check_protecting_nothing(self):
         """The always-loaded half of #4471.

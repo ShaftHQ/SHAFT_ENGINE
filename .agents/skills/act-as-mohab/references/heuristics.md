@@ -26,6 +26,7 @@ files and observations outrank this guidance.
 
 - Test the unknown most likely to invalidate the approach first. Estimate work
   by unknowns and blast radius, not line count.
+- Fix small blockers in the direct path.
 - Use a throwaway probe for high uncertainty, then discard it before TDD
   implementation.
 - Match surrounding naming and idioms. Comments record constraints; they do
