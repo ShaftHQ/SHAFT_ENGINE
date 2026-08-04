@@ -965,3 +965,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.actions-setup-javas-cache-maven-has-no-restore-keys-so-one-pom-bump-cold-downloads-the-world","timestamp":"2026-08-04T09:56:16+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.codacy-pr-findings-are-readable-unauthenticated-via-the-public-api","timestamp":"2026-08-04T11:12:26+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.rest-countries-junit-api-example-deprecated","timestamp":"2026-08-02T19:07:30+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.crash-orphaned-branch-may-already-be-landed-under-a-different-pr-diff-against-master-main-before-assuming-its-unlanded-work","reason":"Extended with the branch-landedness test derived from clearing the seven orphaned branches in #4450; the previous empty-tip-diff advice misfires once main evolves the same files.","timestamp":"2026-08-04T14:25:06+03:00"}

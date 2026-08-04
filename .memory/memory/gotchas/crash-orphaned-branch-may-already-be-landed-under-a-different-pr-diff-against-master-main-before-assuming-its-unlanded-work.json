@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/crash-orphaned-branch-may-already-be-landed-under-a-different-pr-diff-against-master-main-before-assuming-its-unlanded-work.md",
-  "content_hash": "sha256:2ae4cfcafd9334787a037be977b299a62429f2a48e565ab972bad4aa654aa541",
+  "content_hash": "sha256:4e36709a2d62363dcd8c2f3071f2e5a3632fae09fc01df0e219597da3631a2cb",
   "created_at": "2026-07-27T14:55:24+03:00",
   "evidence": [
     {
@@ -31,5 +31,5 @@
   ],
   "title": "Crash-orphaned branch may already be landed under a different PR -- diff against master/main before assuming it's unlanded work",
   "type": "gotcha",
-  "updated_at": "2026-08-01T21:02:05+03:00"
+  "updated_at": "2026-08-04T14:25:06+03:00"
 }
