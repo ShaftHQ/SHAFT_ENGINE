@@ -142,6 +142,8 @@ and discarded prototypes may skip test-first; validate their structure or
 affected flow instead. If RED or GREEN cannot run, report the blocker and do
 not claim verified behavior.
 
+Mocks, or the urge to skip RED: [TDD failure modes](references/tdd-failure-modes.md).
+
 Caveman, Ponytail, and TDD adaptations retain their MIT notices under
 `references/*.LICENSE`.
 

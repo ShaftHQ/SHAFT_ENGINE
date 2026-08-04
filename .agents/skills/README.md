@@ -134,10 +134,12 @@ sends you there; the rest by
 - [verification-gap lens](act-as-mohab/references/verification-gap-lens.md)
 - [work GitHub playbook](act-as-mohab/references/work-github-playbook.md)
 - [graphify](act-as-mohab/references/graphify.md)
+- [TDD failure modes](act-as-mohab/references/tdd-failure-modes.md)
 
 Caveman, Ponytail and the TDD cycle are not references — they live in the
 entrypoint body, because a rule that governs every task must not cost a second
-read. Only their MIT notices are files:
+read. What the cycle fails as is a reference, because it is read while writing
+one test rather than on every task. Only their MIT notices are files:
 [Caveman](act-as-mohab/references/caveman.LICENSE),
 [Ponytail](act-as-mohab/references/ponytail.LICENSE),
 [TDD](act-as-mohab/references/test-driven-development.LICENSE).
