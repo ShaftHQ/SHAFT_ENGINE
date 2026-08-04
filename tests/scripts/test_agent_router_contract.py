@@ -17,6 +17,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.ci.validate_agent_guidance import (
+    expand_reported_globs,
+    require_glob_list,
+    validate_repository,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILLS = ROOT / ".agents/skills"
 CLAUDE_SKILLS = ROOT / ".claude/skills"
@@ -135,8 +141,70 @@ def rule_blocks(section: str) -> list[str]:
     return [re.sub(r"\s+", " ", part).strip().lower() for part in parts if part and part.strip()]
 
 
+def ordered_list_runs(section: str) -> list[list[int]]:
+    """Return the numbers of each top-level ordered list in `section`.
+
+    Both delimiters Markdown allows are read, because a check an unrelated
+    formatting choice can switch off is worse than no check: the first cut of
+    this matched a literal `.`, so rewriting a list as `1)` made it inert while
+    the docstring went on claiming coverage.
+
+    A run ends at the first top-level line that is not an item -- prose, a
+    table, a bullet -- and not at the next `1.`. Splitting on the value was the
+    other half of the same mistake: `1. 1. 1.` is legal Markdown that renders
+    as 1, 2, 3, and read as three runs of one it reported nothing, so a list
+    written that way could lose a rule silently. Read as one run it is
+    `[1, 1, 1]` against `[1, 2, 3]`, which is the honest reading -- a list whose
+    numbers come from the renderer cannot show a deletion.
+
+    Indented items are sub-lists and fenced blocks are examples, so neither is
+    collected.
+    """
+    runs: list[list[int]] = []
+    open_run = False
+    fenced = False
+    for line in section.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        match = re.match(r"(\d+)[.)]\s", line)
+        if match:
+            if not open_run:
+                runs.append([])
+                open_run = True
+            runs[-1].append(int(match.group(1)))
+        elif line.strip() and not line[:1].isspace():
+            open_run = False
+    return runs
+
+
+def numbering_defects(section: str, where: str) -> list[str]:
+    """Report an ordered list in `section` that is not numbered 1..N.
+
+    A law can be unmade without deleting a word of it: move it out of the
+    numbered list into prose below the list, inside the same section, and it is
+    still present, still in its owning section, still unqualified, so every
+    pin above stays quiet (#4490). What changes is the numbering -- 1, 2, 3, 4,
+    6 -- and that is structural, so it is checked structurally rather than by
+    growing a grammar over English prose (#4484). The same check catches a
+    duplicated number and a list that starts anywhere but 1.
+
+    It is not a replacement for the clause pins and does not overlap them.
+    Deleting a rule and closing the gap leaves a contiguous list, which is why
+    `test_deleting_a_law_and_renumbering_cleanly_is_still_reported` exists.
+    """
+    defects = []
+    for run in ordered_list_runs(section):
+        expected = list(range(1, len(run) + 1))
+        if run != expected:
+            defects.append(f"{where}: rule numbering is {run}, not {expected}")
+    return defects
+
+
 def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
-    """Report every pinned clause that is missing, duplicated, or qualified.
+    """Report what is wrong with a pinned section: its clauses and its numbering.
 
     Reads each pinned file from disk unless `overrides` supplies a mutated
     body, which is what lets the mutation tests below prove the pins bind
@@ -145,9 +213,14 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
     Presence alone was the whole check until #4467: a pin says a phrase is
     there and says nothing about what surrounds it, so an edit that *adds* an
     escape hatch next to the clause passed every pin while gutting the law.
+    Presence plus phrasing was the whole check until #4490, which is the same
+    lesson a third time: both look at the clause, and neither looks at whether
+    it is still one of the rules. `numbering_defects` is that third question,
+    asked once per pinned section rather than once per clause.
     """
     overrides = overrides or {}
     defects = []
+    numbered: set[tuple[Path, str]] = set()
     for path, heading, clause in PINNED_CLAUSES:
         where = f"{path.name}:{heading!r}"
         source = overrides.get(path, path.read_text(encoding="utf-8"))
@@ -161,6 +234,9 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
                 f"clause unverifiable: {clause!r}"
             )
             continue
+        if (path, heading) not in numbered:
+            numbered.add((path, heading))
+            defects.extend(numbering_defects(sections[0], where))
         pattern = clause_pattern(clause)
         matched = [block for block in rule_blocks(sections[0]) if re.search(pattern, block)]
         if not matched:
@@ -709,6 +785,7 @@ class NoDuplicationTest(unittest.TestCase):
     GUIDANCE_GLOBS = (
         "AGENTS.md",
         "CLAUDE.md",
+        ".agents/skills/README.md",
         ".agents/skills/*/SKILL.md",
         ".agents/skills/act-as-mohab/references/**/*.md",
         ".claude/skills/*/SKILL.md",
@@ -747,6 +824,18 @@ class NoDuplicationTest(unittest.TestCase):
             line: sorted(set(files)) for line, files in seen.items() if len(set(files)) > 1
         }
         self.assertEqual(duplicates, {}, "identical guidance line in more than one file")
+
+    def test_the_skills_map_is_one_of_the_scanned_files(self):
+        """#4480: the map is guidance, so this scan has to actually read it.
+
+        It was absent from this tuple while sitting in the budget's
+        `total_guidance_globs`, so it was counted and link-checked and never
+        read for a duplicated line.
+        """
+        self.assertIn(
+            (CANONICAL_SKILLS / "README.md").resolve(),
+            {path.resolve() for path in self.guidance_files()},
+        )
 
     def test_every_reference_file_is_routed_or_linked(self):
         """A reference nothing points at is guidance no agent will ever read."""
@@ -797,6 +886,49 @@ class SkillsMapTest(unittest.TestCase):
             if not (self.MAP.parent / target.split("#", 1)[0]).exists()
         ]
         self.assertEqual(broken, [])
+
+    def test_the_map_is_inside_the_active_guidance_scan(self):
+        """Counted and link-checked is not scanned (#4480).
+
+        The map was named by `total_guidance_globs` and `reference_scan_globs`
+        but not by `active_guidance_globs`, which is the list that feeds
+        `validate_forbidden_patterns` and `validate_duplicate_paragraphs`. So
+        the one file a contributor is pointed at directly was the one file no
+        intent check read, and the count made the hole hard to see.
+
+        The file set is built by the validator's own expansion, not by reading
+        the JSON list, because a list is what the file was already on.
+        """
+        budget = json.loads(BUDGET.read_text(encoding="utf-8"))
+        patterns, key_errors = require_glob_list(budget, "active_guidance_globs")
+        self.assertEqual(key_errors, [])
+        scanned, glob_errors = expand_reported_globs(ROOT, patterns, "active_guidance_globs")
+        self.assertEqual(glob_errors, [])
+        self.assertIn(self.MAP.resolve(), {path.resolve() for path in scanned})
+
+    def test_a_forbidden_mandate_planted_in_the_map_is_reported(self):
+        """Being in the list has to reach the scan, so run the scan.
+
+        `test_the_map_is_inside_the_active_guidance_scan` proves the expansion
+        selects the file; this proves the expansion is what the forbidden
+        pattern check consumes, by planting a violation and reading the issue
+        back out of the shipped entry point.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            planted = root / ".agents/skills/README.md"
+            planted.parent.mkdir(parents=True)
+            planted.write_text(
+                "# Agent skills map\n\nOpen a draft PR before you start work.\n",
+                encoding="utf-8",
+            )
+            reported = [
+                found
+                for found in validate_repository(root=root, budget_path=BUDGET)
+                if found["code"] == "forbidden-mandate"
+                and found["path"] == ".agents/skills/README.md"
+            ]
+        self.assertTrue(reported, "a forbidden mandate in the skills map is not reported")
 
     def test_the_map_tells_agents_to_load_the_entrypoint_rather_than_itself(self):
         content = compact(self.MAP)
@@ -1019,8 +1151,32 @@ class DisciplineTest(unittest.TestCase):
     code did, which is the failure this class exists to catch.
 
     What is actually caught: deleting a pinned clause, renaming or duplicating
-    the section that owns it, moving it to another section, and hedging it with
-    vocabulary that has already been demonstrated.
+    the section that owns it, moving it to another section, hedging it with
+    vocabulary that has already been demonstrated, and -- since #4490 -- a
+    pinned section's own rule list not reading exactly 1..N, whether it has a
+    gap, a repeated number, a wrong first number, or numbers the renderer
+    supplies rather than the file (`1. 1. 1.`). Both Markdown delimiters count,
+    so `1)` is no way around it.
+
+    That last entry exists because the one before it was read as covering more
+    than it did. A clause moved to *another* section is reported, so
+    "relocation is caught" looked complete; a clause moved within its own
+    section -- lifted out of the numbered list into prose just below it -- was
+    reported by nothing, and reads as 1, 2, 3, 4, 6. An undisclosed gap
+    standing next to a disclosed one is worse than an undisclosed gap alone,
+    because the disclosure is what makes a reader stop looking. That failure
+    then happened again inside the fix: the first cut of it claimed a repeat
+    was caught while `1. 1. 1.` and `1)` both walked through, which is the same
+    error one level down and is why each of those now has its own mutation
+    test.
+
+    So the numbering catches that move, and only while the move leaves the list
+    unable to read 1..N. Demote the *last* item and the rest stay contiguous.
+    Demote any item and renumber to close the hole and it is contiguous again.
+    Both are uncaught here and are the clause pins' problem, not this check's.
+    So is any rule a section states as prose rather than as a numbered item:
+    Red flags and `proving a check binds` carry no ordered list, so the check
+    binds three of the five pinned sections and is silent on those two.
 
     What is not. `EXEMPTION_MARKERS` is a denylist, so it is both incomplete
     and brittle -- "at your discretion" and "use judgment" were markers while
@@ -1228,6 +1384,181 @@ class DisciplineTest(unittest.TestCase):
         "; you may skip this when the change is small",
         ". Apply it at your own judgement",
     )
+
+    # The law used for the numbering mutations. It is the middle of the list,
+    # so demoting or renumbering it leaves a gap that the sequence shows.
+    NUMBERED_LAW = "never claim a check you did not run"
+
+    def iron_laws_body(self, source: str) -> str:
+        """Return the Iron laws section exactly as it sits in `source`."""
+        heading = re.search(r"(?mi)^## iron laws$", source)
+        self.assertIsNotNone(heading, "entrypoint has no Iron laws heading")
+        end = source.find("\n## ", heading.end())
+        self.assertGreater(end, 0, "Iron laws is not followed by another section")
+        return source[heading.end() : end]
+
+    def law_numbers(self, source: str) -> list[int]:
+        """Read the list numbers back out, so a mutation is proved to have landed.
+
+        Deliberately its own two-line regex rather than the helper under test:
+        a mutation verified by the check it is meant to break would agree with
+        itself whichever way both were wrong.
+        """
+        return [int(number) for number in re.findall(r"(?m)^(\d+)\.\s", self.iron_laws_body(source))]
+
+    def mutate_iron_laws(self, transform, source: str | None = None) -> str:
+        """Return the entrypoint with `transform` applied to its Iron laws body.
+
+        Every mutation below edits the shipped section rather than a fixture,
+        so none of them can pass by agreeing with a copy this module carries.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8") if source is None else source
+        body = self.iron_laws_body(source)
+        mutated = transform(body)
+        self.assertNotEqual(mutated, body, "the mutation did not apply")
+        return source.replace(body, mutated, 1)
+
+    def demote_law_to_trailing_prose(self, source: str | None = None) -> str:
+        """Move the pinned law out of the list into prose in its own section.
+
+        Built from the shipped file, like every other mutation here: the item's
+        own text is lifted and re-inserted after the list, so the mutation
+        cannot pass by carrying its own copy of the law.
+        """
+
+        def demote(body: str) -> str:
+            item = re.search(
+                rf"(?mi)^\d+[.)][ \t]+({clause_pattern(self.NUMBERED_LAW)}[^\n]*)\n", body
+            )
+            self.assertIsNotNone(item, "the pinned law is not a numbered item")
+            return f"{(body[: item.start()] + body[item.end() :]).rstrip()}\n\n{item.group(1)}\n"
+
+        return self.mutate_iron_laws(demote, source)
+
+    def test_demoting_a_law_into_trailing_prose_is_reported(self):
+        """#4490: a law can be unmade without deleting a word of it.
+
+        Move it below the list and it is still present, still in its owning
+        section, still unqualified -- every pin in this class passes and the
+        numbering reads 1, 2, 3, 4, 6. The tell is structural, so the check is
+        structural: the ordered list a pinned section carries must number its
+        rules 1..N with no gap, no repeat and no restart.
+        """
+        mutated = self.demote_law_to_trailing_prose()
+        self.assertNotIn(5, self.law_numbers(mutated), "the mutation did not apply")
+        self.assertIn(self.NUMBERED_LAW, mutated.lower(), "the law must survive the demotion")
+        self.assertTrue(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            "demoting a law out of the list is not reported",
+        )
+
+    def test_renumbering_a_law_over_its_neighbour_is_reported(self):
+        """A duplicate number is the same defect from the other side.
+
+        It is what a careless demotion or insertion leaves behind, and reading
+        1, 2, 3, 4, 4, 6 as six laws is a mistake a human reviewer makes too.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        mutated = re.sub(
+            rf"(?mi)^5\.(?=[ \t]+{clause_pattern(self.NUMBERED_LAW)})", "4.", source, count=1
+        )
+        self.assertEqual(
+            self.law_numbers(mutated).count(4), 2, "the mutation did not apply"
+        )
+        self.assertTrue(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            "a duplicated rule number is not reported",
+        )
+
+    def test_a_list_that_renumbers_itself_is_reported(self):
+        """The review's refutation of the first cut of this check.
+
+        `1. 1. 1.` is legal Markdown and renders as 1, 2, 3 -- the renderer
+        supplies the numbers. Which means a list written that way cannot show
+        a deletion: pull one rule out and it still renders contiguously, so
+        nothing structural is left to notice. A section whose numbering is
+        derived rather than written is inert for this check, so writing it that
+        way is itself the defect, and every pinned section states its own
+        numbers today.
+        """
+        mutated = self.mutate_iron_laws(lambda body: re.sub(r"(?m)^\d+\.(?=\s)", "1.", body))
+        numbers = self.law_numbers(mutated)
+        self.assertGreater(len(numbers), 1, "the mutation did not apply")
+        self.assertEqual(set(numbers), {1}, "the mutation did not apply")
+        self.assertTrue(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            "a list that lets the renderer number it is not reported",
+        )
+
+    def test_a_gap_in_a_paren_delimited_list_is_reported(self):
+        """`1)` renders the same as `1.` and must not be a way out.
+
+        The first cut of this check matched a literal `.`, so rewriting the
+        delimiter turned it off for that section entirely -- and a check that
+        an unrelated formatting choice can switch off is worse than no check,
+        because the docstring goes on claiming it.
+        """
+        demoted = self.demote_law_to_trailing_prose()
+        mutated = self.mutate_iron_laws(
+            lambda body: re.sub(r"(?m)^(\d+)\.(?=\s)", r"\1)", body), demoted
+        )
+        self.assertEqual(
+            re.findall(r"(?m)^(\d+)\)", self.iron_laws_body(mutated)),
+            ["1", "2", "3", "4", "6"],
+            "the mutation did not apply",
+        )
+        self.assertTrue(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            "a gap in a paren-delimited list is not reported",
+        )
+
+    def test_a_list_that_starts_at_the_wrong_number_is_reported(self):
+        """The third branch, which nothing named until now.
+
+        A list numbered 2..7 is what deleting the first rule and renumbering
+        nothing leaves behind. `numbering_defects` reports it because it
+        compares against 1..N rather than against the run's own first value,
+        but only the shipped-guidance control failed on it, and a control that
+        fails does not say which branch stopped working.
+        """
+        mutated = self.mutate_iron_laws(
+            lambda body: re.sub(
+                r"(?m)^(\d+)\.(?=\s)", lambda item: f"{int(item.group(1)) + 1}.", body
+            )
+        )
+        numbers = self.law_numbers(mutated)
+        self.assertEqual(numbers[0], 2, "the mutation did not apply")
+        self.assertEqual(numbers, list(range(2, len(numbers) + 2)), "the list must stay contiguous")
+        self.assertTrue(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            "a list that does not start at 1 is not reported",
+        )
+
+    def test_deleting_a_law_and_renumbering_cleanly_is_still_reported(self):
+        """The numbering check must not become the only check (#4490 item 3).
+
+        Delete the law outright and close the gap and the list is contiguous
+        again, so the new check is silent by design. What has to catch it is
+        the clause pin that always did -- this test exists to prove the
+        structural check did not quietly displace it.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        without = re.sub(
+            rf"(?mi)^5\.[ \t]+{clause_pattern(self.NUMBERED_LAW)}[^\n]*\n", "", source, count=1
+        )
+        self.assertNotEqual(without, source, "the mutation did not apply")
+        mutated = re.sub(r"(?m)^6\. ", "5. ", without, count=1)
+        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5], "the renumbering did not apply")
+        self.assertNotIn(self.NUMBERED_LAW, mutated.lower(), "the law must be gone")
+        defects = clause_defects({ENTRYPOINT: mutated})
+        self.assertEqual(
+            [defect for defect in defects if "numbering" in defect],
+            [],
+            "a cleanly renumbered list is not a numbering defect",
+        )
+        self.assert_reports(
+            {ENTRYPOINT: mutated}, self.NUMBERED_LAW, "deleting the law outright is not reported"
+        )
 
     def test_hedges_that_slipped_past_the_first_marker_list_are_reported(self):
         """A denylist of hedge words is inherently incomplete.

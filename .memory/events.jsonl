@@ -983,4 +983,5 @@
 {"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:40:48+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.a-lexical-guard-judges-tokens-only-legitimacy-comes-from-an-explicit-id-keyed-allowlist-not-from-parsing-prose","timestamp":"2026-08-04T21:59:34+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened-never-require-an-exemption-list-to-be-non-empty","timestamp":"2026-08-04T21:59:34+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.prove-a-check-binds-on-windows-commit-first-mutate-bytes","timestamp":"2026-08-04T22:41:59+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.mutation-test-guard-pys-crlf-files-via-python-not-a-powershell-regex","timestamp":"2026-08-04T22:09:13+03:00"}
