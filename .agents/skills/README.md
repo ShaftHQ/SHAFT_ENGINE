@@ -203,6 +203,35 @@ entrypoint and carries no policy of its own, which is why the entrypoint links
 this page rather than linking back to them one by one. They are listed here so
 an agent on any host can see which surfaces exist and confirm they are thin.
 
+### Every adapter file, one by one
+
+Spelled out rather than globbed, deliberately. A wildcard matches whatever
+happens to exist, so it re-derives itself from the tree it is supposed to be
+describing and can never go wrong — a new role adapter or a renamed one would
+leave `.claude/agents/*.md` looking perfectly correct. These names break when a
+file is added, moved or deleted, which is the only way a map stays true.
+
+| Host | Files |
+| --- | --- |
+| Codex | `AGENTS.md`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
+| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirects `.claude/skills/act-as-mohab/SKILL.md`, `.claude/skills/consult-first/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
+| Copilot | `.github/copilot-instructions.md`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; the redirect pack indexed by `.github/skills/README.md` |
+| Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
+
+Copilot's redirect pack is one file per repository playbook. Each is a short
+pointer at the canonical body, not a second copy of it:
+`.github/skills/agent-guidance-boundary-guard/SKILL.md`,
+`.github/skills/agentic-pdca-loop/SKILL.md`,
+`.github/skills/allure-extent-report-operator/SKILL.md`,
+`.github/skills/ci-failure-investigator/SKILL.md`,
+`.github/skills/flaky-test-stabilizer/SKILL.md`,
+`.github/skills/mcp-transport-contract-auditor/SKILL.md`,
+`.github/skills/modular-boundary-auditor/SKILL.md`,
+`.github/skills/public-behavior-docs-synchronizer/SKILL.md`,
+`.github/skills/release-dependency-guard/SKILL.md`,
+`.github/skills/shaft-marketing-ad-producer/SKILL.md`,
+`.github/skills/shaft-ui-design/SKILL.md`.
+
 If your agent does none of that automatically, say this to it:
 
 > Read `.agents/skills/act-as-mohab/SKILL.md` and follow it for this task.
@@ -264,9 +293,23 @@ That command drives `scripts/ci/validate_agent_guidance.py` and
 from `scripts/ci/agent_harness_parity.json`.
 
 The assertions themselves are unit tests, and they are where a rule in this
-tree actually fails: `tests/scripts/test_agent_*.py`,
-`tests/scripts/test_validate_agent_*.py`, `tests/scripts/test_validate_skills.py`,
-`tests/scripts/test_guard_*.py`, `tests/scripts/test_sync_user_harness.py`,
-`tests/scripts/test_worktree_hygiene.py` and
-`tests/scripts/test_shaft_skill*.py`. Read the one that guards what you are
-changing before you change it.
+tree actually fails. Read the one that guards what you are changing, before you
+change it:
+
+| Module | Guards |
+| --- | --- |
+| `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning loop. |
+| `tests/scripts/test_agent_harness_portability.py` | One policy body per rule, relative paths, hook parity, memory against guidance. |
+| `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
+| `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |
+| `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
+| `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
+| `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py` | The lifecycle guard's decisions and its behaviour on a corrupt state file. |
+| `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
+| `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
+| `tests/scripts/test_shaft_skills_content.py`, `tests/scripts/test_shaft_skill_cli_examples.py` | The published product pack's content and its CLI examples. |
+
+`.github/workflows/pr-gate.yml` is what runs them. It is a harness element in
+its own right: the file deciding whether the gate runs at all cannot sit
+outside the gate, or trimming one line from its run list would make every later
+green run report a hundred percent of nothing.

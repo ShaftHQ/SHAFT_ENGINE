@@ -108,6 +108,7 @@ jobs:
               - 'tests/scripts/test_validate_skills.py'
               - 'tests/scripts/test_sync_user_harness.py'
               - 'tests/scripts/test_shaft_skills_content.py'
+              - 'tests/scripts/test_shaft_skill_cli_examples.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what maven_retry.sh needs (issue #4445).
@@ -221,6 +222,7 @@ jobs:
           tests.scripts.test_validate_skills
           tests.scripts.test_sync_user_harness
           tests.scripts.test_shaft_skills_content
+          tests.scripts.test_shaft_skill_cli_examples
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_maven_retry
           -v

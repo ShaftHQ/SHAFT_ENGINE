@@ -11,9 +11,12 @@ WHAT THIS CATCHES
 
 1. A tracked harness element that is neither reachable from the entrypoint nor
    registered as an exemption with a stated reason. The element set comes from
-   globs over every committed and every untracked-but-unignored path, never a
-   hand-written list, so a file added tomorrow is an element tomorrow -- a hand
-   list silently omits the next file, which is exactly how the 38 accumulated.
+   globs over every committed and every untracked-but-unignored path that
+   exists on disk, never a hand-written list, so a file added tomorrow is an
+   element tomorrow -- a hand list silently omits the next file, which is
+   exactly how the 38 accumulated. Reachability itself is never bought by a
+   wildcard: only a real link or an exact path token counts, because a
+   wildcard re-derives itself from the tree it is meant to be checking.
 2. A markdown link in the reachable graph whose target does not exist. A broken
    link is worse than a missing one: it reads as coverage.
 3. A path token, in a code span or fence of a reachable file, that names a
@@ -57,15 +60,28 @@ WHAT THIS DOES NOT CATCH -- read before inferring coverage from a green run
 - **`element_globs` bounds the whole question.** A harness surface added under
   a path no glob covers is not an element, so it cannot be reported as an
   orphan. This is the one place a hand-maintained decision still lives, and it
-  is the failure mode most likely to bite next.
+  is the failure mode most likely to bite next. `EXPECTED_ELEMENT_COUNT` makes
+  the boundary *shrinking* loud; it does nothing about a surface that was never
+  inside it. Two exclusions were argued for in review and both were wrong.
 - **A detoured root is normalised, not rejected.** `root` is resolved at entry
   so a symlinked or short-name checkout walks correctly. Nothing asserts that
   the caller's spelling and the resolved one name the same tree -- if a caller
   passes a root that resolves somewhere else entirely, the walk reports on
   wherever it resolved to.
-- **Not run by `validate_agent_setup.py`.** This is a unittest module, run by
-  PR Gate's agent-harness job. `py -3 scripts/ci/validate_agent_setup.py
-  --skip-external` stays green with the harness fully orphaned.
+- **The run-list pin cannot guard its own removal.** Every pin here lives in a
+  module whose execution that same run list decides. The
+  `harness_reachability` row in `agent_harness_parity.json` routes the
+  question through `validate_agent_setup.py`, a separate PR Gate step, which
+  is what actually closes the circle. Edit the run list and that row together
+  and nothing notices.
+- **The walk itself is not run by `validate_agent_setup.py`.** Only its
+  membership in the gate is, through the parity row. `py -3
+  scripts/ci/validate_agent_setup.py --skip-external` still exits 0 on a fully
+  orphaned harness; the unittest module is what reports orphans.
+- **Not every link in the entrypoint is load-bearing.** Reachability flows
+  through the skills map, so a reference the map also lists survives losing
+  its entrypoint link. The hub link to the map is guarded; the parallel ones
+  are redundant by design.
 - **Anchors are checked against headings, not rendered output.** A duplicate
   heading in one file produces `-1`-suffixed slugs on GitHub that this would
   call broken, and a heading reachable only through a link this walk cannot see
@@ -88,6 +104,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
+
+# The exact size of the harness surface, asserted by equality rather than as a
+# floor. A floor of 84 against a real 85 meant one whole glob could be deleted
+# from `element_globs` and stay green -- dropping `scripts/ci/watch_pr_checks.py`
+# from the boundary was invisible. Equality makes shrinking the boundary a
+# deliberate two-line edit that shows up in review, which is the only place the
+# question "why is the harness smaller today" gets asked.
+EXPECTED_ELEMENT_COUNT = 98
 
 # Inline `spans` and fenced blocks both carry instrument paths in this
 # repository's house style -- README.md writes the validate command in a bash
@@ -153,6 +177,14 @@ def tracked_files(root: Path) -> list[str]:
     one `git add` early: an author who runs the suite before staging is told
     the harness is complete. A file that is present and not ignored is part of
     the harness whether or not the index has caught up.
+
+    `--cached` alone is wrong in the other direction too, and that half was
+    missed on the first pass: after an unstaged rename the index still lists
+    the old path, `--others` lists the new one, and both read as present, so a
+    named instrument that moved reported clean until someone staged it. The
+    same "one `git add` early" shape, mirrored. Existence on disk is therefore
+    the final filter -- present and not ignored is the honest definition, and
+    it is the same definition in both directions.
     """
     listed = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
@@ -161,7 +193,13 @@ def tracked_files(root: Path) -> list[str]:
         text=True,
         check=True,
     )
-    return sorted({path for path in listed.stdout.split("\0") if path})
+    return sorted(
+        {
+            path
+            for path in listed.stdout.split("\0")
+            if path and (root / path).exists()
+        }
+    )
 
 
 def load_config(root: Path) -> dict:
@@ -298,20 +336,37 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         if not any(matcher.match(candidate) for candidate in elements):
             exemption_problems.append(f"{label} matches no tracked harness element")
 
+    # A wildcard token cannot fail, so it cannot satisfy reachability. It
+    # matches whatever exists, which means a new role adapter, a new harness
+    # test module or a staged rename inside a directory it covers all stayed
+    # green -- the token re-derives itself from the tree it is supposed to be
+    # checking. 24 of the elements were held up this way. Exact tokens keep
+    # their power because they name one path and die when it moves; wildcards
+    # stay legal as prose and are still stale-checked above, they just buy
+    # nothing here.
+    exact_tokens = {token for token in tokens if "*" not in token}
+
     orphans: list[str] = []
+    by_link: list[str] = []
+    by_exact_token: list[str] = []
+    wildcard_only: list[str] = []
     for element in elements:
         if any(matcher.match(element) for matcher in exemption_matchers):
             continue
-        if element.startswith(deployable):
-            if element not in reached:
-                orphans.append(f"{element} (no markdown link reaches it)")
-            continue
         if element in reached:
+            by_link.append(element)
             continue
-        if not any(
-            token == element or token_matchers[token].match(element) for token in tokens
-        ):
-            orphans.append(f"{element} (no reachable file names it)")
+        if element.startswith(deployable):
+            orphans.append(f"{element} (no markdown link reaches it)")
+            continue
+        if element in exact_tokens:
+            by_exact_token.append(element)
+            continue
+        if any(token_matchers[token].match(element) for token in tokens):
+            wildcard_only.append(element)
+            orphans.append(f"{element} (only a wildcard token names it)")
+            continue
+        orphans.append(f"{element} (no reachable file names it)")
 
     return {
         "orphans": sorted(orphans),
@@ -320,6 +375,9 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         "exemption_problems": sorted(exemption_problems),
         "reached": sorted(reached),
         "elements": elements,
+        "by_link": sorted(by_link),
+        "by_exact_token": sorted(by_exact_token),
+        "wildcard_only": sorted(wildcard_only),
     }
 
 
@@ -384,7 +442,65 @@ class HarnessReachabilityTest(unittest.TestCase):
         self.assertEqual(load_config(ROOT)["exemptions"], [])
         report = harness_report(ROOT)
         self.assertEqual(len(report["orphans"]), 0)
-        self.assertGreaterEqual(len(report["elements"]), 84)
+        self.assertEqual(len(report["elements"]), EXPECTED_ELEMENT_COUNT)
+        self.assertEqual(report["wildcard_only"], [])
+
+    def test_the_deployable_root_names_a_real_subtree_holding_the_entrypoint(self):
+        """One JSON string decides whether "links, not mentions" means anything.
+
+        `deployable_root` selects which elements must be reached by a real
+        markdown link. Nothing pinned its value, so setting it to
+        `.agents/skillsX` -- a directory that does not exist -- moved every
+        in-tree file into the mention-satisfied branch, and a new reference
+        that `SKILL.md` merely name-dropped in backticks reported clean. An
+        author who hits the unlinked-file failure could repair it by editing
+        one string instead of adding one link, and the diff would look like
+        configuration.
+
+        Pinned three ways, because each catches a different edit: it exists,
+        it is a directory, and it actually contains the entrypoint. A typo
+        fails the first, a file path fails the second, and a real-but-wrong
+        subtree such as `.claude` fails the third.
+        """
+        config = load_config(ROOT)
+        deployable = ROOT / config["deployable_root"]
+        self.assertTrue(deployable.exists(), config["deployable_root"])
+        self.assertTrue(deployable.is_dir(), config["deployable_root"])
+        self.assertTrue(
+            config["entrypoint"].startswith(config["deployable_root"].rstrip("/") + "/"),
+            "the deployable root must contain the entrypoint it is measured from",
+        )
+
+    def test_every_harness_test_module_is_run_by_the_pull_request_gate(self):
+        """An enforcement module CI never runs is a rule nobody enforces.
+
+        `tests/scripts/test_shaft_skill_cli_examples.py` was exactly that --
+        an element of the harness, in no workflow's run list. Every test
+        module in the element set is now checked against the gate's own
+        `python -m unittest` invocation.
+
+        Known limit, and it is why the parity matrix carries a
+        `harness_reachability` row as well: this pin lives inside a module
+        that the same run list decides whether to run, so dropping *this*
+        module silences its own check. That row routes the same question
+        through `validate_agent_setup.py`, which PR Gate runs as a separate
+        step and which agents run by hand, and `parity_check_errors` there
+        asserts the named test is real and that PR Gate runs it. The circle
+        is broken outside the unittest layer or not at all.
+        """
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        modules = [
+            element
+            for element in harness_report(ROOT)["elements"]
+            if element.startswith("tests/scripts/")
+        ]
+        self.assertGreaterEqual(len(modules), 10, "the element set lost the test modules")
+        missing = [
+            module
+            for module in modules
+            if f"tests.scripts.{Path(module).stem}\n" not in workflow
+        ]
+        self.assertEqual(missing, [], "harness test modules PR Gate never runs")
 
     def test_the_element_set_is_derived_from_the_repository_not_hand_listed(self):
         """A hand list omits the next file, which is the defect being fixed.
