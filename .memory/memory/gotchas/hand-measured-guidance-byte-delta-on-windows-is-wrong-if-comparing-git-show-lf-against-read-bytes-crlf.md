@@ -1,0 +1,5 @@
+To measure a guidance byte delta, always read the validator's `guidance_bytes` and `always_loaded_body_chars` metrics (e.g., `py -3 scripts/ci/validate_agent_setup.py --skip-external --format json`). Do NOT compare files directly with a hand-rolled method like `subprocess.run(['git', 'show', ...]).stdout` against `pathlib.Path(f).read_bytes()` — this silently violates the LF-normalization convention and produces wrong results on Windows.
+
+Why it fails: `git show` outputs the repository blob as stored (always LF). On Windows, a checkout has CRLF line endings. The byte comparison then adds one byte per line and reports growth for a file that shrank. Observed in PR #4479: this method reported +146 for `.agents/skills/act-as-mohab/SKILL.md`, which had actually lost 80 characters — the validator's own metric moved `always_loaded_body_chars` from `copilot 15596` to `15516`, disagreeing by 226 bytes (plausible enough to look like measurement noise rather than an artifact).
+
+Fixed approach: if you must diff files directly, decode both sides and normalize `replace('\r\n', '\n')` before comparing. Better: use the validator's native output.
