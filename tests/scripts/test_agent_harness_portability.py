@@ -68,6 +68,17 @@ ONE_PR_PER_SESSION_REASON = (
 # tried and are too weak: "Compaction after a merge takes 2 minutes and needs no
 # delegate" carries all three signals and states no cadence. What actually marks
 # a cadence is a sentence that says someone goes and looks.
+#
+# The cost of that choice, stated rather than left to be discovered: this list is
+# fitted to the two offenders it was written against, so a cadence phrased any
+# other way is missed -- "Ask a delegated agent for a progress report every 30
+# minutes" and "A delegate gets 30 minutes before the orchestrator steps in" both
+# pass. Incident narratives still trip it the other way ("The delegate went
+# silent for 90 minutes before I checked in"), which is why the reconciled body
+# above says "ran silent for over an hour" rather than a figure. The trade is
+# deliberate -- a false positive reddens an unrelated PR and invites weakening
+# the check, a false negative only fails to catch -- but it is a trade, not a
+# solved problem. #4469.
 DELEGATE_SUBJECT = re.compile(r"(?i)\b(?:delegate[ds]?|subagent|background (?:task|job))\b")
 INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}\s*min(?:ute)?s?\b")
 INTERVAL_DIRECTIVE = re.compile(
@@ -646,6 +657,31 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             with self.subTest(record=record[:40]):
                 self.assertEqual(superseded_policy_offences("", record), [])
+
+    def test_the_supersession_exemption_is_scoped_to_one_sentence(self):
+        """Per-sentence scoping is the whole reason this exemption is safe.
+
+        Whole-object scoping was the rejected design: it lets one historical
+        aside launder every claim in the same object. Nothing tested that
+        choice, though -- every fixture above is a single sentence, so replacing
+        `SENTENCE_BREAK` with a never-matching pattern silently reverts to the
+        rejected design and they all still pass. This is the one case that can
+        tell the two apart, and it is checked in both orderings because the
+        splitter must not care which side the marker falls on.
+
+        Known limitation, inherent to sentence granularity: a marker anywhere in
+        a sentence exempts that whole sentence, so ".. was retired, and one PR
+        per session is still the default." reads clean. Noted in #4468, not
+        fixed here.
+        """
+        for record in (
+            "The per-phase pattern was retired. One PR per session is still the default.",
+            "One PR per session is still the default. The per-phase pattern was retired.",
+        ):
+            with self.subTest(record=record[:40]):
+                self.assertEqual(
+                    superseded_policy_offences("", record), [ONE_PR_PER_SESSION_REASON]
+                )
 
     def test_the_interval_scan_ignores_prose_that_merely_mentions_minutes(self):
         """A false positive here gets the check edited away, not the memory fixed.
