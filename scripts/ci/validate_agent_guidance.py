@@ -46,7 +46,8 @@ def expand_globs(root: Path, patterns: list[str]) -> list[Path]:
 def expand_reported_globs(
     root: Path, patterns: list[str], config_key: str
 ) -> tuple[list[Path], list[dict[str, str]]]:
-    """Expand a list-valued guidance glob, reporting any pattern matching nothing.
+    """
+    Expand a list-valued guidance glob, reporting any pattern matching nothing.
 
     ``expand_globs`` merges every pattern's matches into one set, so a pattern
     that resolves to zero files -- the references directory moved or was
@@ -56,9 +57,15 @@ def expand_reported_globs(
     that pattern (#4481). ``validate_file_budgets`` already closes this for
     its own glob keys with a ``missing-file`` issue; every other list-valued
     glob key the budget defines -- ``active_guidance_globs``,
-    ``total_guidance_globs``, ``reference_scan_globs`` -- routes through here
-    instead of ``expand_globs`` directly so the same ``empty-glob`` issue
-    fires no matter which list it is missing from.
+    ``total_guidance_globs``, ``reference_scan_globs``, and each host's list
+    under ``host_skill_metadata_globs`` -- routes through here instead of
+    ``expand_globs`` directly so the same ``empty-glob`` issue fires no
+    matter which list it is missing from.
+
+    This guards patterns *within* an already-present list; it cannot detect
+    the list itself being absent or empty, because the loop below then runs
+    zero times. ``require_glob_list`` closes that one level up, for the three
+    budget keys that must always be present.
     """
     errors: list[dict[str, str]] = []
     paths: set[Path] = set()
@@ -69,6 +76,26 @@ def expand_reported_globs(
             continue
         paths.update(matched)
     return sorted(paths), errors
+
+
+def require_glob_list(budget: dict, config_key: str) -> tuple[list[str], list[dict[str, str]]]:
+    """
+    Return a required list-valued glob key, or report why it cannot be scanned.
+
+    ``expand_reported_globs`` only iterates the patterns it is given: if the
+    configured key is missing, renamed, or present but set to ``[]``, that
+    loop runs zero times, no ``empty-glob`` issue fires, and every check
+    downstream scans zero files while reporting nothing wrong -- the same
+    fail-open shape (#4481) one level up, at the list rather than the
+    pattern. The set of required keys is declared here, in the code that
+    consumes the budget, rather than inferred from whatever keys the JSON
+    happens to contain -- inference cannot notice a key that used to be
+    there and is not anymore.
+    """
+    value = budget.get(config_key)
+    if not isinstance(value, list) or not value:
+        return [], [issue("empty-glob-list", config_key, "required guidance glob list is missing or empty")]
+    return value, []
 
 
 def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
@@ -174,6 +201,10 @@ def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
     if listing_maximum is None:
         return errors
     for host, patterns in budget.get("host_skill_metadata_globs", {}).items():
+        _, pattern_errors = expand_reported_globs(
+            root, patterns, f"host_skill_metadata_globs.{host}"
+        )
+        errors.extend(pattern_errors)
         characters = skill_listing_chars(root, patterns)
         if characters > listing_maximum:
             errors.append(
@@ -248,9 +279,11 @@ def validate_total_reduction(root: Path, budget: dict) -> list[dict[str, str]]:
     minimum_reduction = budget.get("minimum_reduction_percent")
     if baseline is None or minimum_reduction is None:
         return []
-    paths, errors = expand_reported_globs(
-        root, budget.get("total_guidance_globs", []), "total_guidance_globs"
-    )
+    patterns, errors = require_glob_list(budget, "total_guidance_globs")
+    if errors:
+        return errors
+    paths, glob_errors = expand_reported_globs(root, patterns, "total_guidance_globs")
+    errors.extend(glob_errors)
     # Count LF-normalized bytes (read_text collapses CRLF) so the metric matches
     # the per-file byte check and the LF blobs CI checks out, not the CRLF a
     # Windows working tree carries.
@@ -616,11 +649,13 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
     """Run every guidance validation and return sorted issues."""
     selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
     budget = load_budget(selected_budget)
+    active_patterns, active_key_errors = require_glob_list(budget, "active_guidance_globs")
+    reference_patterns, reference_key_errors = require_glob_list(budget, "reference_scan_globs")
     active_files, active_glob_errors = expand_reported_globs(
-        root, budget.get("active_guidance_globs", []), "active_guidance_globs"
+        root, active_patterns, "active_guidance_globs"
     )
     reference_files, reference_glob_errors = expand_reported_globs(
-        root, budget.get("reference_scan_globs", []), "reference_scan_globs"
+        root, reference_patterns, "reference_scan_globs"
     )
     errors = [
         *validate_file_budgets(root, budget),
@@ -633,6 +668,8 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_forbidden_patterns(root, active_files, budget),
         *validate_stale_references(root, reference_files, budget),
         *validate_duplicate_paragraphs(root, active_files, budget),
+        *active_key_errors,
+        *reference_key_errors,
         *active_glob_errors,
         *reference_glob_errors,
     ]

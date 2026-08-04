@@ -208,7 +208,8 @@ def compact(path: Path) -> str:
 
 
 def glob_files(root: Path, patterns: tuple[str, ...]) -> list[Path]:
-    """Expand a fixed list of guidance globs, asserting every pattern hits.
+    """
+    Expand a fixed list of guidance globs, raising if any pattern misses.
 
     Callers use this to build the file set an ``all(...)``-shaped assertion
     (no duplicate line, no unscoped absolute) checks across every configured
@@ -216,12 +217,17 @@ def glob_files(root: Path, patterns: tuple[str, ...]) -> list[Path]:
     directory, a typo -- would otherwise shrink that set silently: "for every
     file in []" is trivially true, so the assertion keeps passing having
     checked nothing for that pattern (#4481). Raising here is what makes a
-    moved surface fail the test instead of dropping out of it unnoticed.
+    moved surface fail the test instead of dropping out of it unnoticed. A
+    bare ``assert`` would do the same today, but it compiles away under
+    ``python -O``/``PYTHONOPTIMIZE`` (bandit B101) -- this is the only
+    enforcement this helper has, so it must survive that flag even though
+    nothing in this repository currently sets it.
     """
     paths: set[Path] = set()
     for pattern in patterns:
         matched = [path for path in root.glob(pattern) if path.is_file()]
-        assert matched, f"guidance glob matched no files: {pattern}"
+        if not matched:
+            raise AssertionError(f"guidance glob matched no files: {pattern}")
         paths.update(matched)
     return sorted(paths)
 
@@ -720,8 +726,14 @@ class NoDuplicationTest(unittest.TestCase):
         return glob_files(ROOT, self.GUIDANCE_GLOBS)
 
     def test_no_substantive_line_is_repeated_across_guidance_files(self):
+        files = self.guidance_files()
+        # A gutted glob_files() (e.g. hardcoded to return []) would make this
+        # loop scan nothing and the duplicate check below pass trivially --
+        # the resolver's own tests catch that mutation, but this consumer
+        # must catch it too rather than rely on it (#4481).
+        self.assertTrue(files, "guidance_files() resolved to no files")
         seen: dict[str, list[str]] = {}
-        for path in self.guidance_files():
+        for path in files:
             for raw in path.read_text(encoding="utf-8").splitlines():
                 line = raw.strip()
                 if len(line) < self.MIN_DUPLICATE_LINE_CHARS:
@@ -948,8 +960,12 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         delegate" -- so both are checked, across every tracked surface an agent
         can read rather than only the files that stated it first.
         """
+        files = glob_files(ROOT, self.GUIDANCE_GLOBS)
+        # Same guard as NoDuplicationTest: a gutted resolver must fail this
+        # test directly, not just the resolver's own unit tests (#4481).
+        self.assertTrue(files, "glob_files() resolved to no files")
         offenders = []
-        for path in glob_files(ROOT, self.GUIDANCE_GLOBS):
+        for path in files:
             if path.resolve() == ENTRYPOINT.resolve():
                 continue
             for sentence in self.unscoped_absolutes(path.read_text(encoding="utf-8")):
