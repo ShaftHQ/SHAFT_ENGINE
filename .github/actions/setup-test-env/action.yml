@@ -25,7 +25,11 @@ runs:
       with:
         java-version: ${{ inputs.java-version }}
         distribution: 'zulu'
-        cache: 'maven'
+    # Deliberately not setup-java's own `cache: 'maven'` -- it has no
+    # restore-keys, so a pom bump made all 22 E2E jobs cold-resolve from Maven
+    # Central at once and get 429'd (issue #4440).
+    - name: Cache Maven repository
+      uses: ./.github/actions/cache-maven-repo
     - name: Enforce UTF-8 JVM defaults
       shell: bash
       run: |

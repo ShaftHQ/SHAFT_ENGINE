@@ -955,3 +955,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.playwrightnaturalactionexecutortest-belongs-in-unit-tests-not-grid-e2e","timestamp":"2026-08-02T08:33:50+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-08-04T07:54:18+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-08-04T07:54:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.actions-setup-javas-cache-maven-has-no-restore-keys-so-one-pom-bump-cold-downloads-the-world","timestamp":"2026-08-04T09:56:16+03:00"}
