@@ -3,7 +3,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell|shell_command",
+        "matcher": "Bash|PowerShell|shell_command|mcp__shaft-memory__(remember_memory|save_memory_patch)",
         "hooks": [
           {
             "type": "command",

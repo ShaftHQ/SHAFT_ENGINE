@@ -22,14 +22,19 @@
 #      `stash pop` can pop and DROP an unrelated entry from another
 #      session/worktree (issue #4130). Read-only `git stash list` / `git
 #      stash show` stay allowed.
-#   R9 `git worktree add` guardrails (issue #4126): (B1) deny when the Bash
-#      tool's worktree path argument contains backslashes -- Git Bash/MSYS
+#   R9 `git worktree add` guardrails (issue #4126, #4496): (B1) deny when the
+#      Bash tool's worktree path argument contains backslashes -- Git Bash/MSYS
 #      consumes each backslash as an escape and the path silently collapses
 #      into one garbage segment at the repo root, exit 0. PowerShell is
 #      unaffected, so this check is Bash-only. (B2) deny any
 #      `git worktree add` missing `-c core.longpaths=true`, which otherwise
 #      aborts with `Filename too long` checking out existing over-long
-#      .memory/** paths. Both fail open on anything not confidently parsed.
+#      .memory/** paths. (B3) deny `-b`/`-B` with a branch name that does not
+#      start with `ChaosEngine/` -- the entrypoint's Task isolation section
+#      requires it, and tools that key off the prefix (PR watchers, worktree
+#      cleanup) go blind to a non-conforming branch. `--detach` and checking
+#      out an existing branch (no `-b`/`-B`) create no new branch, so neither
+#      is checked. All three fail open on anything not confidently parsed.
 #   R10 Deny `git add`/`git stage`/`git commit` when a changed file is almost
 #      entirely NUL bytes (issue #4437). After an unclean shutdown the
 #      filesystem can record an allocation without ever flushing the data
@@ -610,6 +615,28 @@ def _worktree_add_path(rest_after_add: list[str]) -> str | None:
     return None
 
 
+_CHAOS_ENGINE_BRANCH_PREFIX = "ChaosEngine/"
+
+
+def _worktree_add_branch(rest_after_add: list[str]) -> str | None:
+    """Return the `-b`/`-B` branch name in `rest_after_add`, or None if absent.
+
+    None also covers `--detach` and checking out an existing branch (no
+    `-b`/`-B` at all) -- neither creates a new branch, so neither is subject
+    to the ChaosEngine/* naming requirement.
+    """
+    index = 0
+    while index < len(rest_after_add):
+        token = rest_after_add[index]
+        if token in ("-b", "-B"):
+            return rest_after_add[index + 1] if index + 1 < len(rest_after_add) else None
+        if token in _GIT_WORKTREE_ADD_FLAGS_WITH_ARG:
+            index += 2
+            continue
+        index += 1
+    return None
+
+
 def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
     """Return a block reason for an unsafe `git worktree add` invocation, or None."""
     for segment in _git_segments(command):
@@ -633,6 +660,18 @@ def check_r9_worktree_add(command: str, tool_name: str) -> str | None:
                     "#4126). Use forward slashes instead, e.g. "
                     f"'{path.replace(chr(92), '/')}'."
                 )
+
+        branch = _worktree_add_branch(rest_after_add)
+        if branch is not None and not branch.startswith(_CHAOS_ENGINE_BRANCH_PREFIX):
+            return (
+                "R9 (git worktree add non-conforming branch prefix): the "
+                "entrypoint's Task isolation section requires every session "
+                f"branch to be `{_CHAOS_ENGINE_BRANCH_PREFIX}*` off a fresh "
+                f"`origin/main` -- '{branch}' does not start with that prefix. "
+                "Tools that key off the prefix (PR watchers, worktree "
+                "cleanup) go blind to work on a non-conforming branch (issue "
+                f"#4496). Use `{_CHAOS_ENGINE_BRANCH_PREFIX}<slug>` instead."
+            )
 
         if not _LONGPATHS_RE.search(segment):
             match = re.search(r"\bworktree\b", segment, re.IGNORECASE)
@@ -1039,6 +1078,150 @@ def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None
 _CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash)
 
 
+# ---------------------------------------------------------------------------
+# R11: refuse an MCP memory write issued from a linked worktree
+# ---------------------------------------------------------------------------
+
+# Only the write path. Reads are the session-entry point AGENTS.md mandates,
+# and a read cannot strand work in the wrong tree, so blocking them would make
+# worktree isolation cost an agent its memory for no safety gain.
+_MEMORY_WRITE_TOOLS = frozenset(
+    {
+        "mcp__shaft-memory__remember_memory",
+        "mcp__shaft-memory__save_memory_patch",
+    }
+)
+
+
+def worktree_root(cwd: str | None) -> str | None:
+    """Return the checkout root containing `cwd`, or None when there is none."""
+    if not cwd:
+        return None
+    try:
+        current = os.path.abspath(cwd)
+    except (OSError, ValueError):
+        return None
+    while True:
+        if os.path.exists(os.path.join(current, ".git")):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+
+
+def is_linked_worktree(cwd: str | None) -> bool:
+    """True when `cwd` sits inside a linked worktree rather than the primary checkout.
+
+    A `.git` *file* is not the tell on its own, which an earlier revision of
+    this rule assumed: `git init --separate-git-dir` gives an ordinary primary
+    checkout the same shape, and so does a submodule. Nor is the pointer's
+    *path* the tell, which the revision after that assumed -- a separate-git-dir
+    checkout whose admin directory happens to sit under any folder named
+    `worktrees` matched it too. Two path heuristics, two misclassifications.
+
+    The tell is structural instead: git writes `gitdir` and `commondir` files
+    INSIDE a linked worktree's admin directory, and nowhere else. Their presence
+    is what a linked worktree is, rather than something its path looks like.
+
+    Read off the filesystem rather than by shelling out, because this runs
+    inside a PreToolUse hook whose budget the host caps at 10 seconds and R10
+    already spends two git queries of that.
+
+    Fails open -- outside a repository there is no linked worktree to be in, and
+    a guard that denies where it cannot tell would block memory writes in every
+    checkout it does not understand.
+    """
+    root = worktree_root(cwd)
+    if root is None:
+        return False
+    marker = os.path.join(root, ".git")
+    if not os.path.isfile(marker):
+        return False
+    try:
+        # utf-8-sig, because `str.strip()` does not strip a U+FEFF BOM and the
+        # `gitdir:` match would then miss. Git never writes one; a Windows
+        # editor that rewrote the file might.
+        with open(marker, encoding="utf-8-sig", errors="replace") as handle:
+            pointer = handle.read(4096).strip()
+    except OSError:
+        return False
+    if not pointer.lower().startswith("gitdir:"):
+        return False
+    admin = pointer.split(":", 1)[1].strip()
+    if not os.path.isabs(admin):
+        # `git worktree add --relative-paths` writes a pointer relative to the
+        # checkout holding the `.git` file.
+        admin = os.path.join(root, admin)
+    return os.path.isfile(os.path.join(admin, "gitdir")) and os.path.isfile(
+        os.path.join(admin, "commondir")
+    )
+
+
+def _targets_this_worktree(tool_input: dict | None, root: str) -> bool:
+    """True when `project_root` provably selects `root` for this one tool call."""
+    # Two conditions, and neither is redundant.
+    #
+    # ABSOLUTE, because the server resolves `resolve(server_cwd, project_root ??
+    # ".")` (server.js:11538) and the server's cwd is not something this hook
+    # can observe -- so a relative value, including the default ".", lands
+    # somewhere this rule cannot compute. The server's own argument description
+    # recommends absolute paths for exactly this reason.
+    #
+    # And the target's WORKTREE ROOT rather than the target itself, because the
+    # server does not use the path it is given: `resolveProjectPaths` runs it
+    # through `findGitRoot` (`git rev-parse --show-toplevel`) and adopts that
+    # (server.js:1226-1240). Demanding exact equality was stricter than the
+    # server's own semantics and refused a write that would have landed
+    # correctly -- an agent one directory deep, say `<worktree>/shaft-engine`,
+    # passing its own cwd.
+    if not isinstance(tool_input, dict):
+        return False
+    target = tool_input.get("project_root")
+    if not isinstance(target, str) or not target.strip() or not os.path.isabs(target):
+        return False
+    try:
+        resolved = worktree_root(os.path.realpath(target))
+        if resolved is None:
+            return False
+        return os.path.normcase(resolved) == os.path.normcase(
+            os.path.realpath(root)
+        )
+    except (OSError, ValueError):
+        return False
+
+
+def check_r11_memory_write_worktree(
+    tool_name: str, cwd: str | None, tool_input: dict | None = None
+) -> str | None:
+    """Return a block reason for an untargeted MCP memory write from a linked worktree."""
+    if tool_name not in _MEMORY_WRITE_TOOLS:
+        return None
+    # `is_linked_worktree` already returns False whenever `worktree_root` is
+    # None, so a `root is None` disjunct here could never be the reason and was
+    # dead code.
+    root = worktree_root(cwd)
+    if not is_linked_worktree(cwd):
+        return None
+    if _targets_this_worktree(tool_input, root):
+        return None
+    return (
+        "R11 (untargeted MCP memory write from a linked worktree): one "
+        "shaft-memory server serves the whole session and `.mcp.json` roots it "
+        "with `\"cwd\": \".\"`, so an untargeted write resolves against the "
+        "server's launch directory rather than this worktree. When those "
+        "differ the object lands in another session's tree -- uncommitted, on "
+        "a branch that is not yours. Observed twice in one session by two "
+        "different agents (issue #4505), and `memory check` passes either way, "
+        "because the object is valid; it is only in the wrong tree, so nothing "
+        "in your own verification can detect it. Name the destination instead "
+        f"of inheriting it: pass an absolute `project_root` of '{root}', which "
+        "the server resolves per call, or run `memory remember --stdin` from "
+        "this worktree, where the CLI resolves its own root with `git "
+        "rev-parse --show-toplevel`."
+    )
+
+
 def evaluate_command(command: str) -> str | None:
     """Return the first blocking reason found, or None if the command is allowed."""
     for check in _CHECKS:
@@ -1141,6 +1324,15 @@ def _print_deny(reason: str, host: str) -> None:
 
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
+
+    reason = check_r11_memory_write_worktree(
+        tool_name,
+        _hook_working_directory(hook_input),
+        hook_input.get("tool_input"),
+    )
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
 
     if tool_name in ("Bash", "PowerShell"):
         command = _extract_command(hook_input)
@@ -1520,6 +1712,53 @@ def run_r9_worktree_self_test() -> int:
     )
     check("git worktree add mentioned in commit message prose is not a real command", reason is None)
 
+    # --- B3: non-ChaosEngine/* branch via -b is denied (issue #4496) ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x "
+        "-b not-chaos-engine/whatever origin/main",
+        "Bash",
+    )
+    check("non-ChaosEngine/* branch via -b is denied", reason is not None)
+    check(
+        "branch-prefix denial names ChaosEngine/",
+        reason is not None and "ChaosEngine/" in reason,
+    )
+
+    # --- B3 also applies to -B (force-create/reset) and to PowerShell ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x "
+        "-B not-chaos-engine/whatever origin/main",
+        "PowerShell",
+    )
+    check("non-ChaosEngine/* branch via -B is denied on PowerShell too", reason is not None)
+
+    # --- --detach (no branch created at all) stays allowed ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/probe --detach origin/main",
+        "Bash",
+    )
+    check("git worktree add --detach (no branch created) stays allowed", reason is None)
+
+    # --- Checking out an existing branch (no -b/-B) stays allowed ---
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x not-chaos-engine/existing",
+        "Bash",
+    )
+    check(
+        "worktree add checking out an existing branch (no -b/-B) stays allowed",
+        reason is None,
+    )
+
+    # --- A non-conforming branch mentioned in commit-message prose is not a real command ---
+    reason = check_r9_worktree_add(
+        'git commit -m "use git worktree add x -b not-chaos-engine/y next time"',
+        "Bash",
+    )
+    check(
+        "git worktree add -b mentioned in commit message prose is not a real command",
+        reason is None,
+    )
+
     total_checks = len(failures)
     print(f"\nR9 worktree-add self-test summary: {total_checks} failed.")
     if failures:
@@ -1646,12 +1885,114 @@ def run_r10_nul_corruption_self_test() -> int:
     return 0
 
 
+def run_r11_memory_write_self_test() -> int:
+    """Exercise R11 against a real linked worktree in a throwaway repository."""
+    # R9 and R10 each ship one of these and `--self-test` runs all of them, so
+    # a rule without one is invisible to the number agents quote as evidence:
+    # `--self-test 93/93` could not move if R11 broke entirely.
+    #
+    # Imported locally for the same reason R10's suite does: the guard ships to
+    # hosts that have neither this repository's test runner nor its test tree,
+    # and `--self-test` is the only way to check it there.
+    import tempfile
+
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    def git(cwd: str, *arguments: str) -> None:
+        subprocess.run(  # nosec B603 B607 - fixed git commands on a temp fixture.
+            ["git", "-c", "core.longpaths=true", *arguments],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    with tempfile.TemporaryDirectory() as container:
+        primary = os.path.join(container, "primary")
+        linked = os.path.join(container, "linked")
+        os.makedirs(primary)
+        git(primary, "init", "-q", "-b", "main", ".")
+        git(primary, "config", "user.email", "harness@example.invalid")
+        git(primary, "config", "user.name", "Harness")
+        with open(os.path.join(primary, "notes.md"), "w", encoding="utf-8") as handle:
+            handle.write("committed\n")
+        git(primary, "add", "notes.md")
+        git(primary, "commit", "-qm", "initial")
+        git(primary, "worktree", "add", linked, "-b", "ChaosEngine/selftest")
+
+        check("fixture linked worktree is detected", is_linked_worktree(linked))
+        check("fixture primary checkout is not linked", not is_linked_worktree(primary))
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__remember_memory", linked, None
+        )
+        check("untargeted memory write from a linked worktree is denied", reason is not None)
+        check(
+            "denial names project_root as the remedy",
+            reason is not None and "project_root" in reason,
+        )
+        check(
+            "denial names the CLI as the other remedy",
+            reason is not None and "memory remember" in reason,
+        )
+        check(
+            "denial does not claim where the write would land",
+            reason is not None and "would land in the PRIMARY" not in reason,
+        )
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__remember_memory", linked, {"project_root": linked}
+        )
+        check("write targeted at this worktree is allowed", reason is None)
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__remember_memory", linked, {"project_root": primary}
+        )
+        check("write targeted at another tree is denied", reason is not None)
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__remember_memory", linked, {"project_root": "."}
+        )
+        check("relative project_root is denied", reason is not None)
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__remember_memory", primary, None
+        )
+        check("memory write from the primary checkout is allowed", reason is None)
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__load_memory", linked, None
+        )
+        check("memory read from a linked worktree is allowed", reason is None)
+
+        reason = check_r11_memory_write_worktree("Bash", linked, None)
+        check("an unrelated tool is not touched by R11", reason is None)
+
+        reason = check_r11_memory_write_worktree(
+            "mcp__shaft-memory__remember_memory", container, None
+        )
+        check("directory outside any repository fails open", reason is None)
+
+    print(f"\nR11 memory-write self-test summary: {len(failures)} failed.")
+    if failures:
+        print("Failed cases: " + ", ".join(failures))
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
         r9_result = run_r9_worktree_self_test()
         r10_result = run_r10_nul_corruption_self_test()
-        return command_result or r9_result or r10_result
+        r11_result = run_r11_memory_write_self_test()
+        return command_result or r9_result or r10_result or r11_result
 
     raw = sys.stdin.read()
     if not raw.strip():
