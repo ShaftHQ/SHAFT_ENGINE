@@ -71,10 +71,15 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
 )
 
 # Words that leave every pinned word in place and turn the rule into a
-# suggestion. Deliberately short. The TDD section legitimately carves out
-# documentation with "may skip test-first", and a marker list wide enough to
-# catch that phrasing would push an author to obscure a correct exemption in
-# order to pass -- which is the failure this check exists to prevent, inverted.
+# suggestion.
+#
+# This is a denylist, so it is incomplete by construction and the tests below
+# say so rather than implying coverage. Every entry past the first block was
+# added because it was demonstrated to walk through the list, not guessed at.
+# It stays as tight as the demonstrations allow: the TDD section legitimately
+# carves out documentation with "may skip test-first", and a list wide enough
+# to catch that phrasing would push an author to obscure a correct exemption in
+# order to pass -- the failure this check exists to prevent, inverted.
 EXEMPTION_MARKERS = (
     "unless",
     "except",
@@ -85,6 +90,12 @@ EXEMPTION_MARKERS = (
     "if time",
     "at your discretion",
     "best effort",
+    "use judgment",
+    "advisory",
+    "guideline rather",
+    "where possible",
+    "as appropriate",
+    "not strictly",
 )
 
 
@@ -928,11 +939,18 @@ class DisciplineTest(unittest.TestCase):
     `test_qualifying_any_pinned_clause_is_reported` splice their mutations into
     the shipped file at run time and fail if `clause_defects` stays quiet.
 
-    Scope, stated plainly so the next reader does not overrate these. The
-    exemption scan is judged per rule item, so an escape hatch appended as a
-    separate *paragraph* after a law is not reported, and no check here observes
-    whether an agent obeyed a law -- only that the entrypoint still states it
-    without a hedge.
+    Scope, stated plainly so the next reader does not overrate these, and
+    corrected once already because the first version of this paragraph
+    understated it.
+
+    `EXEMPTION_MARKERS` is a denylist of hedge vocabulary, so a weakening
+    worded outside it is not reported even when it sits inside the law's own
+    rule item -- "Never claim a check you did not run. Use judgment on routine
+    checks." was demonstrated to pass before that phrasing was added. The
+    entries are demonstrations, never a claim of coverage. The scan is judged
+    per rule item, so a hedge in a separate *paragraph* after a law is also
+    missed. And nothing here observes whether an agent obeyed a law -- only
+    that the file still states it without one of the hedges already seen.
     """
 
     def source(self) -> str:
@@ -1090,6 +1108,39 @@ class DisciplineTest(unittest.TestCase):
             with self.subTest(clause=clause):
                 mutated = self.mutate(path, clause, ", unless time is short")
                 self.assertTrue(clause_defects(mutated), "qualifying the clause is not reported")
+
+    # Hedges demonstrated to survive the marker list as first written. Each is
+    # a real weakening of a law that left every pinned word in place.
+    SURVIVING_HEDGES = (
+        ". Use judgment on routine checks",
+        ". This is advisory",
+        ". Treat it as a guideline rather than a rule",
+        ", where possible",
+        ", as appropriate",
+        ". Not strictly required for small changes",
+    )
+
+    def test_hedges_that_slipped_past_the_first_marker_list_are_reported(self):
+        """A denylist of hedge words is inherently incomplete.
+
+        The first version of `EXEMPTION_MARKERS` was written from the two
+        counter-examples #4467 happened to name, and six ordinary English
+        hedges walked straight through it -- each one leaving iron law 5
+        intact word for word and gutting it anyway. That is the same mistake
+        #4467 caught one level down: a guard built from the examples in front
+        of you, mistaken for a guard against the category.
+
+        Widening the list does not fix the category and this test does not
+        claim it does. What it fixes is regression: a hedge that has actually
+        been demonstrated stays demonstrated.
+        """
+        clause = "never claim a check you did not run"
+        for hedge in self.SURVIVING_HEDGES:
+            with self.subTest(hedge=hedge):
+                self.assertTrue(
+                    clause_defects(self.mutate(ENTRYPOINT, clause, hedge)),
+                    "a hedge inside the law's own rule item is not reported",
+                )
 
     def test_the_two_weakenings_named_in_the_review_are_reported(self):
         """The literal counter-examples from #4467, not a paraphrase of them.
