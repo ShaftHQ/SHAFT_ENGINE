@@ -1,0 +1,36 @@
+{
+  "body_path": "memory/gotchas/rest-countries-junit-api-example-deprecated.md",
+  "content_hash": "sha256:c10284e0647d9c17d54c99251053530fb42892649d489173948a2fb2a7f2bf96",
+  "created_at": "2026-08-02T19:07:30+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/main/resources/examples/JUnit/shaft-junit-api/src/test/java/testPackage/TestClass.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.rest-countries-junit-api-example-deprecated",
+  "origin": {
+    "kind": "external",
+    "locator": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4410"
+  },
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record durable first-time user evaluation evidence filed as issue #4410."
+  },
+  "status": "active",
+  "tags": [
+    "api",
+    "starter-example",
+    "external-dependency"
+  ],
+  "title": "Bundled JUnit REST Countries API starter targets deprecated v3",
+  "type": "gotcha",
+  "updated_at": "2026-08-02T19:07:30+03:00"
+}
