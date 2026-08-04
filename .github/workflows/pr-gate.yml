@@ -112,9 +112,13 @@ jobs:
               - 'tests/scripts/test_shaft_skill_cli_examples.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
-              # what maven_retry.sh needs (issue #4445).
-              - 'scripts/ci/maven_retry.sh'
-              - 'tests/scripts/test_maven_retry.py'
+              # what build_retry.sh needs (issue #4445).
+              - 'scripts/ci/build_retry.sh'
+              - 'tests/scripts/test_build_retry.py'
+              # The IntelliJ gate's own wiring to that script (issue #4494);
+              # `.github/actions/**` in the infra filter already covers the
+              # action itself, this covers an edit to the contract test alone.
+              - 'tests/scripts/test_intellij_verify_retry.py'
             intellij:
               - 'shaft-intellij/**'
               - '.github/workflows/publish-intellij-plugin.yml'
@@ -226,7 +230,8 @@ jobs:
           tests.scripts.test_shaft_skills_content
           tests.scripts.test_shaft_skill_cli_examples
           tests.scripts.test_worktree_hygiene
-          tests.scripts.test_maven_retry
+          tests.scripts.test_build_retry
+          tests.scripts.test_intellij_verify_retry
           -v
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
@@ -276,7 +281,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    # A clean build takes ~5m and a connect timeout at :verifyPlugin dependency
+    # resolution takes ~2m40s to surface, so the second attempt issue #4494 buys
+    # does not fit under ten minutes: the retry would only trade a red check for
+    # a timed-out one.
+    timeout-minutes: 20
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7

@@ -1,9 +1,12 @@
-"""Behaviour of scripts/ci/maven_retry.sh."""
+"""Behaviour of scripts/ci/build_retry.sh."""
 # The loop lives in a standalone script rather than inline in each workflow step
 # so it can be exercised here against a fake command, on both runners the agent
 # guidance gate uses. A cold-cache Maven Central 429 cannot be reproduced on
 # demand (issue #4445), so the contract proven here is the control flow: what
 # retries, what does not, and how many attempts each costs.
+#
+# Issue #4494 added the second caller: the Gradle IntelliJ plugin gate, whose
+# remote fails with a connect error rather than a rate limit.
 
 import os
 import shutil
@@ -13,7 +16,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RETRY_SCRIPT = REPO_ROOT / "scripts" / "ci" / "maven_retry.sh"
+RETRY_SCRIPT = REPO_ROOT / "scripts" / "ci" / "build_retry.sh"
 
 # The real thing, trimmed from run 30876948089's failing job.
 CENTRAL_429 = (
@@ -26,13 +29,29 @@ CENTRAL_429 = (
 GENUINE_FAILURE = (
     "[ERROR] Failed to execute goal on project shaft-visual: Compilation failure"
 )
+# The real thing, from the PR #4491 run this script's second caller was added
+# for (issue #4494). Linux reports a connect that never opened as ConnectException
+# 'Connection timed out'; a JDK socket connect timeout reports the same event as
+# SocketTimeoutException 'Connect timed out'. Both are the same refusal.
+GRADLE_CONNECT_REFUSED = (
+    "Could not determine the dependencies of task ':verifyPlugin'. > "
+    "java.net.ConnectException: Connection timed out"
+)
+GRADLE_CONNECT_TIMEOUT = (
+    "Could not resolve org.jetbrains.intellij.plugins:verifier-cli. > "
+    "java.net.SocketTimeoutException: Connect timed out"
+)
+GRADLE_GENUINE_FAILURE = (
+    "Execution failed for task ':verifyPlugin'. > "
+    "DEPRECATED_API_USAGES: 1 problem found"
+)
 
 
 def _bash() -> str | None:
     return shutil.which("bash")
 
 
-class MavenRetryScriptTest(unittest.TestCase):
+class BuildRetryScriptTest(unittest.TestCase):
     def setUp(self):
         if _bash() is None:
             self.skipTest("bash is unavailable on this host")
@@ -94,6 +113,26 @@ class MavenRetryScriptTest(unittest.TestCase):
         completed, attempts = self._run(command, attempts=3)
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertEqual(3, attempts)
+
+    def test_a_gradle_connect_refusal_is_retried_until_it_succeeds(self):
+        command = self._fake_command(output=GRADLE_CONNECT_REFUSED, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
+    def test_a_gradle_connect_timeout_is_retried_until_it_succeeds(self):
+        command = self._fake_command(output=GRADLE_CONNECT_TIMEOUT, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
+    def test_a_genuine_verifier_finding_is_not_retried(self):
+        # A deprecated-API usage is the gate doing its job. Retrying it costs
+        # another full IDE verification to reach the same verdict.
+        command = self._fake_command(output=GRADLE_GENUINE_FAILURE, fail_times=99)
+        completed, attempts = self._run(command, attempts=3)
+        self.assertNotEqual(0, completed.returncode)
+        self.assertEqual(1, attempts)
 
     def test_a_genuine_build_failure_is_not_retried(self):
         # Retrying a compilation error would burn the job's timeout to reach the
