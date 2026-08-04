@@ -12,6 +12,7 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,42 +28,44 @@ ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".cla
 # is reconciled, so the only thing that proves these still detect anything is a
 # test that calls the same objects the scan calls.
 
+# Three review rounds, three defects, and every one of them sat in a regex asked
+# to make a semantic judgement about English prose: is this period a sentence
+# end (#4468), does this sentence *record* a supersession or *assert* a policy,
+# is this a cadence *policy* or an incident *narrative* (#4469). The row that
+# never failed a round is the mechanical one -- does this text contain a known
+# phrase. So the grammar is gone (#4484): no sentence splitter, no abbreviation
+# lexicon, no supersession-marker list, no verb class, no tense.
+#
+# What replaces the inference is `POLICY_RECORD_ALLOWLIST` below. An object that
+# legitimately names a retired policy says so in one reviewable line naming its
+# own id, instead of hoping an unbounded grammar recognises the phrasing it
+# happened to use. #4461 rejected an opt-out because it "needs nothing of the
+# author"; three rounds falsified that -- the automatic inference cost a review
+# round each time, and in #4477 it rejected the exact record the Learning-loop
+# table asks an agent to write.
+
 # An id is a pointer, not an assertion, and ids are immutable here:
 # `.memory/events.jsonl` records `memory.created` against them, so a rename
 # orphans history. A `[[wiki-link]]` naming an object whose policy has moved is
 # therefore correct, and only prose is judged.
-WIKI_LINK = re.compile(r"\[\[[^\]]+\]\]")
-
-# A sentence ends at `.`, `!`, `?` or a line break. It does not end at every
-# `;` or `:`, and not at the period of an abbreviation -- the shipped splitter
-# broke on all of those and cut correctly written supersession records into
-# fragments, stranding the clause that names the policy in one with no marker,
-# which then read as a claim (#4468). Every reconciled body in #4461 cites
-# "Sec. 3b", so the trap sat in this store's own house style. `.md` and friends
-# need no entry: a file extension's period is followed by a letter, never by the
-# whitespace this pattern requires.
 #
-# Exactly the five abbreviations #4468 named, and each is pinned by its own
-# fixture. Nothing speculative: an unpinned entry is an unenforced rule, and an
-# abbreviation lexicon has no natural end, so entries earn their place by a test
-# rather than by seeming plausible. Unlisted ones ("approx.", "Ch.", "Nov.")
-# still split, which is a residual the base splitter also had -- see #4484.
-NON_TERMINAL_ABBREVIATION = ("Sec", "No", "vs", "e.g", "i.e")
-SENTENCE_BREAK = re.compile(
-    "".join(rf"(?<!\b{re.escape(word)})" for word in NON_TERMINAL_ABBREVIATION)
-    + r"[.!?]\s+|\n+"
-)
-
-# The Learning-loop table tells an agent to store a decision "superseding the
-# entry it replaces", so a memory object whose whole purpose is to record that a
-# policy was retired MUST be able to name that policy. A sentence carrying one of
-# these markers is a historical record, not a claim that the policy still holds.
-# Chosen over a tag-based opt-out because it needs nothing of the author: the
-# sentence that records a supersession already says so.
-SUPERSESSION_RECORD = re.compile(
-    r"(?i)\b(?:supersed\w+|retired?|rescinded|rejected|revoked|abandoned|obsolete|"
-    r"deprecated|no longer|replaced by|is gone|was dropped|used to)\b"
-)
+# #4484 asked for this to go along with the grammar, and it was deleted and put
+# back, because it is not grammar: `[[...]]` is markup, judged by its delimiters
+# and never by what it says, so it makes no semantic call about English. What
+# deleting it did was turn the house style for citing a memory object into a
+# build failure. 14 active objects cite by `[[id]]`, and two live ids name a
+# retired policy in their own slug -- the retired constraint, and
+# `orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes`,
+# which the hyphenated-interval fix below newly brought into range. That second
+# one is the canonical memory about check-in cadence, so it is exactly the
+# object a future memory would cross-reference. Trading an unbounded grammar
+# for an allowlist is the point of #4484; trading routine correct citation for
+# one is not.
+#
+# Residual, and narrower than what it replaces: citing the same objects by
+# *file path* rather than by `[[id]]` still flags, because a path is not markup
+# this can recognise. Nothing in the store does that today.
+WIKI_LINK = re.compile(r"\[\[[^\]]+\]\]")
 
 SUPERSEDED_ONE_PR_PER_SESSION = re.compile(
     r"(?i)one[- ]pr[- ]per[- ]session"
@@ -76,47 +79,71 @@ ONE_PR_PER_SESSION_REASON = (
     "which lets a session open one PR per group of related subtasks"
 )
 
-# All three must co-occur in one sentence. The subject alone plus any number
-# near "min" fired on ordinary prose -- "returned 3 minor findings" matched
-# inside "3 minor", and "takes about 40 min" is a timing observation, not a
-# policy. The Learning loop writes memory constantly, so a check that trips on
-# an unrelated observation gets edited away, and editing the check to reach
-# green is what iron law 4 forbids.
+# A delegate subject and a minute figure, and that is the entire rule. The third
+# signal used to be a directive list, which #4469 showed was fitted to the two
+# objects it was written against: six genuinely phrased cadence policies walked
+# past it. Widening it into a verb class was tried in #4477 and withdrawn --
+# `read` is its own past tense, as are `cost`, `put`, `set` and `hit`, and
+# `review`, `wake` and `ping` are nouns as readily as verbs, so no lexical rule
+# separates "I read the delegate's output 20 minutes in" from "Read a
+# subagent's output every 20 minutes". That is not a gap in the list; it is
+# proof the list was the wrong instrument.
 #
-# "every" and "after" were tried as the third signal and are too weak:
-# "Compaction after a merge takes 2 minutes and needs no delegate" carries all
-# three and states no cadence.
+# Dropping it costs false positives on timing observations -- "Compaction takes
+# 2 minutes and needs no delegate" now flags -- and that cost is paid to the
+# allowlist rather than to a grammar, because a false positive with a one-line
+# reviewable escape does not tempt an agent into weakening the check, which iron
+# law 4 forbids. The trade is measured, not assumed: this pair flags zero of the
+# 338 active objects in the live store.
 #
-# This list is narrow, and #4469 is right that it is narrow by fitting rather
-# than by design -- six genuinely phrased cadence policies miss it. What changed
-# here is only subtraction: `silent` and the past-tense `-ed` forms are gone,
-# which removes both false positives #4469 reported without adding anything.
+# Two spellings were simply absent, and both are #4484 Part B residuals that
+# outlive the grammar. `\s*` matched no `30-minute`, so the most idiomatic
+# English cadence -- the compound modifier -- was the one spelling that walked
+# past; `[\s-]?` takes it. And `subagent\b` rejected `subagents`, as
+# `background (?:task|job)\b` rejected `background jobs`, so a policy written
+# about more than one delegate missed on its plural. That mattered less when
+# the subject was one of three signals and a directive had to agree with it. It
+# is half the rule now.
 #
-# Widening it was attempted and withdrawn. Modelling the act as a verb class
-# with tense as the policy/narrative discriminator caught all six misses and
-# introduced three new false positives on noun and homograph forms -- "A review
-# of the background job took 40 minutes", "The subagent wake cost 30 minutes",
-# and decisively "I read the delegate's partial output 20 minutes in": `read` is
-# its own past tense, as are `cost`, `put` and `set`, so no lexical rule can
-# separate that from "Read a subagent's partial output every 20 minutes". The
-# false negatives are therefore left standing rather than traded for false
-# positives, because a false positive reddens an unrelated PR and the cheapest
-# repair an agent sees is to weaken the check, which iron law 4 forbids.
-#
-# The six misses need a different instrument, not a longer list. #4484 carries
-# the design: drop the verb entirely and gate the subject-plus-figure pair on an
-# explicit allowlist of object ids, which flags zero of the 335 active objects
-# today and needs no grammar at all.
-DELEGATE_SUBJECT = re.compile(r"(?i)\b(?:delegate[ds]?|subagent|background (?:task|job))\b")
-INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}\s*min(?:ute)?s?\b")
-INTERVAL_DIRECTIVE = re.compile(
-    r"(?i)\b(?:check(?:s|ing)?[ -]?in|ping(?:s|ing)?|status snapshot|"
-    r"unexamined|interim signal|no signal|intervene)\b"
+# `[\s-]*` and not `[\s-]?`: a body wraps, and "every 30\n    minutes" is one
+# cadence written across two lines, not two things. `?` was tried first and
+# rejected on that fixture. Both patterns carry a negative fixture too, because
+# a boundary or a character class can only be proved by what it refuses -- and
+# the subject is half the rule now, so its edges have to be held by a test
+# rather than by whatever the store happens to contain today.
+DELEGATE_SUBJECT = re.compile(
+    r"(?i)\b(?:delegate[ds]?|subagents?|background (?:task|job)s?)\b"
 )
+INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}[\s-]*min(?:ute)?s?\b")
 DELEGATE_INTERVAL_REASON = (
     "a delegate check-in interval: delegation.md owns the single figure, "
     "and memory restating a second one is how 20 and 30 both became true"
 )
+
+# The explicit escape that makes the rule above acceptable: memory object ids
+# permitted to name a retired policy, one entry per (policy, object). Ids are
+# immutable here -- `.memory/events.jsonl` records `memory.created` against
+# them, so a rename orphans history -- which makes the id the one stable key an
+# allowlist can use.
+#
+# Keyed by policy, not by object, so an object cleared for one retired policy
+# still fails on another. A reason with no permitted object has no entry at all,
+# because an empty entry is a rule nothing enforces -- the defect all three
+# review rounds found. Every entry is pinned by
+# `test_every_allowlist_entry_is_individually_load_bearing`, which fails if the
+# object it names stops needing it.
+#
+# Empty is the healthy state, not a sign the mechanism is unused. Its job is to
+# be there when an object has to say something the lexical rule reads as a
+# claim -- most likely an incident narrative carrying a delegate and a figure,
+# which A1 cannot tell from a cadence policy and deliberately does not try to.
+# An earlier revision required at least one live entry, on the theory that an
+# unexercised escape is an unenforced one. That was a deadlock: reconciling the
+# last exempt object left no legal state, since keeping its entry tripped the
+# staleness check and removing it tripped the non-empty check, and the only way
+# out was to weaken a check -- the very pressure this module warns about in
+# four places. The mechanism is exercised against a synthetic store instead.
+POLICY_RECORD_ALLOWLIST: dict[str, frozenset[str]] = {}
 
 
 def string_leaves(value: object) -> list[str]:
@@ -137,8 +164,9 @@ def searchable_text(memory_root: Path, metadata: dict) -> str:
     drifted apart: one read title and body, the other body, `facets` and
     `evidence`, so which field a claim sat in decided whether it was caught
     (#4464). Facet and evidence strings are joined as prose rather than
-    `json.dumps`-ed -- serialising would put escaped `\\n` where the sentence
-    splitter expects a line break.
+    `json.dumps`-ed -- serialising injects quotes, braces and escaped
+    whitespace into the middle of the prose, which is exactly where a phrase
+    match needs the words to stay adjacent.
     """
     return "\n".join(
         (
@@ -151,27 +179,38 @@ def searchable_text(memory_root: Path, metadata: dict) -> str:
 
 
 def superseded_policy_offences(text: str) -> list[str]:
-    """Return the superseded policies this text asserts as still current.
+    """Return the superseded policies this text names, by lexical match alone.
 
-    Judged sentence by sentence so a supersession marker exempts only the
-    sentence that carries it, not the whole object.
+    Whether naming one is legitimate is not decided here, because deciding it
+    from the prose is what failed three review rounds. This answers only the
+    mechanical question; `memory_object_offences` applies the explicit
+    allowlist that answers the other one.
     """
+    prose = WIKI_LINK.sub(" ", text)
     offences: set[str] = set()
-    for sentence in SENTENCE_BREAK.split(WIKI_LINK.sub(" ", text)):
-        if SUPERSESSION_RECORD.search(sentence):
-            continue
-        if SUPERSEDED_ONE_PR_PER_SESSION.search(sentence):
-            offences.add(ONE_PR_PER_SESSION_REASON)
-        if (
-            DELEGATE_SUBJECT.search(sentence)
-            and INTERVAL_FIGURE.search(sentence)
-            and INTERVAL_DIRECTIVE.search(sentence)
-        ):
-            offences.add(DELEGATE_INTERVAL_REASON)
+    if SUPERSEDED_ONE_PR_PER_SESSION.search(prose):
+        offences.add(ONE_PR_PER_SESSION_REASON)
+    if DELEGATE_SUBJECT.search(prose) and INTERVAL_FIGURE.search(prose):
+        offences.add(DELEGATE_INTERVAL_REASON)
     return sorted(offences)
 
 
-def active_memory_policy_offenders(root: Path) -> list[str]:
+def memory_object_offences(
+    memory_root: Path, metadata: dict, allowlist: dict[str, frozenset[str]] | None = None
+) -> list[str]:
+    """Return what a memory object still offends on once its allowlist entries apply."""
+    permitted = POLICY_RECORD_ALLOWLIST if allowlist is None else allowlist
+    identifier = metadata.get("id", "")
+    return [
+        reason
+        for reason in superseded_policy_offences(searchable_text(memory_root, metadata))
+        if identifier not in permitted.get(reason, frozenset())
+    ]
+
+
+def active_memory_policy_offenders(
+    root: Path, allowlist: dict[str, frozenset[str]] | None = None
+) -> list[str]:
     """Return `path: reason` for every active memory object restating a superseded policy."""
     memory_root = root / ".memory"
     offenders = []
@@ -179,7 +218,7 @@ def active_memory_policy_offenders(root: Path) -> list[str]:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         if metadata.get("status", "active") != "active":
             continue
-        for reason in superseded_policy_offences(searchable_text(memory_root, metadata)):
+        for reason in memory_object_offences(memory_root, metadata, allowlist):
             offenders.append(f"{metadata_path.relative_to(root).as_posix()}: {reason}")
     return sorted(offenders)
 
@@ -654,13 +693,13 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         Its sibling searched body plus `facets` plus `evidence`; this one gained
         `title` and never gained the other two, so a policy restated in an
         evidence note escaped while the identical sentence in a body failed the
-        build (#4464). 87 of the 335 active objects carry more than 120
+        build (#4464). 89 of the 338 active objects carry more than 120
         characters of facet or evidence *prose*, and a retrieval puts all of it
         in front of the agent. (#4464 says 164; that figure measures the JSON
         serialisation, whose braces, quotes and keys are not text anyone reads.
         Both are right about their own unit.) Strings are joined as prose, not
-        `json.dumps`-ed: escaped `\\n` would arrive where the splitter expects a
-        line break.
+        `json.dumps`-ed: serialising drops quotes, braces and escapes between
+        words the phrase patterns need adjacent.
 
         One object per field that only that field can fail on, because a fixture
         carrying the claim in two places proves neither. `evidence` nests the
@@ -719,140 +758,260 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             [DELEGATE_INTERVAL_REASON],
         )
 
-    def test_the_superseded_policy_scan_judges_prose_and_not_identifiers(self):
-        """A guard that cannot tell a claim from a pointer is not usable here.
+    def test_recording_a_supersession_is_no_longer_a_grammar_exemption(self):
+        """The marker list is gone, and with it the judgement it was making.
 
-        Renaming a memory object is not free -- its id is written into
-        `.memory/events.jsonl` -- so a link to an object whose policy has since
-        moved has to stay legal while the sentence asserting that policy does
-        not.
+        Deciding from the prose whether a sentence *records* a supersession or
+        *asserts* a policy is a semantic call, and it failed twice: it needed an
+        unbounded abbreviation lexicon to find its sentence boundaries (#4468),
+        and in #4477 a current-tense refinement of it rejected the exact record
+        the Learning-loop table asks an agent to write. Naming a retired policy
+        is now simply naming it; whether that is legitimate is answered by
+        `POLICY_RECORD_ALLOWLIST`, one reviewable line, not by a word list that
+        has to guess the author's intent (#4484).
         """
+        for record in (
+            "One PR per session is superseded as of 2026-07-20.",
+            "One PR per session was retired on 2026-07-20.",
+            "One PR per session is no longer the rule.",
+            "We used to open one PR per session.",
+        ):
+            with self.subTest(record=record[:40]):
+                self.assertEqual(superseded_policy_offences(record), [ONE_PR_PER_SESSION_REASON])
+
+    def test_citing_a_memory_object_by_id_is_a_pointer_not_a_claim(self):
+        """Two live ids name a retired policy in their own slug.
+
+        `[[...]]` is markup, judged by its delimiters and never by what it says,
+        so stripping it makes no semantic call about English -- it is the same
+        mechanical row as a phrase list. #4484 asked for it to go with the
+        grammar; it was deleted and put back, because deleting it turned the
+        house style for citing a memory object into a build failure. 14 active
+        objects cite by `[[id]]`, and the second of the two ids below is the
+        canonical memory about check-in cadence, so it is exactly the object a
+        future memory would cross-reference. The hyphenated-interval fix is what
+        brought it into range, which makes this a hazard this change created
+        rather than one it inherited.
+
+        The claim outside the markup is judged normally, which is the half that
+        matters: whole-object scanning means a sentence naming the policy in
+        prose fails whether or not it also carries a link.
+        """
+        for citation in (
+            "See [[one-branch-one-worktree-one-pr-per-session]] for the incident.",
+            "See [[orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes]].",
+        ):
+            with self.subTest(citation=citation[:45]):
+                self.assertEqual(superseded_policy_offences(citation), [])
         self.assertEqual(
             superseded_policy_offences(
-                "See [[one-branch-one-worktree-one-pr-per-session]] for the incident."
-            ),
-            [],
-        )
-        self.assertEqual(
-            superseded_policy_offences(
-                "The one-PR-per-session default still applies to this session."
+                "See [[one-branch-one-worktree-one-pr-per-session]]."
+                " Still one PR per session for this work."
             ),
             [ONE_PR_PER_SESSION_REASON],
         )
-
-    def test_the_superseded_policy_scan_allows_recording_the_supersession(self):
-        """The Learning-loop table asks for exactly the sentence this could ban.
-
-        It routes "a decision with a rationale someone will otherwise
-        re-litigate" to memory "superseding the entry it replaces" -- which
-        means naming the retired policy. A check that forbids the record the
-        harness prescribes would make the two contradict each other, and the
-        only escape would be `status != "active"`, a hatch this store has never
-        used (335 active, 1 open, zero superseded).
-        """
-        for record in (
-            "Decision 2026-07-20: the owner retired the one-PR-per-session default"
-            " in favour of grouped PRs per Sec. 3b.",
-            "The #3643 session shipped a single final PR and the owner rejected it;"
-            " that shape is gone.",
-            "One PR per session is superseded by work-github-playbook.md Sec. 3b.",
-            # A current-tense word modifying the supersession verb itself. An
-            # earlier revision of this PR flagged all three, because it treated
-            # "still"/"remains" anywhere in the sentence as a claim that the
-            # policy holds -- turning the record the Learning loop prescribes
-            # into a build failure. Two active objects already write this way
-            # ("remain rejected", "remain deprecated"), so it was a live class,
-            # not a hypothetical. Pinned here so a future current-tense rule has
-            # to confront them before it ships.
-            "One PR per session remains superseded by work-github-playbook.md Sec. 3b.",
-            "One PR per session remains retired.",
-            "One PR per session is superseded; the one-worktree half still stands.",
+        # One link at a time: `[^\]]+` stops at the first `]`, and a greedy
+        # `.+` would swallow the prose between two citations along with them --
+        # so an object that cites twice could say anything in between.
+        self.assertEqual(
+            superseded_policy_offences(
+                "Between [[first-object]] and still one PR per session, see [[second-object]]."
+            ),
+            [ONE_PR_PER_SESSION_REASON],
+        )
+        # And a link is replaced by a separator, not closed up. Substituting an
+        # empty string fuses the text on either side of it into one token,
+        # which manufactures both a subject and a phrase that no one wrote.
+        for fused in (
+            "Wake the sub[[note]]agent every 30 minutes.",
+            "The one[[note]] PR per session rule.",
         ):
-            with self.subTest(record=record[:40]):
-                self.assertEqual(superseded_policy_offences(record), [])
+            with self.subTest(fused=fused[:40]):
+                self.assertEqual(superseded_policy_offences(fused), [])
 
-    def test_the_supersession_exemption_is_scoped_to_one_sentence(self):
-        """Per-sentence scoping is the whole reason this exemption is safe.
+    def test_an_allowlist_entry_clears_one_object_for_one_policy(self):
+        """Not a blanket pardon, in either direction.
 
-        Whole-object scoping was the rejected design: it lets one historical
-        aside launder every claim in the same object. Nothing tested that
-        choice, though -- every fixture above is a single sentence, so replacing
-        `SENTENCE_BREAK` with a never-matching pattern silently reverts to the
-        rejected design and they all still pass. This is the one case that can
-        tell the two apart, and it is checked in both orderings because the
-        splitter must not care which side the marker falls on.
-
-        Known limitation, still open and inherent to sentence granularity: a
-        marker anywhere in a sentence exempts that whole sentence, so ".. was
-        retired, and one PR per session is still the default." reads clean.
-        #4468 asked for this too. It was implemented as a current-tense
-        override, and withdrawn: the override rejected "One PR per session
-        remains superseded by .. Sec. 3b.", which is the record the Learning
-        loop prescribes, and omitting one word ("is the default") reopened the
-        hole anyway. Closing it needs the marker bound to the clause naming the
-        policy, which is a parse this instrument cannot do -- see #4484.
+        An entry names a policy and an id, so it must clear that object for
+        that policy only: the same object still fails on a policy it was not
+        cleared for, and a different object still fails on the policy it was.
+        Both directions are checked because a mistake in either -- keying by id
+        alone, or applying any entry to every object -- turns one reviewable
+        line into a hole with no visible edge, which is the failure mode the
+        automatic inference had.
         """
-        for record in (
-            "The per-phase pattern was retired. One PR per session is still the default.",
-            "One PR per session is still the default. The per-phase pattern was retired.",
-        ):
-            with self.subTest(record=record[:40]):
+        claim = (
+            "Still one PR per session for this work, and check in on a "
+            "delegate every 30 minutes.\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.synthetic_store(temporary_directory, {"cleared": claim, "other": claim})
+            self.assertEqual(
+                active_memory_policy_offenders(
+                    root,
+                    {ONE_PR_PER_SESSION_REASON: frozenset({"constraint.cleared"})},
+                ),
+                [
+                    f".memory/memory/constraints/cleared.json: {DELEGATE_INTERVAL_REASON}",
+                    f".memory/memory/constraints/other.json: {DELEGATE_INTERVAL_REASON}",
+                    f".memory/memory/constraints/other.json: {ONE_PR_PER_SESSION_REASON}",
+                ],
+            )
+            # An explicitly empty allowlist is not the shipped one, and only a
+            # non-empty shipped list can show the difference -- so one is put
+            # there for the length of this assertion. Without it `allowlist or
+            # POLICY_RECORD_ALLOWLIST` is indistinguishable from the shipped
+            # code, and a caller asking for no exemptions would silently get
+            # the standing ones the day the list stops being empty.
+            with mock.patch.dict(
+                POLICY_RECORD_ALLOWLIST,
+                {ONE_PR_PER_SESSION_REASON: frozenset({"constraint.cleared"})},
+            ):
                 self.assertEqual(
-                    superseded_policy_offences(record), [ONE_PR_PER_SESSION_REASON]
+                    active_memory_policy_offenders(root, {}),
+                    [
+                        f".memory/memory/constraints/cleared.json: {DELEGATE_INTERVAL_REASON}",
+                        f".memory/memory/constraints/cleared.json: {ONE_PR_PER_SESSION_REASON}",
+                        f".memory/memory/constraints/other.json: {DELEGATE_INTERVAL_REASON}",
+                        f".memory/memory/constraints/other.json: {ONE_PR_PER_SESSION_REASON}",
+                    ],
+                )
+                # …and `None` does take it, which is what makes the pair a test
+                # of the default rather than of the empty case alone.
+                self.assertEqual(
+                    active_memory_policy_offenders(root),
+                    [
+                        f".memory/memory/constraints/cleared.json: {DELEGATE_INTERVAL_REASON}",
+                        f".memory/memory/constraints/other.json: {DELEGATE_INTERVAL_REASON}",
+                        f".memory/memory/constraints/other.json: {ONE_PR_PER_SESSION_REASON}",
+                    ],
                 )
 
-    def test_the_splitter_keeps_a_supersession_record_in_one_sentence(self):
-        """This store's house style is the case the splitter got wrong.
+    def test_an_incident_narrative_clears_through_the_allowlist(self):
+        """The escape that is the whole premise of dropping the verb.
 
-        `;` and `:` are not sentence ends, and neither is the period in an
-        abbreviation -- yet splitting on all of them cut these records into
-        fragments and stranded the clause naming the policy in one with no
-        marker, which then read as a claim. Every reconciled body in #4461
-        cites "Sec. 3b", so the next author writing a supersession record in
-        the prevailing style had a good chance of failing the build (#4468).
+        A1 flags a delegate subject beside a minute figure and makes no attempt
+        to tell a cadence policy from an incident, because #4477 established
+        that no lexical rule can. That is only acceptable if the narrative has
+        somewhere to go, and #4469's own narrative is the fixture for it. Pinned
+        because nothing else clears an object for `DELEGATE_INTERVAL_REASON`:
+        with only the policy-phrase side exercised, an allowlist that could
+        never clear a cadence false positive would look identical from the
+        outside, and the argument for A1 would rest on an untested claim.
         """
-        for record in (
-            "One PR per session: superseded by work-github-playbook.md Sec. 3b.",
-            "One PR per session, per Sec. 3b, is no longer the rule.",
-            "One PR per session; that default is gone.",
-        ):
-            with self.subTest(record=record[:40]):
-                self.assertEqual(superseded_policy_offences(record), [])
+        narrative = "The delegate went silent for 90 minutes before I checked in.\n"
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.synthetic_store(temporary_directory, {"incident": narrative})
+            self.assertEqual(
+                active_memory_policy_offenders(root),
+                [f".memory/memory/constraints/incident.json: {DELEGATE_INTERVAL_REASON}"],
+            )
+            self.assertEqual(
+                active_memory_policy_offenders(
+                    root, {DELEGATE_INTERVAL_REASON: frozenset({"constraint.incident"})}
+                ),
+                [],
+            )
 
-    def test_every_supersession_marker_is_individually_load_bearing(self):
-        """One marker per record, so no alternative can be gutted unnoticed.
+    def test_the_field_set_is_joined_as_separate_lines_not_run_together(self):
+        """A join is a match surface, so the separator is a rule like any other.
 
-        The fixtures above carry two markers each -- "rejected .. is gone" --
-        so either could be deleted with the suite green. Eight of the thirteen
-        markers were unenforced that way. Each record here carries exactly one,
-        and names the policy, so it is only clean while its own marker lives.
+        `searchable_text` concatenates title, body, facets and evidence. Joining
+        them with a space fuses the tail of one field to the head of the next
+        and manufactures a phrase that no field contains -- the fields are
+        separate strings a retrieval renders separately, and a claim has to sit
+        inside one of them to be a claim. Joining with nothing at all fuses them
+        harder, into single tokens. `\\n` was load-bearing for the sentence
+        splitter and nothing re-pinned it once the splitter went, so both
+        directions get a case: one where a space would manufacture the policy
+        phrase, one where an empty join would manufacture the subject.
         """
-        for marker, record in (
-            ("supersed", "One PR per session is superseded as of 2026-07-20."),
-            ("retired", "One PR per session was retired on 2026-07-20."),
-            ("rescinded", "One PR per session was rescinded on 2026-07-20."),
-            ("rejected", "One PR per session was rejected by the owner."),
-            ("revoked", "One PR per session was revoked on 2026-07-20."),
-            ("abandoned", "One PR per session was abandoned after #3643."),
-            ("obsolete", "One PR per session is obsolete."),
-            ("deprecated", "One PR per session is deprecated."),
-            ("no longer", "One PR per session is no longer the rule."),
-            ("replaced by", "One PR per session was replaced by grouped PRs."),
-            ("is gone", "One PR per session is gone."),
-            ("was dropped", "One PR per session was dropped after #3643."),
-            ("used to", "We used to open one PR per session."),
+        for name, title, body in (
+            ("phrase", "The rule is one", "PR per session applies to this work.\n"),
+            ("subject", "Wake the sub", "agent every 30 minutes.\n"),
         ):
-            with self.subTest(marker=marker):
-                self.assertEqual(superseded_policy_offences(record), [])
+            with self.subTest(fuses=name), tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                objects = root / ".memory/memory/constraints"
+                objects.mkdir(parents=True)
+                (objects / f"{name}.md").write_text(body, encoding="utf-8")
+                (objects / f"{name}.json").write_text(
+                    json.dumps(
+                        {
+                            "id": f"constraint.{name}",
+                            "status": "active",
+                            "title": title,
+                            "body_path": f"memory/constraints/{name}.md",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                self.assertEqual(active_memory_policy_offenders(root), [])
+
+    def synthetic_store(self, temporary_directory: str, bodies: dict[str, str]) -> Path:
+        """Write a throwaway `.memory` store of active constraints and return its root."""
+        root = Path(temporary_directory)
+        objects = root / ".memory/memory/constraints"
+        objects.mkdir(parents=True)
+        for name, body in bodies.items():
+            (objects / f"{name}.md").write_text(body, encoding="utf-8")
+            (objects / f"{name}.json").write_text(
+                json.dumps(
+                    {
+                        "id": f"constraint.{name}",
+                        "status": "active",
+                        "title": "",
+                        "body_path": f"memory/constraints/{name}.md",
+                    }
+                ),
+                encoding="utf-8",
+            )
+        return root
+
+    def test_every_allowlist_entry_is_individually_load_bearing(self):
+        """An entry that clears nothing is a rule nothing enforces.
+
+        That is the defect all three review rounds found, wearing a different
+        hat each time, so the allowlist gets the same treatment every surviving
+        pattern member gets: each entry must name a live active object that
+        really does trip the scan without it. A stale entry -- object renamed,
+        object retired, prose rewritten -- fails here rather than sitting on as
+        a silent standing exemption.
+
+        The allowlist is empty today and that is the healthy state, so this runs
+        vacuously and is meant to. Requiring a live entry instead was tried and
+        removed: it left reconciling the last exempt object with no legal state,
+        because keeping its entry tripped the staleness check here and removing
+        it tripped the non-empty one, and the only exit was to weaken a check.
+        """
+        memory_root = ROOT / ".memory"
+        objects = {}
+        for metadata_path in (memory_root / "memory").rglob("*.json"):
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            objects[metadata["id"]] = metadata
+        for reason, identifiers in POLICY_RECORD_ALLOWLIST.items():
+            self.assertTrue(identifiers, reason)
+            for identifier in identifiers:
+                with self.subTest(identifier=identifier[:60]):
+                    self.assertIn(identifier, objects)
+                    metadata = objects[identifier]
+                    self.assertEqual(metadata.get("status", "active"), "active")
+                    self.assertIn(
+                        reason,
+                        superseded_policy_offences(searchable_text(memory_root, metadata)),
+                    )
 
     def test_every_superseded_policy_phrasing_is_individually_load_bearing(self):
         """One phrasing per case, for the same reason.
 
         "Still one PR per session: a single final PR." matches two alternatives
         at once, so four of the five could be deleted with the suite green.
+        Both spellings of the separator get a case too, since `[- ]` collapsing
+        to either one alone is a silent narrowing.
         """
         for phrasing, claim in (
             ("one PR per session", "Still one PR per session for this work."),
+            ("one-PR-per-session", "The one-PR-per-session default governs this work."),
             ("1 PR per session", "Still 1 PR per session for this work."),
             ("single final PR", "This session ends with a single final PR."),
             ("single session PR", "This work ends with a single session PR."),
@@ -861,168 +1020,197 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 "The one-branch-one-worktree-one-pr constraint governs this work.",
             ),
             ("session's single branch/pr", "Work lands inside the session's single branch/pr."),
+            ("sessions single branch/pr", "Work lands inside the sessions single branch/pr."),
         ):
             with self.subTest(phrasing=phrasing):
                 self.assertEqual(superseded_policy_offences(claim), [ONE_PR_PER_SESSION_REASON])
+        # The `1 PR` alternative needs its leading boundary, which nothing else
+        # pins: without it any figure ending in 1 reads as the retired policy,
+        # and issue numbers sit next to this phrase constantly in this store.
+        self.assertNotRegex("#31 PR per session batches shipped", SUPERSEDED_ONE_PR_PER_SESSION)
+        # And the separator is exactly one character. `[- ]*` reads "onepr per
+        # session" as the policy; a class that admits runs it never needs is a
+        # widening no positive fixture can catch.
+        self.assertNotRegex("onepr per session shipped", SUPERSEDED_ONE_PR_PER_SESSION)
 
-    def test_a_line_break_ends_a_sentence_even_without_punctuation(self):
-        """Memory titles and bullet lists have no terminating punctuation.
+    def test_the_scan_reaches_its_verdict_without_parsing_sentences(self):
+        """The property that ends three rounds of grammar defects.
 
-        A title is joined to its body with a newline and often ends without a
-        period, so dropping `\\n+` from the splitter merges the two -- and a
-        marker anywhere in the body would then exempt a claim in the title.
-        Nothing pinned that, because every other fixture ends its lines with
-        punctuation the terminator branch also matches.
+        Restoring either half of the deleted grammar changes one of these, so
+        this is where a fourth attempt to reason about prose gets caught. The
+        first record carries a supersession marker in the same breath as the
+        claim, so any marker list -- however it is scoped -- reads it as clean.
+        The second puts the subject and the figure in different sentences, so
+        any sentence splitter loses the cadence.
         """
         self.assertEqual(
             superseded_policy_offences(
-                "One PR per session is the default\nThe per-phase pattern was retired"
+                "Still one PR per session, and the per-phase pattern was retired."
             ),
             [ONE_PR_PER_SESSION_REASON],
         )
-
-    def test_every_protected_abbreviation_is_individually_load_bearing(self):
-        """One fixture per entry, because an unpinned entry is an unenforced rule.
-
-        The first version of this list carried ten abbreviations and pinned one.
-        Nine could be deleted with the suite green, which is the same defect --
-        a rule nothing enforces -- that the two previous review rounds found
-        elsewhere in this module. The list is now exactly the five #4468 named,
-        and each of these records fails if its own entry goes.
-        """
-        for abbreviation, record in (
-            ("Sec", "One PR per session, per Sec. 3b, is no longer the rule."),
-            ("No", "One PR per session, per amendment No. 4, is no longer the rule."),
-            ("vs", "One PR per session vs. grouped PRs: the former is no longer the rule."),
-            ("e.g", "One PR per session, e.g. #3643, is no longer the rule."),
-            ("i.e", "One PR per session, i.e. the 2026-07-17 shape, is no longer the rule."),
-        ):
-            with self.subTest(abbreviation=abbreviation):
-                self.assertEqual(superseded_policy_offences(record), [])
-
-    def test_the_splitter_does_not_merge_two_real_sentences(self):
-        """The other direction: a period that does end a sentence must split.
-
-        An earlier revision protected any lone capital as an initial, which made
-        "see Appendix A." non-terminal and merged the claim that follows into
-        the exempt sentence -- so a record the base check flagged became clean.
-        A guard whose fix hides a real offence is worse than the bug it fixed.
-        """
         self.assertEqual(
             superseded_policy_offences(
-                "That shape is gone, see Appendix A. One PR per session is the default."
+                "A delegate went quiet. The orchestrator waited 30 minutes."
             ),
-            [ONE_PR_PER_SESSION_REASON],
+            [DELEGATE_INTERVAL_REASON],
         )
 
-    def test_the_interval_scan_ignores_prose_that_merely_mentions_minutes(self):
-        """A false positive here gets the check edited away, not the memory fixed.
+    def test_the_interval_scan_needs_both_of_its_two_signals(self):
+        """Either signal alone is ordinary prose, and both are common alone.
 
-        The Learning loop writes memory objects routinely, so a scan that trips
-        on an ordinary timing observation turns the harness step red on an
-        unrelated PR -- and the cheapest repair an agent sees is to weaken the
-        check, which iron law 4 forbids. All three signals must co-occur in one
-        sentence: the subject, a real minute figure, and a directive.
+        A memory object mentioning a delegate is unremarkable, and so is one
+        mentioning minutes. The conjunction is the rule, and dropping either
+        conjunct would turn a large share of the store red -- which is the
+        pressure that gets a check weakened rather than a memory fixed, and
+        iron law 4 forbids the repair an agent would reach for.
         """
         for benign in (
             "The reviewer returned 3 minor findings on the delegate's diff.",
-            "A delegate's first pass takes about 40 min; size the wakeup accordingly.",
-            "Compaction after a merge takes 2 minutes and needs no delegate.",
+            "A delegate rebased onto main and pushed.",
+            "Compaction after a merge takes 2 minutes.",
         ):
             with self.subTest(text=benign[:40]):
                 self.assertEqual(superseded_policy_offences(benign), [])
+
+    def test_the_interval_scan_no_longer_tries_to_tell_policy_from_narrative(self):
+        """The cost A1 pays, stated rather than hidden.
+
+        #4469 wanted these two narratives clean and #4477 added the three below
+        them as proof that no lexical rule could keep them clean: `read` is its
+        own past tense, and `review` and `wake` are nouns as readily as verbs.
+        All five now flag. That is deliberate -- the alternative is a grammar
+        that costs a review round per phrasing, and none of these five appears
+        in the live store, where the rule flags zero of 338 active objects. An
+        object that really does narrate an incident this way adds one
+        allowlisted line, and unlike a grammar hole that line is visible in
+        review.
+        """
+        for narrative in (
+            "The delegate went silent for 90 minutes before I checked in.",
+            "A silent background job cost 45 minutes of wall clock this session.",
+            "A review of the background job took 40 minutes.",
+            "I read the delegate's partial output 20 minutes in and it was looping.",
+            "The subagent wake cost 30 minutes of wall clock.",
+            # The plainest of the lot, and the one the shipped check used to
+            # pass. It is the ordinary shape of a Learning-loop note, so it
+            # belongs on this list rather than deleted from the module.
+            "A delegate's first pass takes about 40 min; size the wakeup accordingly.",
+        ):
+            with self.subTest(text=narrative[:40]):
+                self.assertEqual(superseded_policy_offences(narrative), [DELEGATE_INTERVAL_REASON])
+
+    def test_every_interval_figure_spelling_is_individually_load_bearing(self):
+        """One spelling per case, so no piece of the figure can be gutted unnoticed.
+
+        The pattern is small and every piece of it earns a fixture, because an
+        unpinned piece is an unenforced rule -- the defect all three review
+        rounds found. `30-minute` is the piece that was missing outright in the
+        base check and in #4477's (#4484 Part B); the rest guard the separator,
+        the optional `ute` and `s`, both digit bounds and the case fold.
+        """
+        for spelling, policy in (
+            ("space", "Check in on a delegate every 30 minutes."),
+            ("hyphen", "A delegate is polled on a 30-minute cadence."),
+            ("no separator", "Wake on a subagent every 20min."),
+            ("bare min", "Wake on a subagent every 20 min."),
+            ("singular minute", "Review a delegated task at 30 minute intervals."),
+            ("upper case", "Check in on a delegate every 30 MINUTES."),
+            ("one digit", "Check in on a delegate every 5 minutes."),
+            ("three digits", "Check in on a delegate every 120 minutes."),
+            # A wrapped line is one cadence, not two things. This is why the
+            # separator is `*` and not `?`, and it is the only fixture that can
+            # tell those two apart.
+            ("wrapped line", "Check in on a delegate every 30\n    minutes."),
+        ):
+            with self.subTest(spelling=spelling):
+                self.assertEqual(superseded_policy_offences(policy), [DELEGATE_INTERVAL_REASON])
+        # A figure has to be a figure of minutes and a whole one. Without the
+        # trailing boundary "3 minor" reads as three minutes; without the
+        # leading one a four-digit duration reads as its last three digits; and
+        # the separator is one character of space or hyphen, nothing else --
+        # widen the class and a filename becomes a cadence.
         self.assertNotRegex("3 minor findings", INTERVAL_FIGURE)
-        # The leading word boundary, which nothing else pins: without it the
-        # pattern matches the tail of a longer number, so a four-digit duration
-        # reads as a two- or three-digit cadence.
         self.assertNotRegex("the build ran 1440 minutes", INTERVAL_FIGURE)
+        self.assertNotRegex("artifact-3_minutes.json", INTERVAL_FIGURE)
 
     def test_every_delegate_subject_is_individually_load_bearing(self):
         """One subject per case, so no alternative can be gutted unnoticed.
 
         Every interval fixture said "delegate" somewhere, so the whole
         `background task|job` branch could be deleted with the suite green --
-        and that branch is the one an incident about a shell job would use.
+        and that branch is the one an incident about a shell job would use. The
+        plural and the case fold went unpinned the same way, and now that the
+        subject is half the entire rule rather than one of three signals, an
+        unenforced branch here is half a rule nothing enforces.
         """
         for subject, policy in (
             ("delegate", "Check in on a delegate every 30 minutes."),
+            ("delegates", "Check in on delegates every 30 minutes."),
             ("delegated", "Check in on a delegated worker every 30 minutes."),
             ("subagent", "Check in on a subagent every 30 minutes."),
+            ("subagents", "Wake on subagents every 20 minutes."),
             ("background task", "Check in on a background task every 30 minutes."),
+            ("background tasks", "Poll background tasks every 25 minutes."),
             ("background job", "Check in on a background job every 30 minutes."),
+            ("background jobs", "Poll background jobs every 25 minutes."),
+            ("case fold", "Subagent output is read every 30 minutes."),
         ):
             with self.subTest(subject=subject):
                 self.assertEqual(
                     superseded_policy_offences(policy), [DELEGATE_INTERVAL_REASON]
                 )
-
-    def test_the_interval_scan_ignores_an_incident_narrative(self):
-        """Narrating what happened is the class the Learning loop stores most.
-
-        Both were false positives on the shipped check, and the tell that it
-        mattered is in #4461 itself: its own reconciled body had to write "ran
-        silent for over an hour" rather than a figure to get past its own check.
-        Fixed by subtraction alone -- `silent` is an adjective that described the
-        two offenders and these two narratives equally well, so it separated
-        nothing, and the past-tense `-ed` forms took "before I checked in" with
-        them. Nothing was added to buy this (#4469).
-        """
-        for narrative in (
-            "The delegate went silent for 90 minutes before I checked in",
-            "A silent background job cost 45 minutes of wall clock this session",
+        # A positive fixture cannot prove a boundary; only a refusal can. Every
+        # widening direction here was open -- both word boundaries, and each
+        # stem loosened to `\\w*` -- and the only mutations that died, died
+        # against the live-store assertion, which this module's own docstring
+        # says "passes vacuously once the store is clean". That guards the
+        # subject by what the store happens to contain today rather than by a
+        # rule, and the subject is half the cadence rule now.
+        for token in (
+            "delegatee",  # trailing boundary, and `delegate\w*`
+            "undelegated",  # leading boundary
+            "subagentic",  # `subagent\w*`
+            "background noise",  # `background \w+`
         ):
-            with self.subTest(text=narrative[:40]):
-                self.assertEqual(superseded_policy_offences(narrative), [])
+            with self.subTest(refuses=token):
+                self.assertNotRegex(token, DELEGATE_SUBJECT)
 
-    def test_the_interval_scan_ignores_noun_and_homograph_forms(self):
-        """Why the directive list was not widened into a verb class (#4469).
+    def test_every_cadence_phrasing_a_grammar_could_not_reach_is_flagged(self):
+        """The six #4469 listed, none of which a directive list ever caught.
 
-        Modelling the act as a verb, with tense separating policy from
-        narrative, caught all six cadence phrasings #4469 listed and introduced
-        these three. The third is the one that settles it: `read` is its own
-        past tense -- as are `cost`, `put`, `set` and `hit` -- so no lexical rule
-        distinguishes it from "Read a subagent's partial output every 20
-        minutes". `review`, `wake` and `ping` are nouns as readily as verbs.
-
-        These pass on the shipped check and on this one. They are pinned so the
-        next attempt to widen has to answer them first, rather than rediscovering
-        them in a fourth review round. The real fix is in #4484.
+        Each states exactly the policy this check exists to keep a second copy
+        of out of memory, and each phrases the act differently: `ask`, `poll`,
+        `look at`, `wake`, `steps in`, `review`. Widening the list to a verb
+        class was tried in #4477 and withdrawn -- `read` is its own past tense,
+        so no lexical rule separated a policy from a narrative. The subject and
+        the figure are the whole rule now (#4484).
         """
-        for benign in (
-            "A review of the background job took 40 minutes.",
-            "I read the delegate's partial output 20 minutes in and it was looping.",
-            "The subagent wake cost 30 minutes of wall clock.",
+        for policy in (
+            "Ask a delegated agent for a progress report every 30 minutes",
+            "Poll any background job that has produced no output for 25 minutes",
+            "The orchestrator must look at a delegate worktree every 45 minutes",
+            "Wake on a subagent every 20 min to read its partial output",
+            "A delegate gets 30 minutes before the orchestrator steps in",
+            "Review any delegated background task at 30 minute intervals",
         ):
-            with self.subTest(text=benign[:40]):
-                self.assertEqual(superseded_policy_offences(benign), [])
+            with self.subTest(policy=policy[:40]):
+                self.assertEqual(superseded_policy_offences(policy), [DELEGATE_INTERVAL_REASON])
 
-    def test_every_interval_directive_is_individually_load_bearing(self):
-        """One directive per case, so no alternative can be gutted unnoticed.
+    def test_a_hyphenated_interval_is_a_minute_figure(self):
+        """`30-minute` never matched, in the base check or in #4477's.
 
-        `test_the_superseded_policy_scan_detects_a_claim` used "Check in every
-        30 minutes on a silent delegate", which carried `check in` *and*
-        `silent` plus `checks in` in its title -- so deleting the whole check-in
-        branch left it green on `silent` (#4469). Each sentence below carries
-        exactly one alternative, so removing that alternative fails this case
-        and nothing else masks it.
+        `\\s*` between the digits and `min` admits a space or nothing and
+        rejects the hyphen, so the most idiomatic way to write a cadence in
+        English -- as a compound modifier -- was the one spelling that walked
+        past (#4484 Part B).
         """
-        for directive, policy in (
-            ("check in", "Check in on a delegate every 30 minutes."),
-            ("checks in", "The orchestrator checks in on a delegate every 30 minutes."),
-            ("checking in", "Keep checking in on a delegate every 30 minutes."),
-            ("ping", "Ping a subagent every 30 minutes."),
-            ("pings", "The orchestrator pings a subagent every 30 minutes."),
-            ("pinging", "Keep pinging a subagent every 30 minutes."),
-            ("intervene", "Intervene on a delegate that has gone quiet for 90 minutes."),
-            ("status snapshot", "A delegate owes a status snapshot every 30 minutes."),
-            ("interim signal", "A delegate with no interim signal for 30 minutes is stuck."),
-            ("no signal", "A delegate with no signal for 30 minutes is overdue."),
-            ("unexamined", "No delegate may sit unexamined for 30 minutes."),
-        ):
-            with self.subTest(directive=directive):
-                self.assertEqual(
-                    superseded_policy_offences(policy), [DELEGATE_INTERVAL_REASON]
-                )
+        self.assertEqual(
+            superseded_policy_offences(
+                "A 30-minute check-in cadence applies to every delegate."
+            ),
+            [DELEGATE_INTERVAL_REASON],
+        )
 
     def test_the_four_objects_that_motivated_the_scan_are_still_caught(self):
         """The narrowing that would look most like a fix.
