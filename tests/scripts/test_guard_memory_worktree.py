@@ -26,12 +26,14 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.agents.guard import is_linked_worktree, run_pretooluse
 
@@ -160,17 +162,94 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         # The server's own argument description says relative paths resolve
         # from the MCP server launch directory, not from the agent's cwd, and
         # recommends absolute paths. "." is the default that produced the bug.
+        #
+        # The process cwd is forced to the fixture worktree, and that is the
+        # whole point of this test. Without it `realpath(".")` resolved against
+        # the test runner's directory -- never the fixture -- so all three
+        # values were rejected INCIDENTALLY and the `isabs` clause the
+        # docstring rests its safety argument on could be deleted with the
+        # suite green. With cwd pinned here, `realpath(".")` equals the root and
+        # only `isabs` can still refuse it.
         for value in (".", "..", "some/relative/path"):
             with self.subTest(project_root=value):
-                self.assertIsNotNone(
-                    self.denial_reason(
-                        self.decision(
-                            "mcp__shaft-memory__remember_memory",
-                            self.linked,
-                            {"project_root": value},
+                with patch("os.getcwd", return_value=str(self.linked)):
+                    self.assertIsNotNone(
+                        self.denial_reason(
+                            self.decision(
+                                "mcp__shaft-memory__remember_memory",
+                                self.linked,
+                                {"project_root": value},
+                            )
                         )
                     )
+
+    def test_the_isabs_clause_is_what_refuses_the_default_project_root(self):
+        # The sharpest form of the case above, as its own case so the reason it
+        # exists cannot be lost: run the guard in a subprocess whose cwd IS the
+        # worktree, so `os.path.realpath(".")` genuinely equals the root. The
+        # only thing left standing between `project_root: "."` and an allow is
+        # `os.path.isabs`.
+        payload = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "mcp__shaft-memory__remember_memory",
+                "tool_input": {"task": "t", "project_root": "."},
+                "cwd": str(self.linked),
+            }
+        )
+        completed = subprocess.run(  # nosec B603 B607 - the repository's own guard.
+            [sys.executable, str(ROOT / "scripts/agents/guard.py")],
+            input=payload,
+            cwd=str(self.linked),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("R11", completed.stdout, completed.stdout)
+
+    def test_a_write_targeted_at_a_subdirectory_of_this_worktree_is_allowed(self):
+        # The server does not use the path it is given: `resolveProjectPaths`
+        # runs it through `findGitRoot` (`git rev-parse --show-toplevel`) and
+        # adopts that (server.js:1226-1240). Confirmed against the real server,
+        # which reported the repository root for a `project_root` naming a
+        # subdirectory. Demanding exact equality was therefore stricter than the
+        # server's own semantics, and refused a write that would have landed
+        # correctly -- an agent working one directory deep, which in this
+        # repository is the normal shape for any Maven module.
+        module = self.linked / "shaft-engine"
+        module.mkdir()
+        self.assertIsNone(
+            self.denial_reason(
+                self.decision(
+                    "mcp__shaft-memory__remember_memory",
+                    self.linked,
+                    {"project_root": str(module)},
                 )
+            )
+        )
+
+    def test_the_rule_still_fires_from_a_subdirectory_of_the_worktree(self):
+        # `worktree_root`'s upward walk carries the common case and nothing
+        # pinned it: every other case passes the root itself, so deleting the
+        # walk left the suite green while R11 silently stopped firing for every
+        # agent one directory deep.
+        module = self.linked / "shaft-engine"
+        module.mkdir()
+        reason = self.denial_reason(
+            self.decision("mcp__shaft-memory__remember_memory", module)
+        )
+        self.assertIsNotNone(reason)
+        self.assertIn("R11", reason)
+
+    def test_the_refusal_names_this_worktree_as_the_value_to_pass(self):
+        # The interpolated path is what an agent copies verbatim out of the
+        # refusal. Asserting only the literal substring "project_root" let the
+        # value itself be wrong with the suite green.
+        reason = self.denial_reason(
+            self.decision("mcp__shaft-memory__remember_memory", self.linked)
+        )
+        self.assertIn(str(self.linked), reason)
 
     def test_memory_patch_write_from_a_linked_worktree_is_denied_too(self):
         reason = self.denial_reason(
@@ -225,6 +304,44 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         self.assertTrue((separate / ".git").is_file())
         self.assertFalse(is_linked_worktree(str(separate)))
 
+    def test_a_separate_git_dir_under_a_folder_named_worktrees_is_not_linked(self):
+        # The first fix for this replaced one path heuristic with another: a
+        # `gitdir:` pointer containing a `/worktrees/` segment. A
+        # separate-git-dir checkout whose admin directory happens to sit under
+        # any folder with that name still matched, and was still refused with a
+        # message about worktree isolation. The structural tell -- git writes
+        # `gitdir` and `commondir` INSIDE a linked worktree's admin directory
+        # and nowhere else -- has no such surface.
+        decoy = self.container / "decoy"
+        admin = self.container / "worktrees" / "x.git"
+        decoy.mkdir()
+        admin.parent.mkdir(parents=True, exist_ok=True)
+        git(decoy, "init", "-q", "-b", "main", "--separate-git-dir", str(admin), ".")
+        pointer = (decoy / ".git").read_text(encoding="utf-8")
+        self.assertIn("worktrees", pointer)
+        self.assertFalse(is_linked_worktree(str(decoy)))
+
+    def test_a_relative_gitdir_pointer_is_still_detected(self):
+        # `git worktree add --relative-paths` writes `gitdir: ../p/.git/
+        # worktrees/name`, which must resolve against the checkout holding the
+        # `.git` file rather than against the process cwd.
+        #
+        # Built on a fresh directory pointing at the REAL admin directory
+        # rather than by rewriting the real worktree's `.git`: that file is
+        # read-only on Windows and the attribute survives `chmod`, so
+        # overwriting it raises PermissionError. Pointing a new checkout at the
+        # same admin dir exercises the relative branch without mutating a
+        # worktree git owns.
+        admin = (
+            (self.linked / ".git").read_text(encoding="utf-8").split(":", 1)[1].strip()
+        )
+        synthetic = self.container / "relative-pointer"
+        synthetic.mkdir()
+        (synthetic / ".git").write_text(
+            f"gitdir: {os.path.relpath(admin, synthetic)}\n", encoding="utf-8"
+        )
+        self.assertTrue(is_linked_worktree(str(synthetic)))
+
     def test_the_real_guard_process_denies_a_real_mcp_payload(self):
         # The unit cases call `run_pretooluse` in-process. This drives the
         # tracked script the hosts actually launch, over stdin, with the JSON
@@ -274,23 +391,43 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(completed.stdout.strip(), "", completed.stdout)
 
-    def test_a_payload_without_cwd_fails_open_rather_than_denying_blindly(self):
+    def test_a_payload_without_cwd_falls_back_to_the_process_directory(self):
         # Not every host sends `cwd`. `_hook_working_directory` then falls back
-        # to the hook process's own directory, which is the client launch dir,
-        # not the agent's worktree -- so R11 sees the primary checkout and does
-        # not fire. That is a miss, not a false denial, and a miss is the right
-        # side to fail on: denying every memory write on a host whose payload
-        # shape is unknown would be worse than the defect. Pinned so the
-        # direction of the failure is a decision rather than an accident.
-        buffer = io.StringIO()
-        with redirect_stdout(buffer):
-            run_pretooluse(
-                {
-                    "tool_name": "mcp__shaft-memory__remember_memory",
-                    "tool_input": {"task": "t"},
-                }
-            )
-        self.assertEqual(buffer.getvalue().strip(), "")
+        # to the hook process's own directory.
+        #
+        # The first version of this test asserted "no output" while letting the
+        # fallback pick up the TEST RUNNER's real cwd -- so it passed from a
+        # primary checkout and FAILED ON CLEAN CODE from a linked worktree,
+        # where R11 correctly fires on the runner's own tree. CI runs
+        # `actions/checkout`, a primary checkout, so it would have stayed green
+        # forever while every agent working in the `ChaosEngine/*` worktree the
+        # entrypoint mandates saw a red test they did not cause. It also masked
+        # ten surviving mutations, which all reddened the suite through this one
+        # failure rather than through the behaviour they attacked.
+        #
+        # Control the directory instead of inheriting it, and assert both
+        # branches, so what the fallback does is pinned rather than ambient.
+        with patch("os.getcwd", return_value=str(self.primary)):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                run_pretooluse(
+                    {
+                        "tool_name": "mcp__shaft-memory__remember_memory",
+                        "tool_input": {"task": "t"},
+                    }
+                )
+            self.assertEqual(buffer.getvalue().strip(), "")
+
+        with patch("os.getcwd", return_value=str(self.linked)):
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                run_pretooluse(
+                    {
+                        "tool_name": "mcp__shaft-memory__remember_memory",
+                        "tool_input": {"task": "t"},
+                    }
+                )
+            self.assertIn("R11", buffer.getvalue())
 
     def test_outside_a_repository_the_rule_fails_open(self):
         # A guard that denies where it cannot tell would block memory writes in

@@ -586,7 +586,12 @@ def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None
     `reduction_percent`).
     """
     if not memory_root.is_dir():
-        return 0, None
+        # Zero, and verified: there is no store, which the filesystem settles on
+        # its own. Returning None here rendered as "unverified: git could not
+        # answer" -- git answered fine, there was simply nothing to count. That
+        # is the same class of false statement as the refusal message this PR
+        # already retracted once.
+        return 0, 0
     relative = memory_root.relative_to(root).as_posix()
     # `-z` must precede the `--`, or git reads it as a pathspec and matches
     # nothing -- silently, with exit code 0 and an empty result.
@@ -622,12 +627,15 @@ def format_banner(metrics: dict) -> str:
     # verify says so: the fallback is the pre-fix filesystem walk, and letting
     # it print the quotable wording restores #4495's hole in the one path where
     # the fix does not apply.
-    if "memory_objects_untracked" in metrics:
-        untracked = metrics["memory_objects_untracked"]
-        if untracked is None:
-            objects += " (unverified: git could not answer)"
-        elif untracked:
-            objects += f" ({untracked} untracked)"
+    # Indexed, not `.get`: a caller that omits the key would otherwise receive
+    # the bare, quotable wording by default, which is the one thing this
+    # labelling exists to prevent. `collect_metrics` always sets it, so a
+    # KeyError here means a new caller has to make the choice deliberately.
+    untracked = metrics["memory_objects_untracked"]
+    if untracked is None:
+        objects += " (unverified: git could not answer)"
+    elif untracked:
+        objects += f" ({untracked} untracked)"
     parts.append(objects)
     return f"Agent setup is valid: {', '.join(parts)}."
 

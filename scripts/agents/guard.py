@@ -1075,11 +1075,15 @@ def is_linked_worktree(cwd: str | None) -> bool:
     """True when `cwd` sits inside a linked worktree rather than the primary checkout.
 
     A `.git` *file* is not the tell on its own, which an earlier revision of
-    this rule assumed. `git init --separate-git-dir` gives an ordinary primary
-    checkout the same shape, and so does a submodule -- both would have been
-    refused, and told the refusal was about worktree isolation. The tell is
-    where the `gitdir:` pointer lands: git puts a linked worktree's admin
-    directory under `<common>/worktrees/<name>`, and nothing else lives there.
+    this rule assumed: `git init --separate-git-dir` gives an ordinary primary
+    checkout the same shape, and so does a submodule. Nor is the pointer's
+    *path* the tell, which the revision after that assumed -- a separate-git-dir
+    checkout whose admin directory happens to sit under any folder named
+    `worktrees` matched it too. Two path heuristics, two misclassifications.
+
+    The tell is structural instead: git writes `gitdir` and `commondir` files
+    INSIDE a linked worktree's admin directory, and nowhere else. Their presence
+    is what a linked worktree is, rather than something its path looks like.
 
     Read off the filesystem rather than by shelling out, because this runs
     inside a PreToolUse hook whose budget the host caps at 10 seconds and R10
@@ -1096,31 +1100,52 @@ def is_linked_worktree(cwd: str | None) -> bool:
     if not os.path.isfile(marker):
         return False
     try:
-        with open(marker, encoding="utf-8", errors="replace") as handle:
+        # utf-8-sig, because `str.strip()` does not strip a U+FEFF BOM and the
+        # `gitdir:` match would then miss. Git never writes one; a Windows
+        # editor that rewrote the file might.
+        with open(marker, encoding="utf-8-sig", errors="replace") as handle:
             pointer = handle.read(4096).strip()
     except OSError:
         return False
     if not pointer.lower().startswith("gitdir:"):
         return False
-    target = pointer.split(":", 1)[1].strip().replace("\\", "/")
-    return "/worktrees/" in f"/{target.strip('/')}/"
+    admin = pointer.split(":", 1)[1].strip()
+    if not os.path.isabs(admin):
+        # `git worktree add --relative-paths` writes a pointer relative to the
+        # checkout holding the `.git` file.
+        admin = os.path.join(root, admin)
+    return os.path.isfile(os.path.join(admin, "gitdir")) and os.path.isfile(
+        os.path.join(admin, "commondir")
+    )
 
 
 def _targets_this_worktree(tool_input: dict | None, root: str) -> bool:
     """True when `project_root` provably selects `root` for this one tool call."""
-    # Only an ABSOLUTE path is provable from here. The server resolves
-    # `resolve(server_cwd, project_root ?? ".")` (server.js:11538), and the
-    # server's cwd is not something this hook can observe -- so a relative
-    # value, including the default ".", lands somewhere this rule cannot
-    # compute. The server's own argument description recommends absolute paths
-    # for exactly this reason.
+    # Two conditions, and neither is redundant.
+    #
+    # ABSOLUTE, because the server resolves `resolve(server_cwd, project_root ??
+    # ".")` (server.js:11538) and the server's cwd is not something this hook
+    # can observe -- so a relative value, including the default ".", lands
+    # somewhere this rule cannot compute. The server's own argument description
+    # recommends absolute paths for exactly this reason.
+    #
+    # And the target's WORKTREE ROOT rather than the target itself, because the
+    # server does not use the path it is given: `resolveProjectPaths` runs it
+    # through `findGitRoot` (`git rev-parse --show-toplevel`) and adopts that
+    # (server.js:1226-1240). Demanding exact equality was stricter than the
+    # server's own semantics and refused a write that would have landed
+    # correctly -- an agent one directory deep, say `<worktree>/shaft-engine`,
+    # passing its own cwd.
     if not isinstance(tool_input, dict):
         return False
     target = tool_input.get("project_root")
     if not isinstance(target, str) or not target.strip() or not os.path.isabs(target):
         return False
     try:
-        return os.path.normcase(os.path.realpath(target)) == os.path.normcase(
+        resolved = worktree_root(os.path.realpath(target))
+        if resolved is None:
+            return False
+        return os.path.normcase(resolved) == os.path.normcase(
             os.path.realpath(root)
         )
     except (OSError, ValueError):

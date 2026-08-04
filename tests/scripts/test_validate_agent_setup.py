@@ -330,11 +330,21 @@ approval_mode = "prompt"
 
     def test_banner_omits_the_reduction_clause_when_nothing_measured_it(self):
         banner = format_banner(
-            {"guidance_bytes": 129_090, "guidance_reduction_percent": None, "memory_objects": 336}
+            {
+                "guidance_bytes": 129_090,
+                "guidance_reduction_percent": None,
+                "memory_objects": 336,
+                "memory_objects_untracked": 0,
+            }
         )
         self.assertEqual(banner, "Agent setup is valid: 129090 guidance bytes, 336 memory objects.")
         measured = format_banner(
-            {"guidance_bytes": 75_000, "guidance_reduction_percent": 50.0, "memory_objects": 336}
+            {
+                "guidance_bytes": 75_000,
+                "guidance_reduction_percent": 50.0,
+                "memory_objects": 336,
+                "memory_objects_untracked": 0,
+            }
         )
         self.assertIn("50.0% reduction", measured)
 
@@ -380,6 +390,29 @@ approval_mode = "prompt"
         metrics = self.metrics_for_budget()
         self.assertEqual(metrics["memory_objects"], tracked + 1)
         self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_the_count_is_json_objects_and_not_every_file_in_the_store(self):
+        # Every other assertion here is RELATIVE -- `tracked`, `tracked + 1` --
+        # computed by the same code on both sides, so a change to what a
+        # "memory object" IS cancels out. Dropping the `.json` filter made the
+        # live banner read `678 memory objects` instead of 339, because the
+        # store holds one `.md` beside every `.json`, and the whole suite
+        # stayed green. The one number #4495 exists to make trustworthy could
+        # double silently. This pins the units absolutely.
+        self.init_repository()
+        self.write(".memory/memory/gotchas/one.json", "{}")
+        self.write(".memory/memory/gotchas/one.md", "body\n")
+        self.write(".memory/memory/gotchas/two.json", "{}")
+        self.write(".memory/memory/gotchas/two.md", "body\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+
+        memory_root = self.root / ".memory/memory"
+        json_files = len(list(memory_root.rglob("*.json")))
+        every_file = len([path for path in memory_root.rglob("*") if path.is_file()])
+        self.assertGreater(every_file, json_files)  # the fixture can tell them apart
+
+        self.assertEqual(self.metrics_for_budget()["memory_objects"], json_files)
 
     def test_a_non_ascii_object_is_still_counted(self):
         # `core.quotepath` is on by default, so git renders a non-ASCII path as
@@ -436,6 +469,34 @@ approval_mode = "prompt"
         on_disk = len(list((self.root / ".memory/memory").rglob("*.json")))
         self.assertEqual(metrics["memory_objects"], on_disk)
         self.assertGreater(on_disk, 0)
+
+    def test_an_absent_store_reports_zero_verified_not_unverified(self):
+        # `(0, None)` rendered as "unverified: git could not answer", which is
+        # false: git answered fine, there was simply no store to count. Zero is
+        # settled by the filesystem alone here, so it is a verified zero. The
+        # same class of false statement as the refusal message this change
+        # already retracted once.
+        import shutil as _shutil
+
+        _shutil.rmtree(self.root / ".memory/memory")
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], 0)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+        self.assertNotIn("unverified", format_banner(metrics))
+
+    def test_the_banner_refuses_to_render_without_the_untracked_figure(self):
+        # Keyed on presence, a caller that simply omitted the field got the
+        # bare, quotable wording by default -- the one outcome the labelling
+        # exists to prevent. Omission must be loud rather than silently
+        # optimistic.
+        with self.assertRaises(KeyError):
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                }
+            )
 
     def test_banner_labels_untracked_objects_so_the_figure_cannot_be_misquoted(self):
         # `339 memory objects` is quotable as a claim about main. `338 memory
