@@ -245,6 +245,75 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
     return errors
 
 
+def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
+    """Validate the executable Claude/Codex capability map and its evidence."""
+    relative = Path("scripts/ci/agent_harness_parity.json")
+    try:
+        matrix = read_json(root / relative)
+    except (OSError, json.JSONDecodeError) as error:
+        return [issue("host-parity", relative.as_posix(), str(error))]
+    if not isinstance(matrix, dict):
+        return [issue("host-parity-schema", relative.as_posix(), "top level must be an object")]
+    errors: list[dict[str, str]] = []
+    workflow_path = root / ".github/workflows/pr-gate.yml"
+    workflow = workflow_path.read_text(encoding="utf-8") if workflow_path.is_file() else ""
+    raw_capabilities = matrix.get("capabilities", [])
+    capabilities = raw_capabilities if isinstance(raw_capabilities, list) else []
+    valid_rows = [
+        item
+        for item in capabilities
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    ]
+    row_ids = [item["id"] for item in valid_rows]
+    if matrix.get("version") != 1 or matrix.get("hosts") != ["claude", "codex"]:
+        errors.append(issue("host-parity-schema", relative.as_posix(), "invalid version or hosts"))
+    if len(valid_rows) != len(capabilities):
+        errors.append(issue("host-parity-schema", relative.as_posix(), "capabilities must be objects with string ids"))
+    if not valid_rows or len(row_ids) != len(set(row_ids)):
+        errors.append(issue("host-parity-schema", relative.as_posix(), "capability ids must be nonempty and unique"))
+    for item in valid_rows:
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", item["id"]):
+            errors.append(issue("host-parity-schema", relative.as_posix(), f"invalid capability id: {item['id']!r}"))
+        for field in ("owner", "claude", "codex"):
+            values = item.get(field, [])
+            values = values if isinstance(values, list) else [values]
+            if not values:
+                errors.append(issue("host-parity-path", relative.as_posix(), f"{item.get('id')}.{field} is empty"))
+            for value in values:
+                path = Path(value) if isinstance(value, str) else Path()
+                if not value or path.is_absolute() or ".." in path.parts or not (root / path).is_file():
+                    errors.append(
+                        issue(
+                            "host-parity-path",
+                            relative.as_posix(),
+                            f"{item.get('id')}.{field} has invalid evidence path: {value!r}",
+                        )
+                    )
+        check = item.get("check")
+        if not isinstance(check, str) or check.count("::") != 1:
+            errors.append(issue("host-parity-path", relative.as_posix(), f"{item['id']}.check must name file.py::test_method"))
+        else:
+            check_path_text, check_name = check.split("::")
+            check_path = Path(check_path_text)
+            valid_check = (
+                not check_path.is_absolute()
+                and ".." not in check_path.parts
+                and check_path.suffix == ".py"
+                and check_name.startswith("test_")
+                and (root / check_path).is_file()
+            )
+            source = (root / check_path).read_text(encoding="utf-8") if valid_check else ""
+            if not valid_check or not re.search(rf"(?m)^\s+def {re.escape(check_name)}\(", source):
+                errors.append(issue("host-parity-path", relative.as_posix(), f"{item['id']}.check is not a runnable test: {check!r}"))
+            elif ".".join(check_path.with_suffix("").parts) not in workflow:
+                errors.append(issue("host-parity-ci", relative.as_posix(), f"{item['id']}.check is not run by PR Gate: {check!r}"))
+        if item.get("mode") not in {"shared", "equivalent", "substitution"}:
+            errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')}.mode is invalid"))
+        if item.get("mode") == "substitution" and not item.get("note"):
+            errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')} substitution needs a note"))
+    return errors
+
+
 def run_memory_check(root: Path) -> list[dict[str, str]]:
     """Run `memory check` against the PATH-resolved Memory CLI.
 
@@ -369,6 +438,7 @@ def validate_repository(
             for message in validate_documentation(root)
         ],
         *validate_memory_setup(root),
+        *validate_host_parity(root),
         *validate_skill_hygiene(root),
     ]
     if run_external:

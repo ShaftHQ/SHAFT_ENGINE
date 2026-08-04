@@ -248,6 +248,18 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertFalse((ROOT / ".claude/hooks/guard.py").exists())
         self.assertTrue(GUARD.is_file())
 
+    def test_hook_configs_are_tracked_for_host_local_trust(self):
+        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
+            ["git", "ls-files", "--error-unmatch", ".claude/settings.json", ".codex/hooks.json", "scripts/agents/guard.py"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(tracked.returncode, 0, tracked.stderr)
+        for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+            self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
+
     def test_equivalent_host_hook_events_produce_equivalent_outcomes(self):
         fixtures = {
             "claude": {
@@ -276,6 +288,34 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertEqual(decisions, [decisions[0]] * 3)
         self.assertEqual(decisions[0][0], "deny")
         self.assertIn("R1", decisions[0][1])
+
+    @unittest.skipUnless(os.name == "nt", "executes the tracked Windows hook commands")
+    def test_windows_hook_commands_execute_from_a_nested_directory(self):
+        payload = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "shell_command",
+                "tool_input": {"command": "mvn test"},
+            }
+        )
+        for config_path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
+            handler = hook_groups(config_path)["PreToolUse"][0]["hooks"][0]
+            command = handler.get("commandWindows") or subprocess.list2cmdline(
+                [handler["command"], *handler.get("args", [])]
+            )
+            completed = subprocess.run(
+                command,
+                shell=True,  # nosec B602 - executes the repository's tracked hook definition.
+                input=payload,
+                cwd=ROOT / "shaft-engine",
+                env=dict(os.environ, SHAFT_GUARD_HOST=config_path.parent.name),
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("R1", completed.stdout)
 
     def test_guard_ignores_events_and_tools_outside_its_contract(self):
         source = GUARD.read_text(encoding="utf-8")

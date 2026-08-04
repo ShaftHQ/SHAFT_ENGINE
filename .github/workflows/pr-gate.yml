@@ -78,6 +78,8 @@ jobs:
               - '.agents/**'
               - '.claude/**'
               - '.codex/**'
+              - '.mcp.json'
+              - 'mempalace.yaml'
               - '.github/skills/**'
               - '.github/instructions/**'
               - '.github/copilot-instructions.md'
@@ -90,6 +92,7 @@ jobs:
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
               - 'scripts/ci/agent_guidance_budget.json'
+              - 'scripts/ci/agent_harness_parity.json'
               - 'tests/scripts/test_agent_router_contract.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_guard_nul_corruption.py'
@@ -173,11 +176,15 @@ jobs:
   # --skip-external omits the pinned Memory CLI and git diff checks, which
   # need npm state a PR runner does not carry.
   agent-guidance:
-    name: Agent Guidance Gate
+    name: Agent Guidance Gate (${{ matrix.os }})
     needs: changes
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2025]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -186,10 +193,10 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install PyYAML
-        run: python3 -m pip install pyyaml --quiet
+        run: python -m pip install pyyaml --quiet
       - name: Run agent harness unit tests
         run: >-
-          python3 -m unittest
+          python -m unittest
           tests.scripts.test_agent_router_contract
           tests.scripts.test_agent_harness_portability
           tests.scripts.test_guard_nul_corruption
@@ -202,9 +209,9 @@ jobs:
           tests.scripts.test_worktree_hygiene
           -v
       - name: Validate agent guidance budgets and routing
-        run: python3 scripts/ci/validate_agent_setup.py --skip-external
+        run: python scripts/ci/validate_agent_setup.py --skip-external
       - name: Run the portable PreToolUse guard self-test
-        run: python3 scripts/agents/guard.py --self-test
+        run: python scripts/agents/guard.py --self-test
 
   # intellij-plugin.yml runs two independent PR jobs today (installer
   # verification across three OSes, and the Gradle plugin build); both are

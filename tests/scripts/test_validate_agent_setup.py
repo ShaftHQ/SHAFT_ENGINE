@@ -10,6 +10,7 @@ from scripts.ci.validate_agent_setup import (
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
     collect_worktree_metrics,
     run_memory_check,
+    validate_host_parity,
     validate_memory_setup,
     validate_repository,
 )
@@ -91,6 +92,81 @@ approval_mode = "prompt"
         repository_root = Path(__file__).resolve().parents[2]
         errors, _ = validate_repository(repository_root, run_external=False)
         self.assertEqual(errors, [])
+
+    def test_current_host_parity_matrix_is_complete(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(validate_host_parity(repository_root), [])
+
+    def test_host_parity_rejects_missing_evidence_and_named_check(self):
+        self.write(
+            "scripts/ci/agent_harness_parity.json",
+            json.dumps(
+                {
+                    "version": 1,
+                    "hosts": ["claude", "codex"],
+                    "capabilities": [
+                        {
+                            "id": "entrypoint",
+                            "owner": "missing-owner.md",
+                            "claude": ["missing-claude.md"],
+                            "codex": ["missing-codex.md"],
+                            "check": "tests/scripts/test_validate_agent_setup.py::test_not_real",
+                            "mode": "shared",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        errors = validate_host_parity(self.root)
+
+        self.assertIn("host-parity-path", {error["code"] for error in errors})
+
+    def test_host_parity_reports_malformed_rows_without_crashing(self):
+        self.write(
+            "scripts/ci/agent_harness_parity.json",
+            json.dumps({"version": 1, "hosts": ["claude", "codex"], "capabilities": [{"id": []}, 7]}),
+        )
+
+        errors = validate_host_parity(self.root)
+
+        self.assertIn("host-parity-schema", {error["code"] for error in errors})
+
+    def test_host_parity_reports_non_object_document_without_crashing(self):
+        self.write("scripts/ci/agent_harness_parity.json", "[]")
+
+        errors = validate_host_parity(self.root)
+
+        self.assertEqual(errors[0]["code"], "host-parity-schema")
+
+    def test_host_parity_requires_named_check_to_run_in_ci(self):
+        self.write("owner.md", "owner")
+        self.write("host.md", "host")
+        self.write("tests/test_parity.py", "class TestParity:\n    def test_real(self):\n        pass\n")
+        self.write(".github/workflows/pr-gate.yml", "run: python -m unittest tests.test_other\n")
+        self.write(
+            "scripts/ci/agent_harness_parity.json",
+            json.dumps(
+                {
+                    "version": 1,
+                    "hosts": ["claude", "codex"],
+                    "capabilities": [
+                        {
+                            "id": "entrypoint",
+                            "owner": "owner.md",
+                            "claude": ["host.md"],
+                            "codex": ["host.md"],
+                            "check": "tests/test_parity.py::test_real",
+                            "mode": "shared",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        errors = validate_host_parity(self.root)
+
+        self.assertIn("host-parity-ci", {error["code"] for error in errors})
 
     def test_missing_memory_binary_reports_actionable_error(self):
         with patch("scripts.ci.validate_agent_setup.shutil.which", return_value=None):
