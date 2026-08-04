@@ -107,8 +107,10 @@ them before it touches anything:
 
 Most agents discover that entrypoint on their own. The
 [agent skills map](.agents/skills/README.md) explains how the skills fit
-together, what each one covers, and how each host imports them. Read it once
-before your first agent-assisted change.
+together and how each host imports them; which task sends you to which surface
+is stated once, in the
+[routing table](.agents/skills/act-as-mohab/references/routing.md). Read the map
+once before your first agent-assisted change.
 
 - Keep the scope tight and follow existing package and module boundaries.
 - Preserve public API compatibility. Deprecate before removing or renaming a
