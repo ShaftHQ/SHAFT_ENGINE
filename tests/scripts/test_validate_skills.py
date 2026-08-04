@@ -30,9 +30,13 @@ Windows and case-sensitive on POSIX; this one sorts strings, which is neither),
 latent while every skill name is lowercase. Tracked separately rather than
 unified here.
 
-Known gap, tracked in #4501: both derive the on-disk set FROM `*/SKILL.md`, so
-a `shaft-skills/` directory with no `SKILL.md` is invisible to both. It cannot
-be reported as unlisted because it never enters the set being compared.
+Both derive their unbacked/unlisted/order diff from `*/SKILL.md`, so a
+`shaft-skills/` directory with no `SKILL.md` never enters that set and cannot
+be reported as unlisted by either. `plugin_errors` below additionally
+enumerates directories first and requires the file (#4501), catching it
+before the diff even runs; the duplicate in `test_install_shaft_mcp.py` still
+has the original gap -- it is not in #4501's scope, since fixing it there
+would mean touching `installer-verify`'s trigger rather than this module.
 """
 
 import json
@@ -90,6 +94,24 @@ def issue(code: str, message: str) -> dict[str, str]:
     return {"code": code, "path": MARKETPLACE_PATH, "message": message}
 
 
+def directories_missing_skill_md(root: Path, source: str) -> list[str]:
+    """Names of directories directly under `source`, excluding `references`,
+    that hold no `SKILL.md` (#4501).
+
+    Every check below derives the on-disk skill set FROM `*/SKILL.md`, so a
+    directory that never got one -- half-authored, or one whose `SKILL.md`
+    was deleted or renamed -- never enters that set and cannot be reported by
+    an unbacked/unlisted/order diff built from it. This enumerates
+    directories first and requires the file the other way round, the same
+    order the orphaned `validate-shaft-skills.yml` workflow used.
+    """
+    return sorted(
+        entry.name
+        for entry in (root / source).iterdir()
+        if entry.is_dir() and entry.name != "references" and not (entry / "SKILL.md").is_file()
+    )
+
+
 def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
     """Check one marketplace plugin's skills[] against its source directory."""
     label = plugin.get("name") if isinstance(plugin.get("name"), str) else f"plugins[{index}]"
@@ -126,13 +148,21 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
             issue("marketplace-source-missing", f"plugin '{label}' source directory does not exist: {source}")
         ]
 
+    missing_skill_md = [
+        issue(
+            "marketplace-skill-missing-skillmd",
+            f"plugin '{label}' source directory '{source}/{name}' has no SKILL.md",
+        )
+        for name in directories_missing_skill_md(root, source)
+    ]
+
     # A source directory holding no `*/SKILL.md` reports nothing when it
     # matches nothing, so route the disk side through the reporting expander
     # too: an empty match is an `empty-glob`, never a silent pass.
     pattern = f"{source}/*/SKILL.md"
     found, glob_errors = expand_reported_globs(root, [pattern], f"plugin '{label}' source")
     if glob_errors:
-        return [
+        return missing_skill_md + [
             issue(
                 "marketplace-source-empty",
                 f"plugin '{label}' source '{source}' contains no <skill>/SKILL.md directories",
@@ -166,7 +196,7 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
                 f"plugin '{label}' skills must be sorted and free of duplicates: {on_disk}",
             )
         )
-    return errors
+    return missing_skill_md + errors
 
 
 def marketplace_errors(root: Path) -> list[dict[str, str]]:
@@ -368,6 +398,31 @@ class MarketplaceManifestTest(unittest.TestCase):
     def test_rejects_skill_directory_missing_from_marketplace(self):
         self.write("shaft-skills/unlisted-pack/SKILL.md", "# Unlisted\n")
         self.assertIn("marketplace-skill-unlisted", self.codes())
+
+    def test_rejects_source_directory_without_skill_md(self):
+        """A directory with no SKILL.md never enters the glob-derived set below,
+        so it was invisible to every other check here (#4501): it can be
+        neither unbacked nor unlisted, because it never enters the set being
+        compared. Enumerated by directory, not by file, so it is caught even
+        though nothing else lists or expects it.
+        """
+        (self.root / "shaft-skills/no-skill-md").mkdir()
+        self.assertIn("marketplace-skill-missing-skillmd", self.codes())
+
+    def test_rejects_manifest_entry_whose_skill_md_was_deleted(self):
+        """The other #4501 mutation: delete a real SKILL.md, keep the entry
+        listed. The directory still exists and is still listed, so nothing
+        about the entry/unbacked/unlisted diff below would ever notice.
+        """
+        (self.root / "shaft-skills/example-pack/SKILL.md").unlink()
+        self.assertIn("marketplace-skill-missing-skillmd", self.codes())
+
+    def test_does_not_flag_the_references_support_directory(self):
+        """`references/` is a legitimate non-skill support directory (#4501
+        suggested fix); it must not be required to hold a SKILL.md.
+        """
+        (self.root / "shaft-skills/references").mkdir()
+        self.assertNotIn("marketplace-skill-missing-skillmd", self.codes())
 
     def test_rejects_marketplace_entry_order_drift(self):
         self.write("shaft-skills/second-pack/SKILL.md", "# Second\n")
