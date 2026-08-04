@@ -1,3 +1,4 @@
+import hashlib
 import json
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
@@ -11,9 +12,11 @@ from scripts.ci.validate_agent_setup import (
     collect_metrics,
     collect_worktree_metrics,
     format_banner,
+    memory_content_hash,
     reduction_percent,
     run_memory_check,
     validate_host_parity,
+    validate_memory_integrity,
     validate_memory_setup,
     validate_repository,
 )
@@ -349,6 +352,247 @@ approval_mode = "prompt"
         self.assertEqual(len(errors), 1)
         self.assertNotIn("create_relation", errors[0]["message"])
         self.assertIn("shorten the object", errors[0]["message"])
+
+
+class MemoryIntegrityTest(unittest.TestCase):
+    """Pin the two store signals that were recorded but never enforced.
+
+    #4460: a hand-edited body leaves `content_hash` stale, and `memory check`
+    reports that as a *warning* with exit code 0, so `run_memory_check` sees
+    success and nothing fails. #4465: correcting an object bumps `updated_at`
+    with no `memory.updated` event, so the audit trail says "created, never
+    touched" while the sidecar claims an update.
+
+    Both are checked in-process rather than by escalating the CLI's warning
+    text: these must run under `--skip-external`, which is the command
+    AGENTS.md prescribes for memory work and the one CI runs without the
+    pinned CLI on PATH.
+    """
+
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary_directory.name)
+        self.events = []
+
+    def tearDown(self):
+        self.temporary_directory.cleanup()
+
+    def expected_hash(self, sidecar, body):
+        """Independently recompute the recipe, as an oracle for production's.
+
+        Deliberately not the shipped helper: two implementations that must
+        agree catch a change to either, where a shared one would hide it.
+        """
+        payload = {k: v for k, v in sidecar.items() if k != "content_hash"}
+        canonical = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        blob = canonical + "\n" + body.replace("\r\n", "\n")
+        return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+    def write_object(self, name, body, *, created, updated=None, hash_body=None):
+        """Write one hash-correct object; `hash_body` fakes a pre-edit body."""
+        relative_body = f"memory/gotchas/{name}.md"
+        sidecar = {
+            "body_path": relative_body,
+            "created_at": created,
+            "id": f"gotcha.{name}",
+            "scope": {"kind": "project", "project": "project.shaft-engine"},
+            "status": "active",
+            "title": name,
+            "type": "gotcha",
+            "updated_at": updated or created,
+        }
+        sidecar["content_hash"] = self.expected_hash(
+            sidecar, hash_body if hash_body is not None else body
+        )
+        directory = self.root / ".memory/memory/gotchas"
+        directory.mkdir(parents=True, exist_ok=True)
+        # Exact bytes: write_text would translate "\n" to "\r\n" on Windows
+        # and the CRLF case would stop testing what it says it tests.
+        (directory / f"{name}.md").write_bytes(body.encode("utf-8"))
+        (directory / f"{name}.json").write_text(
+            json.dumps(sidecar, indent=2), encoding="utf-8"
+        )
+        return sidecar
+
+    def write_events(self, *events):
+        path = self.root / ".memory/events.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+        )
+
+    def codes(self):
+        if not (self.root / ".memory/events.jsonl").is_file():
+            self.write_events()
+        return [error["code"] for error in validate_memory_integrity(self.root)]
+
+    def test_a_body_edited_without_its_hash_fails_the_gate(self):
+        # The #4460 flow: the body on disk is the corrected text, the hash
+        # still describes the text it replaced.
+        self.write_object(
+            "drifted",
+            "Corrected body after a hand edit.",
+            created="2026-08-01T10:00:00+03:00",
+            hash_body="The original body.",
+        )
+        self.assertEqual(self.codes(), ["memory-content-hash"])
+
+    def test_an_object_whose_body_matches_its_hash_passes(self):
+        self.write_object(
+            "clean", "A body nobody edited.", created="2026-08-01T10:00:00+03:00"
+        )
+        self.assertEqual(self.codes(), [])
+
+    def test_a_crlf_checkout_does_not_redden_the_gate(self):
+        # End-to-end: `core.autocrlf=true` gives every .md file CRLF endings
+        # in the working tree, so getting this wrong would flag all 337
+        # objects on every Windows clone.
+        self.write_object(
+            "crlf",
+            "First line.\r\nSecond line.\r\n",
+            created="2026-08-01T10:00:00+03:00",
+            hash_body="First line.\nSecond line.\n",
+        )
+        self.assertEqual(self.codes(), [])
+
+    def test_the_hash_recipe_normalizes_line_endings_itself(self):
+        # The test above passes even with the normalization deleted, because
+        # read_text applies universal newlines first -- so it pins the
+        # outcome, not the recipe. This pins the recipe, keeping the
+        # normalization honest for any caller that does not read through
+        # text mode.
+        sidecar = {
+            "content_hash": "sha256:" + "0" * 64,
+            "id": "gotcha.endings",
+            "title": "endings",
+        }
+        self.assertEqual(
+            memory_content_hash(sidecar, "First line.\r\nSecond line.\r\n"),
+            memory_content_hash(sidecar, "First line.\nSecond line.\n"),
+        )
+
+    def test_updated_at_bumped_without_an_event_fails_the_gate(self):
+        # The #4465 flow: PR #4461 bumped four objects to a synthetic
+        # timestamp and appended nothing to the log.
+        self.write_object(
+            "bumped",
+            "A reconciled body.",
+            created="2026-07-17T13:14:04+03:00",
+            updated="2026-08-04T10:00:00+03:00",
+        )
+        self.assertEqual(self.codes(), ["memory-update-event"])
+
+    def test_updated_at_bumped_with_a_matching_event_passes(self):
+        self.write_object(
+            "recorded",
+            "A reconciled body.",
+            created="2026-07-17T13:14:04+03:00",
+            updated="2026-08-04T10:00:00+03:00",
+        )
+        self.write_events(
+            {
+                "actor": "agent",
+                "event": "memory.updated",
+                "id": "gotcha.recorded",
+                "timestamp": "2026-08-04T10:00:00+03:00",
+            }
+        )
+        self.assertEqual(self.codes(), [])
+
+    def test_marked_stale_and_superseded_also_satisfy_the_requirement(self):
+        # The store's vocabulary carries 5 marked_stale and 2 superseded
+        # events; those record an update just as memory.updated does, so
+        # requiring the one spelling would flag seven honest objects.
+        for name, event in (
+            ("stale", "memory.marked_stale"),
+            ("replaced", "memory.superseded"),
+        ):
+            self.write_object(
+                name,
+                "body",
+                created="2026-07-17T13:14:04+03:00",
+                updated="2026-08-04T10:00:00+03:00",
+            )
+        self.write_events(
+            {
+                "actor": "agent",
+                "event": "memory.marked_stale",
+                "id": "gotcha.stale",
+                "timestamp": "2026-08-04T10:00:00+03:00",
+            },
+            {
+                "actor": "agent",
+                "event": "memory.superseded",
+                "id": "gotcha.replaced",
+                "timestamp": "2026-08-04T10:00:00+03:00",
+            },
+        )
+        self.assertEqual(self.codes(), [])
+
+    def test_an_event_predating_the_bump_does_not_satisfy_the_requirement(self):
+        # An earlier edit's event must not launder a later silent one. All
+        # 245 evented objects in the live store match their `updated_at`
+        # exactly, so requiring the exact stamp costs nothing and closes
+        # this hole.
+        self.write_object(
+            "restamped",
+            "body",
+            created="2026-07-17T13:14:04+03:00",
+            updated="2026-08-04T10:00:00+03:00",
+        )
+        self.write_events(
+            {
+                "actor": "agent",
+                "event": "memory.updated",
+                "id": "gotcha.restamped",
+                "timestamp": "2026-07-20T09:00:00+03:00",
+            }
+        )
+        self.assertEqual(self.codes(), ["memory-update-event"])
+
+    def test_a_created_event_does_not_count_as_an_update(self):
+        self.write_object(
+            "onlycreated",
+            "body",
+            created="2026-07-17T13:14:04+03:00",
+            updated="2026-08-04T10:00:00+03:00",
+        )
+        self.write_events(
+            {
+                "actor": "agent",
+                "event": "memory.created",
+                "id": "gotcha.onlycreated",
+                "timestamp": "2026-08-04T10:00:00+03:00",
+            }
+        )
+        self.assertEqual(self.codes(), ["memory-update-event"])
+
+    def test_a_sidecar_pointing_at_a_missing_body_is_reported(self):
+        sidecar = self.write_object(
+            "orphan", "body", created="2026-08-01T10:00:00+03:00"
+        )
+        (self.root / ".memory" / sidecar["body_path"]).unlink()
+        self.assertEqual(self.codes(), ["memory-body-missing"])
+
+    def test_the_live_store_satisfies_both_invariants(self):
+        # The recipe's real proof: every stored hash was written by the
+        # TypeScript CLI, so agreeing with all of them is an independent
+        # cross-check that no synthetic fixture can provide.
+        repository_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(validate_memory_integrity(repository_root), [])
+
+    def test_validate_repository_actually_runs_the_integrity_checks(self):
+        # Guards the wiring, not the logic: a check nobody calls is not a gate.
+        repository_root = Path(__file__).resolve().parents[2]
+        sentinel = [{"code": "sentinel", "path": "p", "message": "m"}]
+        with patch(
+            "scripts.ci.validate_agent_setup.validate_memory_integrity",
+            return_value=sentinel,
+        ):
+            errors, _ = validate_repository(repository_root, run_external=False)
+        self.assertIn("sentinel", {error["code"] for error in errors})
 
 
 if __name__ == "__main__":
