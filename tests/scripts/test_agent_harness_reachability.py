@@ -111,7 +111,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 100
+EXPECTED_ELEMENT_COUNT = 101
 
 # Inline `spans` and fenced blocks both carry instrument paths in this
 # repository's house style -- README.md writes the validate command in a bash
@@ -840,6 +840,50 @@ class EntrypointDutyTest(unittest.TestCase):
 
     ENTRYPOINT = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
     PLAYBOOK = ROOT / ".agents/skills/act-as-mohab/references/work-github-playbook.md"
+    PLANNING_PLAYBOOK = ROOT / ".agents/skills/act-as-mohab/references/work-github-planning.md"
+
+    def test_the_github_playbook_links_its_planning_and_tracking_half(self):
+        """#4504: split before a future edit turns the file cap into an emergency."""
+        content = self.PLAYBOOK.read_text(encoding="utf-8")
+        self.assertTrue(self.PLANNING_PLAYBOOK.is_file())
+        self.assertIn("[planning and tracking](work-github-planning.md)", content)
+        planning = self.PLANNING_PLAYBOOK.read_text(encoding="utf-8")
+        for heading in (
+            "## 0. Ground the scope before asking anything",
+            "## 1. Ask once, at the start, then go unattended",
+            "## 2. Branch and track",
+            "## 3. Work items in dependency order, front-loading risk",
+            "## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, planning)
+        for clause in (
+            "current status page",
+            "in the same session",
+            "final summary comment",
+            "Closes #N",
+        ):
+            with self.subTest(planning_clause=clause):
+                self.assertIn(clause, planning)
+        for clause in (
+            "Before committing any subagent's work",
+            "unlink it from the PR's Development sidebar",
+            "Before reviewing or shipping any nontrivial diff",
+            "deferred/out-of-scope/adjacent-finding/follow-up",
+            "description that lists each sub-item and its commit",
+        ):
+            with self.subTest(delivery_clause=clause):
+                self.assertIn(clause, content)
+        for clause in (
+            "separate branch+PR per item looped sequentially",
+            "rename it to `Tracking: `",
+            "say what you searched",
+            "two options",
+            "skill updates",
+            "Update task status as work proceeds",
+        ):
+            with self.subTest(planning_clause=clause):
+                self.assertIn(clause, planning)
 
     def test_the_orchestrator_owns_a_pr_from_armed_to_confirmed_merged(self):
         """#4486: opening a PR is where the harness used to stop caring.

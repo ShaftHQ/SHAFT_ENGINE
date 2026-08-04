@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/guidance-budgets-bound-each-surface-by-who-pays-not-by-a-shared-pool.md",
-  "content_hash": "sha256:7d20348b763a160bad6574cdaca849bce7856ea5331c25d2302ba092dbd85991",
+  "content_hash": "sha256:e82981e02f86ff19723a6350433f34ca51b3f1c31c683c9bdcef56ed19b4f754",
   "created_at": "2026-08-04T14:32:23+03:00",
   "evidence": [
     {
@@ -45,5 +45,5 @@
   ],
   "title": "Guidance budgets bound each surface by who pays, not by a shared pool",
   "type": "decision",
-  "updated_at": "2026-08-04T14:32:23+03:00"
+  "updated_at": "2026-08-04T23:28:39+03:00"
 }

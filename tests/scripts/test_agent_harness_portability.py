@@ -104,7 +104,7 @@ SUPERSEDED_ONE_PR_PER_SESSION = re.compile(
     r"|session'?s single branch/pr"
 )
 ONE_PR_PER_SESSION_REASON = (
-    "one PR per session: superseded by work-github-playbook.md Sec. 3b, "
+    "one PR per session: superseded by work-github-planning.md Sec. 3b, "
     "which lets a session open one PR per group of related subtasks"
 )
 
