@@ -93,6 +93,7 @@ jobs:
               - 'tests/scripts/test_agent_router_contract.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_guard_nul_corruption.py'
+              - 'tests/scripts/test_guard_lifecycle.py'
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_setup.py'
               - 'tests/scripts/test_worktree_hygiene.py'
@@ -192,6 +193,7 @@ jobs:
           tests.scripts.test_agent_router_contract
           tests.scripts.test_agent_harness_portability
           tests.scripts.test_guard_nul_corruption
+          tests.scripts.test_guard_lifecycle
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_setup
           tests.scripts.test_validate_skills

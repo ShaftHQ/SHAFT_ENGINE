@@ -1,5 +1,5 @@
 {
-  "description": "Portable SHAFT PreToolUse safety guard.",
+  "description": "Portable SHAFT lifecycle and PreToolUse safety guard.",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,7 +8,32 @@
           {
             "type": "command",
             "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "timeout": 30
           }
         ]
       }

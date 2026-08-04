@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable SHAFT PreToolUse deny guard for Claude, Codex, and Grok."""
+"""Portable SHAFT lifecycle and PreToolUse guard for Claude, Codex, and Grok."""
 # Stdlib only. Input is normalized before evaluation; policy below is shared.
 # Rules:
 #
@@ -1150,6 +1150,130 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     return 0  # not a tool this hook checks
 
 
+def _harness_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _worktree_report(cwd: str | None) -> dict | None:
+    """Run the existing read-only hygiene reporter, without importing it circularly."""
+    helper = os.path.join(_harness_root(), "scripts", "ci", "worktree_hygiene.py")
+    if not cwd or not os.path.isfile(helper):
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed repository helper.
+            [sys.executable, helper, "--root", cwd, "--format", "json"],
+            cwd=_harness_root(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return None
+        result = json.loads(completed.stdout)
+        return result if isinstance(result, dict) else None
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+
+
+def _sync_advisory() -> str | None:
+    """Return a user-harness drift advisory; never mutate deployed state."""
+    helper = os.path.join(_harness_root(), "scripts", "agents", "sync_user_harness.py")
+    if not os.path.isfile(helper):
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed repository helper.
+            [sys.executable, helper],
+            cwd=_harness_root(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "User harness sync check was unavailable; verify it before completion."
+    if completed.returncode == 0:
+        return None
+    return (
+        "User harness drift detected. Review the tracked harness, then run "
+        "`py -3 scripts/agents/sync_user_harness.py --apply` and re-check it."
+    )
+
+
+def run_session_start(hook_input: dict) -> int:
+    """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
+    context = [
+        "Harness preflight: load and follow "
+        "`.agents/skills/act-as-mohab/SKILL.md` before task work."
+    ]
+    report = _worktree_report(_hook_working_directory(hook_input))
+    if report is None:
+        context.append("Worktree hygiene could not be verified; inspect it before cleanup.")
+    else:
+        context.extend(str(item) for item in report.get("advisories", []))
+    sync = _sync_advisory()
+    if sync:
+        context.append(sync)
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "SessionStart",
+                    "additionalContext": "\n".join(context),
+                }
+            }
+        )
+    )
+    return 0
+
+
+def run_stop(hook_input: dict) -> int:
+    """Continue incomplete repository work once, without creating a Stop loop."""
+    if hook_input.get("stop_hook_active") is True:
+        return 0
+    report = _worktree_report(_hook_working_directory(hook_input))
+    if report is None:
+        reason = "Completion hygiene could not be verified; inspect the current worktree."
+    else:
+        current = next(
+            (item for item in report.get("worktrees", []) if item.get("is_current")),
+            None,
+        )
+        state = current.get("state") if current else None
+        completion_route = (
+            "Re-read the act-as-mohab Completion section and apply its routed, "
+            "authorization-aware preservation, validation, delivery, and cleanup steps."
+        )
+        reasons = {
+            "corrupt": (
+                "Current worktree contains NUL-corrupt files. Preserve healthy work and "
+                "restore only confirmed corrupt paths before continuing."
+            ),
+            "uncommitted": (
+                "Current worktree has uncommitted work. " + completion_route
+            ),
+            "unknown": (
+                "Current worktree state is unknown. Inspect it and preserve any useful "
+                "work before cleanup."
+            ),
+            "pending": (
+                "Current branch still carries pending work. " + completion_route
+            ),
+            "abandoned": (
+                "Current work appears abandoned. " + completion_route
+            ),
+        }
+        reason = (
+            reasons.get(state)
+            if state is not None
+            else "The current worktree could not be identified; inspect it before stopping."
+        )
+        if reason is None:
+            return 0
+    print(json.dumps({"decision": "block", "reason": reason}))
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Self-test
 # ---------------------------------------------------------------------------
@@ -1533,9 +1657,15 @@ def main(argv: list[str]) -> int:
 
     if not isinstance(raw_hook_input, dict):
         return 0
-    host = hook_host(raw_hook_input)
     hook_input = normalize_hook_input(raw_hook_input)
-    return run_pretooluse(hook_input, host)
+    event = hook_input.get("hook_event_name") or "PreToolUse"
+    if event == "SessionStart":
+        return run_session_start(hook_input)
+    if event == "Stop":
+        return run_stop(hook_input)
+    if event == "PreToolUse":
+        return run_pretooluse(hook_input, hook_host(raw_hook_input))
+    return 0
 
 
 if __name__ == "__main__":
