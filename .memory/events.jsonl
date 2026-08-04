@@ -975,5 +975,9 @@
 {"actor":"agent","event":"memory.updated","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-08-04T16:25:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.hand-measured-guidance-byte-delta-on-windows-is-wrong-if-comparing-git-show-lf-against-read-bytes-crlf","timestamp":"2026-08-04T15:58:04+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.windows-ci-max-path-checkout-failure-autocrlf-byte-compare-drift","timestamp":"2026-08-04T16:10:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files","timestamp":"2026-08-04T19:07:27+03:00"}
+{"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:10:45+03:00"}
 {"actor":"agent","event":"memory.updated","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-08-04T18:37:09+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop","timestamp":"2026-08-04T18:37:44+03:00"}
+{"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:17:07+03:00"}
+{"actor": "agent", "event": "memory.updated", "id": "gotcha.stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files", "timestamp": "2026-08-04T19:40:48+03:00"}
