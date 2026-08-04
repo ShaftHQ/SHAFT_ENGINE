@@ -11,7 +11,7 @@ import queue
 import re
 import shutil
 import stat
-import subprocess
+import subprocess  # nosec B404 - installer runs trusted setup and validation commands.
 import sys
 import tarfile
 import tempfile

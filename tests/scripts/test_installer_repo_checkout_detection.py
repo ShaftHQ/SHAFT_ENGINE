@@ -14,7 +14,7 @@ import json
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests exercise installer detection with controlled shell scripts.
 import tempfile
 import unittest
 from pathlib import Path

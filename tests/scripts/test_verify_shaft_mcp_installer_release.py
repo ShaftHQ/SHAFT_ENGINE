@@ -1,4 +1,4 @@
-import subprocess
+import subprocess  # nosec B404 - test uses mocked subprocess, never running external commands.
 import unittest.mock
 from pathlib import Path
 

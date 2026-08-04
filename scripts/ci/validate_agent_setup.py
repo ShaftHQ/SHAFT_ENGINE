@@ -8,7 +8,7 @@ import hashlib
 import json
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - runs fixed, read-only git queries for memory checks.
 import sys
 from pathlib import Path
 

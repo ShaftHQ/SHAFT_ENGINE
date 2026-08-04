@@ -2,7 +2,7 @@
 
 import json
 import os
-import subprocess
+import subprocess  # nosec B404 - tests drive the sync script with isolated temporary directories.
 import sys
 import tempfile
 import unittest
