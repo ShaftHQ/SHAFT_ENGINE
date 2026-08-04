@@ -257,6 +257,15 @@ durable is a valid result. This section adds only the timing: do it *before* the
 final push, while the session still remembers what it learned. A learning routed
 after the push is a learning nobody wrote down.
 
+### Learned-lessons workflow
+
+1. Collect what outlives this session: costs paid, decisions taken, structure
+   moved, procedures that misled you, work deliberately not done.
+2. Classify each against the entrypoint's Learning-loop table and take the one
+   destination that row names.
+3. Write it there, or record that nothing durable surfaced. Both are results;
+   only silence is not.
+
 ## 7. Push, PR, green, merge, compact
 
 - Push the branch, open one PR per the shape decided in step 1, with a
@@ -273,9 +282,6 @@ after the push is a learning nobody wrote down.
   Immediately after opening, run `gh pr view <n> --json
   closingIssuesReferences`; if it lists an issue this PR does not fully
   resolve, unlink it from the PR's Development sidebar.
-- Wait for CI. If it fails, fix forward on the same branch — don't force-
-  push over history the user might want to inspect, just add a fixing
-  commit, unless the failure is trivially a fixup of the last commit itself.
 - Merge only within the authority actually granted in step 1 — a "merge this
   PR" authorization is scoped to *that* PR, not to every PR the session
   touches. A companion PR in a different, live-publishing repo is a
@@ -285,6 +291,24 @@ after the push is a learning nobody wrote down.
 - After a merge, compact the session if the host supports it so the next
   item — or the next session — starts with fresh context instead of a
   ballooning transcript.
+
+### PR-merger workflow: arm, watch, fix, confirm
+
+The entrypoint makes this a duty; here is how it runs. Four terminal shapes —
+merged, red, conflicting, stale — and the watcher observes only two of them.
+
+1. **Arm** the moment the review gate passes: `gh pr merge <n> --auto --squash`.
+2. **Watch** with `py -3 scripts/ci/watch_pr_checks.py --pr <n>`. Exit 0 is
+   green, 1 is red and prints the failing jobs as JSON, 2 is still pending, 3 is
+   an environment error.
+3. **Ask for the shapes it cannot see**: `gh pr view <n> --json
+   mergeStateStatus,mergedAt`. `DIRTY` is a conflict and `BEHIND` is stale;
+   neither produces an event, which is why a notification-only watch drops them.
+4. **Fix** on the branch — a fixing commit for red, `git merge origin/main` for
+   a conflict or a stale head — then return to step 2. Never force-push over
+   history the owner may want to inspect.
+5. **Confirm** against the remote: `mergedAt` is non-null. Arming succeeded is
+   not merged.
 
 ## 8. Report
 

@@ -70,6 +70,7 @@ Cleanup order, and never out of order:
 
 Report what was pushed and what was deleted. Cleanup is bounded to this
 repository and never rewrites remote history.
+`scripts/ci/worktree_hygiene.py` surveys which worktrees those rules cover.
 
 ## Operating contract
 
@@ -155,6 +156,10 @@ Routing also orders knowledge retrieval. Query the applicable stores before
 broad manual discovery, and never treat a stale index as authority over a live
 file.
 
+The [skills map](../README.md) inventories every harness surface, adapter, hook,
+script and check, including the lifecycle guard that interrupts you. Nothing in
+the harness sits outside what this file and that page reach.
+
 ## Roles and capability levels
 
 ### Solo or orchestrate
@@ -176,9 +181,8 @@ and costs a spec, a handoff, and the risk of two writers in one tree.
 
 Orchestrating exists so you stay reachable: the owner can redirect you, and a
 delegate can get a decision, only while you are not head-down in work. In this
-mode you make no edits, run no long job, and install nothing. What stays yours
-is decomposition, specs, decisions, review, synthesis, final verification, and
-the report — plus the short read-only checks those need.
+mode you make no edits, run no long job, and install nothing;
+[delegation](references/delegation.md) lists what stays yours.
 
 **Switching mode.** Finish or hand over what you hold before you switch. While
 any delegate still owns a stream you remain orchestrating, even if the count
@@ -205,10 +209,19 @@ For issue-to-merged-PR work, use the [GitHub playbook](references/work-github-pl
 Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
+Opening a PR does not end the duty. Arm auto-merge once its review gate passes,
+then watch with `scripts/ci/watch_pr_checks.py` until the remote confirms
+merged. Red and conflicting are yours to fix, not to hand back; stale emits no
+event, so ask for it. The duty survives compaction, a dead delegate, and the
+task that opened the PR:
+[PR-merger workflow](references/work-github-playbook.md#pr-merger-workflow-arm-watch-fix-confirm).
+
 ## Learning loop
 
-Before reporting done, route every learning exactly once. One row per learning;
-never two, never a diary.
+Before reporting done, run the
+[learned-lessons workflow](references/work-github-playbook.md#learned-lessons-workflow):
+route every learning exactly once. One row per learning; never two, never a
+diary.
 
 | What surfaced | Where it goes |
 | --- | --- |
