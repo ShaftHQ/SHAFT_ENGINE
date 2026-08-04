@@ -27,7 +27,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Set up JDK 25 (shaft-mcp runtime)
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -48,7 +48,7 @@ jobs:
           echo "MCP_JAVA=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
           echo "MCP_ARGS=$PWD/shaft-mcp/target/shaft-mcp-live.args" >> "$GITHUB_ENV"
       - name: Set up JDK 17 (Gradle)
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: '17'
           distribution: 'zulu'
