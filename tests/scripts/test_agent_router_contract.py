@@ -800,7 +800,111 @@ class SoloOrOrchestrateTest(unittest.TestCase):
 
 
 class DisciplineTest(unittest.TestCase):
-    """Rules the published failure evidence says an agent will otherwise break."""
+    """Rules the published failure evidence says an agent will otherwise break.
+
+    This repository's own selection history is the argument for pinning them by
+    phrase. Rules that were only asserted got traded away -- the guard's rule
+    numbering still skips R4 through R7, and two of the deleted ones were TDD
+    and Graphify nudges. Rules with a failing check behind them survived.
+
+    Each pin below asserts the clause that carries the rule, inside the section
+    that owns it, and each was verified to fail when that clause is removed --
+    a pin that passes on any prose is decoration.
+
+    Scope, stated plainly so the next reader does not overrate these: a presence
+    pin catches deletion and renaming. It does not catch weakening by addition.
+    "Never claim a check you did not run. Routine checks are exempt." keeps the
+    pinned phrase and guts the law, and every pin here passes on it. Closing
+    that is #4467.
+    """
+
+    def iron_laws(self) -> str:
+        """Return the Iron laws section, whitespace-collapsed and lowercased.
+
+        Scoped like the red-flag pin below: asserting these phrases against the
+        whole file would also pass on a stray mention in an example or a red
+        flag, so the assertion has to land on the law itself.
+        """
+        sections = re.split(r"(?m)^## ", ENTRYPOINT.read_text(encoding="utf-8"))
+        laws = [body for body in sections if body.lower().startswith("iron laws")]
+        self.assertEqual(len(laws), 1, "entrypoint needs exactly one Iron laws section")
+        return re.sub(r"\s+", " ", laws[0]).lower()
+
+    def test_entrypoint_pins_evidence_over_inference(self):
+        """Iron law 2, unpinned until now.
+
+        Every other discipline here is downstream of it: "never claim a check
+        you did not run" and the RED definition are both special cases of
+        inspecting before asserting. The law also has to name the remedy --
+        inspect *or run* -- because an agent that reads only "evidence over
+        inference" can satisfy itself that reasoning carefully is evidence.
+        """
+        content = self.iron_laws()
+        self.assertIn("evidence over inference", content)
+        self.assertRegex(
+            content,
+            r"inspect or run before claiming",
+            "the law must name the act that produces evidence, not just the value",
+        )
+
+    def test_entrypoint_pins_no_production_code_before_an_observed_failing_test(self):
+        """Iron law 3, unpinned until now.
+
+        "Observed" is the load-bearing word and the one an edit optimising for
+        bytes would drop first. Without it the law reads as "write a test
+        first", which a test that was never executed satisfies -- and a test
+        nobody ran is exactly how a suite fills with assertions that never
+        could have failed.
+        """
+        content = self.iron_laws()
+        self.assertRegex(
+            content,
+            r"no production code before an observed failing test",
+            "dropping 'observed' downgrades the law to 'write a test first'",
+        )
+
+    def test_entrypoint_pins_never_claiming_an_unrun_check(self):
+        """Iron law 5, unpinned until now.
+
+        This is the law the harness can least afford to lose, because it is the
+        one that makes every other report trustworthy: no check in this
+        repository verifies that a run happened, only that the rule is written
+        down. It is also the cheapest law to break silently, which is why it
+        needs the most explicit sentence.
+        """
+        content = self.iron_laws()
+        self.assertRegex(content, r"never claim a check you did not run")
+
+    def test_entrypoint_pins_what_does_and_does_not_count_as_red(self):
+        """The RED definition, unpinned until now.
+
+        Iron law 3 is unenforceable without it. An import error, a syntax
+        error, or a missing fixture all produce a red run, and accepting one as
+        RED means the "failing test" was never evidence of missing behaviour --
+        it was evidence of a broken harness. The exclusion list is therefore
+        the substance of the rule, not commentary on it, and so is the
+        instruction to revert when production code was written first: without
+        it, "restart" is advice rather than a step.
+        """
+        sections = re.split(r"(?m)^#{2,3} ", ENTRYPOINT.read_text(encoding="utf-8"))
+        found = [body for body in sections if body.lower().startswith("test-driven development")]
+        self.assertEqual(len(found), 1, "entrypoint needs exactly one TDD section")
+        content = re.sub(r"\s+", " ", found[0]).lower()
+        self.assertRegex(
+            content,
+            r"only an expected assertion failure",
+            "RED has to be narrowed to an assertion failure or any red run qualifies",
+        )
+        self.assertRegex(
+            content,
+            r"a pass or setup, syntax, or environment error is not red",
+            "the exclusions are the rule; without them a broken harness reads as RED",
+        )
+        self.assertRegex(
+            content,
+            r"revert that new code and restart",
+            "code-first needs a stated remedy, not just disapproval",
+        )
 
     def test_entrypoint_forbids_weakening_a_test_to_reach_green(self):
         self.assertRegex(compact(ENTRYPOINT), r"never [^.]*weaken[^.]*test|weaken a test")

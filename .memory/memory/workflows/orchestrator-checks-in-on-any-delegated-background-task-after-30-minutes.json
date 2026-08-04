@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes.md",
-  "content_hash": "sha256:fcbe636faf5a57aa5143a73a93b207db16887398e1cd4598e55ba4ba2e8949d8",
+  "content_hash": "sha256:e6b467f656b23ceb7788e456621ae96270b9ef21f08a563a6337f8ef63177f4e",
   "created_at": "2026-07-18T20:42:38+03:00",
   "evidence": [],
   "facets": {
@@ -24,7 +24,7 @@
     "delegation",
     "timeouts"
   ],
-  "title": "Orchestrator checks in on any delegated background task after 30 minutes",
+  "title": "Escalation ladder when a delegated background task goes silent",
   "type": "workflow",
-  "updated_at": "2026-07-18T20:42:38+03:00"
+  "updated_at": "2026-08-04T10:00:00+03:00"
 }
