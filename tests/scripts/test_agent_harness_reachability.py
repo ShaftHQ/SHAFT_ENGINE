@@ -58,6 +58,11 @@ WHAT THIS DOES NOT CATCH -- read before inferring coverage from a green run
   a path no glob covers is not an element, so it cannot be reported as an
   orphan. This is the one place a hand-maintained decision still lives, and it
   is the failure mode most likely to bite next.
+- **A detoured root is normalised, not rejected.** `root` is resolved at entry
+  so a symlinked or short-name checkout walks correctly. Nothing asserts that
+  the caller's spelling and the resolved one name the same tree -- if a caller
+  passes a root that resolves somewhere else entirely, the walk reports on
+  wherever it resolved to.
 - **Not run by `validate_agent_setup.py`.** This is a unittest module, run by
   PR Gate's agent-harness job. `py -3 scripts/ci/validate_agent_setup.py
   --skip-external` stays green with the harness fully orphaned.
@@ -172,7 +177,15 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
 
     Recursion stops at any non-markdown target: a linked `.LICENSE` or
     `.yaml` is reached, but has no links of its own to follow.
+
+    `root` is resolved here, at the one boundary where it enters the walk,
+    because each link target is resolved below and `relative_to` compares
+    spellings rather than locations. Comparing a resolved target against an
+    unresolved root made every link inside a detoured checkout -- an 8.3 short
+    name, a symlink, a junction, a `subst` drive -- read as escaping the
+    repository. Normalise both sides once rather than per comparison.
     """
+    root = root.resolve()
     reached: set[str] = set()
     broken: list[str] = []
     queue = [entrypoint]
@@ -192,6 +205,11 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
             try:
                 relative = resolved.relative_to(root).as_posix()
             except ValueError:
+                # Recorded, never swallowed. A target that cannot be placed
+                # inside the repository is a defect either way, so this arm
+                # fails closed: `continue` drops it from the walk *and* the
+                # report names it. With both sides now resolved, reaching here
+                # means a genuine escape rather than a spelling mismatch.
                 broken.append(f"{current} -> {raw} (escapes the repository)")
                 continue
             if not resolved.exists():
@@ -224,7 +242,12 @@ def path_tokens(root: Path, reached: set[str], roots: set[str]) -> dict[str, str
 
 
 def harness_report(root: Path) -> dict[str, list[str]]:
-    """Return every reachability defect in the tree at `root`, each as one string."""
+    """Return every reachability defect in the tree at `root`, each as one string.
+
+    Resolved once here so every helper below sees one spelling of the root.
+    `link_walk` resolves defensively too, for a direct caller.
+    """
+    root = root.resolve()
     config = load_config(root)
     entrypoint = config["entrypoint"]
     deployable = config["deployable_root"].rstrip("/") + "/"
@@ -578,6 +601,82 @@ class HarnessReachabilityTest(unittest.TestCase):
                 ["scripts/ci/tool.py (named in .agents/skills/act-as-mohab/SKILL.md) "
                  "matches no tracked path"],
             )
+
+    def test_the_walk_places_link_targets_when_the_root_is_spelled_unresolved(self):
+        """A checkout whose spelling differs from its resolved form must still work.
+
+        `link_walk` resolved every link target and then compared it against an
+        *unresolved* `root`. When the two spellings differ, `relative_to` raises
+        and the target is filed as "escapes the repository" -- a link pointing
+        squarely inside the tree, reported as leaving it, and its file reported
+        as an orphan. It fails closed and loudly rather than silently, so
+        nothing was hidden; what it produced was a confident wrong diagnosis.
+
+        It survived review because the divergence needs an environment nobody
+        local had. On the Windows CI runner `TEMP` is itself spelled in 8.3
+        form (`C:\\Users\\RUNNER~1\\AppData\\Local\\Temp`), so `mkdtemp()`
+        inherits that prefix and `resolve()` expands it. On a developer machine
+        `TEMP` holds the long spelling, `mkdtemp()` returns a long path, and
+        `resolve()` is a no-op -- the 8.3 alias exists in both places, and only
+        the spelling handed to the test differs. That distinction matters: the
+        trigger is how the root is *spelled*, not whether the volume generates
+        short names, which is why disabling 8.3 generation would not have saved
+        it and why a symlinked checkout, a junction and a `subst` drive break
+        it identically. Verified both ways against a real
+        `GetShortPathNameW` root: before the fix the walk called
+        `references/roles.md` an escape, after it the report is empty.
+
+        The divergence is injected lexically -- `<temp>/repo/../repo` names the
+        same directory as `<temp>/repo` without spelling it the same way -- so
+        this runs identically on every platform and needs no privilege, no
+        symlink support, and no 8.3 names. `assertNotEqual` guards it: if a
+        future platform normalised the detour away, the case would prove
+        nothing, and it must fail rather than pass vacuously.
+        """
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            real = Path(temporary_directory) / "repo"
+            references = real / ".agents/skills/act-as-mohab/references"
+            references.mkdir(parents=True)
+            (real / "scripts/ci").mkdir(parents=True)
+            (real / ".agents/skills/act-as-mohab/SKILL.md").write_text(
+                "# Entry\n\n[roles](references/roles.md)\n\nRun `scripts/ci/tool.py`.\n",
+                encoding="utf-8",
+            )
+            (references / "roles.md").write_text("# Roles\n", encoding="utf-8")
+            (real / "scripts/ci/tool.py").write_text("x\n", encoding="utf-8")
+            (real / "scripts/ci/agent_guidance_budget.json").write_text(
+                json.dumps(
+                    {
+                        "harness_reachability": {
+                            "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
+                            "deployable_root": ".agents/skills",
+                            "element_globs": [".agents/skills/**", "scripts/ci/*.py"],
+                            "exemptions": [],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+                subprocess.run(  # nosec B603 B607 - fixed local git commands.
+                    command, cwd=real, capture_output=True, text=True, check=True
+                )
+
+            detoured = real.parent / "repo" / ".." / "repo"
+            self.assertNotEqual(
+                detoured,
+                detoured.resolve(),
+                "the fixture must actually spell the root differently from its resolved form",
+            )
+            self.assertEqual(detoured.resolve(), real.resolve())
+
+            report = harness_report(detoured)
+            self.assertEqual(
+                report["broken_links"],
+                [],
+                "a link inside the tree must not be reported as escaping it",
+            )
+            self.assertEqual(report["orphans"], [])
 
     def test_the_path_token_scan_ignores_tokens_that_name_no_harness_root(self):
         """A false positive here reddens an honest PR, and the cheap repair is to gut the scan.
