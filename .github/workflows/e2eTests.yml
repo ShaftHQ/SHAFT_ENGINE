@@ -281,8 +281,16 @@ jobs:
           node-version: '20'
       - name: Check running containers
         run: docker ps
+      # Wrapped because this step, not `Run tests`, is where a cold cache pays:
+      # it has no continue-on-error, so a Central refusal here skips `Run tests`
+      # and `Post-Test Report and Check` then fails on a missing Allure summary
+      # (issue #4445, run 30876948089). The retry is a fresh process; Maven's
+      # own in-JVM retries had already spent 6m05s losing to the same 429.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=firefox" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
@@ -319,8 +327,16 @@ jobs:
           node-version: '20'
       - name: Check running containers
         run: docker ps
+      # Wrapped because this step, not `Run tests`, is where a cold cache pays:
+      # it has no continue-on-error, so a Central refusal here skips `Run tests`
+      # and `Post-Test Report and Check` then fails on a missing Allure summary
+      # (issue #4445, run 30876948089). The retry is a fresh process; Maven's
+      # own in-JVM retries had already spent 6m05s losing to the same 429.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
@@ -357,8 +373,16 @@ jobs:
           node-version: '20'
       - name: Check running containers
         run: docker ps
+      # Wrapped because this step, not `Run tests`, is where a cold cache pays:
+      # it has no continue-on-error, so a Central refusal here skips `Run tests`
+      # and `Post-Test Report and Check` then fails on a missing Allure summary
+      # (issue #4445, run 30876948089). The retry is a fresh process; Maven's
+      # own in-JVM retries had already spent 6m05s losing to the same 429.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=DYNAMIC" "-DsetParallel=METHODS" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=http://localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DremotePreflightEnabled=true" "-DremoteAdaptiveSessionThrottling=true" "-DremotePreflightFailFast=true" "-DremoteServerConnectionAttemptTimeout=15" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '${GLOBAL_TESTING_SCOPE}' }}"
@@ -674,8 +698,16 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      # Wrapped because this step, not `Run tests`, is where a cold cache pays:
+      # it has no continue-on-error, so a Central refusal here skips `Run tests`
+      # and `Post-Test Report and Check` then fails on a missing Allure summary
+      # (issue #4445, run 30876948089). The retry is a fresh process; Maven's
+      # own in-JVM retries had already spent 6m05s losing to the same 429.
       - name: Install optional visual test runtime
-        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+        shell: bash
+        run: >-
+          bash scripts/ci/maven_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Run tests
         continue-on-error: true
         timeout-minutes: 40
