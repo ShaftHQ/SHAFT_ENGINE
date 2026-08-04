@@ -135,6 +135,13 @@ sends you there; the rest by
 - [work GitHub playbook](act-as-mohab/references/work-github-playbook.md)
 - [graphify](act-as-mohab/references/graphify.md)
 
+Caveman, Ponytail and the TDD cycle are not references — they live in the
+entrypoint body, because a rule that governs every task must not cost a second
+read. Only their MIT notices are files:
+[Caveman](act-as-mohab/references/caveman.LICENSE),
+[Ponytail](act-as-mohab/references/ponytail.LICENSE),
+[TDD](act-as-mohab/references/test-driven-development.LICENSE).
+
 ### Repository playbooks
 
 One per kind of work in this repository. Which deliverable sends you to which
@@ -186,10 +193,15 @@ the plumbing differs.
 
 | Host | How it finds the entrypoint |
 | --- | --- |
-| Codex | Reads `AGENTS.md`, discovers `.agents/skills/*/SKILL.md` natively, and loads the role adapters in `.codex/agents/*.toml`. |
-| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/*` redirect to the canonical bodies and `.claude/agents/*.md` carry the roles. |
+| Codex | Reads `AGENTS.md`, discovers `.agents/skills/*/SKILL.md` natively — per-skill metadata in [act-as-mohab](act-as-mohab/agents/openai.yaml) and [consult-first](consult-first/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
+| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/*/SKILL.md` redirect to the canonical bodies and `.claude/agents/*.md` carry the roles. |
 | Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` and `.github/instructions/*` redirect to the same playbooks. |
 | Grok | Reads `AGENTS.md` plus the Claude-compatible adapter. |
+
+Those four rows are the harness's only inbound edges: each points *into* the
+entrypoint and carries no policy of its own, which is why the entrypoint links
+this page rather than linking back to them one by one. They are listed here so
+an agent on any host can see which surfaces exist and confirm they are thin.
 
 If your agent does none of that automatically, say this to it:
 
@@ -201,7 +213,23 @@ To deploy the harness to your own user-level agent configuration:
 py -3 scripts/agents/sync_user_harness.py --check
 ```
 
-Add `--apply` to write it, with backups. Secrets are never synced.
+Add `--apply` to write it, with backups. Secrets are never synced. What it
+deploys is `.claude/user-harness/*` — a thin user-level adapter, never a copy of
+the policy.
+
+## What runs alongside you
+
+These are not documents to read. They are the moving parts, and an agent that
+does not know they exist meets them as an interruption instead of a tool.
+
+| Part | Where it lives | What it does to a session |
+| --- | --- | --- |
+| Lifecycle guard | `scripts/agents/guard.py`, registered by `.claude/settings.json` and `.codex/hooks.json` | Fires on PreToolUse, SessionStart and Stop. It denies a command that breaks a repository rule, injects the session preflight, and can hold the Stop event open. This is the part most likely to interrupt you. |
+| Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
+| Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
+| PR watcher | `scripts/ci/watch_pr_checks.py` | Polls one PR's checks under a hard poll cap. The PR-merger workflow says when to run it and what its exit codes mean. |
+| Worktree survey | `scripts/ci/worktree_hygiene.py` | Reports which worktrees are safe to remove and which hold work nobody will come back for. |
+| Local gate | `scripts/ci/local_gate.py` | Runs the pull-request gate's checks before you push, so a red run costs a minute instead of a round trip. |
 
 ## How this stays true
 
@@ -220,8 +248,25 @@ pull request that touches the harness:
 - No guidance names a model or a product where it should name a capability
   level.
 
+- Every harness element — this page, the entrypoint, every reference, adapter,
+  hook, script and check — is reachable from the entrypoint, or carries a
+  written reason why not.
+
 Run them locally with:
 
 ```bash
 py -3 scripts/ci/validate_agent_setup.py --skip-external
 ```
+
+That command drives `scripts/ci/validate_agent_guidance.py` and
+`scripts/ci/validate_skills.py`, reading its ceilings from
+`scripts/ci/agent_guidance_budget.json` and the cross-host capability matrix
+from `scripts/ci/agent_harness_parity.json`.
+
+The assertions themselves are unit tests, and they are where a rule in this
+tree actually fails: `tests/scripts/test_agent_*.py`,
+`tests/scripts/test_validate_agent_*.py`, `tests/scripts/test_validate_skills.py`,
+`tests/scripts/test_guard_*.py`, `tests/scripts/test_sync_user_harness.py`,
+`tests/scripts/test_worktree_hygiene.py` and
+`tests/scripts/test_shaft_skill*.py`. Read the one that guards what you are
+changing before you change it.
