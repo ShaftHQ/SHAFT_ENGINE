@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
 import tempfile
 import unittest
@@ -161,6 +162,25 @@ class InstallShaftMcpTest(unittest.TestCase):
         # making the onboarding-referenced `validate_agent_setup.py` crash with
         # FileNotFoundError on any project that installed them.
         self.assertIn("scripts/ci/agent_guidance_budget.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+
+    def test_agent_validation_manifest_ships_every_module_the_validator_imports(self):
+        # Same class of defect as issue #3363 bug 9, one level up: the manifest
+        # copies validate_agent_setup.py into a user's project, so any sibling
+        # module it imports at module scope must travel with it or the
+        # installed validator dies on ImportError. Checked by reading the real
+        # import statements rather than by listing them again here.
+        repository_root = Path(__file__).resolve().parents[2]
+        shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        missing = set()
+        for relative in sorted(shipped):
+            if not relative.endswith(".py"):
+                continue
+            source = (repository_root / relative).read_text(encoding="utf-8")
+            for module in re.findall(r"(?m)^from (scripts[\w.]*) import", source):
+                required = module.replace(".", "/") + ".py"
+                if required not in shipped:
+                    missing.add(f"{relative} imports {module}")
+        self.assertEqual(sorted(missing), [])
 
     def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
         lines = MODULE.render_client_menu()

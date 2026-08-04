@@ -1,4 +1,5 @@
 import json
+import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ from unittest.mock import patch
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
+    collect_worktree_metrics,
     run_memory_check,
     validate_memory_setup,
     validate_repository,
@@ -153,6 +155,48 @@ approval_mode = "prompt"
         allowlisted_path = sorted(KNOWN_SECRET_SCANNER_LANDMINE_FILES)[0]
         self.write(allowlisted_path, "desk-abcdefghijklmnopqrstuvwxyz\n")
         self.assertNotIn("memory-secret-landmine", self.codes())
+
+    def git(self, *arguments):
+        return subprocess.run(  # nosec B603 B607 - fixed git commands on a temp fixture.
+            ["git", "-c", "core.longpaths=true", *arguments],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def test_worktree_metrics_report_uncommitted_work(self):
+        # Issue #4437: uncommitted work rotted in worktrees because nothing an
+        # agent runs ever mentioned it.
+        self.git("init", "-q", "-b", "main", ".")
+        self.git("config", "user.email", "harness@example.invalid")
+        self.git("config", "user.name", "Harness")
+        self.write("notes.md", "committed\n")
+        self.git("add", "notes.md")
+        self.git("commit", "-qm", "initial")
+        self.write("notes.md", "uncommitted edit\n")
+
+        metrics = collect_worktree_metrics(self.root, run_external=False)
+
+        advisories = metrics["worktree_advisories"]
+        self.assertEqual(len(advisories), 1)
+        self.assertIn("uncommitted", advisories[0])
+        self.assertEqual(metrics["worktrees"][0]["state"], "uncommitted")
+
+    def test_worktree_metrics_are_empty_outside_a_repository(self):
+        metrics = collect_worktree_metrics(self.root, run_external=False)
+        self.assertEqual(metrics["worktrees"], [])
+        self.assertEqual(metrics["worktree_advisories"], [])
+
+    def test_validator_carries_the_worktree_report_without_gating_on_it(self):
+        # The report must ride along with --skip-external, the invocation
+        # AGENTS.md prescribes -- and must never fail it, because concurrent
+        # sessions legitimately hold dirty worktrees of their own.
+        repository_root = Path(__file__).resolve().parents[2]
+        errors, metrics = validate_repository(repository_root, run_external=False)
+        self.assertIn("worktrees", metrics)
+        self.assertIn("worktree_advisories", metrics)
+        self.assertNotIn("worktree", {error["code"] for error in errors})
 
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
         # Negative test: relaxing the relation-file message must not open a
