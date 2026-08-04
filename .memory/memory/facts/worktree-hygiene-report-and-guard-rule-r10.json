@@ -1,0 +1,44 @@
+{
+  "body_path": "memory/facts/worktree-hygiene-report-and-guard-rule-r10.md",
+  "content_hash": "sha256:114953d19f8d4958a3c3da0b909d22c96ab0bd8c2e9390e5f8abd27416608cdf",
+  "created_at": "2026-08-04T09:39:35+03:00",
+  "evidence": [
+    {
+      "id": "4437",
+      "kind": "task"
+    },
+    {
+      "id": "004895ca73b6216c27708838aac908de705bf6b9",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "scripts/ci/worktree_hygiene.py",
+      "scripts/agents/guard.py",
+      "scripts/ci/validate_agent_setup.py"
+    ],
+    "category": "agent-guidance"
+  },
+  "id": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Issue #4437: harden the harness against abandoned worktrees and NUL-byte corruption (PR #4439)"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "guard",
+    "worktree",
+    "validation"
+  ],
+  "title": "Worktree hygiene report and guard rule R10 detect abandoned and zeroed work",
+  "type": "fact",
+  "updated_at": "2026-08-04T09:39:35+03:00"
+}

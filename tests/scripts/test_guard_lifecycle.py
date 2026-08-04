@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-import subprocess
+import subprocess  # nosec B404 - tests drive the tracked hook command locally.
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch

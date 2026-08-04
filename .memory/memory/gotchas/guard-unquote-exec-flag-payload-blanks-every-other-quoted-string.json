@@ -1,0 +1,41 @@
+{
+  "body_path": "memory/gotchas/guard-unquote-exec-flag-payload-blanks-every-other-quoted-string.md",
+  "content_hash": "sha256:bf099f13f46bd9e4f25ada48ee2708a4b6f8debfafe17b9b39e34de1db4eabeb",
+  "created_at": "2026-08-04T09:39:35+03:00",
+  "evidence": [
+    {
+      "id": "4437",
+      "kind": "task"
+    },
+    {
+      "id": "004895ca73b6216c27708838aac908de705bf6b9",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "scripts/agents/guard.py"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.guard-unquote-exec-flag-payload-blanks-every-other-quoted-string",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Issue #4437: harden the harness against abandoned worktrees and NUL-byte corruption (PR #4439)"
+  },
+  "status": "active",
+  "tags": [
+    "guard",
+    "parsing",
+    "regex"
+  ],
+  "title": "guard.py _unquote_exec_flag_payload blanks every quoted string it does not protect",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T09:39:35+03:00"
+}

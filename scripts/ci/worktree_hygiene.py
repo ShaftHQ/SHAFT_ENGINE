@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Report worktrees whose work is pending, already upstream, or corrupt.
-
-Uncommitted changes in a worktree are indistinguishable from finished work
-until something says otherwise. Issue #4437: seven worktrees accumulated in one
-checkout, three holding uncommitted changes. Two of those held documentation
-that had already landed on `origin/main` through another path, and one held 652
-entirely NUL-filled files that `git status` reported as ordinary ' M' entries.
-Establishing that cost a full byte-level investigation and landed zero commits.
-
-This module turns the three conditions into reportable states:
-
-* ``corrupt``     -- changed files are almost entirely NUL bytes.
-* ``abandoned``   -- another worktree holds uncommitted changes, carries no
-                     patch that is not already upstream, and has no open pull
-                     request. Nobody is coming back for it.
-* ``superseded``  -- a linked worktree is clean and carries no patch that is not
-                     already upstream. Its content landed through another path;
-                     remove it.
-* ``uncommitted`` -- changes exist that no commit holds yet, in a worktree that
-                     is otherwise live (including the one you are working in).
-
-Advisories are reported, never fatal: concurrent sessions legitimately hold
-their own worktrees, so this must inform an agent rather than block it.
-Relationship to upstream uses ``git cherry``, not ahead/behind: the 2026-08-04
-worktrees carried commits whose patches were already on ``origin/main``.
-"""
+"""Report worktrees whose work is pending, already upstream, or corrupt."""
+# Uncommitted changes in a worktree are indistinguishable from finished work
+# until something says otherwise. Issue #4437: seven worktrees accumulated in
+# one checkout, three holding uncommitted changes. Two of those held
+# documentation that had already landed on `origin/main` through another path,
+# and one held 652 entirely NUL-filled files that `git status` reported as
+# ordinary ' M' entries. Establishing that cost a full byte-level
+# investigation and landed zero commits.
+#
+# This module turns the conditions into reportable states:
+#
+#   corrupt     -- changed files are almost entirely NUL bytes.
+#   abandoned   -- another worktree holds uncommitted changes, carries no patch
+#                  that is not already upstream, and has no open pull request;
+#                  or it holds commits on a detached HEAD no branch references.
+#                  Nobody is coming back for it.
+#   superseded  -- a linked worktree is clean and every commit it carries is
+#                  already upstream by content. It landed through another path.
+#   uncommitted -- changes exist that no commit holds yet, in a worktree that
+#                  is otherwise live (including the one you are working in).
+#   unknown     -- git could not answer; claim nothing about it.
+#
+# Advisories are reported, never fatal: concurrent sessions legitimately hold
+# their own worktrees, so this must inform an agent rather than block it.
+# Relationship to upstream uses `git cherry`, not ahead/behind: the 2026-08-04
+# worktrees carried commits whose patches were already on `origin/main`.
 
 from __future__ import annotations
 
@@ -54,12 +54,11 @@ ADVISORY_STATES = ("corrupt", "abandoned", "superseded", "uncommitted", "unknown
 
 
 def _git(cwd: Path, *arguments: str) -> str | None:
-    """Run one read-only git query, or return None when it cannot be trusted.
-
-    `core.longpaths=true` matches the guard's R9 requirement: without it git
-    aborts with `Filename too long` on this repository's over-long `.memory/**`
-    paths, and a failed status query would otherwise read as "clean".
-    """
+    """Run one read-only git query, or return None when it cannot be trusted."""
+    # `core.longpaths=true` matches the guard's R9 requirement: without it git
+    # aborts with `Filename too long` on this repository's over-long
+    # `.memory/**` paths, and a failed status query would otherwise read as
+    # "clean".
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
             ["git", "-c", "core.longpaths=true", *arguments],
@@ -75,12 +74,10 @@ def _git(cwd: Path, *arguments: str) -> str | None:
 
 
 def _parse_worktree_list(output: str) -> list[dict]:
-    """Parse `git worktree list --porcelain` into worktree records.
-
-    `locked` and `prunable` are kept, not discarded: they are the only signals
-    distinguishing a worktree a live session holds, or one whose directory is
-    already gone, from one that is genuinely idle.
-    """
+    """Parse `git worktree list --porcelain` into worktree records."""
+    # `locked` and `prunable` are kept, not discarded: they are the only
+    # signals distinguishing a worktree a live session holds, or one whose
+    # directory is already gone, from one that is genuinely idle.
     entries: list[dict] = []
     current: dict = {}
 
@@ -113,11 +110,9 @@ def _parse_worktree_list(output: str) -> list[dict]:
 
 
 def _uncommitted_files(worktree: Path) -> int | None:
-    """Count changed paths, or None when git could not answer.
-
-    None is not zero. Reading a failed query as "clean" would feed the
-    superseded verdict, which tells the reader to delete the branch.
-    """
+    """Count changed paths, or None when git could not answer."""
+    # None is not zero. Reading a failed query as "clean" would feed the
+    # superseded verdict, which tells the reader to delete the branch.
     output = _git(worktree, "status", "--porcelain")
     if output is None:
         return None
@@ -125,12 +120,10 @@ def _uncommitted_files(worktree: Path) -> int | None:
 
 
 def _unique_commits(root: Path, committish: str | None) -> int | None:
-    """Commits on `committish` whose patch is not already upstream, or None.
-
-    `git cherry` marks a patch-identical commit with '-' even when its hash
-    differs, which is exactly the case ahead/behind gets wrong: a branch can be
-    one commit "ahead" of upstream and carry nothing new.
-    """
+    """Commits on `committish` whose patch is not already upstream, or None."""
+    # `git cherry` marks a patch-identical commit with '-' even when its hash
+    # differs, which is exactly the case ahead/behind gets wrong: a branch can
+    # be one commit "ahead" of upstream and carry nothing new.
     if committish is None:
         return None
     if _git(root, "rev-parse", "--verify", "--quiet", UPSTREAM_REF) is None:
@@ -173,14 +166,12 @@ def open_pull_requests_via_gh(branch: str) -> int:
 
 
 def _classify(entry: dict) -> str:
-    """Name the one condition that decides what to do with this worktree.
-
-    Every verdict beyond "there are uncommitted files here" needs positive
-    evidence, because the advice attached to it is destructive. A worktree that
-    is merely clean and carries no unique patch is indistinguishable from one
-    another session created seconds ago from origin/main, so absence of work is
-    never treated as proof that work has landed.
-    """
+    """Name the one condition that decides what to do with this worktree."""
+    # Every verdict beyond "there are uncommitted files here" needs positive
+    # evidence, because the advice attached to it is destructive. A worktree
+    # that is merely clean and carries no unique patch is indistinguishable
+    # from one another session created seconds ago from origin/main, so absence
+    # of work is never treated as proof that work has landed.
     if entry["corrupt_files"]:
         return "corrupt"
 
@@ -233,11 +224,10 @@ def collect_worktree_report(
     *,
     open_pull_requests: Callable[[str], int] | None = None,
 ) -> list[dict]:
-    """Describe every worktree of `root`'s repository, `root`'s own included.
-
-    Returns an empty list -- never an error -- when the directory is not a
-    repository or git cannot answer, so a caller can always report the result.
-    """
+    """Describe every worktree of `root`'s repository, `root`'s own included."""
+    # Returns an empty list -- never an error -- when the directory is not a
+    # repository or git cannot answer, so a caller can always report the
+    # result.
     listing = _git(root, "worktree", "list", "--porcelain")
     if listing is None:
         return []

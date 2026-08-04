@@ -55,6 +55,7 @@ import os
 import re
 import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
+from typing import NamedTuple
 
 # ---------------------------------------------------------------------------
 # R1: Maven test scoping + headless execution
@@ -678,12 +679,10 @@ _GIT_QUERY_TIMEOUT_SECONDS = 4
 
 
 def nul_byte_ratio(path) -> float | None:
-    """Fraction of NUL bytes in `path`, or None when empty/unreadable.
-
-    Reads at most three windows (head, middle, tail) so a large file costs a
-    bounded number of reads and a zero-padded head cannot masquerade as
-    whole-file corruption.
-    """
+    """Fraction of NUL bytes in `path`, or None when empty/unreadable."""
+    # Reads at most three windows (head, middle, tail) so a large file costs a
+    # bounded number of reads and a zero-padded head cannot masquerade as
+    # whole-file corruption.
     try:
         size = os.path.getsize(path)
         if size <= 0:
@@ -708,20 +707,13 @@ def nul_byte_ratio(path) -> float | None:
     return sample.count(0) / len(sample)
 
 
-class _StagingInvocation:
+class _StagingInvocation(NamedTuple):
     """What a staging command stages, and where."""
 
-    def __init__(
-        self,
-        subcommand: str,
-        directories: list[str],
-        pathspecs: list[str],
-        include_worktree: bool = False,
-    ):
-        self.subcommand = subcommand
-        self.directories = directories  # -C / --work-tree, applied in order
-        self.pathspecs = pathspecs  # empty means "everything"
-        self.include_worktree = include_worktree
+    subcommand: str
+    directories: list[str]  # -C / --work-tree values, applied in order
+    pathspecs: list[str]  # empty means "everything"
+    include_worktree: bool = False
 
 
 def _normalize_pathspec(value: str) -> str | None:
@@ -763,13 +755,11 @@ _COMMIT_OPTIONS_WITH_ARGUMENT = frozenset(
 
 
 def _staging_invocation(command: str) -> _StagingInvocation | None:
-    """Describe the first command that really stages content, or None.
-
-    A nested interpreter payload (`bash -c "git add -A"`) is retried as a
-    command of its own only when the outer command stages nothing, so the
-    common case keeps its quoted arguments intact -- unwrapping every quoted
-    string up front would blank a legitimate `--work-tree="<path>"` value.
-    """
+    """Describe the first command that really stages content, or None."""
+    # A nested interpreter payload (`bash -c "git add -A"`) is retried as a
+    # command of its own only when the outer command stages nothing, so the
+    # common case keeps its quoted arguments intact -- unwrapping every quoted
+    # string up front would blank a legitimate `--work-tree="<path>"` value.
     direct = _staging_invocation_in(command)
     if direct is not None:
         return direct
@@ -780,105 +770,127 @@ def _staging_invocation(command: str) -> _StagingInvocation | None:
     return None
 
 
-def _staging_invocation_in(command: str) -> _StagingInvocation | None:
-    """Describe the first git segment of `command` that stages content.
+# Options that redirect git at a different tree than the calling directory.
+# Named `argument` rather than `token` throughout: Bandit's B105 reads a
+# comparison between a variable called `token` and a string literal as a
+# hardcoded credential.
+_DIRECTORY_OPTIONS = frozenset({"-C", "--work-tree"})
+_PATHSPEC_SEPARATOR = "--"
 
-    Every git segment is examined, not just the first: `git status && git add
-    -A` is an ordinary agent shape, and stopping at the leading read-only
-    segment would wave the commit through.
-    """
+
+def _split_global_options(rest: list[str]) -> tuple[str | None, list[str], int]:
+    """Return (subcommand, -C/--work-tree values, index after the subcommand)."""
+    directories: list[str] = []
+    index = 0
+    while index < len(rest):
+        argument = rest[index]
+        if argument in _DIRECTORY_OPTIONS and index + 1 < len(rest):
+            directories.append(rest[index + 1].strip("\"'"))
+            index += 2
+            continue
+        if argument.startswith("--work-tree="):
+            directories.append(argument.split("=", 1)[1].strip("\"'"))
+            index += 1
+            continue
+        if argument in _GIT_GLOBAL_OPTS_WITH_ARG:
+            index += 2
+            continue
+        if argument.startswith("-"):
+            index += 1
+            continue
+        return argument.lower(), directories, index + 1
+    return None, directories, index
+
+
+def _commit_option_takes_argument(argument: str) -> bool:
+    """True when this `git commit` option consumes the argument after it."""
+    if argument in _COMMIT_OPTIONS_WITH_ARGUMENT:
+        return True
+    return bool(re.match(r"^-[A-Za-z]*[mFCct]$", argument))
+
+
+def _commit_option_carries_its_value(argument: str) -> bool:
+    """True for a `--option=value` form, which consumes nothing after it."""
+    lowered = argument.lower()
+    return any(
+        lowered.startswith(option.lower() + "=")
+        for option in _COMMIT_OPTIONS_WITH_ARGUMENT
+        if option.startswith("--")
+    )
+
+
+def _stages_the_whole_worktree(argument: str) -> bool:
+    """True for `git commit --all` / `-a`, which stages tracked changes itself."""
+    lowered = argument.lower()
+    return lowered == "--all" or bool(re.match(r"^-[^-]*a", lowered))
+
+
+def _staging_pathspecs(rest: list[str], subcommand: str) -> tuple[list[str], bool]:
+    """Return (paths this command names, whether it stages the whole worktree)."""
+    # `git add <path>` names what it stages, and honouring that lets an agent
+    # rescue healthy files while one corrupt file sits in the tree. For `git
+    # commit`, known option values are skipped first so a message is never read
+    # as a path; the remaining positional arguments are commit pathspecs.
+    # An empty pathspec list means "everything".
+    pathspecs: list[str] = []
+    narrowable = subcommand in ("add", "stage")
+    include_worktree = False
+    after_separator = False
+    index = 0
+    while index < len(rest):
+        argument = rest[index]
+        index += 1
+        if argument == _PATHSPEC_SEPARATOR:
+            after_separator = True
+            narrowable = True
+            continue
+        if argument.startswith("--pathspec-from-file"):
+            return [], subcommand == "commit"  # the list lives in a file
+        if subcommand == "commit" and not after_separator:
+            if _stages_the_whole_worktree(argument):
+                include_worktree = True
+            if _commit_option_takes_argument(argument):
+                index += 1
+                continue
+            if _commit_option_carries_its_value(argument):
+                continue
+        if argument.startswith("-") and not after_separator:
+            continue
+        if subcommand == "commit":
+            include_worktree = True
+            narrowable = True
+        if not (narrowable or after_separator):
+            continue
+        normalized = _normalize_pathspec(argument)
+        if normalized is None:
+            return [], include_worktree
+        pathspecs.append(normalized)
+    return pathspecs, include_worktree
+
+
+def _staging_invocation_in(command: str) -> _StagingInvocation | None:
+    """Describe the first git segment of `command` that stages content."""
+    # Every git segment is examined, not just the first: `git status && git add
+    # -A` is an ordinary agent shape, and stopping at the leading read-only
+    # segment would wave the commit through.
     for segment in _git_segments(command):
         rest = _tokens_after_head(segment, _GIT_NAMES)
         if rest is None:
             continue
-        directories: list[str] = []
-        index = 0
-        subcommand = None
-        while index < len(rest):
-            token = rest[index]
-            if token == "-C" and index + 1 < len(rest):
-                directories.append(rest[index + 1])
-                index += 2
-                continue
-            if token == "--work-tree" and index + 1 < len(rest):
-                directories.append(rest[index + 1])
-                index += 2
-                continue
-            if token.startswith("--work-tree="):
-                directories.append(token.split("=", 1)[1])
-                index += 1
-                continue
-            if token in _GIT_GLOBAL_OPTS_WITH_ARG:
-                index += 2
-                continue
-            if token.startswith("-"):
-                index += 1
-                continue
-            subcommand = token.lower()
-            index += 1
-            break
+        subcommand, directories, index = _split_global_options(rest)
         if subcommand not in _STAGING_SUBCOMMANDS:
             continue
-
-        # `git add <path>` names what it stages, and honouring that lets an
-        # agent rescue healthy files while one corrupt file sits in the tree.
-        # `git commit -m <message>` does NOT: known option values are skipped,
-        # while remaining positional arguments are commit pathspecs.
-        pathspecs: list[str] = []
-        narrowable = subcommand in ("add", "stage")
-        include_worktree = False
-        after_separator = False
-        while index < len(rest):
-            token = rest[index]
-            index += 1
-            if token == "--":
-                after_separator = True
-                narrowable = True
-                continue
-            if token.startswith("--pathspec-from-file"):
-                pathspecs = []  # the list lives in a file: do not narrow
-                include_worktree = subcommand == "commit"
-                break
-            if subcommand == "commit" and not after_separator:
-                lowered = token.lower()
-                if lowered == "--all" or re.match(r"^-[^-]*a", lowered):
-                    include_worktree = True
-                if token in _COMMIT_OPTIONS_WITH_ARGUMENT:
-                    index += 1
-                    continue
-                if any(
-                    lowered.startswith(option.lower() + "=")
-                    for option in _COMMIT_OPTIONS_WITH_ARGUMENT
-                    if option.startswith("--")
-                ):
-                    continue
-                if re.match(r"^-[A-Za-z]*[mFCct]$", token):
-                    index += 1
-                    continue
-            if token.startswith("-") and not after_separator:
-                continue
-            if subcommand == "commit":
-                include_worktree = True
-                narrowable = True
-            if not (narrowable or after_separator):
-                continue
-            normalized = _normalize_pathspec(token)
-            if normalized is None:
-                pathspecs = []
-                break
-            pathspecs.append(normalized)
+        pathspecs, include_worktree = _staging_pathspecs(rest[index:], subcommand)
         return _StagingInvocation(subcommand, directories, pathspecs, include_worktree)
     return None
 
 
 def _git_paths(cwd: str, *arguments: str) -> list[str] | None:
-    """Run a NUL-delimited, read-only git path query, or None when untrusted.
-
-    Output is decoded with `os.fsdecode` rather than the process locale:
-    `text=True` on a non-UTF-8 host mangles a non-ASCII filename into one that
-    no longer resolves on disk, which silently exempts it from scanning.
-    `core.quotePath=false` stops git octal-escaping the same names.
-    """
+    """Run a NUL-delimited, read-only git path query, or None when untrusted."""
+    # Output is decoded with `os.fsdecode` rather than the process locale:
+    # `text=True` on a non-UTF-8 host mangles a non-ASCII filename into one
+    # that no longer resolves on disk, which silently exempts it from
+    # scanning. `core.quotePath=false` stops git octal-escaping the same names.
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
             ["git", "-c", "core.quotePath=false", *arguments],
@@ -897,14 +909,13 @@ def _git_paths(cwd: str, *arguments: str) -> list[str] | None:
 def _candidate_paths(
     cwd: str, *, staged_only: bool = False, include_untracked: bool = True
 ) -> list[str] | None:
-    """Every path a stage/commit could capture: changed, staged, or untracked.
-
-    `git diff HEAD` spans the index and the working tree in one call, covering
-    `git add`, `git commit`, and `git commit -a`. It cannot see an untracked
-    file, so `git ls-files --others` supplies those -- without them a single
-    `git add -A && git commit` would carry a newly zeroed file straight
-    through. Ignored paths are excluded, so build output is never scanned.
-    """
+    """Every path a stage/commit could capture: changed, staged, or untracked."""
+    # `git diff HEAD` spans the index and the working tree in one call,
+    # covering `git add`, `git commit`, and `git commit -a`. It cannot see an
+    # untracked file, so `git ls-files --others` supplies those -- without them
+    # a single `git add -A && git commit` would carry a newly zeroed file
+    # straight through. Ignored paths are excluded, so build output is never
+    # scanned.
     diff_arguments = ["diff"]
     if staged_only:
         diff_arguments.append("--cached")
@@ -928,17 +939,15 @@ def scan_for_nul_corruption(
     staged_only: bool = False,
     include_untracked: bool = True,
 ) -> tuple[list[str], int, bool]:
-    """Return (corrupted paths, candidate count, scan truncated) for a directory.
-
-    Shared with the repository's worktree hygiene report so one definition of
-    "this file is zeroed" serves both the deny guard and the reporting path.
-    Fails open as an empty result whenever git cannot be trusted.
-
-    Every candidate is sampled directly rather than pre-filtered on the diff's
-    line counts: a `diff` attribute in .gitattributes can give a NUL-filled
-    file non-zero insertion/deletion counts, and a pre-filter keyed on those
-    counts would exempt exactly the file it needs to catch.
-    """
+    """Return (corrupted paths, candidate count, scan truncated) for a directory."""
+    # Shared with the repository's worktree hygiene report so one definition of
+    # "this file is zeroed" serves both the deny guard and the reporting path.
+    # Fails open as an empty result whenever git cannot be trusted.
+    #
+    # Every candidate is sampled directly rather than pre-filtered on the
+    # diff's line counts: a `diff` attribute in .gitattributes can give a
+    # NUL-filled file non-zero insertion/deletion counts, and a pre-filter
+    # keyed on those counts would exempt exactly the file it needs to catch.
     candidates = _candidate_paths(
         cwd, staged_only=staged_only, include_untracked=include_untracked
     )
@@ -1103,11 +1112,10 @@ def _extract_command(hook_input: dict) -> str:
 
 
 def _hook_working_directory(hook_input: dict) -> str | None:
-    """Directory the guarded command will run in, or None when unknown.
-
-    Hosts that report the session directory win over the hook process's own
-    directory, which is not guaranteed to be the checkout the command targets.
-    """
+    """Directory the guarded command will run in, or None when unknown."""
+    # Hosts that report the session directory win over the hook process's own
+    # directory, which is not guaranteed to be the checkout the command
+    # targets.
     supplied = hook_input.get("cwd")
     if isinstance(supplied, str) and supplied.strip():
         return supplied
@@ -1521,16 +1529,14 @@ def run_r9_worktree_self_test() -> int:
 
 
 def run_r10_nul_corruption_self_test() -> int:
-    """Exercises R10 against a real NUL-corrupted file in a throwaway repository.
-
-    The 2026-08-04 corruption was invisible to inspection -- `git status`
-    showed ordinary ' M' entries -- so this builds the failure on disk and
-    runs the real git rather than asserting against a hand-written diff.
-
-    Deliberately overlaps tests/scripts/test_guard_nul_corruption.py: the guard
-    ships to hosts that have neither this repository's test runner nor its test
-    tree, and `--self-test` is the only way to check it there.
-    """
+    """Exercise R10 against a real NUL-corrupted file in a throwaway repository."""
+    # The 2026-08-04 corruption was invisible to inspection -- `git status`
+    # showed ordinary ' M' entries -- so this builds the failure on disk and
+    # runs the real git rather than asserting against a hand-written diff.
+    #
+    # Deliberately overlaps tests/scripts/test_guard_nul_corruption.py: the
+    # guard ships to hosts that have neither this repository's test runner nor
+    # its test tree, and `--self-test` is the only way to check it there.
     import shutil
     import tempfile
 

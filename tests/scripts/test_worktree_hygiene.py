@@ -1,14 +1,12 @@
-"""Abandoned, superseded, and corrupt worktrees must be reportable conditions.
-
-Issue #4437: seven stale worktrees accumulated in one checkout. Three held
-uncommitted changes, and nothing distinguished them from live work -- two
-carried documentation that had already landed on `origin/main` through another
-path, and one held 652 entirely NUL-filled files. A routine cleanup would have
-destroyed all of it, and re-doing the "recoverable" work would have regressed
-`main`.
-
-Every fixture below is a real repository with real `git worktree add` links.
-"""
+"""Abandoned, superseded, and corrupt worktrees must be reportable conditions."""
+# Issue #4437: seven stale worktrees accumulated in one checkout. Three held
+# uncommitted changes, and nothing distinguished them from live work -- two
+# carried documentation that had already landed on `origin/main` through
+# another path, and one held 652 entirely NUL-filled files. A routine cleanup
+# would have destroyed all of it, and re-doing the "recoverable" work would
+# have regressed `main`.
+#
+# Every fixture below is a real repository with real `git worktree add` links.
 
 from __future__ import annotations
 

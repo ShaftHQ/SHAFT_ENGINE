@@ -955,4 +955,11 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.playwrightnaturalactionexecutortest-belongs-in-unit-tests-not-grid-e2e","timestamp":"2026-08-02T08:33:50+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-08-04T07:54:18+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-08-04T07:54:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications","timestamp":"2026-08-04T09:39:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.worktree-hygiene-report-and-guard-rule-r10","timestamp":"2026-08-04T09:39:35+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.fact-worktree-hygiene-report-and-guard-rule-r10-supports-constraint-worktree-housekeeping-at-session-start","timestamp":"2026-08-04T09:39:35+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.fact-worktree-hygiene-report-and-guard-rule-r10-documents-gotcha-nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications","timestamp":"2026-08-04T09:39:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.guard-unquote-exec-flag-payload-blanks-every-other-quoted-string","timestamp":"2026-08-04T09:39:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes","timestamp":"2026-08-04T10:15:43+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.gotcha-a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes-related-to-fact-worktree-hygiene-report-and-guard-rule-r10","timestamp":"2026-08-04T10:15:43+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.actions-setup-javas-cache-maven-has-no-restore-keys-so-one-pom-bump-cold-downloads-the-world","timestamp":"2026-08-04T09:56:16+03:00"}

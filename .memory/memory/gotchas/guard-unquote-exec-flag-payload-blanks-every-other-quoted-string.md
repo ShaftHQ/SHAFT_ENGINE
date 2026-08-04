@@ -1,0 +1,5 @@
+In `scripts/agents/guard.py`, `_unquote_exec_flag_payload` and `_blank_prose_quotes` do NOT merely unwrap interpreter payloads -- they REPLACE every quoted string that is not preceded by an exec flag (-c / -Command / /c / --command) with spaces, because R3 needs prose quotes neutralised.
+
+So running either over a whole command before parsing its arguments silently destroys real quoted values. Hit live while adding R10 (issue #4437): `git --work-tree="<path>" add -A` lost its path and the rule went silent, while `git -C "<path>" add -A` survived only by accident -- `-C` happens to match the exec-flag alternation and is therefore protected.
+
+When a new rule needs to see inside a nested interpreter payload, extract the payloads separately and re-evaluate each as its own command; do not pre-sanitise the outer command. Note also that after unwrapping, `bash -c "git add -A"` still is not a git segment: `_head_executable_matches` sees `bash`, which is not in `_RUNNER_PREFIX_TOKENS`.

@@ -1,0 +1,11 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:ed7416a9157e050e6688bcf9b82c45250618da0dc6a5b293f38a023d9199de75",
+  "created_at": "2026-08-04T09:39:35+03:00",
+  "from": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "id": "rel.fact-worktree-hygiene-report-and-guard-rule-r10-supports-constraint-worktree-housekeeping-at-session-start",
+  "predicate": "supports",
+  "status": "active",
+  "to": "constraint.worktree-housekeeping-at-session-start",
+  "updated_at": "2026-08-04T09:39:35+03:00"
+}
