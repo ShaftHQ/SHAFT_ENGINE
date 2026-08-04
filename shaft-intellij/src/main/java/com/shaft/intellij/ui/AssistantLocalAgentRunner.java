@@ -686,7 +686,7 @@ final class AssistantLocalAgentRunner {
                 String output;
                 if (success) {
                     output = streamParser != null && streamParser.hasTerminalEvent()
-                            ? streamParser.finalOutput()
+                            ? streamParser.finalOutput(rawStderr)
                             : agentOutput(true, rawStdout, rawStderr, "", verbose);
                 } else if (streamParser != null) {
                     // A structured (stream-json / --json) CLI writes machine NDJSON to stdout, so on a
@@ -922,7 +922,31 @@ final class AssistantLocalAgentRunner {
         }
 
         synchronized String finalOutput() {
-            return composeOutput(answer.strip());
+            return finalOutput(null);
+        }
+
+        /**
+         * Same as {@link #finalOutput()}, plus consulting {@code stderr} for an environment/sandbox
+         * bootstrap failure (issue #4424). {@code run()}'s success branch used to call the no-arg
+         * overload unconditionally, discarding {@code rawStderr} entirely once a terminal event had
+         * arrived -- so a CLI that exited 0 after its sandbox helper failed to launch (Codex's
+         * {@code sandbox-setup.exe ... Access is denied (os error 5)}) produced a confident-looking
+         * answer with no trace that no tool had actually run. That is not ordinary noise (contrast the
+         * Verbose-gated stderr fence in {@link #failureOutput}, issue #3965): it means the entire
+         * request was silently impossible, so {@link #sandboxBootstrapFailureNotice} surfaces one
+         * actionable line regardless of the Verbose toggle. A {@code null}/blank/non-matching {@code
+         * stderr} leaves {@code core} untouched, so this overload is byte-identical to {@link
+         * #finalOutput()} for the overwhelmingly common case. This overload is deliberately separate
+         * from (rather than replacing) {@link #finalOutput()}, which stays in use where {@code
+         * terminalAnswerConsumer} recovers a cancelled/killed run's answer with no stderr in scope.
+         */
+        synchronized String finalOutput(String stderr) {
+            String core = answer.strip();
+            String notice = sandboxBootstrapFailureNotice(stderr);
+            if (notice != null) {
+                core = core.isBlank() ? notice : core + "\n\n" + notice;
+            }
+            return composeOutput(core, notice != null);
         }
 
         /**
@@ -949,9 +973,37 @@ final class AssistantLocalAgentRunner {
             return composeOutput(core);
         }
 
+        /**
+         * {@code sandbox-setup} together with an access-denied/permission-denied bootstrap failure
+         * (Windows' "Access is denied (os error 5)" and its equivalent shapes) means the sandbox
+         * helper never launched, so no tool could run for this request at all -- see {@link
+         * #finalOutput(String)}. Returns {@code null} (no notice) for {@code null}/blank stderr or any
+         * shape that doesn't match, so ordinary stderr never gets this treatment.
+         */
+        private static String sandboxBootstrapFailureNotice(String stderr) {
+            if (stderr == null || stderr.isBlank()) {
+                return null;
+            }
+            String lower = stderr.toLowerCase(Locale.ROOT);
+            if (!lower.contains("sandbox-setup")) {
+                return null;
+            }
+            if (!(lower.contains("access is denied") || lower.contains("permission denied")
+                    || lower.contains("os error 5"))) {
+                return null;
+            }
+            return "**Environment setup failed:** the sandbox helper (`sandbox-setup`) could not launch, "
+                    + "so no tool could run for this request. Ask an administrator to grant it access, "
+                    + "then try again.\n\n```\n" + stderr.strip() + "\n```";
+        }
+
         private String composeOutput(String core) {
+            return composeOutput(core, false);
+        }
+
+        private String composeOutput(String core, boolean explicitNoActivityNotice) {
             StringBuilder output = new StringBuilder(core);
-            String activity = activitySummary();
+            String activity = activitySummary(explicitNoActivityNotice);
             if (!activity.isBlank()) {
                 output.append("\n\n").append(activity);
             }
@@ -1007,10 +1059,24 @@ final class AssistantLocalAgentRunner {
          * created or edited, and which tool calls were denied. This renders even with Verbose off,
          * so a run that silently lost most of its tool calls to permission denials can never end as
          * an unexplained bare confirmation with no visible trace of what happened.
+         *
+         * <p>{@code explicitNoActivityNotice} (issue #4424) widens that guarantee to the shape the
+         * original "no silent bare confirmation" guard missed: a sandbox/environment bootstrap
+         * failure happens before any tool executes, so both {@code filesTouched} and {@code
+         * permissionDenialsByTool} stay empty and this footer used to render nothing at all between
+         * the answer and the usage line. {@link #finalOutput(String)} passes {@code true} only when
+         * it has already detected that exact shape via {@link #sandboxBootstrapFailureNotice}, so a
+         * plain empty/empty run with no detected bootstrap failure (an ordinary Q&A that never
+         * needed a tool) still renders {@code ""} exactly as before -- this stays additive, not a
+         * blanket "always explain an empty run" change.
          */
-        private String activitySummary() {
+        private String activitySummary(boolean explicitNoActivityNotice) {
             if (filesTouched.isEmpty() && permissionDenialsByTool.isEmpty()) {
-                return "";
+                if (!explicitNoActivityNotice) {
+                    return "";
+                }
+                return String.join("\n", "---", "**Local agent activity**",
+                        "- No files were created or edited, and no tool calls ran.");
             }
             List<String> lines = new ArrayList<>();
             lines.add("---");

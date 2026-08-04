@@ -634,6 +634,54 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
                         AssistantLocalAgentRunner.agentOutput(true, "", "warning", "", true)));
     }
 
+    /**
+     * Regression coverage for issue #4424: on a <em>successful</em> exit (unlike the failure paths
+     * exercised above), {@code rawStderr} used to be computed and then discarded entirely once a
+     * structured stream had a terminal event, so a sandbox/environment bootstrap failure that
+     * happened before any tool could run (Codex's {@code sandbox-setup.exe ... Access is denied
+     * (os error 5)}) silently vanished from the composed answer -- the CLI exited 0, the model
+     * narrated a plausible-sounding confirmation, and nothing in the transcript hinted that no tool
+     * had actually run. This must be surfaced <em>even with Verbose off</em>, unlike the ordinary
+     * stderr noise gated by issue #3965 below: a sandbox bootstrap failure means the entire request
+     * was silently impossible, not just noisy.
+     */
+    @Test
+    void successfulRunWithSandboxBootstrapFailureStderrSurfacesAnActionableNoticeEvenWithVerboseOff()
+            throws Exception {
+        String stderr = "codex-windows-sandbox-setup.exe failed to launch: Access is denied (os error 5)";
+
+        ShaftMcpToolResult result =
+                successfulRun(codexInvocation(), codexTurnCompletedEvent() + "\n", stderr, false);
+
+        assertTrue(result.success(), result.output());
+        String lowerOutput = result.output().toLowerCase(java.util.Locale.ROOT);
+        assertTrue(lowerOutput.contains("sandbox-setup") && result.output().contains("Access is denied"),
+                "A sandbox bootstrap failure must surface an actionable notice even with Verbose off: "
+                        + result.output());
+    }
+
+    /**
+     * Regression guard for the fix above: a normal successful structured run, whose stderr never
+     * matches the sandbox-bootstrap-failure shape, must render byte-identical output to today's --
+     * no notice, no extra blank lines -- so consulting stderr on the success path never turns into
+     * noise for the overwhelmingly common case.
+     */
+    @Test
+    void successfulRunWithoutSandboxBootstrapStderrStaysByteIdenticalToTodaysOutput() throws Exception {
+        String output = finalOutput(claudeInvocation(),
+                claudeAssistantTextEvent("plain answer") + "\n" + claudeResultEvent("plain answer") + "\n");
+
+        assertEquals("plain answer\n\n{\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}", output);
+    }
+
+    private static ShaftMcpToolResult successfulRun(
+            AssistantCommand.Invocation invocation, String stdout, String stderr, boolean verbose) throws Exception {
+        StubProcess process = new StubProcess(stdout, stderr, 0);
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, line -> { }, (command, workingDirectory, environment) -> process, false, verbose);
+        return running.future().get(5, TimeUnit.SECONDS);
+    }
+
     private static ShaftMcpToolResult failingRun(
             AssistantCommand.Invocation invocation, String stdout, String stderr, int exitCode) throws Exception {
         StubProcess process = new StubProcess(stdout, stderr, exitCode);
