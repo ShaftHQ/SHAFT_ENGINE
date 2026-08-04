@@ -18,6 +18,102 @@ ROOT = Path(__file__).resolve().parents[2]
 GUARD = ROOT / "scripts/agents/guard.py"
 ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".claude", ".codex")
 
+# --- superseded-policy scan -------------------------------------------------
+#
+# Module scope on purpose. These were function-locals, and the test that claimed
+# to prove they worked declared its own private copies -- so it pinned a
+# duplicate literal while the shipped patterns could be gutted entirely and the
+# module stayed green. The live-data check below passes vacuously once the store
+# is reconciled, so the only thing that proves these still detect anything is a
+# test that calls the same objects the scan calls.
+
+# An id is a pointer, not an assertion, and ids are immutable here:
+# `.memory/events.jsonl` records `memory.created` against them, so a rename
+# orphans history. A `[[wiki-link]]` naming an object whose policy has moved is
+# therefore correct, and only prose is judged.
+WIKI_LINK = re.compile(r"\[\[[^\]]+\]\]")
+SENTENCE_BREAK = re.compile(r"(?<=[.;:!?])\s+|\n+")
+
+# The Learning-loop table tells an agent to store a decision "superseding the
+# entry it replaces", so a memory object whose whole purpose is to record that a
+# policy was retired MUST be able to name that policy. A sentence carrying one of
+# these markers is a historical record, not a claim that the policy still holds.
+# Chosen over a tag-based opt-out because it needs nothing of the author: the
+# sentence that records a supersession already says so.
+SUPERSESSION_RECORD = re.compile(
+    r"(?i)\b(?:supersed\w+|retired?|rescinded|rejected|revoked|abandoned|obsolete|"
+    r"deprecated|no longer|replaced by|is gone|was dropped|used to)\b"
+)
+
+SUPERSEDED_ONE_PR_PER_SESSION = re.compile(
+    r"(?i)one[- ]pr[- ]per[- ]session"
+    r"|\b1 PR per session"
+    r"|single (?:final|session) PR"
+    r"|one-branch-one-worktree-one-pr"
+    r"|session'?s single branch/pr"
+)
+ONE_PR_PER_SESSION_REASON = (
+    "one PR per session: superseded by work-github-playbook.md Sec. 3b, "
+    "which lets a session open one PR per group of related subtasks"
+)
+
+# All three must co-occur in one sentence. The subject alone plus any number
+# near "min" fired on ordinary prose -- "returned 3 minor findings" matched
+# inside "3 minor", and "takes about 40 min" is a timing observation, not a
+# policy. The Learning loop writes memory constantly, so a check that trips on
+# an unrelated observation gets edited away, and editing the check to reach
+# green is what iron law 4 forbids.
+#
+# The directive list holds check-in vocabulary only. "every" and "after" were
+# tried and are too weak: "Compaction after a merge takes 2 minutes and needs no
+# delegate" carries all three signals and states no cadence. What actually marks
+# a cadence is a sentence that says someone goes and looks.
+DELEGATE_SUBJECT = re.compile(r"(?i)\b(?:delegate[ds]?|subagent|background (?:task|job))\b")
+INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}\s*min(?:ute)?s?\b")
+INTERVAL_DIRECTIVE = re.compile(
+    r"(?i)\b(?:check(?:s|ed|ing)?[ -]?in|ping(?:s|ed|ing)?|status snapshot|"
+    r"unexamined|interim signal|no signal|silent|intervene)\b"
+)
+DELEGATE_INTERVAL_REASON = (
+    "a delegate check-in interval: delegation.md owns the single figure, "
+    "and memory restating a second one is how 20 and 30 both became true"
+)
+
+
+def superseded_policy_offences(title: str, body: str) -> list[str]:
+    """Return the superseded policies this text asserts as still current.
+
+    Judged sentence by sentence so a supersession marker exempts only the
+    sentence that carries it, not the whole object.
+    """
+    offences: set[str] = set()
+    for sentence in SENTENCE_BREAK.split(WIKI_LINK.sub(" ", f"{title}\n{body}")):
+        if SUPERSESSION_RECORD.search(sentence):
+            continue
+        if SUPERSEDED_ONE_PR_PER_SESSION.search(sentence):
+            offences.add(ONE_PR_PER_SESSION_REASON)
+        if (
+            DELEGATE_SUBJECT.search(sentence)
+            and INTERVAL_FIGURE.search(sentence)
+            and INTERVAL_DIRECTIVE.search(sentence)
+        ):
+            offences.add(DELEGATE_INTERVAL_REASON)
+    return sorted(offences)
+
+
+def active_memory_policy_offenders(root: Path) -> list[str]:
+    """Return `path: reason` for every active memory object restating a superseded policy."""
+    memory_root = root / ".memory"
+    offenders = []
+    for metadata_path in sorted((memory_root / "memory").rglob("*.json")):
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata.get("status", "active") != "active":
+            continue
+        body = (memory_root / metadata["body_path"]).read_text(encoding="utf-8")
+        for reason in superseded_policy_offences(metadata.get("title", ""), body):
+            offenders.append(f"{metadata_path.relative_to(root).as_posix()}: {reason}")
+    return sorted(offenders)
+
 
 def markdown_body(path: Path) -> str:
     content = path.read_text(encoding="utf-8")
@@ -451,48 +547,64 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         contradiction costs a read an agent under time pressure will not do. It
         reads one of them, and which one is luck.
         """
-        memory_root = ROOT / ".memory"
-        # An id is a pointer, not an assertion, and ids are immutable here --
-        # `.memory/events.jsonl` records `memory.created` against them, so a
-        # rename orphans history. A `[[wiki-link]]` naming an object whose
-        # policy moved is therefore correct, and only prose is judged.
-        wiki_link = re.compile(r"\[\[[^\]]+\]\]")
-        superseded_policy = (
-            (
-                re.compile(
-                    r"(?i)one[- ]pr[- ]per[- ]session"
-                    r"|\b1 PR per session"
-                    r"|single (?:final|session) PR"
-                    r"|one-branch-one-worktree-one-pr"
-                    r"|session'?s single branch/pr",
-                    re.UNICODE,
-                ),
-                "one PR per session: superseded by work-github-playbook.md Sec. 3b, "
-                "which lets a session open one PR per group of related subtasks",
-            ),
-            (
-                re.compile(
-                    r"(?i)\b(?:delegate[ds]?|subagent|background (?:task|job))\b"
-                    r"[^.]{0,140}?\b\d{1,3}\s*min"
-                ),
-                "a delegate check-in interval: delegation.md owns the single figure, "
-                "and memory restating a second one is how 20 and 30 both became true",
-            ),
+        self.assertEqual(
+            active_memory_policy_offenders(ROOT),
+            [],
+            "active memory restates a superseded policy",
         )
-        offenders = []
-        for metadata_path in sorted((memory_root / "memory").rglob("*.json")):
-            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            if metadata.get("status", "active") != "active":
-                continue
-            body_path = memory_root / metadata["body_path"]
-            searchable = wiki_link.sub(
-                " ",
-                "\n".join((metadata.get("title", ""), body_path.read_text(encoding="utf-8"))),
+
+    def test_the_policy_scan_walks_the_store_and_honours_the_status_filter(self):
+        """Covers the walk itself, not just the patterns.
+
+        The live-data assertion one method up cannot be guarded by any test in
+        this module -- neutering an `assertEqual` is invisible from the outside.
+        What can be guarded is everything it calls, so a synthetic store proves
+        the walk finds an offender, reports it as `path: reason`, and skips a
+        non-active object rather than silently skipping every object.
+        """
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            objects = root / ".memory/memory/constraints"
+            objects.mkdir(parents=True)
+            for name, status in (("live", "active"), ("retired", "superseded")):
+                (objects / f"{name}.md").write_text(
+                    "Still one PR per session: a single final PR.\n", encoding="utf-8"
+                )
+                (objects / f"{name}.json").write_text(
+                    json.dumps(
+                        {
+                            "id": f"constraint.{name}",
+                            "status": status,
+                            "title": "",
+                            "body_path": f"memory/constraints/{name}.md",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            self.assertEqual(
+                active_memory_policy_offenders(root),
+                [f".memory/memory/constraints/live.json: {ONE_PR_PER_SESSION_REASON}"],
             )
-            for pattern, reason in superseded_policy:
-                if pattern.search(searchable):
-                    offenders.append(f"{metadata_path.relative_to(ROOT).as_posix()}: {reason}")
-        self.assertEqual(sorted(offenders), [], "active memory restates a superseded policy")
+
+    def test_the_superseded_policy_scan_detects_a_claim(self):
+        """The live-data check above passes vacuously once the store is clean.
+
+        Nothing in it proves the patterns still match anything, so gutting them
+        would leave the module green. These cases call the same module-level
+        objects that check calls -- not a private copy -- so an emptied or
+        broken pattern fails here.
+        """
+        self.assertEqual(
+            superseded_policy_offences("", "Still one PR per session: a single final PR."),
+            [ONE_PR_PER_SESSION_REASON],
+        )
+        self.assertEqual(
+            superseded_policy_offences(
+                "Orchestrator checks in on any delegated background task after 30 minutes",
+                "Check in every 30 minutes on a silent delegate.",
+            ),
+            [DELEGATE_INTERVAL_REASON],
+        )
 
     def test_the_superseded_policy_scan_judges_prose_and_not_identifiers(self):
         """A guard that cannot tell a claim from a pointer is not usable here.
@@ -502,14 +614,56 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         moved has to stay legal while the sentence asserting that policy does
         not.
         """
-        wiki_link = re.compile(r"\[\[[^\]]+\]\]")
-        policy = re.compile(
-            r"(?i)one[- ]pr[- ]per[- ]session|one-branch-one-worktree-one-pr"
+        self.assertEqual(
+            superseded_policy_offences(
+                "", "See [[one-branch-one-worktree-one-pr-per-session]] for the incident."
+            ),
+            [],
         )
-        pointer = "See [[one-branch-one-worktree-one-pr-per-session]] for the incident."
-        claim = "The one-PR-per-session default still applies to this session."
-        self.assertIsNone(policy.search(wiki_link.sub(" ", pointer)))
-        self.assertIsNotNone(policy.search(wiki_link.sub(" ", claim)))
+        self.assertEqual(
+            superseded_policy_offences(
+                "", "The one-PR-per-session default still applies to this session."
+            ),
+            [ONE_PR_PER_SESSION_REASON],
+        )
+
+    def test_the_superseded_policy_scan_allows_recording_the_supersession(self):
+        """The Learning-loop table asks for exactly the sentence this could ban.
+
+        It routes "a decision with a rationale someone will otherwise
+        re-litigate" to memory "superseding the entry it replaces" -- which
+        means naming the retired policy. A check that forbids the record the
+        harness prescribes would make the two contradict each other, and the
+        only escape would be `status != "active"`, a hatch this store has never
+        used (335 active, 1 open, zero superseded).
+        """
+        for record in (
+            "Decision 2026-07-20: the owner retired the one-PR-per-session default"
+            " in favour of grouped PRs per Sec. 3b.",
+            "The #3643 session shipped a single final PR and the owner rejected it;"
+            " that shape is gone.",
+            "One PR per session is superseded by work-github-playbook.md Sec. 3b.",
+        ):
+            with self.subTest(record=record[:40]):
+                self.assertEqual(superseded_policy_offences("", record), [])
+
+    def test_the_interval_scan_ignores_prose_that_merely_mentions_minutes(self):
+        """A false positive here gets the check edited away, not the memory fixed.
+
+        The Learning loop writes memory objects routinely, so a scan that trips
+        on an ordinary timing observation turns the harness step red on an
+        unrelated PR -- and the cheapest repair an agent sees is to weaken the
+        check, which iron law 4 forbids. All three signals must co-occur in one
+        sentence: the subject, a real minute figure, and a directive.
+        """
+        for benign in (
+            "The reviewer returned 3 minor findings on the delegate's diff.",
+            "A delegate's first pass takes about 40 min; size the wakeup accordingly.",
+            "Compaction after a merge takes 2 minutes and needs no delegate.",
+        ):
+            with self.subTest(text=benign[:40]):
+                self.assertEqual(superseded_policy_offences("", benign), [])
+        self.assertNotRegex("3 minor findings", INTERVAL_FIGURE)
 
     def run_guard(self, payload: dict, host: str) -> dict:
         completed = self.run_guard_completed(payload, host)
