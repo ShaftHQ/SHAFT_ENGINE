@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -79,6 +80,12 @@ KNOWN_SECRET_SCANNER_LANDMINE_FILES = {
     ".memory/memory/gotchas/worktree-isolated-agents-can-be-reclaimed-mid-task-while-still-actively-working-with-no-committed-diff.json",
 }
 RELATION_GLOB = "relations/*.json"
+# Event names that record a change to an existing object. `memory.created`
+# is excluded on purpose: it is what the four objects in #4465 already had,
+# and accepting it would let a creation launder every later silent edit.
+MEMORY_UPDATE_EVENTS = frozenset(
+    {"memory.updated", "memory.marked_stale", "memory.superseded"}
+)
 # `create_relation` (patch.schema.json #/$defs/createRelation) accepts an
 # optional, caller-supplied `id` -- confirmed live against the real Memory
 # CLI (v0.1.55): a `create_relation` change with no `id` derives one by
@@ -241,6 +248,136 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
         if not valid:
             errors.append(
                 issue("memory-mcp", ".codex/config.toml", f"invalid shaft-memory {name}")
+            )
+    return errors
+
+
+def memory_content_hash(sidecar: dict, body: str) -> str:
+    """Recompute one object's `content_hash` from its sidecar and body.
+
+    Ported from the pinned Memory CLI's own `src/storage/hashes.ts`:
+    sha256 over the canonical sidecar with `content_hash` removed, a newline,
+    then the LF-normalized body. Canonical JSON is sorted-key and compact,
+    and is emitted with `ensure_ascii=False` because the CLI's
+    `JSON.stringify` leaves non-ASCII characters unescaped.
+
+    Reproduced against every stored hash in this repository rather than
+    inferred: 337 of 337 objects match, which is what makes a mismatch
+    evidence of a hand edit rather than of a recipe this got wrong. If a CLI
+    upgrade ever changes the recipe, this fails loudly on the whole store at
+    once instead of drifting on one object.
+    """
+    payload = {key: value for key, value in sidecar.items() if key != "content_hash"}
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    blob = canonical + "\n" + body.replace("\r\n", "\n")
+    return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def memory_update_timestamps(root: Path) -> dict[str, set[str]]:
+    """Map each object id to the timestamps of its update-class events.
+
+    A malformed line is skipped rather than fatal: `.memory/events.jsonl`
+    merges with `merge=union` (`.gitattributes`), so this must stay readable
+    on a tree mid-merge instead of turning a merge artifact into a gate
+    failure that hides the real problem.
+    """
+    stamps: dict[str, set[str]] = {}
+    events_path = root / ".memory/events.jsonl"
+    if not events_path.is_file():
+        return stamps
+    for line in events_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("event") not in MEMORY_UPDATE_EVENTS:
+            continue
+        identifier, timestamp = event.get("id"), event.get("timestamp")
+        if isinstance(identifier, str) and isinstance(timestamp, str):
+            stamps.setdefault(identifier, set()).add(timestamp)
+    return stamps
+
+
+def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
+    """Enforce the two store signals that were recorded but never read.
+
+    `memory check` reports a stale `content_hash` as a *warning* and still
+    exits 0 (#4460), so `run_memory_check` sees success; and nothing at all
+    compares `updated_at` against the event log (#4465). Both are recomputed
+    here, in-process, so they run under `--skip-external` -- the command
+    AGENTS.md prescribes for memory work, and the one CI runs without the
+    pinned CLI on PATH.
+
+    Deliberately no grandfathering set. Every one of the 245 live objects
+    with a bumped `updated_at` and an event carries an event whose timestamp
+    equals that `updated_at` exactly, and none carries an update event
+    without the bump, so the strict rule costs nothing today and an
+    exemption list would only hide the next hole.
+    """
+    errors: list[dict[str, str]] = []
+    memory_dir = root / ".memory"
+    update_stamps = memory_update_timestamps(root)
+    for sidecar_path in sorted(memory_dir.glob("memory/**/*.json")):
+        relative = sidecar_path.relative_to(root).as_posix()
+        try:
+            sidecar = read_json(sidecar_path)
+        except (OSError, json.JSONDecodeError) as error:
+            errors.append(issue("memory-object", relative, str(error)))
+            continue
+        body_path = sidecar.get("body_path")
+        if not isinstance(body_path, str) or not body_path:
+            # Not a body-backed object; nothing to hash against.
+            continue
+        body_file = memory_dir / body_path
+        if not body_file.is_file():
+            errors.append(
+                issue(
+                    "memory-body-missing",
+                    relative,
+                    f"body_path points at {body_path!r}, which does not exist.",
+                )
+            )
+            continue
+        recorded = sidecar.get("content_hash")
+        # read_text applies universal newlines, so a CRLF checkout already
+        # arrives LF-normalized; memory_content_hash normalizes again for a
+        # body that reached us some other way.
+        actual = memory_content_hash(sidecar, body_file.read_text(encoding="utf-8"))
+        if recorded != actual:
+            errors.append(
+                issue(
+                    "memory-content-hash",
+                    relative,
+                    f"content_hash {recorded!r} does not match the current body and "
+                    f"metadata (recomputed {actual!r}). A hand-edited body must be "
+                    "written back with a recomputed hash; `memory check` only warns "
+                    "about this (issue #4460).",
+                )
+            )
+        identifier = sidecar.get("id")
+        created_at, updated_at = sidecar.get("created_at"), sidecar.get("updated_at")
+        bumped = (
+            isinstance(identifier, str)
+            and isinstance(created_at, str)
+            and isinstance(updated_at, str)
+            and updated_at > created_at
+        )
+        if bumped and updated_at not in update_stamps.get(identifier, set()):
+            errors.append(
+                issue(
+                    "memory-update-event",
+                    relative,
+                    f"updated_at {updated_at!r} is later than created_at but no "
+                    f"{'/'.join(sorted(MEMORY_UPDATE_EVENTS))} event for {identifier!r} "
+                    "carries that timestamp. Append one line to "
+                    '.memory/events.jsonl: {"actor":"agent","event":"memory.updated",'
+                    f'"id":"{identifier}","timestamp":"{updated_at}"}} (issue #4465).',
+                )
             )
     return errors
 
@@ -474,6 +611,7 @@ def validate_repository(
             for message in validate_documentation(root)
         ],
         *validate_memory_setup(root),
+        *validate_memory_integrity(root),
         *validate_host_parity(root),
         *validate_skill_hygiene(root),
     ]
