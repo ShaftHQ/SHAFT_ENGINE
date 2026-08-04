@@ -85,6 +85,7 @@
   "active_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
+    ".agents/skills/README.md",
     ".agents/skills/*/SKILL.md",
     ".agents/skills/*/agents/openai.yaml",
     ".agents/skills/act-as-mohab/references/**/*.md",

@@ -84,7 +84,7 @@ jobs:
       - name: Install optional visual test runtime
         shell: bash
         run: >-
-          bash scripts/ci/maven_retry.sh 2 60
+          bash scripts/ci/build_retry.sh 2 60
           mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Print Edge version
         continue-on-error: true
@@ -125,7 +125,7 @@ jobs:
       - name: Install optional visual test runtime
         shell: bash
         run: >-
-          bash scripts/ci/maven_retry.sh 2 60
+          bash scripts/ci/build_retry.sh 2 60
           mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
@@ -167,7 +167,7 @@ jobs:
       - name: Install optional visual test runtime
         shell: bash
         run: >-
-          bash scripts/ci/maven_retry.sh 2 60
+          bash scripts/ci/build_retry.sh 2 60
           mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
@@ -352,7 +352,7 @@ jobs:
       - name: Install optional visual test runtime
         shell: bash
         run: >-
-          bash scripts/ci/maven_retry.sh 2 60
+          bash scripts/ci/build_retry.sh 2 60
           mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
       - name: Run tests
         continue-on-error: true
