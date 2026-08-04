@@ -1,0 +1,41 @@
+name: 'Cache Maven repository'
+description: >-
+  Caches ~/.m2/repository with a restore-key fallback, replacing
+  actions/setup-java's built-in `cache: maven`.
+
+  setup-java deliberately passes no restoreKeys ("to start with a clear cache
+  after dependency update", actions/setup-java src/cache.ts), so its key is an
+  exact hash of every pom.xml. A single Dependabot BOM bump therefore evicted
+  the whole ~500 MiB local repository for every job, and the E2E nightly starts
+  22 jobs at once -- all of them then cold-resolved the full tree from Maven
+  Central simultaneously, which answered HTTP 429 Too Many Requests and failed
+  the run (issue #4440, run 30876948089).
+
+  The restore-key prefix keeps the previous repository, so a pom bump downloads
+  only the delta. It also makes every run touch the cache entry, which keeps it
+  out of the repository's 10 GiB LRU eviction window.
+
+  Keep the key format identical across all call sites: two formats mean two
+  ~500 MiB cache families per pom hash, which is what the eviction budget
+  cannot afford.
+runs:
+  using: 'composite'
+  steps:
+    - name: Restore ~/.m2/repository
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: shaft-m2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          shaft-m2-${{ runner.os }}-${{ runner.arch }}-
+    # Maven caches *failed* release resolutions in *.lastUpdated and, with the
+    # default `never` update policy for releases, refuses to reattempt them.
+    # Without restore-keys a poisoned entry could never be restored; with them a
+    # cache saved by a job that hit Central's 429 would keep failing every later
+    # job. Dropping the markers costs nothing on a healthy cache.
+    - name: Drop cached resolution failures
+      shell: bash
+      run: |
+        if [ -d "$HOME/.m2/repository" ]; then
+          find "$HOME/.m2/repository" -name '*.lastUpdated' -type f -delete
+        fi
