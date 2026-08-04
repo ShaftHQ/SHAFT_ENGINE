@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import re
-import subprocess
+import subprocess  # nosec B404 - runs read-only git check-ignore query.
 import sys
 import xml.etree.ElementTree as ET
 

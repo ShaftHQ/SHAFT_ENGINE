@@ -9,7 +9,7 @@ import os
 import platform
 import shutil
 import stat
-import subprocess
+import subprocess  # nosec B404 - runs published MCP installer in isolated test environments.
 import tempfile
 import time
 import urllib.error

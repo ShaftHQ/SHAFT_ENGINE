@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 - runs Maven artifacts as smoke tests with controlled pom templates.
 import tempfile
 import time
 import urllib.error
