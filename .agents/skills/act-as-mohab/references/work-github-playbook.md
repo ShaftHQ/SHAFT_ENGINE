@@ -101,7 +101,11 @@ of it.
 
 One issue is one work stream, so the entrypoint's solo-or-orchestrate rule
 normally puts this session in solo mode and the shapes below apply only while
-orchestrating. For each item, decide dispatch shape:
+orchestrating. The mechanics of a dispatch — the covenant every prompt opens
+with, which file scopes may run concurrently and in what isolation, and what the
+mechanical capability level may be handed — belong to
+[delegation](delegation.md) and are not restated here. What is specific to
+working an issue is which items to dispatch at all:
 
 - **Scout it yourself first** when it requires an architectural or
   data-model decision (e.g. "where does this state actually live, and can a
@@ -114,14 +118,6 @@ orchestrating. For each item, decide dispatch shape:
   what's explicitly out of scope, what tests to add and where, and the exact
   validation command to run. A vague spec produces a vague implementation —
   the spec is where your scouting work pays off.
-- Every subagent prompt must open with: load `act-as-mohab`, then follow it.
-- **Sequential, not parallel, when file scopes overlap.** Two subagents
-  editing the same file concurrently in a shared working tree will race or
-  corrupt each other's edits — check each spec's file list against the
-  others before deciding parallel vs. sequential dispatch. Only run
-  independent-file items in parallel.
-- The mechanical capability level is for low-risk mechanical edits, log/report summarization, and bulk
-  repetitive triage — not for a spec that requires judgment calls mid-flight.
 
 ## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)
 
@@ -255,21 +251,11 @@ a bundle into this repo's PR — open it separately and say so.
 
 ## 6. Learning Loop before wrapping up
 
-Before the final push: route anything durable that surfaced mid-session —
-
-- A durable fact, gotcha, or precedent worth remembering → commit it via
-  this repo's memory mechanism (`.memory/`), not left implicit in the PR
-  description.
-- Something outside this issue's scope that you noticed but didn't chase →
-  a new GitHub issue (search first, consolidate with an existing one if it
-  overlaps) — never silently drop it, never silently expand scope to fix it
-  now either.
-- A skill or guidance file that misled you, or a genuinely new reusable
-  procedure this session established → update the skill, not just a one-off
-  mention in the report.
-
-"Nothing durable surfaced" is a valid, honest outcome — say so rather than
-manufacturing a memory entry to fill the step.
+Route everything durable that surfaced mid-session through the entrypoint's
+Learning-loop table, which owns the destinations and the rule that nothing
+durable is a valid result. This section adds only the timing: do it *before* the
+final push, while the session still remembers what it learned. A learning routed
+after the push is a learning nobody wrote down.
 
 ## 7. Push, PR, green, merge, compact
 
