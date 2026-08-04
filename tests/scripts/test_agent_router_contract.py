@@ -59,6 +59,8 @@ PINNED_CLAUSES: tuple[tuple[str, str], ...] = (
     (TDD, "only an expected assertion failure"),
     (TDD, "a pass or setup, syntax, or environment error is not red"),
     (TDD, "revert that new code and restart"),
+    (TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
+    (TDD, "never backfill tests after implementation"),
 )
 
 # Words that leave every pinned word in place and turn the rule into a
@@ -1005,6 +1007,20 @@ class DisciplineTest(unittest.TestCase):
         # Code-first needs a stated remedy, not just disapproval.
         self.assert_clause_holds("revert that new code and restart")
 
+    def test_entrypoint_pins_what_counts_as_a_test_at_all(self):
+        """The two TDD clauses #4467 found unpinned.
+
+        The first is the definition every other TDD rule rests on: without it a
+        tautological assertion satisfies RED and GREEN both, and the whole cycle
+        can be walked through while verifying nothing. The second closes the
+        cheapest way to claim the cycle without running it -- write the code,
+        write the test afterwards, and report TDD.
+        """
+        self.assert_clause_holds(
+            "asserts nothing, prints instead of asserting, or mocks the behavior under test"
+        )
+        self.assert_clause_holds("never backfill tests after implementation")
+
     def test_entrypoint_forbids_weakening_a_test_to_reach_green(self):
         """Iron law 4.
 
@@ -1044,7 +1060,7 @@ class DisciplineTest(unittest.TestCase):
             with self.subTest(clause=clause):
                 source = self.source()
                 mutated = re.sub(clause_pattern(clause), "", source, count=1, flags=re.I)
-                self.assertNotEqual(mutated, source, "the mutation did not apply")
+                self.assertTrue(mutated != source, "the mutation did not apply")
                 self.assertTrue(clause_defects(mutated), "deleting the clause is not reported")
 
     def test_qualifying_any_pinned_clause_is_reported(self):
