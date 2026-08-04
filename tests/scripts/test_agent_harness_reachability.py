@@ -139,15 +139,24 @@ def glob_regex(pattern: str) -> re.Pattern[str]:
 
 
 def tracked_files(root: Path) -> list[str]:
-    """Return every tracked path, so the element set is derived rather than listed."""
+    """Return every committed and every untracked-but-unignored path.
+
+    `--others --exclude-standard` is not decoration. With `git ls-files` alone
+    the first mutation #4489 names -- add a file under `references/` that
+    nothing links to -- passed green, because an unstaged file is not tracked
+    and so was not an element. That is the whole failure being fixed, arriving
+    one `git add` early: an author who runs the suite before staging is told
+    the harness is complete. A file that is present and not ignored is part of
+    the harness whether or not the index has caught up.
+    """
     listed = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-        ["git", "ls-files", "-z"],
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         cwd=root,
         capture_output=True,
         text=True,
         check=True,
     )
-    return sorted(path for path in listed.stdout.split("\0") if path)
+    return sorted({path for path in listed.stdout.split("\0") if path})
 
 
 def load_config(root: Path) -> dict:
