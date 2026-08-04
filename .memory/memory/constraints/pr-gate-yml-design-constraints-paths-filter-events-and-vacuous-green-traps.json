@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps.md",
-  "content_hash": "sha256:382560b4de82b102a67b870bca9be26b5cb44f78d46bbb6462fa2ca8785aea18",
+  "content_hash": "sha256:21628c13bab970d6768971be0a53b96c726f4a57d4c4c2fb87b640a809b71b5f",
   "created_at": "2026-07-20T03:48:27+03:00",
   "evidence": [],
   "facets": {
@@ -24,9 +24,10 @@
     "paths-filter",
     "vacuous-green",
     "verification-gap",
-    "marketplace"
+    "marketplace",
+    "shipped-validator"
   ],
   "title": "pr-gate.yml design constraints: paths-filter events and vacuous-green traps",
   "type": "constraint",
-  "updated_at": "2026-08-04T16:25:30+03:00"
+  "updated_at": "2026-08-04T18:37:09+03:00"
 }
