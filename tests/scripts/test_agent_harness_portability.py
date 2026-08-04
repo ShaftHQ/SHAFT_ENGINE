@@ -50,11 +50,10 @@ ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".cla
 # therefore correct, and only prose is judged.
 #
 # #4484 asked for this to go along with the grammar, and it was deleted and put
-# back, because it is not grammar: `[[...]]` is markup, judged by its delimiters
-# and never by what it says, so it makes no semantic call about English. What
-# deleting it did was turn the house style for citing a memory object into a
-# build failure. 14 active objects cite by `[[id]]`, and two live ids name a
-# retired policy in their own slug -- the retired constraint, and
+# back, because it is not grammar. What deleting it did was turn the house
+# style for citing a memory object into a build failure. Live objects cite by
+# `[[id]]`, and two live ids name a retired policy in their own slug -- the
+# retired constraint, and
 # `orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes`,
 # which the hyphenated-interval fix below newly brought into range. That second
 # one is the canonical memory about check-in cadence, so it is exactly the
@@ -62,10 +61,23 @@ ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".cla
 # for an allowlist is the point of #4484; trading routine correct citation for
 # one is not.
 #
-# Residual, and narrower than what it replaces: citing the same objects by
-# *file path* rather than by `[[id]]` still flags, because a path is not markup
-# this can recognise. Nothing in the store does that today.
-WIKI_LINK = re.compile(r"\[\[[^\]]+\]\]")
+# What was wrong with judging the markup by its delimiters alone: the strip was
+# content-blind, so it laundered any claim someone wrapped in brackets just as
+# readily as it cleared a citation (#4521). `[[one-PR-per-session]]` read clean.
+# Two bracket pairs silenced any claim in this file, and unlike an allowlist
+# line -- which names an id and is visible in review -- a bracket wrap diffuses
+# into memory prose and reads as house style. It is the cheapest repair an agent
+# under pressure reaches for, which is iron law 4 pressure with nothing to catch
+# it.
+#
+# So the strip is now a set membership, the same mechanical device the allowlist
+# uses, and no more of a semantic call than a phrase list: `[[...]]` is stripped
+# only when what it contains names a memory object that exists. A citation is a
+# pointer; a bracket wrap around a policy phrase points at nothing and is
+# judged as the prose it is. That also closes the malformed-first-link hole,
+# where an unclosed pair swallowed the prose between two citations and the whole
+# span read clean -- the swallowed span is not an id, so it no longer strips.
+WIKI_LINK = re.compile(r"\[\[([^\]]+)\]\]")
 
 SUPERSEDED_ONE_PR_PER_SESSION = re.compile(
     r"(?i)one[- ]pr[- ]per[- ]session"
@@ -105,16 +117,27 @@ ONE_PR_PER_SESSION_REASON = (
 # the subject was one of three signals and a directive had to agree with it. It
 # is half the rule now.
 #
-# `[\s-]*` and not `[\s-]?`: a body wraps, and "every 30\n    minutes" is one
-# cadence written across two lines, not two things. `?` was tried first and
-# rejected on that fixture. Both patterns carry a negative fixture too, because
-# a boundary or a character class can only be proved by what it refuses -- and
-# the subject is half the rule now, so its edges have to be held by a test
-# rather than by whatever the store happens to contain today.
+# The separator is an alternation and not a character class, because the two
+# things it has to admit are not one class. A body wraps, so "every 30\n
+# minutes" is one cadence written across two lines and `?` cannot see it; a
+# compound modifier is "30-minute". `[\s-]*` bought both by admitting a *mixed
+# run* of whitespace and hyphens, and that run is this repository's own
+# punctuation: ` -- ` is house style in nearly every docstring in this module
+# and throughout `.memory` bodies, and `\n- ` is an ordinary markdown bullet.
+# So the widening flagged the two commonest ways prose here puts a figure near
+# the word "minutes" -- neither of them a cadence (#4521).
+#
+# `(?:\s+|-|)` takes the wrapped line, the single hyphen and no separator at
+# all, and refuses the mixed run. Both false positives carry a negative fixture
+# below, because nothing in the suite could previously tell the two spellings
+# apart: every positive fixture is satisfied by either, so the over-wide form
+# shipped unenforced. A boundary or a separator can only be proved by what it
+# refuses -- and the subject is half the rule now, so its edges have to be held
+# by a test rather than by whatever the store happens to contain today.
 DELEGATE_SUBJECT = re.compile(
     r"(?i)\b(?:delegate[ds]?|subagents?|background (?:task|job)s?)\b"
 )
-INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}[\s-]*min(?:ute)?s?\b")
+INTERVAL_FIGURE = re.compile(r"(?i)\b\d{1,3}(?:\s+|-|)min(?:ute)?s?\b")
 DELEGATE_INTERVAL_REASON = (
     "a delegate check-in interval: delegation.md owns the single figure, "
     "and memory restating a second one is how 20 and 30 both became true"
@@ -192,15 +215,57 @@ def searchable_text(memory_root: Path, metadata: dict) -> str:
     )
 
 
-def superseded_policy_offences(text: str) -> list[str]:
+def memory_object_identifiers(memory_root: Path) -> frozenset[str]:
+    """Every name a memory object can be cited by, for the citation strip.
+
+    Two spellings, because the live store uses both: the full `id`, and the
+    slug after its kind prefix. Both appear in `[[...]]` citations today, so a
+    set holding only one of them turns the other into a build failure -- which
+    is the failure deleting the strip caused in the first place.
+
+    Not the metadata filename stem, which was tried and dropped. It is
+    redundant for all but two objects, which made the slug spelling above
+    untestable, and for those two it is not a citation spelling at all: it
+    contributes the bare words `architecture` and `project` (from
+    `architecture.current` and `project.shaft-engine`), and every word this set
+    holds is a word a bracket wrap can launder. The set exists to be narrow.
+
+    Status is not consulted. An id is immutable here (`.memory/events.jsonl`
+    records `memory.created` against it, so a rename orphans history), so a
+    retired object is still citable and citing one is still a pointer.
+    """
+    identifiers: set[str] = set()
+    for metadata_path in (memory_root / "memory").rglob("*.json"):
+        identifier = json.loads(metadata_path.read_text(encoding="utf-8")).get("id", "")
+        if identifier:
+            identifiers.add(identifier)
+            identifiers.add(identifier.split(".", 1)[-1])
+    return frozenset(identifiers)
+
+
+def strip_citations(text: str, citable: frozenset[str]) -> str:
+    """Replace each `[[known-object]]` with a separator, leaving other markup alone.
+
+    A separator and not an empty string: closing the text up around a strip
+    fuses the tail of one word to the head of the next and manufactures both
+    subjects and phrases that nobody wrote.
+    """
+    return WIKI_LINK.sub(lambda match: " " if match.group(1) in citable else match.group(0), text)
+
+
+def superseded_policy_offences(text: str, citable: frozenset[str] = frozenset()) -> list[str]:
     """Return the superseded policies this text names, by lexical match alone.
 
     Whether naming one is legitimate is not decided here, because deciding it
     from the prose is what failed three review rounds. This answers only the
     mechanical question; `memory_object_offences` applies the explicit
     allowlist that answers the other one.
+
+    `citable` defaults to empty, which exempts no citation at all. That is the
+    fail-closed direction on purpose: a caller that forgets to pass the store's
+    identifiers gets loud false positives, never silent laundering.
     """
-    prose = WIKI_LINK.sub(" ", text)
+    prose = strip_citations(text, citable)
     offences: set[str] = set()
     if SUPERSEDED_ONE_PR_PER_SESSION.search(prose):
         offences.add(ONE_PR_PER_SESSION_REASON)
@@ -210,14 +275,18 @@ def superseded_policy_offences(text: str) -> list[str]:
 
 
 def memory_object_offences(
-    memory_root: Path, metadata: dict, allowlist: dict[str, frozenset[str]] | None = None
+    memory_root: Path,
+    metadata: dict,
+    allowlist: dict[str, frozenset[str]] | None = None,
+    citable: frozenset[str] | None = None,
 ) -> list[str]:
     """Return what a memory object still offends on once its allowlist entries apply."""
     permitted = POLICY_RECORD_ALLOWLIST if allowlist is None else allowlist
+    known = memory_object_identifiers(memory_root) if citable is None else citable
     identifier = metadata.get("id", "")
     return [
         reason
-        for reason in superseded_policy_offences(searchable_text(memory_root, metadata))
+        for reason in superseded_policy_offences(searchable_text(memory_root, metadata), known)
         if identifier not in permitted.get(reason, frozenset())
     ]
 
@@ -227,12 +296,16 @@ def active_memory_policy_offenders(
 ) -> list[str]:
     """Return `path: reason` for every active memory object restating a superseded policy."""
     memory_root = root / ".memory"
+    # Built once for the whole store, not once per object: every object may
+    # cite every other, so the set is a property of the store and not of the
+    # object being judged.
+    citable = memory_object_identifiers(memory_root)
     offenders = []
     for metadata_path in sorted((memory_root / "memory").rglob("*.json")):
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         if metadata.get("status", "active") != "active":
             continue
-        for reason in memory_object_offences(memory_root, metadata, allowlist):
+        for reason in memory_object_offences(memory_root, metadata, allowlist, citable):
             offenders.append(f"{metadata_path.relative_to(root).as_posix()}: {reason}")
     return sorted(offenders)
 
@@ -796,52 +869,112 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_citing_a_memory_object_by_id_is_a_pointer_not_a_claim(self):
         """Two live ids name a retired policy in their own slug.
 
-        `[[...]]` is markup, judged by its delimiters and never by what it says,
-        so stripping it makes no semantic call about English -- it is the same
-        mechanical row as a phrase list. #4484 asked for it to go with the
-        grammar; it was deleted and put back, because deleting it turned the
-        house style for citing a memory object into a build failure. 14 active
-        objects cite by `[[id]]`, and the second of the two ids below is the
+        #4484 asked for the strip to go with the grammar; it was deleted and
+        put back, because deleting it turned the house style for citing a
+        memory object into a build failure. The second id below is the
         canonical memory about check-in cadence, so it is exactly the object a
-        future memory would cross-reference. The hyphenated-interval fix is what
-        brought it into range, which makes this a hazard this change created
-        rather than one it inherited.
+        future memory would cross-reference, and the hyphenated-interval fix is
+        what brought it into range.
+
+        Both spellings the live store actually uses are pinned -- the full id
+        and the bare slug -- because the strip is a set membership now and a set
+        that holds only one of them turns the other into a build failure, which
+        is the failure deleting the strip caused in the first place. These are
+        read from the live store rather than typed as literals, so renaming
+        either object fails here.
 
         The claim outside the markup is judged normally, which is the half that
-        matters: whole-object scanning means a sentence naming the policy in
-        prose fails whether or not it also carries a link.
+        matters. That fixture is caught because the phrase sits *outside* the
+        brackets, and it would have been caught under per-sentence scoping too
+        -- it is two sentences, so it distinguishes nothing about scope. The
+        docstring used to credit whole-object scanning for it, which was simply
+        wrong (#4521 R3); what actually pins scope is
+        `test_the_scan_reaches_its_verdict_without_parsing_sentences`, where the
+        subject and the figure sit in different sentences.
         """
+        citable = memory_object_identifiers(ROOT / ".memory")
         for citation in (
+            "See [[constraint.one-branch-one-worktree-one-pr-per-session]] for the incident.",
             "See [[one-branch-one-worktree-one-pr-per-session]] for the incident.",
+            "See [[workflow.orchestrator-checks-in-on-any-delegated-background-task"
+            "-after-30-minutes]].",
             "See [[orchestrator-checks-in-on-any-delegated-background-task-after-30-minutes]].",
         ):
             with self.subTest(citation=citation[:45]):
-                self.assertEqual(superseded_policy_offences(citation), [])
+                self.assertEqual(superseded_policy_offences(citation, citable), [])
         self.assertEqual(
             superseded_policy_offences(
                 "See [[one-branch-one-worktree-one-pr-per-session]]."
-                " Still one PR per session for this work."
+                " Still one PR per session for this work.",
+                citable,
             ),
             [ONE_PR_PER_SESSION_REASON],
         )
         # One link at a time: `[^\]]+` stops at the first `]`, and a greedy
         # `.+` would swallow the prose between two citations along with them --
-        # so an object that cites twice could say anything in between.
+        # so an object that cites twice could say anything in between. Real ids
+        # on both sides, or the strip declines them on membership and the case
+        # proves nothing about greed.
         self.assertEqual(
             superseded_policy_offences(
-                "Between [[first-object]] and still one PR per session, see [[second-object]]."
+                "Between [[constraint.one-branch-one-worktree-one-pr-per-session]] and still"
+                " one PR per session, see [[gotcha.java25-isuite-mocking]].",
+                citable,
             ),
             [ONE_PR_PER_SESSION_REASON],
         )
         # And a link is replaced by a separator, not closed up. Substituting an
         # empty string fuses the text on either side of it into one token,
         # which manufactures both a subject and a phrase that no one wrote.
+        # Real ids again, for the same reason.
         for fused in (
-            "Wake the sub[[note]]agent every 30 minutes.",
-            "The one[[note]] PR per session rule.",
+            "Wake the sub[[constraint.one-branch-one-worktree-one-pr-per-session]]agent"
+            " every 30 minutes.",
+            "The one[[constraint.one-branch-one-worktree-one-pr-per-session]] PR per session"
+            " rule.",
         ):
             with self.subTest(fused=fused[:40]):
-                self.assertEqual(superseded_policy_offences(fused), [])
+                self.assertEqual(superseded_policy_offences(fused, citable), [])
+
+    def test_a_bracket_wrap_around_a_policy_phrase_is_not_a_citation(self):
+        """The cheapest repair an agent under pressure reaches for (#4521).
+
+        The strip was content-blind, so two bracket pairs silenced any claim in
+        this file: `[[one-PR-per-session]]` read clean, and so did a wrapped
+        subject beside a live figure. Unlike an allowlist line -- which names an
+        immutable id and is visible in review -- a bracket wrap diffuses into
+        memory prose and reads as house style, so it is iron law 4 pressure with
+        nothing to catch it.
+
+        Membership is what separates the two, and it is no more of a semantic
+        call than the phrase list: a citation points at an object that exists,
+        and a wrap around a policy phrase points at nothing. The last case is
+        the malformed-first-link hole -- an unclosed pair swallowed the prose
+        between two citations and the whole span read clean, because `[^\\]]+`
+        ran from the first `[[` to the first `]]`. The swallowed span is not an
+        id, so it no longer strips.
+        """
+        citable = memory_object_identifiers(ROOT / ".memory")
+        for wrapped, expected in (
+            ("The [[one-PR-per-session]] default still governs this session.",
+             [ONE_PR_PER_SESSION_REASON]),
+            ("Check in on a [[delegate]] every 30 minutes.", [DELEGATE_INTERVAL_REASON]),
+            ("Check in on a delegate every [[30 minutes]].", [DELEGATE_INTERVAL_REASON]),
+            ("See [[constraint.one-branch-one-worktree-one-pr-per-session and still one PR"
+             " per session, see [[gotcha.java25-isuite-mocking]].",
+             [ONE_PR_PER_SESSION_REASON]),
+        ):
+            with self.subTest(wrapped=wrapped[:45]):
+                self.assertEqual(superseded_policy_offences(wrapped, citable), expected)
+        # An id that no longer exists is not a pointer either. This is the
+        # direction that keeps the set honest: without it, a set built from
+        # anything at all -- or from nothing -- would look identical here.
+        self.assertEqual(
+            superseded_policy_offences(
+                "See [[constraint.one-branch-one-worktree-one-pr-per-session]].", frozenset()
+            ),
+            [ONE_PR_PER_SESSION_REASON],
+        )
 
     def test_an_allowlist_entry_clears_one_object_for_one_policy(self):
         """Not a blanket pardon, in either direction.
@@ -1012,7 +1145,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                     self.assertEqual(metadata.get("status", "active"), "active")
                     self.assertIn(
                         reason,
-                        superseded_policy_offences(searchable_text(memory_root, metadata)),
+                        superseded_policy_offences(
+                            searchable_text(memory_root, metadata),
+                            memory_object_identifiers(memory_root),
+                        ),
                     )
 
     def test_every_superseded_policy_phrasing_is_individually_load_bearing(self):
@@ -1142,11 +1278,47 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         # A figure has to be a figure of minutes and a whole one. Without the
         # trailing boundary "3 minor" reads as three minutes; without the
         # leading one a four-digit duration reads as its last three digits; and
-        # the separator is one character of space or hyphen, nothing else --
-        # widen the class and a filename becomes a cadence.
+        # the separator is whitespace, or one hyphen, or nothing -- widen it
+        # into a class and a filename becomes a cadence.
         self.assertNotRegex("3 minor findings", INTERVAL_FIGURE)
         self.assertNotRegex("the build ran 1440 minutes", INTERVAL_FIGURE)
         self.assertNotRegex("artifact-3_minutes.json", INTERVAL_FIGURE)
+        # And the separator is not a *mixed run* of whitespace and hyphens.
+        # `[\s-]*` bought the wrapped line by admitting these two, which are
+        # this repository's own punctuation rather than any cadence: ` -- ` is
+        # house style in nearly every docstring in this module, and `\n- ` is a
+        # markdown bullet. Both fixtures are the only thing in the suite that
+        # can tell `(?:\s+|-|)` from `[\s-]*` -- every positive spelling above
+        # is satisfied by either, which is how the over-wide form shipped
+        # unenforced (#4521).
+        self.assertNotRegex("the retry cap is 3 -- minutes of backoff", INTERVAL_FIGURE)
+        self.assertNotRegex("wakeups:\n- retries: 3\n- minutes are the wrong unit", INTERVAL_FIGURE)
+
+    def test_this_repositorys_own_punctuation_is_not_a_cadence(self):
+        """The two false positives `[\\s-]*` was flagging on `main` (#4521).
+
+        The separator fixtures above pin the pattern; these pin the whole rule,
+        because that is where the cost landed. Both carry a delegate subject
+        and a figure near the word "minutes", and neither states a cadence --
+        the first is an em-dash aside in this repository's house punctuation,
+        the second an ordinary markdown bullet list. Between them they are the
+        two commonest ways prose here puts a number next to that word, so the
+        widening did not flag an edge case, it flagged the file it was written
+        in.
+        """
+        self.assertEqual(
+            superseded_policy_offences(
+                "The retry cap is 3 -- minutes of backoff are the runner's job"
+                " -- the delegate is untouched."
+            ),
+            [],
+        )
+        self.assertEqual(
+            superseded_policy_offences(
+                "Delegate wakeups:\n- retries: 3\n- minutes are the wrong unit here\n"
+            ),
+            [],
+        )
 
     def test_every_delegate_subject_is_individually_load_bearing(self):
         """One subject per case, so no alternative can be gutted unnoticed.
@@ -1339,7 +1511,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             with self.subTest(after=reconciled.rsplit("/", 1)[-1][:40]):
                 metadata = json.loads((memory_root / reconciled).read_text(encoding="utf-8"))
                 self.assertEqual(
-                    superseded_policy_offences(searchable_text(memory_root, metadata)), []
+                    superseded_policy_offences(
+                        searchable_text(memory_root, metadata),
+                        memory_object_identifiers(memory_root),
+                    ),
+                    [],
                 )
 
     def run_guard(self, payload: dict, host: str) -> dict:
