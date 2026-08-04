@@ -330,13 +330,233 @@ approval_mode = "prompt"
 
     def test_banner_omits_the_reduction_clause_when_nothing_measured_it(self):
         banner = format_banner(
-            {"guidance_bytes": 129_090, "guidance_reduction_percent": None, "memory_objects": 336}
+            {
+                "guidance_bytes": 129_090,
+                "guidance_reduction_percent": None,
+                "memory_objects": 336,
+                "memory_objects_untracked": 0,
+            }
         )
         self.assertEqual(banner, "Agent setup is valid: 129090 guidance bytes, 336 memory objects.")
         measured = format_banner(
-            {"guidance_bytes": 75_000, "guidance_reduction_percent": 50.0, "memory_objects": 336}
+            {
+                "guidance_bytes": 75_000,
+                "guidance_reduction_percent": 50.0,
+                "memory_objects": 336,
+                "memory_objects_untracked": 0,
+            }
         )
         self.assertIn("50.0% reduction", measured)
+
+    def init_repository(self):
+        """Make the fixture a real repository so the count can consult git."""
+        self.git("init", "-q", "-b", "main", ".")
+        self.git("config", "user.email", "harness@example.invalid")
+        self.git("config", "user.name", "Harness")
+
+    def test_an_untracked_memory_object_does_not_move_the_reported_count(self):
+        # #4495: the count was `memory_root.rglob("*.json")` -- a filesystem
+        # walk that never consults git, so an object present but never `git
+        # add`ed was counted exactly like a committed one. This banner is what
+        # agents are told to quote as proof of their change, so the one
+        # artefact the harness treats as proof-of-work was satisfiable by work
+        # that was never committed. It landed for real the day it was filed,
+        # when a delegate's `memory remember` wrote into the wrong tree
+        # (#4505) and the higher number was then reasoned about as `main`.
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/never-added.json", "{}")
+        self.write(".memory/memory/gotchas/never-added.md", "body\n")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked)
+        self.assertEqual(metrics["memory_objects_untracked"], 1)
+
+    def test_a_committed_memory_object_does_move_the_reported_count(self):
+        # The negative half: fixing the untracked case must not be bought by
+        # making the count blind to real work.
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/really-added.json", "{}")
+        self.git("add", ".memory/memory/gotchas/really-added.json")
+        self.git("commit", "-qm", "add object")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked + 1)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_the_count_is_json_objects_and_not_every_file_in_the_store(self):
+        # Every other assertion here is RELATIVE -- `tracked`, `tracked + 1` --
+        # computed by the same code on both sides, so a change to what a
+        # "memory object" IS cancels out. Dropping the `.json` filter made the
+        # live banner read `678 memory objects` instead of 339, because the
+        # store holds one `.md` beside every `.json`, and the whole suite
+        # stayed green. The one number #4495 exists to make trustworthy could
+        # double silently. This pins the units absolutely.
+        self.init_repository()
+        self.write(".memory/memory/gotchas/one.json", "{}")
+        self.write(".memory/memory/gotchas/one.md", "body\n")
+        self.write(".memory/memory/gotchas/two.json", "{}")
+        self.write(".memory/memory/gotchas/two.md", "body\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+
+        memory_root = self.root / ".memory/memory"
+        json_files = len(list(memory_root.rglob("*.json")))
+        every_file = len([path for path in memory_root.rglob("*") if path.is_file()])
+        self.assertGreater(every_file, json_files)  # the fixture can tell them apart
+
+        self.assertEqual(self.metrics_for_budget()["memory_objects"], json_files)
+
+    def test_a_non_ascii_object_is_still_counted(self):
+        # `core.quotepath` is on by default, so git renders a non-ASCII path as
+        # a quoted C-style string: ".memory/.../caf\303\251.json" -- trailing
+        # quote and all. Matching on `.endswith(".json")` therefore dropped it
+        # from BOTH the landed and the present sets, so a committed object
+        # vanished from the count and an uncommitted one was reported as
+        # neither landed nor untracked. That is strictly worse than the
+        # filesystem walk this replaced, which counted it correctly.
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/café-naïve.json", "{}")
+        self.git("add", "--", ".memory/memory/gotchas/café-naïve.json")
+        self.git("commit", "-qm", "non-ascii object")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked + 1)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_a_non_ascii_object_left_uncommitted_is_reported_as_untracked(self):
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/café-naïve.json", "{}")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked)
+        self.assertEqual(metrics["memory_objects_untracked"], 1)
+
+    def test_when_git_cannot_answer_the_count_is_labelled_not_quoted_silently(self):
+        # The fallback returned the pre-fix `rglob` walk, and because the
+        # untracked figure was None the banner printed no label at all -- a
+        # count indistinguishable from a git-verified one, which is exactly the
+        # hole #4495 reports. It fires on an unborn HEAD (a repository with no
+        # commits yet), with no git on PATH, and on an exported archive with no
+        # `.git` at all.
+        self.init_repository()  # no commit: HEAD is unborn, `ls-tree HEAD` fails
+        self.write(".memory/memory/gotchas/never-committed.json", "{}")
+
+        metrics = self.metrics_for_budget()
+        self.assertIsNone(metrics["memory_objects_untracked"])
+        banner = format_banner(metrics)
+        self.assertIn("unverified", banner)
+        self.assertNotRegex(banner, r"\d+ memory objects\.")
+        # The count itself must still be the honest worktree figure. Asserting
+        # only the label would leave the fallback's arithmetic unbound -- the
+        # review of #4507 killed an earlier version of this test by replacing
+        # the whole fallback with `return 0, None` and watching it stay green.
+        on_disk = len(list((self.root / ".memory/memory").rglob("*.json")))
+        self.assertEqual(metrics["memory_objects"], on_disk)
+        self.assertGreater(on_disk, 0)
+
+    def test_a_store_missing_from_the_worktree_still_reports_what_git_holds(self):
+        # Two earlier attempts at this case each put a false statement in the
+        # banner. `(0, None)` said "unverified: git could not answer" when git
+        # was never asked. `(0, 0)` said "zero, verified" for a tree where git
+        # could still see committed objects -- the bare, quotable wording, for
+        # the exact discrepancy #4495 exists to expose. Both returned BEFORE
+        # either query, which is what made them wrong.
+        #
+        # The earlier test could not catch it: its fixture never called
+        # `init_repository`, so nothing was in HEAD there either. It pinned the
+        # empty-repository case and passed while the real one was broken. The
+        # committed objects here are the whole point.
+        #
+        # Not hypothetical: R9 in the guard exists because plain `git worktree
+        # add` aborts part-way through checking out over-long `.memory/**`
+        # paths (#4126), leaving precisely this state.
+        import shutil as _shutil
+
+        self.init_repository()
+        self.write(".memory/memory/gotchas/committed.json", "{}")
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        landed = self.metrics_for_budget()["memory_objects"]
+        self.assertGreater(landed, 0)
+
+        _shutil.rmtree(self.root / ".memory/memory")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], landed)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_an_empty_repository_with_no_store_reports_a_plain_zero(self):
+        # The case the previous test used to cover, kept because it is the one
+        # where zero really is the whole truth.
+        import shutil as _shutil
+
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        _shutil.rmtree(self.root / ".memory/memory")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "drop the store")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], 0)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+        self.assertNotIn("unverified", format_banner(metrics))
+
+    def test_the_banner_refuses_to_render_without_the_untracked_figure(self):
+        # Keyed on presence, a caller that simply omitted the field got the
+        # bare, quotable wording by default -- the one outcome the labelling
+        # exists to prevent. Omission must be loud rather than silently
+        # optimistic.
+        with self.assertRaises(KeyError):
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                }
+            )
+
+    def test_banner_labels_untracked_objects_so_the_figure_cannot_be_misquoted(self):
+        # `339 memory objects` is quotable as a claim about main. `338 memory
+        # objects (1 untracked)` is not, which is the whole point of #4495.
+        self.assertEqual(
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                    "memory_objects_untracked": 1,
+                }
+            ),
+            "Agent setup is valid: 129090 guidance bytes, 338 memory objects (1 untracked).",
+        )
+        self.assertEqual(
+            format_banner(
+                {
+                    "guidance_bytes": 129_090,
+                    "guidance_reduction_percent": None,
+                    "memory_objects": 338,
+                    "memory_objects_untracked": 0,
+                }
+            ),
+            "Agent setup is valid: 129090 guidance bytes, 338 memory objects.",
+        )
 
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
         # Negative test: relaxing the relation-file message must not open a

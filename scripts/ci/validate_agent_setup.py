@@ -532,12 +532,120 @@ def reduction_percent(guidance_bytes: int, baseline: int | None) -> float | None
     return round((1 - guidance_bytes / baseline) * 100, 2)
 
 
+def _git_paths(root: Path, *arguments: str) -> set[str] | None:
+    """Return repository-relative paths from a read-only git query, or None.
+
+    Every query is NUL-delimited (`-z`). Without it git applies `core.quotepath`
+    and renders a non-ASCII path as a quoted C-style string --
+    `".memory/.../caf\\303\\251.json"`, trailing quote included -- which then
+    fails a `.endswith(".json")` match and drops the object from the count
+    entirely. A newline in a filename splits one path into two lines for the
+    same reason. `-z` emits raw bytes with an unambiguous separator, so neither
+    shape can misparse.
+
+    None means git could not answer -- no binary, or not a repository -- and is
+    deliberately distinct from the empty set, which means git answered "none".
+    """
+    executable = shutil.which("git")
+    if executable is None:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed, read-only git queries.
+            [executable, *arguments],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return {entry for entry in completed.stdout.split("\0") if entry}
+
+
+def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None]:
+    """Return (landed objects, objects present but not landed) under `memory_root`.
+
+    #4495: this was `memory_root.rglob("*.json")`, a filesystem walk that never
+    consulted git, so an object that was never `git add`ed was counted exactly
+    like a committed one -- and this banner is what agents in this repository
+    are told to quote as proof of their change.
+
+    Two git views, because #4497 found the mirror defect by reading only one.
+    "Has this landed" is a question about HEAD and nothing else, so a staged
+    file is not landed. "Does this exist and is nobody hiding it" is a question
+    about the worktree minus ignored files, which is
+    `--cached --others --exclude-standard`. The index alone answers neither: it
+    is neither what is there nor what has landed.
+
+    The second element is None when git could not answer at all -- outside a
+    repository there is no "landed" to speak of, and reporting 0 there would
+    publish a non-measurement in the units of a measurement (see
+    `reduction_percent`).
+    """
+    # No special case for a missing directory, deliberately. Two earlier
+    # attempts both put a false statement in the banner: `(0, None)` said
+    # "unverified: git could not answer" when git was never asked, and `(0, 0)`
+    # said "zero, verified" for a tree where git could still see committed
+    # objects. Both fired BEFORE either query, which is what made them wrong.
+    #
+    # Reachable here rather than hypothetical: R9 exists because plain `git
+    # worktree add` aborts part-way through checking out over-long `.memory/**`
+    # paths (#4126), leaving exactly that state -- no store on disk, a HEAD full
+    # of objects. A sparse checkout does the same.
+    #
+    # Letting the queries answer needs no guard. `relative_to` is a pure path
+    # operation, and git accepts a pathspec matching nothing with exit 0 and
+    # empty output, so `landed` is what HEAD holds and `present` is empty. The
+    # fallback below still covers the genuinely unanswerable case.
+    relative = memory_root.relative_to(root).as_posix()
+    # `-z` must precede the `--`, or git reads it as a pathspec and matches
+    # nothing -- silently, with exit code 0 and an empty result.
+    landed = _git_paths(
+        root, "ls-tree", "-r", "-z", "--name-only", "HEAD", "--", relative
+    )
+    visible = _git_paths(
+        root,
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--",
+        relative,
+    )
+    if landed is None or visible is None:
+        walked = len(list(memory_root.rglob("*.json"))) if memory_root.is_dir() else 0
+        return walked, None
+    objects = {path for path in landed if path.endswith(".json")}
+    present = {path for path in visible if path.endswith(".json")}
+    return len(objects), len(present - objects)
+
+
 def format_banner(metrics: dict) -> str:
     """Render the one-line summary a passing run prints, omitting what was not measured."""
     parts = [f"{metrics['guidance_bytes']} guidance bytes"]
     if metrics.get("guidance_reduction_percent") is not None:
         parts.append(f"{metrics['guidance_reduction_percent']}% reduction")
-    parts.append(f"{metrics['memory_objects']} memory objects")
+    objects = f"{metrics['memory_objects']} memory objects"
+    # Three states, and the bare wording belongs to exactly one of them.
+    # `338 memory objects` is quotable as a claim about main, so it is reserved
+    # for a git-verified count with nothing outstanding. A count git could not
+    # verify says so: the fallback is the pre-fix filesystem walk, and letting
+    # it print the quotable wording restores #4495's hole in the one path where
+    # the fix does not apply.
+    # Indexed, not `.get`: a caller that omits the key would otherwise receive
+    # the bare, quotable wording by default, which is the one thing this
+    # labelling exists to prevent. `collect_metrics` always sets it, so a
+    # KeyError here means a new caller has to make the choice deliberately.
+    untracked = metrics["memory_objects_untracked"]
+    if untracked is None:
+        objects += " (unverified: git could not answer)"
+    elif untracked:
+        objects += f" ({untracked} untracked)"
+    parts.append(objects)
     return f"Agent setup is valid: {', '.join(parts)}."
 
 
@@ -569,14 +677,14 @@ def collect_metrics(root: Path = ROOT) -> dict:
         except (OSError, json.JSONDecodeError):
             pass
     memory_root = root / ".memory/memory"
+    landed_objects, unlanded_objects = memory_object_counts(root, memory_root)
     return {
         "guidance_bytes": guidance_bytes,
         "guidance_reduction_percent": reduction,
         "always_loaded_body_chars": host_body_chars,
         "skill_listing_chars": host_listing_chars,
-        "memory_objects": len(list(memory_root.rglob("*.json")))
-        if memory_root.is_dir()
-        else 0,
+        "memory_objects": landed_objects,
+        "memory_objects_untracked": unlanded_objects,
         "memory_default_token_budget": memory_budget,
         "codex_memory_tools": sorted(MEMORY_TOOLS),
     }
