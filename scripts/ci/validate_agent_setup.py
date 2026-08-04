@@ -274,44 +274,58 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
     for item in valid_rows:
         if not re.fullmatch(r"[a-z][a-z0-9_]*", item["id"]):
             errors.append(issue("host-parity-schema", relative.as_posix(), f"invalid capability id: {item['id']!r}"))
-        for field in ("owner", "claude", "codex"):
-            values = item.get(field, [])
-            values = values if isinstance(values, list) else [values]
-            if not values:
-                errors.append(issue("host-parity-path", relative.as_posix(), f"{item.get('id')}.{field} is empty"))
-            for value in values:
-                path = Path(value) if isinstance(value, str) else Path()
-                if not value or path.is_absolute() or ".." in path.parts or not (root / path).is_file():
-                    errors.append(
-                        issue(
-                            "host-parity-path",
-                            relative.as_posix(),
-                            f"{item.get('id')}.{field} has invalid evidence path: {value!r}",
-                        )
-                    )
-        check = item.get("check")
-        if not isinstance(check, str) or check.count("::") != 1:
-            errors.append(issue("host-parity-path", relative.as_posix(), f"{item['id']}.check must name file.py::test_method"))
-        else:
-            check_path_text, check_name = check.split("::")
-            check_path = Path(check_path_text)
-            valid_check = (
-                not check_path.is_absolute()
-                and ".." not in check_path.parts
-                and check_path.suffix == ".py"
-                and check_name.startswith("test_")
-                and (root / check_path).is_file()
-            )
-            source = (root / check_path).read_text(encoding="utf-8") if valid_check else ""
-            if not valid_check or not re.search(rf"(?m)^\s+def {re.escape(check_name)}\(", source):
-                errors.append(issue("host-parity-path", relative.as_posix(), f"{item['id']}.check is not a runnable test: {check!r}"))
-            elif ".".join(check_path.with_suffix("").parts) not in workflow:
-                errors.append(issue("host-parity-ci", relative.as_posix(), f"{item['id']}.check is not run by PR Gate: {check!r}"))
+        errors.extend(parity_evidence_errors(item, root, relative))
+        errors.extend(parity_check_errors(item, root, relative, workflow))
         if item.get("mode") not in {"shared", "equivalent", "substitution"}:
             errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')}.mode is invalid"))
         if item.get("mode") == "substitution" and not item.get("note"):
             errors.append(issue("host-parity-schema", relative.as_posix(), f"{item.get('id')} substitution needs a note"))
     return errors
+
+
+def parity_evidence_errors(item: dict, root: Path, relative: Path) -> list[dict[str, str]]:
+    """Check that one capability row's evidence paths are relative and present."""
+    errors: list[dict[str, str]] = []
+    for field in ("owner", "claude", "codex"):
+        values = item.get(field, [])
+        values = values if isinstance(values, list) else [values]
+        if not values:
+            errors.append(issue("host-parity-path", relative.as_posix(), f"{item.get('id')}.{field} is empty"))
+        for value in values:
+            path = Path(value) if isinstance(value, str) else Path()
+            if not value or path.is_absolute() or ".." in path.parts or not (root / path).is_file():
+                errors.append(
+                    issue(
+                        "host-parity-path",
+                        relative.as_posix(),
+                        f"{item.get('id')}.{field} has invalid evidence path: {value!r}",
+                    )
+                )
+    return errors
+
+
+def parity_check_errors(
+    item: dict, root: Path, relative: Path, workflow: str
+) -> list[dict[str, str]]:
+    """Check that one capability row names a real test that PR Gate actually runs."""
+    check = item.get("check")
+    if not isinstance(check, str) or check.count("::") != 1:
+        return [issue("host-parity-path", relative.as_posix(), f"{item['id']}.check must name file.py::test_method")]
+    check_path_text, check_name = check.split("::")
+    check_path = Path(check_path_text)
+    valid_check = (
+        not check_path.is_absolute()
+        and ".." not in check_path.parts
+        and check_path.suffix == ".py"
+        and check_name.startswith("test_")
+        and (root / check_path).is_file()
+    )
+    source = (root / check_path).read_text(encoding="utf-8") if valid_check else ""
+    if not valid_check or not re.search(rf"(?m)^\s+def {re.escape(check_name)}\(", source):
+        return [issue("host-parity-path", relative.as_posix(), f"{item['id']}.check is not a runnable test: {check!r}")]
+    if ".".join(check_path.with_suffix("").parts) not in workflow:
+        return [issue("host-parity-ci", relative.as_posix(), f"{item['id']}.check is not run by PR Gate: {check!r}")]
+    return []
 
 
 def run_memory_check(root: Path) -> list[dict[str, str]]:
@@ -408,20 +422,18 @@ def collect_metrics(root: Path = ROOT) -> dict:
 
 
 def collect_worktree_metrics(root: Path = ROOT, *, run_external: bool = True) -> dict:
-    """Describe worktrees holding pending, superseded, or corrupt work.
-
-    Reported, never fatal (issue #4437). Concurrent sessions each own a
-    worktree, so a dirty one is normal and must not fail the gate agents run
-    constantly -- but a worktree that is corrupt, already upstream, or holding
-    uncommitted work nobody will return to has to be visible somewhere an agent
-    already looks.
-
-    Local git only, in both modes. Asking GitHub about each branch would add
-    one network round trip per worktree to a command contributors run by hand;
-    `scripts/ci/worktree_hygiene.py --check-pull-requests` owns that lookup.
-    `run_external` is accepted so this reads like its sibling collectors and
-    can gain an external check without a signature change.
-    """
+    """Describe worktrees holding pending, superseded, or corrupt work."""
+    # Reported, never fatal (issue #4437). Concurrent sessions each own a
+    # worktree, so a dirty one is normal and must not fail the gate agents run
+    # constantly -- but a worktree that is corrupt, already upstream, or
+    # holding uncommitted work nobody will return to has to be visible
+    # somewhere an agent already looks.
+    #
+    # Local git only, in both modes. Asking GitHub about each branch would add
+    # one network round trip per worktree to a command contributors run by
+    # hand; `scripts/ci/worktree_hygiene.py --check-pull-requests` owns that
+    # lookup. `run_external` is accepted so this reads like its sibling
+    # collectors and can gain an external check without a signature change.
     del run_external
     report = collect_worktree_report(root)
     return {"worktrees": report, "worktree_advisories": format_advisories(report)}

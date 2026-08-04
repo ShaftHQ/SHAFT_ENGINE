@@ -1,14 +1,12 @@
-"""R10: refuse to stage or commit NUL-corrupted files.
-
-Reproduces the 2026-08-04 incident (issue #4437): after an unclean shutdown,
-652 of 653 files in an abandoned worktree were entirely NUL-filled with
-plausible sizes -- a 676-byte `.gitignore` had become 726 bytes of zeros.
-`git status` showed ordinary ` M` entries and only `git diff --shortstat`
-hinted at it ("653 files changed, 0 insertions(+), 0 deletions(-)").
-
-Every case below builds the corruption as a real fixture on disk and runs the
-real `git`, rather than asserting against a hand-written diff string.
-"""
+"""R10: refuse to stage or commit NUL-corrupted files."""
+# Reproduces the 2026-08-04 incident (issue #4437): after an unclean shutdown,
+# 652 of 653 files in an abandoned worktree were entirely NUL-filled with
+# plausible sizes -- a 676-byte `.gitignore` had become 726 bytes of zeros.
+# `git status` showed ordinary ' M' entries and only `git diff --shortstat`
+# hinted at it ("653 files changed, 0 insertions(+), 0 deletions(-)").
+#
+# Every case below builds the corruption as a real fixture on disk and runs the
+# real `git`, rather than asserting against a hand-written diff string.
 
 from __future__ import annotations
 

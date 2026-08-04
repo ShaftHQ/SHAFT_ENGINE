@@ -1,0 +1,11 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:399ab4a01d1546d8f80c5a8ebcbd41048e5705be08e16731c5f12fa926459aa3",
+  "created_at": "2026-08-04T09:39:35+03:00",
+  "from": "fact.worktree-hygiene-report-and-guard-rule-r10",
+  "id": "rel.fact-worktree-hygiene-report-and-guard-rule-r10-documents-gotcha-nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications",
+  "predicate": "documents",
+  "status": "active",
+  "to": "gotcha.nul-filled-files-from-unclean-shutdown-read-as-ordinary-modifications",
+  "updated_at": "2026-08-04T09:39:35+03:00"
+}
