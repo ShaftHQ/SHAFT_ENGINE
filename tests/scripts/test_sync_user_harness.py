@@ -16,14 +16,18 @@ MANIFEST = ("CLAUDE.md", "settings.json")
 class SyncUserHarnessTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.target = Path(self._tmp.name)
-        self.agents_target = self.target / ".agents"
+        self.root = Path(self._tmp.name)
+        self.target = self.root / ".claude"
+        self.codex_target = self.root / ".codex"
+        self.agents_target = self.root / ".agents"
+        self.target.mkdir()
         self.addCleanup(self._tmp.cleanup)
 
     def run_sync(self, *args: str) -> subprocess.CompletedProcess:
         env = dict(
             os.environ,
             SHAFT_USER_CLAUDE_DIR=str(self.target),
+            SHAFT_USER_CODEX_DIR=str(self.codex_target),
             SHAFT_USER_AGENTS_DIR=str(self.agents_target),
         )
         return subprocess.run(
@@ -37,6 +41,11 @@ class SyncUserHarnessTest(unittest.TestCase):
 
     def repo_agents(self) -> list[Path]:
         return sorted((ROOT / ".claude/agents").glob("*.md"))
+
+    def repo_codex_agents(self) -> list[Path]:
+        agents = sorted((ROOT / ".codex/agents").glob("*.toml"))
+        self.assertTrue(agents, "repo must ship global Codex agent adapters")
+        return agents
 
     def canonical_skill_files(self) -> list[Path]:
         return sorted(
@@ -53,6 +62,9 @@ class SyncUserHarnessTest(unittest.TestCase):
         self.assertTrue(self.repo_agents(), "repo must ship agent charters")
         for agent in self.repo_agents():
             self.assertIn(f"MISSING  agents/{agent.name}", completed.stdout)
+        self.assertIn("MISSING  ../.codex/AGENTS.md", completed.stdout)
+        for agent in self.repo_codex_agents():
+            self.assertIn(f"MISSING  ../.codex/agents/{agent.name}", completed.stdout)
         self.assertTrue(self.canonical_skill_files())
         self.assertIn("MISSING  ../.agents/skills/act-as-mohab/SKILL.md", completed.stdout)
         self.assertIn("MISSING  skills/act-as-mohab/SKILL.md", completed.stdout)
@@ -67,6 +79,19 @@ class SyncUserHarnessTest(unittest.TestCase):
                 deployed.read_bytes().replace(b"\r\n", b"\n"),
                 agent.read_bytes().replace(b"\r\n", b"\n"),
             )
+        self.assertEqual(
+            (self.codex_target / "AGENTS.md").read_bytes().replace(b"\r\n", b"\n"),
+            (ROOT / ".claude/user-harness/CLAUDE.md").read_bytes().replace(b"\r\n", b"\n"),
+        )
+        for agent in self.repo_codex_agents():
+            deployed = self.codex_target / "agents" / agent.name
+            self.assertEqual(
+                deployed.read_bytes().replace(b"\r\n", b"\n"),
+                agent.read_bytes().replace(b"\r\n", b"\n"),
+            )
+            instructions = deployed.read_text(encoding="utf-8")
+            self.assertIn("../../.agents/skills/act-as-mohab/SKILL.md", instructions)
+            self.assertNotIn("Read .agents/", instructions)
         canonical = ROOT / ".agents/skills/act-as-mohab"
         for source in self.canonical_skill_files():
             deployed = self.agents_target / "skills/act-as-mohab" / source.relative_to(canonical)
@@ -94,6 +119,83 @@ class SyncUserHarnessTest(unittest.TestCase):
             "local drift\n",
         )
         self.assertEqual(self.run_sync().returncode, 0)
+
+    def test_codex_deploy_preserves_unowned_config_and_backs_up_owned_drift(self):
+        self.codex_target.mkdir(parents=True)
+        personal_marker = "personal-codex-value-must-survive"
+        config = self.codex_target / "config.toml"
+        config.write_text(f'personal_key = "{personal_marker}"\n', encoding="utf-8")
+        agents = self.codex_target / "AGENTS.md"
+        legacy = (ROOT / ".claude/user-harness/CLAUDE.md").read_text(
+            encoding="utf-8"
+        ).replace("<!-- Managed by the SHAFT user harness. -->\n\n", "", 1).replace(
+            "capability level", "capability tier"
+        )
+        agents.write_text(legacy, encoding="utf-8")
+
+        completed = self.run_sync("--apply")
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertNotIn(personal_marker, completed.stdout + completed.stderr)
+        self.assertEqual(config.read_text(encoding="utf-8"), f'personal_key = "{personal_marker}"\n')
+        self.assertEqual(
+            (self.codex_target / "AGENTS.md.bak").read_text(encoding="utf-8"),
+            legacy,
+        )
+        self.assertEqual(self.run_sync().returncode, 0)
+
+    def test_codex_custom_agent_collision_is_not_overwritten(self):
+        personal_marker = "personal-agent-must-survive"
+        target = self.codex_target / "agents" / "coder.toml"
+        target.parent.mkdir(parents=True)
+        target.write_text(
+            f'name = "coder"\ndeveloper_instructions = "Use act-as-mohab; {personal_marker}"\n',
+            encoding="utf-8",
+        )
+
+        completed = self.run_sync("--apply")
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("CONFLICT  ../.codex/agents/coder.toml", completed.stdout)
+        self.assertNotIn(personal_marker, completed.stdout + completed.stderr)
+        self.assertIn(personal_marker, target.read_text(encoding="utf-8"))
+        self.assertFalse(target.with_name("coder.toml.bak").exists())
+
+    def test_legacy_codex_harness_agent_migrates_safely(self):
+        target = self.codex_target / "agents" / "coder.toml"
+        target.parent.mkdir(parents=True)
+        legacy = (
+            'name = "coder"\n'
+            'description = "Bounded implementer; defaults to middle capability and may assign only mechanical slices downward."\n'
+            'developer_instructions = """\n'
+            'Load [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md), then follow\\r\n'
+            'the [implementer role](../../.agents/skills/act-as-mohab/references/roles.md#implementer)."""\n'
+        )
+        target.write_text(legacy, encoding="utf-8")
+
+        completed = self.run_sync("--apply")
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(target.with_name("coder.toml.bak").read_text(encoding="utf-8"), legacy)
+        self.assertIn("Managed by the SHAFT user harness", target.read_text(encoding="utf-8"))
+
+    def test_repeated_drift_preserves_the_original_backup(self):
+        self.assertEqual(self.run_sync("--apply").returncode, 0)
+        target = self.codex_target / "AGENTS.md"
+        first_drift = target.read_text(encoding="utf-8") + "\n# first drift\n"
+        target.write_text(first_drift, encoding="utf-8")
+        self.assertEqual(self.run_sync("--apply").returncode, 0)
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\n# second drift\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(self.run_sync("--apply").returncode, 0)
+
+        self.assertEqual(
+            target.with_name("AGENTS.md.bak").read_text(encoding="utf-8"),
+            first_drift,
+        )
 
     def test_settings_merge_preserves_unowned_keys_and_secret_values(self):
         personal_marker = "personal-value-must-survive"

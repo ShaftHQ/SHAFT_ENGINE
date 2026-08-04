@@ -1,3 +1,5 @@
+<!-- Managed by the SHAFT user harness. -->
+
 # Global agent harness
 
 Before every task, load the deployed relative entrypoint
