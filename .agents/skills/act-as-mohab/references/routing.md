@@ -28,7 +28,9 @@ before broad manual discovery, not all of them by reflex.
 | What does the code do right now? | targeted `rg` and exact reads | Always. This is the only source that settles a disagreement. |
 
 A retrieved claim is a lead, never a verdict: confirm it against the live file
-before acting on it, and a stale index never outranks what is on disk.
+before acting on it, and a stale index never outranks what is on disk. Your own
+plan ranks here too, below every one of them: it is the oldest source you hold,
+written before the reads.
 
 If a store is unavailable, name the degraded mode in your report and continue
 with the rest. Skipping a store whose trigger fired, without saying so, is the
