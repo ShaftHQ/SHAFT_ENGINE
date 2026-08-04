@@ -440,6 +440,77 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "active",
         )
 
+    def test_active_memory_does_not_restate_a_superseded_policy(self):
+        """Retired *policy*, not just retired paths and model names.
+
+        Its sibling above compares memory against guidance on two axes:
+        filesystem paths that no longer exist, and capability named as a product.
+        Policy that current guidance explicitly supersedes is uncovered by both,
+        and that is the axis that misleads: routing tells an agent a retrieved
+        claim is a lead and never outranks the live file, so resolving a
+        contradiction costs a read an agent under time pressure will not do. It
+        reads one of them, and which one is luck.
+        """
+        memory_root = ROOT / ".memory"
+        # An id is a pointer, not an assertion, and ids are immutable here --
+        # `.memory/events.jsonl` records `memory.created` against them, so a
+        # rename orphans history. A `[[wiki-link]]` naming an object whose
+        # policy moved is therefore correct, and only prose is judged.
+        wiki_link = re.compile(r"\[\[[^\]]+\]\]")
+        superseded_policy = (
+            (
+                re.compile(
+                    r"(?i)one[- ]pr[- ]per[- ]session"
+                    r"|\b1 PR per session"
+                    r"|single (?:final|session) PR"
+                    r"|one-branch-one-worktree-one-pr"
+                    r"|session'?s single branch/pr",
+                    re.UNICODE,
+                ),
+                "one PR per session: superseded by work-github-playbook.md Sec. 3b, "
+                "which lets a session open one PR per group of related subtasks",
+            ),
+            (
+                re.compile(
+                    r"(?i)\b(?:delegate[ds]?|subagent|background (?:task|job))\b"
+                    r"[^.]{0,140}?\b\d{1,3}\s*min"
+                ),
+                "a delegate check-in interval: delegation.md owns the single figure, "
+                "and memory restating a second one is how 20 and 30 both became true",
+            ),
+        )
+        offenders = []
+        for metadata_path in sorted((memory_root / "memory").rglob("*.json")):
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            if metadata.get("status", "active") != "active":
+                continue
+            body_path = memory_root / metadata["body_path"]
+            searchable = wiki_link.sub(
+                " ",
+                "\n".join((metadata.get("title", ""), body_path.read_text(encoding="utf-8"))),
+            )
+            for pattern, reason in superseded_policy:
+                if pattern.search(searchable):
+                    offenders.append(f"{metadata_path.relative_to(ROOT).as_posix()}: {reason}")
+        self.assertEqual(sorted(offenders), [], "active memory restates a superseded policy")
+
+    def test_the_superseded_policy_scan_judges_prose_and_not_identifiers(self):
+        """A guard that cannot tell a claim from a pointer is not usable here.
+
+        Renaming a memory object is not free -- its id is written into
+        `.memory/events.jsonl` -- so a link to an object whose policy has since
+        moved has to stay legal while the sentence asserting that policy does
+        not.
+        """
+        wiki_link = re.compile(r"\[\[[^\]]+\]\]")
+        policy = re.compile(
+            r"(?i)one[- ]pr[- ]per[- ]session|one-branch-one-worktree-one-pr"
+        )
+        pointer = "See [[one-branch-one-worktree-one-pr-per-session]] for the incident."
+        claim = "The one-PR-per-session default still applies to this session."
+        self.assertIsNone(policy.search(wiki_link.sub(" ", pointer)))
+        self.assertIsNotNone(policy.search(wiki_link.sub(" ", claim)))
+
     def run_guard(self, payload: dict, host: str) -> dict:
         completed = self.run_guard_completed(payload, host)
         self.assertTrue(completed.stdout.strip())

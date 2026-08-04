@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/agent-loop-operating-rhythm-compact-after-every-merge-overlap-ci-ping-or-close-delegates.md",
-  "content_hash": "sha256:55a1a5ff6be5fa7e5c75e7fc99314f84d770d212ca333377ee9af20588e9bc7f",
+  "content_hash": "sha256:caa70fae10bb30c6d2a9d8989f3937236c4db47ff64441a23540346b0ea1152a",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [],
   "facets": {
@@ -26,5 +26,5 @@
   ],
   "title": "Agent /loop operating rhythm: compact after every merge, overlap CI, ping-or-close delegates",
   "type": "workflow",
-  "updated_at": "2026-07-15T10:08:58+03:00"
+  "updated_at": "2026-08-04T10:00:00+03:00"
 }

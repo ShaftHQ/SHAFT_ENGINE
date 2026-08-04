@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/commit-and-push-incrementally-within-a-sessions-single-branch-pr-not-just-once-at-the-end.md",
-  "content_hash": "sha256:6e711061d57612c8bd9d454e28c45cf6869e3cb6032926f362656f9bc9b518d1",
+  "content_hash": "sha256:08f3b5164faa815f69a70c9596eb5eaf849df22edf6a7d302b7049c1fc8ca2e0",
   "created_at": "2026-07-09T12:59:30+03:00",
   "evidence": [],
   "facets": {
@@ -23,7 +23,7 @@
     "workflow",
     "session-hygiene"
   ],
-  "title": "Commit and push incrementally within a session's single branch/PR, not just once at the end",
+  "title": "Commit and push each verified increment, not once at session end",
   "type": "workflow",
-  "updated_at": "2026-07-09T12:59:30+03:00"
+  "updated_at": "2026-08-04T10:00:00+03:00"
 }

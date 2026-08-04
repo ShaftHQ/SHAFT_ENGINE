@@ -380,6 +380,30 @@ def run_command(root: Path, command: list[str], code: str) -> list[dict[str, str
     return [issue(code, command[0], detail[:500] or f"exit code {completed.returncode}")]
 
 
+def reduction_percent(guidance_bytes: int, baseline: int | None) -> float | None:
+    """Return the reduction against a configured baseline, or None if there is none.
+
+    #3745 retired the global reduction floor deliberately, so no baseline is
+    configured and this returns None on every real run. It must stay None rather
+    than 0: a percentage is a claim about a measurement, and reporting 0 for
+    "nobody measured" reads as "measured, and nothing was saved" -- the worse of
+    the two, and the one that sent issue #4452 looking for a leak that is not
+    there.
+    """
+    if not baseline:
+        return None
+    return round((1 - guidance_bytes / baseline) * 100, 2)
+
+
+def format_banner(metrics: dict) -> str:
+    """Render the one-line summary a passing run prints, omitting what was not measured."""
+    parts = [f"{metrics['guidance_bytes']} guidance bytes"]
+    if metrics.get("guidance_reduction_percent") is not None:
+        parts.append(f"{metrics['guidance_reduction_percent']}% reduction")
+    parts.append(f"{metrics['memory_objects']} memory objects")
+    return f"Agent setup is valid: {', '.join(parts)}."
+
+
 def collect_metrics(root: Path = ROOT) -> dict:
     """Collect stable context and memory size metrics."""
     budget = load_budget(root / "scripts/ci/agent_guidance_budget.json")
@@ -392,12 +416,12 @@ def collect_metrics(root: Path = ROOT) -> dict:
         host: skill_listing_chars(root, patterns)
         for host, patterns in budget.get("host_skill_metadata_globs", {}).items()
     }
-    baseline = budget.get("reduction_baseline_bytes", 0)
+    baseline = budget.get("reduction_baseline_bytes")
     # LF-normalized to match validate_total_reduction and the LF blobs CI sees.
     guidance_bytes = sum(
         len(path.read_text(encoding="utf-8").encode("utf-8")) for path in guidance_paths
     )
-    reduction = 0 if not baseline else round((1 - guidance_bytes / baseline) * 100, 2)
+    reduction = reduction_percent(guidance_bytes, baseline)
     memory_config = root / ".memory/config.json"
     memory_budget = None
     if memory_config.is_file():
@@ -491,12 +515,7 @@ def main() -> int:
         for error in errors:
             print(f"{error['code']}: {error['path']}: {error['message']}", file=sys.stderr)
     else:
-        print(
-            "Agent setup is valid: "
-            f"{metrics['guidance_bytes']} guidance bytes, "
-            f"{metrics['guidance_reduction_percent']}% reduction, "
-            f"{metrics['memory_objects']} memory objects."
-        )
+        print(format_banner(metrics))
     # Advisories print whether or not the gate passed: they describe work that
     # is at risk, not a broken setup, and a passing run is exactly when an
     # agent would otherwise stop reading.

@@ -9,6 +9,8 @@ from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
     collect_worktree_metrics,
+    format_banner,
+    reduction_percent,
     run_memory_check,
     validate_host_parity,
     validate_memory_setup,
@@ -273,6 +275,40 @@ approval_mode = "prompt"
         self.assertIn("worktrees", metrics)
         self.assertIn("worktree_advisories", metrics)
         self.assertNotIn("worktree", {error["code"] for error in errors})
+
+    def test_unconfigured_reduction_is_reported_as_absent_not_as_zero_percent(self):
+        # #3745 retired the global reduction floor on purpose, so no baseline is
+        # configured and the percentage branch never runs. Emitting the literal
+        # 0 anyway published a non-measurement in the units of a measurement:
+        # the banner read "0% reduction", which an agent cannot distinguish from
+        # "measured, and nothing was reduced" -- the worse of the two readings.
+        repository_root = Path(__file__).resolve().parents[2]
+        _, metrics = validate_repository(repository_root, run_external=False)
+        budget = json.loads(
+            (repository_root / "scripts/ci/agent_guidance_budget.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertNotIn("reduction_baseline_bytes", budget)
+        self.assertIsNone(metrics["guidance_reduction_percent"])
+
+    def test_configured_baseline_still_reports_a_real_reduction(self):
+        # The absent case must not be bought by breaking the measured one: with
+        # a baseline configured the percentage is computed exactly as before.
+        self.assertEqual(reduction_percent(75_000, 150_000), 50.0)
+        self.assertEqual(reduction_percent(150_000, 150_000), 0.0)
+        self.assertIsNone(reduction_percent(129_090, 0))
+        self.assertIsNone(reduction_percent(129_090, None))
+
+    def test_banner_omits_the_reduction_clause_when_nothing_measured_it(self):
+        banner = format_banner(
+            {"guidance_bytes": 129_090, "guidance_reduction_percent": None, "memory_objects": 336}
+        )
+        self.assertEqual(banner, "Agent setup is valid: 129090 guidance bytes, 336 memory objects.")
+        measured = format_banner(
+            {"guidance_bytes": 75_000, "guidance_reduction_percent": 50.0, "memory_objects": 336}
+        )
+        self.assertIn("50.0% reduction", measured)
 
     def test_overlong_non_relation_filename_still_caught_without_relation_hint(self):
         # Negative test: relaxing the relation-file message must not open a

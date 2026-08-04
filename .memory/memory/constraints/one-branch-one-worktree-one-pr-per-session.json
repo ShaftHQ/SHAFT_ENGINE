@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/one-branch-one-worktree-one-pr-per-session.md",
-  "content_hash": "sha256:d73b60c55779f0854e9b130c451140f12c2594e45f5152bfbafa53173a4f40ac",
+  "content_hash": "sha256:25e63e697bef9c55da5117d58563fd39ab927678031b8f2dea6a10a15e6f35d8",
   "created_at": "2026-07-17T13:14:04+03:00",
   "evidence": [],
   "id": "constraint.one-branch-one-worktree-one-pr-per-session",
@@ -22,7 +22,7 @@
     "sequencing",
     "branch-strategy"
   ],
-  "title": "One branch, one worktree, one PR per session",
+  "title": "Session branch and worktree shape, and sequential merges for file-dependent sub-issues",
   "type": "constraint",
-  "updated_at": "2026-07-17T13:14:04+03:00"
+  "updated_at": "2026-08-04T10:00:00+03:00"
 }
