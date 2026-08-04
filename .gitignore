@@ -117,6 +117,7 @@
 /shaft-doctor/src/test/resources/META-INF/services/
 /shaft-doctor/src/test/resources/junit-platform.properties
 /shaft-doctor/src/test/resources/testDataFiles/
+/shaft-intellij/generate_allure_report.bat
 /shaft-mcp/allure-results/
 /shaft-mcp/allure-report/
 /shaft-mcp/allure-report-check/
