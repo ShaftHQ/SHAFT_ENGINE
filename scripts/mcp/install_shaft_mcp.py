@@ -60,10 +60,17 @@ RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
     "verifying-and-applying-shaft-changes",
     "writing-shaft-tests",
 ))
+# Every module validate_agent_setup.py imports at module scope must be listed
+# here, or the installed validator dies on ImportError in the user's project.
+# tests/scripts/test_install_shaft_mcp.py reads the real import statements and
+# fails when this list falls behind them.
 AGENT_VALIDATION_SCRIPT_FILES = (
+    "scripts/agents/guard.py",
     "scripts/ci/validate_agent_setup.py",
     "scripts/ci/validate_agent_guidance.py",
     "scripts/ci/validate_documentation_boundaries.py",
+    "scripts/ci/validate_skills.py",
+    "scripts/ci/worktree_hygiene.py",
     "scripts/ci/agent_guidance_budget.json",
 )
 AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
