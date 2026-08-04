@@ -27,12 +27,15 @@ from __future__ import annotations
 import io
 import json
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
 from scripts.agents.guard import is_linked_worktree, run_pretooluse
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
@@ -71,11 +74,16 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
     def tearDown(self):
         self.temporary_directory.cleanup()
 
-    def decision(self, tool_name: str, cwd: Path) -> dict | None:
+    def decision(
+        self, tool_name: str, cwd: Path, tool_input: dict | None = None
+    ) -> dict | None:
         """Return the guard's hook output for one PreToolUse call, or None."""
+        hook_input = {"tool_name": tool_name, "cwd": str(cwd)}
+        if tool_input is not None:
+            hook_input["tool_input"] = tool_input
         buffer = io.StringIO()
         with redirect_stdout(buffer):
-            run_pretooluse({"tool_name": tool_name, "cwd": str(cwd)})
+            run_pretooluse(hook_input)
         printed = buffer.getvalue().strip()
         return json.loads(printed) if printed else None
 
@@ -96,15 +104,73 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
         self.assertTrue(is_linked_worktree(str(self.linked)))
         self.assertFalse(is_linked_worktree(str(self.primary)))
 
-    def test_memory_write_from_a_linked_worktree_is_denied(self):
+    def test_memory_write_from_a_linked_worktree_without_a_target_is_denied(self):
         reason = self.denial_reason(
             self.decision("mcp__shaft-memory__remember_memory", self.linked)
         )
         self.assertIsNotNone(reason)
         self.assertIn("R11", reason)
-        # The refusal has to be actionable: the CLI resolves its own cwd
-        # correctly, so it is the way out, not a dead end.
+        # The refusal has to be actionable, and BOTH remedies have to appear.
+        # An earlier revision named only the CLI, on the false premise that the
+        # server could not be targeted at all; the adversarial review of #4507
+        # refuted that from the shipped bundle.
+        self.assertIn("project_root", reason)
         self.assertIn("memory remember", reason)
+
+    def test_the_refusal_does_not_claim_where_the_write_would_land(self):
+        # The first revision asserted "this write would land in the PRIMARY
+        # checkout". With `project_root` supplied that is false, and the rule
+        # cannot see the argument unless it reads tool_input -- so the message
+        # stated a falsehood it had no way to check. A guard that lies about
+        # its reason teaches agents to distrust the guard.
+        reason = self.denial_reason(
+            self.decision("mcp__shaft-memory__remember_memory", self.linked)
+        )
+        self.assertNotIn("would land in the PRIMARY", reason)
+
+    def test_a_write_explicitly_targeted_at_this_worktree_is_allowed(self):
+        # `@aictx/memory@0.1.55` resolves every tool call's root as
+        # resolve(server_cwd, args.project_root ?? ".") -- server.js:11538,
+        # used by remember_memory at :11821 and save_memory_patch at :11965.
+        # An absolute project_root naming this worktree therefore writes HERE,
+        # and denying it would refuse the correct call.
+        self.assertIsNone(
+            self.denial_reason(
+                self.decision(
+                    "mcp__shaft-memory__remember_memory",
+                    self.linked,
+                    {"project_root": str(self.linked)},
+                )
+            )
+        )
+
+    def test_a_write_targeted_at_another_tree_is_still_denied(self):
+        # Supplying the argument is not the point; supplying it correctly is.
+        reason = self.denial_reason(
+            self.decision(
+                "mcp__shaft-memory__remember_memory",
+                self.linked,
+                {"project_root": str(self.primary)},
+            )
+        )
+        self.assertIsNotNone(reason)
+        self.assertIn("project_root", reason)
+
+    def test_a_relative_project_root_is_denied_because_it_resolves_elsewhere(self):
+        # The server's own argument description says relative paths resolve
+        # from the MCP server launch directory, not from the agent's cwd, and
+        # recommends absolute paths. "." is the default that produced the bug.
+        for value in (".", "..", "some/relative/path"):
+            with self.subTest(project_root=value):
+                self.assertIsNotNone(
+                    self.denial_reason(
+                        self.decision(
+                            "mcp__shaft-memory__remember_memory",
+                            self.linked,
+                            {"project_root": value},
+                        )
+                    )
+                )
 
     def test_memory_patch_write_from_a_linked_worktree_is_denied_too(self):
         reason = self.denial_reason(
@@ -144,6 +210,87 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
                 self.decision("mcp__mempalace__mempalace_add_drawer", self.linked)
             )
         )
+
+    def test_a_separate_git_dir_checkout_is_not_a_linked_worktree(self):
+        # `git init --separate-git-dir` gives a PRIMARY checkout a `.git` file
+        # holding a gitdir: pointer -- the same shape a linked worktree has.
+        # Classifying it as linked would refuse memory writes in an ordinary
+        # checkout and explain it with worktree isolation, which has nothing to
+        # do with it. The real tell is where the pointer lands: a linked
+        # worktree's gitdir sits under `<common>/worktrees/<name>`.
+        separate = self.container / "separate"
+        elsewhere = self.container / "elsewhere.git"
+        separate.mkdir()
+        git(separate, "init", "-q", "-b", "main", "--separate-git-dir", str(elsewhere), ".")
+        self.assertTrue((separate / ".git").is_file())
+        self.assertFalse(is_linked_worktree(str(separate)))
+
+    def test_the_real_guard_process_denies_a_real_mcp_payload(self):
+        # The unit cases call `run_pretooluse` in-process. This drives the
+        # tracked script the hosts actually launch, over stdin, with the JSON
+        # shape a host sends -- so the payload contract (tool_name, cwd,
+        # tool_input) is exercised end to end rather than modelled.
+        #
+        # It still cannot prove that Claude or Codex *route* an MCP tool name
+        # through PreToolUse at all; that is asserted by the matcher test below
+        # and remains the one link in this chain nothing here executes.
+        payload = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "mcp__shaft-memory__remember_memory",
+                "tool_input": {"task": "t"},
+                "cwd": str(self.linked),
+            }
+        )
+        completed = subprocess.run(  # nosec B603 B607 - the repository's own guard.
+            [sys.executable, str(ROOT / "scripts/agents/guard.py")],
+            input=payload,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        output = json.loads(completed.stdout)
+        self.assertEqual(
+            output["hookSpecificOutput"]["permissionDecision"], "deny", completed.stdout
+        )
+
+    def test_the_real_guard_process_allows_a_targeted_mcp_payload(self):
+        payload = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "mcp__shaft-memory__remember_memory",
+                "tool_input": {"task": "t", "project_root": str(self.linked)},
+                "cwd": str(self.linked),
+            }
+        )
+        completed = subprocess.run(  # nosec B603 B607 - the repository's own guard.
+            [sys.executable, str(ROOT / "scripts/agents/guard.py")],
+            input=payload,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.strip(), "", completed.stdout)
+
+    def test_a_payload_without_cwd_fails_open_rather_than_denying_blindly(self):
+        # Not every host sends `cwd`. `_hook_working_directory` then falls back
+        # to the hook process's own directory, which is the client launch dir,
+        # not the agent's worktree -- so R11 sees the primary checkout and does
+        # not fire. That is a miss, not a false denial, and a miss is the right
+        # side to fail on: denying every memory write on a host whose payload
+        # shape is unknown would be worse than the defect. Pinned so the
+        # direction of the failure is a decision rather than an accident.
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            run_pretooluse(
+                {
+                    "tool_name": "mcp__shaft-memory__remember_memory",
+                    "tool_input": {"task": "t"},
+                }
+            )
+        self.assertEqual(buffer.getvalue().strip(), "")
 
     def test_outside_a_repository_the_rule_fails_open(self):
         # A guard that denies where it cannot tell would block memory writes in

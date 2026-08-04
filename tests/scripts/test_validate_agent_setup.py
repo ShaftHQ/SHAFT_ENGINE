@@ -381,6 +381,62 @@ approval_mode = "prompt"
         self.assertEqual(metrics["memory_objects"], tracked + 1)
         self.assertEqual(metrics["memory_objects_untracked"], 0)
 
+    def test_a_non_ascii_object_is_still_counted(self):
+        # `core.quotepath` is on by default, so git renders a non-ASCII path as
+        # a quoted C-style string: ".memory/.../caf\303\251.json" -- trailing
+        # quote and all. Matching on `.endswith(".json")` therefore dropped it
+        # from BOTH the landed and the present sets, so a committed object
+        # vanished from the count and an uncommitted one was reported as
+        # neither landed nor untracked. That is strictly worse than the
+        # filesystem walk this replaced, which counted it correctly.
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/café-naïve.json", "{}")
+        self.git("add", "--", ".memory/memory/gotchas/café-naïve.json")
+        self.git("commit", "-qm", "non-ascii object")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked + 1)
+        self.assertEqual(metrics["memory_objects_untracked"], 0)
+
+    def test_a_non_ascii_object_left_uncommitted_is_reported_as_untracked(self):
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        tracked = self.metrics_for_budget()["memory_objects"]
+
+        self.write(".memory/memory/gotchas/café-naïve.json", "{}")
+
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["memory_objects"], tracked)
+        self.assertEqual(metrics["memory_objects_untracked"], 1)
+
+    def test_when_git_cannot_answer_the_count_is_labelled_not_quoted_silently(self):
+        # The fallback returned the pre-fix `rglob` walk, and because the
+        # untracked figure was None the banner printed no label at all -- a
+        # count indistinguishable from a git-verified one, which is exactly the
+        # hole #4495 reports. It fires on an unborn HEAD (a repository with no
+        # commits yet), with no git on PATH, and on an exported archive with no
+        # `.git` at all.
+        self.init_repository()  # no commit: HEAD is unborn, `ls-tree HEAD` fails
+        self.write(".memory/memory/gotchas/never-committed.json", "{}")
+
+        metrics = self.metrics_for_budget()
+        self.assertIsNone(metrics["memory_objects_untracked"])
+        banner = format_banner(metrics)
+        self.assertIn("unverified", banner)
+        self.assertNotRegex(banner, r"\d+ memory objects\.")
+        # The count itself must still be the honest worktree figure. Asserting
+        # only the label would leave the fallback's arithmetic unbound -- the
+        # review of #4507 killed an earlier version of this test by replacing
+        # the whole fallback with `return 0, None` and watching it stay green.
+        on_disk = len(list((self.root / ".memory/memory").rglob("*.json")))
+        self.assertEqual(metrics["memory_objects"], on_disk)
+        self.assertGreater(on_disk, 0)
+
     def test_banner_labels_untracked_objects_so_the_figure_cannot_be_misquoted(self):
         # `339 memory objects` is quotable as a claim about main. `338 memory
         # objects (1 untracked)` is not, which is the whole point of #4495.

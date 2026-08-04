@@ -535,6 +535,14 @@ def reduction_percent(guidance_bytes: int, baseline: int | None) -> float | None
 def _git_paths(root: Path, *arguments: str) -> set[str] | None:
     """Return repository-relative paths from a read-only git query, or None.
 
+    Every query is NUL-delimited (`-z`). Without it git applies `core.quotepath`
+    and renders a non-ASCII path as a quoted C-style string --
+    `".memory/.../caf\\303\\251.json"`, trailing quote included -- which then
+    fails a `.endswith(".json")` match and drops the object from the count
+    entirely. A newline in a filename splits one path into two lines for the
+    same reason. `-z` emits raw bytes with an unambiguous separator, so neither
+    shape can misparse.
+
     None means git could not answer -- no binary, or not a repository -- and is
     deliberately distinct from the empty set, which means git answered "none".
     """
@@ -554,7 +562,7 @@ def _git_paths(root: Path, *arguments: str) -> set[str] | None:
         return None
     if completed.returncode != 0:
         return None
-    return {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+    return {entry for entry in completed.stdout.split("\0") if entry}
 
 
 def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None]:
@@ -580,9 +588,20 @@ def memory_object_counts(root: Path, memory_root: Path) -> tuple[int, int | None
     if not memory_root.is_dir():
         return 0, None
     relative = memory_root.relative_to(root).as_posix()
-    landed = _git_paths(root, "ls-tree", "-r", "--name-only", "HEAD", "--", relative)
+    # `-z` must precede the `--`, or git reads it as a pathspec and matches
+    # nothing -- silently, with exit code 0 and an empty result.
+    landed = _git_paths(
+        root, "ls-tree", "-r", "-z", "--name-only", "HEAD", "--", relative
+    )
     visible = _git_paths(
-        root, "ls-files", "--cached", "--others", "--exclude-standard", "--", relative
+        root,
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--",
+        relative,
     )
     if landed is None or visible is None:
         return len(list(memory_root.rglob("*.json"))), None
@@ -597,11 +616,18 @@ def format_banner(metrics: dict) -> str:
     if metrics.get("guidance_reduction_percent") is not None:
         parts.append(f"{metrics['guidance_reduction_percent']}% reduction")
     objects = f"{metrics['memory_objects']} memory objects"
-    # Labelled only when there is something to label. `338 memory objects` is
-    # quotable as a claim about main; `338 memory objects (1 untracked)` is not.
-    untracked = metrics.get("memory_objects_untracked")
-    if untracked:
-        objects += f" ({untracked} untracked)"
+    # Three states, and the bare wording belongs to exactly one of them.
+    # `338 memory objects` is quotable as a claim about main, so it is reserved
+    # for a git-verified count with nothing outstanding. A count git could not
+    # verify says so: the fallback is the pre-fix filesystem walk, and letting
+    # it print the quotable wording restores #4495's hole in the one path where
+    # the fix does not apply.
+    if "memory_objects_untracked" in metrics:
+        untracked = metrics["memory_objects_untracked"]
+        if untracked is None:
+            objects += " (unverified: git could not answer)"
+        elif untracked:
+            objects += f" ({untracked} untracked)"
     parts.append(objects)
     return f"Agent setup is valid: {', '.join(parts)}."
 
