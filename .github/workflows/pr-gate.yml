@@ -148,6 +148,10 @@ jobs:
               - 'pom.xml'
             infra:
               - '.github/workflows/pr-gate.yml'
+              # Composite actions this gate's jobs call (issue #4440 added
+              # cache-maven-repo): editing one changes what every java job here
+              # actually runs, so it has to re-run them.
+              - '.github/actions/**'
             # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
             # any workflow file change must re-check that every job still declares
             # timeout-minutes, not only edits to this file (already covered by infra).
@@ -293,7 +297,8 @@ jobs:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
-          cache: 'maven'
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
       - name: Install shaft-cli reactor dependencies
         run: mvn --batch-mode -pl shaft-cli -am -DskipTests install -q '-DheadlessExecution=true' '-Dgpg.skip' '-Dcyclonedx.skip'
       # -Dshaft.intellij.liveToolE2E=true with no liveMcpCommand set (issue #3932a):
@@ -426,7 +431,8 @@ jobs:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
-          cache: 'maven'
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
       - name: Install ${{ matrix.module }} prerequisites without tests
         run: >-
           mvn --batch-mode
