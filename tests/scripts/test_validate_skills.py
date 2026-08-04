@@ -38,12 +38,51 @@ be reported as unlisted because it never enters the set being compared.
 import json
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from scripts.ci.validate_agent_guidance import expand_reported_globs, require_glob_list
 from scripts.ci.validate_skills import validate_repository
 
 MARKETPLACE_PATH = ".claude-plugin/marketplace.json"
+
+
+def source_shape_escapes(source: str) -> bool:
+    """True when `source` is rooted, drive-anchored, or traverses upward.
+
+    Decided under BOTH spellings, never under whichever one `Path` happens to
+    be. `marketplace.json` is a single cross-platform artifact, so a source
+    must mean the same thing to every host that reads it -- and the flavours
+    disagree about exactly the shapes that matter (measured, see
+    `SourceShapeTest`): `/etc` is absolute to POSIX but driveless-and-rooted to
+    Windows, `C:/Windows` is a drive to Windows and an ordinary relative
+    directory name to POSIX, and both backslash spellings are structure to
+    Windows and one long filename to POSIX.
+
+    `.root` rather than `.is_absolute()`: `PureWindowsPath('/etc')` is rooted
+    but not absolute (it has no drive), which is precisely the case that let a
+    POSIX-absolute source through on a Windows host.
+    """
+    return any(
+        flavour.root or flavour.drive or ".." in flavour.parts
+        for flavour in (PurePosixPath(source), PureWindowsPath(source))
+    )
+
+
+def source_escapes_root(root: Path, source: str) -> bool:
+    """True when `source` does not stay inside `root`.
+
+    Two halves. The shape half above rejects a source that is written as an
+    escape. This half asks the question that actually matters -- does the join
+    land inside the repository? -- from RESOLVED paths, because a path can be
+    spelled two ways and `relative_to` compares spellings rather than locations
+    (#4497). The root itself is inside the repository, so it is not an escape;
+    an empty source directory is reported as `marketplace-source-empty`.
+    """
+    if source_shape_escapes(source):
+        return True
+    resolved_root = root.resolve()
+    candidate = (root / source).resolve()
+    return candidate != resolved_root and resolved_root not in candidate.parents
 
 
 def issue(code: str, message: str) -> dict[str, str]:
@@ -61,8 +100,7 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
     # `root / source` silently DISCARDS root when source is absolute, and
     # `Path.glob` rejects an absolute pattern outright, so both are refused
     # before either is reached.
-    source_path = Path(source)
-    if source_path.is_absolute() or source_path.drive or ".." in source_path.parts:
+    if source_escapes_root(root, source):
         return [
             issue(
                 "marketplace-source-escapes-root",
@@ -389,13 +427,37 @@ class MarketplaceManifestTest(unittest.TestCase):
         self.assertIn("marketplace-source-empty", self.codes())
 
     def test_rejects_absolute_source_path(self):
-        """`root / absolute` discards root, so an absolute source escapes it."""
-        self.marketplace["plugins"][0]["source"] = "C:/Windows"
+        """`root / absolute` discards root, so an absolute source escapes it.
+
+        The absolute path is built at runtime rather than written as a
+        drive-letter literal: `C:/Windows` is not absolute on POSIX at all, so
+        a hardcoded one asserts a Windows-specific consequence of a
+        Windows-specific input and fails on the ubuntu runner.
+        """
+        absolute_source = Path(tempfile.gettempdir()).resolve()
+        self.assertTrue(absolute_source.is_absolute())
+        self.marketplace["plugins"][0]["source"] = absolute_source.as_posix()
         self.write_marketplace()
         self.assertIn("marketplace-source-escapes-root", self.codes())
 
     def test_rejects_parent_traversal_source_path(self):
         self.marketplace["plugins"][0]["source"] = "../elsewhere"
+        self.write_marketplace()
+        self.assertIn("marketplace-source-escapes-root", self.codes())
+
+    def test_rejects_a_source_resolving_outside_the_root_through_a_symlink(self):
+        """The location half: a spelling with no `..` that still lands outside.
+
+        `relative_to` compares spellings, not locations (#4497), so the
+        decision is made from resolved paths.
+        """
+        outside = self.root.parent / f"outside-{self.root.name}"
+        outside.mkdir()
+        try:
+            (self.root / "escape-link").symlink_to(outside, target_is_directory=True)
+        except OSError as error:  # unprivileged Windows runner
+            self.skipTest(f"symlinks unavailable: {error}")
+        self.marketplace["plugins"][0]["source"] = "./escape-link"
         self.write_marketplace()
         self.assertIn("marketplace-source-escapes-root", self.codes())
 
@@ -414,6 +476,88 @@ class MarketplaceManifestTest(unittest.TestCase):
     def test_current_repository_marketplace_matches_the_skill_directories(self):
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(marketplace_errors(repository_root), [])
+
+
+class SourceShapeTest(unittest.TestCase):
+    """The escape guard's *shape* half, evaluated for both spellings at once.
+
+    `Path` is `WindowsPath` on a Windows runner and `PosixPath` on ubuntu, so a
+    guard written against `Path` alone reaches a different verdict per platform
+    for exactly the shapes that matter -- measured before this class existed:
+
+        source              POSIX   Windows
+        '../elsewhere'      True    True
+        '..\\elsewhere'     False   True     <- disagreed
+        '/etc'              True    False    <- disagreed
+        'C:/Windows'        False   True     <- disagreed
+        '//server/share'    True    True
+        '\\\\server\\share' False   True     <- disagreed
+
+    A manifest is one cross-platform artifact read by every host, so it must
+    get one verdict. `source_shape_escapes` decides under BOTH spellings, which
+    also makes the whole table assertable from either platform.
+    """
+
+    INSIDE = ("./shaft-skills", "shaft-skills", ".", "shaft-skills/nested")
+    OUTSIDE = (
+        "../elsewhere",
+        "..\\elsewhere",
+        "/etc",
+        "C:/Windows",
+        "//server/share",
+        "\\\\server\\share",
+    )
+
+    def test_relative_sources_are_accepted(self):
+        for source in self.INSIDE:
+            with self.subTest(source=source):
+                self.assertFalse(source_shape_escapes(source))
+
+    def test_posix_absolute_source_is_rejected(self):
+        self.assertTrue(source_shape_escapes("/etc"))
+
+    def test_windows_drive_source_is_rejected(self):
+        """Rejected on POSIX too, where it is merely a relative directory name.
+
+        Reporting it as `marketplace-source-missing` there would invite someone
+        to satisfy the check by creating a literal `C:` directory.
+        """
+        self.assertTrue(source_shape_escapes("C:/Windows"))
+
+    def test_forward_slash_unc_source_is_rejected(self):
+        self.assertTrue(source_shape_escapes("//server/share"))
+
+    def test_backslash_unc_source_is_rejected(self):
+        self.assertTrue(source_shape_escapes("\\\\server\\share"))
+
+    def test_backslash_parent_traversal_is_rejected(self):
+        self.assertTrue(source_shape_escapes("..\\elsewhere"))
+
+    @staticmethod
+    def single_flavour_verdict(flavour):
+        """The pre-fix predicate, as it saw whichever flavour `Path` was."""
+        return bool(flavour.is_absolute() or flavour.drive or ".." in flavour.parts)
+
+    def test_shapes_the_flavours_disagree_about_are_still_rejected(self):
+        """The regression guard for the ubuntu-only failure this class fixes.
+
+        Each source here is one the two flavours reach OPPOSITE verdicts on, so
+        a `Path`-based guard rejects it on one platform and lets it through as
+        merely "missing" on the other. Pinning the disagreement keeps the list
+        honest: if a shape stops disagreeing, this test says so rather than
+        quietly guarding nothing.
+        """
+        for source in ("..\\elsewhere", "/etc", "C:/Windows", "\\\\server\\share"):
+            with self.subTest(source=source):
+                self.assertNotEqual(
+                    self.single_flavour_verdict(PurePosixPath(source)),
+                    self.single_flavour_verdict(PureWindowsPath(source)),
+                    f"{source!r} is listed here because the flavours disagree about it",
+                )
+                self.assertTrue(
+                    source_shape_escapes(source),
+                    f"{source!r} must be rejected on every platform, not just one",
+                )
 
 
 if __name__ == "__main__":
