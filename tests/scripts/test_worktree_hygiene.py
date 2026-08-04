@@ -96,7 +96,10 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.write(worktree, "docs/guide.md", "Thirteen files of real work.\n")
         self.write(worktree, "README.md", "# Project\n\nEdited.\n")
 
-        entry = self.entry(collect_worktree_report(self.main), "stale")
+        entry = self.entry(
+            collect_worktree_report(self.main, open_pull_requests=lambda _branch: 0),
+            "stale",
+        )
         self.assertEqual(entry["state"], "abandoned")
         self.assertEqual(entry["uncommitted_files"], 2)
         self.assertEqual(entry["unique_commits"], 0)
@@ -107,7 +110,9 @@ class WorktreeHygieneTest(unittest.TestCase):
         worktree = self.add_worktree("stale", "ChaosEngine/stale")
         self.write(worktree, "docs/guide.md", "work\n")
 
-        advisories = format_advisories(collect_worktree_report(self.main))
+        advisories = format_advisories(
+            collect_worktree_report(self.main, open_pull_requests=lambda _branch: 0)
+        )
         self.assertEqual(len(advisories), 1)
         advisory = advisories[0]
         self.assertIn("abandoned", advisory)
@@ -233,8 +238,44 @@ class WorktreeHygieneTest(unittest.TestCase):
         (worktree / "README.md").write_bytes(b"\x00" * 200)
         self.write(worktree, "notes.md", "real work\n")
 
-        entry = self.entry(collect_worktree_report(self.main), "zeroed")
+        report = collect_worktree_report(self.main)
+        entry = self.entry(report, "zeroed")
         self.assertEqual(entry["state"], "corrupt")
+        advisory = next(item for item in format_advisories(report) if "zeroed" in item)
+        self.assertIn("-- <confirmed-corrupt-path>", advisory)
+        self.assertNotIn("-- .", advisory)
+
+    def test_corrupt_path_advice_is_shell_neutral(self):
+        worktree = self.add_worktree("quoted", "ChaosEngine/quoted")
+        self.write(worktree, "O'Brien.md", "healthy\n")
+        git(worktree, "add", "-A")
+        git(worktree, "commit", "-qm", "apostrophe path")
+        (worktree / "O'Brien.md").write_bytes(b"\x00" * 200)
+
+        advisory = next(
+            item
+            for item in format_advisories(collect_worktree_report(self.main))
+            if "quoted" in item
+        )
+
+        self.assertIn("O'Brien.md", advisory)
+        self.assertIn("<confirmed-corrupt-path>", advisory)
+        self.assertNotIn('"\'"\'', advisory)
+
+    def test_truncated_corruption_scan_is_disclosed(self):
+        worktree = self.add_worktree("large", "ChaosEngine/large")
+        self.write(worktree, "notes.md", "real work\n")
+
+        with patch(
+            "scripts.ci.worktree_hygiene.scan_for_nul_corruption",
+            return_value=([], 2001, True),
+        ):
+            report = collect_worktree_report(self.main)
+
+        entry = self.entry(report, "large")
+        self.assertTrue(entry["scan_truncated"])
+        advisory = next(item for item in format_advisories(report) if "large" in item)
+        self.assertIn("first 2000", advisory)
 
     # --- ending a turn with uncommitted changes -----------------------------
 
@@ -290,7 +331,7 @@ class WorktreeHygieneTest(unittest.TestCase):
 
         entry = self.entry(collect_worktree_report(self.main), "stale")
         self.assertIsNone(entry["open_pull_requests"])
-        self.assertEqual(entry["state"], "abandoned")
+        self.assertEqual(entry["state"], "uncommitted")
 
     def test_a_failing_pull_request_lookup_does_not_break_the_report(self):
         worktree = self.add_worktree("stale", "ChaosEngine/stale")
@@ -304,7 +345,7 @@ class WorktreeHygieneTest(unittest.TestCase):
             "stale",
         )
         self.assertIsNone(entry["open_pull_requests"])
-        self.assertEqual(entry["state"], "abandoned")
+        self.assertEqual(entry["state"], "uncommitted")
 
     def test_advisory_says_when_no_pull_request_lookup_happened(self):
         worktree = self.add_worktree("stale", "ChaosEngine/stale")

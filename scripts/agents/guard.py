@@ -120,7 +120,47 @@ def _command_segments(command: str) -> list[str]:
 def _segment_tokens(segment: str) -> list[str]:
     stripped = segment.strip()
     stripped = re.sub(r"^&\s*", "", stripped)  # PowerShell call operator
-    return stripped.split()
+    tokens: list[str] = []
+    token: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(stripped):
+        character = stripped[index]
+        following = stripped[index + 1] if index + 1 < len(stripped) else ""
+        if quote is not None:
+            if character == quote:
+                if quote == "'" and following == "'":
+                    token.append("'")  # PowerShell's apostrophe escape.
+                    index += 2
+                    continue
+                quote = None
+            elif quote == '"' and character == "`" and following:
+                token.append(following)  # PowerShell escapes the next character.
+                index += 2
+                continue
+            elif quote == '"' and character == "\\" and following == '"':
+                token.append('"')
+                index += 2
+                continue
+            else:
+                token.append(character)
+            index += 1
+            continue
+        if character.isspace():
+            if token:
+                tokens.append("".join(token))
+                token = []
+        elif character in ("'", '"'):
+            quote = character
+        elif character == "\\" and following in ("'", '"', " "):
+            token.append(following)
+            index += 1
+        else:
+            token.append(character)
+        index += 1
+    if token:
+        tokens.append("".join(token))
+    return tokens
 
 
 def _head_executable_matches(segment: str, names: frozenset[str]) -> bool:
@@ -565,7 +605,7 @@ def _worktree_add_path(rest_after_add: list[str]) -> str | None:
         if token.startswith("-"):
             index += 1
             continue
-        return token.strip("\"'")
+        return token
     return None
 
 
@@ -671,15 +711,22 @@ def nul_byte_ratio(path) -> float | None:
 class _StagingInvocation:
     """What a staging command stages, and where."""
 
-    def __init__(self, subcommand: str, directories: list[str], pathspecs: list[str]):
+    def __init__(
+        self,
+        subcommand: str,
+        directories: list[str],
+        pathspecs: list[str],
+        include_worktree: bool = False,
+    ):
         self.subcommand = subcommand
         self.directories = directories  # -C / --work-tree, applied in order
         self.pathspecs = pathspecs  # empty means "everything"
+        self.include_worktree = include_worktree
 
 
 def _normalize_pathspec(value: str) -> str | None:
     """Reduce a pathspec to a repository-relative posix prefix, or None."""
-    cleaned = value.strip("\"'").replace("\\", "/").strip()
+    cleaned = value.replace("\\", "/").strip()
     while cleaned.startswith("./"):
         cleaned = cleaned[2:]
     cleaned = cleaned.rstrip("/")
@@ -692,6 +739,26 @@ def _normalize_pathspec(value: str) -> str | None:
 
 _NESTED_COMMAND_RE = re.compile(
     r"(?:--?[Cc]ommand|-[Cc]|/[Cc])\s+(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+)
+_COMMIT_OPTIONS_WITH_ARGUMENT = frozenset(
+    {
+        "-C",
+        "-F",
+        "-c",
+        "-m",
+        "-t",
+        "--author",
+        "--cleanup",
+        "--date",
+        "--file",
+        "--fixup",
+        "--message",
+        "--reedit-message",
+        "--reuse-message",
+        "--squash",
+        "--template",
+        "--trailer",
+    }
 )
 
 
@@ -730,15 +797,15 @@ def _staging_invocation_in(command: str) -> _StagingInvocation | None:
         while index < len(rest):
             token = rest[index]
             if token == "-C" and index + 1 < len(rest):
-                directories.append(rest[index + 1].strip("\"'"))
+                directories.append(rest[index + 1])
                 index += 2
                 continue
             if token == "--work-tree" and index + 1 < len(rest):
-                directories.append(rest[index + 1].strip("\"'"))
+                directories.append(rest[index + 1])
                 index += 2
                 continue
             if token.startswith("--work-tree="):
-                directories.append(token.split("=", 1)[1].strip("\"'"))
+                directories.append(token.split("=", 1)[1])
                 index += 1
                 continue
             if token in _GIT_GLOBAL_OPTS_WITH_ARG:
@@ -755,22 +822,44 @@ def _staging_invocation_in(command: str) -> _StagingInvocation | None:
 
         # `git add <path>` names what it stages, and honouring that lets an
         # agent rescue healthy files while one corrupt file sits in the tree.
-        # `git commit -m <message>` does NOT: its arguments are message text,
-        # so a commit pathspec is only read after an explicit `--`.
+        # `git commit -m <message>` does NOT: known option values are skipped,
+        # while remaining positional arguments are commit pathspecs.
         pathspecs: list[str] = []
         narrowable = subcommand in ("add", "stage")
+        include_worktree = False
         after_separator = False
         while index < len(rest):
             token = rest[index]
             index += 1
             if token == "--":
                 after_separator = True
+                narrowable = True
                 continue
             if token.startswith("--pathspec-from-file"):
                 pathspecs = []  # the list lives in a file: do not narrow
+                include_worktree = subcommand == "commit"
                 break
+            if subcommand == "commit" and not after_separator:
+                lowered = token.lower()
+                if lowered == "--all" or re.match(r"^-[^-]*a", lowered):
+                    include_worktree = True
+                if token in _COMMIT_OPTIONS_WITH_ARGUMENT:
+                    index += 1
+                    continue
+                if any(
+                    lowered.startswith(option.lower() + "=")
+                    for option in _COMMIT_OPTIONS_WITH_ARGUMENT
+                    if option.startswith("--")
+                ):
+                    continue
+                if re.match(r"^-[A-Za-z]*[mFCct]$", token):
+                    index += 1
+                    continue
             if token.startswith("-") and not after_separator:
                 continue
+            if subcommand == "commit":
+                include_worktree = True
+                narrowable = True
             if not (narrowable or after_separator):
                 continue
             normalized = _normalize_pathspec(token)
@@ -778,7 +867,7 @@ def _staging_invocation_in(command: str) -> _StagingInvocation | None:
                 pathspecs = []
                 break
             pathspecs.append(normalized)
-        return _StagingInvocation(subcommand, directories, pathspecs)
+        return _StagingInvocation(subcommand, directories, pathspecs, include_worktree)
     return None
 
 
@@ -805,7 +894,9 @@ def _git_paths(cwd: str, *arguments: str) -> list[str] | None:
     return [os.fsdecode(entry) for entry in completed.stdout.split(b"\0") if entry]
 
 
-def _candidate_paths(cwd: str) -> list[str] | None:
+def _candidate_paths(
+    cwd: str, *, staged_only: bool = False, include_untracked: bool = True
+) -> list[str] | None:
     """Every path a stage/commit could capture: changed, staged, or untracked.
 
     `git diff HEAD` spans the index and the working tree in one call, covering
@@ -814,10 +905,16 @@ def _candidate_paths(cwd: str) -> list[str] | None:
     `git add -A && git commit` would carry a newly zeroed file straight
     through. Ignored paths are excluded, so build output is never scanned.
     """
-    changed = _git_paths(cwd, "diff", "--name-only", "-z", "HEAD")
+    diff_arguments = ["diff"]
+    if staged_only:
+        diff_arguments.append("--cached")
+    diff_arguments.extend(("--name-only", "-z", "HEAD"))
+    changed = _git_paths(cwd, *diff_arguments)
     if changed is None:
         return None
-    untracked = _git_paths(cwd, "ls-files", "--others", "--exclude-standard", "-z") or []
+    untracked = []
+    if include_untracked:
+        untracked = _git_paths(cwd, "ls-files", "--others", "--exclude-standard", "-z") or []
     seen: dict[str, None] = {}
     for path in (*changed, *untracked):
         seen.setdefault(path, None)
@@ -825,9 +922,13 @@ def _candidate_paths(cwd: str) -> list[str] | None:
 
 
 def scan_for_nul_corruption(
-    cwd: str, pathspecs: list[str] | None = None
-) -> tuple[list[str], int]:
-    """Return (corrupted paths, paths examined) for a working directory.
+    cwd: str,
+    pathspecs: list[str] | None = None,
+    *,
+    staged_only: bool = False,
+    include_untracked: bool = True,
+) -> tuple[list[str], int, bool]:
+    """Return (corrupted paths, candidate count, scan truncated) for a directory.
 
     Shared with the repository's worktree hygiene report so one definition of
     "this file is zeroed" serves both the deny guard and the reporting path.
@@ -838,15 +939,18 @@ def scan_for_nul_corruption(
     file non-zero insertion/deletion counts, and a pre-filter keyed on those
     counts would exempt exactly the file it needs to catch.
     """
-    candidates = _candidate_paths(cwd)
+    candidates = _candidate_paths(
+        cwd, staged_only=staged_only, include_untracked=include_untracked
+    )
     if not candidates:
-        return [], 0
+        return [], 0, False
     if pathspecs:
         candidates = [
             path
             for path in candidates
             if any(path == spec or path.startswith(spec + "/") for spec in pathspecs)
         ]
+    candidate_count = len(candidates)
     examined = candidates[:_NUL_MAX_SCANNED_PATHS]
     corrupt = [
         path
@@ -855,7 +959,7 @@ def scan_for_nul_corruption(
         # denies a tool call, so it must never block on what it cannot read.
         if (nul_byte_ratio(os.path.join(cwd, path)) or 0.0) >= _NUL_RATIO_THRESHOLD
     ]
-    return corrupt, len(examined)
+    return corrupt, candidate_count, candidate_count > len(examined)
 
 
 def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None:
@@ -870,7 +974,25 @@ def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None
     for part in invocation.directories:
         directory = os.path.join(directory, part)
 
-    corrupt, examined = scan_for_nul_corruption(directory, invocation.pathspecs)
+    plain_commit = (
+        invocation.subcommand == "commit"
+        and not invocation.include_worktree
+        and not invocation.pathspecs
+    )
+    corrupt, candidate_count, truncated = scan_for_nul_corruption(
+        directory,
+        invocation.pathspecs,
+        staged_only=plain_commit,
+        include_untracked=invocation.subcommand != "commit",
+    )
+    if truncated and not corrupt:
+        return (
+            f"R10 (NUL-byte corruption scan limit): {candidate_count} candidate "
+            f"files exceed the safe {_NUL_MAX_SCANNED_PATHS}-file scan. The "
+            "guard will not allow unchecked content through; name smaller path "
+            "sets in separate `git add <paths>` commands, then commit matching "
+            "sets with `git commit -- <paths>`."
+        )
     if not corrupt:
         return None
 
@@ -881,7 +1003,8 @@ def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None
         corrupt[0] if len(corrupt) == 1 else "<each corrupt path listed above>"
     )
     return (
-        f"R10 (NUL-byte corruption): {len(corrupt)} of {examined} candidate "
+        f"R10 (NUL-byte corruption): {len(corrupt)} of "
+        f"{min(candidate_count, _NUL_MAX_SCANNED_PATHS)} examined candidate "
         "file(s) are almost entirely NUL bytes and would be committed as "
         f"zeroed content: {shown}. Files of a plausible size filled with NUL "
         "are the signature of an unclean shutdown -- the filesystem recorded "

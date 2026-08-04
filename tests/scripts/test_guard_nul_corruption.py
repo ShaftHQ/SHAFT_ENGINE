@@ -19,6 +19,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.agents.guard import (
     check_r10_nul_corruption,
@@ -94,6 +95,15 @@ class NulCorruptionGuardTest(unittest.TestCase):
         reason = check_r10_nul_corruption('git commit -am "wip"', str(self.root))
         self.assertIsNotNone(reason)
 
+    def test_plain_commit_ignores_unrelated_unstaged_corruption(self):
+        self.write_bytes("src/Example.java", b"class Example { // healthy work\n}\n")
+        git(self.root, "add", "src/Example.java")
+        self.corrupt(".gitignore")
+
+        reason = check_r10_nul_corruption('git commit -m "healthy work"', str(self.root))
+
+        self.assertIsNone(reason)
+
     def test_denial_names_the_restore_command_and_the_corruption_cause(self):
         self.corrupt(".gitignore")
         reason = check_r10_nul_corruption("git add -A", str(self.root))
@@ -167,6 +177,41 @@ class NulCorruptionGuardTest(unittest.TestCase):
         reason = check_r10_nul_corruption("git add -A", str(self.root))
         self.assertIsNotNone(reason)
 
+    def test_powershell_single_quote_escape_cannot_bypass_a_corrupt_path(self):
+        self.write_bytes("O'Brien.md", b"healthy\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "apostrophe path")
+        self.corrupt("O'Brien.md")
+
+        reason = check_r10_nul_corruption("git add 'O''Brien.md'", str(self.root))
+
+        self.assertIsNotNone(reason)
+        self.assertIn("O'Brien.md", reason)
+
+    def test_powershell_leading_apostrophe_cannot_resolve_to_a_clean_sibling(self):
+        self.write_bytes("lead.md", b"clean sibling\n")
+        self.write_bytes("'lead.md", b"healthy\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "leading apostrophe")
+        self.corrupt("'lead.md")
+
+        reason = check_r10_nul_corruption("git add '''lead.md'", str(self.root))
+
+        self.assertIsNotNone(reason)
+        self.assertIn("'lead.md", reason)
+
+    def test_powershell_backtick_escape_cannot_resolve_to_a_clean_sibling(self):
+        self.write_bytes("a`$b.md", b"clean sibling\n")
+        self.write_bytes("a$b.md", b"healthy\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "backtick path")
+        self.corrupt("a$b.md")
+
+        reason = check_r10_nul_corruption('git add "a`$b.md"', str(self.root))
+
+        self.assertIsNotNone(reason)
+        self.assertIn("a$b.md", reason)
+
     def test_an_explicit_pathspec_limits_the_scan(self):
         # One corrupt file must not make it impossible to rescue healthy work:
         # `git add <healthy>` names what it stages, so honour it.
@@ -216,6 +261,30 @@ class NulCorruptionGuardTest(unittest.TestCase):
         self.assertIn("12 of", reason)
         self.assertIn("+7 more", reason)
         self.assertLess(reason.count("module"), 12)
+
+    def test_candidate_limit_fails_closed_instead_of_skipping_late_corruption(self):
+        candidates = [f"healthy-{index}.txt" for index in range(2000)] + ["corrupt.txt"]
+
+        def ratio(path: str) -> float:
+            return 1.0 if path.endswith("corrupt.txt") else 0.0
+
+        with patch(
+            "scripts.agents.guard._candidate_paths", return_value=candidates
+        ), patch("scripts.agents.guard.nul_byte_ratio", side_effect=ratio):
+            reason = check_r10_nul_corruption("git add -A", str(self.root))
+
+        self.assertIsNotNone(reason)
+        self.assertIn("2000", reason)
+        self.assertIn("name smaller path sets", reason)
+        self.assertIn("git commit -- <paths>", reason)
+
+        with patch(
+            "scripts.agents.guard._candidate_paths", return_value=candidates
+        ), patch("scripts.agents.guard.nul_byte_ratio", side_effect=ratio):
+            scoped_reason = check_r10_nul_corruption(
+                "git commit -- healthy-0.txt", str(self.root)
+            )
+        self.assertIsNone(scoped_reason)
 
     def test_denial_does_not_recommend_discarding_the_whole_worktree(self):
         # The remedy must not destroy the healthy uncommitted work an agent is

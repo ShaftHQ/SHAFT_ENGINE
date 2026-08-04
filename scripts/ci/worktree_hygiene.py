@@ -189,11 +189,17 @@ def _classify(entry: dict) -> str:
     # leave it alone, never propose removing it.
     protected = entry["is_current"] or entry["is_main"] or entry["locked"]
     already_upstream = entry["unique_commits"] == 0
+    pull_request_status_known = entry["open_pull_requests"] is not None
     has_open_pull_request = bool(entry["open_pull_requests"])
     carries_commits = bool(entry["ahead"])
 
     if uncommitted:
-        if not protected and already_upstream and not has_open_pull_request:
+        if (
+            not protected
+            and already_upstream
+            and pull_request_status_known
+            and not has_open_pull_request
+        ):
             return "abandoned"
         return "uncommitted"
     if uncommitted is None:
@@ -260,7 +266,7 @@ def collect_worktree_report(
         # back to its HEAD rather than reporting nothing about it.
         head = (_git(worktree, "rev-parse", "HEAD") or "").strip() or None
         committish = branch or head
-        corrupt, _ = scan_for_nul_corruption(str(worktree))
+        corrupt, _, scan_truncated = scan_for_nul_corruption(str(worktree))
         ahead, behind = _ahead_behind(root, committish)
 
         pull_requests: int | None = None
@@ -279,6 +285,7 @@ def collect_worktree_report(
             "uncommitted_files": _uncommitted_files(worktree),
             "corrupt_files": len(corrupt),
             "corrupt_paths": corrupt[:5],
+            "scan_truncated": scan_truncated,
             "ahead": ahead,
             "behind": behind,
             "unique_commits": _unique_commits(root, committish),
@@ -301,9 +308,10 @@ def _describe(entry: dict) -> str:
             f"changed file(s) are almost entirely NUL bytes ({shown}). Files of "
             "a plausible size filled with NUL are the signature of an unclean "
             "shutdown, and git reports them as ordinary modifications. Do not "
-            "commit them: restore with `git restore --source=HEAD --staged "
-            "--worktree -- .` in that worktree, then re-create anything that "
-            "existed only there."
+            "commit them. Restore only each confirmed corrupt path, never the "
+            "whole worktree; for example: `git restore --source=HEAD --staged "
+            "--worktree -- <confirmed-corrupt-path>`. Then re-create anything that "
+            "existed only in corrupt files."
         )
     if entry["state"] == "abandoned":
         if entry["branch"] is None:
@@ -340,16 +348,33 @@ def _describe(entry: dict) -> str:
             "this worktree's status, so nothing can be concluded about the "
             "work in it. Inspect it before any cleanup pass touches it."
         )
+    caveat = (
+        " Open pull requests were not checked; rerun with "
+        "`--check-pull-requests` before deciding whether it is stale."
+        if entry["open_pull_requests"] is None and entry["branch"] is not None
+        else ""
+    )
     return (
         f"worktree-uncommitted: {location} ({branch}): {uncommitted} "
         "uncommitted file(s). Uncommitted work is not done -- commit and push "
-        "it before ending the turn, or discard it deliberately."
+        f"it before ending the turn, or discard it deliberately.{caveat}"
     )
 
 
 def format_advisories(report: list[dict]) -> list[str]:
     """One actionable line per worktree that needs attention."""
-    return [_describe(entry) for entry in report if entry["state"] in ADVISORY_STATES]
+    advisories = []
+    for entry in report:
+        if entry["state"] not in ADVISORY_STATES:
+            continue
+        advisory = _describe(entry)
+        if entry.get("scan_truncated"):
+            advisory += (
+                " NUL scan inspected only the first 2000 candidate paths; stage "
+                "smaller named path sets so the guard can verify every file."
+            )
+        advisories.append(advisory)
+    return advisories
 
 
 def build_parser() -> argparse.ArgumentParser:
