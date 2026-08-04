@@ -143,7 +143,21 @@ DELEGATE_INTERVAL_REASON = (
 # staleness check and removing it tripped the non-empty check, and the only way
 # out was to weaken a check -- the very pressure this module warns about in
 # four places. The mechanism is exercised against a synthetic store instead.
-POLICY_RECORD_ALLOWLIST: dict[str, frozenset[str]] = {}
+POLICY_RECORD_ALLOWLIST: dict[str, frozenset[str]] = {
+    # The decision that records why this scan stopped parsing prose. It has to
+    # quote the phrasings that defeated the verb class -- "Read a subagent's
+    # output every 20 minutes" against "I read the delegate's output 20 minutes
+    # in" -- because those two strings are the whole argument, and paraphrasing
+    # the figures out of them would leave a reader unable to see what broke.
+    # A subject beside a figure, asserting no cadence: the exact false positive
+    # A1 accepts by design, taking the exact escape A2 exists to give it.
+    DELEGATE_INTERVAL_REASON: frozenset(
+        {
+            "decision.a-lexical-guard-judges-tokens-only-legitimacy-comes-from"
+            "-an-explicit-id-keyed-allowlist-not-from-parsing-prose",
+        }
+    ),
+}
 
 
 def string_leaves(value: object) -> list[str]:
