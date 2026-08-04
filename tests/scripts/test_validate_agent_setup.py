@@ -8,6 +8,7 @@ from unittest.mock import patch
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
+    collect_metrics,
     collect_worktree_metrics,
     format_banner,
     reduction_percent,
@@ -276,21 +277,45 @@ approval_mode = "prompt"
         self.assertIn("worktree_advisories", metrics)
         self.assertNotIn("worktree", {error["code"] for error in errors})
 
+    def metrics_for_budget(self, **budget_overrides):
+        """Collect metrics against a fixture budget instead of the real one.
+
+        Both reduction cases used to be asserted against the repository's own
+        budget, guarded by `assertNotIn("reduction_baseline_bytes", budget)` --
+        which made a reversible configuration choice fail a test named for
+        something else (#4466). Whether a baseline is configured is #4458's
+        call and may be revisited; how the metric reports each case is this
+        test's subject, and a fixture budget covers both branches without an
+        opinion on which one the repository picks.
+        """
+        budget = {
+            "total_guidance_globs": ["AGENTS.md"],
+            "host_contexts": {},
+            "host_skill_metadata_globs": {},
+        }
+        budget.update(budget_overrides)
+        self.write("scripts/ci/agent_guidance_budget.json", json.dumps(budget))
+        self.write("AGENTS.md", "x" * 1_000)
+        return collect_metrics(self.root)
+
     def test_unconfigured_reduction_is_reported_as_absent_not_as_zero_percent(self):
-        # #3745 retired the global reduction floor on purpose, so no baseline is
-        # configured and the percentage branch never runs. Emitting the literal
-        # 0 anyway published a non-measurement in the units of a measurement:
-        # the banner read "0% reduction", which an agent cannot distinguish from
-        # "measured, and nothing was reduced" -- the worse of the two readings.
-        repository_root = Path(__file__).resolve().parents[2]
-        _, metrics = validate_repository(repository_root, run_external=False)
-        budget = json.loads(
-            (repository_root / "scripts/ci/agent_guidance_budget.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        self.assertNotIn("reduction_baseline_bytes", budget)
+        # #3745 retired the global reduction floor on purpose, so the
+        # percentage branch never runs while no baseline is configured.
+        # Emitting the literal 0 anyway published a non-measurement in the
+        # units of a measurement: the banner read "0% reduction", which an
+        # agent cannot distinguish from "measured, and nothing was reduced" --
+        # the worse of the two readings.
+        metrics = self.metrics_for_budget()
+        self.assertEqual(metrics["guidance_bytes"], 1_000)
         self.assertIsNone(metrics["guidance_reduction_percent"])
+
+    def test_configured_baseline_reports_a_real_reduction_end_to_end(self):
+        # The absent case must not be bought by breaking the measured one, and
+        # the measured one was only ever covered by direct calls to
+        # reduction_percent. Configure a baseline on the fixture and the whole
+        # collection path reports a real figure.
+        metrics = self.metrics_for_budget(reduction_baseline_bytes=2_000)
+        self.assertEqual(metrics["guidance_reduction_percent"], 50.0)
 
     def test_configured_baseline_still_reports_a_real_reduction(self):
         # The absent case must not be bought by breaking the measured one: with
