@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
+import subprocess  # nosec B404 - runs Maven deployment of release artifacts.
 import sys
 import tempfile
 import urllib.request

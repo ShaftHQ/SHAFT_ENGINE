@@ -197,6 +197,120 @@ steps:
             {(error["path"], error["code"]) for error in errors},
         )
 
+    def test_an_active_guidance_glob_matching_nothing_is_reported_as_empty(self):
+        # active_guidance_globs feeds validate_forbidden_patterns and
+        # validate_duplicate_paragraphs, both "every matched file must hold"
+        # checks: a pattern that resolves to zero files -- a moved directory,
+        # a typo -- used to shrink the scanned set with no trace, so the check
+        # kept passing having verified nothing for it (#4481).
+        self.budget["active_guidance_globs"].append(".agents/skills/*/moved-away/**/*.md")
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_a_reference_scan_glob_matching_nothing_is_reported_as_empty(self):
+        # reference_scan_globs feeds validate_local_references and
+        # validate_stale_references -- same fail-open shape as
+        # active_guidance_globs, a different consuming pair of checks.
+        self.budget["reference_scan_globs"].append(".agents/skills/*/moved-away/**/*.md")
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_a_total_guidance_glob_matching_nothing_is_reported_as_empty(self):
+        # total_guidance_globs only runs once reduction_baseline_bytes and
+        # minimum_reduction_percent are configured (see
+        # test_total_reduction_is_noop_when_unconfigured); once it does, the
+        # same empty-glob reporting must apply to its own copy of the list.
+        self.budget["reduction_baseline_bytes"] = 1_000_000
+        self.budget["minimum_reduction_percent"] = 10
+        self.budget["total_guidance_globs"] = [
+            "AGENTS.md",
+            ".agents/skills/*/moved-away/**/*.md",
+        ]
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_an_active_guidance_glob_key_that_is_deleted_is_reported_as_empty(self):
+        # expand_reported_globs only guards patterns *within* an already
+        # present list -- deleting the key itself makes its loop run zero
+        # times, so no empty-glob issue fires and every downstream check
+        # scans nothing. That is #4481 one level up, at the list rather than
+        # the pattern; require_glob_list closes it by declaring the key
+        # required in code instead of inferring it from the JSON.
+        del self.budget["active_guidance_globs"]
+        self.write_budget()
+        self.assertIn(
+            ("active_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_an_active_guidance_glob_key_set_to_an_empty_list_is_reported_as_empty(self):
+        self.budget["active_guidance_globs"] = []
+        self.write_budget()
+        self.assertIn(
+            ("active_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_an_active_guidance_glob_key_that_is_renamed_is_reported_as_empty(self):
+        # A future budget restructure renaming the key, or a bad merge that
+        # drops it, must be caught the same way as deleting it outright.
+        self.budget["active_guidance_globs_renamed"] = self.budget.pop("active_guidance_globs")
+        self.write_budget()
+        self.assertIn(
+            ("active_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_a_reference_scan_glob_key_that_is_deleted_is_reported_as_empty(self):
+        del self.budget["reference_scan_globs"]
+        self.write_budget()
+        self.assertIn(
+            ("reference_scan_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_a_total_guidance_glob_key_that_is_deleted_is_reported_as_empty(self):
+        # total_guidance_globs only runs once reduction_baseline_bytes and
+        # minimum_reduction_percent are configured -- see
+        # test_total_reduction_is_noop_when_unconfigured -- but once it does,
+        # the same required-key guard must apply to its own copy of the list.
+        self.budget["reduction_baseline_bytes"] = 1_000_000
+        self.budget["minimum_reduction_percent"] = 10
+        self.budget.pop("total_guidance_globs", None)
+        self.write_budget()
+        self.assertIn(
+            ("total_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_a_host_skill_metadata_glob_matching_nothing_is_reported_as_empty(self):
+        # host_skill_metadata_globs is a {host: [patterns]} dict feeding
+        # skill_listing_chars via expand_globs directly -- a separate path
+        # from active_guidance_globs/reference_scan_globs/total_guidance_globs,
+        # so it needs its own wiring through the reporting resolver, per host.
+        self.budget["host_skill_metadata_globs"] = {
+            "codex": [".agents/skills/*/moved-away/**/*.md"]
+        }
+        self.budget["max_skill_listing_chars"] = 10_000
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
     def test_rejects_oversized_skill_md_file(self):
         self.budget["skill_budgets"] = {".github/skills": {"max_skill_md_bytes": 10}}
         self.write_budget()

@@ -1,6 +1,6 @@
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - tests drive the build script with controlled repository state.
 import tempfile
 import unittest
 from pathlib import Path
