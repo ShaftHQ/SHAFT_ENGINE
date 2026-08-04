@@ -1,11 +1,46 @@
-`validate_stale_references` in `scripts/ci/validate_agent_guidance.py` is `if stale_reference in content` -- a raw substring test, not a path resolution and not an existence check. It runs over every file matched by `reference_scan_globs`, which includes `.agents/skills/act-as-mohab/references/**/*.md`, `.agents/skills/README.md` and `.agents/skills/*/SKILL.md`.
+## Do this
 
-Consequence, and it is not obvious from the key's name: an entry in `stale_references` that ends in `/` bans a whole namespace forever, including files that do not exist yet. `scripts/ci/agent_guidance_budget.json` currently lists `references/tdd/` and `references/test-driven-development.md`. So when adding a new TDD-related reference:
+Before naming a new file or choosing a directory anywhere under
+`.agents/skills/act-as-mohab/references/`, read the `stale_references` array in
+`scripts/ci/agent_guidance_budget.json` and check your intended path against it
+as a **substring**, not as a path:
 
-- A `references/tdd/` SUBDIRECTORY is unusable. Any markdown link to a file inside it contains the banned substring, so every linking file fails `stale-reference` -- including the entrypoint and the skills map. The failure names the linking file, not the new file, which sends you looking in the wrong place.
-- The filename `test-driven-development.md` is unusable for the same reason.
-- A FLAT sibling whose name merely starts with the same letters is fine: `references/tdd-failure-modes.md` contains `references/tdd-` and never `references/tdd/`. Verified green.
+```bash
+py -3 -c "import json;print('\n'.join(json.load(open('scripts/ci/agent_guidance_budget.json'))['stale_references']))"
+```
 
-Check the `stale_references` list BEFORE choosing a layout or a filename for anything under `references/`, not after the validator goes red. Discovered while landing #4502 / PR #4503, where it decided one merged flat file over a `tdd/` subdirectory.
+If any entry is a substring of the path you were about to link, pick a
+different name. A flat sibling sharing a prefix is the cheap escape: the banned
+`references/tdd/` does not occur in `references/tdd-failure-modes.md`, because
+the separator differs. Do this before you write the file, not after the
+validator goes red -- the diagnosis is expensive (below), and by then the name
+is already in a commit message, a branch, and an issue.
 
-Other live entries that constrain naming the same way: `references/caveman.md`, `references/ponytail.md`, `playbooks/README.md`, `.agents/routing-bridges.txt`, `references/shaft-mastery.md`.
+## Why, and why the red is misleading
+
+`validate_stale_references` in `scripts/ci/validate_agent_guidance.py` is
+literally `if stale_reference in content` -- a raw substring test, with no path
+resolution and no existence check. It runs over every file matched by
+`reference_scan_globs`: `.agents/skills/act-as-mohab/references/**/*.md`,
+`.agents/skills/README.md`, `.agents/skills/*/SKILL.md` and the host adapters.
+
+So an entry ending in `/` retires an entire namespace permanently, including
+files nobody has created yet. That is not apparent from the key's name, which
+reads like a list of dead files.
+
+The failure is reported against the file holding the **link**, not the new file
+whose name caused it. Add `references/tdd/anything.md` and the red names
+`SKILL.md`, `README.md` and `routing.md` -- three files you did not think you
+were breaking, none of them the one to rename. Expect to lose time here unless
+you recognise the shape.
+
+## Live entries that constrain naming right now
+
+`references/tdd/`, `references/test-driven-development.md`,
+`references/caveman.md`, `references/ponytail.md`, `references/shaft-mastery.md`,
+`playbooks/README.md`, `.agents/routing-bridges.txt`.
+
+The first two are why #4502 / PR #4503 shipped one flat `tdd-failure-modes.md`
+instead of a `tdd/` subdirectory holding two files. That was a forced layout,
+not a preference -- if you are revisiting that decision, this is the constraint
+to re-check first.

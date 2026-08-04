@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/stale-references-is-a-substring-match-so-it-bans-path-prefixes-not-just-files.md",
-  "content_hash": "sha256:2a367e6098aaa95b0580a1496be6245092cdbd96008e3731388bfaaf0115c801",
+  "content_hash": "sha256:6dbc2ff2faf633088d7b5312fa0d629276057e7113ece27a1aa33805c7eec566",
   "created_at": "2026-08-04T19:07:27+03:00",
   "evidence": [
     {
@@ -46,5 +46,5 @@
   ],
   "title": "stale_references is a plain substring match, so a retired directory prefix bans every new path under it",
   "type": "gotcha",
-  "updated_at": "2026-08-04T19:07:27+03:00"
+  "updated_at": "2026-08-04T19:10:45+03:00"
 }
