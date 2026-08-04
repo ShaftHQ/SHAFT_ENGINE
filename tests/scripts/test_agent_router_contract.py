@@ -26,6 +26,7 @@ REFERENCES = CANONICAL_SKILLS / "act-as-mohab/references"
 ROUTING = REFERENCES / "routing.md"
 ROLES = REFERENCES / "roles.md"
 DELEGATION = REFERENCES / "delegation.md"
+LENS = REFERENCES / "verification-gap-lens.md"
 CONSULT = CANONICAL_SKILLS / "consult-first/SKILL.md"
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
@@ -38,30 +39,35 @@ MAX_READ_CHAIN_HOPS = 2
 # A file whose entire body is a pointer costs a read and teaches nothing.
 REDIRECT_STUB_MAX_CHARS = 250
 
-# Entrypoint sections that own a pinned clause, by heading prefix.
+# Sections that own a pinned clause, by heading prefix.
 IRON_LAWS = "iron laws"
 RED_FLAGS = "red flags"
 TDD = "test-driven development"
+GAP_SHAPES = "the four gap shapes"
+BINDING = "proving a check binds"
 
-# Every clause the entrypoint is not allowed to lose, as (section, literal).
+# Every clause this repository's guidance is not allowed to lose, as
+# (file, section, literal).
 #
 # This tuple lists *locations*, never a second copy of the rule: the mutations
 # in DisciplineTest are spliced into whatever the shipped file says at run
 # time, so a pin cannot end up verifying a private copy of the text it is
 # supposed to protect. Each clause's justification is in the named test that
 # asserts it.
-PINNED_CLAUSES: tuple[tuple[str, str], ...] = (
-    (IRON_LAWS, "evidence over inference"),
-    (IRON_LAWS, "inspect or run before claiming"),
-    (IRON_LAWS, "no production code before an observed failing test"),
-    (IRON_LAWS, "never weaken, delete, or rewrite a test to reach green"),
-    (IRON_LAWS, "never claim a check you did not run"),
-    (TDD, "only an expected assertion failure"),
-    (TDD, "a pass or setup, syntax, or environment error is not red"),
-    (TDD, "revert that new code and restart"),
-    (TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
-    (TDD, "never backfill tests after implementation"),
-    (RED_FLAGS, "the check covers it"),
+PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
+    (ENTRYPOINT, IRON_LAWS, "evidence over inference"),
+    (ENTRYPOINT, IRON_LAWS, "inspect or run before claiming"),
+    (ENTRYPOINT, IRON_LAWS, "no production code before an observed failing test"),
+    (ENTRYPOINT, IRON_LAWS, "never weaken, delete, or rewrite a test to reach green"),
+    (ENTRYPOINT, IRON_LAWS, "never claim a check you did not run"),
+    (ENTRYPOINT, TDD, "only an expected assertion failure"),
+    (ENTRYPOINT, TDD, "a pass or setup, syntax, or environment error is not red"),
+    (ENTRYPOINT, TDD, "revert that new code and restart"),
+    (ENTRYPOINT, TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
+    (ENTRYPOINT, TDD, "never backfill tests after implementation"),
+    (ENTRYPOINT, RED_FLAGS, "the check covers it"),
+    (LENS, GAP_SHAPES, "unbound-check gap"),
+    (LENS, BINDING, "apply it, run it, read the failure, revert"),
 )
 
 # Words that leave every pinned word in place and turn the rule into a
@@ -110,28 +116,35 @@ def rule_blocks(section: str) -> list[str]:
     return [re.sub(r"\s+", " ", part).strip().lower() for part in parts if part and part.strip()]
 
 
-def clause_defects(source: str) -> list[str]:
+def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
     """Report every pinned clause that is missing, duplicated, or qualified.
+
+    Reads each pinned file from disk unless `overrides` supplies a mutated
+    body, which is what lets the mutation tests below prove the pins bind
+    without ever holding a copy of the text they protect.
 
     Presence alone was the whole check until #4467: a pin says a phrase is
     there and says nothing about what surrounds it, so an edit that *adds* an
     escape hatch next to the clause passed every pin while gutting the law.
     """
+    overrides = overrides or {}
     defects = []
-    for heading, clause in PINNED_CLAUSES:
+    for path, heading, clause in PINNED_CLAUSES:
+        where = f"{path.name}:{heading!r}"
+        source = overrides.get(path, path.read_text(encoding="utf-8"))
         sections = headed_sections(source, heading)
         if len(sections) != 1:
-            defects.append(f"{heading!r}: expected one section, found {len(sections)}")
+            defects.append(f"{where}: expected one section, found {len(sections)}")
             continue
         pattern = clause_pattern(clause)
         matched = [block for block in rule_blocks(sections[0]) if re.search(pattern, block)]
         if not matched:
-            defects.append(f"{heading!r}: clause missing: {clause!r}")
+            defects.append(f"{where}: clause missing: {clause!r}")
             continue
         for block in matched:
             hits = [marker for marker in EXEMPTION_MARKERS if marker in block]
             if hits:
-                defects.append(f"{heading!r}: {clause!r} qualified by {hits[0]!r}")
+                defects.append(f"{where}: {clause!r} qualified by {hits[0]!r}")
     return defects
 
 
@@ -934,10 +947,10 @@ class DisciplineTest(unittest.TestCase):
         """
         self.assertIn(
             clause,
-            [pinned for _, pinned in PINNED_CLAUSES],
+            [pinned for _, _, pinned in PINNED_CLAUSES],
             f"clause is asserted but not registered for mutation: {clause!r}",
         )
-        offending = [defect for defect in clause_defects(self.source()) if clause in defect]
+        offending = [defect for defect in clause_defects() if clause in defect]
         self.assertEqual(offending, [])
 
     def iron_laws(self) -> str:
@@ -1044,25 +1057,27 @@ class DisciplineTest(unittest.TestCase):
         for phrase in ("should", "probably", "just this once", "close enough"):
             self.assertIn(phrase, content, f"red-flag phrase missing: {phrase}")
 
-    def mutate(self, clause: str, insertion: str) -> str:
-        """Splice `insertion` in after `clause` in the shipped entrypoint text.
+    def mutate(self, path: Path, clause: str, insertion: str) -> dict[Path, str]:
+        """Splice `insertion` in after `clause` in the shipped file's own text.
 
         The mutation is built from the file, never from a literal in this
         module. A test that carries its own copy of the text it protects
         verifies the copy, which is how a gutted check stays green.
         """
-        source = self.source()
+        source = path.read_text(encoding="utf-8")
         match = re.search(clause_pattern(clause), source, re.I)
-        self.assertIsNotNone(match, f"clause is not in the entrypoint at all: {clause!r}")
-        return source[: match.end()] + insertion + source[match.end() :]
+        self.assertIsNotNone(match, f"clause is not in {path.name} at all: {clause!r}")
+        return {path: source[: match.end()] + insertion + source[match.end() :]}
 
     def test_deleting_any_pinned_clause_is_reported(self):
-        for heading, clause in PINNED_CLAUSES:
+        for path, _, clause in PINNED_CLAUSES:
             with self.subTest(clause=clause):
-                source = self.source()
+                source = path.read_text(encoding="utf-8")
                 mutated = re.sub(clause_pattern(clause), "", source, count=1, flags=re.I)
                 self.assertTrue(mutated != source, "the mutation did not apply")
-                self.assertTrue(clause_defects(mutated), "deleting the clause is not reported")
+                self.assertTrue(
+                    clause_defects({path: mutated}), "deleting the clause is not reported"
+                )
 
     def test_qualifying_any_pinned_clause_is_reported(self):
         """#4467: a pin that only checks presence passes on a gutted rule.
@@ -1071,9 +1086,9 @@ class DisciplineTest(unittest.TestCase):
         pinned word in place, and every pin in this class passed on it until
         this test existed.
         """
-        for heading, clause in PINNED_CLAUSES:
+        for path, _, clause in PINNED_CLAUSES:
             with self.subTest(clause=clause):
-                mutated = self.mutate(clause, ", unless time is short")
+                mutated = self.mutate(path, clause, ", unless time is short")
                 self.assertTrue(clause_defects(mutated), "qualifying the clause is not reported")
 
     def test_the_two_weakenings_named_in_the_review_are_reported(self):
@@ -1089,7 +1104,7 @@ class DisciplineTest(unittest.TestCase):
         )
         for clause, insertion in cases:
             with self.subTest(clause=clause):
-                defects = clause_defects(self.mutate(clause, insertion))
+                defects = clause_defects(self.mutate(ENTRYPOINT, clause, insertion))
                 self.assertTrue(defects, f"the review's own counter-example passes: {insertion!r}")
 
     def test_red_flags_name_the_sentence_that_ships_a_check_protecting_nothing(self):
@@ -1110,6 +1125,21 @@ class DisciplineTest(unittest.TestCase):
         before any reviewer loads a reference.
         """
         self.assert_clause_holds("the check covers it")
+
+    def test_the_review_lens_keeps_the_unbound_check_shape_and_its_proof(self):
+        """The on-demand half of #4471, and the one rule here with no home
+        anywhere else in the harness.
+
+        The lens's other three gap shapes are about production behaviour. This
+        one is about the check itself, and its proof step is the only place the
+        harness says an obligation is discharged by *running* the mutation
+        rather than imagining it -- which is the distinction the four defects
+        in #4471 all fell through. Left as prose it would be the kind of rule
+        this repository has already watched erode, so it is pinned like an iron
+        law and mutated like one.
+        """
+        self.assert_clause_holds("unbound-check gap")
+        self.assert_clause_holds("apply it, run it, read the failure, revert")
 
     def test_delegation_states_the_parallel_agent_cap(self):
         self.assertRegex(compact(DELEGATION), r"(?:four|4) (?:active |concurrent |parallel |writing )*agents")

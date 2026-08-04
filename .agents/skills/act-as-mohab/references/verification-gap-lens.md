@@ -12,7 +12,7 @@ produce broke where it's actually used, would a test fail? Don't hunt for
 correctness bugs generally — that's the rest of the review; this lens is
 verification-coverage only.
 
-## The three gap shapes
+## The four gap shapes
 
 1. **Regression gap.** The changed code regresses where it's used, and no
    test covering that use would fail.
@@ -26,6 +26,12 @@ verification-coverage only.
    behavior but wouldn't actually catch a regression — skipped, flaky, not
    run in the normal path, or too weak to observe the change (mock-only,
    snapshot-only, success/no-throw checks).
+4. **Unbound-check gap.** The change adds or edits a check, guard, pin or
+   metric that would still pass with the thing it protects removed. Three
+   ways it happens: the test declares its own copy of a pattern, threshold
+   or clause the shipped artifact owns, so it verifies the copy; a metric
+   whose input is absent reports that absence as a value; or the fix's own
+   mechanism is unguarded, so reverting it leaves the suite green.
 
 ## The Demonstration technique
 
@@ -36,21 +42,34 @@ drop the path; untested downstream code that nothing would actually break
 is not a finding. Then find the relevant test and ask: would the
 Demonstration make an assertion fail? If yes, it's verified — no finding.
 
+## Proving a check binds
+
+Imagining the Demonstration is right for code you are reviewing. For a check
+in your own diff it is not, because the mutation is free and revertible:
+apply it, run it, read the failure, revert. Mutate the shipped artifact,
+never a fixture.
+
+Weakening counts as a mutation. A rule survives deletion and dies by
+addition — appending "unless time is short" leaves every pinned word in
+place — so mutate by qualifying as well as by removing. Make a metric move;
+one that cannot report failure is reporting its own absence. And check your
+own diff against the rule's text rather than against what you meant by it:
+you are the weakest available witness to a rule you wrote.
+
 ## Evidence rules (non-negotiable)
 
-- Read a test before claiming what it covers, runs, asserts, or misses.
+- Read a test before claiming what it covers, runs, asserts, or misses, and
+  re-open it before writing the finding rather than reporting from memory of
+  having glanced at it earlier in the review.
 - Before claiming no test exists, search the repo by symbol and import
   reference — expected file locations alone aren't enough (`gotcha.local-mvn-test-never-fails-the-build-read-surefire-xml-counts-for-verdicts`
   is the SHAFT-specific version of this: `BUILD SUCCESS` from `mvn test`
   proves nothing — read `surefire-reports/TEST-*.xml` counts before calling
   anything green).
-- Never assert what you didn't verify; an ungrounded finding gets dropped,
-  not softened.
 - Say what you actually checked ("none of the tests I read cover this") and
-  how far you looked. Only claim a test doesn't exist anywhere when the
-  symbol/import search actually shows that.
-- Don't assign severity, confidence, or priority — that's triage's job (see
-  the four-bucket taxonomy in SKILL.md's Delegation section).
+  how far you looked.
+- Don't assign severity, confidence, or priority — that's the returned-work
+  triage in delegation.md.
 
 ## Trimmed review sequence
 
@@ -62,14 +81,12 @@ Demonstration make an assertion fail? If yes, it's verified — no finding.
    consumers. Stop at the nearest boundary where a test would fail or the
    next hop is guesswork.
 4. **Qualify each consumer with the Demonstration, then read its test.**
-5. **Re-open the specific test or search result before writing the finding.**
-   Don't report from memory of having glanced at it earlier in the review.
 
 ## Findings shape
 
 Each finding: `location` (`file:line`), `trigger_condition` (the gap, one
 line), `potential_consequence` (what ships wrong and why the checked tests
-wouldn't catch it), `gap_shape` (one of the three above, or `other` for a
+wouldn't catch it), `gap_shape` (one of the four above, or `other` for a
 genuine problem noticed in passing), `evidence` (what you actually read,
 with `file:line`). An empty list is a valid, complete result — say so
 plainly rather than padding with low-confidence noise.

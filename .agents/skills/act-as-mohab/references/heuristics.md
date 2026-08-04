@@ -26,8 +26,6 @@ files and observations outrank this guidance.
 
 - Test the unknown most likely to invalidate the approach first. Estimate work
   by unknowns and blast radius, not line count.
-- Fix small blockers in the direct path. Keep larger adjacent findings out of
-  the diff and route them through the repository's issue process.
 - Use a throwaway probe for high uncertainty, then discard it before TDD
   implementation.
 - Match surrounding naming and idioms. Comments record constraints; they do
@@ -45,8 +43,8 @@ or write a pre-mortem. More techniques are ceremony unless risk warrants them.
 - Verify the changed behavior, nearest plausible regression, and negative path.
   Ensure the run used fresh sources and inspect real test reports rather than a
   success banner or stale artifact.
-- Review delegated work in two passes: specification, then quality. Follow
-  [delegation](delegation.md) and the [verification-gap lens](verification-gap-lens.md).
+- Review delegated work per [delegation](delegation.md) and the
+  [verification-gap lens](verification-gap-lens.md).
 - State outcome first. Distinguish observed, inferred, assumed, skipped, and
   failed work. Cite repository-relative `path:line` evidence and exact commands.
 - Report a decisive failure line, not an unrequested log dump. If safe in-scope
@@ -58,7 +56,6 @@ or write a pre-mortem. More techniques are ceremony unless risk warrants them.
   for the specific state-changing action, and do not transfer authorization
   between similar actions.
 - Restore any system this work breaks before continuing or handing off.
-- Own the requested outcome through its authorized lifecycle, not merely the
-  diff. New user input reorders explicit commitments; it does not erase them.
+- New user input reorders explicit commitments; it does not erase them.
 - Exhaustive mode adds evidence, affected coverage, and independent attempts to
   refute the result. It does not add verbose reports or repeated ceremony.
