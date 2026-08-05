@@ -1601,6 +1601,43 @@ def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
     return None
 
 
+DEFAULT_BRANCHES = frozenset({"main", "master"})
+
+
+def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
+    """Refuse a write while HEAD is the default branch.
+
+    Task isolation requires a fresh `ChaosEngine/*` branch cut from fetched
+    `origin/main` before task-specific edits. Only part of that is
+    mechanisable, and this is deliberately only that part.
+
+    Editing on `main` is unambiguous and always wrong: the work has no branch
+    of its own, cannot become a pull request without a later rescue, and
+    collides with anything else sharing the checkout.
+
+    Whether an existing `ChaosEngine/*` branch is fresh *enough* is judgement
+    -- the entrypoint explicitly permits reusing one for dependent work in the
+    same task -- so a hook that guessed would block legitimate continuation
+    every time it was right about nothing. A gate that fires on correct work
+    is the gate that gets deleted, so this one does not guess.
+
+    The remedy it names carries uncommitted changes with it and touches
+    nothing, so it can never trap an agent that already has work in flight.
+    """
+    if tool_name not in _WRITE_TOOLS:
+        return None
+    branch = _current_branch(hook_input.get("cwd"))
+    if not branch or branch not in DEFAULT_BRANCHES:
+        return None
+    return (
+        f"R19 blocked: HEAD is {branch}, and task work never lands on the default "
+        "branch. Cut the session's branch first -- `git fetch --prune origin && git "
+        "checkout -b ChaosEngine/<task> origin/main` -- which carries any uncommitted "
+        "changes across and touches nothing. Reusing an existing ChaosEngine/* branch "
+        "for dependent work in the same task is fine and is not blocked."
+    )
+
+
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
@@ -1609,6 +1646,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _hook_working_directory(hook_input),
         hook_input.get("tool_input"),
     )
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
+
+    reason = check_r19_fresh_base(hook_input, tool_name)
     if reason is not None:
         _print_deny(reason, host)
         return 0

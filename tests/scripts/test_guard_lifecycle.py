@@ -747,3 +747,59 @@ class UnpushedWorkStopGateTest(unittest.TestCase):
                 self.assertIsNone(
                     guard.check_r13_push_before_delete("git branch -D ChaosEngine/x", "Bash")
                 )
+
+
+class FreshBaseGateTest(unittest.TestCase):
+    """R19: never edit on the default branch.
+
+    Task isolation requires a fresh `ChaosEngine/*` branch cut from fetched
+    `origin/main` before task-specific edits. Only part of that is
+    mechanisable, and the scope here is deliberately the part that is.
+
+    Editing while HEAD is `main` is unambiguous and always wrong: the work has
+    no branch of its own, cannot be opened as a pull request without a later
+    rescue, and collides with anything else using the shared checkout.
+
+    Whether an existing `ChaosEngine/*` branch is "fresh enough" is judgement
+    -- the entrypoint explicitly allows reusing one for dependent work in the
+    same task -- so a hook that guessed would block legitimate continuation
+    every time. A gate that fires on correct work is the gate that gets
+    deleted, so this one does not guess.
+    """
+
+    def payload(self, path: str) -> dict:
+        return {"cwd": ".", "tool_name": "Write", "tool_input": {"file_path": path}}
+
+    def test_editing_on_the_default_branch_is_refused(self):
+        for branch in ("main", "master"):
+            with self.subTest(branch=branch):
+                with patch("scripts.agents.guard._current_branch", return_value=branch):
+                    reason = guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write")
+                self.assertIsNotNone(reason)
+                self.assertIn("ChaosEngine/", reason)
+
+    def test_editing_on_a_task_branch_is_allowed(self):
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/thing-1"):
+            self.assertIsNone(guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write"))
+
+    def test_a_detached_head_is_not_the_default_branch(self):
+        with patch("scripts.agents.guard._current_branch", return_value=None):
+            self.assertIsNone(guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write"))
+
+    def test_non_write_tools_are_untouched(self):
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            self.assertIsNone(guard.check_r19_fresh_base({"cwd": "."}, "Bash"))
+
+    def test_r19_and_r14_do_not_trap_an_agent_on_main_with_uncommitted_work(self):
+        """Pairwise: the remedy for R19 must not be something R14 forbids.
+
+        R19's remedy is `git checkout -b ChaosEngine/...`, which carries
+        uncommitted changes onto the new branch and touches nothing. R14 only
+        refuses `git reset --hard`. So the escape from R19 is always open,
+        which is what keeps the pair free of the deadlock recorded in
+        decision.check-every-new-guard-pairwise-against-the-guards-already-shipped.
+        """
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=7):
+            self.assertIsNone(
+                guard.check_r14_hard_reset("git checkout -b ChaosEngine/new", "Bash", ".")
+            )
