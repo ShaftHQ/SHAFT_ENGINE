@@ -4012,7 +4012,7 @@ def main(argv: list[str]) -> int:
     event = hook_input.get("hook_event_name") or "PreToolUse"
     if event == "SessionStart":
         return run_session_start(hook_input)
-    if event == "Stop":
+    if event in {"Stop", "SubagentStop"}:
         return run_stop(hook_input)
     if event == "PreToolUse":
         return run_pretooluse(hook_input, hook_host(raw_hook_input))

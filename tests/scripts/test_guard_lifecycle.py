@@ -1052,6 +1052,29 @@ class LearningLoopStopGateTest(unittest.TestCase):
             self.assertEqual(output.getvalue().strip(), "")
 
 
+class DelegateStopHookTest(unittest.TestCase):
+    """A committed delegate must reach R16 through the host stop event (#4570 A8)."""
+
+    def setUp(self):
+        isolate_stop_rules(self, except_for=("check_r16_learning_loop",))
+
+    def test_subagent_stop_registration_reaches_r16(self):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for name in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(host=name):
+                with open(os.path.join(root, name), encoding="utf-8") as handle:
+                    hooks = json.load(handle)["hooks"]
+                self.assertIn("SubagentStop", hooks)
+
+        output = io.StringIO()
+        payload = json.dumps({"hook_event_name": "SubagentStop", "session_id": "delegate"})
+        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+            with patch("sys.stdin", io.StringIO(payload)):
+                with redirect_stdout(output):
+                    self.assertEqual(guard.main([]), 0)
+        self.assertIn("Learning loop", output.getvalue())
+
+
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
     """R17: opening a pull request does not end the duty; arming it is the duty.
 
