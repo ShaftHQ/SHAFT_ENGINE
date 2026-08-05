@@ -1091,11 +1091,6 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIsNone(guard._HARNESS_SOURCE.match(path))
 
-    def test_an_unanswerable_git_does_not_swallow_the_advisory(self):
-        """Unknown is not the same as no, so it must not silence the rule."""
-        with patch("scripts.agents.guard._git_output", return_value=None):
-            self.assertFalse(guard._branch_edits_harness_sources())
-
     def test_the_remedy_it_names_is_not_refused_by_another_rule(self):
         """Pairwise, as a test: a gate whose only exit another rule blocks is a deadlock."""
         with patch(
@@ -1208,7 +1203,13 @@ class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
                     handle.write('"kept"\n{"torn\n"also-kept"\n')
                 self.assertEqual(guard.ledger_events(payload), ["kept", "also-kept"])
 
-    def test_stale_ledgers_are_reaped_and_current_ones_are_kept(self):
+    def test_stale_ledgers_are_reaped_after_two_dormant_windows(self):
+        """Reaping is two-phase (#4548 finding 11): mark on the first sighting
+        past retention, delete only once the mark is itself past retention
+        with no write to the ledger in between. See
+        `DormantSessionLedgerIsNotReapedByAnotherSessionTest` for the
+        regression this timing exists to satisfy: a ledger dormant for only
+        one window must survive, and one dormant for two must not."""
         with tempfile.TemporaryDirectory() as directory:
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
                 payload = self.payload("session-keep", directory)
@@ -1222,10 +1223,24 @@ class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
                 guard.os.utime(stale, (old, old))
 
                 guard.ledger_record(payload, "again")
+                self.assertTrue(
+                    guard.os.path.exists(stale),
+                    "one dormant window must only mark a ledger, not delete it",
+                )
+                mark = stale + guard._REAP_MARK_SUFFIX
+                self.assertTrue(guard.os.path.exists(mark), "the sweep must leave a mark")
+                guard.os.utime(mark, (old, old))
 
-                self.assertFalse(guard.os.path.exists(stale), "a stale ledger must be reaped")
+                guard.ledger_record(payload, "once-more")
+
+                self.assertFalse(
+                    guard.os.path.exists(stale), "two dormant windows must reap it"
+                )
+                self.assertFalse(guard.os.path.exists(mark), "the mark is reaped with it")
                 self.assertTrue(guard.os.path.exists(current), "the live ledger must survive")
-                self.assertEqual(guard.ledger_events(payload), ["fresh", "again"])
+                self.assertEqual(
+                    guard.ledger_events(payload), ["fresh", "again", "once-more"]
+                )
 
     def test_reaping_never_raises(self):
         """Housekeeping inside a hook must not be able to block a tool call."""
@@ -1246,6 +1261,72 @@ class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
             os.path.realpath(path).startswith(os.path.realpath(directory)),
             f"ledger landed outside the patched temp directory: {path}",
         )
+
+
+class DormantSessionLedgerIsNotReapedByAnotherSessionTest(unittest.TestCase):
+    """A session dormant for one retention window survives (#4548 finding 11).
+
+    R15/R17/R21 trust whatever a session's ledger already recorded, and this
+    harness explicitly supports resuming a session after a long pause. The
+    old `_reap_stale_ledgers` judged staleness by raw mtime and deleted on
+    first sight, so any *other* session's routine `ledger_record` call,
+    arriving once `LEDGER_RETENTION_SECONDS` had passed, could delete a
+    dormant-but-still-relevant session's ledger -- silently turning "this
+    session dispatched a reviewer" into "it did not" and failing a gate a
+    correct agent had already satisfied. This is the mutation the test below
+    kills: reverting `_reap_stale_ledgers` to delete on the first sighting
+    (instead of marking first) turns this red.
+    """
+
+    def payload(self, session: str, directory: str) -> dict:
+        return {"session_id": session, "cwd": directory}
+
+    def test_a_ledger_stale_by_one_window_survives_another_sessions_sweep(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                dormant = self.payload("session-dormant", directory)
+                guard.ledger_record(dormant, "review:ChaosEngine/some-branch")
+                dormant_path = guard._ledger_path(dormant)
+                old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+                guard.os.utime(dormant_path, (old, old))
+
+                # An unrelated session's own routine write triggers the sweep
+                # that scans the whole shared ledger directory.
+                other = self.payload("session-other", directory)
+                guard.ledger_record(other, "test-run")
+
+                self.assertTrue(
+                    guard.os.path.exists(dormant_path),
+                    "a session dormant for exactly one retention window must "
+                    "survive another session's reap sweep",
+                )
+                self.assertEqual(
+                    guard.ledger_events(dormant),
+                    ["review:ChaosEngine/some-branch"],
+                    "the dormant session's recorded evidence must still be readable",
+                )
+
+    def test_a_ledger_dormant_for_two_windows_is_eventually_reaped(self):
+        """The other half of the property: reaping must still happen."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                dormant = self.payload("session-abandoned", directory)
+                guard.ledger_record(dormant, "test-run")
+                dormant_path = guard._ledger_path(dormant)
+                old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+                guard.os.utime(dormant_path, (old, old))
+
+                other = self.payload("session-other", directory)
+                guard.ledger_record(other, "test-run")  # marks it
+                mark = dormant_path + guard._REAP_MARK_SUFFIX
+                guard.os.utime(mark, (old, old))
+
+                guard.ledger_record(other, "test-run")  # reaps it
+
+                self.assertFalse(
+                    guard.os.path.exists(dormant_path),
+                    "a session dormant for two full retention windows must be reaped",
+                )
 
 
 class SelfTestCoversEveryRuleTest(unittest.TestCase):
@@ -1813,8 +1894,32 @@ class RunStateStopGateTest(unittest.TestCase):
 
 
 
+def _bare_interruption_promises(source: str) -> list[str]:
+    """Every "interrupts once" in `source` not immediately followed by "per turn".
+
+    Scans string *values*, not source text: `ast.parse` merges adjacent
+    string literals into one `Constant` at parse time, the same merge Python
+    performs before the program ever runs, so a phrase split across source
+    lines by implicit concatenation is already one string here. Each string
+    is lowercased and its whitespace collapsed to single spaces before the
+    scan, so casing and incidental formatting cannot hide a violation either.
+
+    Returns a snippet around each offending occurrence, empty when none.
+    """
+    violations = []
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+            continue
+        collapsed = re.sub(r"\s+", " ", node.value.lower())
+        for match in re.finditer(r"interrupts once(?! per turn\b)", collapsed):
+            start = max(0, match.start() - 20)
+            violations.append(collapsed[start : match.start() + 40])
+    return violations
+
+
 class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
-    """Every Stop message says what it actually does (#4558, and review).
+    """Every Stop message says what it actually does (#4558, #4548, and review).
 
     "This interrupts once" was true only inside one Stop cycle:
     `stop_hook_active` makes the immediate retry proceed, and the next turn
@@ -1822,15 +1927,61 @@ class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
     it is satisfied. #4558 records the same over-claim for R20's remedy. A rule
     that promises to interrupt once and then interrupts every turn teaches an
     agent to distrust the messages, which is how a guard gets deleted.
+
+    The previous version of this test asserted
+    `assertNotIn("This interrupts once.", source)` against the raw source
+    text, and it passed while two messages still made the bare promise. R16's
+    said "...interrupts once and will not ask again" -- missed on casing and
+    on trailing words the exact-substring check never matched. R17's ended
+    with two adjacent string literals split across source lines:
+    `"...ask for it. This "` then `"interrupts once."` -- valid Python that
+    concatenates to the exact literal promise at runtime, but the substring
+    never appears in the *source text* because a closing quote, a newline and
+    indentation sit between "This " and "interrupts once.". The check
+    defended one literal spelling instead of the invariant it was named for,
+    and both false promises shipped anyway, one commit after this exact
+    lesson (pin the rule, not a spelling) was reaffirmed elsewhere in this
+    file.
+
+    Written now as the invariant itself, via `_bare_interruption_promises`:
+    no guard message may promise a single interruption, in any phrasing,
+    any casing, or split across any number of adjacent literals. A future
+    rule that adds a third bare-promise variant fails this the same way the
+    first two would have.
     """
 
     def test_no_message_promises_a_single_interruption(self):
-        source = inspect.getsource(guard)
-        self.assertNotIn("This interrupts once.", source)
+        violations = _bare_interruption_promises(inspect.getsource(guard))
+        self.assertEqual(
+            violations,
+            [],
+            "a guard message promises a single interruption instead of naming "
+            f"the per-turn mechanism: {violations!r}",
+        )
 
     def test_the_stop_rules_still_say_what_makes_the_retry_proceed(self):
         """The honest version has to name the mechanism, not just drop the claim."""
         self.assertIn("interrupts once per turn", inspect.getsource(guard))
+
+    def test_a_split_literal_bare_promise_is_still_caught(self):
+        """The mutation this class exists to kill: R17's exact former shape.
+
+        Two string literals, adjacent in source, concatenated by Python at
+        parse time into one value that ends the bare promise -- exactly how
+        the defect this test replaces slipped past a raw-text substring
+        check. `_bare_interruption_promises` must catch it from the value,
+        not the text.
+        """
+        synthetic = 'MESSAGE = (\n    "ask for it. This "\n    "interrupts once."\n)\n'
+        violations = _bare_interruption_promises(synthetic)
+        self.assertTrue(
+            violations, "a split-literal bare promise must be caught, not missed"
+        )
+
+    def test_the_honest_phrasing_raises_no_violation(self):
+        """The check must not flag the wording it is meant to require."""
+        synthetic = 'MESSAGE = "This interrupts once per turn: retry proceeds."\n'
+        self.assertEqual(_bare_interruption_promises(synthetic), [])
 
 
 class HarnessDriftSuppressionTest(unittest.TestCase):

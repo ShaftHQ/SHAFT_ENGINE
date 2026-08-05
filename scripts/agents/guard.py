@@ -1773,6 +1773,39 @@ DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
 
 
+_GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
+
+
+def _skip_gh_global_flags(tokens: list[str]) -> list[str]:
+    """Drop a leading `-R`/`--repo <value>` (or `--repo=value`) from `tokens`.
+
+    `-R owner/repo` / `--repo owner/repo` is gh's own global flag for
+    targeting a repository explicitly -- the standard way to post run state
+    from a linked worktree or any cwd that is not the tracked repo's own
+    checkout. `_tokens_after_head` strips env assignments and runner
+    prefixes but does not know gh's flags, so `gh -R owner/repo issue
+    comment 123 --body ...` -- exactly the post R21 demands -- left `rest[:1]
+    == ["-R"]`, matched neither `issue` nor `pr`, and R21 fired on a session
+    that had already done the required work (#4548, second review).
+
+    Other value-taking global flags (`--hostname`, `-h`/`--help`) are left
+    alone: none has been observed making R21 fire on correct work, and
+    covering gh's full flag surface ahead of an evidenced defect just
+    couples this rule to a CLI it does not otherwise track.
+    """
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token in _GH_GLOBAL_FLAGS_WITH_ARG:
+            index += 2
+            continue
+        if any(token.startswith(f"{flag}=") for flag in _GH_GLOBAL_FLAGS_WITH_ARG):
+            index += 1
+            continue
+        break
+    return tokens[index:]
+
+
 def _updates_a_tracked_issue(command: str) -> bool:
     """True when a command posts run state to an issue or pull request.
 
@@ -1790,16 +1823,25 @@ def _updates_a_tracked_issue(command: str) -> bool:
         # have shown it.
         if not rest:
             continue
+        rest = _skip_gh_global_flags(rest)
         # Any gh call that writes durable prose to an issue or pull request.
         # The first version took `issue comment`, `pr comment` and `issue edit`
         # only, so a session that opened a pull request carrying its full run
         # state -- which is what the draft-PR-first rule asks for -- still owed
         # R21, while `issue edit` counted and `pr edit` did not, for no reason
         # anyone could state.
+        #
+        # `create` does not count, deliberately, and no longer does (#4548,
+        # second review). Unlike `comment` and `edit`, a `create` call names
+        # no existing issue, so it cannot distinguish "recorded this run's
+        # state" from "opened some unrelated ticket" -- an ordinary
+        # `gh issue create` for a different piece of work cleared R21 for
+        # this one. A branch that cannot tell the two apart is worse than not
+        # having it, and `comment`/`edit` already cover every documented way
+        # to post state to a tracked issue or pull request.
         if rest[:1] in (["issue"], ["pr"]) and rest[1:2] in (
             ["comment"],
             ["edit"],
-            ["create"],
         ):
             return True
     return False
@@ -2099,14 +2141,39 @@ def _ledger_path(hook_input: dict) -> str | None:
 
 LEDGER_RETENTION_SECONDS = 7 * 24 * 60 * 60
 
+# Sidecar suffix for a ledger flagged past one retention window. See
+# `_reap_stale_ledgers` -- a live session can be dormant for a whole window
+# and still be live, so a single sighting only marks; a second sighting, a
+# full window later, is what actually deletes.
+_REAP_MARK_SUFFIX = ".reap-mark"
+
 
 def _reap_stale_ledgers(directory: str) -> None:
-    """Drop ledgers older than the retention window. Never raises (#4552).
+    """Drop ledgers dormant for two full retention windows. Never raises.
 
-    One file per session, kept forever, in a directory nothing else tidies.
-    Reaping on write rather than on read because `run_stop` can run more than
-    once in a session, and deleting on read would remove a ledger the same
-    session still needs.
+    One file per session, kept forever, in a directory nothing else tidies
+    (#4552). Reaping on write rather than on read because `run_stop` can run
+    more than once in a session, and deleting on read would remove a ledger
+    the same session still needs.
+
+    Judging staleness by raw mtime and deleting on first sight (#4548 finding
+    11) was unsound: this harness explicitly supports resuming a session
+    after a long pause, and R15/R17/R21 trust whatever the ledger already
+    recorded before the gap. A session dormant for exactly one retention
+    window is not a session that agreed to lose its evidence -- but any
+    *other* session's routine `ledger_record` call, arriving after the
+    window passed, reaped it anyway. That silently turned "this session
+    dispatched a reviewer" into "it did not", failing a gate a correct agent
+    had already satisfied -- the exact shape that gets guards deleted.
+
+    Two-phase instead. The first sweep that finds a ledger past retention
+    only marks it with a zero-byte sidecar; the ledger itself is untouched,
+    so every read still sees it. A later sweep deletes the ledger only when
+    the mark is *itself* now past retention -- meaning nothing wrote to the
+    ledger for two full windows, not one. Any write in between refreshes the
+    ledger's mtime, which un-stales it on the next sweep and clears the mark,
+    so a resumed session that was merely dormant keeps its history, and a
+    truly abandoned one is still cleaned up, just a window later.
 
     Failure here is not the caller's problem: this is housekeeping inside a
     hook that must not block a tool call, so every error is swallowed on
@@ -2115,10 +2182,27 @@ def _reap_stale_ledgers(directory: str) -> None:
     try:
         cutoff = time.time() - LEDGER_RETENTION_SECONDS
         for name in os.listdir(directory):
+            if name.endswith(_REAP_MARK_SUFFIX):
+                continue  # visited alongside its ledger, never on its own
             path = os.path.join(directory, name)
+            mark = path + _REAP_MARK_SUFFIX
             try:
-                if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
-                    os.remove(path)
+                if not os.path.isfile(path):
+                    continue
+                if os.path.getmtime(path) >= cutoff:
+                    # Live, or resumed since the last sweep marked it: clear
+                    # any stale mark so a later dormancy starts its own
+                    # two-window grace period rather than inheriting this one.
+                    if os.path.isfile(mark):
+                        os.remove(mark)
+                    continue
+                if os.path.isfile(mark):
+                    if os.path.getmtime(mark) < cutoff:
+                        os.remove(path)
+                        os.remove(mark)
+                else:
+                    with open(mark, "a", encoding="utf-8"):
+                        pass
             except OSError:
                 continue
     except OSError:
@@ -2131,9 +2215,13 @@ def ledger_record(hook_input: dict, event: str) -> bool:
     Append-only, one JSON document per line. It was a read-modify-write, whose
     docstring justified itself by saying the reader would otherwise have to
     tolerate a partial line from a concurrent hook -- which inverts the trade
-    (#4552). A tolerant reader is three lines and loses at most the torn line;
-    read-modify-write loses whole events whenever two hooks interleave, and
-    this host issues tool calls in parallel.
+    (#4552). A tolerant reader is three lines and loses at most the one line a
+    tear lands on -- not one event: a line can hold more than one, since two
+    clean appends can share a line too (see `ledger_events`), and a decode
+    failure partway through abandons everything after it on that same line.
+    Read-modify-write loses whole events whenever two hooks interleave, and
+    this host issues tool calls in parallel -- still the strictly worse trade,
+    just not by exactly the margin the old wording claimed.
 
     Losing an event is not free. R12 refuses a production write until a test
     run is recorded, so a dropped `test-run` blocks work that did satisfy the
@@ -2360,8 +2448,9 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
         "decision, a cross-entity relation to MemPalace, a structural change flagged "
         "for Graphify, a procedure that misled you fixed in the guidance file that "
         "should have carried it, and adjacent work you skipped searched for and then "
-        "filed. Nothing durable is a valid result -- say so and end the turn; this "
-        "interrupts once and will not ask again."
+        "filed. Nothing durable is a valid result -- say so and end the turn. This "
+        "interrupts once per turn: `stop_hook_active` makes the retry proceed, and "
+        "it is owed again next turn until it is satisfied."
     )
 
 
@@ -2449,7 +2538,8 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
         f"`gh pr merge {number} --auto --squash`, then watch with `py -3 "
         "scripts/ci/watch_pr_checks.py` until the remote confirms merged. Red and "
         "conflicting are yours to fix; stale emits no event, so ask for it. This "
-        "interrupts once."
+        "interrupts once per turn: `stop_hook_active` makes the retry proceed, and "
+        "it is owed again next turn until it is satisfied."
     )
 
 
