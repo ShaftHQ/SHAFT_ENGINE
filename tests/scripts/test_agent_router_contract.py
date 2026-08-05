@@ -16,6 +16,7 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.ci.validate_agent_guidance import (
     expand_reported_globs,
@@ -121,6 +122,145 @@ PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
     (ENTRYPOINT, TDD): 3,
     (LENS, GAP_SHAPES): 4,
 }
+
+# Every required-action rule, against what actually enforces it (#4541).
+#
+# The harness tests verify that the rulebook is intact -- present, linked,
+# unqualified, correctly numbered, not superseded. Not one of them verifies
+# that a rule was *obeyed*, and a green suite therefore reads as "the harness
+# is working" when it means "the harness's text is undamaged". That gap
+# matters most for exactly the rules that decay with context.
+#
+# Three honest statuses, and the third is not a failure:
+#   performed   -- a hook does it, so no adherence is required at all
+#   gated       -- a hook or check refuses to proceed until it has happened
+#   prose-only  -- no practical mechanism, with the reason recorded here
+#
+# `law` ties a row to a numbered iron law. Every law needs exactly one row and
+# no row may name a law that does not exist, so adding a seventh iron law fails
+# this until it is classified -- which is what makes the registry bind on future
+# expansion rather than only on today's rules. Rows with `law: None` cover
+# required actions stated elsewhere in the entrypoint.
+#
+# `mechanism` names a symbol that must exist in `guard.py`. `reason` is required
+# for prose-only rows and is checked for substance, because "n/a" is non-empty
+# and says nothing.
+#
+# Deliberately NOT required: that prose-only be empty, or that the registry be
+# non-empty. `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-
+# that-will-be-weakened` records what that produces -- guards that are each
+# defensible and leave no legal configuration, where the cheapest exit is
+# deleting the guard. Row count here is derived from the entrypoint, never
+# floored by this file.
+REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
+    {
+        "law": 1,
+        "rule": "consult before acting; triage first",
+        "status": "prose-only",
+        "reason": (
+            "Triage is a judgement about blast radius and reversibility. A hook sees "
+            "one tool call and cannot know whether the agent weighed anything, and one "
+            "that demanded a triage artifact would be satisfied by writing the artifact "
+            "rather than by doing the thinking."
+        ),
+    },
+    {
+        "law": 2,
+        "rule": "evidence over inference -- inspect or run before claiming",
+        "status": "prose-only",
+        "reason": (
+            "No hook observes an assertion. The claim and the evidence for it are both "
+            "prose in the same message, and a check that could tell them apart would be "
+            "reading for meaning, which every lexical attempt in this repository has "
+            "lost -- see the superseded-policy scan's three failed review rounds."
+        ),
+    },
+    {
+        "law": 3,
+        "rule": "no production code before an observed failing test",
+        "status": "gated",
+        "mechanism": "check_r12_test_before_production",
+    },
+    {
+        "law": 4,
+        "rule": "never weaken, delete, or rewrite a test to reach green",
+        "status": "prose-only",
+        "reason": (
+            "A weakened assertion and a corrected one are the same edit to a hook. "
+            "Distinguishing them needs the intent behind the change, and gating test "
+            "edits at all would block the corrections this repository legitimately "
+            "makes -- a gate firing on correct work, which is the shape that gets "
+            "guards deleted."
+        ),
+    },
+    {
+        "law": 5,
+        "rule": "never claim a check you did not run",
+        "status": "prose-only",
+        "reason": (
+            "The session ledger records that a test run happened, never that the run "
+            "supports the sentence an agent then wrote. Binding those together needs "
+            "the claim parsed and matched to the evidence, which is the same semantic "
+            "read law 2 fails on."
+        ),
+    },
+    {
+        "law": 6,
+        "rule": "independent adversarial review before the next step, and once per pull request before arming",
+        "status": "gated",
+        "mechanism": "check_r15_review_before_arming",
+    },
+    {
+        "law": None,
+        "rule": "query the stores before broad discovery",
+        "status": "performed",
+        "mechanism": "_standing_constraints",
+    },
+    {
+        "law": None,
+        "rule": "start from a fresh base; never edit on the default branch",
+        "status": "gated",
+        "mechanism": "check_r19_fresh_base",
+    },
+    {
+        "law": None,
+        "rule": "push anything a remote has never seen before deleting it",
+        "status": "gated",
+        "mechanism": "check_r13_push_before_delete",
+    },
+    {
+        "law": None,
+        "rule": "never discard uncommitted work with a hard reset",
+        "status": "gated",
+        "mechanism": "check_r14_hard_reset",
+    },
+    {
+        "law": None,
+        "rule": "run the learning loop before reporting done",
+        "status": "gated",
+        "mechanism": "check_r16_learning_loop",
+    },
+    {
+        "law": None,
+        "rule": "arm auto-merge once the review gate passes, then watch until merged",
+        "status": "gated",
+        "mechanism": "check_r17_unarmed_pull_request",
+    },
+    {
+        "law": None,
+        "rule": "push before the session can end; unpushed work is unrecoverable",
+        "status": "gated",
+        "mechanism": "check_r18_unpushed_work",
+    },
+    {
+        "law": None,
+        "rule": "keep the deployed harness in step with the tracked one",
+        "status": "gated",
+        "mechanism": "check_r20_user_harness_drift",
+    },
+)
+
+REGISTRY_STATUSES = frozenset({"performed", "gated", "prose-only"})
 
 # Words that leave every pinned word in place and turn the rule into a
 # suggestion.
@@ -1637,6 +1777,95 @@ class DisciplineTest(unittest.TestCase):
         self.assert_reports(
             {ENTRYPOINT: mutated}, self.NUMBERED_LAW, "deleting the law outright is not reported"
         )
+
+    def guard_source(self) -> str:
+        path = ROOT / "scripts/agents/guard.py"
+        # Asserted, not assumed: a wrong path here makes every mechanism check
+        # error rather than fail, and an errored check proves nothing about the
+        # registry it was supposed to be verifying.
+        self.assertTrue(path.is_file(), f"guard.py not found at {path}")
+        return path.read_text(encoding="utf-8")
+
+    def test_every_iron_law_has_exactly_one_registry_row(self):
+        """#4541: a rule with no recorded enforcement status is the gap itself.
+
+        Equality against the entrypoint, not a hand-kept count: the law numbers
+        come from the file, so adding a seventh iron law fails this until it is
+        classified as performed, gated, or prose-only-because. That is what
+        makes the registry bind on future expansion rather than on today's six.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        runs = ordered_list_runs(headed_sections(source, IRON_LAWS)[0])
+        laws = {number for run in runs for number in run}
+        registered = [row["law"] for row in REQUIRED_ACTION_REGISTRY if row["law"] is not None]
+
+        self.assertEqual(set(registered), laws, "every iron law needs exactly one row")
+        self.assertEqual(
+            len(registered), len(set(registered)), "a law must not be registered twice"
+        )
+
+    def test_every_row_is_honestly_classified(self):
+        for row in REQUIRED_ACTION_REGISTRY:
+            with self.subTest(rule=row["rule"][:50]):
+                self.assertIn(row["status"], REGISTRY_STATUSES)
+                self.assertTrue(row["rule"].strip())
+
+    def test_every_enforced_row_names_a_mechanism_that_exists(self):
+        """A row claiming enforcement by a symbol nobody wrote is worse than no row."""
+        source = self.guard_source()
+        for row in REQUIRED_ACTION_REGISTRY:
+            if row["status"] not in ("gated", "performed"):
+                continue
+            with self.subTest(rule=row["rule"][:50]):
+                mechanism = row.get("mechanism", "")
+                self.assertTrue(mechanism, "an enforced row must name its mechanism")
+                self.assertIn(
+                    f"def {mechanism}(",
+                    source,
+                    f"{mechanism} is claimed as the mechanism and is not defined in guard.py",
+                )
+
+    def test_every_prose_only_row_records_why(self):
+        """The third status is honest only while it carries its reason."""
+        for row in REQUIRED_ACTION_REGISTRY:
+            if row["status"] != "prose-only":
+                continue
+            with self.subTest(rule=row["rule"][:50]):
+                reason = row.get("reason", "")
+                # A word floor, because "not practical" is non-empty and says
+                # nothing. Low on purpose: this catches a placeholder, it does
+                # not have opinions about prose.
+                self.assertGreaterEqual(
+                    len(reason.split()), 12, "state why no mechanism is practical"
+                )
+
+    def test_the_registry_does_not_require_its_own_categories_to_be_populated(self):
+        """The deadlock this design was warned about, asserted as absent.
+
+        `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-
+        will-be-weakened`: requiring prose-only to be empty would make the
+        healthy end state illegal the moment a rule genuinely has no mechanism,
+        and the cheapest exit an agent sees is deleting the guard.
+
+        So the checks above must pass on a registry with no prose-only rows,
+        and on one with nothing but them.
+        """
+        for variant in ("all gated", "all prose-only", "empty"):
+            with self.subTest(variant=variant):
+                if variant == "all gated":
+                    rows = tuple(
+                        row for row in REQUIRED_ACTION_REGISTRY if row["status"] != "prose-only"
+                    )
+                elif variant == "all prose-only":
+                    rows = tuple(
+                        row for row in REQUIRED_ACTION_REGISTRY if row["status"] == "prose-only"
+                    )
+                else:
+                    rows = ()
+                with mock.patch(f"{__name__}.REQUIRED_ACTION_REGISTRY", rows):
+                    self.test_every_row_is_honestly_classified()
+                    self.test_every_enforced_row_names_a_mechanism_that_exists()
+                    self.test_every_prose_only_row_records_why()
 
     def test_every_pinned_section_with_rules_is_counted(self):
         """An uncounted section must not become the place to hide a deletion.
