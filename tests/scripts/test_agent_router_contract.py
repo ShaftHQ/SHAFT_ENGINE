@@ -78,6 +78,33 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (LENS, BINDING, "apply it, run it, read the failure, revert"),
 )
 
+# How many rules each pinned section is supposed to have (#4534).
+#
+# `numbering_defects` reads a list as 1..N, so it sees an item removed from the
+# middle -- 1, 2, 4 -- and cannot see one removed from the end, because 1, 2 is
+# as contiguous as 1, 2, 3. The clause pins were meant to cover that, and here
+# they do not: `PINNED_CLAUSES` binds iron laws 2, 3, 4 and 5, so laws 1 and 6
+# have no pin, and law 6 is the last item. Deleting the rule that requires an
+# independent adversarial review passed the numbering check and every clause
+# pin at once, reported by nothing.
+#
+# A count rather than two more clause pins, for two reasons. A clause pin binds
+# words, and words get rewritten for good reasons, so pinning every law by text
+# makes ordinary editing expensive and teaches authors to route around the pins.
+# And a count fails in the other direction too: a law *added* without review is
+# a policy change with no gate in front of it, and no clause pin can ask about
+# a rule nobody has written down yet.
+#
+# A section with no ordered list has no entry, and `test_every_pinned_section_
+# with_rules_is_counted` keeps that from becoming a place to hide: it fails if
+# a pinned section grows a list nobody counted, and if a count names a section
+# that is not pinned.
+PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
+    (ENTRYPOINT, IRON_LAWS): 6,
+    (ENTRYPOINT, TDD): 3,
+    (LENS, GAP_SHAPES): 4,
+}
+
 # Words that leave every pinned word in place and turn the rule into a
 # suggestion.
 #
@@ -203,6 +230,27 @@ def numbering_defects(section: str, where: str) -> list[str]:
     return defects
 
 
+def count_defects(section: str, where: str, key: tuple[Path, str]) -> list[str]:
+    """Report a pinned section whose rule count is not the one on record.
+
+    Counts every item across the section's ordered lists rather than the
+    longest run, so splitting one list into two does not quietly halve the
+    figure the check compares against.
+
+    Silent for a section with no pinned count. That is not a gap to be closed
+    here: `test_every_pinned_section_with_rules_is_counted` is what makes the
+    silence deliberate, by failing when a pinned section has rules and no
+    count.
+    """
+    expected = PINNED_RULE_COUNTS.get(key)
+    if expected is None:
+        return []
+    found = sum(len(run) for run in ordered_list_runs(section))
+    if found != expected:
+        return [f"{where}: rule count is {found}, not the pinned {expected}"]
+    return []
+
+
 def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
     """Report what is wrong with a pinned section: its clauses and its numbering.
 
@@ -237,6 +285,7 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
         if (path, heading) not in numbered:
             numbered.add((path, heading))
             defects.extend(numbering_defects(sections[0], where))
+            defects.extend(count_defects(sections[0], where, (path, heading)))
         pattern = clause_pattern(clause)
         matched = [block for block in rule_blocks(sections[0]) if re.search(pattern, block)]
         if not matched:
@@ -1570,6 +1619,111 @@ class DisciplineTest(unittest.TestCase):
         )
         self.assert_reports(
             {ENTRYPOINT: mutated}, self.NUMBERED_LAW, "deleting the law outright is not reported"
+        )
+
+    def test_every_pinned_section_with_rules_is_counted(self):
+        """An uncounted section must not become the place to hide a deletion.
+
+        `count_defects` is silent where no count is pinned, which is correct
+        for Red flags and `proving a check binds` -- neither carries an
+        ordered list, so there is nothing to count. Left at that, the way to
+        evade the check would be to add rules to an uncounted section, or to
+        add a pinned section and never count it.
+
+        Equality in both directions. A pinned section that grows an ordered
+        list and no count is the evasion; a count naming a section that is not
+        pinned is a check aimed at nothing, which reads like coverage and is
+        not.
+        """
+        with_rules = set()
+        for path, heading, _ in PINNED_CLAUSES:
+            if (path, heading) in with_rules:
+                continue
+            sections = headed_sections(path.read_text(encoding="utf-8"), heading)
+            if len(sections) == 1 and ordered_list_runs(sections[0]):
+                with_rules.add((path, heading))
+        self.assertEqual(
+            with_rules,
+            set(PINNED_RULE_COUNTS),
+            "every pinned section that has rules needs a count, and vice versa",
+        )
+
+    def test_each_pinned_count_matches_the_file_today(self):
+        """A count that drifted from the file reports on every run or never.
+
+        Wrong high and the section is permanently in defect; wrong low and it
+        has already absorbed a deletion. Either way the figure stops meaning
+        what the other tests here assume it means.
+        """
+        for (path, heading), expected in PINNED_RULE_COUNTS.items():
+            with self.subTest(section=f"{path.name}:{heading}"):
+                sections = headed_sections(path.read_text(encoding="utf-8"), heading)
+                self.assertEqual(len(sections), 1)
+                found = sum(len(run) for run in ordered_list_runs(sections[0]))
+                self.assertEqual(found, expected)
+
+    def test_deleting_the_last_law_is_reported(self):
+        """#4534: an end-deletion is contiguous, and the last law has no pin.
+
+        `numbering_defects` reads 1..N, so removing an item from the *middle*
+        leaves a gap it catches while removing the item at the *end* leaves
+        1, 2, 3 becoming 1, 2 -- still contiguous, still 1..N, silent. The
+        module already said so honestly; what it did not say is what that
+        costs here.
+
+        `PINNED_CLAUSES` pins iron laws 2, 3, 4 and 5. Laws 1 and 6 carry no
+        clause pin, and law 6 is the last item -- so deleting the rule that
+        requires an independent adversarial review passes the numbering check
+        and every clause pin at once. The one rule whose absence nothing else
+        in the harness would notice is exactly the one the structure could not
+        see going.
+
+        Fixed with a count rather than by pinning those two clauses. A clause
+        pin binds the words, and words get rewritten for good reasons; a count
+        binds the shape, which is what an end-deletion changes. It also fails
+        for a law added without review, which no clause pin can do.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        mutated = re.sub(r"(?m)^6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*", "", source, count=1)
+        self.assertNotEqual(mutated, source, "the mutation did not apply")
+        self.assertEqual(
+            self.law_numbers(mutated),
+            [1, 2, 3, 4, 5],
+            "the point of this test is that the remaining list stays contiguous",
+        )
+        self.assertNotIn(
+            "independent adversarial review", mutated.lower(), "the law must be gone"
+        )
+        self.assertEqual(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            [],
+            "an end-deletion is not a numbering defect, which is why this test exists",
+        )
+        self.assertTrue(
+            clause_defects({ENTRYPOINT: mutated}),
+            "deleting the last iron law must be reported by something",
+        )
+
+    def test_adding_a_law_nobody_pinned_is_reported(self):
+        """The same count, in the direction a clause pin cannot look.
+
+        Every pin asks whether a rule it already knows about is still there.
+        None of them can ask whether a rule appeared that no one reviewed, and
+        a silently added iron law is a policy change with no gate in front of
+        it.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        mutated = re.sub(
+            r"(?m)^(6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*)",
+            r"\g<1>7. Ship it if the delegate says it passed.\n",
+            source,
+            count=1,
+        )
+        self.assertNotEqual(mutated, source, "the mutation did not apply")
+        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5, 6, 7])
+        self.assertTrue(
+            clause_defects({ENTRYPOINT: mutated}),
+            "an iron law appearing from nowhere must be reported",
         )
 
     def test_hedges_that_slipped_past_the_first_marker_list_are_reported(self):
