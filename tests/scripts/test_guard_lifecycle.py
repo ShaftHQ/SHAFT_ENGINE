@@ -472,6 +472,112 @@ class PushBeforeDeleteGateTest(unittest.TestCase):
             )
 
 
+class RemediesAreNotBlockedByAnotherRuleTest(unittest.TestCase):
+    """A rule may only name an escape that the rest of the file permits.
+
+    R14 offered three ways out of a blocked `git reset --hard`, and one of
+    them -- "stash deliberately" -- is refused outright by R8 in this
+    repository. Not a deadlock, since the other two are legal, but it is the
+    near miss that `decision.check-every-new-guard-pairwise-against-the-
+    guards-already-shipped` was written after: when the last remedy standing
+    is one another rule forbids, deleting a guard becomes the cheapest exit,
+    and iron law 4 forbids that exit.
+
+    Explicit rows rather than prose-scraping the file. Several rules quote
+    commands precisely to say they are *not* affected -- R13 on `git branch
+    -d`, R14 on `git reset --hard` itself -- so a scan for backticked
+    commands would flag the documentation as the defect.
+    """
+
+    REMEDIES = (
+        ("R13", "git push -u origin feature"),
+        ("R14", "git add -A && git commit -m x"),
+        ("R14", "git reset --soft HEAD~1"),
+        ("R14", "git reset HEAD~1"),
+    )
+
+    def test_no_rule_offers_an_escape_another_rule_refuses(self):
+        for rule, command in self.REMEDIES:
+            with self.subTest(rule=rule, command=command):
+                self.assertIsNone(
+                    guard.check_r8_git_stash(command),
+                    f"{rule} names a remedy R8 refuses",
+                )
+                with patch(
+                    "scripts.agents.guard._uncommitted_file_count", return_value=4
+                ):
+                    self.assertIsNone(
+                        guard.check_r14_hard_reset(command, "Bash", "."),
+                        f"{rule} names a remedy R14 refuses",
+                    )
+
+    def test_the_forbidden_remedy_is_still_forbidden(self):
+        """Guards the check above against passing because R8 stopped working."""
+        self.assertIsNotNone(guard.check_r8_git_stash("git stash"))
+
+    def test_r14_no_longer_recommends_the_command_r8_refuses(self):
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
+            reason = guard.check_r14_hard_reset("git reset --hard HEAD~1", "Bash", ".")
+        self.assertIsNotNone(reason)
+        self.assertNotIn("stash deliberately", reason)
+
+
+class HookBudgetTest(unittest.TestCase):
+    """One invocation gets one window, and the entry point must open it.
+
+    The comment above `SUBPROCESS_TIMEOUT` claimed every helper query shared a
+    budget. Nothing implemented it -- adversarial review measured a single
+    PreToolUse invocation issuing 7 subprocesses at 4s each, 28s against a 10s
+    hook timeout. A killed PreToolUse hook fails *open*, so overrunning does
+    not produce a slow decision, it produces no decision and silently skips
+    every rule in the file.
+
+    `test_main_opens_the_window` is the load-bearing one. A budget the entry
+    point never starts is exactly
+    `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
+    hook-can-reach-it`: the arithmetic would test green while nothing enforced
+    it.
+    """
+
+    def tearDown(self):
+        guard.clear_hook_budget()
+
+    def test_the_per_call_ceiling_applies_outside_a_hook(self):
+        guard.clear_hook_budget()
+        self.assertEqual(guard._subprocess_timeout(), float(guard.SUBPROCESS_TIMEOUT))
+
+    def test_an_open_window_never_exceeds_the_per_call_ceiling(self):
+        guard.start_hook_budget(60.0)
+        self.assertEqual(guard._subprocess_timeout(), float(guard.SUBPROCESS_TIMEOUT))
+
+    def test_a_nearly_spent_window_shortens_the_next_call(self):
+        guard.start_hook_budget(1.0)
+        self.assertLessEqual(guard._subprocess_timeout(), 1.0)
+        self.assertGreater(guard._subprocess_timeout(), 0)
+
+    def test_a_spent_window_still_returns_a_positive_timeout(self):
+        """Zero would be ambiguous; the caller must take its existing timeout path."""
+        guard.start_hook_budget(-1.0)
+        self.assertGreater(guard._subprocess_timeout(), 0)
+        self.assertLess(guard._subprocess_timeout(), 0.01)
+
+    def test_the_window_bounds_the_total_not_just_each_call(self):
+        """The property the old comment asserted and nothing enforced."""
+        guard.start_hook_budget(5.0)
+        self.assertLessEqual(sum(guard._subprocess_timeout() for _ in range(7)), 28.0)
+        guard.start_hook_budget(-1.0)
+        self.assertLess(sum(guard._subprocess_timeout() for _ in range(7)), 1.0)
+
+    def test_main_opens_the_window(self):
+        guard.clear_hook_budget()
+        payload = json.dumps({"hook_event_name": "Stop", "stop_hook_active": True})
+        with patch("sys.stdin", io.StringIO(payload)):
+            self.assertEqual(guard.main([]), 0)
+        self.assertIsNotNone(
+            guard._hook_deadline, "main must open the shared window before dispatching"
+        )
+
+
 class DeliveredBranchIsNotUnrecoverableTest(unittest.TestCase):
     """A squash-merged branch is delivered, however its commit count reads.
 

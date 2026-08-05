@@ -62,6 +62,7 @@ import re
 import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
 import tempfile
+import time
 from typing import NamedTuple
 
 # ---------------------------------------------------------------------------
@@ -1336,12 +1337,55 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
-# Every helper query shares one budget, well inside the 10s PreToolUse
-# timeout in .claude/settings.json and .codex/hooks.json. It was 8s, which
-# left no margin: one slow `git` or `gh` on a contended machine and the hook
-# is killed mid-decision. That matters more since the matcher widened to
-# Write|Edit, because this now runs on every edit rather than every command.
+# Ceiling for any single helper query, well inside the 10s PreToolUse timeout
+# in .claude/settings.json and .codex/hooks.json. It was 8s, which left no
+# margin: one slow `git` or `gh` on a contended machine and the hook is killed
+# mid-decision. That matters more since the matcher widened to Write|Edit,
+# because this now runs on every edit rather than every command.
 SUBPROCESS_TIMEOUT = 4
+# ...and a ceiling on all of them together, which is the part that used to be
+# claimed here and was never implemented. Adversarial review measured one
+# PreToolUse invocation of `git branch -D a b c d e f && git reset --hard`
+# issuing 7 subprocesses: 4s each is 28s against a 10s hook.
+#
+# Exceeding the hook timeout is not a slow decision, it is *no* decision. A
+# killed PreToolUse hook fails open, so every rule in this file -- R1, R2, R3,
+# R8, R9, R10, R11, R13, R14, R15 -- is silently skipped for that call. The
+# only unbounded loop is R13's, which queries once per branch name given.
+HOOK_BUDGET_SECONDS = 8.0
+_hook_deadline: float | None = None
+
+
+def start_hook_budget(seconds: float = HOOK_BUDGET_SECONDS) -> None:
+    """Open the shared window for one hook invocation."""
+    global _hook_deadline
+    _hook_deadline = time.monotonic() + seconds
+
+
+def clear_hook_budget() -> None:
+    """Drop the shared window, restoring the per-call ceiling."""
+    global _hook_deadline
+    _hook_deadline = None
+
+
+def _subprocess_timeout() -> float:
+    """Per-call ceiling, further capped by whatever the invocation has left.
+
+    Returns a small positive value rather than zero once the window closes:
+    the caller then takes the `TimeoutExpired` path it already handles and
+    fails open, which is the same answer it would have reached had the query
+    genuinely not returned. No new control flow, and no branch of this file
+    can consume the budget of another.
+
+    Outside a hook invocation -- unit tests, the self-test, direct calls --
+    no window is open and the per-call ceiling applies unchanged.
+    """
+    if _hook_deadline is None:
+        return float(SUBPROCESS_TIMEOUT)
+    remaining = _hook_deadline - time.monotonic()
+    if remaining <= 0:
+        return 0.001
+    return min(float(SUBPROCESS_TIMEOUT), remaining)
 # Blank line between collected Stop reasons. A named constant rather than an
 # inline escape, because an inline one has to survive every future edit to
 # this file to keep run_stop parseable, and it did not survive the first.
@@ -1431,7 +1475,7 @@ def _unpushed_commit_count(branch: str) -> int | None:
             ["git", "rev-list", "--count", branch, "--not", "--remotes"],
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -1451,7 +1495,7 @@ def _git_output(arguments: list[str]) -> str | None:
             ["git", *arguments],
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -1507,7 +1551,7 @@ def _content_exists_on_default_branch(branch: str) -> bool:
             ["git", "diff", "--quiet", reference, branch, "--", *files],
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -1549,7 +1593,7 @@ def _uncommitted_file_count(cwd: object) -> int | None:
             cwd=str(cwd),
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -1616,8 +1660,10 @@ def check_r14_hard_reset(command: str, tool_name: str, cwd: object) -> str | Non
         return (
             f"R14 blocked: the working tree has {changed} uncommitted file(s) and "
             "`git reset --hard` discards them with no reflog entry and no recovery. "
-            "Commit them (`git add -A && git commit`), or stash deliberately, or "
-            "reset without `--hard` if you only meant to move the branch pointer. "
+            "Commit them (`git add -A && git commit`), or reset without `--hard` "
+            "if you only meant to move the branch pointer. Not `git stash`: R8 "
+            "refuses it in this repository, and a remedy a neighbouring rule "
+            "forbids is how an agent ends up with no legal move at all. "
             "This rule exists because an agent building the neighbouring guard lost "
             "a finished, tested change to exactly this command."
         )
@@ -1636,7 +1682,7 @@ def _independent_review_count(target: str | None) -> int | None:
     arguments += ["--json", "reviews,author"]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
-            arguments, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT, check=False
+            arguments, capture_output=True, text=True, timeout=_subprocess_timeout(), check=False
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -2034,7 +2080,7 @@ def _open_pull_request_count(branch: str | None) -> int | None:
             ],
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -2102,7 +2148,7 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -2168,7 +2214,7 @@ def _current_branch(cwd: object) -> str | None:
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
-            timeout=SUBPROCESS_TIMEOUT,
+            timeout=_subprocess_timeout(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -2836,6 +2882,10 @@ def main(argv: list[str]) -> int:
     if not isinstance(raw_hook_input, dict):
         return 0
     hook_input = normalize_hook_input(raw_hook_input)
+    # One window per invocation, opened before any rule runs. Without it each
+    # helper got its own ceiling and a single decision could queue far past
+    # the host's hook timeout, which fails open and skips every rule here.
+    start_hook_budget()
     event = hook_input.get("hook_event_name") or "PreToolUse"
     if event == "SessionStart":
         return run_session_start(hook_input)
