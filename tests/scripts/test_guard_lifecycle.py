@@ -100,9 +100,10 @@ class DelegatePreflightRedTest(unittest.TestCase):
                 "scripts.agents.guard._worktree_report",
                 return_value={"worktrees": [], "advisories": []},
             ):
-                with patch("scripts.agents.guard._sync_advisory", return_value=None):
-                    with redirect_stdout(output):
-                        self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
+                with patch("scripts.agents.guard._mempalace_wake_up", return_value=None):
+                    with patch("scripts.agents.guard._sync_advisory", return_value=None):
+                        with redirect_stdout(output):
+                            self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
         payload = json.loads(output.getvalue())
         context = payload["hookSpecificOutput"]["additionalContext"]
         self.assertLessEqual(len(context.encode("utf-8")), 8192)
@@ -220,6 +221,7 @@ class GuardLifecycleTest(unittest.TestCase):
         self.assertIn(
             "act-as-mohab", output["hookSpecificOutput"]["additionalContext"]
         )
+
 
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
     @patch(
@@ -377,6 +379,62 @@ class GuardLifecycleTest(unittest.TestCase):
         first, second = run.call_args_list
         self.assertLessEqual(first.kwargs["timeout"] + second.kwargs["timeout"], 20)
         self.assertNotIn("--check", second.args[0])
+
+
+class PreflightPackTest(unittest.TestCase):
+    """#4570 A4: bounded retrieval augments, but never blocks, SessionStart."""
+
+    def test_mempalace_wake_up_is_injected_and_the_full_pack_is_byte_capped(self):
+        self.assertTrue(hasattr(guard, "_mempalace_wake_up"), "A4 wake-up helper is missing")
+        with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [], "advisories": []}):
+            with patch("scripts.agents.guard._sync_advisory", return_value=None):
+                with patch(
+                    "scripts.agents.guard._mempalace_wake_up",
+                    return_value="MemPalace wake-up\n" + "x" * 9000,
+                ):
+                    stream = io.StringIO()
+                    with redirect_stdout(stream):
+                        self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
+        context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("MemPalace wake-up", context)
+        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+
+    def test_mempalace_wake_up_fails_open_when_the_binary_cannot_run(self):
+        self.assertTrue(hasattr(guard, "_mempalace_wake_up"), "A4 wake-up helper is missing")
+        with patch("scripts.agents.guard.subprocess.run", side_effect=OSError):
+            self.assertIsNone(guard._mempalace_wake_up("."))
+
+    def test_mempalace_wake_up_fails_open_on_an_invalid_working_directory(self):
+        with patch("scripts.agents.guard.subprocess.run", side_effect=ValueError):
+            self.assertIsNone(guard._mempalace_wake_up("."))
+
+    def test_session_start_injects_native_memory_do_not_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            constraints = os.path.join(directory, ".memory", "memory", "constraints")
+            gotchas = os.path.join(directory, ".memory", "memory", "gotchas")
+            os.makedirs(constraints)
+            os.makedirs(gotchas)
+            with open(os.path.join(constraints, "one.json"), "w", encoding="utf-8") as handle:
+                json.dump({"title": "A stored constraint"}, handle)
+            reminder = "Do not discard a squash-merged branch before diffing it."
+            with open(os.path.join(gotchas, "squash-merge.md"), "w", encoding="utf-8") as handle:
+                handle.write(reminder)
+            with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [], "advisories": []}):
+                with patch("scripts.agents.guard._sync_advisory", return_value=None):
+                    with patch("scripts.agents.guard._mempalace_wake_up", return_value=None):
+                        stream = io.StringIO()
+                        with redirect_stdout(stream):
+                            self.assertEqual(guard.run_session_start({"cwd": directory}), 0)
+        context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(reminder, context)
+
+    def test_native_memory_reminders_fail_open_when_the_store_cannot_be_read(self):
+        with patch("scripts.agents.guard.os.listdir", side_effect=OSError):
+            self.assertIsNone(guard._memory_do_not_lines("."))
+
+    def test_native_memory_constraints_fail_open_when_the_store_cannot_be_read(self):
+        with patch("scripts.agents.guard.os.listdir", side_effect=OSError):
+            self.assertIsNone(guard._standing_constraints("."))
 
 
 if __name__ == "__main__":
@@ -974,6 +1032,37 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                 guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
             )
 
+    def test_arming_after_a_commit_requires_a_learning_route(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                reason = guard.check_r15_review_before_arming(
+                    "gh pr merge 4539 --auto --squash", "Bash", {"session_id": "s"}
+                )
+        self.assertIsNotNone(reason)
+        self.assertIn("learning", reason.lower())
+
+    def test_auto_equals_true_cannot_bypass_the_learning_route(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                for auto in ("true", "1", "t", "T"):
+                    with self.subTest(auto=auto):
+                        self.assertIsNotNone(
+                            guard.check_r15_review_before_arming(
+                                f"gh pr merge 4539 --auto={auto} --squash",
+                                "Bash",
+                                {"session_id": "s"},
+                            )
+                        )
+
+    def test_a_learning_write_keeps_reviewed_arming_available(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            with patch("scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]):
+                self.assertIsNone(
+                    guard.check_r15_review_before_arming(
+                        "gh pr merge 4539 --auto --squash", "Bash", {"session_id": "s"}
+                    )
+                )
+
     def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
         """No gh, no auth, no network: unknown is not zero (#4542)."""
         with patch("scripts.agents.guard._independent_review_count", return_value=None):
@@ -1049,6 +1138,116 @@ class LearningLoopStopGateTest(unittest.TestCase):
                     guard.run_stop({"cwd": ".", "session_id": "s", "stop_hook_active": True}), 0
                 )
             self.assertEqual(output.getvalue().strip(), "")
+
+
+class DelegateStopHookTest(unittest.TestCase):
+    """A committed delegate must reach R16 through the host stop event (#4570 A8)."""
+
+    def setUp(self):
+        isolate_stop_rules(self, except_for=("check_r16_learning_loop",))
+
+    def test_subagent_stop_registration_reaches_r16(self):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for name in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(host=name):
+                with open(os.path.join(root, name), encoding="utf-8") as handle:
+                    hooks = json.load(handle)["hooks"]
+                self.assertIn("SubagentStop", hooks)
+
+        output = io.StringIO()
+        payload = json.dumps({"hook_event_name": "SubagentStop", "session_id": "delegate"})
+        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+            with patch("sys.stdin", io.StringIO(payload)):
+                with redirect_stdout(output):
+                    self.assertEqual(guard.main([]), 0)
+        self.assertIn("Learning loop", output.getvalue())
+
+
+class LearningWriteObservationTest(unittest.TestCase):
+    """R16 must observe every supported route that writes a learning (#4570 A9)."""
+
+    def events_after(
+        self, tool_name: str, command: str = "", tool_input: dict | None = None
+    ) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = {
+                    "session_id": f"learning-{tool_name}-{command}",
+                    "cwd": directory,
+                    "tool_name": tool_name,
+                    "tool_input": {"command": command, **(tool_input or {})},
+                }
+                self.assertEqual(guard.run_pretooluse(payload), 0)
+                return guard.ledger_events(payload)
+
+    def test_mcp_and_cli_learning_writes_reach_the_ledger(self):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for name in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(host=name):
+                with open(os.path.join(root, name), encoding="utf-8") as handle:
+                    matcher = json.load(handle)["hooks"]["PreToolUse"][0]["matcher"]
+                self.assertIn("mcp__mempalace__", matcher)
+
+        for tool_name, command in (
+            ("mcp__mempalace__mempalace_mine", ""),
+            ("Bash", "memory remember --stdin"),
+            ("PowerShell", "mempalace sweep"),
+        ):
+            with self.subTest(tool_name=tool_name, command=command):
+                self.assertIn("memory-write", self.events_after(tool_name, command))
+
+    def test_reading_or_mentioning_a_write_does_not_count(self):
+        self.assertNotIn("memory-write", self.events_after("mcp__shaft-memory__search_memory"))
+        self.assertNotIn(
+            "memory-write", self.events_after("mcp__mempalace__mempalace_get_aaak_spec")
+        )
+        self.assertNotIn(
+            "memory-write", self.events_after("mcp__mempalace__mempalace_delete_by_source")
+        )
+        self.assertNotIn("memory-write", self.events_after("mcp__mempalace__mempalace_sync"))
+        self.assertNotIn("memory-write", self.events_after("Bash", 'echo "memory remember"'))
+
+    def test_a_non_dry_memories_deletion_counts_as_a_write(self):
+        self.assertIn(
+            "memory-write",
+            self.events_after(
+                "mcp__mempalace__mempalace_delete_by_source", tool_input={"dry_run": False}
+            ),
+        )
+        self.assertIn(
+            "memory-write",
+            self.events_after("mcp__mempalace__mempalace_sync", tool_input={"apply": True}),
+        )
+
+
+class LearningNoneEscapeTest(unittest.TestCase):
+    """R16 / #4570: the legitimate no-learning outcome reaches the closing gate."""
+
+    def events_after(self, command: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = {
+                    "session_id": command,
+                    "cwd": directory,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": command},
+                }
+                self.assertEqual(guard.run_pretooluse(payload), 0)
+                return guard.ledger_events(payload)
+
+    def test_substantive_learning_none_reason_is_recorded(self):
+        events = self.events_after(
+            'py -3 scripts/agents/guard.py --learning-none "No durable learning surfaced"'
+        )
+        self.assertIn("learning-none:No durable learning surfaced", events)
+
+    def test_empty_or_placeholder_reason_does_not_count(self):
+        for reason in ('""', '"n/a"'):
+            with self.subTest(reason=reason):
+                events = self.events_after(
+                    f"py -3 scripts/agents/guard.py --learning-none {reason}"
+                )
+                self.assertFalse(any(event.startswith("learning-none:") for event in events))
 
 
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
@@ -1959,6 +2158,49 @@ class ObservedReviewDispatchTest(unittest.TestCase):
             inspect.getsource(guard._unarmed_reviewed_pull_request),
         )
 
+
+class DispatchAdapterGateTest(unittest.TestCase):
+    """R22 refuses dispatches that cannot receive a role adapter (#4570 A2)."""
+
+    @staticmethod
+    def payload(subagent: object) -> dict:
+        return {
+            "tool_name": "Task",
+            "tool_input": {"subagent_type": subagent},
+            "session_id": "r22",
+            "cwd": ".",
+        }
+
+    def test_run_pretooluse_denies_an_unadapted_dispatch(self):
+        """The hook path, not merely a helper, must refuse general-purpose."""
+        output = io.StringIO()
+        with patch("scripts.agents.guard.ledger_record"):
+            with redirect_stdout(output):
+                self.assertEqual(guard.run_pretooluse(self.payload("general-purpose")), 0)
+        self.assertIn("R22 blocked", output.getvalue())
+
+    def test_a_denied_dispatch_is_not_recorded_as_a_delegate(self):
+        events: list[str] = []
+        with patch(
+            "scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: events.append(event)
+        ):
+            guard.run_pretooluse(self.payload("general-purpose"))
+        self.assertNotIn("delegate-dispatch", events)
+
+    def test_run_pretooluse_allows_every_adapted_dispatch(self):
+        for subagent in ("coder", "reviewer", "tester", "helper", "chaos-engine"):
+            with self.subTest(subagent=subagent):
+                output = io.StringIO()
+                with patch("scripts.agents.guard.ledger_record"):
+                    with redirect_stdout(output):
+                        self.assertEqual(guard.run_pretooluse(self.payload(subagent)), 0)
+                self.assertNotIn("R22 blocked", output.getvalue())
+
+    def test_r22_records_the_learning_loop_arming_escape(self):
+        source = inspect.getsource(guard.check_r22_dispatch_adapter).lower()
+        self.assertIn("learning-loop", source)
+        self.assertIn("escape", source)
+
     def test_the_recorder_is_wired_into_the_hook(self):
         """A recorder the hook never calls is the defect this batch keeps finding."""
         self.assertIn(
@@ -1973,6 +2215,52 @@ class ObservedReviewDispatchTest(unittest.TestCase):
             with self.subTest(host=name):
                 text = open(os.path.join(root, name), encoding="utf-8").read()
                 self.assertIn("Task|Agent", text)
+
+
+class HistoricalDispatchReplayTest(unittest.TestCase):
+    """R22 / #4570 A12: replay the 18-dispatch audit without local transcript state."""
+
+    # Transcribed from session 834edc78-c25b-4c2c-8b65-9bf3bed8aa2b and its
+    # subagent logs. The original files are host runtime state, so the small,
+    # source-controlled fixture is what makes this regression portable to CI.
+    DISPATCHES = (
+        ("Adversarial review PR 4554", "reviewer", True),
+        ("Fix review findings 1 and 2 on PR 4554", "coder", True),
+        ("File review findings 3 and 4 as issues", "general-purpose", False),
+        ("Scoped review of PR 4554 new commits", "reviewer", True),
+        ("Analyze review-loop cost and propose caps", "general-purpose", False),
+        ("Correct R21 known-limits prose and log F1", "general-purpose", False),
+        ("Purge stale local worktrees safely", "coder", True),
+        ("Lane A: RED-before-GREEN validator", "coder", True),
+        ("Lane B: setUp pin, R19 scope, R12 honesty", "coder", True),
+        ("Lane C: credit scan, docstring sibling scan", "coder", True),
+        ("Lane D: stopping rule and design-ruling gate", "coder", True),
+        ("Audit and design dispatch-time enforcement", "reviewer", True),
+        ("List vacuous-risk tests", "general-purpose", False),
+        ("Extract prior-art issues", "general-purpose", False),
+        ("Read harness guidance files", "general-purpose", False),
+        ("Measure batch size vs review cycles", "general-purpose", False),
+        ("Inventory guard.py rules and tests", "general-purpose", False),
+        ("Audit ticket acceptance criteria vs diff", "general-purpose", False),
+    )
+
+    def test_correct_historical_dispatches_and_all_four_lanes_are_allowed(self):
+        self.assertEqual(len(self.DISPATCHES), 18)
+        lanes = [entry for entry in self.DISPATCHES if entry[0].startswith("Lane ")]
+        self.assertEqual(len(lanes), 4)
+        for description, subagent_type, allowed in self.DISPATCHES:
+            with self.subTest(description=description):
+                output = io.StringIO()
+                payload = {
+                    "tool_name": "Agent",
+                    "tool_input": {"subagent_type": subagent_type},
+                    "session_id": "historic-4570",
+                    "cwd": ".",
+                }
+                with patch("scripts.agents.guard.ledger_record"):
+                    with redirect_stdout(output):
+                        self.assertEqual(guard.run_pretooluse(payload), 0)
+                self.assertEqual("R22 blocked" not in output.getvalue(), allowed)
 
     def test_r15_accepts_an_observed_dispatch(self):
         arming = "gh pr merge 1 --auto --squash"
