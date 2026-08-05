@@ -1407,6 +1407,118 @@ def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | 
     )
 
 
+def _unpushed_commit_count(branch: str) -> int | None:
+    """Commits on `branch` that exist on no remote, or None if unanswerable.
+
+    None and 0 stay distinct, which #4542 is the record of paying for: "git
+    would not answer" and "nothing would be lost" are opposite facts about
+    whether to stop a deletion.
+    """
+    if not branch:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "rev-list", "--count", branch, "--not", "--remotes"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        return int((completed.stdout or "").strip())
+    except ValueError:
+        return None
+
+
+def _uncommitted_file_count(cwd: object) -> int | None:
+    """Changed files in the working tree, or None if git will not answer."""
+    if not cwd:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "-c", "core.longpaths=true", "status", "--porcelain"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return len([line for line in (completed.stdout or "").splitlines() if line.strip()])
+
+
+def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
+    """Refuse a force-delete of a branch whose commits exist nowhere else.
+
+    The entrypoint's cleanup order exists because it is not interchangeable:
+    push anything a remote has never seen first, then delete. Reversed, the
+    only copy of that work is gone.
+
+    Only `-D` is guarded. `git branch -d` already refuses an unmerged branch,
+    so git enforces the safe form itself, and restating it here would add
+    noise without safety -- the surest way to get a guard removed.
+    """
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"git"}))
+        if not rest or rest[0] != "branch" or "-D" not in rest[1:]:
+            continue
+        for name in [token for token in rest[1:] if not token.startswith("-")]:
+            unpushed = _unpushed_commit_count(name)
+            if unpushed is None or unpushed <= 0:
+                continue
+            return (
+                f"R13 blocked: {name} carries {unpushed} commit(s) that exist on no "
+                "remote, and `git branch -D` would destroy the only copy. The "
+                "entrypoint's cleanup order is push first, delete second, and it is "
+                f"not interchangeable. Run `git push -u origin {name}` (or confirm the "
+                "work is genuinely disposable) before deleting. `git branch -d` is "
+                "unaffected: git already refuses an unmerged branch itself."
+            )
+    return None
+
+
+def check_r14_hard_reset(command: str, tool_name: str, cwd: object) -> str | None:
+    """Refuse `git reset --hard` while the working tree carries uncommitted work.
+
+    Written after it happened. Setting up a probe branch for R13, this file's
+    author ran `git reset --hard HEAD~1` with R13's implementation and tests
+    uncommitted; both were destroyed instantly, and nothing here caught it.
+    R8 guarded `git stash`, R9 `git worktree add`, R13 `git branch -D` -- and
+    the most destructive command of the four was unguarded.
+
+    `--hard` alone triggers this. A soft or mixed reset leaves the working
+    tree alone, and `--hard` on a clean tree destroys nothing, so neither is
+    this rule's business.
+    """
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"git"}))
+        if not rest or rest[0] != "reset" or "--hard" not in rest[1:]:
+            continue
+        changed = _uncommitted_file_count(cwd)
+        if changed is None or changed <= 0:
+            continue
+        return (
+            f"R14 blocked: the working tree has {changed} uncommitted file(s) and "
+            "`git reset --hard` discards them with no reflog entry and no recovery. "
+            "Commit them (`git add -A && git commit`), or stash deliberately, or "
+            "reset without `--hard` if you only meant to move the branch pointer. "
+            "This rule exists because an agent building the neighbouring guard lost "
+            "a finished, tested change to exactly this command."
+        )
+    return None
+
+
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 

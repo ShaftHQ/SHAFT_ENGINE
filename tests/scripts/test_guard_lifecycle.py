@@ -384,3 +384,91 @@ class ProductionBeforeTestGateTest(unittest.TestCase):
         """No session id means no ledger, and an unanswerable question never blocks."""
         payload = {"cwd": ".", "tool_input": {"file_path": "a/src/main/java/T.java"}}
         self.assertIsNone(guard.check_r12_test_before_production(payload, "Write"))
+
+
+class PushBeforeDeleteGateTest(unittest.TestCase):
+    """#4541: the entrypoint's cleanup order, as a refusal rather than a step.
+
+    Task isolation says push any branch a remote has never seen *first*, then
+    delete. The order is not interchangeable: reversed, the only copy of that
+    work is gone and no later step recovers it.
+
+    Only `-D` is guarded. `git branch -d` already refuses an unmerged branch,
+    so git enforces the safe form itself; restating it would add noise without
+    safety, which is how a guard earns its own deletion.
+    """
+
+    def test_force_deleting_a_branch_with_unpushed_commits_is_refused(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+            reason = guard.check_r13_push_before_delete("git branch -D feature/x", "Bash")
+        self.assertIsNotNone(reason)
+        self.assertIn("push", reason.lower())
+        self.assertIn("feature/x", reason)
+
+    def test_force_deleting_a_fully_pushed_branch_is_allowed(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+            self.assertIsNone(guard.check_r13_push_before_delete("git branch -D feature/x", "Bash"))
+
+    def test_the_safe_delete_form_is_never_touched(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=5):
+            self.assertIsNone(guard.check_r13_push_before_delete("git branch -d feature/x", "Bash"))
+
+    def test_it_fails_open_when_the_commit_count_cannot_be_answered(self):
+        """Unknown is not zero and is not many -- #4542's lesson, applied here."""
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
+            self.assertIsNone(guard.check_r13_push_before_delete("git branch -D feature/x", "Bash"))
+
+    def test_prose_naming_the_command_is_not_the_command(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+            self.assertIsNone(
+                guard.check_r13_push_before_delete(
+                    'git commit -m "explain why git branch -D is guarded"', "Bash"
+                )
+            )
+
+
+class HardResetGateTest(unittest.TestCase):
+    """R14, and the incident that produced it.
+
+    While building R13 this guard's own author ran `git reset --hard HEAD~1`
+    to set up a probe branch, with R13's implementation and tests uncommitted.
+    Both were destroyed instantly. Nothing in the file caught it: R8 guards
+    `git stash`, R9 guards `git worktree add`, R13 guards `git branch -D` --
+    and the most destructive command of the set was unguarded.
+
+    The failure was compounded by a stale `.pyc`: the suite went green against
+    bytecode for source that no longer existed, so a passing run proved
+    nothing. That is the vacuous-green shape the harness polices elsewhere.
+
+    `--hard` alone is the trigger. A soft or mixed reset leaves the working
+    tree intact, and `--hard` on a clean tree destroys nothing.
+    """
+
+    def test_a_hard_reset_with_uncommitted_work_is_refused(self):
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
+            reason = guard.check_r14_hard_reset("git reset --hard HEAD~1", "Bash", ".")
+        self.assertIsNotNone(reason)
+        self.assertIn("uncommitted", reason.lower())
+
+    def test_a_hard_reset_on_a_clean_tree_is_allowed(self):
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=0):
+            self.assertIsNone(guard.check_r14_hard_reset("git reset --hard HEAD~1", "Bash", "."))
+
+    def test_soft_and_mixed_resets_are_never_touched(self):
+        """They do not touch the working tree, so there is nothing to protect."""
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
+            for command in ("git reset --soft HEAD~1", "git reset HEAD~1", "git reset --mixed HEAD~1"):
+                with self.subTest(command=command):
+                    self.assertIsNone(guard.check_r14_hard_reset(command, "Bash", "."))
+
+    def test_it_fails_open_when_the_tree_state_cannot_be_answered(self):
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=None):
+            self.assertIsNone(guard.check_r14_hard_reset("git reset --hard HEAD~1", "Bash", "."))
+
+    def test_prose_naming_the_command_is_not_the_command(self):
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
+            self.assertIsNone(
+                guard.check_r14_hard_reset(
+                    'git commit -m "never run git reset --hard with work in flight"', "Bash", "."
+                )
+            )
