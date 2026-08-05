@@ -1527,14 +1527,25 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     repo squash-merges, so landed work can still show commits ahead of main."
 
     So ask about content. Take the files the branch introduced relative to its
-    merge base, then compare just those files against the default branch. If
-    they are identical the work is delivered, whatever the commit graph says,
-    and this stays correct once `main` advances with unrelated work because
-    the comparison is restricted to the branch's own files.
+    merge base, then compare just those files against the default branch. That
+    stays correct once `main` advances with unrelated work, because the
+    comparison is restricted to the branch's own files.
+
+    Require identity (#4567 review). A deletion-only branch looks identical to
+    a branch `main` merely moved ahead of when read as one-sided line counts,
+    but deleting the former loses an unpushed commit. This guard cannot prove a
+    deletion landed after a squash without reading commit meaning, so it fails
+    closed on either side of a textual difference.
+
+    `--numstat` reads that direction as data instead of as an exit code: one
+    structured field per file, `-` for a binary difference, and exit 0 either
+    way, so it goes through `_git_output` like every other query here.
 
     False on any uncertainty, on purpose: "I could not tell" and "nothing
     would be lost" are opposite facts, and only one of them may permit a
-    deletion.
+    deletion. A binary difference is uncertainty, since `--numstat` cannot say
+    which side holds what.
+
     """
     if not branch:
         return False
@@ -1552,17 +1563,16 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     files = [line for line in listing.splitlines() if line.strip()]
     if not files:
         return True  # introduces nothing the default branch does not already have
-    try:
-        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
-            ["git", "diff", "--quiet", reference, branch, "--", *files],
-            capture_output=True,
-            text=True,
-            timeout=_subprocess_timeout(),
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
+    numstat = _git_output(["diff", "--numstat", reference, branch, "--", *files])
+    if numstat is None:
         return False
-    return completed.returncode == 0
+    for line in numstat.splitlines():
+        if not line.strip():
+            continue
+        added, _, deleted = line.partition("\t")
+        if added.strip() != "0" or deleted.split("\t", 1)[0].strip() != "0":
+            return False
+    return True
 
 
 def _unrecoverable_commit_count(branch: str) -> int | None:
@@ -1993,6 +2003,39 @@ def _independent_reviews(reviews: object, author: object) -> list:
 DEFAULT_BRANCHES = frozenset({"main", "master"})
 
 
+def _repository_root(cwd: object) -> str | None:
+    """Absolute root of the checkout `cwd` sits in, or None if git will not say."""
+    output = _git_output(["rev-parse", "--show-toplevel"], cwd)
+    root = (output or "").strip()
+    return os.path.realpath(root) if root else None
+
+
+def _path_is_inside(path: object, root: str, cwd: object) -> bool:
+    """True when writing `path` from `cwd` lands under `root`.
+
+    Symlinks are followed, on both sides, because the question is where the
+    bytes end up rather than what the path was spelled as. A link inside the
+    checkout pointing at a scratch directory writes outside it; a link outside
+    pointing back in writes inside it, and that direction is the one a rule
+    must not be talked out of.
+
+    A relative path is resolved against the hook's working directory rather
+    than the process's. Agents write `scripts/x.py`, and resolving that
+    anywhere but the checkout would read every ordinary edit as out-of-repo,
+    which is the hole this scoping would otherwise open.
+    """
+    if not isinstance(path, str) or not path.strip():
+        return False
+    try:
+        base = str(cwd) if cwd else os.getcwd()
+        target = os.path.realpath(os.path.join(base, path))
+    except (OSError, ValueError):
+        return False
+    target = os.path.normcase(target)
+    root = os.path.normcase(os.path.normpath(root))
+    return target == root or target.startswith(root + os.sep)
+
+
 def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     """Refuse a write while HEAD is the default branch.
 
@@ -2012,11 +2055,44 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 
     The remedy it names carries uncommitted changes with it and touches
     nothing, so it can never trap an agent that already has work in flight.
+
+    Scoped to paths under the checkout (#4567 item 6). The first cut inspected
+    no path at all and so refused a write to the OS temp directory, which lands
+    on no branch and cannot collide with anything -- reproduced three times,
+    against an analysis agent, a read-only agent writing its own scratch file,
+    and the orchestrator opening the pull request for the batch that fixed it.
+    Worse than the false positive: the remedy it named, `git checkout -b`,
+    would have switched a working tree shared with other live agents. A gate
+    that fires on correct work is the gate that gets deleted.
+
+    Fails closed twice over, and neither is symmetry with R18. A payload with
+    no path is malformed rather than evidence of an outside path, and a root
+    git will not name means git answered `HEAD` from this directory a moment
+    ago and then would not answer `--show-toplevel`. Guessing "outside" in
+    either case retires the rule for the session; guessing "inside" costs one
+    refusal whose remedy is already in the message.
+
+    The root query runs only once the branch is already a default branch --
+    the abnormal case -- so an ordinary edit costs exactly the one subprocess
+    it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
     if tool_name not in _WRITE_TOOLS:
         return None
-    branch = _current_branch(_hook_working_directory(hook_input))
+    cwd = _hook_working_directory(hook_input)
+    branch = _current_branch(cwd)
     if not branch or branch not in DEFAULT_BRANCHES:
+        return None
+    tool_input = hook_input.get("tool_input")
+    path = ""
+    if isinstance(tool_input, dict):
+        path = (
+            tool_input.get("file_path")
+            or tool_input.get("path")
+            or tool_input.get("notebook_path")
+            or ""
+        )
+    root = _repository_root(cwd)
+    if path and root and not _path_is_inside(path, root, cwd):
         return None
     return (
         f"R19 blocked: HEAD is {branch}, and task work never lands on the default "

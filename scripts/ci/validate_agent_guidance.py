@@ -4,15 +4,27 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import math
 import re
+
+# subprocess is used only for fixed, list-args `git show` against this
+# repository (never shell=True, no untrusted command construction).
+import subprocess  # nosec B404
 import sys
 from collections import defaultdict
 from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[2]
+
+SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+")
+CODE_TOKEN_RE = re.compile(r"`[^`\n]+`")
+# A claim is pinned to a run of words containing a backticked code token. Three
+# words is what separated the real pair -- "a bare `review`" -- from every other
+# docstring in a 3,800-line file across 300 commits of main.
+CLAIM_PHRASE_WORDS = 3
 
 
 def issue(code: str, path: str, message: str) -> dict[str, str]:
@@ -645,6 +657,102 @@ def validate_duplicate_paragraphs(
     return errors
 
 
+def docstring_sentences(source: str) -> list[tuple[str, str]]:
+    """(owner, sentence) for every sentence of every docstring in a Python source."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    owned: list[tuple[str, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        text = ast.get_docstring(node, clean=True)
+        if not text:
+            continue
+        owner = getattr(node, "name", "<module>")
+        flattened = re.sub(r"\s+", " ", text).strip()
+        for sentence in SENTENCE_END_RE.split(flattened):
+            if sentence.strip():
+                owned.append((owner, sentence.strip()))
+    return owned
+
+
+def claim_phrases(sentence: str) -> set[str]:
+    """Word runs of a sentence that carry a backticked code token.  # noqa: D213
+
+    Deliberately not a similarity score. The two docstrings this exists to catch
+    score 0.157 on difflib and 0.167 on token Jaccard -- no near-identical-sentence
+    threshold reaches them without flagging every pair of English sentences in the
+    file. What they genuinely share is a phrase naming a code token, and "does this
+    text contain a known phrase" is the one shape that has never lost a review round
+    in this repository.
+    """
+    words = sentence.lower().split()
+    carriers = [index for index, word in enumerate(words) if "`" in word]
+    phrases: set[str] = set()
+    for index in carriers:
+        first = max(0, index - CLAIM_PHRASE_WORDS + 1)
+        for start in range(first, index + 1):
+            run = words[start:start + CLAIM_PHRASE_WORDS]
+            if len(run) == CLAIM_PHRASE_WORDS:
+                phrases.add(" ".join(run))
+    return phrases
+
+
+def find_orphaned_sibling_claims(
+    before_source: str, after_source: str, path: str
+) -> list[dict[str, str]]:
+    """Report a docstring claim this edit deleted from one owner and left in a sibling.  # noqa: D213
+
+    Issue #4567 section 4.4, recurrence class `sibling-left`. Round two of PR #4554
+    corrected `_ledger_records_a_review`, which claimed a bare `review` ledger event
+    still counted; the same claim survived in `_reviewer_dispatch_event` and cost a
+    round-three finding to re-discover.
+
+    Extends `validate_duplicate_paragraphs`'s idea -- the same prose living in two
+    places -- from guidance Markdown to Python docstrings, with one difference that
+    the measurement forced: duplication alone is not the signal. Two docstrings may
+    legitimately share wording forever. The signal is duplication *at the moment one
+    copy is edited*, so this compares two revisions rather than scanning one file.
+
+    An owner missing from `after_source` is skipped: the function was renamed or
+    deleted, so no instance is left for a sibling to contradict. That is a
+    structural test on the syntax tree, never a judgement about what the prose means.
+    """
+    before = docstring_sentences(before_source)
+    after = docstring_sentences(after_source)
+    if not before or not after:
+        return []
+    surviving_owners = {owner for owner, _ in after}
+    surviving_sentences = {sentence.lower() for _, sentence in after}
+    findings: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for owner, sentence in before:
+        if sentence.lower() in surviving_sentences or owner not in surviving_owners:
+            continue
+        if not CODE_TOKEN_RE.search(sentence):
+            continue
+        for phrase in sorted(claim_phrases(sentence)):
+            for sibling, surviving in after:
+                if sibling == owner or phrase not in surviving.lower():
+                    continue
+                key = (owner, sibling, phrase)
+                if key in seen:
+                    continue
+                seen.add(key)
+                findings.append(
+                    issue(
+                        "orphaned-sibling-claim",
+                        path,
+                        f"this edit rewrote {owner}'s docstring but '{phrase}' still "
+                        f"stands in {sibling}: \"{surviving}\" -- confirm the sibling "
+                        "is not repeating the claim that was just corrected.",
+                    )
+                )
+    return findings
+
+
 def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> list[dict[str, str]]:
     """Run every guidance validation and return sorted issues."""
     selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
@@ -686,13 +794,67 @@ def build_parser() -> argparse.ArgumentParser:
         help="Budget JSON path. Defaults to scripts/ci/agent_guidance_budget.json under --root.",
     )
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--docstring-siblings",
+        nargs="+",
+        metavar="REVISION_THEN_PATHS",
+        help=(
+            "Advisory scan (#4567 item 8): report a docstring claim REVISION rewrote in "
+            "one function and left standing in a sibling. Takes a revision followed by "
+            "one or more Python paths. Never changes the exit code."
+        ),
+    )
     return parser
+
+
+def source_at_revision(revision: str, path: str, root: Path) -> str | None:
+    """File content at a revision, or None when this clone cannot resolve it."""
+    try:
+        completed = subprocess.run(  # nosec B603 B607
+            ["git", "show", f"{revision}:{path}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=root,
+            check=False,
+        )
+    except OSError:
+        return None
+    return completed.stdout if completed.returncode == 0 else None
+
+
+def report_docstring_siblings(arguments: list[str], root: Path) -> int:
+    """Print the sibling-claim advisory for one revision. Always returns 0.  # noqa: D213
+
+    Advisory rather than a gate, on the same ground as #4567 item 5: the issue's
+    own finding template ranks a docstring as never blocking, and the scan fires
+    twice across PR #4554 with one of the two a judgement call a human settles in
+    seconds. Failing CI on that is the `fires-on-correct-work` shape. An
+    unresolvable revision is said out loud rather than passed over, because a scan
+    that cannot read its input is a check that cannot fail.
+    """
+    revision, paths = arguments[0], arguments[1:]
+    if not paths:
+        print("--docstring-siblings needs a revision and at least one path", file=sys.stderr)
+        return 0
+    for path in paths:
+        before = source_at_revision(f"{revision}^", path, root)
+        after = source_at_revision(revision, path, root)
+        if before is None or after is None:
+            print(f"{path}: {revision} unavailable in this clone, not scanned", file=sys.stderr)
+            continue
+        for finding in find_orphaned_sibling_claims(before, after, path):
+            print(f"advisory {finding['code']}: {finding['path']}: {finding['message']}")
+    return 0
 
 
 def main() -> int:
     """Run the CLI."""
     args = build_parser().parse_args()
     root = args.root.resolve()
+    if args.docstring_siblings:
+        return report_docstring_siblings(args.docstring_siblings, root)
     budget_path = args.budget.resolve() if args.budget else None
     errors = validate_repository(root, budget_path)
     if args.format == "json":

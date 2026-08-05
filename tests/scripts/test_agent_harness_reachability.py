@@ -338,6 +338,31 @@ class HarnessReachabilityTest(unittest.TestCase):
         ]
         self.assertEqual(missing, [], "harness test modules PR Gate never runs")
 
+    def test_history_backed_review_advisories_are_reachable_from_pr_gate(self):
+        """#4567 items 1, 5 and 8 need history; an unwired check is inert."""
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        commit_guard = workflow.split("pr-body-autoclose-guard:", 1)[1].split(
+            "dependency-review:", 1
+        )[0]
+        guidance_paths = workflow.split("agent_guidance:", 1)[1].split("infra:", 1)[0]
+        guidance_gate = workflow.split("agent-guidance:", 1)[1].split("installer-verify:", 1)[0]
+        self.assertIn("fetch-depth: 0", commit_guard)
+        self.assertIn("fetch-depth: 0", guidance_gate)
+        self.assertIn("--docstring-siblings", guidance_gate)
+        self.assertIn("scripts/agents/guard.py", guidance_gate)
+        self.assertIn("tests.scripts.test_validate_red_before_green", guidance_gate)
+        self.assertIn("validate_red_before_green.py", guidance_gate)
+        self.assertIn(":(glob)tests/scripts/test_guard*.py", guidance_gate)
+        self.assertIn("--diff-filter=AMR", guidance_gate)
+        self.assertIn("scripts/ci/validate_red_before_green.py", guidance_paths)
+        self.assertIn("tests/scripts/test_validate_red_before_green.py", guidance_paths)
+        self.assertIn("- 'tests/scripts/test_guard*.py'", guidance_paths)
+        self.assertIn("history_file=$(mktemp)", guidance_gate)
+        self.assertIn("trap 'rm -f \"$history_file\" \"$paths_file\"' EXIT", guidance_gate)
+        self.assertIn("git cat-file -e \"$BASE_SHA:scripts/ci/validate_red_before_green.py\"", guidance_gate)
+        self.assertIn("IFS= read -r BASE_SHA < \"$paths_file\"", guidance_gate)
+        self.assertIn("git rev-parse \"$bootstrap^\" > \"$paths_file\"", guidance_gate)
+
     def test_the_element_set_is_derived_from_the_repository_not_hand_listed(self):
         """A hand list omits the next file, which is the defect being fixed.
 

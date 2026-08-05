@@ -29,7 +29,9 @@ import argparse
 import json
 import os
 import re
+import subprocess  # nosec B404 -- fixed list-args `git show`, never shell=True
 import sys
+from typing import Callable
 
 CLOSING_KEYWORD_PATTERN = r"(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)"
 ISSUE_REFERENCE_PATTERN = r"(?:#\d+|https://github\.com/[\w.-]+/[\w.-]+/issues/\d+)"
@@ -41,6 +43,10 @@ NEGATION_RE = re.compile(r"\b(?:not|never|cannot)\b|\w+n['’]t\b", re.IGNORECAS
 MARKDOWN_EMPHASIS_RE = re.compile(r"[*_`]")
 SENTENCE_BOUNDARY_RE = re.compile(r"[.!?\n]")
 NEGATION_WINDOW_TOKENS = 4
+
+LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
+BACKTICKED_RE = re.compile(r"`([^`\n]+)`")
+SYMBOL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def issue(code: str, path: str, message: str) -> dict[str, str]:
@@ -118,6 +124,118 @@ def find_negated_autocloses_in_commits(commits: list[tuple[str, str]]) -> list[d
     return errors
 
 
+def _change_list_items(message: str) -> list[str]:
+    """Every markdown list item in the message, with its indented continuation lines.  # noqa: D213
+
+    Judged by the list delimiter alone -- never by what the item says. A commit
+    enumerates what it did in its change list, so that is the surface where a
+    backticked symbol reads as a credit. Running prose is left alone because it
+    legitimately names symbols the commit did not touch: prior art, the check
+    that fired, the rule a name comes from.
+    """
+    items: list[str] = []
+    current: str | None = None
+    for line in message.splitlines():
+        if LIST_ITEM_RE.match(line):
+            if current is not None:
+                items.append(current)
+            current = line
+        elif current is not None and line.strip() and line[:1].isspace():
+            current += " " + line
+        else:
+            if current is not None:
+                items.append(current)
+            current = None
+    if current is not None:
+        items.append(current)
+    return items
+
+
+def credited_symbols(message: str) -> list[str]:
+    """Identifier-shaped backticked tokens a commit's change list credits."""
+    symbols: set[str] = set()
+    for item in _change_list_items(message):
+        for span in BACKTICKED_RE.findall(item):
+            token = span.strip()
+            if not SYMBOL_RE.match(token):
+                continue
+            # A token test, never a meaning test. An identifier in this repo
+            # carries an underscore or internal capital; a bare lowercase word
+            # in backticks is English prose (`review`, `main`, `gh`).
+            if token.islower() and "_" not in token:
+                continue
+            symbols.add(token)
+    return sorted(symbols)
+
+
+def find_credited_symbols_not_in_diff(
+    commits: list[tuple[str, str]],
+    diff_for_sha: Callable[[str], str | None],
+) -> list[dict[str, str]]:
+    """Report each symbol a commit's change list credits but its own diff never touches.  # noqa: D213
+
+    Issue #4567 section 4.3, recurrence class `credit-not-in-diff`. `254a830710`
+    credited `raw_decode` and `HOOK_BUDGET_SECONDS`, both landed by earlier
+    commits on the same branch; catching that consumed a round-two review
+    finding and forced PR #4554's body to carry a `## Corrections` section.
+
+    `diff_for_sha` returns the commit's own diff with function context
+    (`git show -W`), so a symbol anywhere in a touched function counts as
+    credited. Returning None means the diff could not be read -- reported as
+    `credit-scan-unavailable` rather than passing silently, because a scan that
+    cannot see its input is a check that cannot fail.
+
+    Advisory by design: see `main`.
+    """
+    findings: list[dict[str, str]] = []
+    for sha, message in commits:
+        symbols = credited_symbols(message)
+        if not symbols:
+            continue
+        diff = diff_for_sha(sha)
+        if diff is None:
+            findings.append(
+                issue(
+                    "credit-scan-unavailable",
+                    f"commit:{sha}",
+                    f"{sha[:12]}: cannot read this commit's diff, so its "
+                    f"{len(symbols)} credited symbol(s) went unchecked. A shallow "
+                    "clone cannot resolve a pull request's own commits; the job "
+                    "needs the history fetched.",
+                )
+            )
+            continue
+        for symbol in symbols:
+            if symbol in diff:
+                continue
+            findings.append(
+                issue(
+                    "credit-not-in-diff",
+                    f"commit:{sha}",
+                    f"{sha[:12]}: credits `{symbol}`, absent from this commit's own diff. "
+                    "Either the change list names work that landed in a different commit, "
+                    "or the symbol is misspelled.",
+                )
+            )
+    return findings
+
+
+def git_show_diff(sha: str) -> str | None:
+    """Return this commit's own diff with function context, or None when unreadable."""
+    try:
+        completed = subprocess.run(  # nosec B603 B607
+            ["git", "show", "-W", "--format=", sha],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except OSError:
+        return None
+    return completed.stdout if completed.returncode == 0 else None
+
+
 def parse_commits_json(raw: str) -> list[tuple[str, str]]:
     """Parse a JSON array of {"sha": ..., "message": ...} objects (e.g. from `gh api .../commits`)."""
     if not raw:
@@ -150,15 +268,27 @@ def main() -> int:
     commits_json = (
         args.commits_json if args.commits_json is not None else os.environ.get("PR_COMMITS_JSON", "")
     )
+    commits = parse_commits_json(commits_json)
     errors = find_negated_autocloses(body)
-    errors.extend(find_negated_autocloses_in_commits(parse_commits_json(commits_json)))
+    errors.extend(find_negated_autocloses_in_commits(commits))
+    # Advisory, never a gate. Three independent reasons, all measured (#4567):
+    # a commit message is immutable once pushed and this repository blocks the
+    # force-push that would amend it, so failing here is a gate the author
+    # cannot satisfy; #4567's own finding template ranks commit prose as never
+    # blocking; and the scan measured one false positive over 300 commits of
+    # main. Printed where review already reads, which is the whole point of
+    # moving the finding upstream from a review round.
+    advisories = find_credited_symbols_not_in_diff(commits, git_show_diff)
     if args.format == "json":
-        print(json.dumps({"valid": not errors, "errors": errors}, indent=2))
-    elif errors:
-        for error in errors:
-            print(f"{error['code']}: {error['message']}", file=sys.stderr)
+        print(json.dumps({"valid": not errors, "errors": errors, "advisories": advisories}, indent=2))
     else:
-        print("No negated closing-keyword references found in the PR body.")
+        for advisory in advisories:
+            print(f"advisory {advisory['code']}: {advisory['message']}")
+        if errors:
+            for error in errors:
+                print(f"{error['code']}: {error['message']}", file=sys.stderr)
+        else:
+            print("No negated closing-keyword references found in the PR body.")
     return 1 if errors else 0
 
 

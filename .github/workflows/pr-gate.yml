@@ -89,6 +89,7 @@ jobs:
               - 'scripts/agents/**'
               - 'scripts/ci/validate_agent_setup.py'
               - 'scripts/ci/validate_agent_guidance.py'
+              - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
               # Reachability elements: the harness check fails when either
@@ -103,6 +104,8 @@ jobs:
               - 'tests/scripts/test_guard_nul_corruption.py'
               - 'tests/scripts/test_guard_memory_worktree.py'
               - 'tests/scripts/test_guard_lifecycle.py'
+              - 'tests/scripts/test_guard*.py'
+              - 'tests/scripts/test_validate_red_before_green.py'
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_setup.py'
               - 'tests/scripts/test_worktree_hygiene.py'
@@ -242,6 +245,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -257,6 +262,7 @@ jobs:
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle
+          tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_setup
           tests.scripts.test_validate_skills
@@ -267,6 +273,45 @@ jobs:
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v
+      - name: Validate observed RED for new guard tests
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          history_file=$(mktemp)
+          paths_file=$(mktemp)
+          trap 'rm -f "$history_file" "$paths_file"' EXIT
+          if ! git cat-file -e "$BASE_SHA:scripts/ci/validate_red_before_green.py" 2>/dev/null; then
+            git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/ci/validate_red_before_green.py > "$history_file"
+            if [[ ! -s "$history_file" ]]; then
+              echo "RED validator is absent from the base and the PR." >&2
+              exit 1
+            fi
+            IFS= read -r bootstrap < "$history_file"
+            git rev-parse "$bootstrap^" > "$paths_file"
+            IFS= read -r BASE_SHA < "$paths_file"
+          fi
+          git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py ':(glob)tests/scripts/test_guard*.py' > "$history_file"
+          while IFS= read -r revision; do
+            [[ -z "$revision" ]] && continue
+            git diff --diff-filter=AMR --name-only "$revision^" "$revision" -- ':(glob)tests/scripts/test_guard*.py' > "$paths_file"
+            while IFS= read -r test_path; do
+              [[ -z "$test_path" ]] && continue
+              python scripts/ci/validate_red_before_green.py "$revision" scripts/agents/guard.py "$test_path"
+            done < "$paths_file"
+          done < "$history_file"
+      - name: Report orphaned guard docstring claims
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py | while IFS= read -r revision; do
+            python scripts/ci/validate_agent_guidance.py --docstring-siblings "$revision" scripts/agents/guard.py
+          done
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
       - name: Run the portable PreToolUse guard self-test
@@ -673,6 +718,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:

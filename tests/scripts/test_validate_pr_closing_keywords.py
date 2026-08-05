@@ -5,9 +5,11 @@ import os
 # fixed, list-args argv (never shell=True, no untrusted command construction).
 import subprocess  # nosec B404
 import sys
+import tempfile
 import unittest
 
 from scripts.ci.validate_pr_closing_keywords import (
+    find_credited_symbols_not_in_diff,
     find_negated_autocloses,
     find_negated_autocloses_in_commits,
     parse_commits_json,
@@ -264,17 +266,99 @@ class GhApiCommitsShapeRoundTripTest(unittest.TestCase):
         self.assertIn("#10", errors[0]["message"])
 
 
+class CreditedSymbolsNotInDiffTest(unittest.TestCase):
+    """#4567 section 4.3: a commit must not credit a symbol its own diff never touches.
+
+    Two false credits in `254a830710` consumed a whole round-two review finding and
+    forced PR #4554's body to carry a `## Corrections` section retracting them.
+    """
+
+    # Verbatim excerpt of `254a830710` (`git show -s --format=%B`). Every bullet
+    # names the symbol it changed; `raw_decode` and `HOOK_BUDGET_SECONDS` were
+    # both landed by EARLIER commits on the same branch, so this commit's own
+    # diff contains neither.
+    COMMIT_254A_MESSAGE = """Apply the adversarial review's confirmed findings
+
+Fourteen findings from the independent review round, each with the check
+that would have caught it:
+
+- `_ledger_path` refuses a relative base and falls back to the system
+  temp directory, so a hook launched from an unexpected cwd cannot
+  scatter ledgers.
+- `ledger_events` decodes every value on a line with `raw_decode` and
+  flattens legacy arrays.
+- `HOOK_BUDGET_SECONDS` is a real shared budget rather than a comment
+  claiming one.
+"""
+
+    # Verbatim excerpt of `a95c0c7172`. `EXEMPTION_MARKERS` is discussed in a
+    # narrative paragraph -- "this check caught me" -- not credited in the change
+    # list. Scanning the whole message flags it; scanning only the change list
+    # does not, and the change list is where a commit enumerates what it did.
+    COMMIT_A95C_MESSAGE = """Give iron law 6 a countable trigger (#4545 defect 1)
+
+The qualification check then caught the author. The first wording explained the
+floor with "a step is a judgement call", and `EXEMPTION_MARKERS` reads
+"judgement" as a hedge -- correctly, since a law whose own text calls part of
+itself a judgement call reads as softer than it is.
+"""
+
+    def test_credits_absent_from_the_commits_own_diff_are_reported(self):
+        """RED fixture: the exact pair that cost a round-two finding."""
+        diffs = {"254a830710": "--- a/scripts/agents/guard.py\n+    def _ledger_path(self):\n"}
+        findings = find_credited_symbols_not_in_diff(
+            [("254a830710", self.COMMIT_254A_MESSAGE)], diffs.get
+        )
+        credited = " ".join(finding["message"] for finding in findings)
+        self.assertIn("raw_decode", credited)
+        self.assertIn("HOOK_BUDGET_SECONDS", credited)
+        self.assertEqual({finding["code"] for finding in findings}, {"credit-not-in-diff"})
+
+    def test_a_symbol_the_diff_does_touch_is_not_reported(self):
+        """Every symbol this excerpt credits appears in the diff: all four are true credits."""
+        diff = (
+            "+def _ledger_path(base):\n"
+            "+def ledger_events(path):\n"
+            "+    return raw_decode(base)\n"
+            "+HOOK_BUDGET_SECONDS = 5\n"
+        )
+        findings = find_credited_symbols_not_in_diff(
+            [("254a830710", self.COMMIT_254A_MESSAGE)], lambda sha: diff
+        )
+        self.assertEqual(findings, [])
+
+    def test_a_narrative_mention_outside_the_change_list_is_not_a_credit(self):
+        """The measured false positive: `EXEMPTION_MARKERS` in running prose, not a bullet."""
+        findings = find_credited_symbols_not_in_diff(
+            [("a95c0c7172", self.COMMIT_A95C_MESSAGE)], lambda sha: ""
+        )
+        self.assertEqual(findings, [])
+
+    def test_prose_words_in_backticks_are_never_treated_as_symbols(self):
+        """A token test, not a meaning test: `review` and `main` are English, not identifiers."""
+        message = "Fix the gate\n\n- `review` now runs on `main` before the `gh` call.\n"
+        findings = find_credited_symbols_not_in_diff([("abc123", message)], lambda sha: "")
+        self.assertEqual(findings, [])
+
+    def test_an_unreadable_diff_is_reported_rather_than_passing_silently(self):
+        """A shallow CI checkout cannot resolve a PR commit; that must be loud, not vacuous."""
+        findings = find_credited_symbols_not_in_diff(
+            [("254a830710", self.COMMIT_254A_MESSAGE)], lambda sha: None
+        )
+        self.assertEqual([finding["code"] for finding in findings], ["credit-scan-unavailable"])
+
+
 class MainCLIIntegrationTest(unittest.TestCase):
     """Exercises the actual CLI entry point CI invokes: PR_BODY + PR_COMMITS_JSON env vars."""
 
-    def _run_cli(self, *, body="", commits_json=""):
+    def _run_cli(self, *, body="", commits_json="", cwd=REPO_ROOT):
         env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json}
         return subprocess.run(  # nosec B603
             [sys.executable, CLI_SCRIPT],
             capture_output=True,
             text=True,
             env=env,
-            cwd=REPO_ROOT,
+            cwd=cwd,
         )
 
     def test_cli_fails_and_identifies_commit_for_commit_only_hazard(self):
@@ -288,6 +372,34 @@ class MainCLIIntegrationTest(unittest.TestCase):
         commits = json.dumps([{"sha": "1234567890ab", "message": "Add a helper.\n"}])
         result = self._run_cli(body="Closes #4127", commits_json=commits)
         self.assertEqual(result.returncode, 0)
+
+    def test_cli_reports_a_false_credit_without_failing_the_gate(self):
+        """#4567 item 5 is advisory: a commit message cannot be reworded after push.  # noqa: D213
+
+        The fixture has a real commit whose diff omits `raw_decode`. The scan must
+        say so and still exit 0 -- failing here would demand an amend the branch
+        protection forbids.
+        """
+        message = (
+            "Apply the adversarial review's confirmed findings\n\n"
+            "- `ledger_events` decodes every value on a line with `raw_decode`.\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            for command in (
+                ["git", "init"],
+                ["git", "config", "user.email", "test@example.com"],
+                ["git", "config", "user.name", "Test"],
+            ):
+                subprocess.run(command, cwd=temporary, check=True, capture_output=True)  # nosec B603 B607
+            with open(os.path.join(temporary, "example.py"), "w", encoding="utf-8") as source:
+                source.write("value = 1\n")
+            subprocess.run(["git", "add", "example.py"], cwd=temporary, check=True)  # nosec B603 B607
+            subprocess.run(["git", "commit", "-m", "fixture"], cwd=temporary, check=True)  # nosec B603 B607
+            sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=temporary, text=True).strip()  # nosec B603 B607
+            commits = json.dumps([{"sha": sha, "message": message}])
+            result = self._run_cli(body="Closes #4127", commits_json=commits, cwd=temporary)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("raw_decode", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
