@@ -1,0 +1,45 @@
+{
+  "body_path": "memory/gotchas/a-guards-tests-passing-proves-the-function-works-never-that-the-hook-can-reach-it-assert-the-wiring-in-the-same-step.md",
+  "content_hash": "sha256:2c14d8ccd8d316be9a791ff2b828023c33948ddfbcd8b757f2ecc67e057a8284",
+  "created_at": "2026-08-05T08:51:33+03:00",
+  "evidence": [
+    {
+      "id": "scripts/agents/guard.py",
+      "kind": "file"
+    },
+    {
+      "id": "tests/scripts/test_guard_lifecycle.py",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_agent_setup.py",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "category": "testing"
+  },
+  "id": "gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-hook-can-reach-it-assert-the-wiring-in-the-same-step",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Route the verification lessons from building the guard.py required-action gates (#4541, PR #4539)"
+  },
+  "status": "active",
+  "tags": [
+    "guard",
+    "harness",
+    "verification",
+    "unbound-check",
+    "testing",
+    "act-as-mohab"
+  ],
+  "title": "A guard's tests passing proves the function works, never that the hook can reach it -- assert the wiring in the same step",
+  "type": "gotcha",
+  "updated_at": "2026-08-05T08:51:33+03:00"
+}

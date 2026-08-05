@@ -992,3 +992,5 @@
 {"actor":"agent","event":"memory.updated","id":"workflow.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n","timestamp":"2026-08-04T23:33:23+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve","timestamp":"2026-08-04T23:52:26+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.harness-rules-that-require-an-action-first-must-be-compiled-into-guard-py-not-written-as-prose","timestamp":"2026-08-05T05:58:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-hook-can-reach-it-assert-the-wiring-in-the-same-step","timestamp":"2026-08-05T08:51:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.check-every-new-guard-pairwise-against-the-guards-already-shipped-not-only-in-isolation","timestamp":"2026-08-05T08:51:33+03:00"}
