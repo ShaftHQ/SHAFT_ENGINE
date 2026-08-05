@@ -216,8 +216,8 @@ file is added, moved or deleted, which is the only way a map stays true.
 
 | Host | Files |
 | --- | --- |
-| Codex | `AGENTS.md`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
-| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirects `.claude/skills/act-as-mohab/SKILL.md`, `.claude/skills/consult-first/SKILL.md`, `.claude/skills/retrieve-first/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
+| Codex | `AGENTS.md`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
+| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirects `.claude/skills/act-as-mohab/SKILL.md`, `.claude/skills/consult-first/SKILL.md`, `.claude/skills/retrieve-first/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
 | Copilot | `.github/copilot-instructions.md`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; the redirect pack indexed by `.github/skills/README.md` |
 | Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
 

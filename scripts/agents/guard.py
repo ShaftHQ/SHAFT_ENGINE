@@ -1297,6 +1297,52 @@ def _extract_command(hook_input: dict) -> str:
     return ""
 
 
+def _is_learning_write_command(command: str) -> bool:
+    """True for the CLI commands that persist a learning."""
+    for segment in _command_segments(_sanitize_for_command_head(command)):
+        memory = _tokens_after_head(segment, frozenset({"memory"}))
+        if memory and memory[:1] == ["remember"]:
+            return True
+        palace = _tokens_after_head(segment, frozenset({"mempalace"}))
+        if palace and palace[:1] in (["mine"], ["sweep"]):
+            return True
+    return False
+
+
+def _learning_none_event(command: str) -> str | None:
+    """Return a substantive `--learning-none` ledger event, if this is one."""
+    for segment in _command_segments(_sanitize_for_command_head(command)):
+        arguments = _tokens_after_head(segment, frozenset({"py", "python", "python3"}))
+        if not arguments:
+            continue
+        for index, argument in enumerate(arguments):
+            if not argument.replace("\\", "/").endswith("scripts/agents/guard.py"):
+                continue
+            remaining = arguments[index + 1 :]
+            if remaining[:1] != ["--learning-none"] or len(remaining) != 2:
+                continue
+            reason = remaining[1].strip()
+            if len(re.findall(r"[A-Za-z0-9]+", reason)) >= 3:
+                return f"learning-none:{reason}"
+    return None
+
+
+def _learning_route_recorded(hook_input: dict | None) -> bool:
+    events = ledger_events(hook_input or {})
+    return "memory-write" in events or any(event.startswith("learning-none:") for event in events)
+
+
+def _is_mempalace_write(tool_name: str, tool_input: object) -> bool:
+    """True for a mutating MemPalace MCP call, never its default dry run."""
+    if tool_name not in _MEMPALACE_WRITE_TOOLS:
+        return False
+    if tool_name == "mcp__mempalace__mempalace_delete_by_source":
+        return isinstance(tool_input, dict) and tool_input.get("dry_run") is False
+    if tool_name == "mcp__mempalace__mempalace_sync":
+        return isinstance(tool_input, dict) and tool_input.get("apply") is True
+    return True
+
+
 def _hook_working_directory(hook_input: dict) -> str | None:
     """Directory the guarded command will run in, or None when unknown."""
     # Hosts that report the session directory win over the hook process's own
@@ -1337,6 +1383,27 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+_NATIVE_MEMORY_WRITE_TOOLS = frozenset(
+    {"mcp__shaft-memory__remember_memory", "mcp__shaft-memory__save_memory_patch"}
+)
+_MEMPALACE_WRITE_TOOLS = frozenset(
+    {
+        "mcp__mempalace__mempalace_add_drawer",
+        "mcp__mempalace__mempalace_checkpoint",
+        "mcp__mempalace__mempalace_create_tunnel",
+        "mcp__mempalace__mempalace_delete_by_source",
+        "mcp__mempalace__mempalace_delete_drawer",
+        "mcp__mempalace__mempalace_delete_hallway",
+        "mcp__mempalace__mempalace_delete_tunnel",
+        "mcp__mempalace__mempalace_diary_write",
+        "mcp__mempalace__mempalace_kg_add",
+        "mcp__mempalace__mempalace_kg_invalidate",
+        "mcp__mempalace__mempalace_kg_supersede",
+        "mcp__mempalace__mempalace_mine",
+        "mcp__mempalace__mempalace_sync",
+        "mcp__mempalace__mempalace_update_drawer",
+    }
+)
 # Ceiling for any single helper query, well inside the 10s PreToolUse timeout
 # in .claude/settings.json and .codex/hooks.json. It was 8s, which left no
 # margin: one slow `git` or `gh` on a contended machine and the hook is killed
@@ -1354,6 +1421,7 @@ SUBPROCESS_TIMEOUT = 4
 # only unbounded loop is R13's, which queries once per branch name given.
 HOOK_BUDGET_SECONDS = 8.0
 _hook_deadline: float | None = None
+PREFLIGHT_MAX_BYTES = 8192
 
 
 def start_hook_budget(seconds: float = HOOK_BUDGET_SECONDS) -> None:
@@ -1740,6 +1808,17 @@ def check_r15_review_before_arming(
         if not rest or rest[:2] != ["pr", "merge"]:
             continue
         arguments = rest[2:]
+        auto_merge = any(
+            argument == "--auto"
+            or (argument.lower().startswith("--auto=") and argument.lower()[7:] not in {"false", "0", "f"})
+            for argument in arguments
+        )
+        if auto_merge and "commit" in ledger_events(hook_input or {}) and not _learning_route_recorded(hook_input):
+            return (
+                "R15 blocked: this session committed work but recorded no learning route. "
+                "Write one learning to native Memory or MemPalace, or run `py -3 "
+                "scripts/agents/guard.py --learning-none \"<substantive reason>\"`."
+            )
         positional = [token for token in arguments if not token.startswith("-")]
         target = positional[0] if positional else None
         reviews = _independent_review_count(target)
@@ -1781,6 +1860,33 @@ REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
 
 DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
+ADAPTED_SUBAGENT_TYPES = frozenset({"chaos-engine", "coder", "helper", "reviewer", "tester"})
+
+
+def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
+    """Refuse a dispatch whose type has no host-delivered role adapter.
+
+    R22 owns only the shape of a new delegate. It runs before R11, R12, R15,
+    R17, and R19 can apply to the delegate's own tool calls. Choosing any
+    listed type delivers the entrypoint; after a commit, the learning-loop
+    arming clause remains satisfiable by a learning write or its explicit
+    escape, then R15 review and R17 arming have their existing remedies. This
+    does not assert that an agent obeyed the delivered text.
+    """
+    if tool_name not in DISPATCH_TOOLS:
+        return None
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
+        subagent = ""
+    else:
+        subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+    if isinstance(subagent, str) and subagent.strip().lower() in ADAPTED_SUBAGENT_TYPES:
+        return None
+    legal = " | ".join(sorted(ADAPTED_SUBAGENT_TYPES))
+    return (
+        "R22 blocked: this dispatch has no role adapter, so it cannot receive the "
+        "mandatory entrypoint. Re-dispatch with subagent_type: " + legal + "."
+    )
 
 
 _GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
@@ -2106,6 +2212,11 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
+    reason = check_r22_dispatch_adapter(hook_input, tool_name)
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
+
     # Observed, not judged, and first: a reviewer dispatch is not a call this
     # hook has any reason to refuse, so recording it must not sit behind a
     # branch that returns early for some other rule.
@@ -2134,7 +2245,9 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     # R16 reads these. Recorded here because a later hook invocation is a
     # fresh process: if the event is not written down as it happens, the
     # Stop hook has no way to know it ever did.
-    if tool_name.startswith("mcp__shaft-memory__"):
+    if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or _is_mempalace_write(
+        tool_name, hook_input.get("tool_input")
+    ):
         ledger_record(hook_input, "memory-write")
     if reason is not None:
         _print_deny(reason, host)
@@ -2160,6 +2273,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is not None:
             _print_deny(reason, host)
             return 0
+        if _is_learning_write_command(command):
+            ledger_record(hook_input, "memory-write")
+        learning_none = _learning_none_event(command)
+        if learning_none:
+            ledger_record(hook_input, learning_none)
         # Observed, not judged. R12 reads this ledger; recording here is the
         # only place a test run is visible, since a later hook invocation is a
         # fresh process with no memory of it.
@@ -2428,6 +2546,67 @@ def ledger_events(hook_input: dict) -> list[str]:
     return events
 
 
+def _mempalace_wake_up(working_directory: object) -> str | None:
+    """Return bounded MemPalace context, or None when the optional tool cannot answer."""
+    if not working_directory:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed read-only local command.
+            ["mempalace", "wake-up"],
+            cwd=str(working_directory),
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return None
+    return completed.stdout.strip()
+
+
+def _bounded_preflight(context: list[str]) -> str:
+    """Keep injected retrieval below the cross-host byte ceiling."""
+    joined = "\n".join(context)
+    encoded = joined.encode("utf-8")
+    if len(encoded) <= PREFLIGHT_MAX_BYTES:
+        return joined
+    return encoded[:PREFLIGHT_MAX_BYTES].decode("utf-8", errors="ignore")
+
+
+def _memory_do_not_lines(working_directory: object) -> str | None:
+    """Return a few directly actionable native-Memory warnings, if present."""
+    if not working_directory:
+        return None
+    directory = os.path.join(str(working_directory), ".memory", "memory", "gotchas")
+    if not os.path.isdir(directory):
+        return None
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return None
+    reminders: list[str] = []
+    for name in names:
+        if not name.endswith(".md"):
+            continue
+        try:
+            with open(os.path.join(directory, name), encoding="utf-8") as handle:
+                lines = handle.read(2048).splitlines()
+        except (OSError, UnicodeError):
+            continue
+        for line in lines:
+            compact = " ".join(line.split())
+            if re.search(r"\bdo not\b", compact, re.IGNORECASE):
+                reminders.append(compact[:512])
+                break
+        if len(reminders) == 3:
+            break
+    if not reminders:
+        return None
+    return "Native Memory do-not reminders:\n" + "\n".join(f"- {line}" for line in reminders)
+
+
 def _standing_constraints(working_directory: object) -> str | None:
     """Return the titles of every stored constraint, as one injectable block.
 
@@ -2457,8 +2636,12 @@ def _standing_constraints(working_directory: object) -> str | None:
     directory = os.path.join(str(working_directory), ".memory", "memory", "constraints")
     if not os.path.isdir(directory):
         return None
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return None
     titles: list[str] = []
-    for name in sorted(os.listdir(directory)):
+    for name in names:
         if not name.endswith(".json"):
             continue
         try:
@@ -2490,6 +2673,12 @@ def run_session_start(hook_input: dict) -> int:
     constraints = _standing_constraints(_hook_working_directory(hook_input))
     if constraints:
         context.append(constraints)
+    reminders = _memory_do_not_lines(_hook_working_directory(hook_input))
+    if reminders:
+        context.append(reminders)
+    wake_up = _mempalace_wake_up(_hook_working_directory(hook_input))
+    if wake_up:
+        context.append(wake_up)
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         context.append("Worktree hygiene could not be verified; inspect it before cleanup.")
@@ -2503,7 +2692,7 @@ def run_session_start(hook_input: dict) -> int:
             {
                 "hookSpecificOutput": {
                     "hookEventName": "SessionStart",
-                    "additionalContext": "\n".join(context),
+                    "additionalContext": _bounded_preflight(context),
                 }
             }
         )
@@ -2575,7 +2764,7 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     events = ledger_events(hook_input)
     if "commit" not in events:
         return None  # a read-only session owes no learning
-    if "memory-write" in events:
+    if "memory-write" in events or any(event.startswith("learning-none:") for event in events):
         return None
     return (
         "Learning loop: this session committed work and routed no learning. Before "
@@ -3154,6 +3343,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r19_fresh_base": "run_required_action_self_test",
     "check_r20_user_harness_drift": "run_required_action_self_test",
     "check_r21_run_state_not_recorded": "run_required_action_self_test",
+    "check_r22_dispatch_adapter": "run_required_action_self_test",
 }
 
 
@@ -3243,6 +3433,20 @@ def run_required_action_self_test() -> int:
             failures.append(description)
 
     write = {"tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+
+    # R22: only a host adapter can deliver the mandatory entrypoint to a delegate.
+    check(
+        "R22 blocks a dispatch with no host role adapter",
+        check_r22_dispatch_adapter(
+            {"tool_input": {"subagent_type": "general-purpose"}}, "Task"
+        )
+        is not None,
+    )
+    check(
+        "R22 allows a dispatch with a host role adapter",
+        check_r22_dispatch_adapter({"tool_input": {"subagent_type": "helper"}}, "Task")
+        is None,
+    )
 
     # R12: a production write needs an observed test run this session.
     check(
@@ -3893,7 +4097,7 @@ def main(argv: list[str]) -> int:
     event = hook_input.get("hook_event_name") or "PreToolUse"
     if event == "SessionStart":
         return run_session_start(hook_input)
-    if event == "Stop":
+    if event in {"Stop", "SubagentStop"}:
         return run_stop(hook_input)
     if event == "PreToolUse":
         return run_pretooluse(hook_input, hook_host(raw_hook_input))

@@ -251,9 +251,18 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": None,
-        "rule": "query the stores before broad discovery",
+        "rule": "main thread receives native-Memory preflight before broad discovery",
         "status": "performed",
         "mechanism": "_standing_constraints",
+    },
+    {
+        "law": None,
+        "rule": "delegates query the stores before broad discovery",
+        "status": "prose-only",
+        "reason": (
+            "SessionStart belongs to the main thread. Role adapters deliver the entrypoint, "
+            "but a hook cannot observe whether a delegate used the retrieved context."
+        ),
     },
     {
         "law": None,
@@ -1006,6 +1015,30 @@ class HostParityTest(unittest.TestCase):
         claude = {path.stem for path in CLAUDE_AGENTS.glob("*.md")}
         codex = {path.stem for path in CODEX_AGENTS.glob("*.toml")}
         self.assertEqual(claude, codex, "role adapters differ between subagent hosts")
+
+    def test_mechanical_helper_has_a_host_adapter_on_both_subagent_hosts(self):
+        """A dispatch gate needs a legal mechanical role before it can refuse one."""
+        for path in (CLAUDE_AGENTS / "helper.md", CODEX_AGENTS / "helper.toml"):
+            with self.subTest(path=path):
+                self.assertTrue(path.is_file(), "mechanical-helper adapter is missing")
+
+    def test_role_adapters_make_first_row_retrieval_mandatory_for_delegates(self):
+        """#4570 A5: a delegate misses SessionStart, so its adapter path owns retrieval."""
+        clause = (
+            "When this entrypoint was loaded through a role adapter, load "
+            "[retrieve-first](../retrieve-first/SKILL.md) before task-specific discovery, "
+            "including one-file reversible work."
+        )
+        entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+        self.assertIn(re.sub(r"\s+", " ", clause), re.sub(r"\s+", " ", entrypoint))
+        for adapter in sorted(CLAUDE_AGENTS.glob("*.md")):
+            with self.subTest(adapter=adapter):
+                self.assertIn("act-as-mohab/SKILL.md", adapter.read_text(encoding="utf-8"))
+        tomllib = __import__("tomllib")
+        for adapter in sorted(CODEX_AGENTS.glob("*.toml")):
+            with self.subTest(adapter=adapter):
+                instructions = tomllib.loads(adapter.read_text(encoding="utf-8"))["developer_instructions"]
+                self.assertIn("act-as-mohab/SKILL.md", instructions)
 
     def test_codex_role_adapters_use_the_documented_schema(self):
         tomllib = __import__("tomllib")
