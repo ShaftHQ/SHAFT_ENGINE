@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import inspect
 import io
 import json
@@ -65,6 +66,18 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
 
 
 class GuardLifecycleTest(unittest.TestCase):
+    """The SessionStart and Stop contract every host shares.
+
+    Not a single rule: this covers what `run_session_start` injects and how
+    `run_stop` routes worktree state, which is the frame R16, R17, R18 and R20
+    all report through. A rule can be correct and still never reach an agent if
+    this layer drops it, so these tests pin the envelope rather than any one
+    rule's logic.
+
+    Every Stop rule is patched off in `setUp` (#4555): their own classes test
+    them, and leaving them live made these tests depend on the machine.
+    """
+
     def setUp(self):
         """Isolate these tests from every Stop rule that reads live state.
 
@@ -543,6 +556,11 @@ class RemediesAreNotBlockedByAnotherRuleTest(unittest.TestCase):
 
 class HookBudgetTest(unittest.TestCase):
     """One invocation gets one window, and the entry point must open it.
+
+    Defends every PreToolUse rule at once -- R1, R2, R3, R8, R9, R10, R11,
+    R13, R14, R15 and R19 -- because a hook killed for exceeding its timeout
+    fails open and skips all of them for that call. Found by the adversarial
+    review of #4539.
 
     The comment above `SUBPROCESS_TIMEOUT` claimed every helper query shared a
     budget. Nothing implemented it -- adversarial review measured a single
@@ -1364,6 +1382,68 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         """
         with patch("scripts.agents.guard.subprocess", _NoSubprocess):
             self.assertRaises(OSError, guard.subprocess.run, ["git", "status"])
+
+
+class GuardTestClassesNameTheRuleTheyDefendTest(unittest.TestCase):
+    """Every guard test class says which rule it protects (#4550).
+
+    When one of these fails, the only thing the failure line carries is
+    `ClassName.test_name`. If the class does not say which rule it defends,
+    the reader learns that a function broke and not that a policy stopped
+    being enforced -- and the guidance file holding that policy is not
+    referenced from the test at all.
+
+    **Deliberately per class, not per test**, which is a departure from how
+    #4550 was filed. That issue came from 48 Codacy "missing docstring"
+    findings, and satisfying it literally means writing 124 method docstrings
+    across three files. Most would restate the assertion on the line below
+    them, which is the docstring Codacy also accepts and nobody should write.
+    The rule name pays for itself exactly once per class, which is also the
+    granularity the failure output shows.
+
+    An `R<number>` or an issue reference counts. Both point somewhere a reader
+    can follow: the rule in `guard.py`, or the ticket that argued for it.
+    """
+
+    FILES = (
+        "test_guard_lifecycle.py",
+        "test_guard_nul_corruption.py",
+        "test_guard_memory_worktree.py",
+    )
+    NAMES_A_RULE = re.compile(r"\bR\d+\b|#\d{3,}")
+
+    def test_classes(self):
+        """Yield (file, class name, docstring) for every TestCase in the guard suites."""
+        found = []
+        directory = os.path.dirname(os.path.abspath(__file__))
+        for name in self.FILES:
+            path = os.path.join(directory, name)
+            tree = ast.parse(open(path, encoding="utf-8").read())
+            for node in tree.body:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                # Only unittest classes: helpers and stand-ins defend no rule.
+                bases = {getattr(base, "attr", getattr(base, "id", "")) for base in node.bases}
+                if "TestCase" not in bases:
+                    continue
+                found.append((name, node.name, ast.get_docstring(node) or ""))
+        return found
+
+    def test_every_guard_test_class_names_its_rule(self):
+        for filename, class_name, docstring in self.test_classes():
+            with self.subTest(cls=f"{filename}:{class_name}"):
+                self.assertTrue(
+                    docstring.strip(), f"{class_name} has no docstring naming the rule it pins"
+                )
+                self.assertRegex(
+                    docstring,
+                    self.NAMES_A_RULE,
+                    f"{class_name} must name the rule it defends, as R<n> or an issue number",
+                )
+
+    def test_the_scan_finds_the_classes_it_claims_to_check(self):
+        """A path or base-class filter that matched nothing would pass vacuously."""
+        self.assertGreaterEqual(len(self.test_classes()), 15)
 
 
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):

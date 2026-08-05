@@ -47,6 +47,17 @@ def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
 
 
 class NulCorruptionGuardTest(unittest.TestCase):
+    """R10: refuse a write that would commit over NUL-corrupted files.
+
+    An unclean shutdown zeroes files while leaving plausible sizes behind, so
+    the damage reads as ordinary content until something opens it. The tell is
+    `0 insertions(+), 0 deletions(-)` in `git diff --shortstat` -- a diff that
+    changed nothing against files that visibly changed.
+
+    R10 exists so that state is caught before it is committed, since a commit
+    over corrupt files replaces the last good copy with the damaged one.
+    """
+
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary_directory.name)

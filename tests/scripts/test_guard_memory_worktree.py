@@ -52,6 +52,14 @@ def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
 
 
 class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
+    """R11: refuse an untargeted memory write from a linked worktree.
+
+    The `.memory` store is shared by every worktree of the repository, so a
+    delegate writing to it from its own worktree writes into a store the main
+    session and every sibling also own. Concurrent writers to one store lose
+    entries, and the delegate cannot see what it is overwriting.
+    """
+
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.container = Path(self.temporary_directory.name)
