@@ -242,6 +242,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
@@ -267,6 +269,16 @@ jobs:
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v
+      - name: Report orphaned guard docstring claims
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py | while IFS= read -r revision; do
+            python scripts/ci/validate_agent_guidance.py --docstring-siblings "$revision" scripts/agents/guard.py
+          done
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
       - name: Run the portable PreToolUse guard self-test
@@ -673,6 +685,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
