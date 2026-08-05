@@ -5,6 +5,14 @@ A session-shaped method for taking an issue from filed to merged. Load
 
 ## 4. Review before you commit — every time
 
+Rule every open design choice on the issue before the first implementing commit;
+a ticket that reaches code still choosing between candidate fixes converts that
+choice into review rounds. This is measured rather than asserted, and the
+practice already works: on #4554, #4545 and #4547 each carried a two-option
+design question, each was ruled on its issue before any code, and each cost zero
+rounds, while #4536 carried "Trigger points worth considering" into code unruled
+and cost four.
+
 A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
 Commit one reviewed sub-item at a time using the repository's normal message

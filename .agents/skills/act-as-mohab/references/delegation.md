@@ -68,12 +68,58 @@ property that makes it work is independence, so it is not optional:
   does-it-reproduce, blast radius) for hard-to-reverse or cross-cutting change.
 - Escalate to the most intelligent model for a new subsystem, a migration, a
   dependency swap, or any decision that is expensive to unwind.
-- Record each finding as `confirmed`, `refuted`, or `unproven`. A refuted
-  finding is dropped, not softened.
-- Re-review after applying findings, until a pass yields nothing viable.
 
 A self-review is not a review. Neither is a delegate's own report on its own
 work.
+
+### Recording a finding
+
+Each finding is one block, in this form. A finding that cannot fill `Scenario`
+and `Evidence` is not confirmed and is not written.
+
+```
+F<n>      <one-line claim>
+Verdict:  confirmed | refuted | unproven     (refuted is dropped, not softened)
+Blocking: yes | no                           (yes = wrong behavior ships; docstrings,
+                                              commit messages and PR prose are never yes)
+Where:    <path>:<line>                      repository-relative
+Scenario: <the concrete sequence that produces the wrong result>
+Evidence: <what was run or read, and what it returned>
+Class:    <recurrence class, or "new: <name>">
+Fix:      patch | ticket | decision_needed | dismiss
+```
+
+`Class` is the load-bearing field, and it is why the block exists: when a class
+reaches three entries it earns a mechanical check, or an explicit "cannot be
+mechanised, and here is why". Extend the list below; never invent a synonym for
+a row that already exists.
+
+| Class | Shape | What catches it now |
+| --- | --- | --- |
+| `vacuous-check` | a test, pin or self-test that cannot fail | `validate_red_before_green.py`, and the `setUp`-patch pin in `test_agent_router_contract.py` |
+| `unspecified-predicate` | the rule re-guesses a decision the ticket never made | nothing -- it needs a ruling on the issue |
+| `credit-not-in-diff` | prose credits work the diff does not contain | the credit scan in `validate_pr_closing_keywords.py` |
+| `sibling-left` | the instance was fixed and its twin was not | the docstring duplicate scan in `validate_agent_guidance.py` |
+| `fires-on-correct-work` | the gate refuses work that satisfied it | nothing yet, and it is past three: R19 refusing an out-of-repo write, R13 refusing an already-merged branch (#4569), and the three in #4559 item 6 -- so it has earned that item's check, which runs every new rule against the branch adding it |
+| `live-state-in-tests` | the test's answer depends on the machine | `StopTestsAreIndependentOfLiveStateTest` |
+| `wrong-width-check` | the command measured is not the command that matters | nothing -- see #4559 item 3 |
+
+### When the loop stops
+
+The loop stops at the first round with **zero blocking findings**. Every
+remaining finding is ticketed, never carried. Fixes to that final round's own
+findings ship without a new round unless a fix is itself blocking. Three rounds
+is the hard ceiling; continuing past it needs an explicit owner instruction on
+the pull request. Measured on #4554: blocking yield ran 14, 5, 0, 0, and
+stopping at the first zero would have merged the same content about two hours
+earlier.
+
+Every round after the first is scoped to the diff since the last verdict, never
+a full-branch re-read.
+
+Post the findings as a pull-request review, not only in chat. Findings that live
+only in a transcript die with the session, which is how the same class gets
+re-found by a reviewer instead of accumulating into a check.
 
 ## Delegate covenant
 
@@ -96,7 +142,7 @@ using it. The mechanical model omits that clause because it may not delegate.
 ## Returned-work review
 
 Read diff and tests in the two passes [roles](roles.md) gives the reviewer.
-Route every finding to `decision_needed`, `patch`, `defer`, or `dismiss`.
+Route every finding to `patch`, `ticket`, `decision_needed`, or `dismiss`.
 Orchestrator owns final severity because it has full context. Use the
 [verification-gap lens](verification-gap-lens.md) for behavior that could break
 without a failing check.
