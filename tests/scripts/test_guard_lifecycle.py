@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import inspect
 import io
 import json
+import re
 import subprocess  # nosec B404 - tests drive the tracked hook command locally.
 import tempfile
 import unittest
@@ -12,20 +14,50 @@ from unittest.mock import patch
 
 from scripts.agents import guard
 
+# Every Stop rule `run_stop` calls. All of them are patched off in the classes
+# whose subject is something else.
+#
+# R18 reads the real repository, and silently made five of those tests depend
+# on whether a push happened to be pending -- green on a clean checkout and on
+# CI, red exactly when the harness was working as designed. R17 then repeated
+# it: it shells out to `gh`, so an independent review posted on the open pull
+# request turned the same five red again. Two rules, one defect, because the
+# first fix named R18 rather than the class R18 belonged to.
+#
+# Hence: isolate every Stop rule, not the subset known today to read outside
+# the process. A rule that needs no isolation loses nothing by being listed --
+# its own test class calls it directly, and the collection test re-patches
+# whatever it asserts on -- while a rule that does need it can no longer be
+# overlooked. `StopRuleIsolationIsCompleteTest` fails until a newly added rule
+# is named here, which is the part that prevents a third repeat.
+ISOLATED_STOP_RULES = (
+    "check_r16_learning_loop",
+    "check_r17_unarmed_pull_request",
+    "check_r18_unpushed_work",
+)
+
+
+def isolate_stop_rules(case: unittest.TestCase) -> None:
+    """Patch every Stop rule off for `case`, undone when the test finishes."""
+    for name in ISOLATED_STOP_RULES:
+        patcher = patch(f"scripts.agents.guard.{name}", return_value=None)
+        patcher.start()
+        case.addCleanup(patcher.stop)
+
 
 class GuardLifecycleTest(unittest.TestCase):
     def setUp(self):
-        """Isolate the Stop rule under test from the ones that read live git state.
+        """Isolate these tests from every Stop rule that reads live state.
 
-        R18 asks the real repository whether the branch has unpushed commits,
-        so without this these tests pass or fail on whether the developer
-        happens to have pushed -- green on a clean checkout and on CI, red the
-        moment a push is pending. A result that depends on the environment
-        rather than the subject is not a test of the subject.
+        R18 asks the real repository whether the branch has unpushed commits
+        and R17 asks `gh` whether an open pull request has a review nobody
+        armed. Without this, these tests pass or fail on whether a push
+        happens to be pending or a reviewer happens to have replied -- green
+        on a clean checkout and on CI, red exactly when the harness is doing
+        its job. A result that depends on the environment rather than on the
+        subject is not a test of the subject.
         """
-        patcher = patch("scripts.agents.guard.check_r18_unpushed_work", return_value=None)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        isolate_stop_rules(self)
 
     def output(self, function, payload: dict) -> dict | None:
         stream = io.StringIO()
@@ -677,17 +709,17 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
     """
 
     def setUp(self):
-        """Isolate the Stop rule under test from the ones that read live git state.
+        """Isolate these tests from every Stop rule that reads live state.
 
-        R18 asks the real repository whether the branch has unpushed commits,
-        so without this these tests pass or fail on whether the developer
-        happens to have pushed -- green on a clean checkout and on CI, red the
-        moment a push is pending. A result that depends on the environment
-        rather than the subject is not a test of the subject.
+        R18 asks the real repository whether the branch has unpushed commits
+        and R17 asks `gh` whether an open pull request has a review nobody
+        armed. Without this, these tests pass or fail on whether a push
+        happens to be pending or a reviewer happens to have replied -- green
+        on a clean checkout and on CI, red exactly when the harness is doing
+        its job. A result that depends on the environment rather than on the
+        subject is not a test of the subject.
         """
-        patcher = patch("scripts.agents.guard.check_r18_unpushed_work", return_value=None)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        isolate_stop_rules(self)
 
     @patch(
         "scripts.agents.guard._worktree_report",
@@ -717,6 +749,45 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
                 with redirect_stdout(output):
                     self.assertEqual(guard.run_stop({"cwd": ".", "session_id": "s"}), 0)
         self.assertEqual(output.getvalue().strip(), "")
+
+
+class StopRuleIsolationIsCompleteTest(unittest.TestCase):
+    """`ISOLATED_STOP_RULES` must name every rule `run_stop` calls.
+
+    This is the check that makes the isolation survive the next rule rather
+    than the current one. The defect it guards has now shipped twice in this
+    branch, identically: R18 read live git state and quietly made five Stop
+    tests depend on whether a push was pending, and once that was fixed by
+    name, R17 did the same thing through `gh` and turned the same five red
+    again.
+
+    Neither could be caught by CI. A fresh checkout has nothing unpushed and
+    no credentials to ask about reviews, so the environment that runs the
+    suite is precisely the one where the bug is invisible. Only an equality
+    check on the rule list can fail early, in the commit that adds the rule.
+
+    Equality, not containment, in both directions: an unlisted new rule is the
+    defect itself, and a listed rule that `run_stop` no longer calls is a
+    patch aimed at nothing, which reads like coverage and is not.
+    """
+
+    def stop_rules(self) -> set[str]:
+        source = inspect.getsource(guard.run_stop)
+        return set(re.findall(r"check_r\d+_[a-z_]+", source))
+
+    def test_every_stop_rule_is_isolated(self):
+        self.assertEqual(self.stop_rules(), set(ISOLATED_STOP_RULES))
+
+    def test_every_isolated_rule_exists_on_the_guard(self):
+        for name in ISOLATED_STOP_RULES:
+            self.assertTrue(
+                callable(getattr(guard, name, None)),
+                f"{name} is patched by name but is not a callable on the guard",
+            )
+
+    def test_the_rule_list_is_not_empty(self):
+        """A regex that matched nothing would make both checks above vacuous."""
+        self.assertTrue(self.stop_rules())
 
 
 class UnpushedWorkStopGateTest(unittest.TestCase):
