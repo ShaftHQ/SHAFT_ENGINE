@@ -55,11 +55,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
+import tempfile
 from typing import NamedTuple
 
 # ---------------------------------------------------------------------------
@@ -1398,6 +1400,74 @@ def _sync_advisory() -> str | None:
         "User harness drift detected. Review the tracked harness, then run "
         "`py -3 scripts/agents/sync_user_harness.py --apply` and re-check it."
     )
+
+
+def _ledger_path(hook_input: dict) -> str | None:
+    """Return this session's ledger file, or None when one cannot be sited.
+
+    Keyed by session, never by repository. Concurrent agents each own a
+    worktree and run their own hooks, so a repository-keyed ledger would let
+    one delegate's test run unlock a production write for a different one --
+    and a gate somebody else can satisfy is not a gate.
+
+    Sited outside the repository on purpose: this is runtime state, and
+    `AGENTS.md` forbids generated files in git. `session_id` is already
+    normalised across Claude, Codex and Grok by `_FIELD_ALIASES`, so this
+    needs no per-host branch.
+    """
+    session = hook_input.get("session_id")
+    if not isinstance(session, str) or not session.strip():
+        return None
+    # Hashed rather than interpolated: a session id is host-supplied and would
+    # otherwise reach the filesystem as a path component.
+    key = hashlib.sha256(session.strip().encode("utf-8")).hexdigest()[:32]
+    directory = os.path.join(tempfile.gettempdir(), "shaft-agent-ledger")
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError:
+        return None
+    return os.path.join(directory, f"{key}.json")
+
+
+def ledger_record(hook_input: dict, event: str) -> bool:
+    """Append one observed event to this session's ledger. True when recorded.
+
+    Read-modify-write rather than an append-only text file, because the
+    reader has to tolerate a partial line from a concurrent hook. A lost
+    event costs one re-observation; a corrupt read that raises would cost the
+    session.
+    """
+    path = _ledger_path(hook_input)
+    if not path or not isinstance(event, str) or not event:
+        return False
+    events = ledger_events(hook_input)
+    events.append(event)
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(events, handle)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def ledger_events(hook_input: dict) -> list[str]:
+    """Return the events observed so far in this session, oldest first.
+
+    Every failure reads as "nothing observed yet". That is the safe direction
+    for a *record* of what happened; the gates built on it decide separately
+    whether an empty record should block, and each of those fails open.
+    """
+    path = _ledger_path(hook_input)
+    if not path or not os.path.isfile(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as handle:
+            events = json.load(handle)
+    except (OSError, ValueError, UnicodeDecodeError):
+        return []
+    if not isinstance(events, list):
+        return []
+    return [item for item in events if isinstance(item, str)]
 
 
 def _standing_constraints(working_directory: object) -> str | None:

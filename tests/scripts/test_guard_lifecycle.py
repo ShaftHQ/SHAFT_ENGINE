@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import subprocess  # nosec B404 - tests drive the tracked hook command locally.
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -244,3 +245,64 @@ class GuardLifecycleTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SessionLedgerTest(unittest.TestCase):
+    """#4541: the session-scoped state nine of the twelve rules need.
+
+    `guard.py` is stateless -- every PreToolUse call is a fresh process that
+    sees only the current tool call. "Has a test run since the last production
+    edit", "how long since the last push", "was a store queried before this
+    discovery" are all questions about the session, and none of them can be
+    asked without somewhere to write down what has already happened.
+
+    The ledger is deliberately dumb: an append-only list of event strings. It
+    holds no judgement, so a rule that changes its mind does not invalidate
+    history, and a corrupted ledger costs nothing but a re-observation.
+    """
+
+    def payload(self, session: str, directory: str) -> dict:
+        return {"session_id": session, "cwd": directory}
+
+    def test_an_event_recorded_is_an_event_read_back(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-a", directory)
+                self.assertEqual(guard.ledger_events(payload), [])
+                self.assertTrue(guard.ledger_record(payload, "test-run"))
+                self.assertTrue(guard.ledger_record(payload, "push"))
+                self.assertEqual(guard.ledger_events(payload), ["test-run", "push"])
+
+    def test_one_session_cannot_see_another_sessions_events(self):
+        """A shared ledger would let a sibling agent satisfy this agent's gate.
+
+        Concurrent agents each own a worktree and run their own hooks. If the
+        ledger were keyed by repository rather than by session, one delegate
+        running a test would unlock a production write for a different one --
+        a gate that can be satisfied by somebody else is not a gate.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                guard.ledger_record(self.payload("session-a", directory), "test-run")
+                self.assertEqual(guard.ledger_events(self.payload("session-b", directory)), [])
+
+    def test_the_ledger_fails_open_when_it_cannot_be_written(self):
+        """A hook that cannot record must never block. It runs before every call."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-a", directory)
+                with patch("scripts.agents.guard._ledger_path", return_value=None):
+                    self.assertFalse(guard.ledger_record(payload, "test-run"))
+                    self.assertEqual(guard.ledger_events(payload), [])
+
+    def test_a_corrupt_ledger_reads_as_empty_rather_than_raising(self):
+        """Worst case is re-observing an event, never a session that cannot start."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-a", directory)
+                guard.ledger_record(payload, "test-run")
+                path = guard._ledger_path(payload)
+                self.assertIsNotNone(path)
+                with open(path, "wb") as handle:
+                    handle.write(b"\x00\xff not json at all")
+                self.assertEqual(guard.ledger_events(payload), [])
