@@ -170,7 +170,7 @@ def credited_symbols(message: str) -> list[str]:
 
 def find_credited_symbols_not_in_diff(
     commits: list[tuple[str, str]],
-    diff_for_sha: "Callable[[str], str | None]",
+    diff_for_sha: Callable[[str], str | None],
 ) -> list[dict[str, str]]:
     """Report each symbol a commit's change list credits but its own diff never touches.
 
