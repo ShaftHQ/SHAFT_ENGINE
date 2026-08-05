@@ -280,11 +280,28 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          history_file=$(mktemp)
+          paths_file=$(mktemp)
+          trap 'rm -f "$history_file" "$paths_file"' EXIT
+          if ! git cat-file -e "$BASE_SHA:scripts/ci/validate_red_before_green.py" 2>/dev/null; then
+            git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/ci/validate_red_before_green.py > "$history_file"
+            if [[ ! -s "$history_file" ]]; then
+              echo "RED validator is absent from the base and the PR." >&2
+              exit 1
+            fi
+            IFS= read -r bootstrap < "$history_file"
+            git rev-parse "$bootstrap^" > "$paths_file"
+            IFS= read -r BASE_SHA < "$paths_file"
+          fi
+          git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py ':(glob)tests/scripts/test_guard*.py' > "$history_file"
           while IFS= read -r revision; do
+            [[ -z "$revision" ]] && continue
+            git diff --diff-filter=AMR --name-only "$revision^" "$revision" -- ':(glob)tests/scripts/test_guard*.py' > "$paths_file"
             while IFS= read -r test_path; do
+              [[ -z "$test_path" ]] && continue
               python scripts/ci/validate_red_before_green.py "$revision" scripts/agents/guard.py "$test_path"
-            done < <(git diff --diff-filter=AMR --name-only "$revision^" "$revision" -- ':(glob)tests/scripts/test_guard*.py')
-          done < <(git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py ':(glob)tests/scripts/test_guard*.py')
+            done < "$paths_file"
+          done < "$history_file"
       - name: Report orphaned guard docstring claims
         if: github.event_name == 'pull_request'
         shell: bash

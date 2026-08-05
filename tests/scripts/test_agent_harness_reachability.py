@@ -357,8 +357,11 @@ class HarnessReachabilityTest(unittest.TestCase):
         self.assertIn("scripts/ci/validate_red_before_green.py", guidance_paths)
         self.assertIn("tests/scripts/test_validate_red_before_green.py", guidance_paths)
         self.assertIn("- 'tests/scripts/test_guard*.py'", guidance_paths)
-        self.assertIn("done < <(git rev-list --reverse", guidance_gate)
-        self.assertIn("done < <(git diff --diff-filter=AMR", guidance_gate)
+        self.assertIn("history_file=$(mktemp)", guidance_gate)
+        self.assertIn("trap 'rm -f \"$history_file\" \"$paths_file\"' EXIT", guidance_gate)
+        self.assertIn("git cat-file -e \"$BASE_SHA:scripts/ci/validate_red_before_green.py\"", guidance_gate)
+        self.assertIn("IFS= read -r BASE_SHA < \"$paths_file\"", guidance_gate)
+        self.assertIn("git rev-parse \"$bootstrap^\" > \"$paths_file\"", guidance_gate)
 
     def test_the_element_set_is_derived_from_the_repository_not_hand_listed(self):
         """A hand list omits the next file, which is the defect being fixed.
