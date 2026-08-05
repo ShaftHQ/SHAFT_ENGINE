@@ -997,3 +997,9 @@
 {"actor":"agent","event":"memory.created","id":"decision.push-always-wins-during-development-the-quiet-ci-period-belongs-only-before-the-arming-decision","timestamp":"2026-08-05T09:36:23+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced","timestamp":"2026-08-05T10:56:09+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.fix-a-live-state-test-defect-by-pinning-the-whole-rule-class-with-an-equality-check-never-by-naming-the-rule-that-bit-you","timestamp":"2026-08-05T10:56:09+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.tempfile-gettempdir-caches-so-patching-tmpdir-in-a-test-is-inert-and-the-tests-silently-share-the-real-temp-directory","timestamp":"2026-08-05T11:51:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.a-rule-that-compares-tracked-state-against-a-derived-copy-must-exclude-whatever-the-current-branch-is-changing","timestamp":"2026-08-05T11:51:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.prove-a-concurrency-fix-by-removing-the-window-and-asserting-the-read-is-gone-not-by-racing-threads","timestamp":"2026-08-05T11:51:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.when-a-matcher-strips-a-token-ask-what-that-token-asserted-before-widening-anything-else-on-the-same-premise","timestamp":"2026-08-05T15:02:18+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"decision.when-a-matcher-strips-a-token-ask-what-that-token-asserted-before-widening-anything-else-on-the-same-premise","timestamp":"2026-08-05T15:04:08+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.a-flag-a-matcher-skips-is-an-assertion-not-noise-compare-its-value-before-widening-the-rule","timestamp":"2026-08-05T15:04:08+03:00"}

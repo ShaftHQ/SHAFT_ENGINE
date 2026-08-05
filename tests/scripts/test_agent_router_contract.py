@@ -16,6 +16,7 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.ci.validate_agent_guidance import (
     expand_reported_globs,
@@ -52,6 +53,7 @@ RED_FLAGS = "red flags"
 TDD = "test-driven development"
 GAP_SHAPES = "the four gap shapes"
 BINDING = "proving a check binds"
+REVIEW = "independent adversarial review"
 
 # Every clause this repository's guidance is not allowed to lose, as
 # (file, section, literal).
@@ -68,6 +70,13 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, IRON_LAWS, "no production code before an observed failing test"),
     (ENTRYPOINT, IRON_LAWS, "never weaken, delete, or rewrite a test to reach green"),
     (ENTRYPOINT, IRON_LAWS, "never claim a check you did not run"),
+    # #4545 defect 1. Law 6 required a review per "behavior-changing step" and
+    # nothing defines a step, so the rule had no countable trigger and nobody
+    # could say how many a change owed. Measured: #4539 carried 24 commits and
+    # eleven new enforcement rules and received zero reviews until the owner
+    # asked for one. The per-pull-request floor is weaker in principle and
+    # strictly stronger in practice, because a pull request can be counted.
+    (ENTRYPOINT, IRON_LAWS, "every pull request gets at least one before it is armed"),
     (ENTRYPOINT, TDD, "only an expected assertion failure"),
     (ENTRYPOINT, TDD, "a pass or setup, syntax, or environment error is not red"),
     (ENTRYPOINT, TDD, "revert that new code and restart"),
@@ -76,7 +85,208 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, RED_FLAGS, "the check covers it"),
     (LENS, GAP_SHAPES, "unbound-check gap"),
     (LENS, BINDING, "apply it, run it, read the failure, revert"),
+    # #4548. Independence was stated and the *subject* was not: a read-only
+    # reviewer owns no worktree, so unsaid it reads whatever branch the shared
+    # tree happens to hold. Both halves are pinned, because a reviewer that is
+    # independent of the author and pointed at the wrong revision produces the
+    # most confident wrong answer available -- a clean no-match that looks
+    # exactly like a real absence.
+    (DELEGATION, REVIEW, "separate agent instance, never the author"),
+    (DELEGATION, REVIEW, "the exact revision under review"),
+    (DELEGATION, REVIEW, "first action confirms the revision is what it thinks it is"),
 )
+
+# How many rules each pinned section is supposed to have (#4534).
+#
+# `numbering_defects` reads a list as 1..N, so it sees an item removed from the
+# middle -- 1, 2, 4 -- and cannot see one removed from the end, because 1, 2 is
+# as contiguous as 1, 2, 3. The clause pins were meant to cover that, and here
+# they do not: `PINNED_CLAUSES` binds iron laws 2, 3, 4 and 5, so laws 1 and 6
+# have no pin, and law 6 is the last item. Deleting the rule that requires an
+# independent adversarial review passed the numbering check and every clause
+# pin at once, reported by nothing.
+#
+# A count rather than two more clause pins, for two reasons. A clause pin binds
+# words, and words get rewritten for good reasons, so pinning every law by text
+# makes ordinary editing expensive and teaches authors to route around the pins.
+# And a count fails in the other direction too: a law *added* without review is
+# a policy change with no gate in front of it, and no clause pin can ask about
+# a rule nobody has written down yet.
+#
+# A section with no ordered list has no entry, and `test_every_pinned_section_
+# with_rules_is_counted` keeps that from becoming a place to hide: it fails if
+# a pinned section grows a list nobody counted, and if a count names a section
+# that is not pinned.
+PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
+    (ENTRYPOINT, IRON_LAWS): 6,
+    (ENTRYPOINT, TDD): 3,
+    (LENS, GAP_SHAPES): 4,
+}
+
+# Every required-action rule, against what actually enforces it (#4541).
+#
+# The harness tests verify that the rulebook is intact -- present, linked,
+# unqualified, correctly numbered, not superseded. Not one of them verifies
+# that a rule was *obeyed*, and a green suite therefore reads as "the harness
+# is working" when it means "the harness's text is undamaged". That gap
+# matters most for exactly the rules that decay with context.
+#
+# Three honest statuses, and the third is not a failure:
+#   performed   -- a hook does it, so no adherence is required at all
+#   gated       -- a PreToolUse rule REFUSES the call until it has happened
+#   reports     -- a Stop rule interrupts the turn but cannot refuse anything
+#   prose-only  -- no practical mechanism, with the reason recorded here
+#
+# `reports` exists because the first version had only `gated`, and five rows
+# claimed it for rules whose own docstrings say the opposite -- R16 "not a hard
+# gate", R20 "reports rather than refuses", R21 "reports, never refuses". A
+# registry whose whole deliverable is honest classification cannot round
+# "interrupts once" up to "refuses". The distinction is mechanical, not a
+# judgement: a gated rule is dispatched from `run_pretooluse` and returns a
+# denial; a reporting rule is dispatched from `run_stop`.
+#
+# `law` ties a row to a numbered iron law. Every law needs exactly one row and
+# no row may name a law that does not exist, so adding a seventh iron law fails
+# this until it is classified -- which is what makes the registry bind on future
+# expansion rather than only on today's rules. Rows with `law: None` cover
+# required actions stated elsewhere in the entrypoint.
+#
+# `mechanism` names a symbol that must exist in `guard.py`. `reason` is required
+# for prose-only rows and is checked for substance, because "n/a" is non-empty
+# and says nothing.
+#
+# Deliberately NOT required: that prose-only be empty, or that the registry be
+# non-empty. `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-
+# that-will-be-weakened` records what that produces -- guards that are each
+# defensible and leave no legal configuration, where the cheapest exit is
+# deleting the guard. Row count here is derived from the entrypoint, never
+# floored by this file.
+REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
+    {
+        "law": 1,
+        "rule": "consult before acting; triage first",
+        "status": "prose-only",
+        "reason": (
+            "Triage is a judgement about blast radius and reversibility. A hook sees "
+            "one tool call and cannot know whether the agent weighed anything, and one "
+            "that demanded a triage artifact would be satisfied by writing the artifact "
+            "rather than by doing the thinking."
+        ),
+    },
+    {
+        "law": 2,
+        "rule": "evidence over inference -- inspect or run before claiming",
+        "status": "prose-only",
+        "reason": (
+            "No hook observes an assertion. The claim and the evidence for it are both "
+            "prose in the same message, and a check that could tell them apart would be "
+            "reading for meaning, which every lexical attempt in this repository has "
+            "lost -- see the superseded-policy scan's three failed review rounds."
+        ),
+    },
+    {
+        "law": 3,
+        "rule": "no production code before an observed failing test",
+        "status": "gated",
+        "mechanism": "check_r12_test_before_production",
+    },
+    {
+        "law": 4,
+        "rule": "never weaken, delete, or rewrite a test to reach green",
+        "status": "prose-only",
+        "reason": (
+            "A weakened assertion and a corrected one are the same edit to a hook. "
+            "Distinguishing them needs the intent behind the change, and gating test "
+            "edits at all would block the corrections this repository legitimately "
+            "makes -- a gate firing on correct work, which is the shape that gets "
+            "guards deleted."
+        ),
+    },
+    {
+        "law": 5,
+        "rule": "never claim a check you did not run",
+        "status": "prose-only",
+        "reason": (
+            "The session ledger records that a test run happened, never that the run "
+            "supports the sentence an agent then wrote. Binding those together needs "
+            "the claim parsed and matched to the evidence, which is the same semantic "
+            "read law 2 fails on."
+        ),
+    },
+    {
+        "law": 6,
+        "rule": "independent adversarial review before the next step, and once per pull request before arming",
+        "status": "gated",
+        "mechanism": "check_r15_review_before_arming",
+    },
+    {
+        "law": None,
+        "rule": "query the stores before broad discovery",
+        "status": "performed",
+        "mechanism": "_standing_constraints",
+    },
+    {
+        "law": None,
+        "rule": "start from a fresh base; never edit on the default branch",
+        "status": "gated",
+        "mechanism": "check_r19_fresh_base",
+    },
+    {
+        "law": None,
+        "rule": "push anything a remote has never seen before deleting it",
+        "status": "gated",
+        "mechanism": "check_r13_push_before_delete",
+    },
+    {
+        "law": None,
+        "rule": "never discard uncommitted work with a hard reset",
+        "status": "gated",
+        "mechanism": "check_r14_hard_reset",
+    },
+    {
+        "law": None,
+        "rule": "run the learning loop before reporting done",
+        "status": "reports",
+        "mechanism": "check_r16_learning_loop",
+    },
+    {
+        "law": None,
+        "rule": "arm auto-merge once the review gate passes, then watch until merged",
+        "status": "reports",
+        "mechanism": "check_r17_unarmed_pull_request",
+    },
+    {
+        "law": None,
+        "rule": "push before the session can end; unpushed work is unrecoverable",
+        "status": "reports",
+        "mechanism": "check_r18_unpushed_work",
+    },
+    {
+        "law": None,
+        "rule": "keep the deployed harness in step with the tracked one",
+        "status": "reports",
+        "mechanism": "check_r20_user_harness_drift",
+    },
+    {
+        "law": None,
+        "rule": "put in-flight run state on the tracker when work is delegated",
+        "status": "reports",
+        "mechanism": "check_r21_run_state_not_recorded",
+    },
+    {
+        "law": None,
+        "rule": "record an owner decision, and a sequencing constraint, where the next agent will find it",
+        "status": "prose-only",
+        "reason": (
+            "The remaining half of #4536. Delegation is a tool call a hook can see; "
+            "'an owner decided something in conversation' and 'a sequencing "
+            "constraint was discovered' are not events any hook observes, so they "
+            "stay prose and the issue stays open rather than being counted as done."
+        ),
+    },
+)
+
+REGISTRY_STATUSES = frozenset({"performed", "gated", "reports", "prose-only"})
 
 # Words that leave every pinned word in place and turn the rule into a
 # suggestion.
@@ -203,6 +413,27 @@ def numbering_defects(section: str, where: str) -> list[str]:
     return defects
 
 
+def count_defects(section: str, where: str, key: tuple[Path, str]) -> list[str]:
+    """Report a pinned section whose rule count is not the one on record.
+
+    Counts every item across the section's ordered lists rather than the
+    longest run, so splitting one list into two does not quietly halve the
+    figure the check compares against.
+
+    Silent for a section with no pinned count. That is not a gap to be closed
+    here: `test_every_pinned_section_with_rules_is_counted` is what makes the
+    silence deliberate, by failing when a pinned section has rules and no
+    count.
+    """
+    expected = PINNED_RULE_COUNTS.get(key)
+    if expected is None:
+        return []
+    found = sum(len(run) for run in ordered_list_runs(section))
+    if found != expected:
+        return [f"{where}: rule count is {found}, not the pinned {expected}"]
+    return []
+
+
 def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
     """Report what is wrong with a pinned section: its clauses and its numbering.
 
@@ -237,6 +468,7 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
         if (path, heading) not in numbered:
             numbered.add((path, heading))
             defects.extend(numbering_defects(sections[0], where))
+            defects.extend(count_defects(sections[0], where, (path, heading)))
         pattern = clause_pattern(clause)
         matched = [block for block in rule_blocks(sections[0]) if re.search(pattern, block)]
         if not matched:
@@ -803,6 +1035,7 @@ class NoDuplicationTest(unittest.TestCase):
         ".claude/skills/*/SKILL.md",
         ".claude/agents/*.md",
         ".github/skills/*/SKILL.md",
+        ".github/skills/README.md",
         ".github/copilot-instructions.md",
         ".github/instructions/*.instructions.md",
     )
@@ -946,6 +1179,68 @@ class SkillsMapTest(unittest.TestCase):
         content = compact(self.MAP)
         self.assertIn("act-as-mohab/skill.md", content)
         self.assertRegex(content, r"do not work from this file|map, not the territory")
+
+
+class CopilotRedirectPackIndexTest(unittest.TestCase):
+    """#4532: the same hole as #4480, in the host that was left out of its fix.
+
+    `.agents/skills/README.md` was pulled into `active_guidance_globs` by
+    #4480. `.github/skills/README.md` has the identical shape -- it is the
+    index of Copilot's redirect pack, and the skills map cites it by name as
+    one of that host's adapter files -- and was deliberately left out of that
+    pull request to keep the diff to the issue as filed.
+
+    So it was counted by `total_guidance_globs` and link-checked by
+    `reference_scan_globs`, and no intent check ever opened it:
+    `validate_forbidden_patterns` and `validate_duplicate_paragraphs` read
+    `active_guidance_globs`, and it was on neither that list nor
+    `NoDuplicationTest.GUIDANCE_GLOBS`.
+
+    "Counted and link-checked" reading as "checked" is what made the hole hard
+    to see, and it is the same shape as the rest of this batch: a file inside
+    the boundary, with nothing consuming it.
+    """
+
+    MAP = ROOT / ".github/skills/README.md"
+
+    def test_the_index_exists(self):
+        """Everything below is vacuous if the host pack was renamed away."""
+        self.assertTrue(self.MAP.is_file(), f"{self.MAP} is missing")
+
+    def test_the_index_is_inside_the_active_guidance_scan(self):
+        budget = json.loads(BUDGET.read_text(encoding="utf-8"))
+        patterns, key_errors = require_glob_list(budget, "active_guidance_globs")
+        self.assertEqual(key_errors, [])
+        scanned, glob_errors = expand_reported_globs(ROOT, patterns, "active_guidance_globs")
+        self.assertEqual(glob_errors, [])
+        self.assertIn(self.MAP.resolve(), {path.resolve() for path in scanned})
+
+    def test_a_forbidden_mandate_planted_in_the_index_is_reported(self):
+        """Being on the list has to reach the scan, so run the scan.
+
+        The test above proves the expansion selects the file; this proves the
+        expansion is what the forbidden-pattern check consumes, by planting a
+        violation and reading the finding back out of the shipped entry point.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            planted = root / ".github/skills/README.md"
+            planted.parent.mkdir(parents=True)
+            planted.write_text(
+                "# Copilot redirect pack\n\nOpen a draft PR before you start work.\n",
+                encoding="utf-8",
+            )
+            reported = [
+                found
+                for found in validate_repository(root=root, budget_path=BUDGET)
+                if found["code"] == "forbidden-mandate"
+                and found["path"] == ".github/skills/README.md"
+            ]
+        self.assertTrue(reported, "a forbidden mandate in the Copilot index is not reported")
+
+    def test_the_duplicate_checks_also_cover_it(self):
+        """`NoDuplicationTest` keeps its own tuple, so being on one list is not both."""
+        self.assertIn(".github/skills/README.md", NoDuplicationTest.GUIDANCE_GLOBS)
 
 
 class RetrievalParityTest(unittest.TestCase):
@@ -1570,6 +1865,249 @@ class DisciplineTest(unittest.TestCase):
         )
         self.assert_reports(
             {ENTRYPOINT: mutated}, self.NUMBERED_LAW, "deleting the law outright is not reported"
+        )
+
+    def guard_source(self) -> str:
+        path = ROOT / "scripts/agents/guard.py"
+        # Asserted, not assumed: a wrong path here makes every mechanism check
+        # error rather than fail, and an errored check proves nothing about the
+        # registry it was supposed to be verifying.
+        self.assertTrue(path.is_file(), f"guard.py not found at {path}")
+        return path.read_text(encoding="utf-8")
+
+    def test_every_iron_law_has_exactly_one_registry_row(self):
+        """#4541: a rule with no recorded enforcement status is the gap itself.
+
+        Equality against the entrypoint, not a hand-kept count: the law numbers
+        come from the file, so adding a seventh iron law fails this until it is
+        classified as performed, gated, or prose-only-because. That is what
+        makes the registry bind on future expansion rather than on today's six.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        runs = ordered_list_runs(headed_sections(source, IRON_LAWS)[0])
+        laws = {number for run in runs for number in run}
+        registered = [row["law"] for row in REQUIRED_ACTION_REGISTRY if row["law"] is not None]
+
+        self.assertEqual(set(registered), laws, "every iron law needs exactly one row")
+        self.assertEqual(
+            len(registered), len(set(registered)), "a law must not be registered twice"
+        )
+
+    def test_every_row_is_honestly_classified(self):
+        """The name is the claim, so it has to test both halves of it.
+
+        The first version asserted only that `status` was a member of the
+        allowed set and that `rule` was non-empty -- which is satisfied by
+        every possible misclassification. Adversarial review found five rows
+        claiming `gated` for rules whose own docstrings say they only report.
+
+        The distinction is mechanical rather than a judgement: a `gated` rule
+        is dispatched from `run_pretooluse`, where returning a string denies
+        the call; a `reports` rule is dispatched from `run_stop`, which cannot
+        refuse anything.
+        """
+        pretooluse = self.dispatched_from("run_pretooluse")
+        stop = self.dispatched_from("run_stop")
+        self.assertTrue(pretooluse and stop, "the dispatch scan found nothing")
+        self.assertNotEqual(
+            pretooluse,
+            stop,
+            "the two entry points cannot dispatch identical sets; the scan is too wide",
+        )
+
+        for row in REQUIRED_ACTION_REGISTRY:
+            with self.subTest(rule=row["rule"][:50]):
+                self.assertIn(row["status"], REGISTRY_STATUSES)
+                self.assertTrue(row["rule"].strip())
+                mechanism = row.get("mechanism", "")
+                if row["status"] == "gated":
+                    self.assertIn(
+                        mechanism,
+                        pretooluse,
+                        f"{mechanism} is classified gated but does not refuse a call",
+                    )
+                if row["status"] == "reports":
+                    self.assertIn(
+                        mechanism,
+                        stop,
+                        f"{mechanism} is classified reports but is not a Stop rule",
+                    )
+
+    def dispatched_from(self, entry: str) -> set[str]:
+        """Rule names appearing in one hook entry point's body.
+
+        `inspect.getsource` rather than slicing the file between `def` markers.
+        The slicing version silently returned every rule in the module for
+        `run_stop`, which made the `reports` half of the classification check
+        pass for any input -- a vacuous check inside the test whose whole
+        subject is dishonest classification.
+        """
+        import inspect
+
+        from scripts.agents import guard
+
+        return set(re.findall(r"check_r[0-9]+_[a-z_]+", inspect.getsource(getattr(guard, entry))))
+
+    def test_every_enforced_row_names_a_mechanism_that_exists(self):
+        """A row claiming enforcement by a symbol nobody wrote is worse than no row."""
+        source = self.guard_source()
+        for row in REQUIRED_ACTION_REGISTRY:
+            if row["status"] not in ("gated", "performed"):
+                continue
+            with self.subTest(rule=row["rule"][:50]):
+                mechanism = row.get("mechanism", "")
+                self.assertTrue(mechanism, "an enforced row must name its mechanism")
+                self.assertIn(
+                    f"def {mechanism}(",
+                    source,
+                    f"{mechanism} is claimed as the mechanism and is not defined in guard.py",
+                )
+
+    def test_every_prose_only_row_records_why(self):
+        """The third status is honest only while it carries its reason."""
+        for row in REQUIRED_ACTION_REGISTRY:
+            if row["status"] != "prose-only":
+                continue
+            with self.subTest(rule=row["rule"][:50]):
+                reason = row.get("reason", "")
+                # A word floor, because "not practical" is non-empty and says
+                # nothing. Low on purpose: this catches a placeholder, it does
+                # not have opinions about prose.
+                self.assertGreaterEqual(
+                    len(reason.split()), 12, "state why no mechanism is practical"
+                )
+
+    def test_the_registry_does_not_require_its_own_categories_to_be_populated(self):
+        """The deadlock this design was warned about, asserted as absent.
+
+        `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-
+        will-be-weakened`: requiring prose-only to be empty would make the
+        healthy end state illegal the moment a rule genuinely has no mechanism,
+        and the cheapest exit an agent sees is deleting the guard.
+
+        So the checks above must pass on a registry with no prose-only rows,
+        and on one with nothing but them.
+        """
+        for variant in ("all gated", "all prose-only", "empty"):
+            with self.subTest(variant=variant):
+                if variant == "all gated":
+                    rows = tuple(
+                        row for row in REQUIRED_ACTION_REGISTRY if row["status"] != "prose-only"
+                    )
+                elif variant == "all prose-only":
+                    rows = tuple(
+                        row for row in REQUIRED_ACTION_REGISTRY if row["status"] == "prose-only"
+                    )
+                else:
+                    rows = ()
+                with mock.patch(f"{__name__}.REQUIRED_ACTION_REGISTRY", rows):
+                    self.test_every_row_is_honestly_classified()
+                    self.test_every_enforced_row_names_a_mechanism_that_exists()
+                    self.test_every_prose_only_row_records_why()
+
+    def test_every_pinned_section_with_rules_is_counted(self):
+        """An uncounted section must not become the place to hide a deletion.
+
+        `count_defects` is silent where no count is pinned, which is correct
+        for Red flags and `proving a check binds` -- neither carries an
+        ordered list, so there is nothing to count. Left at that, the way to
+        evade the check would be to add rules to an uncounted section, or to
+        add a pinned section and never count it.
+
+        Equality in both directions. A pinned section that grows an ordered
+        list and no count is the evasion; a count naming a section that is not
+        pinned is a check aimed at nothing, which reads like coverage and is
+        not.
+        """
+        with_rules = set()
+        for path, heading, _ in PINNED_CLAUSES:
+            if (path, heading) in with_rules:
+                continue
+            sections = headed_sections(path.read_text(encoding="utf-8"), heading)
+            if len(sections) == 1 and ordered_list_runs(sections[0]):
+                with_rules.add((path, heading))
+        self.assertEqual(
+            with_rules,
+            set(PINNED_RULE_COUNTS),
+            "every pinned section that has rules needs a count, and vice versa",
+        )
+
+    def test_each_pinned_count_matches_the_file_today(self):
+        """A count that drifted from the file reports on every run or never.
+
+        Wrong high and the section is permanently in defect; wrong low and it
+        has already absorbed a deletion. Either way the figure stops meaning
+        what the other tests here assume it means.
+        """
+        for (path, heading), expected in PINNED_RULE_COUNTS.items():
+            with self.subTest(section=f"{path.name}:{heading}"):
+                sections = headed_sections(path.read_text(encoding="utf-8"), heading)
+                self.assertEqual(len(sections), 1)
+                found = sum(len(run) for run in ordered_list_runs(sections[0]))
+                self.assertEqual(found, expected)
+
+    def test_deleting_the_last_law_is_reported(self):
+        """#4534: an end-deletion is contiguous, and the last law has no pin.
+
+        `numbering_defects` reads 1..N, so removing an item from the *middle*
+        leaves a gap it catches while removing the item at the *end* leaves
+        1, 2, 3 becoming 1, 2 -- still contiguous, still 1..N, silent. The
+        module already said so honestly; what it did not say is what that
+        costs here.
+
+        `PINNED_CLAUSES` pins iron laws 2, 3, 4 and 5. Laws 1 and 6 carry no
+        clause pin, and law 6 is the last item -- so deleting the rule that
+        requires an independent adversarial review passes the numbering check
+        and every clause pin at once. The one rule whose absence nothing else
+        in the harness would notice is exactly the one the structure could not
+        see going.
+
+        Fixed with a count rather than by pinning those two clauses. A clause
+        pin binds the words, and words get rewritten for good reasons; a count
+        binds the shape, which is what an end-deletion changes. It also fails
+        for a law added without review, which no clause pin can do.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        mutated = re.sub(r"(?m)^6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*", "", source, count=1)
+        self.assertNotEqual(mutated, source, "the mutation did not apply")
+        self.assertEqual(
+            self.law_numbers(mutated),
+            [1, 2, 3, 4, 5],
+            "the point of this test is that the remaining list stays contiguous",
+        )
+        self.assertNotIn(
+            "independent adversarial review", mutated.lower(), "the law must be gone"
+        )
+        self.assertEqual(
+            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
+            [],
+            "an end-deletion is not a numbering defect, which is why this test exists",
+        )
+        self.assertTrue(
+            clause_defects({ENTRYPOINT: mutated}),
+            "deleting the last iron law must be reported by something",
+        )
+
+    def test_adding_a_law_nobody_pinned_is_reported(self):
+        """The same count, in the direction a clause pin cannot look.
+
+        Every pin asks whether a rule it already knows about is still there.
+        None of them can ask whether a rule appeared that no one reviewed, and
+        a silently added iron law is a policy change with no gate in front of
+        it.
+        """
+        source = ENTRYPOINT.read_text(encoding="utf-8")
+        mutated = re.sub(
+            r"(?m)^(6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*)",
+            r"\g<1>7. Ship it if the delegate says it passed.\n",
+            source,
+            count=1,
+        )
+        self.assertNotEqual(mutated, source, "the mutation did not apply")
+        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5, 6, 7])
+        self.assertTrue(
+            clause_defects({ENTRYPOINT: mutated}),
+            "an iron law appearing from nowhere must be reported",
         )
 
     def test_hedges_that_slipped_past_the_first_marker_list_are_reported(self):

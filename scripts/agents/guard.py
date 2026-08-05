@@ -1488,11 +1488,17 @@ def _unpushed_commit_count(branch: str) -> int | None:
         return None
 
 
-def _git_output(arguments: list[str]) -> str | None:
-    """Stdout of a read-only git query, or None when git will not answer."""
+def _git_output(arguments: list[str], cwd: object = None) -> str | None:
+    """Stdout of a read-only git query, or None when git will not answer.
+
+    Takes `cwd` because a helper that always reads the hook process's own
+    directory is the defect #4553 closed for R17, R18 and R19 -- reintroduced
+    one function over if this one cannot be pointed anywhere.
+    """
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
             ["git", *arguments],
+            cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -1698,18 +1704,12 @@ def _independent_review_count(target: str | None) -> int | None:
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    return len(
-        [
-            review
-            for review in reviews
-            if isinstance(review, dict)
-            and (review.get("author") or {}).get("login")
-            and (review.get("author") or {}).get("login") != author
-        ]
-    )
+    return len(_independent_reviews(reviews, author))
 
 
-def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
+def check_r15_review_before_arming(
+    command: str, tool_name: str, hook_input: dict | None = None
+) -> str | None:
     """Refuse arming auto-merge before an independent review exists.
 
     Iron law 6 requires an independent adversarial review before the next step
@@ -1735,17 +1735,259 @@ def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
         reviews = _independent_review_count(target)
         if reviews is None or reviews > 0:
             continue
+        # #4545 option C: a dispatch this hook watched counts as well. R15 was
+        # otherwise unsatisfiable by the agent it governs -- its own message
+        # says to get a separate instance to review, and doing exactly that
+        # leaves `reviews` empty, so the only satisfying action belonged to a
+        # different account.
+        if _ledger_records_a_review(
+            hook_input, _current_branch(_hook_working_directory(hook_input or {}))
+        ):
+            continue
         label = f"#{target}" if target else "this pull request"
         return (
-            f"R15 blocked: {label} has no review from anyone other than its author, "
-            "and iron law 6 requires an independent adversarial review before the "
-            "next step starts. Arming auto-merge is the irreversible one: after it, "
-            "the next green run merges without asking. Get a separate instance to "
-            "review the actual diff -- and address bot annotations as well as human "
-            "comments -- then arm. If a review exists and this still fires, `gh` "
-            "could not read it; that case is allowed through."
+            f"R15 blocked: nothing independent has read {label}. Arming auto-merge "
+            "is the irreversible step -- after it, the next green run merges without "
+            "asking. Two things satisfy this, and both are available to you: dispatch "
+            "a `reviewer` subagent against this branch, which this hook records when "
+            "it sees the dispatch, or obtain a review on the pull request from an "
+            "account other than the author. A bot comment is not a review: only an "
+            "approval or a request for changes counts. Address bot annotations too, "
+            "but they do not satisfy this. If a review exists and this still fires, "
+            "`gh` could not read it; that case is allowed through."
         )
     return None
+
+
+# A review counts only when it renders a verdict. `COMMENTED` is what an
+# automated code-quality bot posts, and counting it meant R15 -- the gate whose
+# whole purpose is that somebody independent read the diff -- was satisfiable by
+# a bot leaving a comment. Observed on #4554, where `github-code-quality`
+# COMMENTED and R17 duly demanded the pull request be armed.
+#
+# A human or agent who genuinely reviews and finds nothing approves; one who
+# finds something requests changes. Neither is a comment.
+REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
+
+DISPATCH_TOOLS = frozenset({"Task", "Agent"})
+REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
+
+
+_GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
+
+
+def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
+    """Split a leading `-R`/`--repo <value>` off `tokens`, returning both halves.
+
+    `-R owner/repo` / `--repo owner/repo` is gh's own global flag for
+    targeting a repository explicitly -- the standard way to post run state
+    from a linked worktree or any cwd that is not the tracked repo's own
+    checkout. `_tokens_after_head` strips env assignments and runner
+    prefixes but does not know gh's flags, so `gh -R owner/repo issue
+    comment 123 --body ...` -- exactly the post R21 demands -- left `rest[:1]
+    == ["-R"]`, matched neither `issue` nor `pr`, and R21 fired on a session
+    that had already done the required work (#4548, second review).
+
+    The value comes back with the rest because it also says *which*
+    repository, and `_updates_a_tracked_issue` has to ask (#4554, third
+    review). Only the last occurrence is reported; gh takes the last flag
+    too, and a command with two is already outside what this rule reasons
+    about.
+
+    Other value-taking global flags (`--hostname`, `-h`/`--help`) are left
+    alone: none has been observed making R21 fire on correct work, and
+    covering gh's full flag surface ahead of an evidenced defect just
+    couples this rule to a CLI it does not otherwise track.
+    """
+    index = 0
+    repository: str | None = None
+    while index < len(tokens):
+        token = tokens[index]
+        if token in _GH_GLOBAL_FLAGS_WITH_ARG:
+            repository = tokens[index + 1] if index + 1 < len(tokens) else None
+            index += 2
+            continue
+        matched = next(
+            (flag for flag in _GH_GLOBAL_FLAGS_WITH_ARG if token.startswith(f"{flag}=")),
+            None,
+        )
+        if matched:
+            repository = token[len(matched) + 1:]
+            index += 1
+            continue
+        break
+    return tokens[index:], repository
+
+
+def _names_this_repository(repository: str, cwd: object) -> bool:
+    """True unless `-R owner/name` provably points somewhere other than here.
+
+    Compares the name after the slash, not the owner: a fork's `origin` is
+    `someone/SHAFT_ENGINE`, and refusing to count an explicit
+    `-R ShaftHQ/SHAFT_ENGINE` there would be the #4548 false positive back
+    under a new name. The companion-docs case this exists for --
+    `ShaftHQ/shafthq.github.io` -- differs in the name, which is the part
+    that carries the signal.
+
+    Fails open when git will not answer, the direction R15 and R20 already
+    take: an environment that cannot name its own remote is not evidence
+    the agent posted to the wrong place.
+
+    Known limits, stated rather than papered over: a `cd ../shafthq.github.io
+    && gh pr create` in another repository's checkout still counts, because
+    no token in it says so. A `-R` / `--repo` flag positioned after the
+    subcommand is similarly not recognized; only leading-position flags are
+    scanned (see #4566).
+    """
+    remote = _git_output(["remote", "get-url", "origin"], cwd)
+    if not remote:
+        return True
+    here = remote.strip().rstrip("/").removesuffix(".git").rsplit("/", 1)[-1]
+    named = repository.strip().strip("\"'").rstrip("/").removesuffix(".git").rsplit("/", 1)[-1]
+    if not here or not named:
+        return True
+    return here.lower() == named.lower()
+
+
+def _updates_a_tracked_issue(command: str, cwd: object = None) -> bool:
+    """True when a command posts run state to *this* repository's issue or pull request.
+
+    Observed, not judged, like every other ledger recorder: whether the comment
+    said anything useful is not a question a hook can answer, and one that
+    tried would be satisfied by posting noise.
+
+    Which repository it went to is a question a hook can answer, at least when
+    the command names one (#4554, third review).
+    """
+    if not command:
+        return False
+    for segment in _command_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"gh"}))
+        # None for any segment that is not a `gh` call, which is most of them.
+        # Found by a negative fixture: `git commit -m 'comment on the issue'`
+        # raised here rather than returning False, and no positive case could
+        # have shown it.
+        if not rest:
+            continue
+        rest, repository = _split_gh_global_flags(rest)
+        # A leading `-R` / `--repo` at another repository cannot be this session's run
+        # state, whatever it writes. `AGENTS.md` sends companion docs changes
+        # to their own pull request in `../shafthq.github.io`, so opening that
+        # one used to clear R21 for the SHAFT_ENGINE session that had posted
+        # nothing -- the two halves of #4548's fix cancelling out, since
+        # `pr create` counts precisely because it is bound to the current
+        # branch, and `-R other/repo` is how that binding is removed.
+        if repository and not _names_this_repository(repository, cwd):
+            continue
+        # Any gh call that writes durable prose to an issue or pull request.
+        # The first version took `issue comment`, `pr comment` and `issue edit`
+        # only, so a session that opened a pull request carrying its full run
+        # state -- which is what the draft-PR-first rule asks for -- still owed
+        # R21, while `issue edit` counted and `pr edit` did not, for no reason
+        # anyone could state.
+        if rest[:1] == ["pr"] and rest[1:2] in (["comment"], ["edit"], ["create"]):
+            return True
+        # `issue create` deliberately does not count, and no longer does
+        # (#4548, second review). `pr create` is bound to the current
+        # branch -- it is the run state the draft-PR-first rule asks for --
+        # but an issue is not: `gh issue create` names no existing issue, so
+        # it cannot distinguish "recorded this run's state" from "opened
+        # some unrelated ticket". The reviewer reproduced it running
+        # ordinary, unrelated `gh issue create` calls in the same session
+        # this rule governs, and it cleared R21 for this one. A branch that
+        # cannot tell the two apart is worse than not having it, and
+        # `comment`/`edit` already cover every documented way to post state
+        # to a tracked issue.
+        if rest[:1] == ["issue"] and rest[1:2] in (["comment"], ["edit"]):
+            return True
+    return False
+
+
+def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
+    """The ledger event a reviewer dispatch records, or None if this is not one.
+
+    Observed rather than asserted: the hook writes this when it sees the
+    dispatch, and no documented command produces one.
+
+    Two limits on that, both found by adversarial review and stated here
+    because an earlier version of this docstring claimed more than the code
+    delivers. It said "no command, flag or instruction can produce a review
+    event, so an agent cannot write one by claiming a review occurred." That
+    was false.
+
+      1. The ledger is a plain file under the system temp directory. Anything
+         with shell access can append `"review:<branch>"` to it. This is not a
+         cryptographic gate and must not be described as one.
+      2. This runs at *Pre*ToolUse, so the event is recorded before the
+         subagent starts. A dispatch that is denied, cancelled, or errors
+         immediately still counts.
+
+    So the honest claim is narrower: this raises the cost of skipping a review
+    from "do nothing" to "deliberately forge a ledger entry", on the same
+    threat model R12 already rests on -- a careless agent, not a hostile one.
+    R15 remains forgeable, deliberately, because the alternative measured worse:
+    it was unsatisfiable by the agent it governs, and an unsatisfiable gate is
+    one that gets bypassed and then deleted.
+
+    Keyed to the branch so a review of one branch cannot silently clear
+    another. When git cannot answer, nothing is recorded at all: an earlier
+    version wrote a bare `review` here, and that keyless event cleared R15 for
+    *every* branch, so a dispatch from a detached HEAD armed an unrelated pull
+    request. Recording nothing is the direction the agent can leave, by
+    dispatching from a branch (#4548, second review; the reader
+    `_ledger_records_a_review` was corrected then and this writer was not).
+    """
+    if tool_name not in DISPATCH_TOOLS:
+        return None
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+    if not isinstance(subagent, str):
+        return None
+    if subagent.strip().lower() not in REVIEWER_SUBAGENT_TYPES:
+        return None
+    branch = _current_branch(_hook_working_directory(hook_input))
+    # No keyless fallback -- see above for what one cost.
+    return f"review:{branch}" if branch else None
+
+
+def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
+    """True when this session watched a reviewer being dispatched for `branch`.
+
+    Keyed to the branch only (#4548, second review: this docstring used to
+    claim a bare `review` also counted, written when git could not name the
+    branch at dispatch time -- but that keyless fallback cleared *every*
+    branch's R15, so `_reviewer_dispatch_event` no longer writes it.
+    Recording nothing when the branch is unanswerable is the safe direction,
+    and this reader has no bare-`review` path left to match; the sentence
+    describing one was stale).
+    """
+    if not isinstance(hook_input, dict) or not branch:
+        return False
+    return f"review:{branch}" in set(ledger_events(hook_input))
+
+
+def _independent_reviews(reviews: object, author: object) -> list:
+    """Reviews by somebody other than the author that render a verdict.
+
+    One predicate, consumed by both R15 (may this be armed) and R17 (should
+    this have been armed). They must agree: if R17 counted a review R15 does
+    not, Stop would demand arming while R15 refused it, leaving no legal state
+    -- the deadlock `_unarmed_reviewed_pull_request` already warns about, one
+    rule over. Two copies of a predicate is how that divergence arrives, so
+    there is one.
+    """
+    if not isinstance(reviews, list):
+        return []
+    return [
+        review
+        for review in reviews
+        if isinstance(review, dict)
+        and (review.get("author") or {}).get("login")
+        and (review.get("author") or {}).get("login") != author
+        and review.get("state") in REVIEW_VERDICTS
+    ]
 
 
 DEFAULT_BRANCHES = frozenset({"main", "master"})
@@ -1773,7 +2015,7 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     """
     if tool_name not in _WRITE_TOOLS:
         return None
-    branch = _current_branch(hook_input.get("cwd"))
+    branch = _current_branch(_hook_working_directory(hook_input))
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
     return (
@@ -1787,6 +2029,15 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
+
+    # Observed, not judged, and first: a reviewer dispatch is not a call this
+    # hook has any reason to refuse, so recording it must not sit behind a
+    # branch that returns early for some other rule.
+    review_event = _reviewer_dispatch_event(hook_input, tool_name)
+    if review_event:
+        ledger_record(hook_input, review_event)
+    if tool_name in DISPATCH_TOOLS:
+        ledger_record(hook_input, "delegate-dispatch")
 
     reason = check_r11_memory_write_worktree(
         tool_name,
@@ -1825,7 +2076,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is None:
             reason = check_r13_push_before_delete(command, tool_name)
         if reason is None:
-            reason = check_r15_review_before_arming(command, tool_name)
+            reason = check_r15_review_before_arming(command, tool_name, hook_input)
         if reason is None:
             reason = check_r14_hard_reset(
                 command, tool_name, _hook_working_directory(hook_input)
@@ -1844,6 +2095,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             if _tokens_after_head(segment, frozenset({"git"}))
         ):
             ledger_record(hook_input, "commit")
+        if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
+            ledger_record(hook_input, "issue-update")
         return 0
 
     return 0  # not a tool this hook checks
@@ -1918,7 +2171,27 @@ def _ledger_path(hook_input: dict) -> str | None:
     # Hashed rather than interpolated: a session id is host-supplied and would
     # otherwise reach the filesystem as a path component.
     key = hashlib.sha256(session.strip().encode("utf-8")).hexdigest()[:32]
-    directory = os.path.join(tempfile.gettempdir(), "shaft-agent-ledger")
+    # Read the environment each call rather than through `tempfile.gettempdir`,
+    # which caches its answer on first use. The cache made every ledger test's
+    # `TMPDIR` patch inert: they were all writing to the real temp directory
+    # and passing only because a whole-file write overwrote whatever a previous
+    # run had left. Append-only exposed it immediately (#4552), and a test that
+    # shares state with every prior run of itself is not isolated in either
+    # format.
+    base = (
+        os.environ.get("TMPDIR")
+        or os.environ.get("TEMP")
+        or os.environ.get("TMP")
+        or tempfile.gettempdir()
+    )
+    # `gettempdir()` validates and returns an absolute path; a raw environment
+    # read does not. Under a relative TMPDIR the same session_id resolved to a
+    # different file per process directory, so a `test-run` recorded at
+    # PreToolUse was invisible at Stop -- keyed by cwd as well as by session,
+    # which is exactly what the docstring above says it never is.
+    if not os.path.isabs(base):
+        base = tempfile.gettempdir()
+    directory = os.path.join(base, "shaft-agent-ledger")
     try:
         os.makedirs(directory, exist_ok=True)
     except OSError:
@@ -1926,24 +2199,108 @@ def _ledger_path(hook_input: dict) -> str | None:
     return os.path.join(directory, f"{key}.json")
 
 
+LEDGER_RETENTION_SECONDS = 7 * 24 * 60 * 60
+
+# Sidecar suffix for a ledger flagged past one retention window. See
+# `_reap_stale_ledgers` -- a live session can be dormant for a whole window
+# and still be live, so a single sighting only marks; a second sighting, a
+# full window later, is what actually deletes.
+_REAP_MARK_SUFFIX = ".reap-mark"
+
+
+def _reap_stale_ledgers(directory: str) -> None:
+    """Drop ledgers dormant for two full retention windows. Never raises.
+
+    One file per session, kept forever, in a directory nothing else tidies
+    (#4552). Reaping on write rather than on read because `run_stop` can run
+    more than once in a session, and deleting on read would remove a ledger
+    the same session still needs.
+
+    Judging staleness by raw mtime and deleting on first sight (#4548 finding
+    11) was unsound: this harness explicitly supports resuming a session
+    after a long pause, and R15/R17/R21 trust whatever the ledger already
+    recorded before the gap. A session dormant for exactly one retention
+    window is not a session that agreed to lose its evidence -- but any
+    *other* session's routine `ledger_record` call, arriving after the
+    window passed, reaped it anyway. That silently turned "this session
+    dispatched a reviewer" into "it did not", failing a gate a correct agent
+    had already satisfied -- the exact shape that gets guards deleted.
+
+    Two-phase instead. The first sweep that finds a ledger past retention
+    only marks it with a zero-byte sidecar; the ledger itself is untouched,
+    so every read still sees it. A later sweep deletes the ledger only when
+    the mark is *itself* now past retention -- meaning nothing wrote to the
+    ledger for two full windows, not one. Any write in between refreshes the
+    ledger's mtime, which un-stales it on the next sweep and clears the mark,
+    so a resumed session that was merely dormant keeps its history, and a
+    truly abandoned one is still cleaned up, just a window later.
+
+    Failure here is not the caller's problem: this is housekeeping inside a
+    hook that must not block a tool call, so every error is swallowed on
+    purpose.
+    """
+    try:
+        cutoff = time.time() - LEDGER_RETENTION_SECONDS
+        for name in os.listdir(directory):
+            if name.endswith(_REAP_MARK_SUFFIX):
+                continue  # visited alongside its ledger, never on its own
+            path = os.path.join(directory, name)
+            mark = path + _REAP_MARK_SUFFIX
+            try:
+                if not os.path.isfile(path):
+                    continue
+                if os.path.getmtime(path) >= cutoff:
+                    # Live, or resumed since the last sweep marked it: clear
+                    # any stale mark so a later dormancy starts its own
+                    # two-window grace period rather than inheriting this one.
+                    if os.path.isfile(mark):
+                        os.remove(mark)
+                    continue
+                if os.path.isfile(mark):
+                    if os.path.getmtime(mark) < cutoff:
+                        os.remove(path)
+                        os.remove(mark)
+                else:
+                    with open(mark, "a", encoding="utf-8"):
+                        pass
+            except OSError:
+                continue
+    except OSError:
+        return
+
+
 def ledger_record(hook_input: dict, event: str) -> bool:
     """Append one observed event to this session's ledger. True when recorded.
 
-    Read-modify-write rather than an append-only text file, because the
-    reader has to tolerate a partial line from a concurrent hook. A lost
-    event costs one re-observation; a corrupt read that raises would cost the
-    session.
+    Append-only, one JSON document per line. It was a read-modify-write, whose
+    docstring justified itself by saying the reader would otherwise have to
+    tolerate a partial line from a concurrent hook -- which inverts the trade
+    (#4552). A tolerant reader is three lines and loses at most the one line a
+    tear lands on -- not one event: a line can hold more than one, since two
+    clean appends can share a line too (see `ledger_events`), and a decode
+    failure partway through abandons everything after it on that same line.
+    Read-modify-write loses whole events whenever two hooks interleave, and
+    this host issues tool calls in parallel -- still the strictly worse trade,
+    just not by exactly the margin the old wording claimed.
+
+    Losing an event is not free. R12 refuses a production write until a test
+    run is recorded, so a dropped `test-run` blocks work that did satisfy the
+    rule -- a gate firing on correct work, which is the shape that gets guards
+    deleted.
+
+    A single small append is the closest thing to atomic available without
+    platform-specific locking, and it needs no read at all, so there is no
+    window between reading and writing for another hook to occupy.
     """
     path = _ledger_path(hook_input)
     if not path or not isinstance(event, str) or not event:
         return False
-    events = ledger_events(hook_input)
-    events.append(event)
     try:
-        with open(path, "w", encoding="utf-8") as handle:
-            json.dump(events, handle)
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event) + "\n")
     except (OSError, ValueError):
         return False
+    _reap_stale_ledgers(os.path.dirname(path))
     return True
 
 
@@ -1959,12 +2316,40 @@ def ledger_events(hook_input: dict) -> list[str]:
         return []
     try:
         with open(path, encoding="utf-8") as handle:
-            events = json.load(handle)
+            lines = handle.read().splitlines()
     except (OSError, ValueError, UnicodeDecodeError):
         return []
-    if not isinstance(events, list):
-        return []
-    return [item for item in events if isinstance(item, str)]
+    events: list[str] = []
+    decoder = json.JSONDecoder()
+    for line in lines:
+        # Scan every value on the line rather than requiring the line to be
+        # exactly one. Two shapes need this, and the first was found in live
+        # data an hour after the append-only change shipped:
+        #
+        #   1. Migration. The previous format wrote one whole-document array
+        #      with no trailing newline, so the first append landed on the same
+        #      line: `["test-run", "commit"]"test-run"`. Treating that line as
+        #      one value made it unparsable, and skipping it silently dropped
+        #      the entire pre-upgrade history -- which would leave R12 blocking
+        #      a production write whose test run really had been observed.
+        #   2. Concurrency. Two appends that interleave can share a line.
+        #
+        # A value that cannot be decoded still costs only the rest of that one
+        # line, never the file.
+        position = 0
+        text = line.strip()
+        while position < len(text):
+            try:
+                item, position = decoder.raw_decode(text, position)
+            except ValueError:
+                break
+            if isinstance(item, str):
+                events.append(item)
+            elif isinstance(item, list):
+                events.extend(entry for entry in item if isinstance(entry, str))
+            while position < len(text) and text[position] in " \t,":
+                position += 1
+    return events
 
 
 def _standing_constraints(working_directory: object) -> str | None:
@@ -2123,12 +2508,13 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
         "decision, a cross-entity relation to MemPalace, a structural change flagged "
         "for Graphify, a procedure that misled you fixed in the guidance file that "
         "should have carried it, and adjacent work you skipped searched for and then "
-        "filed. Nothing durable is a valid result -- say so and end the turn; this "
-        "interrupts once and will not ask again."
+        "filed. Nothing durable is a valid result -- say so and end the turn. This "
+        "interrupts once per turn: `stop_hook_active` makes the retry proceed, and "
+        "it is owed again next turn until it is satisfied."
     )
 
 
-def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
+def _unarmed_reviewed_pull_request(cwd: object, hook_input: dict | None = None) -> str | None:
     """PR number when one is reviewed and still unarmed, else None.
 
     Returns None for every uncertainty and for every earlier pipeline stage:
@@ -2140,7 +2526,7 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
         "pr",
         "view",
         "--json",
-        "number,autoMergeRequest,reviews,author",
+        "number,autoMergeRequest,reviews,author,isDraft,headRefName",
     ]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
@@ -2161,18 +2547,28 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
         return None
     if not isinstance(payload, dict) or payload.get("autoMergeRequest"):
         return None
+    # A draft is the author saying the work is not ready. Arming it would
+    # merge unfinished work the moment CI went green -- this rule told its
+    # own author to arm a draft carrying four unimplemented tickets.
+    if payload.get("isDraft"):
+        return None
     author = (payload.get("author") or {}).get("login")
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    independent = [
-        review
-        for review in reviews
-        if isinstance(review, dict)
-        and (review.get("author") or {}).get("login")
-        and (review.get("author") or {}).get("login") != author
-    ]
-    if not independent:
+    # The identical union R15 uses. If R17 counted a review R15 did not, Stop
+    # would demand arming while R15 refused it -- no legal state, which is the
+    # deadlock this line has always guarded. The reverse gap is just as bad: a
+    # dispatch-reviewed pull request would become armable with nothing ever
+    # reminding anyone to arm it.
+    # The same expression R15 uses, not `headRefName`. Two sources for the
+    # same question is how the deadlock arrives: on a detached HEAD GitHub
+    # still names a head ref while local git names none, so R17 demanded an
+    # arming R15 refused -- no legal state, which is what the line below has
+    # always claimed to prevent.
+    if not _independent_reviews(reviews, author) and not _ledger_records_a_review(
+        hook_input, _current_branch(_hook_working_directory(hook_input or {}))
+    ):
         return None  # R15 would refuse arming; demanding it here would deadlock
     number = payload.get("number")
     return str(number) if number else None
@@ -2193,7 +2589,7 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
     demand arming while R15 refused it, leaving no legal state and making the
     deletion of one guard the cheapest exit, which iron law 4 forbids.
     """
-    number = _unarmed_reviewed_pull_request(hook_input.get("cwd"))
+    number = _unarmed_reviewed_pull_request(_hook_working_directory(hook_input), hook_input)
     if not number:
         return None
     return (
@@ -2202,7 +2598,8 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
         f"`gh pr merge {number} --auto --squash`, then watch with `py -3 "
         "scripts/ci/watch_pr_checks.py` until the remote confirms merged. Red and "
         "conflicting are yours to fix; stale emits no event, so ask for it. This "
-        "interrupts once."
+        "interrupts once per turn: `stop_hook_active` makes the retry proceed, and "
+        "it is owed again next turn until it is satisfied."
     )
 
 
@@ -2244,7 +2641,7 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     collapse #4542 was filed for. Aligned with R13 rather than opposed to it --
     both are satisfied by the same `git push`.
     """
-    branch = _current_branch(hook_input.get("cwd"))
+    branch = _current_branch(_hook_working_directory(hook_input))
     if not branch:
         return None
     unpushed = _unrecoverable_commit_count(branch)
@@ -2254,7 +2651,153 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
         f"{branch} carries {unpushed} commit(s) that exist on no remote. Work only "
         "this machine can see is lost if this session ends here, and a pushed branch "
         f"is recoverable by anyone. Run `git push -u origin {branch}` before ending "
-        "the turn. This interrupts once."
+        "the turn. This interrupts once per turn: `stop_hook_active` makes the retry proceed, and it is owed again next turn until it is satisfied."
+    )
+
+
+_HARNESS_SOURCE = re.compile(
+    r"^(?:\.agents/skills/|\.claude/skills/|\.claude/user-harness/|\.claude/agents/|\.codex/agents/)"
+)
+
+
+def _branch_edits_harness_sources(cwd: object = None) -> bool:
+    """True when this branch is itself changing the files the sync deploys.
+
+    R20 fired on the commit that added it, correctly, and then fired again on
+    the next commit -- which edited `delegation.md`. That second firing was
+    wrong, and its remedy was worse than wrong: running `--apply` would have
+    deployed an unmerged branch edit onto the host harness, so the machine
+    would run guidance that has not landed and no one has reviewed.
+
+    While a branch edits harness sources the deployment is *supposed* to lag.
+    Drift is then the expected state, not a finding, and a gate that fires on
+    correct work is the shape `decision.check-every-new-guard-pairwise-against
+    -the-guards-already-shipped` records as the one that gets guards deleted.
+
+    Deliberately coarse, and the trade is stated rather than hidden: this also
+    silences genuine staleness for the life of such a branch. The precise
+    version compares drift per file against what the branch touched, which
+    needs a machine-readable mode on the sync tool that does not exist yet --
+    filed rather than approximated here, because parsing its printed labels
+    would couple this rule to a print format.
+
+    Committed and uncommitted both count: an edit in the working tree changes
+    what the sync compares just as much as a committed one does.
+
+    Accepted cost, stated rather than left for the next reader to
+    rediscover (#4548, second review): the same fail-closed branch below
+    also suppresses R20 for every session where `origin/main` simply cannot
+    be resolved locally -- a shallow clone, or a machine that has never
+    fetched -- not only on a branch that actually edits harness sources.
+    R20 goes silent there for a reason unrelated to the one this function is
+    named for. The alternative is the defect this function exists to fix
+    (an unanswerable git resurrecting a remedy that deploys unmerged
+    guidance), so the trade stands; it just was not written down.
+    """
+    committed = _git_output(["diff", "--name-only", "origin/main...HEAD"], cwd)
+    working = _git_output(["status", "--porcelain"], cwd)
+    if committed is None or working is None:
+        # Fail CLOSED -- suppress -- when git will not answer, which is the
+        # reverse of the first version. Adversarial review reproduced three
+        # ordinary ways to get here: no local `origin/main`, a fetched
+        # `origin/main` with no merge base, and a hook cwd outside any repo.
+        # In each, R20 fired on a harness branch and named `--apply`, which
+        # would deploy unmerged guidance to the host. That is the exact defect
+        # this helper was added to fix, so an unanswerable git must not
+        # resurrect it. The cost is a missed staleness report; the alternative
+        # is a remedy that damages the machine.
+        return True
+    paths = list((committed or "").splitlines())
+    for line in (working or "").splitlines():
+        # `XY path`, and a rename reads `R  old -> new`; the new name is what matters.
+        candidate = line[3:].strip() if len(line) > 3 else ""
+        if " -> " in candidate:
+            candidate = candidate.split(" -> ", 1)[1]
+        paths.append(candidate)
+    return any(_HARNESS_SOURCE.match(path.strip().strip('"')) for path in paths if path.strip())
+
+
+def check_r20_user_harness_drift(hook_input: dict) -> str | None:
+    """Report a deployed user harness that no longer matches the tracked one.
+
+    `AGENTS.md` says user harness drift deploys through
+    `scripts/agents/sync_user_harness.py`. `_sync_advisory` detected it and had
+    exactly one call site, `run_session_start`, so the finding was printed once
+    at session start and consumed by nothing -- the drift reported at the start
+    of the session that added this rule was still there at the end of it
+    (#4547).
+
+    It is the one inconsistency the harness cannot detect from inside a single
+    file read. Every rule read out of `.agents/skills/**` describes the tracked
+    copy while the host loads the deployed copy, so the two disagree with
+    neither looking wrong. It is also the only advisory of its group whose
+    remedy is a single deterministic command carrying no judgement.
+
+    Reports rather than refuses, and `run_stop` returns 0 once
+    `stop_hook_active` is set, so it interrupts a turn and cannot trap one.
+    Fails open through `_sync_advisory`, which returns its own advisory string
+    when the check cannot run rather than pretending the harness is clean.
+
+    Reads `hook_input` for the working directory only. The suppression below
+    asks git which harness files this branch is changing, and that question has
+    to be asked in the checkout the turn is running in -- an earlier version
+    passed no cwd and read the hook process's own directory, which is the
+    defect #4553 closed for R17, R18 and R19.
+    """
+    if _branch_edits_harness_sources(_hook_working_directory(hook_input)):
+        return None
+    if not _sync_advisory():
+        return None
+    return (
+        "The deployed user harness no longer matches the tracked one. Every rule "
+        "read from `.agents/skills/**` this session describes the tracked copy "
+        "while the host loads the deployed copy, so the two can disagree without "
+        "either looking wrong -- which is why this is the one inconsistency that "
+        "reading a file cannot settle. Run `py -3 scripts/agents/sync_user_harness"
+        ".py --apply`, then re-check it. This interrupts once per turn: `stop_hook_active` makes the retry proceed, and it is owed again next turn until it is satisfied."
+    )
+
+
+def check_r21_run_state_not_recorded(hook_input: dict) -> str | None:
+    """Interrupt once when a session delegated work and recorded no run state.
+
+    #4536, partially. The owner requirement is that enough state lives on
+    GitHub for a second agent to pick the work up when the first runs out of
+    tokens. Findings already have a rule and it is kept; **decisions and
+    in-flight state have no home at all**. Measured: #4504 had zero comments
+    while an agent was actively implementing the owner's choice, which existed
+    only in a dispatch prompt and a conversation.
+
+    Of the four trigger points that issue lists, exactly one is observable:
+    dispatching a delegate. That is a tool call this hook sees. "An owner
+    decision was made" and "a sequencing constraint was discovered" are not
+    events any hook can detect, so they stay prose and the issue stays open --
+    stated rather than quietly counted as done.
+
+    Reports, never refuses. A session that delegates and posts nothing is
+    usually incomplete rather than wrong, and `run_stop` returns 0 once
+    `stop_hook_active` is set, so this interrupts a turn and cannot trap one.
+    """
+    events = set(ledger_events(hook_input))
+    if "delegate-dispatch" not in events:
+        return None  # nothing was delegated, so no handoff state is owed
+    # R16's precondition, which this rule shipped without and needed. A session
+    # that delegated but changed nothing has no in-flight state to hand over:
+    # the commonest case is dispatching a `reviewer`, which iron law 6 mandates,
+    # or an `Explore` for a search. Firing there would make the rule demand a
+    # tracker comment for asking a question -- and it would have fired on the
+    # very session that ordered this rule's own review.
+    if "commit" not in events:
+        return None
+    if "issue-update" in events:
+        return None
+    return (
+        "Run state: this session dispatched a delegate and posted nothing to an "
+        "issue or pull request. If this session ends here, the branch, the batched "
+        "scope, what was deliberately excluded, and any decision made in "
+        "conversation are lost with it, and the next agent re-asks a question that "
+        "was already answered. Put it on the tracker now with `gh issue comment "
+        "<number> --body ...`. This interrupts once per turn: `stop_hook_active` makes the retry proceed, and it is owed again next turn until it is satisfied."
     )
 
 
@@ -2276,6 +2819,8 @@ def run_stop(hook_input: dict) -> int:
             check_r16_learning_loop(hook_input),
             check_r17_unarmed_pull_request(hook_input),
             check_r18_unpushed_work(hook_input),
+            check_r20_user_harness_drift(hook_input),
+            check_r21_run_state_not_recorded(hook_input),
         )
         if item is not None
     ]
@@ -2502,6 +3047,377 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("git commit -am allowed without repository context", 'git commit -am "message"', False),
     ("git stage allowed without repository context", "git stage src/Example.java", False),
 ]
+
+
+# How every rule in this file is exercised by `--self-test` (#4551).
+#
+# The self-test printed `0 failed` while covering R1, R9, R10 and R11 and
+# exercising none of R12 through R20 -- eight rules, two thirds of the file.
+# Reassuring output is what an agent acts on, which makes a green that means
+# nothing worse than no check at all.
+#
+# `run_rule_coverage_self_test` compares this table against the rules actually
+# defined, by equality in both directions: a rule added without coverage is the
+# defect, and an entry naming a rule that no longer exists is a claim of
+# coverage for nothing.
+_SELF_TEST_COVERAGE: dict[str, str] = {
+    "check_r1_maven": "command cases",
+    "check_r2_allure": "command cases",
+    "check_r3_gui_open": "command cases",
+    "check_r8_git_stash": "command cases",
+    "check_r9_worktree_add": "run_r9_worktree_self_test",
+    "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",
+    "check_r11_memory_write_worktree": "run_r11_memory_write_self_test",
+    "check_r12_test_before_production": "run_required_action_self_test",
+    "check_r13_push_before_delete": "run_required_action_self_test",
+    "check_r14_hard_reset": "run_required_action_self_test",
+    "check_r15_review_before_arming": "run_required_action_self_test",
+    "check_r16_learning_loop": "run_required_action_self_test",
+    "check_r17_unarmed_pull_request": "run_required_action_self_test",
+    "check_r18_unpushed_work": "run_required_action_self_test",
+    "check_r19_fresh_base": "run_required_action_self_test",
+    "check_r20_user_harness_drift": "run_required_action_self_test",
+    "check_r21_run_state_not_recorded": "run_required_action_self_test",
+}
+
+
+def _defined_rules() -> set[str]:
+    """Every rule this module defines, by name."""
+    return {
+        name
+        for name, value in globals().items()
+        if name.startswith("check_r") and callable(value)
+    }
+
+
+def _dispatched_rules() -> set[str]:
+    """Every rule a hook entry point actually calls.
+
+    #4551 asked for equality against the rules **the hook dispatches**, and the
+    first implementation compared against the rules merely *defined*. Deleting
+    a rule's call site from `run_stop` therefore left `--self-test` printing
+    `all 17 rules are covered` and exiting 0 -- the reassuring-green-that-means
+    -nothing shape the whole batch is about, reproduced inside its own fix.
+    """
+    import inspect as _inspect
+
+    # `evaluate_command` counts as dispatch: it is the shared fan-out
+    # `run_pretooluse` calls for every command rule, so R1, R2, R3 and R8 are
+    # reached through it rather than named at the entry point.
+    source = "".join(
+        _inspect.getsource(entry)
+        for entry in (run_pretooluse, run_stop, run_session_start, evaluate_command)
+    )
+    names = set(re.findall(r"check_r\d+_[a-z_]+", source))
+    # `_CHECKS` is the dispatch table `evaluate_command` iterates, so its
+    # members are reached by reference rather than by name and no source scan
+    # can see them. Reading the tuple is the honest answer, not an exemption.
+    names.update(check.__name__ for check in _CHECKS)
+    return names
+
+
+def _with_stubs(replacements: dict, action):
+    """Run `action` with module globals replaced, restoring them afterwards.
+
+    The required-action rules ask git, `gh` and the ledger about live state.
+    The self-test runs on CI, where there is no upstream branch, no credentials
+    and no session -- so exercising them for real would test the environment
+    rather than the rule, and would pass vacuously on the machine where it
+    matters least.
+    """
+    saved = {name: globals()[name] for name in replacements}
+    globals().update(replacements)
+    try:
+        return action()
+    finally:
+        globals().update(saved)
+
+
+def run_rule_coverage_self_test() -> int:
+    """Fail when a rule exists that `--self-test` does not exercise."""
+    defined = _defined_rules()
+    dispatched = _dispatched_rules()
+    claimed = set(_SELF_TEST_COVERAGE)
+    uncovered = sorted(defined - claimed)
+    phantom = sorted(claimed - defined)
+    unreachable = sorted(defined - dispatched)
+    for name in unreachable:
+        print(f"[FAIL] {name} is defined and no hook entry point calls it")
+    for name in uncovered:
+        print(f"[FAIL] {name} is defined and no self-test covers it")
+    for name in phantom:
+        print(f"[FAIL] {_SELF_TEST_COVERAGE[name]} claims {name}, which does not exist")
+    if not defined:
+        print("[FAIL] no rules found; the coverage check would pass vacuously")
+        return 1
+    if uncovered or phantom or unreachable:
+        return 1
+    print(f"[PASS] all {len(defined)} rules are covered by a self-test and reachable")
+    return 0
+
+
+def run_required_action_self_test() -> int:
+    """Exercise R12-R20, each in both directions, with live state stubbed."""
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    write = {"tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+
+    # R12: a production write needs an observed test run this session.
+    check(
+        "R12 blocks a production write with no test run recorded",
+        _with_stubs(
+            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: set()},
+            lambda: check_r12_test_before_production(write, "Write"),
+        )
+        is not None,
+    )
+    check(
+        "R12 allows a production write once a test run is recorded",
+        _with_stubs(
+            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: {"test-run"}},
+            lambda: check_r12_test_before_production(write, "Write"),
+        )
+        is None,
+    )
+
+    # R13: never delete a branch whose work exists nowhere else.
+    check(
+        "R13 blocks deleting a branch that exists on no remote",
+        _with_stubs(
+            {"_unrecoverable_commit_count": lambda branch: 3},
+            lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
+        )
+        is not None,
+    )
+    check(
+        "R13 allows deleting a delivered branch",
+        _with_stubs(
+            {"_unrecoverable_commit_count": lambda branch: 0},
+            lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
+        )
+        is None,
+    )
+
+    # R14: no hard reset over uncommitted work.
+    check(
+        "R14 blocks a hard reset with uncommitted work",
+        _with_stubs(
+            {"_uncommitted_file_count": lambda cwd: 4},
+            lambda: check_r14_hard_reset("git reset --hard HEAD~1", "Bash", "."),
+        )
+        is not None,
+    )
+    check(
+        "R14 allows a hard reset on a clean tree",
+        _with_stubs(
+            {"_uncommitted_file_count": lambda cwd: 0},
+            lambda: check_r14_hard_reset("git reset --hard HEAD~1", "Bash", "."),
+        )
+        is None,
+    )
+
+    # R15: no arming before an independent review.
+    check(
+        "R15 blocks arming with no independent review",
+        _with_stubs(
+            {"_independent_review_count": lambda target: 0},
+            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
+        )
+        is not None,
+    )
+    check(
+        "R15 allows arming once a review exists",
+        _with_stubs(
+            {"_independent_review_count": lambda target: 1},
+            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
+        )
+        is None,
+    )
+    # The accepting branch too, not only the refusing one (#4551): a rule whose
+    # permissive path is never exercised is half untested, and this is the path
+    # #4545 option C added.
+    check(
+        "R15 allows arming after an observed reviewer dispatch",
+        _with_stubs(
+            {
+                "_independent_review_count": lambda target: 0,
+                "_ledger_records_a_review": lambda payload, branch: True,
+            },
+            lambda: check_r15_review_before_arming(
+                "gh pr merge 1 --auto --squash", "Bash", {"session_id": "s"}
+            ),
+        )
+        is None,
+    )
+    check(
+        "a reviewer dispatch is recorded as a review",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "feature"},
+            lambda: _reviewer_dispatch_event(
+                {"tool_input": {"subagent_type": "reviewer"}}, "Task"
+            ),
+        )
+        == "review:feature",
+    )
+    check(
+        "a non-reviewer dispatch records nothing",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "feature"},
+            lambda: _reviewer_dispatch_event({"tool_input": {"subagent_type": "coder"}}, "Task"),
+        )
+        is None,
+    )
+
+    # R16: a session that committed owes the learning loop.
+    check(
+        "R16 reports a session that committed and routed no learning",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"commit"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is not None,
+    )
+    check(
+        "R16 is satisfied once a learning is routed",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"commit", "memory-write"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is None,
+    )
+
+    # R17: a reviewed pull request nobody armed.
+    check(
+        "R17 reports a reviewed pull request left unarmed",
+        _with_stubs(
+            {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: "1"},
+            lambda: check_r17_unarmed_pull_request({"cwd": "."}),
+        )
+        is not None,
+    )
+    check(
+        "R17 is silent when nothing is waiting to be armed",
+        _with_stubs(
+            {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: None},
+            lambda: check_r17_unarmed_pull_request({"cwd": "."}),
+        )
+        is None,
+    )
+
+    # R18: commits only this machine can see.
+    check(
+        "R18 reports commits that exist on no remote",
+        _with_stubs(
+            {
+                "_current_branch": lambda cwd: "feature",
+                "_unrecoverable_commit_count": lambda branch: 2,
+            },
+            lambda: check_r18_unpushed_work({"cwd": "."}),
+        )
+        is not None,
+    )
+    check(
+        "R18 is silent once the branch is pushed",
+        _with_stubs(
+            {
+                "_current_branch": lambda cwd: "feature",
+                "_unrecoverable_commit_count": lambda branch: 0,
+            },
+            lambda: check_r18_unpushed_work({"cwd": "."}),
+        )
+        is None,
+    )
+
+    # R19: never edit on the default branch.
+    check(
+        "R19 blocks a write while HEAD is the default branch",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "main"},
+            lambda: check_r19_fresh_base({"cwd": "."}, "Write"),
+        )
+        is not None,
+    )
+    check(
+        "R19 allows a write on a task branch",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "ChaosEngine/task"},
+            lambda: check_r19_fresh_base({"cwd": "."}, "Write"),
+        )
+        is None,
+    )
+
+    # R20: a deployed harness that no longer matches the tracked one.
+    check(
+        "R20 reports drift the branch did not cause",
+        _with_stubs(
+            {
+                "_branch_edits_harness_sources": lambda cwd=None: False,
+                "_sync_advisory": lambda: "User harness drift detected.",
+            },
+            lambda: check_r20_user_harness_drift({"cwd": "."}),
+        )
+        is not None,
+    )
+    check(
+        "R20 is silent while the branch is itself editing harness sources",
+        _with_stubs(
+            {
+                "_branch_edits_harness_sources": lambda cwd=None: True,
+                "_sync_advisory": lambda: "User harness drift detected.",
+            },
+            lambda: check_r20_user_harness_drift({"cwd": "."}),
+        )
+        is None,
+    )
+
+    # R21: a session that delegated and recorded no run state.
+    check(
+        "R21 reports a delegation with no run state posted",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["delegate-dispatch", "commit"]},
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is not None,
+    )
+    check(
+        "R21 is satisfied once state is posted",
+        _with_stubs(
+            {
+                "ledger_events": lambda payload: [
+                    "delegate-dispatch",
+                    "commit",
+                    "issue-update",
+                ]
+            },
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is None,
+    )
+    check(
+        "R21 asks nothing of a read-only session that only dispatched",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["delegate-dispatch", "test-run"]},
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is None,
+    )
+    check(
+        "R21 asks nothing of a session that delegated nothing",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["commit"]},
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is None,
+    )
+
+    print(f"\nRequired-action self-test summary: {len(failures)} failed.")
+    return 1 if failures else 0
 
 
 def run_self_test() -> int:
@@ -2869,7 +3785,19 @@ def main(argv: list[str]) -> int:
         r9_result = run_r9_worktree_self_test()
         r10_result = run_r10_nul_corruption_self_test()
         r11_result = run_r11_memory_write_self_test()
-        return command_result or r9_result or r10_result or r11_result
+        required_result = run_required_action_self_test()
+        coverage_result = run_rule_coverage_self_test()
+        # Every result, never short-circuited: `or` on ints returns the first
+        # non-zero, and evaluating them first means a later failure is still
+        # printed rather than skipped.
+        return (
+            command_result
+            or r9_result
+            or r10_result
+            or r11_result
+            or required_result
+            or coverage_result
+        )
 
     raw = sys.stdin.read()
     if not raw.strip():

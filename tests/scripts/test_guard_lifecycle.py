@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import ast
 import inspect
 import io
 import json
+import os
 import re
 import subprocess  # nosec B404 - tests drive the tracked hook command locally.
+import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -34,18 +38,47 @@ ISOLATED_STOP_RULES = (
     "check_r16_learning_loop",
     "check_r17_unarmed_pull_request",
     "check_r18_unpushed_work",
+    # R20 shells out to the sync helper, so leaving it live would make every
+    # test below depend on whether this machine's deployed harness happens to
+    # match the tracked one -- the third instance of the defect this list
+    # exists for, caught by the equality pin in the commit that added it.
+    "check_r20_user_harness_drift",
+    "check_r21_run_state_not_recorded",
 )
 
 
-def isolate_stop_rules(case: unittest.TestCase) -> None:
-    """Patch every Stop rule off for `case`, undone when the test finishes."""
+def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()) -> None:
+    """Patch every Stop rule off for `case`, undone when the test finishes.
+
+    `except_for` leaves one rule live so a test can exercise it through
+    `run_stop` rather than by calling it directly. That distinction matters:
+    calling the check proves the function works, and only going through
+    `run_stop` proves the hook can reach it, which is the difference
+    `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
+    hook-can-reach-it` records. Every other rule stays patched, so the test is
+    still deterministic.
+    """
     for name in ISOLATED_STOP_RULES:
+        if name in except_for:
+            continue
         patcher = patch(f"scripts.agents.guard.{name}", return_value=None)
         patcher.start()
         case.addCleanup(patcher.stop)
 
 
 class GuardLifecycleTest(unittest.TestCase):
+    """The SessionStart and Stop contract every host shares.
+
+    Not a single rule: this covers what `run_session_start` injects and how
+    `run_stop` routes worktree state, which is the frame R16, R17, R18 and R20
+    all report through. A rule can be correct and still never reach an agent if
+    this layer drops it, so these tests pin the envelope rather than any one
+    rule's logic.
+
+    Every Stop rule is patched off in `setUp` (#4555): their own classes test
+    them, and leaving them live made these tests depend on the machine.
+    """
+
     def setUp(self):
         """Isolate these tests from every Stop rule that reads live state.
 
@@ -525,6 +558,11 @@ class RemediesAreNotBlockedByAnotherRuleTest(unittest.TestCase):
 class HookBudgetTest(unittest.TestCase):
     """One invocation gets one window, and the entry point must open it.
 
+    Defends every PreToolUse rule at once -- R1, R2, R3, R8, R9, R10, R11,
+    R13, R14, R15 and R19 -- because a hook killed for exceeding its timeout
+    fails open and skips all of them for that call. Found by the adversarial
+    review of #4539.
+
     The comment above `SUBPROCESS_TIMEOUT` claimed every helper query shared a
     budget. Nothing implemented it -- adversarial review measured a single
     PreToolUse invocation issuing 7 subprocesses at 4s each, 28s against a 10s
@@ -930,6 +968,1150 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
                     self.assertEqual(guard.run_stop({"cwd": ".", "session_id": "s"}), 0)
         self.assertEqual(output.getvalue().strip(), "")
 
+
+class UserHarnessDriftStopGateTest(unittest.TestCase):
+    """R20 / #4547: the harness noticed it disagreed with itself and said nothing.
+
+    `AGENTS.md` states that user harness drift deploys through
+    `scripts/agents/sync_user_harness.py`. `_sync_advisory` detects the drift
+    and had exactly one call site -- `run_session_start` -- so the finding was
+    printed once at session start and consumed by nothing. The drift reported
+    at the start of the session that wrote this rule was still there at the
+    end of it.
+
+    Drift means the *deployed* harness on this machine no longer matches the
+    *tracked* harness in the repository. Every conclusion drawn by reading
+    `.agents/skills/**` is then a conclusion about a copy that is not the one
+    the host loads. It is the one inconsistency the harness cannot detect from
+    inside a single file read, and the only advisory in the set whose remedy
+    is a single deterministic command with no judgement in it.
+
+    Reports rather than refuses, like R16 and R18: `run_stop` returns 0 once
+    `stop_hook_active` is set, so this interrupts a turn and never traps one.
+    Deploying the fix from the hook was considered and left to the issue --
+    it would have a hook writing outside the repository, which is more
+    authority than any rule here takes, and that is the owner's call to make
+    rather than a side effect of closing a ticket.
+    """
+
+    def setUp(self):
+        isolate_stop_rules(self, except_for=("check_r20_user_harness_drift",))
+        # R20 reads live git state through this helper, so without pinning it
+        # these tests pass or fail on whether the branch running them happens
+        # to edit harness sources -- and the branch that added R20 does. That
+        # is the fourth instance of the defect ISOLATED_STOP_RULES exists for,
+        # and the first the equality pin could not catch: the pin covers Stop
+        # rules, and this is a helper one of them calls. Filed as its own gap.
+        # The tests that are *about* the suppression override this locally.
+        patcher = patch(
+            "scripts.agents.guard._branch_edits_harness_sources", return_value=False
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def stop(self, payload: dict) -> dict | None:
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            self.assertEqual(guard.run_stop(payload), 0)
+        text = stream.getvalue().strip()
+        return json.loads(text) if text else None
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_stop_reports_drift_through_the_hook(self, _report):
+        """Through `run_stop`, not by calling the check: reachability is the point."""
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            output = self.stop({"cwd": "."})
+        self.assertIsNotNone(output, "drift must reach the Stop payload")
+        self.assertEqual(output["decision"], "block")
+        self.assertIn("sync_user_harness.py --apply", output["reason"])
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_a_synced_harness_does_not_block(self, _report):
+        with patch("scripts.agents.guard._sync_advisory", return_value=None):
+            self.assertIsNone(self.stop({"cwd": "."}))
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_it_interrupts_once_and_never_traps_the_turn(self, _report):
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            self.assertIsNotNone(self.stop({"cwd": "."}))
+            self.assertIsNone(self.stop({"cwd": ".", "stop_hook_active": True}))
+
+    def test_a_branch_editing_harness_sources_is_not_drift(self):
+        """The rule fired on its own author's next commit, and was wrong.
+
+        R20 shipped, then the very next commit edited `delegation.md` and R20
+        reported it as drift. It is not: while a branch edits harness sources
+        the deployment is *supposed* to lag. The remedy it named was worse than
+        the false positive -- `--apply` would have deployed an unmerged,
+        unreviewed branch edit onto the host harness.
+        """
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            with patch(
+                "scripts.agents.guard._branch_edits_harness_sources", return_value=True
+            ):
+                self.assertIsNone(guard.check_r20_user_harness_drift({"cwd": "."}))
+            with patch(
+                "scripts.agents.guard._branch_edits_harness_sources", return_value=False
+            ):
+                self.assertIsNotNone(guard.check_r20_user_harness_drift({"cwd": "."}))
+
+    def test_harness_source_paths_are_recognised_and_others_are_not(self):
+        """The suppression must be no wider than the files the sync deploys."""
+        for path in (
+            ".agents/skills/act-as-mohab/references/delegation.md",
+            ".claude/skills/retrieve-first/SKILL.md",
+            ".claude/user-harness/CLAUDE.md",
+            ".claude/agents/coder.md",
+            ".codex/agents/reviewer.toml",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(guard._HARNESS_SOURCE.match(path))
+        for path in (
+            "scripts/agents/guard.py",
+            "tests/scripts/test_guard_lifecycle.py",
+            "AGENTS.md",
+            "docs/.agents/skills/x.md",
+            ".memory/memory/decisions/x.json",
+        ):
+            with self.subTest(path=path):
+                self.assertIsNone(guard._HARNESS_SOURCE.match(path))
+
+    def test_the_remedy_it_names_is_not_refused_by_another_rule(self):
+        """Pairwise, as a test: a gate whose only exit another rule blocks is a deadlock."""
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            reason = guard.check_r20_user_harness_drift({"cwd": "."})
+        self.assertIsNotNone(reason)
+        remedy = "py -3 scripts/agents/sync_user_harness.py --apply"
+        self.assertIn(remedy, reason, "a gate must name the command that satisfies it")
+        self.assertIsNone(guard.check_r8_git_stash(remedy))
+        self.assertIsNone(guard.check_r13_push_before_delete(remedy, "Bash"))
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
+            self.assertIsNone(guard.check_r14_hard_reset(remedy, "Bash", "."))
+
+
+class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
+    """#4552: a read-modify-write loses whole events, and files lived forever.
+
+    `ledger_record` read the ledger, appended, and wrote it back. This host
+    issues tool calls in parallel, so two hooks could interleave and one
+    event vanished. Not free: R12 refuses a production write until a test run
+    is recorded, so a dropped `test-run` blocks work that did satisfy the
+    rule -- a gate firing on correct work.
+
+    The old docstring defended the design by saying an append-only file would
+    force the reader to tolerate a partial line. That inverts the trade. A
+    tolerant reader is a few lines and loses at most the torn line; the
+    whole-document format lost *every* event in the file on any corruption.
+    """
+
+    def payload(self, session: str, directory: str) -> dict:
+        return {"session_id": session, "cwd": directory}
+
+    def test_recording_does_not_read_the_ledger_first(self):
+        """The property, asserted directly rather than raced for.
+
+        The defect was a read followed by a write, with a window between them.
+        A thread race would only sometimes hit that window; proving the read
+        is gone holds every time.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-append", directory)
+                with patch(
+                    "scripts.agents.guard.ledger_events",
+                    side_effect=AssertionError("record must not read first"),
+                ):
+                    self.assertTrue(guard.ledger_record(payload, "test-run"))
+                self.assertEqual(guard.ledger_events(payload), ["test-run"])
+
+    def test_many_appends_all_survive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-many", directory)
+                for index in range(50):
+                    self.assertTrue(guard.ledger_record(payload, f"event-{index}"))
+                self.assertEqual(len(guard.ledger_events(payload)), 50)
+
+    def test_a_torn_line_costs_only_that_line(self):
+        """The whole point of the format change: partial loss, not total loss."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-torn", directory)
+                guard.ledger_record(payload, "before")
+                path = guard._ledger_path(payload)
+                with open(path, "a", encoding="utf-8") as handle:
+                    handle.write('{"partial\n')
+                guard.ledger_record(payload, "after")
+                self.assertEqual(guard.ledger_events(payload), ["before", "after"])
+
+    def test_a_legacy_whole_document_ledger_survives_the_first_append(self):
+        """Found in live data an hour after the append-only change shipped.
+
+        The previous format wrote one array with no trailing newline, so the
+        first append landed on the same line:
+        `["test-run", "commit"]"test-run"`. Read as a single value that line is
+        unparsable, and skipping it dropped the entire pre-upgrade history --
+        which would leave R12 blocking a production write whose test run really
+        had been observed. On the real ledger this session was using, 140
+        events were being read as 10.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-legacy", directory)
+                path = guard._ledger_path(payload)
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('["test-run", "commit"]')  # legacy, no newline
+                guard.ledger_record(payload, "memory-write")
+
+                self.assertEqual(
+                    guard.ledger_events(payload), ["test-run", "commit", "memory-write"]
+                )
+
+    def test_two_appends_sharing_a_line_both_survive(self):
+        """The concurrency shape of the same defect."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-shared-line", directory)
+                path = guard._ledger_path(payload)
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('"first""second"\n')
+                self.assertEqual(guard.ledger_events(payload), ["first", "second"])
+
+    def test_an_undecodable_value_costs_only_the_rest_of_its_line(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-partial", directory)
+                path = guard._ledger_path(payload)
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('"kept"\n{"torn\n"also-kept"\n')
+                self.assertEqual(guard.ledger_events(payload), ["kept", "also-kept"])
+
+    def test_stale_ledgers_are_reaped_after_two_dormant_windows(self):
+        """Reaping is two-phase (#4548 finding 11): mark on the first sighting
+        past retention, delete only once the mark is itself past retention
+        with no write to the ledger in between. See
+        `DormantSessionLedgerIsNotReapedByAnotherSessionTest` for the
+        regression this timing exists to satisfy: a ledger dormant for only
+        one window must survive, and one dormant for two must not."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-keep", directory)
+                guard.ledger_record(payload, "fresh")
+                current = guard._ledger_path(payload)
+                folder = guard.os.path.dirname(current)
+                stale = guard.os.path.join(folder, "stale.json")
+                with open(stale, "w", encoding="utf-8") as handle:
+                    handle.write('"old"\n')
+                old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+                guard.os.utime(stale, (old, old))
+
+                guard.ledger_record(payload, "again")
+                self.assertTrue(
+                    guard.os.path.exists(stale),
+                    "one dormant window must only mark a ledger, not delete it",
+                )
+                mark = stale + guard._REAP_MARK_SUFFIX
+                self.assertTrue(guard.os.path.exists(mark), "the sweep must leave a mark")
+                guard.os.utime(mark, (old, old))
+
+                guard.ledger_record(payload, "once-more")
+
+                self.assertFalse(
+                    guard.os.path.exists(stale), "two dormant windows must reap it"
+                )
+                self.assertFalse(guard.os.path.exists(mark), "the mark is reaped with it")
+                self.assertTrue(guard.os.path.exists(current), "the live ledger must survive")
+                self.assertEqual(
+                    guard.ledger_events(payload), ["fresh", "again", "once-more"]
+                )
+
+    def test_reaping_never_raises(self):
+        """Housekeeping inside a hook must not be able to block a tool call."""
+        guard._reap_stale_ledgers(os.path.join("does", "not", "exist"))
+
+    def test_the_ledger_directory_follows_the_environment(self):
+        """Isolation the tests only appeared to have.
+
+        `tempfile.gettempdir()` caches its answer, so every ledger test's
+        `TMPDIR` patch was inert and they all shared the real temp directory.
+        Whole-file writes hid it by overwriting whatever the last run left.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                path = guard._ledger_path(self.payload("session-env", directory))
+        self.assertIsNotNone(path)
+        self.assertTrue(
+            os.path.realpath(path).startswith(os.path.realpath(directory)),
+            f"ledger landed outside the patched temp directory: {path}",
+        )
+
+
+class DormantSessionLedgerIsNotReapedByAnotherSessionTest(unittest.TestCase):
+    """A session dormant for one retention window survives (#4548 finding 11).
+
+    R15/R17/R21 trust whatever a session's ledger already recorded, and this
+    harness explicitly supports resuming a session after a long pause. The
+    old `_reap_stale_ledgers` judged staleness by raw mtime and deleted on
+    first sight, so any *other* session's routine `ledger_record` call,
+    arriving once `LEDGER_RETENTION_SECONDS` had passed, could delete a
+    dormant-but-still-relevant session's ledger -- silently turning "this
+    session dispatched a reviewer" into "it did not" and failing a gate a
+    correct agent had already satisfied. This is the mutation the test below
+    kills: reverting `_reap_stale_ledgers` to delete on the first sighting
+    (instead of marking first) turns this red.
+    """
+
+    def payload(self, session: str, directory: str) -> dict:
+        return {"session_id": session, "cwd": directory}
+
+    def test_a_ledger_stale_by_one_window_survives_another_sessions_sweep(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                dormant = self.payload("session-dormant", directory)
+                guard.ledger_record(dormant, "review:ChaosEngine/some-branch")
+                dormant_path = guard._ledger_path(dormant)
+                old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+                guard.os.utime(dormant_path, (old, old))
+
+                # An unrelated session's own routine write triggers the sweep
+                # that scans the whole shared ledger directory.
+                other = self.payload("session-other", directory)
+                guard.ledger_record(other, "test-run")
+
+                self.assertTrue(
+                    guard.os.path.exists(dormant_path),
+                    "a session dormant for exactly one retention window must "
+                    "survive another session's reap sweep",
+                )
+                self.assertEqual(
+                    guard.ledger_events(dormant),
+                    ["review:ChaosEngine/some-branch"],
+                    "the dormant session's recorded evidence must still be readable",
+                )
+
+    def test_a_ledger_dormant_for_two_windows_is_eventually_reaped(self):
+        """The other half of the property: reaping must still happen."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                dormant = self.payload("session-abandoned", directory)
+                guard.ledger_record(dormant, "test-run")
+                dormant_path = guard._ledger_path(dormant)
+                old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+                guard.os.utime(dormant_path, (old, old))
+
+                other = self.payload("session-other", directory)
+                guard.ledger_record(other, "test-run")  # marks it
+                mark = dormant_path + guard._REAP_MARK_SUFFIX
+                guard.os.utime(mark, (old, old))
+
+                guard.ledger_record(other, "test-run")  # reaps it
+
+                self.assertFalse(
+                    guard.os.path.exists(dormant_path),
+                    "a session dormant for two full retention windows must be reaped",
+                )
+
+
+class SelfTestCoversEveryRuleTest(unittest.TestCase):
+    """`--self-test` must exercise every rule, and `main` must run it (#4551).
+
+    The command an agent runs to sanity-check the guard, and a job the PR gate
+    runs, covered R1, R9, R10 and R11 and exercised none of R12 through R20 --
+    eight rules, two thirds of the file -- while printing a passing summary.
+    Reassuring output is what an agent acts on, so a green that means nothing
+    is worse than no check at all.
+    """
+
+    def test_main_runs_both_new_self_tests(self):
+        """A self-test the entry point never calls is the same defect one level up."""
+        source = inspect.getsource(guard.main)
+        self.assertIn("run_required_action_self_test()", source)
+        self.assertIn("run_rule_coverage_self_test()", source)
+
+    def test_every_defined_rule_is_claimed_by_the_coverage_table(self):
+        self.assertEqual(guard._defined_rules(), set(guard._SELF_TEST_COVERAGE))
+
+    def test_the_stub_helper_restores_what_it_replaced(self):
+        """A leaked stub would silently disarm every later case in the run."""
+        original = guard._uncommitted_file_count
+        guard._with_stubs({"_uncommitted_file_count": lambda cwd: 99}, lambda: None)
+        self.assertIs(guard._uncommitted_file_count, original)
+
+    def test_the_stub_helper_restores_even_when_the_action_raises(self):
+        original = guard._uncommitted_file_count
+
+        def boom():
+            raise RuntimeError("self-test case failed hard")
+
+        with self.assertRaises(RuntimeError):
+            guard._with_stubs({"_uncommitted_file_count": lambda cwd: 99}, boom)
+        self.assertIs(guard._uncommitted_file_count, original)
+
+
+class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
+    """Every rule asks for the working directory through the same helper (#4553).
+
+    `_hook_working_directory` exists to normalise the payload's `cwd` and fall
+    back to the process directory when a host omits it. R10, R11 and R14 used
+    it; R17, R18 and R19 read `hook_input.get("cwd")` directly.
+
+    Harmless on the day it was found, because `subprocess(cwd=None)` inherits
+    the process directory and lands on the same answer. It stops being harmless
+    the moment a value goes anywhere other than a subprocess `cwd`, or a host
+    sends a payload the normaliser would have corrected. What it costs
+    immediately is a reader with no way to tell which of the two forms is
+    intended, and two forms that disagree only in the rare case are the ones
+    that survive review.
+
+    Asserted over the source rather than by calling each rule, because the
+    defect is which expression is written, and a behavioural test would pass
+    for as long as the two forms happen to agree -- which is the entire period
+    in which the bug is invisible.
+    """
+
+    def rules(self) -> dict[str, object]:
+        return {
+            name: value
+            for name, value in vars(guard).items()
+            if name.startswith("check_r") and callable(value)
+        }
+
+    def test_no_rule_reads_cwd_off_the_payload(self):
+        for name, function in self.rules().items():
+            with self.subTest(rule=name):
+                self.assertNotIn(
+                    'hook_input.get("cwd")',
+                    inspect.getsource(function),
+                    f"{name} must go through _hook_working_directory",
+                )
+
+    def test_the_normaliser_is_the_one_place_that_reads_it(self):
+        """The helper itself must keep reading the raw field, or it normalises nothing."""
+        self.assertIn(
+            'hook_input.get("cwd")', inspect.getsource(guard._hook_working_directory)
+        )
+
+    def test_the_rule_set_is_not_empty(self):
+        """A name filter that matched nothing would make the check above vacuous."""
+        self.assertGreaterEqual(len(self.rules()), 10)
+
+
+class _NoSubprocess:
+    """Stand-in for the `subprocess` module in which nothing can be run.
+
+    Keeps the real exception classes, because `guard` catches them by name and
+    a bare mock in an `except` clause raises `TypeError` instead of being
+    caught -- which would report as an error in the subject tests and look
+    exactly like the defect being searched for.
+    """
+
+    SubprocessError = subprocess.SubprocessError
+    TimeoutExpired = subprocess.TimeoutExpired
+    CalledProcessError = subprocess.CalledProcessError
+
+    @staticmethod
+    def run(*args, **kwargs):
+        raise OSError("subprocess disabled for the determinism check")
+
+
+class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
+    """#4555: assert determinism directly instead of enumerating the readers.
+
+    The same defect has now shipped four times. R18 read git and made five Stop
+    tests depend on whether a push was pending. R17 did it through `gh`, so the
+    same five went red once this pull request received a review. R20's helper
+    `_branch_edits_harness_sources` did it again, and that one the equality pin
+    could not see at all -- `ISOLATED_STOP_RULES` names Stop *rules*, and this
+    was a helper one of them calls.
+
+    Enumeration keeps losing to the next thing nobody enumerated, so this
+    stops enumerating. It runs the Stop-facing test classes twice -- once
+    normally, once with every subprocess refused -- and requires the same
+    result. A test that reaches outside the process for its answer changes
+    behaviour between those two runs; one that does not, cannot. It does not
+    matter whether the reader is a rule, a helper, or something added later.
+
+    CI structurally cannot catch any instance of this: a fresh checkout has
+    nothing unpushed, no credentials to ask about reviews, and no branch
+    mid-edit, so the environment that runs the suite is exactly the one where
+    the defect is invisible. This check does not depend on the environment at
+    all, which is the point.
+    """
+
+    SUBJECT_CLASSES = (
+        "GuardLifecycleTest",
+        "StopReasonsAreCollectedTest",
+        "UserHarnessDriftStopGateTest",
+        "UnarmedPullRequestStopGateTest",
+        "UnpushedWorkStopGateTest",
+        "LearningLoopStopGateTest",
+    )
+
+    def subjects(self) -> unittest.TestSuite:
+        suite = unittest.TestSuite()
+        loader = unittest.TestLoader()
+        module = sys.modules[__name__]
+        for name in self.SUBJECT_CLASSES:
+            suite.addTests(loader.loadTestsFromTestCase(getattr(module, name)))
+        return suite
+
+    def outcome(self) -> tuple[int, int, int]:
+        result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(
+            self.subjects()
+        )
+        return result.testsRun, len(result.failures), len(result.errors)
+
+    def test_the_subject_classes_all_exist(self):
+        """A misspelled class name would silently shrink what is being checked."""
+        module = sys.modules[__name__]
+        for name in self.SUBJECT_CLASSES:
+            with self.subTest(cls=name):
+                self.assertTrue(hasattr(module, name), f"{name} is not defined here")
+        self.assertGreaterEqual(self.outcome()[0], 20, "the subject set is suspiciously small")
+
+    def test_refusing_every_subprocess_changes_nothing(self):
+        baseline = self.outcome()
+        with patch("scripts.agents.guard.subprocess", _NoSubprocess):
+            forced = self.outcome()
+        self.assertEqual(
+            baseline,
+            forced,
+            "a Stop test's outcome changed when subprocesses were refused, so it "
+            "reads live state -- patch that reader off in the class whose subject "
+            "is something else",
+        )
+
+    def test_the_check_can_fail(self):
+        """Proof the comparison is live, not two identical no-ops.
+
+        Without this, a subject list that loaded nothing would compare (0,0,0)
+        to (0,0,0) and report determinism it never examined.
+        """
+        with patch("scripts.agents.guard.subprocess", _NoSubprocess):
+            self.assertRaises(OSError, guard.subprocess.run, ["git", "status"])
+
+
+class GuardTestClassesNameTheRuleTheyDefendTest(unittest.TestCase):
+    """Every guard test class says which rule it protects (#4550).
+
+    When one of these fails, the only thing the failure line carries is
+    `ClassName.test_name`. If the class does not say which rule it defends,
+    the reader learns that a function broke and not that a policy stopped
+    being enforced -- and the guidance file holding that policy is not
+    referenced from the test at all.
+
+    **Deliberately per class, not per test**, which is a departure from how
+    #4550 was filed. That issue came from 48 Codacy "missing docstring"
+    findings, and satisfying it literally means writing 124 method docstrings
+    across three files. Most would restate the assertion on the line below
+    them, which is the docstring Codacy also accepts and nobody should write.
+    The rule name pays for itself exactly once per class, which is also the
+    granularity the failure output shows.
+
+    An `R<number>` or an issue reference counts. Both point somewhere a reader
+    can follow: the rule in `guard.py`, or the ticket that argued for it.
+    """
+
+    FILES = (
+        "test_guard_lifecycle.py",
+        "test_guard_nul_corruption.py",
+        "test_guard_memory_worktree.py",
+    )
+    NAMES_A_RULE = re.compile(r"\bR\d+\b|#\d{3,}")
+
+    def guard_test_classes(self):
+        """Yield (file, class name, docstring) for every TestCase in the guard suites."""
+        found = []
+        directory = os.path.dirname(os.path.abspath(__file__))
+        for name in self.FILES:
+            path = os.path.join(directory, name)
+            tree = ast.parse(open(path, encoding="utf-8").read())
+            for node in tree.body:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                # Only unittest classes: helpers and stand-ins defend no rule.
+                bases = {getattr(base, "attr", getattr(base, "id", "")) for base in node.bases}
+                if "TestCase" not in bases:
+                    continue
+                found.append((name, node.name, ast.get_docstring(node) or ""))
+        return found
+
+    def test_every_guard_test_class_names_its_rule(self):
+        for filename, class_name, docstring in self.guard_test_classes():
+            with self.subTest(cls=f"{filename}:{class_name}"):
+                self.assertTrue(
+                    docstring.strip(), f"{class_name} has no docstring naming the rule it pins"
+                )
+                self.assertRegex(
+                    docstring,
+                    self.NAMES_A_RULE,
+                    f"{class_name} must name the rule it defends, as R<n> or an issue number",
+                )
+
+    def test_the_scan_finds_the_classes_it_claims_to_check(self):
+        """A path or base-class filter that matched nothing would pass vacuously."""
+        self.assertGreaterEqual(len(self.guard_test_classes()), 15)
+
+
+class WhatCountsAsAReviewTest(unittest.TestCase):
+    """R15 and R17: a bot comment is not a review, and a draft is not ready.
+
+    Both defects were observed live on #4554, when R17 told this session to arm
+    a draft pull request carrying four unimplemented tickets. Obeying it would
+    have merged unfinished work as soon as CI went green.
+
+    The second defect is the dangerous one. `github-code-quality` had left a
+    `COMMENTED` review, and the shared predicate counted any review by a
+    distinct account -- so **R15, the gate whose entire purpose is that
+    somebody independent read the diff, was satisfiable by a bot posting a
+    comment.** A reviewer who reads and finds nothing approves; one who finds
+    something requests changes. Neither leaves a bare comment.
+
+    One predicate for both rules, because they must agree. If R17 counted a
+    review R15 did not, Stop would demand arming while R15 refused it, leaving
+    no legal state -- the deadlock `_unarmed_reviewed_pull_request` already
+    warns about, reproduced one rule over.
+    """
+
+    AUTHOR = "the-author"
+
+    def reviews(self, login: str, state: str) -> list:
+        return [{"author": {"login": login}, "state": state}]
+
+    def test_a_bot_comment_is_not_an_independent_review(self):
+        self.assertEqual(
+            guard._independent_reviews(
+                self.reviews("github-code-quality", "COMMENTED"), self.AUTHOR
+            ),
+            [],
+        )
+
+    def test_a_verdict_from_another_account_is(self):
+        for state in ("APPROVED", "CHANGES_REQUESTED"):
+            with self.subTest(state=state):
+                self.assertEqual(
+                    len(guard._independent_reviews(self.reviews("someone", state), self.AUTHOR)),
+                    1,
+                )
+
+    def test_the_authors_own_approval_is_not_independent(self):
+        self.assertEqual(
+            guard._independent_reviews(self.reviews(self.AUTHOR, "APPROVED"), self.AUTHOR), []
+        )
+
+    def test_malformed_review_data_is_not_a_review(self):
+        """Unknown must not read as reviewed; that direction unlocks arming."""
+        for payload in (None, "APPROVED", [{"author": None, "state": "APPROVED"}], [{}]):
+            with self.subTest(payload=repr(payload)[:30]):
+                self.assertEqual(guard._independent_reviews(payload, self.AUTHOR), [])
+
+    def test_both_rules_use_the_one_predicate(self):
+        """Divergence is what creates the deadlock, so it is asserted away."""
+        for name in ("_independent_review_count", "_unarmed_reviewed_pull_request"):
+            with self.subTest(helper=name):
+                source = inspect.getsource(getattr(guard, name))
+                self.assertIn("_independent_reviews(", source)
+
+    def test_a_draft_pull_request_is_never_reported_as_unarmed(self):
+        """A draft is the author saying it is not ready; arming it merges that."""
+        payload = {
+            "number": 4554,
+            "autoMergeRequest": None,
+            "isDraft": True,
+            "author": {"login": self.AUTHOR},
+            "reviews": self.reviews("someone", "APPROVED"),
+        }
+        completed = subprocess.CompletedProcess([], 0, json.dumps(payload), "")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed):
+            self.assertIsNone(guard._unarmed_reviewed_pull_request("."))
+
+        ready = dict(payload, isDraft=False)
+        completed = subprocess.CompletedProcess([], 0, json.dumps(ready), "")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed):
+            self.assertEqual(guard._unarmed_reviewed_pull_request("."), "4554")
+
+    def test_the_draft_field_is_actually_requested(self):
+        """A field the query never asks for is always absent, so never a draft."""
+        self.assertIn("isDraft", inspect.getsource(guard._unarmed_reviewed_pull_request))
+
+
+class ObservedReviewDispatchTest(unittest.TestCase):
+    """R15 / #4545 option C: a dispatch the hook watched counts as a review.
+
+    R15 was unsatisfiable by the agent it governs. Its own message says to get
+    a separate instance to review the diff, and doing exactly that leaves
+    `gh pr view --json reviews` empty, so the only satisfying action belonged
+    to a different account. #4539 is the receipt: a subagent review found two
+    confirmed blockers, R15 refused anyway, and the owner armed by hand. A gate
+    routinely bypassed has been deleted in everything but name.
+
+    **Observed, never asserted**, which is the entire basis for allowing it. No
+    command, flag or instruction writes a review event -- only the hook seeing
+    the dispatch. That reduces "an agent that reviewed nothing" to "an agent
+    that dispatched a reviewer and ignored its findings", which is strictly
+    smaller and the same threat model R12 already rests on.
+
+    The accepted cost is real and recorded rather than hidden: R15 is no longer
+    unforgeable.
+    """
+
+    def payload(self, subagent: str, tool: str = "Task") -> dict:
+        return {
+            "tool_name": tool,
+            "tool_input": {"subagent_type": subagent},
+            "session_id": "s",
+            "cwd": ".",
+        }
+
+    def test_a_reviewer_dispatch_produces_a_review_event(self):
+        with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            self.assertEqual(
+                guard._reviewer_dispatch_event(self.payload("reviewer"), "Task"),
+                "review:feature",
+            )
+
+    def test_any_other_subagent_produces_nothing(self):
+        for subagent in ("coder", "tester", "general-purpose", ""):
+            with self.subTest(subagent=subagent):
+                self.assertIsNone(
+                    guard._reviewer_dispatch_event(self.payload(subagent), "Task")
+                )
+
+    def test_a_non_dispatch_tool_produces_nothing(self):
+        self.assertIsNone(guard._reviewer_dispatch_event(self.payload("reviewer", "Bash"), "Bash"))
+
+    def test_an_unanswerable_branch_records_nothing(self):
+        """This test previously asserted the opposite, and was wrong.
+
+        The first version recorded a keyless `review` when git could not name
+        the branch, calling it "fail open, matching what R15 does when `gh`
+        cannot answer". Adversarial review reproduced the consequence: a bare
+        `review` matched every branch, so dispatching a reviewer from a
+        detached-HEAD worktree armed an unrelated pull request from a
+        different directory. The "keyed to the branch so a review of one
+        branch cannot silently clear another" guarantee was void in exactly
+        the case it was written for.
+
+        Failing open is right for a rule that *refuses*; it is wrong for the
+        evidence that *satisfies* one. Recording nothing leaves R15 refusing,
+        and refusing is a state an agent can leave by dispatching from a
+        branch. Being wrongly cleared is a state nobody can detect.
+        """
+        with patch("scripts.agents.guard._current_branch", return_value=None):
+            self.assertIsNone(
+                guard._reviewer_dispatch_event(self.payload("reviewer"), "Agent")
+            )
+
+    def test_no_recorded_event_clears_a_branch_it_does_not_name(self):
+        for events in (["review"], ["review:other"], []):
+            with self.subTest(events=events):
+                with patch("scripts.agents.guard.ledger_events", return_value=events):
+                    self.assertFalse(
+                        guard._ledger_records_a_review({"session_id": "s"}, "feature")
+                    )
+
+    def test_an_unknown_branch_is_never_cleared(self):
+        """`None` must not match a recorded review, however the ledger looks."""
+        with patch("scripts.agents.guard.ledger_events", return_value=["review:feature"]):
+            self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, None))
+
+    def test_both_rules_read_the_branch_the_same_way(self):
+        """Two sources for one question is how the R15/R17 deadlock arrived.
+
+        R15 read local git, R17 read GitHub's `headRefName`. On a detached
+        HEAD those disagree: GitHub still names a head ref while local git
+        names none, so Stop demanded an arming R15 refused. No legal state --
+        the deadlock the rule claimed to guard against.
+        """
+        expression = "_current_branch(_hook_working_directory(hook_input or {}))"
+        for name in ("check_r15_review_before_arming", "_unarmed_reviewed_pull_request"):
+            with self.subTest(rule=name):
+                self.assertIn(expression, inspect.getsource(getattr(guard, name)))
+        self.assertNotIn(
+            'payload.get("headRefName")',
+            inspect.getsource(guard._unarmed_reviewed_pull_request),
+        )
+
+    def test_the_recorder_is_wired_into_the_hook(self):
+        """A recorder the hook never calls is the defect this batch keeps finding."""
+        self.assertIn(
+            "_reviewer_dispatch_event(hook_input, tool_name)",
+            inspect.getsource(guard.run_pretooluse),
+        )
+
+    def test_both_hosts_intercept_a_dispatch(self):
+        """Neither matcher listed Task or Agent, so the rule would be dead on arrival."""
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for name in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(host=name):
+                text = open(os.path.join(root, name), encoding="utf-8").read()
+                self.assertIn("Task|Agent", text)
+
+    def test_r15_accepts_an_observed_dispatch(self):
+        arming = "gh pr merge 1 --auto --squash"
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            with patch("scripts.agents.guard._current_branch", return_value="feature"):
+                with patch(
+                    "scripts.agents.guard.ledger_events", return_value=["review:feature"]
+                ):
+                    self.assertIsNone(
+                        guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
+                    )
+                with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                    self.assertIsNotNone(
+                        guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
+                    )
+
+    def test_a_review_of_another_branch_does_not_count(self):
+        arming = "gh pr merge 1 --auto --squash"
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            with patch("scripts.agents.guard._current_branch", return_value="feature"):
+                with patch(
+                    "scripts.agents.guard.ledger_events", return_value=["review:other-branch"]
+                ):
+                    self.assertIsNotNone(
+                        guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
+                    )
+
+    def test_r17_uses_the_same_union(self):
+        """Divergence here is the deadlock: Stop demanding what R15 refuses."""
+        self.assertIn(
+            "_ledger_records_a_review", inspect.getsource(guard._unarmed_reviewed_pull_request)
+        )
+        self.assertIn(
+            "_ledger_records_a_review", inspect.getsource(guard.check_r15_review_before_arming)
+        )
+
+
+class RunStateStopGateTest(unittest.TestCase):
+    """R21 / #4536: a delegating session that leaves no state behind.
+
+    The owner requirement is that enough state lives on GitHub for a second
+    agent to pick the work up when the first runs out of tokens. Findings
+    already have a rule and it is kept; decisions and in-flight state have no
+    home. Measured on #4504: zero comments while an agent was implementing the
+    owner's choice, which existed only in a dispatch prompt and a conversation.
+
+    Partial by construction, and the partiality is the honest part. Of the four
+    triggers #4536 lists, one is a tool call this hook sees. "An owner decided
+    something" is not an event, so it stays prose and the issue stays open.
+
+    Both halves are observed, never asserted: the dispatch, and a `gh issue
+    comment` that answers it. Whether the comment said anything useful is not a
+    question a hook can answer, and one that tried would be satisfied by noise.
+    """
+
+    def test_a_delegating_session_that_changed_things_and_posts_nothing_is_reported(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["delegate-dispatch", "commit"],
+        ):
+            self.assertIsNotNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_a_read_only_session_that_only_dispatched_owes_nothing(self):
+        """The fourth fires-on-correct-work defect, caught in review.
+
+        R21 shipped keyed on `delegate-dispatch` alone, and that event is
+        recorded for every Task/Agent call. So it fired on a session whose only
+        dispatch was the `reviewer` iron law 6 mandates, and on one that ran an
+        `Explore` search -- demanding a tracker comment for asking a question.
+        It would have fired on the very session that ordered this rule's own
+        adversarial review.
+
+        R16 has carried the same precondition since it shipped: a read-only
+        session owes no learning. R21 needed it and did not have it.
+        """
+        for events in (
+            ["delegate-dispatch"],
+            ["delegate-dispatch", "test-run"],
+            ["delegate-dispatch", "review:feature"],
+        ):
+            with self.subTest(events=events):
+                with patch("scripts.agents.guard.ledger_events", return_value=events):
+                    self.assertIsNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_posting_state_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["delegate-dispatch", "commit", "issue-update"],
+        ):
+            self.assertIsNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_a_session_that_delegated_nothing_owes_nothing(self):
+        """It must not fire on a solo session, which is most of them."""
+        for events in ([], ["commit"], ["test-run", "commit", "memory-write"]):
+            with self.subTest(events=events):
+                with patch("scripts.agents.guard.ledger_events", return_value=events):
+                    self.assertIsNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_the_commands_that_count_as_recording_state(self):
+        for command in (
+            "gh issue comment 4536 --body x",
+            "gh pr comment 4554 --body x",
+            "gh issue edit 4536 --body x",
+            # Opening a pull request that carries the run state is what the
+            # draft-PR-first rule asks for, and did not count until review.
+            "gh pr create --draft --title t --body x",
+            "gh pr edit 4554 --body x",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard._updates_a_tracked_issue(command))
+
+    def test_targeting_a_repository_explicitly_still_counts(self):
+        """#4548, second review: gh's own `-R`/`--repo` was not recognised.
+
+        `gh -R owner/repo issue comment ...` is the standard way to post from
+        a linked worktree or any cwd that is not the tracked repo's own
+        checkout -- exactly the post R21 demands. The mutation this test
+        kills: delete `_split_gh_global_flags` (or its call site) and these
+        commands stop counting, so R21 fires on a session that already did
+        the required work.
+
+        `_git_output` is patched so this asserts the repository comparison
+        added in the third review rather than its fail-open branch, which is
+        what an unpatched run would have exercised wherever `origin` is
+        unset.
+        """
+        with patch(
+            "scripts.agents.guard._git_output",
+            return_value="git@github.com:ShaftHQ/SHAFT_ENGINE.git\n",
+        ):
+            for command in (
+                "gh -R ShaftHQ/SHAFT_ENGINE issue comment 4536 --body x",
+                "gh --repo ShaftHQ/SHAFT_ENGINE pr edit 4554 --body x",
+                "gh --repo=ShaftHQ/SHAFT_ENGINE issue edit 4536 --body x",
+                # A fork's own `origin` is `someone/SHAFT_ENGINE`; the name
+                # after the slash is what carries the signal.
+                "gh -R someone/SHAFT_ENGINE pr comment 4554 --body x",
+            ):
+                with self.subTest(command=command):
+                    self.assertTrue(guard._updates_a_tracked_issue(command))
+
+    def test_writing_to_another_repository_does_not_count(self):
+        """#4554, third review: `-R` also names repositories that are not this one.
+
+        The two halves of the previous fix contradicted each other.
+        `_skip_gh_global_flags` strips exactly the flag that says "not this
+        repository", and `pr create` counts because it is bound to the
+        current branch -- a binding `-R other/repo` removes. `AGENTS.md`
+        sends companion docs changes to a separate pull request in
+        `../shafthq.github.io`, so opening that one cleared R21 for the
+        SHAFT_ENGINE session it had posted nothing to.
+
+        The mutation this test kills: drop the repository comparison and
+        `-R` goes back to satisfying R21 from anywhere. `_git_output` is
+        patched because git is the boundary here, not the behavior: the
+        assertion is about which repository the command names.
+        """
+        with patch(
+            "scripts.agents.guard._git_output",
+            return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git\n",
+        ):
+            for command in (
+                "gh -R ShaftHQ/shafthq.github.io pr create --title docs --body x",
+                "gh --repo ShaftHQ/shafthq.github.io pr comment 12 --body x",
+                "gh --repo=someone/unrelated issue comment 1 --body x",
+            ):
+                with self.subTest(command=command):
+                    self.assertFalse(guard._updates_a_tracked_issue(command))
+
+    def test_reading_an_issue_is_not_recording_state(self):
+        """The boundary, held by what it refuses rather than what it accepts."""
+        for command in (
+            "gh issue view 4536",
+            "gh issue list --state open",
+            "gh pr view 4554 --json body",
+            "git commit -m 'comment on the issue'",
+            "",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(guard._updates_a_tracked_issue(command))
+
+    def test_creating_an_unrelated_issue_does_not_count(self):
+        """#4548, second review: `issue create` names no existing issue.
+
+        `gh issue create` for a brand-new, unrelated ticket used to clear
+        R21 for whatever this session was actually supposed to report --
+        real, and reproduced by the reviewer running unrelated
+        `gh issue create` calls in the same session this rule governs.
+        `pr create` is unaffected: it is bound to the current branch, so it
+        cannot name someone else's work the way `issue create` can. The
+        mutation this test kills: match `issue create` the same way `pr
+        create` is matched, and this goes back to asserting the opposite.
+        """
+        for command in ("gh issue create --title t --body x",):
+            with self.subTest(command=command):
+                self.assertFalse(guard._updates_a_tracked_issue(command))
+
+    def test_pr_create_without_draft_still_counts(self):
+        """`pr create` is matched regardless of `--draft` (unlike `issue create`).
+
+        Guards the asymmetry in the fix above: dropping `issue create` must
+        not have accidentally narrowed `pr create` to only its `--draft`
+        form, which the pre-existing case in
+        `test_the_commands_that_count_as_recording_state` does not cover on
+        its own.
+        """
+        self.assertTrue(guard._updates_a_tracked_issue("gh pr create --title t --body x"))
+
+    def test_both_recorders_are_wired_into_the_hook(self):
+        source = inspect.getsource(guard.run_pretooluse)
+        self.assertIn('ledger_record(hook_input, "delegate-dispatch")', source)
+        self.assertIn('ledger_record(hook_input, "issue-update")', source)
+
+
+
+def _bare_interruption_promises(source: str) -> list[str]:
+    """Every "interrupts once" in `source` not immediately followed by "per turn".
+
+    Scans string *values*, not source text: `ast.parse` merges adjacent
+    string literals into one `Constant` at parse time, the same merge Python
+    performs before the program ever runs, so a phrase split across source
+    lines by implicit concatenation is already one string here. Each string
+    is lowercased and its whitespace collapsed to single spaces before the
+    scan, so casing and incidental formatting cannot hide a violation either.
+
+    Returns a snippet around each offending occurrence, empty when none.
+    """
+    violations = []
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+            continue
+        collapsed = re.sub(r"\s+", " ", node.value.lower())
+        for match in re.finditer(r"interrupts once(?! per turn\b)", collapsed):
+            start = max(0, match.start() - 20)
+            violations.append(collapsed[start : match.start() + 40])
+    return violations
+
+
+class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
+    """Every Stop message says what it actually does (#4558, #4548, and review).
+
+    "This interrupts once" was true only inside one Stop cycle:
+    `stop_hook_active` makes the immediate retry proceed, and the next turn
+    starts with it False again, so an unsatisfied rule fires every turn until
+    it is satisfied. #4558 records the same over-claim for R20's remedy. A rule
+    that promises to interrupt once and then interrupts every turn teaches an
+    agent to distrust the messages, which is how a guard gets deleted.
+
+    The previous version of this test asserted
+    `assertNotIn("This interrupts once.", source)` against the raw source
+    text, and it passed while two messages still made the bare promise. R16's
+    said "...interrupts once and will not ask again" -- missed on casing and
+    on trailing words the exact-substring check never matched. R17's ended
+    with two adjacent string literals split across source lines:
+    `"...ask for it. This "` then `"interrupts once."` -- valid Python that
+    concatenates to the exact literal promise at runtime, but the substring
+    never appears in the *source text* because a closing quote, a newline and
+    indentation sit between "This " and "interrupts once.". The check
+    defended one literal spelling instead of the invariant it was named for,
+    and both false promises shipped anyway, one commit after this exact
+    lesson (pin the rule, not a spelling) was reaffirmed elsewhere in this
+    file.
+
+    Written now as the invariant itself, via `_bare_interruption_promises`:
+    no guard message may promise a single interruption, in any phrasing,
+    any casing, or split across any number of adjacent literals. A future
+    rule that adds a third bare-promise variant fails this the same way the
+    first two would have.
+    """
+
+    def test_no_message_promises_a_single_interruption(self):
+        violations = _bare_interruption_promises(inspect.getsource(guard))
+        self.assertEqual(
+            violations,
+            [],
+            "a guard message promises a single interruption instead of naming "
+            f"the per-turn mechanism: {violations!r}",
+        )
+
+    def test_the_stop_rules_still_say_what_makes_the_retry_proceed(self):
+        """The honest version has to name the mechanism, not just drop the claim."""
+        self.assertIn("interrupts once per turn", inspect.getsource(guard))
+
+    def test_a_split_literal_bare_promise_is_still_caught(self):
+        """The mutation this class exists to kill: R17's exact former shape.
+
+        Two string literals, adjacent in source, concatenated by Python at
+        parse time into one value that ends the bare promise -- exactly how
+        the defect this test replaces slipped past a raw-text substring
+        check. `_bare_interruption_promises` must catch it from the value,
+        not the text.
+        """
+        synthetic = 'MESSAGE = (\n    "ask for it. This "\n    "interrupts once."\n)\n'
+        violations = _bare_interruption_promises(synthetic)
+        self.assertTrue(
+            violations, "a split-literal bare promise must be caught, not missed"
+        )
+
+    def test_the_honest_phrasing_raises_no_violation(self):
+        """The check must not flag the wording it is meant to require."""
+        synthetic = 'MESSAGE = "This interrupts once per turn: retry proceeds."\n'
+        self.assertEqual(_bare_interruption_promises(synthetic), [])
+
+
+class HarnessDriftSuppressionTest(unittest.TestCase):
+    """R20's suppression, tested against the real helper (#4547).
+
+    Deliberately a separate class. `UserHarnessDriftStopGateTest` patches
+    `_branch_edits_harness_sources` off in `setUp` so its own subject stays
+    deterministic -- which means a test of the helper placed there would
+    exercise the mock and pass no matter what the helper did. That is a
+    vacuous pass of exactly the kind this batch keeps finding, and it happened
+    here on the first attempt.
+    """
+
+    def test_an_unanswerable_git_suppresses_rather_than_reports(self):
+        """This assertion is the reverse of the one it replaces, on evidence.
+
+        The first version returned False -- do not suppress -- when git could
+        not answer, reasoning that unknown should let the advisory speak.
+        Adversarial review reproduced three ordinary ways to reach it: no local
+        `origin/main`, a fetched `origin/main` with no merge base, and a hook
+        cwd outside any repository. In each, R20 fired on a harness-editing
+        branch and named `--apply`, which would deploy unmerged guidance to the
+        host -- the exact defect this helper exists to prevent.
+
+        So it fails closed. The cost is a missed staleness report; the
+        alternative is a remedy that damages the machine, and those are not
+        comparable.
+        """
+        for committed, working in ((None, ""), ("", None), (None, None)):
+            with self.subTest(committed=committed, working=working):
+                with patch(
+                    "scripts.agents.guard._git_output",
+                    side_effect=[committed, working],
+                ):
+                    self.assertTrue(guard._branch_edits_harness_sources("."))
+
+    def test_the_suppression_asks_git_in_the_hook_working_directory(self):
+        """A helper that always reads the process directory is #4553, one over."""
+        self.assertIn(
+            "_branch_edits_harness_sources(_hook_working_directory(hook_input))",
+            inspect.getsource(guard.check_r20_user_harness_drift),
+        )
+        with patch("scripts.agents.guard._git_output", return_value="") as git:
+            guard._branch_edits_harness_sources("/somewhere")
+        for call in git.call_args_list:
+            self.assertEqual(call.args[1], "/somewhere")
 
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):
     """`ISOLATED_STOP_RULES` must name every rule `run_stop` calls.

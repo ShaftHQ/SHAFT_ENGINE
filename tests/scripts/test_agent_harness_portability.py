@@ -190,30 +190,47 @@ DELEGATE_INTERVAL_REASON = (
 # staleness check and removing it tripped the non-empty check, and the only way
 # out was to weaken a check -- the very pressure this module warns about in
 # four places. The mechanism is exercised against a synthetic store instead.
-POLICY_RECORD_ALLOWLIST: dict[str, frozenset[str]] = {
-    # The decision that records why this scan stopped parsing prose. It has to
-    # quote the phrasings that defeated the verb class -- "Read a subagent's
-    # output every 20 minutes" against "I read the delegate's output 20 minutes
-    # in" -- because those two strings are the whole argument, and paraphrasing
-    # the figures out of them would leave a reader unable to see what broke.
-    # A subject beside a figure, asserting no cadence: the exact false positive
-    # A1 accepts by design, taking the exact escape A2 exists to give it.
-    DELEGATE_INTERVAL_REASON: frozenset(
-        {
-            "decision.a-lexical-guard-judges-tokens-only-legitimacy-comes-from"
-            "-an-explicit-id-keyed-allowlist-not-from-parsing-prose",
-            # The object `background agent` was the live false negative in
-            # (#4516). It says "It idles as a frozen background agent" of a
-            # self-polling monitor, and separately gives `~20-30 min` as the
-            # size of a safety-net fallback. Neither is a delegate check-in
-            # cadence -- the whole object argues *against* polling -- and the
-            # figure belongs to a wakeup heartbeat, not to an interval anyone
-            # is meant to restate. The exact narrative-beside-a-figure shape
-            # the rule accepts by design, taking the escape it exists to give.
-            "workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
-            "-self-polling-monitor",
-        }
-    ),
+# The `why` lives in the entry rather than in a comment above it (#4535). Both
+# entries below were already justified, at length, in prose that nothing bound
+# to the id it explained -- reorder the entries, insert a third between them or
+# delete one, and the paragraph stays where it was, now attached to whatever
+# moved into its place. A justification that can drift away from its subject is
+# a comment, not a record.
+#
+# `why` is not required to quote the sentence that trips the scan, which was the
+# obvious stronger rule. The workflow entry below trips A1 on two strings in
+# different parts of the object -- the subject in one, the figure in another --
+# so no single sentence trips it, and requiring a quote would leave a live entry
+# with no legal answer. That is the same deadlock shape as the non-empty
+# requirement this module already removed.
+# The shipped list maps id to why. Callers may pass a bare set of ids instead
+# where the justification is not what is under test, and the union says so
+# rather than leaving fixtures quietly mistyped against the annotation.
+AllowlistByPolicy = dict[str, "dict[str, str] | frozenset[str]"]
+POLICY_RECORD_ALLOWLIST: dict[str, dict[str, str]] = {
+    DELEGATE_INTERVAL_REASON: {
+        "decision.a-lexical-guard-judges-tokens-only-legitimacy-comes-from"
+        "-an-explicit-id-keyed-allowlist-not-from-parsing-prose": (
+            "The decision recording why this scan stopped parsing prose. It has "
+            "to quote the phrasings that defeated the verb class -- \"Read a "
+            "subagent's output every 20 minutes\" against \"I read the "
+            "delegate's output 20 minutes in\" -- because those two strings are "
+            "the whole argument, and paraphrasing the figures out of them would "
+            "leave a reader unable to see what broke. A subject beside a figure, "
+            "asserting no cadence: the exact false positive A1 accepts by "
+            "design, taking the exact escape A2 exists to give it."
+        ),
+        "workflow.after-opening-a-pr-rely-on-ci-push-notifications-not-a"
+        "-self-polling-monitor": (
+            "The live false negative from #4516. It says \"It idles as a frozen "
+            "background agent\" of a self-polling monitor, and separately gives "
+            "`~20-30 min` as the size of a safety-net fallback. Neither is a "
+            "delegate check-in cadence -- the whole object argues *against* "
+            "polling -- and the figure belongs to a wakeup heartbeat, not to an "
+            "interval anyone is meant to restate. The narrative-beside-a-figure "
+            "shape the rule accepts by design."
+        ),
+    },
 }
 
 
@@ -321,7 +338,7 @@ def superseded_policy_offences(text: str, citable: frozenset[str] = frozenset())
 def memory_object_offences(
     memory_root: Path,
     metadata: dict,
-    allowlist: dict[str, frozenset[str]] | None = None,
+    allowlist: AllowlistByPolicy | None = None,
     citable: frozenset[str] | None = None,
 ) -> list[str]:
     """Return what a memory object still offends on once its allowlist entries apply."""
@@ -331,12 +348,16 @@ def memory_object_offences(
     return [
         reason
         for reason in superseded_policy_offences(searchable_text(memory_root, metadata), known)
-        if identifier not in permitted.get(reason, frozenset())
+        # Membership, not lookup: `in` reads the ids either way, so the shipped
+        # `{id: why}` and a fixture's bare set of ids behave identically here.
+        # The default is `{}` for the same reason -- an empty mapping and an
+        # empty set are the same answer, and the mapping matches what ships.
+        if identifier not in permitted.get(reason, {})
     ]
 
 
 def active_memory_policy_offenders(
-    root: Path, allowlist: dict[str, frozenset[str]] | None = None
+    root: Path, allowlist: AllowlistByPolicy | None = None
 ) -> list[str]:
     """Return `path: reason` for every active memory object restating a superseded policy."""
     memory_root = root / ".memory"
@@ -1222,11 +1243,17 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         object retired, prose rewritten -- fails here rather than sitting on as
         a silent standing exemption.
 
-        The allowlist is empty today and that is the healthy state, so this runs
-        vacuously and is meant to. Requiring a live entry instead was tried and
-        removed: it left reconciling the last exempt object with no legal state,
-        because keeping its entry tripped the staleness check here and removing
-        it tripped the non-empty one, and the only exit was to weaken a check.
+        This docstring used to say the allowlist was empty and that this test
+        therefore ran vacuously. Two entries have been added since (#4516,
+        #4521) and the sentence was not updated, so it claimed the check was
+        unexercised while it was in fact pinning both -- a doc defect that
+        invites the next reader to treat a live check as dead weight.
+
+        Empty remains the healthy *end* state. Requiring a live entry was tried
+        and removed: it left reconciling the last exempt object with no legal
+        state, because keeping its entry tripped the staleness check here and
+        removing it tripped the non-empty one, and the only exit was to weaken
+        a check.
         """
         memory_root = ROOT / ".memory"
         objects = {}
@@ -1246,6 +1273,61 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                             searchable_text(memory_root, metadata),
                             memory_object_identifiers(memory_root),
                         ),
+                    )
+
+    def test_every_allowlist_entry_carries_its_own_stated_reason(self):
+        """#4535: the justification has to live in the entry, not beside it.
+
+        An exemption is only reviewable if a reader can see what it is for.
+        Both shipped entries were justified -- at length -- but in comments
+        above the declaration, which nothing binds to the id they explain.
+        Reorder the entries, add a third between them, or delete one, and the
+        prose stays where it was, now attached to whatever moved into its
+        place. A justification that can drift away from its subject is a
+        comment, not a record.
+
+        Keyed as `{reason: {object id: why}}` so the pairing is structural.
+        The call site is unchanged: `in` tests keys either way, which is also
+        why fixtures passing a bare set keep working.
+
+        **Why `why` is not required to quote the sentence that trips the
+        scan.** That was the obvious stronger rule -- a quote makes staleness
+        mechanically detectable rather than merely visible -- and it is
+        unsatisfiable here. `workflow.after-opening-a-pr-rely-on-ci-push-
+        notifications-not-a-self-polling-monitor` trips A1 on two strings in
+        different places: "It idles as a frozen background agent" supplies the
+        subject and a separate `~20-30 min` supplies the figure. No single
+        sentence trips it, so the requirement would have no legal answer for a
+        live entry -- the same deadlock shape that removing the non-empty
+        requirement fixed, and the module warns about in four places.
+
+        Staleness of the entry is already covered by
+        `test_every_allowlist_entry_is_individually_load_bearing`, which fails
+        when the object stops needing its exemption. This test covers the
+        different failure of an entry that is still load-bearing and no longer
+        says anything a reviewer can act on.
+        """
+        for reason, permitted in POLICY_RECORD_ALLOWLIST.items():
+            self.assertIsInstance(
+                permitted,
+                dict,
+                f"{reason[:40]}: entries map object id -> why, not a bare set",
+            )
+        for reason, permitted in POLICY_RECORD_ALLOWLIST.items():
+            for identifier, why in permitted.items():
+                with self.subTest(identifier=identifier[:60]):
+                    self.assertTrue(
+                        why.strip(), "an empty why is an exemption nobody can review"
+                    )
+                    # A word count, because "n/a", "see above" and "legacy" are
+                    # all non-empty and all say nothing. Deliberately low: the
+                    # check is against a placeholder, not a house style, and a
+                    # threshold high enough to have opinions about good prose
+                    # is one people pad to satisfy.
+                    self.assertGreaterEqual(
+                        len(why.split()),
+                        8,
+                        f"{identifier[:60]}: state what this object says and why it is not a claim",
                     )
 
     def test_every_superseded_policy_phrasing_is_individually_load_bearing(self):

@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/gotchas/tempfile-gettempdir-caches-so-patching-tmpdir-in-a-test-is-inert-and-the-tests-silently-share-the-real-temp-directory.md",
+  "content_hash": "sha256:33e28b44703eced5112066811e7cbc535a49a81834fd5f3a90399974e29914dd",
+  "created_at": "2026-08-05T11:51:23+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "scripts/agents/guard.py",
+      "tests/scripts/test_guard_lifecycle.py"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.tempfile-gettempdir-caches-so-patching-tmpdir-in-a-test-is-inert-and-the-tests-silently-share-the-real-temp-directory",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Route the durable learnings from the harness enforcement batch (#4547, #4552, R20 false positive)"
+  },
+  "status": "active",
+  "tags": [
+    "testing",
+    "isolation",
+    "tempfile",
+    "guard",
+    "python"
+  ],
+  "title": "tempfile.gettempdir() caches, so patching TMPDIR in a test is inert and the tests silently share the real temp directory",
+  "type": "gotcha",
+  "updated_at": "2026-08-05T11:51:23+03:00"
+}

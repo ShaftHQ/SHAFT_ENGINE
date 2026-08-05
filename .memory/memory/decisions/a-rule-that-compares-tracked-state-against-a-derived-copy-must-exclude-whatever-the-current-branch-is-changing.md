@@ -1,0 +1,7 @@
+R20 reports that the deployed user harness no longer matches the tracked one. It fired correctly on the commit that added it -- the deployment predated #4539 and a whole skill was absent from the machine -- and then fired again on the very next commit, which edited `delegation.md` in the repository. That second firing was wrong, and its named remedy was worse than wrong: running `sync_user_harness.py --apply` would have deployed an unmerged, unreviewed branch edit onto the host, so the machine would run guidance that has not landed.
+
+While a branch edits the sources a deployment is generated from, the deployment is SUPPOSED to lag. Drift is the expected state, not a finding. A gate that fires on correct work is the shape `decision.check-every-new-guard-pairwise-against-the-guards-already-shipped` records as the one that gets guards deleted, and this repository had already fixed exactly that in R13 during the same batch.
+
+Rule: any check comparing a tracked source against a derived, deployed or cached copy must first subtract what the current branch has changed relative to the default branch -- committed and uncommitted both, since an edit in the working tree changes the comparison just as much as a committed one.
+
+State the trade rather than hiding it. The implementation here is coarse: it silences genuine staleness for the life of such a branch, because the precise per-file version needs a machine-readable mode the sync tool does not have, and parsing its printed labels would couple the rule to a print format.
