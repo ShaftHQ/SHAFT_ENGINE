@@ -521,3 +521,58 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     'git commit -m "explain why gh pr merge --auto is guarded"', "Bash"
                 )
             )
+
+
+class LearningLoopStopGateTest(unittest.TestCase):
+    """R16: the learning loop, which the entrypoint requires before reporting done.
+
+    "Before reporting done, run the learned-lessons workflow: route every
+    learning exactly once." It had no mechanism, and this session is the
+    evidence: an iteration reported done having skipped the mandatory
+    retrieval entirely, and the owner caught it rather than any check.
+
+    Deliberately a block-once reminder, not a hard gate. `run_stop` already
+    returns 0 when `stop_hook_active` is set, so the agent is interrupted a
+    single time and may then end the turn. That matters more here than
+    anywhere else in the file: "nothing durable surfaced" is a legitimate and
+    common outcome that the entrypoint explicitly endorses -- "Nothing durable
+    is a valid result" -- so a rule that could not be satisfied by saying so
+    would be a rule that forces invented memory objects.
+
+    It must also never strand a delegate in a linked worktree. R11 refuses a
+    memory write from one by design, so demanding a memory write there would
+    leave no legal state -- the deadlock shape recorded in
+    `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-
+    will-be-weakened`. Blocking once and allowing the second attempt is what
+    keeps that impossible.
+    """
+
+    def test_committing_without_routing_a_learning_is_interrupted_once(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+            self.assertIsNotNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_a_recorded_memory_write_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_a_session_that_changed_nothing_is_never_interrupted(self):
+        """A read-only session owes no learning; asking would train the block away."""
+        with patch("scripts.agents.guard.ledger_events", return_value=["test-run"]):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_the_second_stop_attempt_is_always_allowed(self):
+        """Block once. `run_stop` returns 0 on stop_hook_active, so this cannot loop.
+
+        A linked-worktree delegate cannot write memory at all (R11), so a hard
+        gate here would strand it permanently. Interrupting once and yielding
+        is what makes "nothing durable is a valid result" a reachable state.
+        """
+        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(
+                    guard.run_stop({"cwd": ".", "session_id": "s", "stop_hook_active": True}), 0
+                )
+            self.assertEqual(output.getvalue().strip(), "")

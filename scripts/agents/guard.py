@@ -1610,6 +1610,12 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     reason = check_r12_test_before_production(hook_input, tool_name)
+
+    # R16 reads these. Recorded here because a later hook invocation is a
+    # fresh process: if the event is not written down as it happens, the
+    # Stop hook has no way to know it ever did.
+    if tool_name.startswith("mcp__shaft-memory__"):
+        ledger_record(hook_input, "memory-write")
     if reason is not None:
         _print_deny(reason, host)
         return 0
@@ -1639,6 +1645,12 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         # fresh process with no memory of it.
         if looks_like_a_test_run(command):
             ledger_record(hook_input, "test-run")
+        if any(
+            _tokens_after_head(segment, frozenset({"git"}))[:1] == ["commit"]
+            for segment in _git_segments(command)
+            if _tokens_after_head(segment, frozenset({"git"}))
+        ):
+            ledger_record(hook_input, "commit")
         return 0
 
     return 0  # not a tool this hook checks
@@ -1889,9 +1901,48 @@ def _open_pull_request_count(branch: str | None) -> int | None:
     return len(listed) if isinstance(listed, list) else None
 
 
+def check_r16_learning_loop(hook_input: dict) -> str | None:
+    """Interrupt once when a session changed things and routed no learning.
+
+    The entrypoint requires the learned-lessons workflow before reporting
+    done, and it had no mechanism. This session is the evidence: an iteration
+    reported done having skipped the mandatory retrieval entirely, and the
+    owner caught it rather than any check.
+
+    A reminder that blocks once, not a hard gate, and the distinction is
+    load-bearing. "Nothing durable surfaced" is a legitimate outcome the
+    entrypoint explicitly endorses, so a rule that could not be satisfied by
+    saying so would manufacture memory objects rather than learnings. And a
+    delegate in a linked worktree cannot write memory at all -- R11 refuses it
+    by design -- so a hard gate would strand every worktree agent
+    permanently. `run_stop` returns 0 when `stop_hook_active` is set, so the
+    second attempt always proceeds.
+    """
+    events = ledger_events(hook_input)
+    if "commit" not in events:
+        return None  # a read-only session owes no learning
+    if "memory-write" in events:
+        return None
+    return (
+        "Learning loop: this session committed work and routed no learning. Before "
+        "reporting done, run the routing table once -- a fact that cost you time to "
+        "native Memory with its evidence, a decision someone would re-litigate as a "
+        "decision, a cross-entity relation to MemPalace, a structural change flagged "
+        "for Graphify, a procedure that misled you fixed in the guidance file that "
+        "should have carried it, and adjacent work you skipped searched for and then "
+        "filed. Nothing durable is a valid result -- say so and end the turn; this "
+        "interrupts once and will not ask again."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
+        return 0
+
+    learning = check_r16_learning_loop(hook_input)
+    if learning is not None:
+        print(json.dumps({"decision": "block", "reason": learning}))
         return 0
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
