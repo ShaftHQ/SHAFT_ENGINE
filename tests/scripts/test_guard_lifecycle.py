@@ -14,6 +14,19 @@ from scripts.agents import guard
 
 
 class GuardLifecycleTest(unittest.TestCase):
+    def setUp(self):
+        """Isolate the Stop rule under test from the ones that read live git state.
+
+        R18 asks the real repository whether the branch has unpushed commits,
+        so without this these tests pass or fail on whether the developer
+        happens to have pushed -- green on a clean checkout and on CI, red the
+        moment a push is pending. A result that depends on the environment
+        rather than the subject is not a test of the subject.
+        """
+        patcher = patch("scripts.agents.guard.check_r18_unpushed_work", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def output(self, function, payload: dict) -> dict | None:
         stream = io.StringIO()
         with redirect_stdout(stream):
@@ -662,6 +675,19 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
     ending its turn learns everything it owes at once rather than discovering
     the next duty only after satisfying the previous one.
     """
+
+    def setUp(self):
+        """Isolate the Stop rule under test from the ones that read live git state.
+
+        R18 asks the real repository whether the branch has unpushed commits,
+        so without this these tests pass or fail on whether the developer
+        happens to have pushed -- green on a clean checkout and on CI, red the
+        moment a push is pending. A result that depends on the environment
+        rather than the subject is not a test of the subject.
+        """
+        patcher = patch("scripts.agents.guard.check_r18_unpushed_work", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     @patch(
         "scripts.agents.guard._worktree_report",
