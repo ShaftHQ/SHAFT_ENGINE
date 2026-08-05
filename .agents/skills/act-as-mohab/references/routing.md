@@ -29,6 +29,15 @@ before broad manual discovery, not all of them by reflex.
 | What calls or depends on this? | [Graphify](graphify.md) | Blast radius is unknown, or you are about to change a shared symbol. |
 | What does the code do right now? | targeted `rg` and exact reads | Always. This is the only source that settles a disagreement. |
 
+The native store is source-controlled, and its contract travels with it:
+`.memory/config.json` declares the project and store version, and
+`.memory/schema/object.schema.json`, `.memory/schema/relation.schema.json`,
+`.memory/schema/event.schema.json`, `.memory/schema/patch.schema.json` and
+`.memory/schema/config.schema.json` validate every write. The entries
+themselves are data the CLI owns; reach them with `memory load`, `memory
+search` and `memory inspect`. Standing constraints need no query at all — the
+session-start hook injects them before your first tool call.
+
 A retrieved claim is a lead, never a verdict: confirm it against the live file
 before acting on it, and a stale index never outranks what is on disk. Your own
 plan ranks here too, below every one of them: it is the oldest source you hold,

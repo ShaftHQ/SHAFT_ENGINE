@@ -55,11 +55,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
+import tempfile
+import time
 from typing import NamedTuple
 
 # ---------------------------------------------------------------------------
@@ -1322,6 +1325,466 @@ def _print_deny(reason: str, host: str) -> None:
     print(json.dumps(output))
 
 
+# R12: iron law 3 -- no production code before an observed failing test.
+# Production means compiled source under any module's src/main/. Guidance,
+# configuration, tests, scripts and docs are excluded because the entrypoint
+# excludes them itself: they "may skip test-first; validate their structure or
+# affected flow instead".
+_PRODUCTION_PATH = re.compile(r"(?:^|/)src/main/", re.IGNORECASE)
+_TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
+# Token equality rather than a regex: the file already tokenises segments for
+# R1 and R2, and a substring match would read "latest" or "protest" as a test
+# run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
+_TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
+_WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+# Ceiling for any single helper query, well inside the 10s PreToolUse timeout
+# in .claude/settings.json and .codex/hooks.json. It was 8s, which left no
+# margin: one slow `git` or `gh` on a contended machine and the hook is killed
+# mid-decision. That matters more since the matcher widened to Write|Edit,
+# because this now runs on every edit rather than every command.
+SUBPROCESS_TIMEOUT = 4
+# ...and a ceiling on all of them together, which is the part that used to be
+# claimed here and was never implemented. Adversarial review measured one
+# PreToolUse invocation of `git branch -D a b c d e f && git reset --hard`
+# issuing 7 subprocesses: 4s each is 28s against a 10s hook.
+#
+# Exceeding the hook timeout is not a slow decision, it is *no* decision. A
+# killed PreToolUse hook fails open, so every rule in this file -- R1, R2, R3,
+# R8, R9, R10, R11, R13, R14, R15 -- is silently skipped for that call. The
+# only unbounded loop is R13's, which queries once per branch name given.
+HOOK_BUDGET_SECONDS = 8.0
+_hook_deadline: float | None = None
+
+
+def start_hook_budget(seconds: float = HOOK_BUDGET_SECONDS) -> None:
+    """Open the shared window for one hook invocation."""
+    global _hook_deadline
+    _hook_deadline = time.monotonic() + seconds
+
+
+def clear_hook_budget() -> None:
+    """Drop the shared window, restoring the per-call ceiling."""
+    global _hook_deadline
+    _hook_deadline = None
+
+
+def _subprocess_timeout() -> float:
+    """Per-call ceiling, further capped by whatever the invocation has left.
+
+    Returns a small positive value rather than zero once the window closes:
+    the caller then takes the `TimeoutExpired` path it already handles and
+    fails open, which is the same answer it would have reached had the query
+    genuinely not returned. No new control flow, and no branch of this file
+    can consume the budget of another.
+
+    Outside a hook invocation -- unit tests, the self-test, direct calls --
+    no window is open and the per-call ceiling applies unchanged.
+    """
+    if _hook_deadline is None:
+        return float(SUBPROCESS_TIMEOUT)
+    remaining = _hook_deadline - time.monotonic()
+    if remaining <= 0:
+        return 0.001
+    return min(float(SUBPROCESS_TIMEOUT), remaining)
+# Blank line between collected Stop reasons. A named constant rather than an
+# inline escape, because an inline one has to survive every future edit to
+# this file to keep run_stop parseable, and it did not survive the first.
+STOP_REASON_SEPARATOR = "\n\n"
+
+
+def looks_like_a_test_run(command: str) -> bool:
+    """True when this command is plausibly running tests.
+
+    Deliberately generous about what counts. A false positive costs one
+    unearned production write; a false negative blocks honest work, and the
+    gate that blocks honest work is the gate that gets deleted. The command
+    head must still be a real runner in command position, reusing the same
+    segmentation R1 and R2 rely on, so prose quoting `mvn test` in a commit
+    message does not satisfy the law.
+    """
+    if not command:
+        return False
+    for segment in _command_segments(command):
+        if not _head_executable_matches(segment, _TEST_RUNNER):
+            continue
+        tokens = _segment_tokens(segment)
+        if _TEST_TOKENS.intersection(tokens) or any(
+            token.startswith("-Dtest=") for token in tokens
+        ):
+            return True
+    return False
+
+
+def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | None:
+    """Block a production-source write when no test run was observed this session.
+
+    Iron law 3 with a mechanism. The law predates every check in this file and
+    has never had one: `test_agent_router_contract.py` pins that the sentence
+    exists, which cannot observe whether production code was written first.
+
+    Scope is narrow on purpose. Only compiled source under a module's
+    `src/main/` counts, because the entrypoint exempts the rest itself --
+    documentation, guidance, configuration and generated code "may skip
+    test-first". Writing the failing test is never blocked, since blocking the
+    RED step would make the law unsatisfiable: the only way to observe a
+    failing test is to write it.
+
+    Session-scoped rather than per-edit. One observed test run unlocks
+    production writes for the session, which enforces "a test ran before you
+    wrote production code" without blocking the second edit of a two-line fix.
+    A coarse rule everybody keeps is worth more than a precise one nobody does.
+    """
+    if tool_name not in _WRITE_TOOLS:
+        return None
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    path = tool_input.get("file_path") or tool_input.get("path") or ""
+    if not isinstance(path, str) or not path:
+        return None
+    normalized = path.replace("\\", "/")
+    if not _PRODUCTION_PATH.search(normalized) or "/src/test/" in normalized:
+        return None
+    if not _ledger_path(hook_input):
+        return None  # no session, no record, no basis to block
+    if "test-run" in ledger_events(hook_input):
+        return None
+    return (
+        "R12 blocked: iron law 3 -- no production code before an observed "
+        f"failing test. {path} is production source under src/main/, and no "
+        "test run has been observed in this session. Write the focused test "
+        "first and run it (for example `py -3 -m unittest tests.scripts.test_x` "
+        "or `mvn -Dtest=YourTest test`); an expected assertion failure is RED "
+        "and unblocks this write, while a setup, syntax or environment error "
+        "is not. Tests, guidance, configuration and docs are never blocked by "
+        "this rule."
+    )
+
+
+def _unpushed_commit_count(branch: str) -> int | None:
+    """Commits on `branch` that exist on no remote, or None if unanswerable.
+
+    None and 0 stay distinct, which #4542 is the record of paying for: "git
+    would not answer" and "nothing would be lost" are opposite facts about
+    whether to stop a deletion.
+    """
+    if not branch:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "rev-list", "--count", branch, "--not", "--remotes"],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        return int((completed.stdout or "").strip())
+    except ValueError:
+        return None
+
+
+def _git_output(arguments: list[str]) -> str | None:
+    """Stdout of a read-only git query, or None when git will not answer."""
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", *arguments],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout or ""
+
+
+def _content_exists_on_default_branch(branch: str) -> bool:
+    """True when deleting `branch` would lose no content the default branch lacks.
+
+    This repository squash-merges and GitHub deletes the head branch on merge.
+    So a *fully delivered* branch reports every one of its original commits as
+    existing on no remote: the commits really are gone, and their content is
+    on `main` under a single new commit that shares no ancestry with them.
+
+    Commit identity therefore cannot answer the question R13 and R18 are
+    actually asking, which is whether deleting the branch destroys work.
+    `git cherry` cannot either -- it compares patch ids, and a squash of two
+    commits matches neither of them, which is exactly this repository's shape.
+    `validate_agent_setup.py` already says as much in its own advisory: "this
+    repo squash-merges, so landed work can still show commits ahead of main."
+
+    So ask about content. Take the files the branch introduced relative to its
+    merge base, then compare just those files against the default branch. If
+    they are identical the work is delivered, whatever the commit graph says,
+    and this stays correct once `main` advances with unrelated work because
+    the comparison is restricted to the branch's own files.
+
+    False on any uncertainty, on purpose: "I could not tell" and "nothing
+    would be lost" are opposite facts, and only one of them may permit a
+    deletion.
+    """
+    if not branch:
+        return False
+    reference = None
+    for candidate in sorted(DEFAULT_BRANCHES):
+        probe = _git_output(["rev-parse", "--verify", "--quiet", f"origin/{candidate}"])
+        if probe is not None:
+            reference = f"origin/{candidate}"
+            break
+    if reference is None:
+        return False
+    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"])
+    if listing is None:
+        return False
+    files = [line for line in listing.splitlines() if line.strip()]
+    if not files:
+        return True  # introduces nothing the default branch does not already have
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "diff", "--quiet", reference, branch, "--", *files],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return completed.returncode == 0
+
+
+def _unrecoverable_commit_count(branch: str) -> int | None:
+    """Commits whose deletion would destroy work, or None if unanswerable.
+
+    Wraps the raw unpushed count with the delivery question, because the raw
+    count alone blocked correct work: on a squash-merged branch whose remote
+    was deleted it reports the original commits, so R13 refused the cleanup
+    step the entrypoint itself mandates, and told the agent to run `git push
+    -u origin <branch>` -- which would re-create the remote branch for already
+    merged work. A gate that fires on correct work and whose remedy makes
+    things worse is the shape that gets guards deleted, which iron law 4
+    forbids as the exit.
+
+    The delivery query costs git calls, so it runs only when the raw count is
+    about to block. A branch with nothing unpushed -- the common case -- pays
+    nothing.
+    """
+    count = _unpushed_commit_count(branch)
+    if count is None or count <= 0:
+        return count
+    if _content_exists_on_default_branch(branch):
+        return 0
+    return count
+
+
+def _uncommitted_file_count(cwd: object) -> int | None:
+    """Changed files in the working tree, or None if git will not answer."""
+    if not cwd:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "-c", "core.longpaths=true", "status", "--porcelain"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return len([line for line in (completed.stdout or "").splitlines() if line.strip()])
+
+
+def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
+    """Refuse a force-delete of a branch whose commits exist nowhere else.
+
+    The entrypoint's cleanup order exists because it is not interchangeable:
+    push anything a remote has never seen first, then delete. Reversed, the
+    only copy of that work is gone.
+
+    Only `-D` is guarded. `git branch -d` already refuses an unmerged branch,
+    so git enforces the safe form itself, and restating it here would add
+    noise without safety -- the surest way to get a guard removed.
+    """
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"git"}))
+        if not rest or rest[0] != "branch" or "-D" not in rest[1:]:
+            continue
+        for name in [token for token in rest[1:] if not token.startswith("-")]:
+            unpushed = _unrecoverable_commit_count(name)
+            if unpushed is None or unpushed <= 0:
+                continue
+            return (
+                f"R13 blocked: {name} carries {unpushed} commit(s) that exist on no "
+                "remote, and `git branch -D` would destroy the only copy. The "
+                "entrypoint's cleanup order is push first, delete second, and it is "
+                f"not interchangeable. Run `git push -u origin {name}` (or confirm the "
+                "work is genuinely disposable) before deleting. `git branch -d` is "
+                "unaffected: git already refuses an unmerged branch itself."
+            )
+    return None
+
+
+def check_r14_hard_reset(command: str, tool_name: str, cwd: object) -> str | None:
+    """Refuse `git reset --hard` while the working tree carries uncommitted work.
+
+    Written after it happened. Setting up a probe branch for R13, this file's
+    author ran `git reset --hard HEAD~1` with R13's implementation and tests
+    uncommitted; both were destroyed instantly, and nothing here caught it.
+    R8 guarded `git stash`, R9 `git worktree add`, R13 `git branch -D` -- and
+    the most destructive command of the four was unguarded.
+
+    `--hard` alone triggers this. A soft or mixed reset leaves the working
+    tree alone, and `--hard` on a clean tree destroys nothing, so neither is
+    this rule's business.
+    """
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"git"}))
+        if not rest or rest[0] != "reset" or "--hard" not in rest[1:]:
+            continue
+        changed = _uncommitted_file_count(cwd)
+        if changed is None or changed <= 0:
+            continue
+        return (
+            f"R14 blocked: the working tree has {changed} uncommitted file(s) and "
+            "`git reset --hard` discards them with no reflog entry and no recovery. "
+            "Commit them (`git add -A && git commit`), or reset without `--hard` "
+            "if you only meant to move the branch pointer. Not `git stash`: R8 "
+            "refuses it in this repository, and a remedy a neighbouring rule "
+            "forbids is how an agent ends up with no legal move at all. "
+            "This rule exists because an agent building the neighbouring guard lost "
+            "a finished, tested change to exactly this command."
+        )
+    return None
+
+
+def _independent_review_count(target: str | None) -> int | None:
+    """Reviews by someone other than the author, or None if unanswerable.
+
+    None and 0 stay distinct: "gh could not answer" and "nobody has reviewed
+    this" are opposite facts about whether to stop an irreversible step.
+    """
+    arguments = ["gh", "pr", "view"]
+    if target:
+        arguments.append(target)
+    arguments += ["--json", "reviews,author"]
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+            arguments, capture_output=True, text=True, timeout=_subprocess_timeout(), check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout or "{}")
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    author = (payload.get("author") or {}).get("login")
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        return None
+    return len(
+        [
+            review
+            for review in reviews
+            if isinstance(review, dict)
+            and (review.get("author") or {}).get("login")
+            and (review.get("author") or {}).get("login") != author
+        ]
+    )
+
+
+def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
+    """Refuse arming auto-merge before an independent review exists.
+
+    Iron law 6 requires an independent adversarial review before the next step
+    starts, and the Ownership section requires arming only once that gate
+    passes. Handing a diff to auto-merge is the one irreversible step in the
+    whole workflow -- after it, the next green run merges without asking --
+    and it rested entirely on remembering.
+
+    A review by the pull request's own author does not count. The point is an
+    independent reader, and self-review is precisely the shape
+    `constraint.always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts`
+    was written against.
+    """
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _command_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"gh"}))
+        if not rest or rest[:2] != ["pr", "merge"]:
+            continue
+        arguments = rest[2:]
+        positional = [token for token in arguments if not token.startswith("-")]
+        target = positional[0] if positional else None
+        reviews = _independent_review_count(target)
+        if reviews is None or reviews > 0:
+            continue
+        label = f"#{target}" if target else "this pull request"
+        return (
+            f"R15 blocked: {label} has no review from anyone other than its author, "
+            "and iron law 6 requires an independent adversarial review before the "
+            "next step starts. Arming auto-merge is the irreversible one: after it, "
+            "the next green run merges without asking. Get a separate instance to "
+            "review the actual diff -- and address bot annotations as well as human "
+            "comments -- then arm. If a review exists and this still fires, `gh` "
+            "could not read it; that case is allowed through."
+        )
+    return None
+
+
+DEFAULT_BRANCHES = frozenset({"main", "master"})
+
+
+def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
+    """Refuse a write while HEAD is the default branch.
+
+    Task isolation requires a fresh `ChaosEngine/*` branch cut from fetched
+    `origin/main` before task-specific edits. Only part of that is
+    mechanisable, and this is deliberately only that part.
+
+    Editing on `main` is unambiguous and always wrong: the work has no branch
+    of its own, cannot become a pull request without a later rescue, and
+    collides with anything else sharing the checkout.
+
+    Whether an existing `ChaosEngine/*` branch is fresh *enough* is judgement
+    -- the entrypoint explicitly permits reusing one for dependent work in the
+    same task -- so a hook that guessed would block legitimate continuation
+    every time it was right about nothing. A gate that fires on correct work
+    is the gate that gets deleted, so this one does not guess.
+
+    The remedy it names carries uncommitted changes with it and touches
+    nothing, so it can never trap an agent that already has work in flight.
+    """
+    if tool_name not in _WRITE_TOOLS:
+        return None
+    branch = _current_branch(hook_input.get("cwd"))
+    if not branch or branch not in DEFAULT_BRANCHES:
+        return None
+    return (
+        f"R19 blocked: HEAD is {branch}, and task work never lands on the default "
+        "branch. Cut the session's branch first -- `git fetch --prune origin && git "
+        "checkout -b ChaosEngine/<task> origin/main` -- which carries any uncommitted "
+        "changes across and touches nothing. Reusing an existing ChaosEngine/* branch "
+        "for dependent work in the same task is fine and is not blocked."
+    )
+
+
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
@@ -1330,6 +1793,22 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _hook_working_directory(hook_input),
         hook_input.get("tool_input"),
     )
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
+
+    reason = check_r19_fresh_base(hook_input, tool_name)
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
+
+    reason = check_r12_test_before_production(hook_input, tool_name)
+
+    # R16 reads these. Recorded here because a later hook invocation is a
+    # fresh process: if the event is not written down as it happens, the
+    # Stop hook has no way to know it ever did.
+    if tool_name.startswith("mcp__shaft-memory__"):
+        ledger_record(hook_input, "memory-write")
     if reason is not None:
         _print_deny(reason, host)
         return 0
@@ -1343,8 +1822,28 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             reason = check_r9_worktree_add(command, tool_name)
         if reason is None:
             reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
+        if reason is None:
+            reason = check_r13_push_before_delete(command, tool_name)
+        if reason is None:
+            reason = check_r15_review_before_arming(command, tool_name)
+        if reason is None:
+            reason = check_r14_hard_reset(
+                command, tool_name, _hook_working_directory(hook_input)
+            )
         if reason is not None:
             _print_deny(reason, host)
+            return 0
+        # Observed, not judged. R12 reads this ledger; recording here is the
+        # only place a test run is visible, since a later hook invocation is a
+        # fresh process with no memory of it.
+        if looks_like_a_test_run(command):
+            ledger_record(hook_input, "test-run")
+        if any(
+            _tokens_after_head(segment, frozenset({"git"}))[:1] == ["commit"]
+            for segment in _git_segments(command)
+            if _tokens_after_head(segment, frozenset({"git"}))
+        ):
+            ledger_record(hook_input, "commit")
         return 0
 
     return 0  # not a tool this hook checks
@@ -1400,12 +1899,136 @@ def _sync_advisory() -> str | None:
     )
 
 
+def _ledger_path(hook_input: dict) -> str | None:
+    """Return this session's ledger file, or None when one cannot be sited.
+
+    Keyed by session, never by repository. Concurrent agents each own a
+    worktree and run their own hooks, so a repository-keyed ledger would let
+    one delegate's test run unlock a production write for a different one --
+    and a gate somebody else can satisfy is not a gate.
+
+    Sited outside the repository on purpose: this is runtime state, and
+    `AGENTS.md` forbids generated files in git. `session_id` is already
+    normalised across Claude, Codex and Grok by `_FIELD_ALIASES`, so this
+    needs no per-host branch.
+    """
+    session = hook_input.get("session_id")
+    if not isinstance(session, str) or not session.strip():
+        return None
+    # Hashed rather than interpolated: a session id is host-supplied and would
+    # otherwise reach the filesystem as a path component.
+    key = hashlib.sha256(session.strip().encode("utf-8")).hexdigest()[:32]
+    directory = os.path.join(tempfile.gettempdir(), "shaft-agent-ledger")
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError:
+        return None
+    return os.path.join(directory, f"{key}.json")
+
+
+def ledger_record(hook_input: dict, event: str) -> bool:
+    """Append one observed event to this session's ledger. True when recorded.
+
+    Read-modify-write rather than an append-only text file, because the
+    reader has to tolerate a partial line from a concurrent hook. A lost
+    event costs one re-observation; a corrupt read that raises would cost the
+    session.
+    """
+    path = _ledger_path(hook_input)
+    if not path or not isinstance(event, str) or not event:
+        return False
+    events = ledger_events(hook_input)
+    events.append(event)
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(events, handle)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def ledger_events(hook_input: dict) -> list[str]:
+    """Return the events observed so far in this session, oldest first.
+
+    Every failure reads as "nothing observed yet". That is the safe direction
+    for a *record* of what happened; the gates built on it decide separately
+    whether an empty record should block, and each of those fails open.
+    """
+    path = _ledger_path(hook_input)
+    if not path or not os.path.isfile(path):
+        return []
+    try:
+        with open(path, encoding="utf-8") as handle:
+            events = json.load(handle)
+    except (OSError, ValueError, UnicodeDecodeError):
+        return []
+    if not isinstance(events, list):
+        return []
+    return [item for item in events if isinstance(item, str)]
+
+
+def _standing_constraints(working_directory: object) -> str | None:
+    """Return the titles of every stored constraint, as one injectable block.
+
+    The harness's retrieval duty lives in `routing.md`, which is loaded only
+    when the entrypoint routes a deliverable -- so the rule that says "query
+    the stores before broad discovery" sits behind a load it is meant to
+    precede. Reminding harder is the mitigation the literature measures and
+    finds insufficient, so this does not remind: it carries the constraints in
+    before the first tool call, which costs the agent no adherence and cannot
+    decay with context length.
+
+    Titles only. Twelve objects are ~950 bytes of title against tens of
+    kilobytes of body, and a title is enough to know a constraint exists and
+    go read it -- which is all an always-injected index has to achieve.
+    Bodies stay behind `memory inspect`, where they cost nothing until wanted.
+
+    Fails open in every direction. A repository with no store, an unreadable
+    object, or malformed JSON yields no block rather than a broken session:
+    this runs before every task on every host, so its worst failure mode must
+    be silence, never a session that cannot start.
+    """
+    if not working_directory:
+        return None
+    # `os.path` throughout, because this module imports no `pathlib` and one
+    # convenience import is not worth a second path idiom in a hook that has
+    # to stay portable and start fast.
+    directory = os.path.join(str(working_directory), ".memory", "memory", "constraints")
+    if not os.path.isdir(directory):
+        return None
+    titles: list[str] = []
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(directory, name), encoding="utf-8") as handle:
+                title = json.load(handle).get("title")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(title, str) and title.strip():
+            titles.append(title.strip())
+    if not titles:
+        return None
+    listed = "\n".join(f"- {title}" for title in titles)
+    return (
+        f"Standing constraints already stored ({len(titles)}), so they need no "
+        "recall:\n"
+        f"{listed}\n"
+        "Read one with `memory inspect <id>`. For anything task-specific run "
+        '`memory load "<task>"`, and consult MemPalace for history spanning '
+        "sessions and Graphify for blast radius, before broad manual discovery."
+    )
+
+
 def run_session_start(hook_input: dict) -> int:
     """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
     context = [
         "Harness preflight: load and follow "
         "`.agents/skills/act-as-mohab/SKILL.md` before task work."
     ]
+    constraints = _standing_constraints(_hook_working_directory(hook_input))
+    if constraints:
+        context.append(constraints)
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         context.append("Worktree hygiene could not be verified; inspect it before cleanup.")
@@ -1427,10 +2050,235 @@ def run_session_start(hook_input: dict) -> int:
     return 0
 
 
+def _open_pull_request_count(branch: str | None) -> int | None:
+    """Open pull requests for `branch`, or None when the question cannot be answered.
+
+    None and 0 are different facts and must stay different: "the lookup did
+    not run" versus "it ran and found none". Collapsing them is #4542, where
+    the Stop hook read an unperformed lookup as an absent pull request and
+    blocked a delivered branch on every turn.
+
+    One bounded call for one branch, not a survey. `worktree_hygiene.py` owns
+    the same query behind `--check-pull-requests`, but the Stop hook runs it
+    across every worktree under a 10-second budget, and this needs to answer
+    for the current branch only.
+    """
+    if not branch:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+            [
+                "gh",
+                "pr",
+                "list",
+                "--head",
+                branch,
+                "--state",
+                "open",
+                "--json",
+                "number",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        listed = json.loads(completed.stdout or "[]")
+    except ValueError:
+        return None
+    return len(listed) if isinstance(listed, list) else None
+
+
+def check_r16_learning_loop(hook_input: dict) -> str | None:
+    """Interrupt once when a session changed things and routed no learning.
+
+    The entrypoint requires the learned-lessons workflow before reporting
+    done, and it had no mechanism. This session is the evidence: an iteration
+    reported done having skipped the mandatory retrieval entirely, and the
+    owner caught it rather than any check.
+
+    A reminder that blocks once, not a hard gate, and the distinction is
+    load-bearing. "Nothing durable surfaced" is a legitimate outcome the
+    entrypoint explicitly endorses, so a rule that could not be satisfied by
+    saying so would manufacture memory objects rather than learnings. And a
+    delegate in a linked worktree cannot write memory at all -- R11 refuses it
+    by design -- so a hard gate would strand every worktree agent
+    permanently. `run_stop` returns 0 when `stop_hook_active` is set, so the
+    second attempt always proceeds.
+    """
+    events = ledger_events(hook_input)
+    if "commit" not in events:
+        return None  # a read-only session owes no learning
+    if "memory-write" in events:
+        return None
+    return (
+        "Learning loop: this session committed work and routed no learning. Before "
+        "reporting done, run the routing table once -- a fact that cost you time to "
+        "native Memory with its evidence, a decision someone would re-litigate as a "
+        "decision, a cross-entity relation to MemPalace, a structural change flagged "
+        "for Graphify, a procedure that misled you fixed in the guidance file that "
+        "should have carried it, and adjacent work you skipped searched for and then "
+        "filed. Nothing durable is a valid result -- say so and end the turn; this "
+        "interrupts once and will not ask again."
+    )
+
+
+def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
+    """PR number when one is reviewed and still unarmed, else None.
+
+    Returns None for every uncertainty and for every earlier pipeline stage:
+    no pull request, no independent review yet, already armed, or `gh` unable
+    to answer. Only the one actionable state produces a number.
+    """
+    arguments = [
+        "gh",
+        "pr",
+        "view",
+        "--json",
+        "number,autoMergeRequest,reviews,author",
+    ]
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+            arguments,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout or "{}")
+    except ValueError:
+        return None
+    if not isinstance(payload, dict) or payload.get("autoMergeRequest"):
+        return None
+    author = (payload.get("author") or {}).get("login")
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        return None
+    independent = [
+        review
+        for review in reviews
+        if isinstance(review, dict)
+        and (review.get("author") or {}).get("login")
+        and (review.get("author") or {}).get("login") != author
+    ]
+    if not independent:
+        return None  # R15 would refuse arming; demanding it here would deadlock
+    number = payload.get("number")
+    return str(number) if number else None
+
+
+def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
+    """Report a reviewed pull request that nobody armed.
+
+    Opening a pull request does not end the duty -- the entrypoint says arm
+    auto-merge once the review gate passes, then watch until the remote
+    confirms merged. A reviewed pull request left unarmed is the precise
+    silence that rule exists to prevent: nothing is waiting, and nothing will
+    merge.
+
+    Fires only once a review exists, and that condition is load-bearing.
+    Blocking on any unarmed pull request would deadlock against R15, which
+    refuses `gh pr merge --auto` without an independent review: Stop would
+    demand arming while R15 refused it, leaving no legal state and making the
+    deletion of one guard the cheapest exit, which iron law 4 forbids.
+    """
+    number = _unarmed_reviewed_pull_request(hook_input.get("cwd"))
+    if not number:
+        return None
+    return (
+        f"Pull request #{number} has an independent review and auto-merge is not "
+        "armed. Opening a pull request does not end the duty: arm it now with "
+        f"`gh pr merge {number} --auto --squash`, then watch with `py -3 "
+        "scripts/ci/watch_pr_checks.py` until the remote confirms merged. Red and "
+        "conflicting are yours to fix; stale emits no event, so ask for it. This "
+        "interrupts once."
+    )
+
+
+def _current_branch(cwd: object) -> str | None:
+    """Current branch name, or None when detached or unanswerable."""
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    name = (completed.stdout or "").strip()
+    return name if name and name != "HEAD" else None
+
+
+def check_r18_unpushed_work(hook_input: dict) -> str | None:
+    """Report commits that exist on no remote at the end of a turn.
+
+    #4538 and #4530, reduced to the half a mechanism can hold. The owner
+    standard was set after a delegate ran 25 minutes with nothing pushed:
+    everything it had completed existed in one worktree on one machine. A
+    branch is recoverable only by whoever can see that machine; a pushed
+    branch is recoverable by anyone.
+
+    The five-minute interval is the practice, and no hook can observe it
+    without a wall clock the agent does not share. Unpushed-at-turn-end is the
+    failure the interval exists to prevent, and it is observable exactly when
+    it matters -- at the moment the session might end for good.
+
+    Fires only when a branch exists: a detached HEAD has nothing to push, and
+    treating inapplicable as unpushed would demand an impossible remedy, the
+    collapse #4542 was filed for. Aligned with R13 rather than opposed to it --
+    both are satisfied by the same `git push`.
+    """
+    branch = _current_branch(hook_input.get("cwd"))
+    if not branch:
+        return None
+    unpushed = _unrecoverable_commit_count(branch)
+    if unpushed is None or unpushed <= 0:
+        return None
+    return (
+        f"{branch} carries {unpushed} commit(s) that exist on no remote. Work only "
+        "this machine can see is lost if this session ends here, and a pushed branch "
+        f"is recoverable by anyone. Run `git push -u origin {branch}` before ending "
+        "the turn. This interrupts once."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
         return 0
+
+    # Collected, never short-circuited. Returning on the first reason meant
+    # exactly one Stop rule could ever fire per session: `stop_hook_active`
+    # makes the second attempt return 0 immediately, so whichever rule was
+    # listed first starved every rule below it. Each Stop rule added made
+    # that worse. It is also better for the reader -- an agent ending its
+    # turn learns everything it owes at once, instead of discovering the
+    # next duty only after satisfying the previous one.
+    reasons = [
+        item
+        for item in (
+            check_r16_learning_loop(hook_input),
+            check_r17_unarmed_pull_request(hook_input),
+            check_r18_unpushed_work(hook_input),
+        )
+        if item is not None
+    ]
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         reason = "Completion hygiene could not be verified; inspect the current worktree."
@@ -1440,11 +2288,38 @@ def run_stop(hook_input: dict) -> int:
             None,
         )
         state = current.get("state") if current else None
+        # #4542: `pending` is decided by commit count alone, so a branch that
+        # is clean, pushed and covered by an open pull request blocked here on
+        # every turn -- the work was delivered and the hook never asked. Ask
+        # now, for this branch only, and fail open: a machine with no `gh`,
+        # no credentials or no network must not be stranded, which the
+        # requirement of any agent on any machine makes non-negotiable.
+        # Confirmed zero still blocks, because commits nobody else can see are
+        # exactly what this check is for.
+        # Only ask where the question applies. A pending worktree on no branch
+        # -- a detached HEAD holding unique commits -- cannot be covered by a
+        # pull request at all, so it keeps blocking: that work has no delivery
+        # vehicle, which is the case this check most needs to catch. Treating
+        # "inapplicable" as "unknown" would fail it open, the same collapse
+        # #4542 is about, one level up.
+        if state == "pending":
+            branch = current.get("branch") if current else None
+            if branch:
+                covered = _open_pull_request_count(branch)
+                if covered is None or covered > 0:
+                    # Delivered. Not a `return`: reasons collected above this
+                    # point would be discarded, which is the starvation this
+                    # refactor exists to remove. An unmapped state simply
+                    # contributes nothing.
+                    state = "delivered"
         completion_route = (
             "Re-read the act-as-mohab Completion section and apply its routed, "
             "authorization-aware preservation, validation, delivery, and cleanup steps."
         )
-        reasons = {
+        # `state_reasons`, not `reasons`: the collected list above owns that
+        # name, and shadowing it here made every worktree state raise instead
+        # of report.
+        state_reasons = {
             "corrupt": (
                 "Current worktree contains NUL-corrupt files. Preserve healthy work and "
                 "restore only confirmed corrupt paths before continuing."
@@ -1464,13 +2339,15 @@ def run_stop(hook_input: dict) -> int:
             ),
         }
         reason = (
-            reasons.get(state)
+            state_reasons.get(state)
             if state is not None
             else "The current worktree could not be identified; inspect it before stopping."
         )
-        if reason is None:
-            return 0
-    print(json.dumps({"decision": "block", "reason": reason}))
+    if reason is not None:
+        reasons.append(reason)
+    if not reasons:
+        return 0
+    print(json.dumps({"decision": "block", "reason": STOP_REASON_SEPARATOR.join(reasons)}))
     return 0
 
 
@@ -2005,6 +2882,10 @@ def main(argv: list[str]) -> int:
     if not isinstance(raw_hook_input, dict):
         return 0
     hook_input = normalize_hook_input(raw_hook_input)
+    # One window per invocation, opened before any rule runs. Without it each
+    # helper got its own ceiling and a single decision could queue far past
+    # the host's hook timeout, which fails open and skips every rule here.
+    start_hook_budget()
     event = hook_input.get("hook_event_name") or "PreToolUse"
     if event == "SessionStart":
         return run_session_start(hook_input)

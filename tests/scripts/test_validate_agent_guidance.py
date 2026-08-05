@@ -531,3 +531,61 @@ policy:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
+
+class VendorEnumerationIsEnforcedTest(unittest.TestCase):
+    """#4531 gap 3: the vendor list is enumerated, so enforce the enumeration.
+
+    `host_skill_metadata_globs` names codex, claude and grok. `host_contexts`
+    names those three plus copilot. Nothing required the two to agree, so a
+    host could be fully described in one list and absent from the other -- and
+    a fourth vendor dropping in an adapter gets a skill-listing budget only if
+    someone remembers to add one.
+
+    The owner requirement is *any manufacturer*. Generalising over vendors is
+    not achievable here -- each host's guidance lives at paths only that host
+    reads, and there is no pattern that discovers them -- so the honest answer
+    is the other one #4531 offers: enumerate, but enforce the enumeration, so
+    a gap is loud rather than silent. Same shape as gap 1's fix, and the same
+    principle as #4542: an unknown must never be indistinguishable from a no.
+    """
+
+    def test_every_host_context_has_a_skill_metadata_budget(self):
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        contexts = set(budget.get("host_contexts", {}))
+        budgeted = set(budget.get("host_skill_metadata_globs", {}))
+        exempt = set(budget.get("host_skill_metadata_exemptions", {}))
+        missing = sorted(contexts - budgeted - exempt)
+        self.assertEqual(
+            missing,
+            [],
+            "a host with guidance but no skill-listing budget is a vendor the "
+            "size checks silently do not cover; add a glob list or an exemption "
+            "with a stated reason",
+        )
+
+    def test_every_exemption_states_a_reason(self):
+        """An exemption without a reason is the gap wearing a hat (#4489)."""
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        for host, reason in budget.get("host_skill_metadata_exemptions", {}).items():
+            with self.subTest(host=host):
+                self.assertTrue(
+                    isinstance(reason, str) and reason.strip(),
+                    f"{host} is exempt from a skill-listing budget with no reason",
+                )
+
+    def test_no_exemption_names_a_host_that_does_not_exist(self):
+        """A dead exemption is a hatch nobody closed."""
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        contexts = set(budget.get("host_contexts", {}))
+        stale = sorted(set(budget.get("host_skill_metadata_exemptions", {})) - contexts)
+        self.assertEqual(stale, [])

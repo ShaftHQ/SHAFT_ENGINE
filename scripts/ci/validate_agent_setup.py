@@ -16,6 +16,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Below the sys.path insert, with the sibling imports, not above it. Placing
+# this at the top passed the whole unittest suite -- which runs from the
+# repository root, where `scripts` is already importable -- and broke the
+# command outright when an agent ran it as a script from anywhere else. That
+# is the one invocation this function exists to serve.
+from scripts.ci.harness_reachability import harness_report  # noqa: E402
 from scripts.ci.validate_agent_guidance import (  # noqa: E402
     always_loaded_body_chars,
     expand_globs,
@@ -465,6 +471,44 @@ def parity_check_errors(
     return []
 
 
+def validate_harness_reachability(root: Path) -> list[dict[str, str]]:
+    """Report every orphaned harness element, for the local gate as well as CI.
+
+    #4531 gap 2. `AGENTS.md` names this command for guidance work, and it is
+    the one an agent on a machine with no CI actually runs -- yet it exited 0
+    on a fully orphaned harness, because only the unittest module ran the
+    walk. A guarantee enforced solely by a GitHub Actions job is not a
+    guarantee for a machine that never opens a pull request, and the owner
+    requirement is explicitly about any machine.
+
+    Every defect the walk reports is surfaced, not only orphans: a broken link
+    reads as coverage while providing none, a named path that no longer
+    resolves is the #4481 fail-open shape, and a reasonless exemption is an
+    orphan wearing a hat. Reporting one category locally and the rest only in
+    CI would rebuild the same asymmetry one level down.
+
+    Fails closed on a walk that cannot run. An unreadable budget file or a
+    tree `git` will not answer for is a setup defect in its own right, and
+    silently returning no errors is exactly the vacuous green this function
+    exists to remove.
+    """
+    try:
+        report = harness_report(root)
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        return [issue("harness-reachability", "harness", f"walk failed: {error}")]
+    categories = (
+        ("orphans", "unreachable from the entrypoint"),
+        ("broken_links", "broken link in the reachable graph"),
+        ("stale_named_paths", "named path resolves to nothing tracked"),
+        ("exemption_problems", "invalid exemption"),
+    )
+    return [
+        issue("harness-reachability", "harness", f"{label}: {detail}")
+        for key, label in categories
+        for detail in report.get(key, [])
+    ]
+
+
 def run_memory_check(root: Path) -> list[dict[str, str]]:
     """Run `memory check` against the PATH-resolved Memory CLI.
 
@@ -799,6 +843,7 @@ def validate_repository(
         *validate_memory_integrity(root),
         *validate_host_parity(root),
         *validate_skill_hygiene(root),
+        *validate_harness_reachability(root),
     ]
     if run_external:
         errors.extend(run_memory_check(root))

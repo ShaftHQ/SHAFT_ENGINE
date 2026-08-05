@@ -1,0 +1,40 @@
+{
+  "body_path": "memory/decisions/check-every-new-guard-pairwise-against-the-guards-already-shipped-not-only-in-isolation.md",
+  "content_hash": "sha256:fa76c2a7cc3fdab00ffa2e9ec6e54f476a752f3e1248e5d83f8b6202ac39f124",
+  "created_at": "2026-08-05T08:51:33+03:00",
+  "evidence": [
+    {
+      "id": "scripts/agents/guard.py",
+      "kind": "file"
+    },
+    {
+      "id": "gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened-never-require-an-exemption-list-to-be-non-empty",
+      "kind": "memory"
+    }
+  ],
+  "facets": {
+    "category": "agent-guidance"
+  },
+  "id": "decision.check-every-new-guard-pairwise-against-the-guards-already-shipped-not-only-in-isolation",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Route the verification lessons from building the guard.py required-action gates (#4541, PR #4539)"
+  },
+  "status": "active",
+  "tags": [
+    "guard",
+    "harness",
+    "deadlock",
+    "act-as-mohab",
+    "enforcement"
+  ],
+  "title": "Check every new guard pairwise against the guards already shipped, not only in isolation",
+  "type": "decision",
+  "updated_at": "2026-08-05T08:51:33+03:00"
+}

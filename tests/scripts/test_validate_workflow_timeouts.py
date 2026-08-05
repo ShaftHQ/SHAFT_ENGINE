@@ -101,3 +101,44 @@ jobs:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TimeoutGuardIsReRunByItsOwnEditsTest(unittest.TestCase):
+    """#4529: the guard's own files must re-trigger the job that runs them.
+
+    The issue reported that three of the four workflow files the timeout
+    assertion covers matched no path filter, so lowering a timeout would land
+    green. That half is no longer true: `workflows` includes
+    `.github/workflows/**`, and the Workflow Timeout Guard job runs on it, so
+    any workflow edit does re-run the assertion. Verified by reading the
+    filter rather than assumed from the issue.
+
+    What is still open is worse. The guard's *own* implementation and test --
+    `scripts/ci/validate_workflow_timeouts.py` and this module -- are in no
+    filter at all. So a timeout cannot be lowered unnoticed, but the check
+    that prevents it can be gutted and land green. A guard that cannot see
+    edits to itself is the unbound-check shape one level up.
+
+    `tests/scripts/test_intellij_verify_retry.py`, which the same job runs, is
+    in the filter with a comment explaining why it belongs there. Its
+    neighbours being absent is an oversight rather than a decision, which is
+    the argument for pinning it here rather than only fixing it.
+    """
+
+    WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"
+
+    def test_the_guard_reruns_when_its_own_implementation_or_test_changes(self):
+        content = self.WORKFLOW.read_text(encoding="utf-8")
+        missing = [
+            path
+            for path in (
+                "scripts/ci/validate_workflow_timeouts.py",
+                "tests/scripts/test_validate_workflow_timeouts.py",
+            )
+            if f"- '{path}'" not in content
+        ]
+        self.assertEqual(
+            missing,
+            [],
+            "a check whose own edits do not re-run it can be weakened green",
+        )

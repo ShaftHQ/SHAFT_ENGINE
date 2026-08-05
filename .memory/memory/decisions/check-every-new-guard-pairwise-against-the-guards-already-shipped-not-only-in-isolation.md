@@ -1,0 +1,9 @@
+Once guard.py carried more than a handful of required-action rules, the rules began to deadlock against each other while each remained correct alone. Two were caught before building, one would have shipped:
+
+- **R15 versus an unarmed-PR Stop gate.** R15 refuses `gh pr merge --auto` without a review from someone other than the author. The obvious Stop gate blocks the turn while a pull request authored this session is unarmed. On a fresh PR with no review yet, Stop demands arming and R15 refuses it: no legal state. Fix: the unarmed-PR gate fires only when a review already exists, since no review yet is an earlier point in the same pipeline with somewhere legal to go.
+- **R16 versus R10/R11.** A learning-loop Stop gate demanding a memory write would strand every delegate in a linked worktree permanently, because R11 refuses memory writes from a linked worktree by design and this harness runs concurrent worktree agents. Fix: R16 blocks once and yields on stop_hook_active, so "nothing durable is a valid result" stays reachable from anywhere.
+- **Still to check as they land:** fresh-base versus R14 (cutting a branch mid-session with uncommitted work), and the push-cadence rule versus R13 (do not push a branch about to be deleted).
+
+The rule: before adding a gate, walk the state the system is supposed to reach and confirm it is green there *including against the gates already added*, and ask explicitly whether an agent satisfying gate A can ever satisfy gate B. This extends gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened from one guard to the interaction between guards, which is where it becomes invisible: nobody writing gate B is reading gate A.
+
+Why it matters more than an ordinary design nit: the cheapest exit an agent sees from a deadlock is deleting one of the two guards, and iron law 4 forbids that. A deadlocked pair therefore converts directly into pressure to weaken the harness.
