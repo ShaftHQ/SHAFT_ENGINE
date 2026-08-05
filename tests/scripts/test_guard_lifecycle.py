@@ -165,6 +165,7 @@ class GuardLifecycleTest(unittest.TestCase):
             "act-as-mohab", output["hookSpecificOutput"]["additionalContext"]
         )
 
+
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
     @patch(
         "scripts.agents.guard._worktree_report",
@@ -321,6 +322,62 @@ class GuardLifecycleTest(unittest.TestCase):
         first, second = run.call_args_list
         self.assertLessEqual(first.kwargs["timeout"] + second.kwargs["timeout"], 20)
         self.assertNotIn("--check", second.args[0])
+
+
+class PreflightPackTest(unittest.TestCase):
+    """#4570 A4: bounded retrieval augments, but never blocks, SessionStart."""
+
+    def test_mempalace_wake_up_is_injected_and_the_full_pack_is_byte_capped(self):
+        self.assertTrue(hasattr(guard, "_mempalace_wake_up"), "A4 wake-up helper is missing")
+        with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [], "advisories": []}):
+            with patch("scripts.agents.guard._sync_advisory", return_value=None):
+                with patch(
+                    "scripts.agents.guard._mempalace_wake_up",
+                    return_value="MemPalace wake-up\n" + "x" * 9000,
+                ):
+                    stream = io.StringIO()
+                    with redirect_stdout(stream):
+                        self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
+        context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("MemPalace wake-up", context)
+        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+
+    def test_mempalace_wake_up_fails_open_when_the_binary_cannot_run(self):
+        self.assertTrue(hasattr(guard, "_mempalace_wake_up"), "A4 wake-up helper is missing")
+        with patch("scripts.agents.guard.subprocess.run", side_effect=OSError):
+            self.assertIsNone(guard._mempalace_wake_up("."))
+
+    def test_mempalace_wake_up_fails_open_on_an_invalid_working_directory(self):
+        with patch("scripts.agents.guard.subprocess.run", side_effect=ValueError):
+            self.assertIsNone(guard._mempalace_wake_up("."))
+
+    def test_session_start_injects_native_memory_do_not_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            constraints = os.path.join(directory, ".memory", "memory", "constraints")
+            gotchas = os.path.join(directory, ".memory", "memory", "gotchas")
+            os.makedirs(constraints)
+            os.makedirs(gotchas)
+            with open(os.path.join(constraints, "one.json"), "w", encoding="utf-8") as handle:
+                json.dump({"title": "A stored constraint"}, handle)
+            reminder = "Do not discard a squash-merged branch before diffing it."
+            with open(os.path.join(gotchas, "squash-merge.md"), "w", encoding="utf-8") as handle:
+                handle.write(reminder)
+            with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [], "advisories": []}):
+                with patch("scripts.agents.guard._sync_advisory", return_value=None):
+                    with patch("scripts.agents.guard._mempalace_wake_up", return_value=None):
+                        stream = io.StringIO()
+                        with redirect_stdout(stream):
+                            self.assertEqual(guard.run_session_start({"cwd": directory}), 0)
+        context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(reminder, context)
+
+    def test_native_memory_reminders_fail_open_when_the_store_cannot_be_read(self):
+        with patch("scripts.agents.guard.os.listdir", side_effect=OSError):
+            self.assertIsNone(guard._memory_do_not_lines("."))
+
+    def test_native_memory_constraints_fail_open_when_the_store_cannot_be_read(self):
+        with patch("scripts.agents.guard.os.listdir", side_effect=OSError):
+            self.assertIsNone(guard._standing_constraints("."))
 
 
 if __name__ == "__main__":

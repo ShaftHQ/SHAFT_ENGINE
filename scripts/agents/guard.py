@@ -1354,6 +1354,7 @@ SUBPROCESS_TIMEOUT = 4
 # only unbounded loop is R13's, which queries once per branch name given.
 HOOK_BUDGET_SECONDS = 8.0
 _hook_deadline: float | None = None
+PREFLIGHT_MAX_BYTES = 8192
 
 
 def start_hook_budget(seconds: float = HOOK_BUDGET_SECONDS) -> None:
@@ -2460,6 +2461,67 @@ def ledger_events(hook_input: dict) -> list[str]:
     return events
 
 
+def _mempalace_wake_up(working_directory: object) -> str | None:
+    """Return bounded MemPalace context, or None when the optional tool cannot answer."""
+    if not working_directory:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed read-only local command.
+            ["mempalace", "wake-up"],
+            cwd=str(working_directory),
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return None
+    return completed.stdout.strip()
+
+
+def _bounded_preflight(context: list[str]) -> str:
+    """Keep injected retrieval below the cross-host byte ceiling."""
+    joined = "\n".join(context)
+    encoded = joined.encode("utf-8")
+    if len(encoded) <= PREFLIGHT_MAX_BYTES:
+        return joined
+    return encoded[:PREFLIGHT_MAX_BYTES].decode("utf-8", errors="ignore")
+
+
+def _memory_do_not_lines(working_directory: object) -> str | None:
+    """Return a few directly actionable native-Memory warnings, if present."""
+    if not working_directory:
+        return None
+    directory = os.path.join(str(working_directory), ".memory", "memory", "gotchas")
+    if not os.path.isdir(directory):
+        return None
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return None
+    reminders: list[str] = []
+    for name in names:
+        if not name.endswith(".md"):
+            continue
+        try:
+            with open(os.path.join(directory, name), encoding="utf-8") as handle:
+                lines = handle.read(2048).splitlines()
+        except (OSError, UnicodeError):
+            continue
+        for line in lines:
+            compact = " ".join(line.split())
+            if re.search(r"\bdo not\b", compact, re.IGNORECASE):
+                reminders.append(compact[:512])
+                break
+        if len(reminders) == 3:
+            break
+    if not reminders:
+        return None
+    return "Native Memory do-not reminders:\n" + "\n".join(f"- {line}" for line in reminders)
+
+
 def _standing_constraints(working_directory: object) -> str | None:
     """Return the titles of every stored constraint, as one injectable block.
 
@@ -2489,8 +2551,12 @@ def _standing_constraints(working_directory: object) -> str | None:
     directory = os.path.join(str(working_directory), ".memory", "memory", "constraints")
     if not os.path.isdir(directory):
         return None
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return None
     titles: list[str] = []
-    for name in sorted(os.listdir(directory)):
+    for name in names:
         if not name.endswith(".json"):
             continue
         try:
@@ -2522,6 +2588,12 @@ def run_session_start(hook_input: dict) -> int:
     constraints = _standing_constraints(_hook_working_directory(hook_input))
     if constraints:
         context.append(constraints)
+    reminders = _memory_do_not_lines(_hook_working_directory(hook_input))
+    if reminders:
+        context.append(reminders)
+    wake_up = _mempalace_wake_up(_hook_working_directory(hook_input))
+    if wake_up:
+        context.append(wake_up)
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         context.append("Worktree hygiene could not be verified; inspect it before cleanup.")
@@ -2535,7 +2607,7 @@ def run_session_start(hook_input: dict) -> int:
             {
                 "hookSpecificOutput": {
                     "hookEventName": "SessionStart",
-                    "additionalContext": "\n".join(context),
+                    "additionalContext": _bounded_preflight(context),
                 }
             }
         )
