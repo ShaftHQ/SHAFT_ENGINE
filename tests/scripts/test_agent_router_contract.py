@@ -52,6 +52,7 @@ RED_FLAGS = "red flags"
 TDD = "test-driven development"
 GAP_SHAPES = "the four gap shapes"
 BINDING = "proving a check binds"
+REVIEW = "independent adversarial review"
 
 # Every clause this repository's guidance is not allowed to lose, as
 # (file, section, literal).
@@ -76,6 +77,15 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, RED_FLAGS, "the check covers it"),
     (LENS, GAP_SHAPES, "unbound-check gap"),
     (LENS, BINDING, "apply it, run it, read the failure, revert"),
+    # #4548. Independence was stated and the *subject* was not: a read-only
+    # reviewer owns no worktree, so unsaid it reads whatever branch the shared
+    # tree happens to hold. Both halves are pinned, because a reviewer that is
+    # independent of the author and pointed at the wrong revision produces the
+    # most confident wrong answer available -- a clean no-match that looks
+    # exactly like a real absence.
+    (DELEGATION, REVIEW, "separate agent instance, never the author"),
+    (DELEGATION, REVIEW, "the exact revision under review"),
+    (DELEGATION, REVIEW, "first action confirms the revision is what it thinks it is"),
 )
 
 # How many rules each pinned section is supposed to have (#4534).

@@ -49,6 +49,16 @@ property that makes it work is independence, so it is not optional:
 - The reviewer is a **separate agent instance, never the author** of the work.
 - The reviewer is prompted to **refute** the work — find where it is wrong,
   unverified, or over-claimed — not to approve it.
+- The reviewer is handed **the exact revision under review** and a way to read
+  it that does not touch the shared working tree: `gh pr diff <n>`,
+  `git show <ref>:<path>`, or its own `git worktree add`. A read-only reviewer
+  owns no worktree, so left unsaid it inherits whatever branch the shared tree
+  happens to hold, which is routinely not the one under review.
+- The reviewer's **first action confirms the revision is what it thinks it is**,
+  before any finding is written. If it cannot confirm, it says so and stops. A
+  search that misses because the tree is wrong returns a clean no-match, which
+  is indistinguishable from a real absence and is the most confident wrong
+  answer a review can produce.
 - Depth scales with the step, matching the consult triage: one reviewer for
   bounded reversible work; three reviewers with distinct lenses (correctness,
   does-it-reproduce, blast radius) for hard-to-reverse or cross-cutting change.
