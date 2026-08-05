@@ -22,7 +22,9 @@ below.
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
 6. Every behavior-changing step gets an independent adversarial review before
-   the next step starts.
+   the next step starts, and every pull request gets at least one before it is
+   armed. The second clause is the floor the first cannot supply: a pull
+   request can be counted, and a step cannot.
 
 ## Triage
 

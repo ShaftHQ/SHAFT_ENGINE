@@ -69,6 +69,13 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (ENTRYPOINT, IRON_LAWS, "no production code before an observed failing test"),
     (ENTRYPOINT, IRON_LAWS, "never weaken, delete, or rewrite a test to reach green"),
     (ENTRYPOINT, IRON_LAWS, "never claim a check you did not run"),
+    # #4545 defect 1. Law 6 required a review per "behavior-changing step" and
+    # nothing defines a step, so the rule had no countable trigger and nobody
+    # could say how many a change owed. Measured: #4539 carried 24 commits and
+    # eleven new enforcement rules and received zero reviews until the owner
+    # asked for one. The per-pull-request floor is weaker in principle and
+    # strictly stronger in practice, because a pull request can be counted.
+    (ENTRYPOINT, IRON_LAWS, "every pull request gets at least one before it is armed"),
     (ENTRYPOINT, TDD, "only an expected assertion failure"),
     (ENTRYPOINT, TDD, "a pass or setup, syntax, or environment error is not red"),
     (ENTRYPOINT, TDD, "revert that new code and restart"),
