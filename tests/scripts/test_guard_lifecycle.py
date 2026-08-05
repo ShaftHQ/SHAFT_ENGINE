@@ -975,6 +975,37 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                 guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
             )
 
+    def test_arming_after_a_commit_requires_a_learning_route(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                reason = guard.check_r15_review_before_arming(
+                    "gh pr merge 4539 --auto --squash", "Bash", {"session_id": "s"}
+                )
+        self.assertIsNotNone(reason)
+        self.assertIn("learning", reason.lower())
+
+    def test_auto_equals_true_cannot_bypass_the_learning_route(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                for auto in ("true", "1", "t", "T"):
+                    with self.subTest(auto=auto):
+                        self.assertIsNotNone(
+                            guard.check_r15_review_before_arming(
+                                f"gh pr merge 4539 --auto={auto} --squash",
+                                "Bash",
+                                {"session_id": "s"},
+                            )
+                        )
+
+    def test_a_learning_write_keeps_reviewed_arming_available(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            with patch("scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]):
+                self.assertIsNone(
+                    guard.check_r15_review_before_arming(
+                        "gh pr merge 4539 --auto --squash", "Bash", {"session_id": "s"}
+                    )
+                )
+
     def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
         """No gh, no auth, no network: unknown is not zero (#4542)."""
         with patch("scripts.agents.guard._independent_review_count", return_value=None):
@@ -1130,6 +1161,36 @@ class LearningWriteObservationTest(unittest.TestCase):
             "memory-write",
             self.events_after("mcp__mempalace__mempalace_sync", tool_input={"apply": True}),
         )
+
+
+class LearningNoneEscapeTest(unittest.TestCase):
+    """R16 / #4570: the legitimate no-learning outcome reaches the closing gate."""
+
+    def events_after(self, command: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = {
+                    "session_id": command,
+                    "cwd": directory,
+                    "tool_name": "Bash",
+                    "tool_input": {"command": command},
+                }
+                self.assertEqual(guard.run_pretooluse(payload), 0)
+                return guard.ledger_events(payload)
+
+    def test_substantive_learning_none_reason_is_recorded(self):
+        events = self.events_after(
+            'py -3 scripts/agents/guard.py --learning-none "No durable learning surfaced"'
+        )
+        self.assertIn("learning-none:No durable learning surfaced", events)
+
+    def test_empty_or_placeholder_reason_does_not_count(self):
+        for reason in ('""', '"n/a"'):
+            with self.subTest(reason=reason):
+                events = self.events_after(
+                    f"py -3 scripts/agents/guard.py --learning-none {reason}"
+                )
+                self.assertFalse(any(event.startswith("learning-none:") for event in events))
 
 
 class UnarmedPullRequestStopGateTest(unittest.TestCase):

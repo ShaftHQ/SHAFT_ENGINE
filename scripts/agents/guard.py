@@ -1309,6 +1309,29 @@ def _is_learning_write_command(command: str) -> bool:
     return False
 
 
+def _learning_none_event(command: str) -> str | None:
+    """Return a substantive `--learning-none` ledger event, if this is one."""
+    for segment in _command_segments(_sanitize_for_command_head(command)):
+        arguments = _tokens_after_head(segment, frozenset({"py", "python", "python3"}))
+        if not arguments:
+            continue
+        for index, argument in enumerate(arguments):
+            if not argument.replace("\\", "/").endswith("scripts/agents/guard.py"):
+                continue
+            remaining = arguments[index + 1 :]
+            if remaining[:1] != ["--learning-none"] or len(remaining) != 2:
+                continue
+            reason = remaining[1].strip()
+            if len(re.findall(r"[A-Za-z0-9]+", reason)) >= 3:
+                return f"learning-none:{reason}"
+    return None
+
+
+def _learning_route_recorded(hook_input: dict | None) -> bool:
+    events = ledger_events(hook_input or {})
+    return "memory-write" in events or any(event.startswith("learning-none:") for event in events)
+
+
 def _is_mempalace_write(tool_name: str, tool_input: object) -> bool:
     """True for a mutating MemPalace MCP call, never its default dry run."""
     if tool_name not in _MEMPALACE_WRITE_TOOLS:
@@ -1785,6 +1808,17 @@ def check_r15_review_before_arming(
         if not rest or rest[:2] != ["pr", "merge"]:
             continue
         arguments = rest[2:]
+        auto_merge = any(
+            argument == "--auto"
+            or (argument.lower().startswith("--auto=") and argument.lower()[7:] not in {"false", "0", "f"})
+            for argument in arguments
+        )
+        if auto_merge and "commit" in ledger_events(hook_input or {}) and not _learning_route_recorded(hook_input):
+            return (
+                "R15 blocked: this session committed work but recorded no learning route. "
+                "Write one learning to native Memory or MemPalace, or run `py -3 "
+                "scripts/agents/guard.py --learning-none \"<substantive reason>\"`."
+            )
         positional = [token for token in arguments if not token.startswith("-")]
         target = positional[0] if positional else None
         reviews = _independent_review_count(target)
@@ -2241,6 +2275,9 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             return 0
         if _is_learning_write_command(command):
             ledger_record(hook_input, "memory-write")
+        learning_none = _learning_none_event(command)
+        if learning_none:
+            ledger_record(hook_input, learning_none)
         # Observed, not judged. R12 reads this ledger; recording here is the
         # only place a test run is visible, since a later hook invocation is a
         # fresh process with no memory of it.
@@ -2727,7 +2764,7 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     events = ledger_events(hook_input)
     if "commit" not in events:
         return None  # a read-only session owes no learning
-    if "memory-write" in events:
+    if "memory-write" in events or any(event.startswith("learning-none:") for event in events):
         return None
     return (
         "Learning loop: this session committed work and routed no learning. Before "
