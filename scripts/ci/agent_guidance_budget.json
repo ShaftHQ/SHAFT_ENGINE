@@ -153,8 +153,6 @@
     "deployable_root": ".agents/skills",
     "boundary": "The union of every boundary anyone has drawn for this, because narrowing one silently is the failure this whole check exists to stop. #4485 measured 71 files: guidance, adapters, roles, hooks and the checks that police them. A second pass added the enforcement tests, scripts/ci/local_gate.py and .claude-plugin/marketplace.json. An adversarial review then refuted two exclusions and both are now in. .github/skills/** is agent guidance: its SKILL.md files are redirects structurally identical to the .claude/skills ones that were already counted, expected_skill_names checks their presence rather than their reachability, and pr-gate.yml already lists .github/skills/** under its agent_guidance path filter -- the repository had classified them before this check did. .github/workflows/pr-gate.yml is in as an exact path rather than the earlier agent|skill|guard regex over the workflow directory: that regex matched no file, and the one workflow it needed to match is the one that decides whether this check runs at all. A boundary drawn so that the thing running the gate falls outside the gate is convenient rather than honest.",
     "element_globs": [
-      "AGENTS.md",
-      "CLAUDE.md",
       ".agents/**",
       ".claude-plugin/*.json",
       ".claude/agents/*.md",
@@ -166,10 +164,14 @@
       ".codex/hooks.json",
       ".github/copilot-instructions.md",
       ".github/instructions/*.instructions.md",
-      ".github/skills/README.md",
       ".github/skills/*/SKILL.md",
+      ".github/skills/README.md",
       ".github/workflows/pr-gate.yml",
       ".mcp.json",
+      ".memory/config.json",
+      ".memory/schema/*",
+      "AGENTS.md",
+      "CLAUDE.md",
       "mempalace.yaml",
       "scripts/agents/*.py",
       "scripts/ci/agent_guidance_budget.json",
@@ -189,7 +191,8 @@
       "tests/scripts/test_worktree_hygiene.py"
     ],
     "exemptions_note": "Empty, and that is the result rather than a placeholder. #4488 asked for a deliberate decision on the enforcement layer and the inbound adapters, the two categories with a real case for exemption; both were made reachable instead, so no category needs one. The mechanism stays because the next element may not be reachable, and it is exercised by a fixture in tests/scripts/test_agent_harness_reachability.py rather than by live data -- an exemption list is the one place a number can be made to look good without doing the work.",
-    "exemptions": []
+    "exemptions": [],
+    "memory_store_note": "The store splits into a contract and its data, and only the contract is an element. .memory/config.json and .memory/schema/* define what the store is and validate every write, so they are named in routing.md and reachable like any other instrument. The 736 objects under .memory/memory/** and .memory/relations/** are data the memory CLI owns: they are reached by `memory load`, `memory search` and `memory inspect`, and the standing constraints among them are injected by guard.py's SessionStart hook before the first tool call (#4540) -- reached by a performed mechanism rather than by a link. They are deliberately not elements. Requiring 736 markdown links would be noise, and an exemption entry would be worse: an empty exemption list is the healthy end state, not a symptom (gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened). Note that .memory/** was already inside pr-gate.yml's agent_guidance path filter -- the repository classified the store as agent guidance before this boundary did, the same argument that brought .github/skills/** in."
   },
   "reference_scan_globs": [
     "AGENTS.md",
