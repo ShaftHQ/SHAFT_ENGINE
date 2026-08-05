@@ -47,6 +47,10 @@ Every behavior-changing step ends with a review before the next step starts. The
 property that makes it work is independence, so it is not optional:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
+- Obtain it by dispatching a **`reviewer` subagent**. That is the mechanism the
+  harness counts: the guard records the dispatch when it observes it, and R15
+  accepts that record in place of a review from another account. A review the
+  harness never saw satisfies nobody, however thorough it was.
 - The reviewer is prompted to **refute** the work — find where it is wrong,
   unverified, or over-claimed — not to approve it.
 - The reviewer is handed **the exact revision under review** and a way to read

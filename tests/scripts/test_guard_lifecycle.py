@@ -1528,6 +1528,109 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
         self.assertIn("isDraft", inspect.getsource(guard._unarmed_reviewed_pull_request))
 
 
+class ObservedReviewDispatchTest(unittest.TestCase):
+    """R15 / #4545 option C: a dispatch the hook watched counts as a review.
+
+    R15 was unsatisfiable by the agent it governs. Its own message says to get
+    a separate instance to review the diff, and doing exactly that leaves
+    `gh pr view --json reviews` empty, so the only satisfying action belonged
+    to a different account. #4539 is the receipt: a subagent review found two
+    confirmed blockers, R15 refused anyway, and the owner armed by hand. A gate
+    routinely bypassed has been deleted in everything but name.
+
+    **Observed, never asserted**, which is the entire basis for allowing it. No
+    command, flag or instruction writes a review event -- only the hook seeing
+    the dispatch. That reduces "an agent that reviewed nothing" to "an agent
+    that dispatched a reviewer and ignored its findings", which is strictly
+    smaller and the same threat model R12 already rests on.
+
+    The accepted cost is real and recorded rather than hidden: R15 is no longer
+    unforgeable.
+    """
+
+    def payload(self, subagent: str, tool: str = "Task") -> dict:
+        return {
+            "tool_name": tool,
+            "tool_input": {"subagent_type": subagent},
+            "session_id": "s",
+            "cwd": ".",
+        }
+
+    def test_a_reviewer_dispatch_produces_a_review_event(self):
+        with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            self.assertEqual(
+                guard._reviewer_dispatch_event(self.payload("reviewer"), "Task"),
+                "review:feature",
+            )
+
+    def test_any_other_subagent_produces_nothing(self):
+        for subagent in ("coder", "tester", "general-purpose", ""):
+            with self.subTest(subagent=subagent):
+                self.assertIsNone(
+                    guard._reviewer_dispatch_event(self.payload(subagent), "Task")
+                )
+
+    def test_a_non_dispatch_tool_produces_nothing(self):
+        self.assertIsNone(guard._reviewer_dispatch_event(self.payload("reviewer", "Bash"), "Bash"))
+
+    def test_an_unanswerable_branch_still_records(self):
+        """Fail open, matching what R15 already does when `gh` cannot answer."""
+        with patch("scripts.agents.guard._current_branch", return_value=None):
+            self.assertEqual(
+                guard._reviewer_dispatch_event(self.payload("reviewer"), "Agent"), "review"
+            )
+
+    def test_the_recorder_is_wired_into_the_hook(self):
+        """A recorder the hook never calls is the defect this batch keeps finding."""
+        self.assertIn(
+            "_reviewer_dispatch_event(hook_input, tool_name)",
+            inspect.getsource(guard.run_pretooluse),
+        )
+
+    def test_both_hosts_intercept_a_dispatch(self):
+        """Neither matcher listed Task or Agent, so the rule would be dead on arrival."""
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for name in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(host=name):
+                text = open(os.path.join(root, name), encoding="utf-8").read()
+                self.assertIn("Task|Agent", text)
+
+    def test_r15_accepts_an_observed_dispatch(self):
+        arming = "gh pr merge 1 --auto --squash"
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            with patch("scripts.agents.guard._current_branch", return_value="feature"):
+                with patch(
+                    "scripts.agents.guard.ledger_events", return_value=["review:feature"]
+                ):
+                    self.assertIsNone(
+                        guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
+                    )
+                with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                    self.assertIsNotNone(
+                        guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
+                    )
+
+    def test_a_review_of_another_branch_does_not_count(self):
+        arming = "gh pr merge 1 --auto --squash"
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            with patch("scripts.agents.guard._current_branch", return_value="feature"):
+                with patch(
+                    "scripts.agents.guard.ledger_events", return_value=["review:other-branch"]
+                ):
+                    self.assertIsNotNone(
+                        guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
+                    )
+
+    def test_r17_uses_the_same_union(self):
+        """Divergence here is the deadlock: Stop demanding what R15 refuses."""
+        self.assertIn(
+            "_ledger_records_a_review", inspect.getsource(guard._unarmed_reviewed_pull_request)
+        )
+        self.assertIn(
+            "_ledger_records_a_review", inspect.getsource(guard.check_r15_review_before_arming)
+        )
+
+
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):
     """`ISOLATED_STOP_RULES` must name every rule `run_stop` calls.
 

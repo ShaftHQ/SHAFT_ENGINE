@@ -1701,7 +1701,9 @@ def _independent_review_count(target: str | None) -> int | None:
     return len(_independent_reviews(reviews, author))
 
 
-def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
+def check_r15_review_before_arming(
+    command: str, tool_name: str, hook_input: dict | None = None
+) -> str | None:
     """Refuse arming auto-merge before an independent review exists.
 
     Iron law 6 requires an independent adversarial review before the next step
@@ -1727,15 +1729,26 @@ def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
         reviews = _independent_review_count(target)
         if reviews is None or reviews > 0:
             continue
+        # #4545 option C: a dispatch this hook watched counts as well. R15 was
+        # otherwise unsatisfiable by the agent it governs -- its own message
+        # says to get a separate instance to review, and doing exactly that
+        # leaves `reviews` empty, so the only satisfying action belonged to a
+        # different account.
+        if _ledger_records_a_review(
+            hook_input, _current_branch(_hook_working_directory(hook_input or {}))
+        ):
+            continue
         label = f"#{target}" if target else "this pull request"
         return (
-            f"R15 blocked: {label} has no review from anyone other than its author, "
-            "and iron law 6 requires an independent adversarial review before the "
-            "next step starts. Arming auto-merge is the irreversible one: after it, "
-            "the next green run merges without asking. Get a separate instance to "
-            "review the actual diff -- and address bot annotations as well as human "
-            "comments -- then arm. If a review exists and this still fires, `gh` "
-            "could not read it; that case is allowed through."
+            f"R15 blocked: nothing independent has read {label}. Arming auto-merge "
+            "is the irreversible step -- after it, the next green run merges without "
+            "asking. Two things satisfy this, and both are available to you: dispatch "
+            "a `reviewer` subagent against this branch, which this hook records when "
+            "it sees the dispatch, or obtain a review on the pull request from an "
+            "account other than the author. A bot comment is not a review: only an "
+            "approval or a request for changes counts. Address bot annotations too, "
+            "but they do not satisfy this. If a review exists and this still fires, "
+            "`gh` could not read it; that case is allowed through."
         )
     return None
 
@@ -1749,6 +1762,53 @@ def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
 # A human or agent who genuinely reviews and finds nothing approves; one who
 # finds something requests changes. Neither is a comment.
 REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
+
+DISPATCH_TOOLS = frozenset({"Task", "Agent"})
+REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
+
+
+def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
+    """The ledger event a reviewer dispatch records, or None if this is not one.
+
+    Observed, never asserted, which is the whole basis for letting this satisfy
+    R15. The hook sees the dispatch happen; no command, flag or instruction can
+    produce a review event, so an agent cannot write one by claiming a review
+    occurred. That reduces "an agent that reviewed nothing" to "an agent that
+    dispatched a reviewer and ignored its findings" -- a strictly smaller hole,
+    and the same threat model R12 already rests on.
+
+    Keyed to the branch so a review of one branch cannot silently clear
+    another. When git cannot answer, a bare `review` is recorded instead: that
+    is the same fail-open direction R15 already takes when `gh` cannot answer,
+    and refusing to record would punish the agent for the environment.
+    """
+    if tool_name not in DISPATCH_TOOLS:
+        return None
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+    if not isinstance(subagent, str):
+        return None
+    if subagent.strip().lower() not in REVIEWER_SUBAGENT_TYPES:
+        return None
+    branch = _current_branch(_hook_working_directory(hook_input))
+    return f"review:{branch}" if branch else "review"
+
+
+def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
+    """True when this session watched a reviewer being dispatched for `branch`.
+
+    A bare `review` counts too, because it is only ever written when git could
+    not name the branch at dispatch time.
+    """
+    if not isinstance(hook_input, dict):
+        return False
+    events = set(ledger_events(hook_input))
+    if "review" in events:
+        return True
+    return bool(branch) and f"review:{branch}" in events
+
 
 def _independent_reviews(reviews: object, author: object) -> list:
     """Reviews by somebody other than the author that render a verdict.
@@ -1812,6 +1872,13 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
+    # Observed, not judged, and first: a reviewer dispatch is not a call this
+    # hook has any reason to refuse, so recording it must not sit behind a
+    # branch that returns early for some other rule.
+    review_event = _reviewer_dispatch_event(hook_input, tool_name)
+    if review_event:
+        ledger_record(hook_input, review_event)
+
     reason = check_r11_memory_write_worktree(
         tool_name,
         _hook_working_directory(hook_input),
@@ -1849,7 +1916,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is None:
             reason = check_r13_push_before_delete(command, tool_name)
         if reason is None:
-            reason = check_r15_review_before_arming(command, tool_name)
+            reason = check_r15_review_before_arming(command, tool_name, hook_input)
         if reason is None:
             reason = check_r14_hard_reset(
                 command, tool_name, _hook_working_directory(hook_input)
@@ -2215,7 +2282,7 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     )
 
 
-def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
+def _unarmed_reviewed_pull_request(cwd: object, hook_input: dict | None = None) -> str | None:
     """PR number when one is reviewed and still unarmed, else None.
 
     Returns None for every uncertainty and for every earlier pipeline stage:
@@ -2227,7 +2294,7 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
         "pr",
         "view",
         "--json",
-        "number,autoMergeRequest,reviews,author,isDraft",
+        "number,autoMergeRequest,reviews,author,isDraft,headRefName",
     ]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
@@ -2257,8 +2324,14 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    independent = _independent_reviews(reviews, author)
-    if not independent:
+    # The identical union R15 uses. If R17 counted a review R15 did not, Stop
+    # would demand arming while R15 refused it -- no legal state, which is the
+    # deadlock this line has always guarded. The reverse gap is just as bad: a
+    # dispatch-reviewed pull request would become armable with nothing ever
+    # reminding anyone to arm it.
+    if not _independent_reviews(reviews, author) and not _ledger_records_a_review(
+        hook_input, payload.get("headRefName")
+    ):
         return None  # R15 would refuse arming; demanding it here would deadlock
     number = payload.get("number")
     return str(number) if number else None
@@ -2279,7 +2352,7 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
     demand arming while R15 refused it, leaving no legal state and making the
     deletion of one guard the cheapest exit, which iron law 4 forbids.
     """
-    number = _unarmed_reviewed_pull_request(_hook_working_directory(hook_input))
+    number = _unarmed_reviewed_pull_request(_hook_working_directory(hook_input), hook_input)
     if not number:
         return None
     return (
@@ -2832,6 +2905,40 @@ def run_required_action_self_test() -> int:
         )
         is None,
     )
+    # The accepting branch too, not only the refusing one (#4551): a rule whose
+    # permissive path is never exercised is half untested, and this is the path
+    # #4545 option C added.
+    check(
+        "R15 allows arming after an observed reviewer dispatch",
+        _with_stubs(
+            {
+                "_independent_review_count": lambda target: 0,
+                "_ledger_records_a_review": lambda payload, branch: True,
+            },
+            lambda: check_r15_review_before_arming(
+                "gh pr merge 1 --auto --squash", "Bash", {"session_id": "s"}
+            ),
+        )
+        is None,
+    )
+    check(
+        "a reviewer dispatch is recorded as a review",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "feature"},
+            lambda: _reviewer_dispatch_event(
+                {"tool_input": {"subagent_type": "reviewer"}}, "Task"
+            ),
+        )
+        == "review:feature",
+    )
+    check(
+        "a non-reviewer dispatch records nothing",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "feature"},
+            lambda: _reviewer_dispatch_event({"tool_input": {"subagent_type": "coder"}}, "Task"),
+        )
+        is None,
+    )
 
     # R16: a session that committed owes the learning loop.
     check(
@@ -2855,7 +2962,7 @@ def run_required_action_self_test() -> int:
     check(
         "R17 reports a reviewed pull request left unarmed",
         _with_stubs(
-            {"_unarmed_reviewed_pull_request": lambda cwd: "1"},
+            {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: "1"},
             lambda: check_r17_unarmed_pull_request({"cwd": "."}),
         )
         is not None,
@@ -2863,7 +2970,7 @@ def run_required_action_self_test() -> int:
     check(
         "R17 is silent when nothing is waiting to be armed",
         _with_stubs(
-            {"_unarmed_reviewed_pull_request": lambda cwd: None},
+            {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: None},
             lambda: check_r17_unarmed_pull_request({"cwd": "."}),
         )
         is None,
