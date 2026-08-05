@@ -89,6 +89,7 @@ jobs:
               - 'scripts/agents/**'
               - 'scripts/ci/validate_agent_setup.py'
               - 'scripts/ci/validate_agent_guidance.py'
+              - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
               # Reachability elements: the harness check fails when either
@@ -103,6 +104,8 @@ jobs:
               - 'tests/scripts/test_guard_nul_corruption.py'
               - 'tests/scripts/test_guard_memory_worktree.py'
               - 'tests/scripts/test_guard_lifecycle.py'
+              - 'tests/scripts/test_guard*.py'
+              - 'tests/scripts/test_validate_red_before_green.py'
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_setup.py'
               - 'tests/scripts/test_worktree_hygiene.py'
@@ -259,6 +262,7 @@ jobs:
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle
+          tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_setup
           tests.scripts.test_validate_skills
@@ -269,6 +273,18 @@ jobs:
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v
+      - name: Validate observed RED for new guard tests
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          while IFS= read -r revision; do
+            while IFS= read -r test_path; do
+              python scripts/ci/validate_red_before_green.py "$revision" scripts/agents/guard.py "$test_path"
+            done < <(git diff --diff-filter=AMR --name-only "$revision^" "$revision" -- ':(glob)tests/scripts/test_guard*.py')
+          done < <(git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py ':(glob)tests/scripts/test_guard*.py')
       - name: Report orphaned guard docstring claims
         if: github.event_name == 'pull_request'
         shell: bash
