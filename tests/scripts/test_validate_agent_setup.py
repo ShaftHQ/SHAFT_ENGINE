@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from scripts.ci import validate_agent_setup
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
@@ -959,3 +960,58 @@ class MemoryIntegrityTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HarnessReachabilityGateTest(unittest.TestCase):
+    """#4531 gap 2: the local command must fail on an orphaned harness.
+
+    The walk existed and CI ran it; `validate_agent_setup.py` did not, so the
+    check `AGENTS.md` tells agents to run exited 0 while the harness was
+    unreachable. That is the verification-gap shape -- a check whose pass is
+    independent of the thing it verifies -- and it matters more here than
+    usual because the requirement is any agent on any machine.
+
+    Asserted against a synthetic tree rather than the live repository, which
+    is green and would prove nothing either way.
+    """
+
+    def build(self, root: Path, *, linked: bool) -> None:
+        skills = root / ".agents/skills/act-as-mohab/references"
+        skills.mkdir(parents=True)
+        link = "[roles](references/roles.md)\n" if linked else ""
+        (root / ".agents/skills/act-as-mohab/SKILL.md").write_text(
+            f"# Entry\n\n{link}", encoding="utf-8"
+        )
+        (skills / "roles.md").write_text("# Roles\n", encoding="utf-8")
+        (root / "scripts/ci").mkdir(parents=True)
+        (root / "scripts/ci/agent_guidance_budget.json").write_text(
+            json.dumps(
+                {
+                    "harness_reachability": {
+                        "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
+                        "deployable_root": ".agents/skills",
+                        "element_globs": [".agents/skills/**"],
+                        "exemptions": [],
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+            subprocess.run(  # nosec B603 B607 - fixed local git commands.
+                command, cwd=root, capture_output=True, text=True, check=True
+            )
+
+    def test_the_local_gate_reports_an_orphaned_element(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build(root, linked=False)
+            reported = validate_agent_setup.validate_harness_reachability(root)
+        self.assertEqual(len(reported), 1, reported)
+        self.assertIn("roles.md", reported[0]["message"])
+
+    def test_the_local_gate_stays_quiet_on_a_reachable_harness(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build(root, linked=True)
+            self.assertEqual(validate_agent_setup.validate_harness_reachability(root), [])
