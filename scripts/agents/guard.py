@@ -1545,6 +1545,12 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             reason = check_r9_worktree_add(command, tool_name)
         if reason is None:
             reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
+        if reason is None:
+            reason = check_r13_push_before_delete(command, tool_name)
+        if reason is None:
+            reason = check_r14_hard_reset(
+                command, tool_name, _hook_working_directory(hook_input)
+            )
         if reason is not None:
             _print_deny(reason, host)
             return 0
