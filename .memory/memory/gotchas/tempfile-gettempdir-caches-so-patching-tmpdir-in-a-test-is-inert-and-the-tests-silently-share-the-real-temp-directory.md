@@ -1,0 +1,7 @@
+`tempfile.gettempdir()` computes its answer once and caches it for the life of the process. Any test that does `patch.dict(os.environ, {'TMPDIR': tmp, 'TEMP': tmp})` and then exercises code calling `gettempdir()` is NOT isolated -- the code writes to the machine's real temp directory, and every run of that test shares state with every previous run of itself.
+
+This hid in `scripts/agents/guard.py`'s session ledger for as long as the ledger was written with a whole-file `open(path, 'w')`, because each run overwrote whatever the last run had left behind. The moment `ledger_record` became an append (#4552), the accumulated events from prior runs appeared and a test asserting an empty starting ledger failed. The format change did not break isolation; it revealed that isolation had never existed.
+
+Fix: resolve the base directory from the environment on each call -- `os.environ.get('TMPDIR') or os.environ.get('TEMP') or os.environ.get('TMP') or tempfile.gettempdir()` -- and assert in a test that the produced path actually lies inside the patched directory. Without that assertion the patch looks effective and is not.
+
+General shape: a test that passes only because a later write clobbers an earlier one is not testing what it claims. Suspect it whenever changing a write from truncate to append turns a green test red.

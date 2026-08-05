@@ -1,0 +1,9 @@
+`ledger_record` was a read-modify-write: read the ledger, append, write it back. Parallel tool calls could interleave and lose a whole event, which matters because R12 refuses a production write until a `test-run` is recorded, so a dropped event blocks work that did satisfy the rule.
+
+The tempting test is a thread race -- N threads appending, assert all N survive. It is the wrong instrument twice over: it only sometimes hits the window, so it is flaky, and when it passes it does not say the window is gone, only that this run missed it.
+
+What was done instead: patch `ledger_events` to raise, then call `ledger_record` and assert it still succeeds and the event reads back. That asserts the property directly -- recording performs no read, so no window exists between reading and writing. Deterministic, fast, and it fails immediately if anyone reintroduces the read.
+
+General shape: when a defect is 'there is a window between A and B', the fix is usually to delete A, and the test should assert A no longer happens rather than trying to observe the window. Race tests belong where the concurrency itself is the product, not where it is an accident of the environment.
+
+Secondary note from the same fix: the original design's docstring argued FOR the defect, claiming read-modify-write avoided forcing the reader to tolerate a partial line. That inverted the trade -- a tolerant reader loses at most the torn line, while the whole-document format lost every event in the file on any corruption. A rationale that names a cost the alternative does not actually carry is worth re-deriving rather than trusting.
