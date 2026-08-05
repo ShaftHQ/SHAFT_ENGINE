@@ -196,7 +196,7 @@ the plumbing differs.
 
 | Host | How it finds the entrypoint |
 | --- | --- |
-| Codex | Reads `AGENTS.md`, discovers `.agents/skills/*/SKILL.md` natively — per-skill metadata in [act-as-mohab](act-as-mohab/agents/openai.yaml) and [consult-first](consult-first/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
+| Codex | Reads `AGENTS.md`, discovers `.agents/skills/*/SKILL.md` natively — per-skill metadata in [act-as-mohab](act-as-mohab/agents/openai.yaml), [consult-first](consult-first/agents/openai.yaml) and [retrieve-first](retrieve-first/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
 | Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/*/SKILL.md` redirect to the canonical bodies and `.claude/agents/*.md` carry the roles. |
 | Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` and `.github/instructions/*` redirect to the same playbooks. |
 | Grok | Reads `AGENTS.md` plus the Claude-compatible adapter. |
@@ -217,7 +217,7 @@ file is added, moved or deleted, which is the only way a map stays true.
 | Host | Files |
 | --- | --- |
 | Codex | `AGENTS.md`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
-| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirects `.claude/skills/act-as-mohab/SKILL.md`, `.claude/skills/consult-first/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
+| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirects `.claude/skills/act-as-mohab/SKILL.md`, `.claude/skills/consult-first/SKILL.md`, `.claude/skills/retrieve-first/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
 | Copilot | `.github/copilot-instructions.md`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; the redirect pack indexed by `.github/skills/README.md` |
 | Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
 

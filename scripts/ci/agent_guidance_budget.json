@@ -115,11 +115,13 @@
   "expected_skill_names": {
     ".agents/skills": [
       "act-as-mohab",
-      "consult-first"
+      "consult-first",
+      "retrieve-first"
     ],
     ".claude/skills": [
       "act-as-mohab",
-      "consult-first"
+      "consult-first",
+      "retrieve-first"
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",

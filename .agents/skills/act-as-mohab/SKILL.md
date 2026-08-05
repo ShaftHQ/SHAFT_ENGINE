@@ -44,6 +44,10 @@ Take depth from the worse answer:
 Re-triage when a premise turns out false, the third fix for one symptom fails,
 the blast radius grows, or the user adds scope.
 
+Retrieval depth reads off the same answer. Load
+[retrieve-first](../retrieve-first/SKILL.md) before broad manual discovery on
+any row past the first, and at completion to keep the stores from drifting.
+
 ## Red flags
 
 These phrases mean you are about to break a law above. When you catch yourself
