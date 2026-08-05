@@ -1833,9 +1833,11 @@ def _names_this_repository(repository: str, cwd: object) -> bool:
     take: an environment that cannot name its own remote is not evidence
     the agent posted to the wrong place.
 
-    Known limit, stated rather than papered over: a `cd ../shafthq.github.io
+    Known limits, stated rather than papered over: a `cd ../shafthq.github.io
     && gh pr create` in another repository's checkout still counts, because
-    no token in it says so. `-R` is the half that is visible.
+    no token in it says so. A `-R` / `--repo` flag positioned after the
+    subcommand is similarly not recognized; only leading-position flags are
+    scanned (see #4566).
     """
     remote = _git_output(["remote", "get-url", "origin"], cwd)
     if not remote:
@@ -1868,7 +1870,7 @@ def _updates_a_tracked_issue(command: str, cwd: object = None) -> bool:
         if not rest:
             continue
         rest, repository = _split_gh_global_flags(rest)
-        # An explicit `-R` at another repository cannot be this session's run
+        # A leading `-R` / `--repo` at another repository cannot be this session's run
         # state, whatever it writes. `AGENTS.md` sends companion docs changes
         # to their own pull request in `../shafthq.github.io`, so opening that
         # one used to clear R21 for the SHAFT_ENGINE session that had posted
