@@ -691,3 +691,59 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
                 with redirect_stdout(output):
                     self.assertEqual(guard.run_stop({"cwd": ".", "session_id": "s"}), 0)
         self.assertEqual(output.getvalue().strip(), "")
+
+
+class UnpushedWorkStopGateTest(unittest.TestCase):
+    """R18 / #4538, #4530: the recoverability half of the cadence rules.
+
+    The owner standard was set after a delegate ran 25 minutes with nothing
+    pushed: everything it had completed existed in one worktree on one
+    machine. "A branch is recoverable only by whoever can see the machine it
+    lives on. A pushed draft is recoverable by anyone." Told to push, five of
+    eight issues became visible and recoverable within a minute.
+
+    This gates the property that actually matters -- commits existing on no
+    remote at the end of a turn -- rather than the five-minute interval, which
+    no hook can observe without a wall clock the agent does not share. The
+    interval is the practice; unpushed-at-turn-end is the failure it prevents,
+    and it is the half a mechanism can hold.
+
+    Pairwise: aligned with R13, which refuses to force-delete an unpushed
+    branch. Both are satisfied by the same `git push`, so no state blocks one
+    while the other forbids the remedy. It fires only when a branch exists,
+    because a detached HEAD has nothing to push -- the same
+    inapplicable-is-not-unknown distinction #4542 was filed for.
+    """
+
+    def test_commits_on_no_remote_are_reported(self):
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
+            with patch("scripts.agents.guard._unpushed_commit_count", return_value=4):
+                reason = guard.check_r18_unpushed_work({"cwd": "."})
+        self.assertIsNotNone(reason)
+        self.assertIn("push", reason.lower())
+        self.assertIn("ChaosEngine/x", reason)
+
+    def test_a_fully_pushed_branch_is_silent(self):
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
+            with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+                self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
+
+    def test_a_detached_head_is_silent_because_it_has_nothing_to_push(self):
+        """Inapplicable is not unknown and is not unpushed (#4542's lesson)."""
+        with patch("scripts.agents.guard._current_branch", return_value=None):
+            with patch("scripts.agents.guard._unpushed_commit_count", return_value=9):
+                self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
+
+    def test_it_fails_open_when_the_count_cannot_be_answered(self):
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
+            with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
+                self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
+
+    def test_r13_and_r18_are_satisfied_by_the_same_remedy(self):
+        """The pairwise property as a test: one `git push` clears both."""
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
+            with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+                self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
+                self.assertIsNone(
+                    guard.check_r13_push_before_delete("git branch -D ChaosEngine/x", "Bash")
+                )

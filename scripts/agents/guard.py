@@ -2017,6 +2017,58 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
     )
 
 
+def _current_branch(cwd: object) -> str | None:
+    """Current branch name, or None when detached or unanswerable."""
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    name = (completed.stdout or "").strip()
+    return name if name and name != "HEAD" else None
+
+
+def check_r18_unpushed_work(hook_input: dict) -> str | None:
+    """Report commits that exist on no remote at the end of a turn.
+
+    #4538 and #4530, reduced to the half a mechanism can hold. The owner
+    standard was set after a delegate ran 25 minutes with nothing pushed:
+    everything it had completed existed in one worktree on one machine. A
+    branch is recoverable only by whoever can see that machine; a pushed
+    branch is recoverable by anyone.
+
+    The five-minute interval is the practice, and no hook can observe it
+    without a wall clock the agent does not share. Unpushed-at-turn-end is the
+    failure the interval exists to prevent, and it is observable exactly when
+    it matters -- at the moment the session might end for good.
+
+    Fires only when a branch exists: a detached HEAD has nothing to push, and
+    treating inapplicable as unpushed would demand an impossible remedy, the
+    collapse #4542 was filed for. Aligned with R13 rather than opposed to it --
+    both are satisfied by the same `git push`.
+    """
+    branch = _current_branch(hook_input.get("cwd"))
+    if not branch:
+        return None
+    unpushed = _unpushed_commit_count(branch)
+    if unpushed is None or unpushed <= 0:
+        return None
+    return (
+        f"{branch} carries {unpushed} commit(s) that exist on no remote. Work only "
+        "this machine can see is lost if this session ends here, and a pushed branch "
+        f"is recoverable by anyone. Run `git push -u origin {branch}` before ending "
+        "the turn. This interrupts once."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
@@ -2034,6 +2086,7 @@ def run_stop(hook_input: dict) -> int:
         for item in (
             check_r16_learning_loop(hook_input),
             check_r17_unarmed_pull_request(hook_input),
+            check_r18_unpushed_work(hook_input),
         )
         if item is not None
     ]
