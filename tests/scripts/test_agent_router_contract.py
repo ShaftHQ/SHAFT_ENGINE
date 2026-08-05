@@ -251,9 +251,18 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": None,
-        "rule": "query the stores before broad discovery",
+        "rule": "main thread receives native-Memory preflight before broad discovery",
         "status": "performed",
         "mechanism": "_standing_constraints",
+    },
+    {
+        "law": None,
+        "rule": "delegates query the stores before broad discovery",
+        "status": "prose-only",
+        "reason": (
+            "SessionStart belongs to the main thread. Role adapters deliver the entrypoint, "
+            "but a hook cannot observe whether a delegate used the retrieved context."
+        ),
     },
     {
         "law": None,

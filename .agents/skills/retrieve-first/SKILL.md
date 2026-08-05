@@ -19,7 +19,7 @@ depth off that answer rather than judging it twice.
 
 | Triage result | Retrieve |
 | --- | --- |
-| One file, reversible | Nothing. The standing constraints arrived injected before your first tool call. |
+| One file, reversible | Main thread: nothing; SessionStart injected standing constraints. Delegates: use `memory search` before discovery, because SessionStart does not reach them. |
 | One module, reversible | `memory search "<subsystem>"`. Add MemPalace when the change touches history you were not present for. |
 | Public contract, many callers, or hard to reverse | All three, then verify every hit against the live file. |
 
