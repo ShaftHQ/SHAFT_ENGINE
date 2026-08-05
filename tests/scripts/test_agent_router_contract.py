@@ -1007,6 +1007,12 @@ class HostParityTest(unittest.TestCase):
         codex = {path.stem for path in CODEX_AGENTS.glob("*.toml")}
         self.assertEqual(claude, codex, "role adapters differ between subagent hosts")
 
+    def test_mechanical_helper_has_a_host_adapter_on_both_subagent_hosts(self):
+        """A dispatch gate needs a legal mechanical role before it can refuse one."""
+        for path in (CLAUDE_AGENTS / "helper.md", CODEX_AGENTS / "helper.toml"):
+            with self.subTest(path=path):
+                self.assertTrue(path.is_file(), "mechanical-helper adapter is missing")
+
     def test_codex_role_adapters_use_the_documented_schema(self):
         tomllib = __import__("tomllib")
         headings = self.role_headings()

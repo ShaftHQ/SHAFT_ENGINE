@@ -1781,6 +1781,33 @@ REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
 
 DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
+ADAPTED_SUBAGENT_TYPES = frozenset({"chaos-engine", "coder", "helper", "reviewer", "tester"})
+
+
+def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
+    """Refuse a dispatch whose type has no host-delivered role adapter.
+
+    R22 owns only the shape of a new delegate. It runs before R11, R12, R15,
+    R17, and R19 can apply to the delegate's own tool calls. Choosing any
+    listed type delivers the entrypoint; after a commit, the learning-loop
+    arming clause remains satisfiable by a learning write or its explicit
+    escape, then R15 review and R17 arming have their existing remedies. This
+    does not assert that an agent obeyed the delivered text.
+    """
+    if tool_name not in DISPATCH_TOOLS:
+        return None
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
+        subagent = ""
+    else:
+        subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+    if isinstance(subagent, str) and subagent.strip().lower() in ADAPTED_SUBAGENT_TYPES:
+        return None
+    legal = " | ".join(sorted(ADAPTED_SUBAGENT_TYPES))
+    return (
+        "R22 blocked: this dispatch has no role adapter, so it cannot receive the "
+        "mandatory entrypoint. Re-dispatch with subagent_type: " + legal + "."
+    )
 
 
 _GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
@@ -2105,6 +2132,11 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
+
+    reason = check_r22_dispatch_adapter(hook_input, tool_name)
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
 
     # Observed, not judged, and first: a reviewer dispatch is not a call this
     # hook has any reason to refuse, so recording it must not sit behind a
@@ -3154,6 +3186,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r19_fresh_base": "run_required_action_self_test",
     "check_r20_user_harness_drift": "run_required_action_self_test",
     "check_r21_run_state_not_recorded": "run_required_action_self_test",
+    "check_r22_dispatch_adapter": "run_required_action_self_test",
 }
 
 
@@ -3243,6 +3276,20 @@ def run_required_action_self_test() -> int:
             failures.append(description)
 
     write = {"tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+
+    # R22: only a host adapter can deliver the mandatory entrypoint to a delegate.
+    check(
+        "R22 blocks a dispatch with no host role adapter",
+        check_r22_dispatch_adapter(
+            {"tool_input": {"subagent_type": "general-purpose"}}, "Task"
+        )
+        is not None,
+    )
+    check(
+        "R22 allows a dispatch with a host role adapter",
+        check_r22_dispatch_adapter({"tool_input": {"subagent_type": "helper"}}, "Task")
+        is None,
+    )
 
     # R12: a production write needs an observed test run this session.
     check(

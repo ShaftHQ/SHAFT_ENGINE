@@ -1903,6 +1903,49 @@ class ObservedReviewDispatchTest(unittest.TestCase):
             inspect.getsource(guard._unarmed_reviewed_pull_request),
         )
 
+
+class DispatchAdapterGateTest(unittest.TestCase):
+    """R22 refuses dispatches that cannot receive a role adapter (#4570 A2)."""
+
+    @staticmethod
+    def payload(subagent: object) -> dict:
+        return {
+            "tool_name": "Task",
+            "tool_input": {"subagent_type": subagent},
+            "session_id": "r22",
+            "cwd": ".",
+        }
+
+    def test_run_pretooluse_denies_an_unadapted_dispatch(self):
+        """The hook path, not merely a helper, must refuse general-purpose."""
+        output = io.StringIO()
+        with patch("scripts.agents.guard.ledger_record"):
+            with redirect_stdout(output):
+                self.assertEqual(guard.run_pretooluse(self.payload("general-purpose")), 0)
+        self.assertIn("R22 blocked", output.getvalue())
+
+    def test_a_denied_dispatch_is_not_recorded_as_a_delegate(self):
+        events: list[str] = []
+        with patch(
+            "scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: events.append(event)
+        ):
+            guard.run_pretooluse(self.payload("general-purpose"))
+        self.assertNotIn("delegate-dispatch", events)
+
+    def test_run_pretooluse_allows_every_adapted_dispatch(self):
+        for subagent in ("coder", "reviewer", "tester", "helper", "chaos-engine"):
+            with self.subTest(subagent=subagent):
+                output = io.StringIO()
+                with patch("scripts.agents.guard.ledger_record"):
+                    with redirect_stdout(output):
+                        self.assertEqual(guard.run_pretooluse(self.payload(subagent)), 0)
+                self.assertNotIn("R22 blocked", output.getvalue())
+
+    def test_r22_records_the_learning_loop_arming_escape(self):
+        source = inspect.getsource(guard.check_r22_dispatch_adapter).lower()
+        self.assertIn("learning-loop", source)
+        self.assertIn("escape", source)
+
     def test_the_recorder_is_wired_into_the_hook(self):
         """A recorder the hook never calls is the defect this batch keeps finding."""
         self.assertIn(

@@ -24,9 +24,8 @@ before using it.
 ### Mechanical model
 
 Spec-exact repetitive edits, inventory, formatting, deterministic
-transformation, and log or result triage. It has no role adapter of its own, so
-the mechanical helper role in [roles](roles.md), which defines its limits,
-travels in the dispatch prompt.
+transformation, and log or result triage. The `helper` adapters carry the
+mechanical-helper role from [roles](roles.md) to both subagent hosts.
 
 ## Main-thread duties
 
