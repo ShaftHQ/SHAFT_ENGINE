@@ -5,9 +5,11 @@ from __future__ import annotations
 import inspect
 import io
 import json
+import os
 import re
 import subprocess  # nosec B404 - tests drive the tracked hook command locally.
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -1087,6 +1089,101 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
         self.assertIsNone(guard.check_r13_push_before_delete(remedy, "Bash"))
         with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
             self.assertIsNone(guard.check_r14_hard_reset(remedy, "Bash", "."))
+
+
+class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
+    """#4552: a read-modify-write loses whole events, and files lived forever.
+
+    `ledger_record` read the ledger, appended, and wrote it back. This host
+    issues tool calls in parallel, so two hooks could interleave and one
+    event vanished. Not free: R12 refuses a production write until a test run
+    is recorded, so a dropped `test-run` blocks work that did satisfy the
+    rule -- a gate firing on correct work.
+
+    The old docstring defended the design by saying an append-only file would
+    force the reader to tolerate a partial line. That inverts the trade. A
+    tolerant reader is a few lines and loses at most the torn line; the
+    whole-document format lost *every* event in the file on any corruption.
+    """
+
+    def payload(self, session: str, directory: str) -> dict:
+        return {"session_id": session, "cwd": directory}
+
+    def test_recording_does_not_read_the_ledger_first(self):
+        """The property, asserted directly rather than raced for.
+
+        The defect was a read followed by a write, with a window between them.
+        A thread race would only sometimes hit that window; proving the read
+        is gone holds every time.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-append", directory)
+                with patch(
+                    "scripts.agents.guard.ledger_events",
+                    side_effect=AssertionError("record must not read first"),
+                ):
+                    self.assertTrue(guard.ledger_record(payload, "test-run"))
+                self.assertEqual(guard.ledger_events(payload), ["test-run"])
+
+    def test_many_appends_all_survive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-many", directory)
+                for index in range(50):
+                    self.assertTrue(guard.ledger_record(payload, f"event-{index}"))
+                self.assertEqual(len(guard.ledger_events(payload)), 50)
+
+    def test_a_torn_line_costs_only_that_line(self):
+        """The whole point of the format change: partial loss, not total loss."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-torn", directory)
+                guard.ledger_record(payload, "before")
+                path = guard._ledger_path(payload)
+                with open(path, "a", encoding="utf-8") as handle:
+                    handle.write('{"partial\n')
+                guard.ledger_record(payload, "after")
+                self.assertEqual(guard.ledger_events(payload), ["before", "after"])
+
+    def test_stale_ledgers_are_reaped_and_current_ones_are_kept(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-keep", directory)
+                guard.ledger_record(payload, "fresh")
+                current = guard._ledger_path(payload)
+                folder = guard.os.path.dirname(current)
+                stale = guard.os.path.join(folder, "stale.json")
+                with open(stale, "w", encoding="utf-8") as handle:
+                    handle.write('"old"\n')
+                old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+                guard.os.utime(stale, (old, old))
+
+                guard.ledger_record(payload, "again")
+
+                self.assertFalse(guard.os.path.exists(stale), "a stale ledger must be reaped")
+                self.assertTrue(guard.os.path.exists(current), "the live ledger must survive")
+                self.assertEqual(guard.ledger_events(payload), ["fresh", "again"])
+
+    def test_reaping_never_raises(self):
+        """Housekeeping inside a hook must not be able to block a tool call."""
+        guard._reap_stale_ledgers(os.path.join("does", "not", "exist"))
+
+    def test_the_ledger_directory_follows_the_environment(self):
+        """Isolation the tests only appeared to have.
+
+        `tempfile.gettempdir()` caches its answer, so every ledger test's
+        `TMPDIR` patch was inert and they all shared the real temp directory.
+        Whole-file writes hid it by overwriting whatever the last run left.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                path = guard._ledger_path(self.payload("session-env", directory))
+        self.assertIsNotNone(path)
+        self.assertTrue(
+            os.path.realpath(path).startswith(os.path.realpath(directory)),
+            f"ledger landed outside the patched temp directory: {path}",
+        )
 
 
 class SelfTestCoversEveryRuleTest(unittest.TestCase):

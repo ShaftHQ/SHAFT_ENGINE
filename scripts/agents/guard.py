@@ -1918,7 +1918,20 @@ def _ledger_path(hook_input: dict) -> str | None:
     # Hashed rather than interpolated: a session id is host-supplied and would
     # otherwise reach the filesystem as a path component.
     key = hashlib.sha256(session.strip().encode("utf-8")).hexdigest()[:32]
-    directory = os.path.join(tempfile.gettempdir(), "shaft-agent-ledger")
+    # Read the environment each call rather than through `tempfile.gettempdir`,
+    # which caches its answer on first use. The cache made every ledger test's
+    # `TMPDIR` patch inert: they were all writing to the real temp directory
+    # and passing only because a whole-file write overwrote whatever a previous
+    # run had left. Append-only exposed it immediately (#4552), and a test that
+    # shares state with every prior run of itself is not isolated in either
+    # format.
+    base = (
+        os.environ.get("TMPDIR")
+        or os.environ.get("TEMP")
+        or os.environ.get("TMP")
+        or tempfile.gettempdir()
+    )
+    directory = os.path.join(base, "shaft-agent-ledger")
     try:
         os.makedirs(directory, exist_ok=True)
     except OSError:
@@ -1926,24 +1939,62 @@ def _ledger_path(hook_input: dict) -> str | None:
     return os.path.join(directory, f"{key}.json")
 
 
+LEDGER_RETENTION_SECONDS = 7 * 24 * 60 * 60
+
+
+def _reap_stale_ledgers(directory: str) -> None:
+    """Drop ledgers older than the retention window. Never raises (#4552).
+
+    One file per session, kept forever, in a directory nothing else tidies.
+    Reaping on write rather than on read because `run_stop` can run more than
+    once in a session, and deleting on read would remove a ledger the same
+    session still needs.
+
+    Failure here is not the caller's problem: this is housekeeping inside a
+    hook that must not block a tool call, so every error is swallowed on
+    purpose.
+    """
+    try:
+        cutoff = time.time() - LEDGER_RETENTION_SECONDS
+        for name in os.listdir(directory):
+            path = os.path.join(directory, name)
+            try:
+                if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                    os.remove(path)
+            except OSError:
+                continue
+    except OSError:
+        return
+
+
 def ledger_record(hook_input: dict, event: str) -> bool:
     """Append one observed event to this session's ledger. True when recorded.
 
-    Read-modify-write rather than an append-only text file, because the
-    reader has to tolerate a partial line from a concurrent hook. A lost
-    event costs one re-observation; a corrupt read that raises would cost the
-    session.
+    Append-only, one JSON document per line. It was a read-modify-write, whose
+    docstring justified itself by saying the reader would otherwise have to
+    tolerate a partial line from a concurrent hook -- which inverts the trade
+    (#4552). A tolerant reader is three lines and loses at most the torn line;
+    read-modify-write loses whole events whenever two hooks interleave, and
+    this host issues tool calls in parallel.
+
+    Losing an event is not free. R12 refuses a production write until a test
+    run is recorded, so a dropped `test-run` blocks work that did satisfy the
+    rule -- a gate firing on correct work, which is the shape that gets guards
+    deleted.
+
+    A single small append is the closest thing to atomic available without
+    platform-specific locking, and it needs no read at all, so there is no
+    window between reading and writing for another hook to occupy.
     """
     path = _ledger_path(hook_input)
     if not path or not isinstance(event, str) or not event:
         return False
-    events = ledger_events(hook_input)
-    events.append(event)
     try:
-        with open(path, "w", encoding="utf-8") as handle:
-            json.dump(events, handle)
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event) + "\n")
     except (OSError, ValueError):
         return False
+    _reap_stale_ledgers(os.path.dirname(path))
     return True
 
 
@@ -1959,12 +2010,24 @@ def ledger_events(hook_input: dict) -> list[str]:
         return []
     try:
         with open(path, encoding="utf-8") as handle:
-            events = json.load(handle)
+            lines = handle.read().splitlines()
     except (OSError, ValueError, UnicodeDecodeError):
         return []
-    if not isinstance(events, list):
-        return []
-    return [item for item in events if isinstance(item, str)]
+    events: list[str] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except ValueError:
+            # A torn line from a concurrent append. Skipping it loses that one
+            # event; refusing the whole file would lose every event before it,
+            # which is what the previous whole-document format did on any
+            # corruption.
+            continue
+        if isinstance(item, str):
+            events.append(item)
+    return events
 
 
 def _standing_constraints(working_directory: object) -> str | None:
