@@ -995,3 +995,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-hook-can-reach-it-assert-the-wiring-in-the-same-step","timestamp":"2026-08-05T08:51:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.check-every-new-guard-pairwise-against-the-guards-already-shipped-not-only-in-isolation","timestamp":"2026-08-05T08:51:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.push-always-wins-during-development-the-quiet-ci-period-belongs-only-before-the-arming-decision","timestamp":"2026-08-05T09:36:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced","timestamp":"2026-08-05T10:56:09+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.fix-a-live-state-test-defect-by-pinning-the-whole-rule-class-with-an-equality-check-never-by-naming-the-rule-that-bit-you","timestamp":"2026-08-05T10:56:09+03:00"}
