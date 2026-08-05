@@ -115,6 +115,13 @@ jobs:
               # what build_retry.sh needs (issue #4445).
               - 'scripts/ci/build_retry.sh'
               - 'tests/scripts/test_build_retry.py'
+              # Absorbed into the element set by name (#4531): the
+              # allure-extent-report-operator playbook tells an agent to run
+              # the extractor, which makes both harness elements, and the
+              # module is now in this job's run list. Filter and run list move
+              # together or the gate asserts on a file it never re-runs for.
+              - 'scripts/ci/extract_allure_failures.py'
+              - 'tests/scripts/test_extract_allure_failures.py'
             intellij:
               - 'shaft-intellij/**'
               - '.github/workflows/publish-intellij-plugin.yml'
@@ -250,6 +257,7 @@ jobs:
           tests.scripts.test_shaft_skill_cli_examples
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_build_retry
+          tests.scripts.test_extract_allure_failures
           -v
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external

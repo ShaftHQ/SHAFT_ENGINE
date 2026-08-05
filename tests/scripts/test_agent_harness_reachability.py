@@ -111,7 +111,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 101
+EXPECTED_ELEMENT_COUNT = 114
 
 # Inline `spans` and fenced blocks both carry instrument paths in this
 # repository's house style -- README.md writes the validate command in a bash
@@ -291,14 +291,48 @@ def harness_report(root: Path) -> dict[str, list[str]]:
     deployable = config["deployable_root"].rstrip("/") + "/"
     tracked = tracked_files(root)
     element_globs = [glob_regex(pattern) for pattern in config["element_globs"]]
-    elements = [
-        path for path in tracked if any(matcher.match(path) for matcher in element_globs)
-    ]
     roots = {pattern.split("/", 1)[0] for pattern in config["element_globs"]}
 
     reached, broken = link_walk(root, entrypoint)
     tokens = path_tokens(root, reached, roots)
     token_matchers = {token: glob_regex(token) for token in tokens}
+
+    # The boundary derives from the guidance, not only from the config beside
+    # it -- #4531 gap 1. `element_globs` alone decides what may be reported as
+    # an orphan, so a harness surface under an uncovered path is *invisible*
+    # rather than unreachable, and the count simply does not move. This module's
+    # own docstring calls that the failure mode most likely to bite next.
+    #
+    # Naming is the case the repository can settle by itself. A reachable
+    # guidance file that tells an agent to run an instrument has already
+    # declared that instrument part of the harness, so the element set absorbs
+    # it and no one has to remember to widen a glob. Measured before it was
+    # written: thirteen instruments named across five playbooks -- among them
+    # `scripts/ci/validate_shaft_mcp_transports.py` and
+    # `scripts/ci/github-auth-env.sh` -- sat outside every glob.
+    #
+    # Absorbing rather than widening by directory is deliberate. Adding
+    # `scripts/ci/*.py`, `tests/scripts/*.py` and `.github/workflows/*.yml`
+    # instead was measured at 177 elements and 64 fresh orphans, nearly all of
+    # them release and product CI that no agent guidance names. A boundary that
+    # forces 64 exemptions to describe a 13-file gap teaches everyone that
+    # exemptions are paperwork, which is how an exemption list stops meaning
+    # anything.
+    #
+    # Wildcards are excluded for the same reason they buy no reachability: a
+    # wildcard re-derives itself from the tree it is meant to be checking, so
+    # letting one enrol elements would let a single `scripts/**` in prose annex
+    # the repository.
+    named_elements = {
+        token
+        for token in tokens
+        if "*" not in token and token in set(tracked) and (root / token).is_file()
+    }
+    elements = [
+        path
+        for path in tracked
+        if any(matcher.match(path) for matcher in element_globs) or path in named_elements
+    ]
 
     # Directories count as tracked paths. `.claude/skills/*` and
     # `.github/instructions/*` name real directories and no file, so matching
@@ -315,23 +349,13 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         if not any(token_matchers[token].match(node) for node in nodes)
     )
 
-    # The boundary, derived from the guidance rather than declared beside it.
-    # `element_globs` decides what may be reported as an orphan, so a surface
-    # outside it is invisible rather than unreachable -- #4531 gap 1, and the
-    # limit this module's own docstring calls "most likely to bite next". An
-    # instrument the harness *names* is the one case where the tree answers the
-    # question by itself: guidance that tells an agent to run a file has already
-    # declared that file part of the harness, so excluding it from the element
-    # set is a contradiction the repository can detect without anyone
-    # maintaining a list. Wildcards are skipped for the same reason they buy no
-    # reachability -- they re-derive themselves from the tree being checked.
-    named_but_uncovered = sorted(
-        f"{token} (named in {source}) is not covered by element_globs"
-        for token, source in tokens.items()
-        if "*" not in token
-        and (root / token).is_file()
-        and token in set(tracked)
-        and not any(matcher.match(token) for matcher in element_globs)
+    # Which elements the config would have missed. Reported rather than
+    # asserted on: it is the size of the gap the absorption rule closes, and it
+    # legitimately moves whenever a playbook starts or stops naming a tool.
+    absorbed_by_name = sorted(
+        f"{path} (named in {tokens[path]})"
+        for path in named_elements
+        if not any(matcher.match(path) for matcher in element_globs)
     )
 
     exemption_problems: list[str] = []
@@ -391,7 +415,7 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         "orphans": sorted(orphans),
         "broken_links": sorted(broken),
         "stale_named_paths": stale,
-        "named_but_uncovered": named_but_uncovered,
+        "absorbed_by_name": absorbed_by_name,
         "exemption_problems": sorted(exemption_problems),
         "reached": sorted(reached),
         "elements": elements,
@@ -445,18 +469,86 @@ class HarnessReachabilityTest(unittest.TestCase):
         """
         self.assertEqual(harness_report(ROOT)["stale_named_paths"], [])
 
-    def test_every_named_harness_instrument_is_inside_the_element_boundary(self):
-        """#4531 gap 1: a surface outside `element_globs` is invisible, not reachable.
+    def test_an_instrument_the_guidance_names_becomes_an_element_without_a_glob(self):
+        """#4531 gap 1, proven by mutation rather than by a clean live run.
 
-        `EXPECTED_ELEMENT_COUNT` makes the boundary shrinking loud and does
-        nothing about a surface that was never inside it. This is the half the
-        repository can answer on its own: if a reachable guidance file names a
-        tracked instrument, the harness has already claimed that file, so the
-        boundary must cover it or an exemption must say why not. It cannot be
-        satisfied by editing a list, because the failing token comes from the
-        guidance rather than from the config.
+        Asserting the live report only shows today's tree agrees with today's
+        config; it would stay green if absorption were deleted and the globs
+        widened to compensate, which is the hand-maintained boundary the gap
+        describes. So the rule is exercised where it can be made to fail: a
+        synthetic harness whose guidance names `scripts/ci/tool.py` while
+        `element_globs` covers only the skills tree.
+
+        Both directions are pinned. Naming the file must enrol it *and* make it
+        an orphan once the naming goes away -- an absorption that only ever adds
+        would let the harness quietly shed a tool by deleting one backtick.
         """
-        self.assertEqual(harness_report(ROOT)["named_but_uncovered"], [])
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            (root / ".agents/skills/act-as-mohab").mkdir(parents=True)
+            (root / "scripts/ci").mkdir(parents=True)
+            entrypoint = root / ".agents/skills/act-as-mohab/SKILL.md"
+            entrypoint.write_text(
+                "# Entry\n\nRun `scripts/ci/tool.py` to check.\n", encoding="utf-8"
+            )
+            (root / "scripts/ci/tool.py").write_text("x\n", encoding="utf-8")
+            (root / "scripts/ci/unnamed.py").write_text("x\n", encoding="utf-8")
+            (root / "scripts/ci/agent_guidance_budget.json").write_text(
+                json.dumps(
+                    {
+                        "harness_reachability": {
+                            "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
+                            "deployable_root": ".agents/skills",
+                            # Matches nothing, and that is the point: it puts
+                            # `scripts` among the harness roots without making
+                            # any file an element. Absorption only considers
+                            # tokens whose first segment is already a root, so
+                            # a directory with no glob at all cannot be
+                            # absorbed however loudly the guidance names it --
+                            # the residual half of gap 1, and why `.memory`
+                            # needed a glob rather than only a mention.
+                            "element_globs": [
+                                ".agents/skills/**",
+                                "scripts/ci/absent_*.py",
+                            ],
+                            "exemptions": [],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+                subprocess.run(  # nosec B603 B607 - fixed local git commands.
+                    command, cwd=root, capture_output=True, text=True, check=True
+                )
+
+            report = harness_report(root)
+            self.assertIn(
+                "scripts/ci/tool.py",
+                report["elements"],
+                "a named instrument must join the element set without a glob",
+            )
+            self.assertEqual(
+                report["absorbed_by_name"],
+                ["scripts/ci/tool.py (named in .agents/skills/act-as-mohab/SKILL.md)"],
+            )
+            self.assertEqual(report["orphans"], [])
+            self.assertNotIn(
+                "scripts/ci/unnamed.py",
+                report["elements"],
+                "absorption must follow the guidance, not swallow the directory",
+            )
+
+            # The naming removed: the instrument leaves the set rather than
+            # silently staying in it, and the stale-name scan stays quiet
+            # because nothing names it any more.
+            entrypoint.write_text("# Entry\n\nNothing to run.\n", encoding="utf-8")
+            subprocess.run(  # nosec B603 B607 - fixed local git command.
+                ["git", "add", "-A"], cwd=root, capture_output=True, text=True, check=True
+            )
+            after = harness_report(root)
+            self.assertNotIn("scripts/ci/tool.py", after["elements"])
+            self.assertEqual(after["absorbed_by_name"], [])
 
     def test_every_exemption_states_a_reason_and_matches_a_live_element(self):
         """An exemption with no reason is an orphan wearing a hat (#4489)."""
