@@ -1935,6 +1935,84 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     )
 
 
+def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
+    """PR number when one is reviewed and still unarmed, else None.
+
+    Returns None for every uncertainty and for every earlier pipeline stage:
+    no pull request, no independent review yet, already armed, or `gh` unable
+    to answer. Only the one actionable state produces a number.
+    """
+    arguments = [
+        "gh",
+        "pr",
+        "view",
+        "--json",
+        "number,autoMergeRequest,reviews,author",
+    ]
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+            arguments,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout or "{}")
+    except ValueError:
+        return None
+    if not isinstance(payload, dict) or payload.get("autoMergeRequest"):
+        return None
+    author = (payload.get("author") or {}).get("login")
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        return None
+    independent = [
+        review
+        for review in reviews
+        if isinstance(review, dict)
+        and (review.get("author") or {}).get("login")
+        and (review.get("author") or {}).get("login") != author
+    ]
+    if not independent:
+        return None  # R15 would refuse arming; demanding it here would deadlock
+    number = payload.get("number")
+    return str(number) if number else None
+
+
+def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
+    """Report a reviewed pull request that nobody armed.
+
+    Opening a pull request does not end the duty -- the entrypoint says arm
+    auto-merge once the review gate passes, then watch until the remote
+    confirms merged. A reviewed pull request left unarmed is the precise
+    silence that rule exists to prevent: nothing is waiting, and nothing will
+    merge.
+
+    Fires only once a review exists, and that condition is load-bearing.
+    Blocking on any unarmed pull request would deadlock against R15, which
+    refuses `gh pr merge --auto` without an independent review: Stop would
+    demand arming while R15 refused it, leaving no legal state and making the
+    deletion of one guard the cheapest exit, which iron law 4 forbids.
+    """
+    number = _unarmed_reviewed_pull_request(hook_input.get("cwd"))
+    if not number:
+        return None
+    return (
+        f"Pull request #{number} has an independent review and auto-merge is not "
+        "armed. Opening a pull request does not end the duty: arm it now with "
+        f"`gh pr merge {number} --auto --squash`, then watch with `py -3 "
+        "scripts/ci/watch_pr_checks.py` until the remote confirms merged. Red and "
+        "conflicting are yours to fix; stale emits no event, so ask for it. This "
+        "interrupts once."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
@@ -1943,6 +2021,11 @@ def run_stop(hook_input: dict) -> int:
     learning = check_r16_learning_loop(hook_input)
     if learning is not None:
         print(json.dumps({"decision": "block", "reason": learning}))
+        return 0
+
+    unarmed = check_r17_unarmed_pull_request(hook_input)
+    if unarmed is not None:
+        print(json.dumps({"decision": "block", "reason": unarmed}))
         return 0
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:

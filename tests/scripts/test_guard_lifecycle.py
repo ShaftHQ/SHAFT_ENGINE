@@ -576,3 +576,66 @@ class LearningLoopStopGateTest(unittest.TestCase):
                     guard.run_stop({"cwd": ".", "session_id": "s", "stop_hook_active": True}), 0
                 )
             self.assertEqual(output.getvalue().strip(), "")
+
+
+class UnarmedPullRequestStopGateTest(unittest.TestCase):
+    """R17: opening a pull request does not end the duty; arming it is the duty.
+
+    The entrypoint is explicit that a PR is not the outcome -- arm auto-merge
+    once the review gate passes, then watch until the remote confirms merged.
+    A reviewed pull request left unarmed is the exact silence that rule exists
+    to prevent: nobody is waiting on anything, and nothing will merge.
+
+    **Fires only when a review already exists, and that is not a nicety.**
+    Blocking on any unarmed PR would deadlock against R15, which refuses `gh
+    pr merge --auto` without an independent review: on a fresh PR the Stop
+    hook would demand arming while R15 refused it, leaving no legal state and
+    making deletion of one guard the cheapest exit -- forbidden by iron law 4.
+    No review yet is simply an earlier point in the same pipeline, with
+    somewhere legal to go.
+    """
+
+    def test_a_reviewed_but_unarmed_pull_request_is_reported(self):
+        with patch(
+            "scripts.agents.guard._unarmed_reviewed_pull_request", return_value="4539"
+        ):
+            reason = guard.check_r17_unarmed_pull_request({"cwd": "."})
+        self.assertIsNotNone(reason)
+        self.assertIn("4539", reason)
+        self.assertIn("auto-merge", reason.lower())
+
+    def test_an_armed_pull_request_is_silent(self):
+        with patch("scripts.agents.guard._unarmed_reviewed_pull_request", return_value=None):
+            self.assertIsNone(guard.check_r17_unarmed_pull_request({"cwd": "."}))
+
+    def test_an_unreviewed_pull_request_is_silent_so_r15_is_not_deadlocked(self):
+        """The pairwise check that matters. R15 refuses to arm without a review.
+
+        `_unarmed_reviewed_pull_request` returns None for an unreviewed PR by
+        construction, so this asserts the contract rather than the plumbing:
+        Stop must never demand an action another gate forbids.
+        """
+        with patch("scripts.agents.guard._unarmed_reviewed_pull_request", return_value=None):
+            self.assertIsNone(guard.check_r17_unarmed_pull_request({"cwd": "."}))
+
+    def test_the_r15_and_r17_pair_has_a_legal_state_for_every_review_count(self):
+        """Walk the pipeline and assert no combination leaves the agent stuck."""
+        for reviews, armed in ((0, False), (1, False), (1, True)):
+            with self.subTest(reviews=reviews, armed=armed):
+                arming_blocked = False
+                with patch(
+                    "scripts.agents.guard._independent_review_count", return_value=reviews
+                ):
+                    arming_blocked = (
+                        guard.check_r15_review_before_arming("gh pr merge 4539 --auto", "Bash")
+                        is not None
+                    )
+                pending = "4539" if (reviews > 0 and not armed) else None
+                with patch(
+                    "scripts.agents.guard._unarmed_reviewed_pull_request", return_value=pending
+                ):
+                    stop_blocked = guard.check_r17_unarmed_pull_request({"cwd": "."}) is not None
+                self.assertFalse(
+                    arming_blocked and stop_blocked,
+                    "no reachable state may block arming and block stopping at once",
+                )
