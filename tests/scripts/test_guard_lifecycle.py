@@ -39,6 +39,45 @@ class GuardLifecycleTest(unittest.TestCase):
         "scripts.agents.guard._worktree_report",
         return_value={"worktrees": [], "advisories": []},
     )
+    def test_session_start_delivers_the_standing_constraints_rather_than_asking_for_them(
+        self, _report, _sync
+    ):
+        """#4540: the rule that must not depend on an agent remembering it.
+
+        `routing.md` already carries the retrieval table, and it is reached
+        only when the entrypoint routes a deliverable to a surface -- so the
+        duty to query the stores *before* discovery sits behind a load it is
+        supposed to precede, and fires too late by construction. Measured, not
+        supposed: the session that added this had already run `gh issue list`,
+        `git ls-files` and `rg` before any store was queried.
+
+        Restating it harder is the mitigation the literature measures and
+        finds wanting (arXiv 2604.20911: templating, restating and detection
+        recover only partial compliance as context grows; arXiv 2607.25398:
+        the best model honours a long binding policy document 36.2% of the
+        time under strict grading, and failures persist at maximum reasoning
+        effort). So this does not ask. The hook carries the constraints in,
+        which costs no adherence and cannot decay.
+
+        Titles only, and that is deliberate: 12 objects are 949 bytes of
+        title against several tens of kilobytes of body. The title is enough
+        to know a constraint exists and to go read it, which is the job an
+        always-injected index has to do. Bodies belong behind `memory
+        inspect`.
+        """
+        output = self.output(guard.run_session_start, {"cwd": "."})
+        context = output["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("Standing constraints", context)
+        self.assertIn("closing keywords", context, "a real constraint title must appear")
+        self.assertIn(
+            "memory load", context, "the deeper query must be named where it is needed"
+        )
+
+    @patch("scripts.agents.guard._sync_advisory", return_value=None)
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [], "advisories": []},
+    )
     def test_session_start_still_confirms_the_entrypoint(self, _report, _sync):
         output = self.output(guard.run_session_start, {"cwd": "."})
         self.assertIn(

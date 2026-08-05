@@ -1400,12 +1400,68 @@ def _sync_advisory() -> str | None:
     )
 
 
+def _standing_constraints(working_directory: object) -> str | None:
+    """Return the titles of every stored constraint, as one injectable block.
+
+    The harness's retrieval duty lives in `routing.md`, which is loaded only
+    when the entrypoint routes a deliverable -- so the rule that says "query
+    the stores before broad discovery" sits behind a load it is meant to
+    precede. Reminding harder is the mitigation the literature measures and
+    finds insufficient, so this does not remind: it carries the constraints in
+    before the first tool call, which costs the agent no adherence and cannot
+    decay with context length.
+
+    Titles only. Twelve objects are ~950 bytes of title against tens of
+    kilobytes of body, and a title is enough to know a constraint exists and
+    go read it -- which is all an always-injected index has to achieve.
+    Bodies stay behind `memory inspect`, where they cost nothing until wanted.
+
+    Fails open in every direction. A repository with no store, an unreadable
+    object, or malformed JSON yields no block rather than a broken session:
+    this runs before every task on every host, so its worst failure mode must
+    be silence, never a session that cannot start.
+    """
+    if not working_directory:
+        return None
+    # `os.path` throughout, because this module imports no `pathlib` and one
+    # convenience import is not worth a second path idiom in a hook that has
+    # to stay portable and start fast.
+    directory = os.path.join(str(working_directory), ".memory", "memory", "constraints")
+    if not os.path.isdir(directory):
+        return None
+    titles: list[str] = []
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(directory, name), encoding="utf-8") as handle:
+                title = json.load(handle).get("title")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(title, str) and title.strip():
+            titles.append(title.strip())
+    if not titles:
+        return None
+    listed = "\n".join(f"- {title}" for title in titles)
+    return (
+        f"Standing constraints already stored ({len(titles)}), so they need no "
+        "recall:\n"
+        f"{listed}\n"
+        "Read one with `memory inspect <id>`. For anything task-specific run "
+        '`memory load "<task>"`, and consult MemPalace for history spanning '
+        "sessions and Graphify for blast radius, before broad manual discovery."
+    )
+
+
 def run_session_start(hook_input: dict) -> int:
     """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
     context = [
         "Harness preflight: load and follow "
         "`.agents/skills/act-as-mohab/SKILL.md` before task work."
     ]
+    constraints = _standing_constraints(_hook_working_directory(hook_input))
+    if constraints:
+        context.append(constraints)
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         context.append("Worktree hygiene could not be verified; inspect it before cleanup.")
