@@ -1324,6 +1324,89 @@ def _print_deny(reason: str, host: str) -> None:
     print(json.dumps(output))
 
 
+# R12: iron law 3 -- no production code before an observed failing test.
+# Production means compiled source under any module's src/main/. Guidance,
+# configuration, tests, scripts and docs are excluded because the entrypoint
+# excludes them itself: they "may skip test-first; validate their structure or
+# affected flow instead".
+_PRODUCTION_PATH = re.compile(r"(?:^|/)src/main/", re.IGNORECASE)
+_TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
+# Token equality rather than a regex: the file already tokenises segments for
+# R1 and R2, and a substring match would read "latest" or "protest" as a test
+# run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
+_TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
+_WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+
+
+def looks_like_a_test_run(command: str) -> bool:
+    """True when this command is plausibly running tests.
+
+    Deliberately generous about what counts. A false positive costs one
+    unearned production write; a false negative blocks honest work, and the
+    gate that blocks honest work is the gate that gets deleted. The command
+    head must still be a real runner in command position, reusing the same
+    segmentation R1 and R2 rely on, so prose quoting `mvn test` in a commit
+    message does not satisfy the law.
+    """
+    if not command:
+        return False
+    for segment in _command_segments(command):
+        if not _head_executable_matches(segment, _TEST_RUNNER):
+            continue
+        tokens = _segment_tokens(segment)
+        if _TEST_TOKENS.intersection(tokens) or any(
+            token.startswith("-Dtest=") for token in tokens
+        ):
+            return True
+    return False
+
+
+def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | None:
+    """Block a production-source write when no test run was observed this session.
+
+    Iron law 3 with a mechanism. The law predates every check in this file and
+    has never had one: `test_agent_router_contract.py` pins that the sentence
+    exists, which cannot observe whether production code was written first.
+
+    Scope is narrow on purpose. Only compiled source under a module's
+    `src/main/` counts, because the entrypoint exempts the rest itself --
+    documentation, guidance, configuration and generated code "may skip
+    test-first". Writing the failing test is never blocked, since blocking the
+    RED step would make the law unsatisfiable: the only way to observe a
+    failing test is to write it.
+
+    Session-scoped rather than per-edit. One observed test run unlocks
+    production writes for the session, which enforces "a test ran before you
+    wrote production code" without blocking the second edit of a two-line fix.
+    A coarse rule everybody keeps is worth more than a precise one nobody does.
+    """
+    if tool_name not in _WRITE_TOOLS:
+        return None
+    tool_input = hook_input.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    path = tool_input.get("file_path") or tool_input.get("path") or ""
+    if not isinstance(path, str) or not path:
+        return None
+    normalized = path.replace("\\", "/")
+    if not _PRODUCTION_PATH.search(normalized) or "/src/test/" in normalized:
+        return None
+    if not _ledger_path(hook_input):
+        return None  # no session, no record, no basis to block
+    if "test-run" in ledger_events(hook_input):
+        return None
+    return (
+        "R12 blocked: iron law 3 -- no production code before an observed "
+        f"failing test. {path} is production source under src/main/, and no "
+        "test run has been observed in this session. Write the focused test "
+        "first and run it (for example `py -3 -m unittest tests.scripts.test_x` "
+        "or `mvn -Dtest=YourTest test`); an expected assertion failure is RED "
+        "and unblocks this write, while a setup, syntax or environment error "
+        "is not. Tests, guidance, configuration and docs are never blocked by "
+        "this rule."
+    )
+
+
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
@@ -1332,6 +1415,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _hook_working_directory(hook_input),
         hook_input.get("tool_input"),
     )
+    if reason is not None:
+        _print_deny(reason, host)
+        return 0
+
+    reason = check_r12_test_before_production(hook_input, tool_name)
     if reason is not None:
         _print_deny(reason, host)
         return 0
@@ -1347,6 +1435,12 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
         if reason is not None:
             _print_deny(reason, host)
+            return 0
+        # Observed, not judged. R12 reads this ledger; recording here is the
+        # only place a test run is visible, since a later hook invocation is a
+        # fresh process with no memory of it.
+        if looks_like_a_test_run(command):
+            ledger_record(hook_input, "test-run")
         return 0
 
     return 0  # not a tool this hook checks

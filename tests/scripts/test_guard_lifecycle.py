@@ -306,3 +306,81 @@ class SessionLedgerTest(unittest.TestCase):
                 with open(path, "wb") as handle:
                     handle.write(b"\x00\xff not json at all")
                 self.assertEqual(guard.ledger_events(payload), [])
+
+
+class ProductionBeforeTestGateTest(unittest.TestCase):
+    """#4541 / iron law 3: RED before GREEN, enforced rather than remembered.
+
+    This is the highest-value row in the registry. "No production code before
+    an observed failing test" has been the law since the entrypoint was
+    written and has never had a mechanism -- `test_agent_router_contract.py`
+    pins that the *sentence* exists, which cannot observe whether any
+    production code was written first.
+
+    Scope is deliberately narrow. Only compiled source under a module's
+    `src/main/` counts, because the entrypoint itself exempts the rest:
+    documentation, guidance, configuration and generated code "may skip
+    test-first; validate their structure or affected flow instead". A gate
+    that fired on a README edit would be argued away within a day.
+    """
+
+    def payload(self, session: str, path: str) -> dict:
+        return {
+            "session_id": session,
+            "cwd": ".",
+            "tool_name": "Write",
+            "tool_input": {"file_path": path},
+        }
+
+    def test_a_test_command_is_recognised_as_one(self):
+        for command in (
+            "py -3 -m unittest tests.scripts.test_guard_lifecycle",
+            "python3 -m pytest tests/",
+            "mvn -Dtest=SomeTest test",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard.looks_like_a_test_run(command))
+        for command in ("git status", "ls -la", "echo testing the waters"):
+            with self.subTest(command=command):
+                self.assertFalse(guard.looks_like_a_test_run(command))
+
+    def test_production_source_is_blocked_when_no_test_has_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("s1", "shaft-engine/src/main/java/Thing.java")
+                reason = guard.check_r12_test_before_production(payload, "Write")
+        self.assertIsNotNone(reason)
+        self.assertIn("failing test", reason)
+
+    def test_production_source_is_allowed_once_a_test_run_is_on_the_ledger(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("s2", "shaft-engine/src/main/java/Thing.java")
+                guard.ledger_record(payload, "test-run")
+                self.assertIsNone(guard.check_r12_test_before_production(payload, "Write"))
+
+    def test_the_test_that_creates_red_is_never_blocked(self):
+        """Writing the failing test must not require having already run one.
+
+        Blocking the RED step would make the law unsatisfiable: the only way
+        to observe a failing test is to write it first.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                for path in (
+                    "shaft-engine/src/test/java/ThingTest.java",
+                    "tests/scripts/test_guard_lifecycle.py",
+                    "AGENTS.md",
+                    "scripts/ci/validate_agent_setup.py",
+                    ".agents/skills/act-as-mohab/SKILL.md",
+                ):
+                    with self.subTest(path=path):
+                        payload = self.payload("s3", path)
+                        self.assertIsNone(
+                            guard.check_r12_test_before_production(payload, "Write")
+                        )
+
+    def test_the_gate_fails_open_without_a_session(self):
+        """No session id means no ledger, and an unanswerable question never blocks."""
+        payload = {"cwd": ".", "tool_input": {"file_path": "a/src/main/java/T.java"}}
+        self.assertIsNone(guard.check_r12_test_before_production(payload, "Write"))
