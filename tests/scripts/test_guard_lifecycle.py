@@ -444,32 +444,106 @@ class PushBeforeDeleteGateTest(unittest.TestCase):
     """
 
     def test_force_deleting_a_branch_with_unpushed_commits_is_refused(self):
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+        with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=3):
             reason = guard.check_r13_push_before_delete("git branch -D feature/x", "Bash")
         self.assertIsNotNone(reason)
         self.assertIn("push", reason.lower())
         self.assertIn("feature/x", reason)
 
     def test_force_deleting_a_fully_pushed_branch_is_allowed(self):
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+        with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=0):
             self.assertIsNone(guard.check_r13_push_before_delete("git branch -D feature/x", "Bash"))
 
     def test_the_safe_delete_form_is_never_touched(self):
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=5):
+        with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=5):
             self.assertIsNone(guard.check_r13_push_before_delete("git branch -d feature/x", "Bash"))
 
     def test_it_fails_open_when_the_commit_count_cannot_be_answered(self):
         """Unknown is not zero and is not many -- #4542's lesson, applied here."""
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
+        with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=None):
             self.assertIsNone(guard.check_r13_push_before_delete("git branch -D feature/x", "Bash"))
 
     def test_prose_naming_the_command_is_not_the_command(self):
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+        with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=3):
             self.assertIsNone(
                 guard.check_r13_push_before_delete(
                     'git commit -m "explain why git branch -D is guarded"', "Bash"
                 )
             )
+
+
+class DeliveredBranchIsNotUnrecoverableTest(unittest.TestCase):
+    """A squash-merged branch is delivered, however its commit count reads.
+
+    Found by adversarial review of this pull request. This repository
+    squash-merges and GitHub deletes the head branch on merge, so every
+    original commit of a *fully delivered* branch reports as existing on no
+    remote. R13 therefore refused `git branch -D` -- the entrypoint's own
+    cleanup step 2 -- on correct work, and the remedy it named,
+    `git push -u origin <branch>`, would have re-created the remote branch for
+    already merged work. R18 nagged for the same push on every turn.
+
+    Reproduced in a fixture repository before the fix: pushed, squash-merged,
+    remote branch deleted, and `git rev-list --count feature --not --remotes`
+    still answered 2.
+
+    `git cherry` cannot substitute. It compares patch ids, and a squash of two
+    commits matches neither of them -- verified in the same fixture, where
+    both commits came back marked `+`. Only a content comparison answers the
+    question the rules are actually asking.
+    """
+
+    def test_a_delivered_branch_reports_nothing_unrecoverable(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
+            with patch(
+                "scripts.agents.guard._content_exists_on_default_branch", return_value=True
+            ):
+                self.assertEqual(guard._unrecoverable_commit_count("feature"), 0)
+
+    def test_an_undelivered_branch_still_reports_its_commits(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
+            with patch(
+                "scripts.agents.guard._content_exists_on_default_branch", return_value=False
+            ):
+                self.assertEqual(guard._unrecoverable_commit_count("feature"), 2)
+
+    def test_unanswerable_stays_unanswerable(self):
+        """None and 0 are opposite facts and must not collapse into each other."""
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
+            self.assertIsNone(guard._unrecoverable_commit_count("feature"))
+
+    def test_delivery_is_not_queried_when_nothing_is_unpushed(self):
+        """The common case must not pay for the git calls the rare case needs.
+
+        A PreToolUse hook has a 10s budget and fails *open* when killed, so
+        every avoidable subprocess in the common path is a chance to silently
+        bypass every rule in this file.
+        """
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+            with patch(
+                "scripts.agents.guard._content_exists_on_default_branch"
+            ) as delivery:
+                self.assertEqual(guard._unrecoverable_commit_count("feature"), 0)
+                delivery.assert_not_called()
+
+    def test_r13_permits_deleting_a_delivered_branch(self):
+        """End to end: the cleanup the entrypoint mandates must be reachable."""
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
+            with patch(
+                "scripts.agents.guard._content_exists_on_default_branch", return_value=True
+            ):
+                self.assertIsNone(
+                    guard.check_r13_push_before_delete("git branch -D feature", "Bash")
+                )
+
+    def test_r13_still_blocks_a_branch_that_exists_nowhere_else(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
+            with patch(
+                "scripts.agents.guard._content_exists_on_default_branch", return_value=False
+            ):
+                reason = guard.check_r13_push_before_delete("git branch -D feature", "Bash")
+        self.assertIsNotNone(reason)
+        self.assertIn("R13 blocked", reason)
 
 
 class HardResetGateTest(unittest.TestCase):
@@ -814,7 +888,7 @@ class UnpushedWorkStopGateTest(unittest.TestCase):
 
     def test_commits_on_no_remote_are_reported(self):
         with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
-            with patch("scripts.agents.guard._unpushed_commit_count", return_value=4):
+            with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=4):
                 reason = guard.check_r18_unpushed_work({"cwd": "."})
         self.assertIsNotNone(reason)
         self.assertIn("push", reason.lower())
@@ -822,24 +896,24 @@ class UnpushedWorkStopGateTest(unittest.TestCase):
 
     def test_a_fully_pushed_branch_is_silent(self):
         with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
-            with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+            with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=0):
                 self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
 
     def test_a_detached_head_is_silent_because_it_has_nothing_to_push(self):
         """Inapplicable is not unknown and is not unpushed (#4542's lesson)."""
         with patch("scripts.agents.guard._current_branch", return_value=None):
-            with patch("scripts.agents.guard._unpushed_commit_count", return_value=9):
+            with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=9):
                 self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
 
     def test_it_fails_open_when_the_count_cannot_be_answered(self):
         with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
-            with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
+            with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=None):
                 self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
 
     def test_r13_and_r18_are_satisfied_by_the_same_remedy(self):
         """The pairwise property as a test: one `git push` clears both."""
         with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/x"):
-            with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
+            with patch("scripts.agents.guard._unrecoverable_commit_count", return_value=0):
                 self.assertIsNone(guard.check_r18_unpushed_work({"cwd": "."}))
                 self.assertIsNone(
                     guard.check_r13_push_before_delete("git branch -D ChaosEngine/x", "Bash")

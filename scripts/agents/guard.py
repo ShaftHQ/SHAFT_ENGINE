@@ -1444,6 +1444,101 @@ def _unpushed_commit_count(branch: str) -> int | None:
         return None
 
 
+def _git_output(arguments: list[str]) -> str | None:
+    """Stdout of a read-only git query, or None when git will not answer."""
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", *arguments],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout or ""
+
+
+def _content_exists_on_default_branch(branch: str) -> bool:
+    """True when deleting `branch` would lose no content the default branch lacks.
+
+    This repository squash-merges and GitHub deletes the head branch on merge.
+    So a *fully delivered* branch reports every one of its original commits as
+    existing on no remote: the commits really are gone, and their content is
+    on `main` under a single new commit that shares no ancestry with them.
+
+    Commit identity therefore cannot answer the question R13 and R18 are
+    actually asking, which is whether deleting the branch destroys work.
+    `git cherry` cannot either -- it compares patch ids, and a squash of two
+    commits matches neither of them, which is exactly this repository's shape.
+    `validate_agent_setup.py` already says as much in its own advisory: "this
+    repo squash-merges, so landed work can still show commits ahead of main."
+
+    So ask about content. Take the files the branch introduced relative to its
+    merge base, then compare just those files against the default branch. If
+    they are identical the work is delivered, whatever the commit graph says,
+    and this stays correct once `main` advances with unrelated work because
+    the comparison is restricted to the branch's own files.
+
+    False on any uncertainty, on purpose: "I could not tell" and "nothing
+    would be lost" are opposite facts, and only one of them may permit a
+    deletion.
+    """
+    if not branch:
+        return False
+    reference = None
+    for candidate in sorted(DEFAULT_BRANCHES):
+        probe = _git_output(["rev-parse", "--verify", "--quiet", f"origin/{candidate}"])
+        if probe is not None:
+            reference = f"origin/{candidate}"
+            break
+    if reference is None:
+        return False
+    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"])
+    if listing is None:
+        return False
+    files = [line for line in listing.splitlines() if line.strip()]
+    if not files:
+        return True  # introduces nothing the default branch does not already have
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+            ["git", "diff", "--quiet", reference, branch, "--", *files],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return completed.returncode == 0
+
+
+def _unrecoverable_commit_count(branch: str) -> int | None:
+    """Commits whose deletion would destroy work, or None if unanswerable.
+
+    Wraps the raw unpushed count with the delivery question, because the raw
+    count alone blocked correct work: on a squash-merged branch whose remote
+    was deleted it reports the original commits, so R13 refused the cleanup
+    step the entrypoint itself mandates, and told the agent to run `git push
+    -u origin <branch>` -- which would re-create the remote branch for already
+    merged work. A gate that fires on correct work and whose remedy makes
+    things worse is the shape that gets guards deleted, which iron law 4
+    forbids as the exit.
+
+    The delivery query costs git calls, so it runs only when the raw count is
+    about to block. A branch with nothing unpushed -- the common case -- pays
+    nothing.
+    """
+    count = _unpushed_commit_count(branch)
+    if count is None or count <= 0:
+        return count
+    if _content_exists_on_default_branch(branch):
+        return 0
+    return count
+
+
 def _uncommitted_file_count(cwd: object) -> int | None:
     """Changed files in the working tree, or None if git will not answer."""
     if not cwd:
@@ -1482,7 +1577,7 @@ def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
         if not rest or rest[0] != "branch" or "-D" not in rest[1:]:
             continue
         for name in [token for token in rest[1:] if not token.startswith("-")]:
-            unpushed = _unpushed_commit_count(name)
+            unpushed = _unrecoverable_commit_count(name)
             if unpushed is None or unpushed <= 0:
                 continue
             return (
@@ -2106,7 +2201,7 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     branch = _current_branch(hook_input.get("cwd"))
     if not branch:
         return None
-    unpushed = _unpushed_commit_count(branch)
+    unpushed = _unrecoverable_commit_count(branch)
     if unpushed is None or unpushed <= 0:
         return None
     return (
