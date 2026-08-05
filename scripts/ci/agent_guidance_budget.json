@@ -97,7 +97,8 @@
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
-    ".github/skills/*/SKILL.md"
+    ".github/skills/*/SKILL.md",
+    ".github/skills/README.md"
   ],
   "total_guidance_globs": [
     "AGENTS.md",

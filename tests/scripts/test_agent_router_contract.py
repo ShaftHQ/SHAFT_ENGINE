@@ -1026,6 +1026,7 @@ class NoDuplicationTest(unittest.TestCase):
         ".claude/skills/*/SKILL.md",
         ".claude/agents/*.md",
         ".github/skills/*/SKILL.md",
+        ".github/skills/README.md",
         ".github/copilot-instructions.md",
         ".github/instructions/*.instructions.md",
     )
@@ -1169,6 +1170,68 @@ class SkillsMapTest(unittest.TestCase):
         content = compact(self.MAP)
         self.assertIn("act-as-mohab/skill.md", content)
         self.assertRegex(content, r"do not work from this file|map, not the territory")
+
+
+class CopilotRedirectPackIndexTest(unittest.TestCase):
+    """#4532: the same hole as #4480, in the host that was left out of its fix.
+
+    `.agents/skills/README.md` was pulled into `active_guidance_globs` by
+    #4480. `.github/skills/README.md` has the identical shape -- it is the
+    index of Copilot's redirect pack, and the skills map cites it by name as
+    one of that host's adapter files -- and was deliberately left out of that
+    pull request to keep the diff to the issue as filed.
+
+    So it was counted by `total_guidance_globs` and link-checked by
+    `reference_scan_globs`, and no intent check ever opened it:
+    `validate_forbidden_patterns` and `validate_duplicate_paragraphs` read
+    `active_guidance_globs`, and it was on neither that list nor
+    `NoDuplicationTest.GUIDANCE_GLOBS`.
+
+    "Counted and link-checked" reading as "checked" is what made the hole hard
+    to see, and it is the same shape as the rest of this batch: a file inside
+    the boundary, with nothing consuming it.
+    """
+
+    MAP = ROOT / ".github/skills/README.md"
+
+    def test_the_index_exists(self):
+        """Everything below is vacuous if the host pack was renamed away."""
+        self.assertTrue(self.MAP.is_file(), f"{self.MAP} is missing")
+
+    def test_the_index_is_inside_the_active_guidance_scan(self):
+        budget = json.loads(BUDGET.read_text(encoding="utf-8"))
+        patterns, key_errors = require_glob_list(budget, "active_guidance_globs")
+        self.assertEqual(key_errors, [])
+        scanned, glob_errors = expand_reported_globs(ROOT, patterns, "active_guidance_globs")
+        self.assertEqual(glob_errors, [])
+        self.assertIn(self.MAP.resolve(), {path.resolve() for path in scanned})
+
+    def test_a_forbidden_mandate_planted_in_the_index_is_reported(self):
+        """Being on the list has to reach the scan, so run the scan.
+
+        The test above proves the expansion selects the file; this proves the
+        expansion is what the forbidden-pattern check consumes, by planting a
+        violation and reading the finding back out of the shipped entry point.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            planted = root / ".github/skills/README.md"
+            planted.parent.mkdir(parents=True)
+            planted.write_text(
+                "# Copilot redirect pack\n\nOpen a draft PR before you start work.\n",
+                encoding="utf-8",
+            )
+            reported = [
+                found
+                for found in validate_repository(root=root, budget_path=BUDGET)
+                if found["code"] == "forbidden-mandate"
+                and found["path"] == ".github/skills/README.md"
+            ]
+        self.assertTrue(reported, "a forbidden mandate in the Copilot index is not reported")
+
+    def test_the_duplicate_checks_also_cover_it(self):
+        """`NoDuplicationTest` keeps its own tuple, so being on one list is not both."""
+        self.assertIn(".github/skills/README.md", NoDuplicationTest.GUIDANCE_GLOBS)
 
 
 class RetrievalParityTest(unittest.TestCase):
