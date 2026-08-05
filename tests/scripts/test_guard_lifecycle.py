@@ -472,3 +472,52 @@ class HardResetGateTest(unittest.TestCase):
                     'git commit -m "never run git reset --hard with work in flight"', "Bash", "."
                 )
             )
+
+
+class ReviewBeforeArmingGateTest(unittest.TestCase):
+    """R15 / iron law 6: no arming before an independent adversarial review.
+
+    The entrypoint requires a separate instance to review every
+    behaviour-changing step before the next one starts, and the Ownership
+    section requires arming auto-merge only once that gate passes. Neither had
+    a mechanism, so the one irreversible step in the whole workflow -- handing
+    a diff to auto-merge -- rested on remembering.
+
+    `constraint.always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts`
+    is why a review by the PR's own author does not count: the point is an
+    independent reader, and self-review is the shape the constraint was
+    written against.
+    """
+
+    def test_arming_without_any_review_is_refused(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            reason = guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
+        self.assertIsNotNone(reason)
+        self.assertIn("review", reason.lower())
+
+    def test_arming_after_an_independent_review_is_allowed(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            self.assertIsNone(
+                guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
+            )
+
+    def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
+        """No gh, no auth, no network: unknown is not zero (#4542)."""
+        with patch("scripts.agents.guard._independent_review_count", return_value=None):
+            self.assertIsNone(
+                guard.check_r15_review_before_arming("gh pr merge 4539 --auto", "Bash")
+            )
+
+    def test_unrelated_gh_commands_are_untouched(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            for command in ("gh pr view 4539", "gh pr list --state open", "gh issue create --title x"):
+                with self.subTest(command=command):
+                    self.assertIsNone(guard.check_r15_review_before_arming(command, "Bash"))
+
+    def test_prose_naming_the_command_is_not_the_command(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=0):
+            self.assertIsNone(
+                guard.check_r15_review_before_arming(
+                    'git commit -m "explain why gh pr merge --auto is guarded"', "Bash"
+                )
+            )

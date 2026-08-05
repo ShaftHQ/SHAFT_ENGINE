@@ -1519,6 +1519,84 @@ def check_r14_hard_reset(command: str, tool_name: str, cwd: object) -> str | Non
     return None
 
 
+def _independent_review_count(target: str | None) -> int | None:
+    """Reviews by someone other than the author, or None if unanswerable.
+
+    None and 0 stay distinct: "gh could not answer" and "nobody has reviewed
+    this" are opposite facts about whether to stop an irreversible step.
+    """
+    arguments = ["gh", "pr", "view"]
+    if target:
+        arguments.append(target)
+    arguments += ["--json", "reviews,author"]
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+            arguments, capture_output=True, text=True, timeout=8, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout or "{}")
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    author = (payload.get("author") or {}).get("login")
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        return None
+    return len(
+        [
+            review
+            for review in reviews
+            if isinstance(review, dict)
+            and (review.get("author") or {}).get("login")
+            and (review.get("author") or {}).get("login") != author
+        ]
+    )
+
+
+def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
+    """Refuse arming auto-merge before an independent review exists.
+
+    Iron law 6 requires an independent adversarial review before the next step
+    starts, and the Ownership section requires arming only once that gate
+    passes. Handing a diff to auto-merge is the one irreversible step in the
+    whole workflow -- after it, the next green run merges without asking --
+    and it rested entirely on remembering.
+
+    A review by the pull request's own author does not count. The point is an
+    independent reader, and self-review is precisely the shape
+    `constraint.always-address-pr-review-comments-not-just-ci-checks-and-merge-conflicts`
+    was written against.
+    """
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _command_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"gh"}))
+        if not rest or rest[:2] != ["pr", "merge"]:
+            continue
+        arguments = rest[2:]
+        positional = [token for token in arguments if not token.startswith("-")]
+        target = positional[0] if positional else None
+        reviews = _independent_review_count(target)
+        if reviews is None or reviews > 0:
+            continue
+        label = f"#{target}" if target else "this pull request"
+        return (
+            f"R15 blocked: {label} has no review from anyone other than its author, "
+            "and iron law 6 requires an independent adversarial review before the "
+            "next step starts. Arming auto-merge is the irreversible one: after it, "
+            "the next green run merges without asking. Get a separate instance to "
+            "review the actual diff -- and address bot annotations as well as human "
+            "comments -- then arm. If a review exists and this still fires, `gh` "
+            "could not read it; that case is allowed through."
+        )
+    return None
+
+
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
@@ -1547,6 +1625,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
         if reason is None:
             reason = check_r13_push_before_delete(command, tool_name)
+        if reason is None:
+            reason = check_r15_review_before_arming(command, tool_name)
         if reason is None:
             reason = check_r14_hard_reset(
                 command, tool_name, _hook_working_directory(hook_input)
