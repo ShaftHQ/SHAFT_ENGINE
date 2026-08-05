@@ -5,6 +5,7 @@ import os
 # fixed, list-args argv (never shell=True, no untrusted command construction).
 import subprocess  # nosec B404
 import sys
+import tempfile
 import unittest
 
 from scripts.ci.validate_pr_closing_keywords import (
@@ -350,14 +351,14 @@ itself a judgement call reads as softer than it is.
 class MainCLIIntegrationTest(unittest.TestCase):
     """Exercises the actual CLI entry point CI invokes: PR_BODY + PR_COMMITS_JSON env vars."""
 
-    def _run_cli(self, *, body="", commits_json=""):
+    def _run_cli(self, *, body="", commits_json="", cwd=REPO_ROOT):
         env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json}
         return subprocess.run(  # nosec B603
             [sys.executable, CLI_SCRIPT],
             capture_output=True,
             text=True,
             env=env,
-            cwd=REPO_ROOT,
+            cwd=cwd,
         )
 
     def test_cli_fails_and_identifies_commit_for_commit_only_hazard(self):
@@ -375,16 +376,28 @@ class MainCLIIntegrationTest(unittest.TestCase):
     def test_cli_reports_a_false_credit_without_failing_the_gate(self):
         """#4567 item 5 is advisory: a commit message cannot be reworded after push.
 
-        `254a830710` is a real commit in this repository crediting `raw_decode`,
-        which its own diff never touches. The scan must say so and still exit 0 --
-        failing here would demand an amend the branch protection forbids.
+        The fixture has a real commit whose diff omits `raw_decode`. The scan must
+        say so and still exit 0 -- failing here would demand an amend the branch
+        protection forbids.
         """
         message = (
             "Apply the adversarial review's confirmed findings\n\n"
             "- `ledger_events` decodes every value on a line with `raw_decode`.\n"
         )
-        commits = json.dumps([{"sha": "254a830710", "message": message}])
-        result = self._run_cli(body="Closes #4127", commits_json=commits)
+        with tempfile.TemporaryDirectory() as temporary:
+            for command in (
+                ["git", "init"],
+                ["git", "config", "user.email", "test@example.com"],
+                ["git", "config", "user.name", "Test"],
+            ):
+                subprocess.run(command, cwd=temporary, check=True, capture_output=True)  # nosec B603
+            with open(os.path.join(temporary, "example.py"), "w", encoding="utf-8") as source:
+                source.write("value = 1\n")
+            subprocess.run(["git", "add", "example.py"], cwd=temporary, check=True)  # nosec B603
+            subprocess.run(["git", "commit", "-m", "fixture"], cwd=temporary, check=True)  # nosec B603
+            sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=temporary, text=True).strip()  # nosec B603
+            commits = json.dumps([{"sha": sha, "message": message}])
+            result = self._run_cli(body="Closes #4127", commits_json=commits, cwd=temporary)
         self.assertEqual(result.returncode, 0)
         self.assertIn("raw_decode", result.stdout + result.stderr)
 
