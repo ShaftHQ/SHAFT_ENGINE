@@ -204,6 +204,14 @@ jobs:
               # build a second attempt -- so it belongs to the same filter that
               # re-runs on any workflow edit, not to the agent-guidance one.
               - 'tests/scripts/test_intellij_verify_retry.py'
+              # Issue #4529: the timeout guard's own implementation and test
+              # were in no filter, so a timeout could not be lowered unnoticed
+              # but the check preventing it could be gutted green. A guard
+              # blind to edits of itself is the unbound-check shape one level
+              # up. Their neighbour above was already listed, which is what
+              # makes the omission an oversight rather than a decision.
+              - 'scripts/ci/validate_workflow_timeouts.py'
+              - 'tests/scripts/test_validate_workflow_timeouts.py'
 
   docs-boundary:
     name: Documentation Boundary Gate
