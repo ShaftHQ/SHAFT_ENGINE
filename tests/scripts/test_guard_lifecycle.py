@@ -2159,6 +2159,52 @@ class DispatchAdapterGateTest(unittest.TestCase):
                 text = open(os.path.join(root, name), encoding="utf-8").read()
                 self.assertIn("Task|Agent", text)
 
+
+class HistoricalDispatchReplayTest(unittest.TestCase):
+    """R22 / #4570 A12: replay the 18-dispatch audit without local transcript state."""
+
+    # Transcribed from session 834edc78-c25b-4c2c-8b65-9bf3bed8aa2b and its
+    # subagent logs. The original files are host runtime state, so the small,
+    # source-controlled fixture is what makes this regression portable to CI.
+    DISPATCHES = (
+        ("Adversarial review PR 4554", "reviewer", True),
+        ("Fix review findings 1 and 2 on PR 4554", "coder", True),
+        ("File review findings 3 and 4 as issues", "general-purpose", False),
+        ("Scoped review of PR 4554 new commits", "reviewer", True),
+        ("Analyze review-loop cost and propose caps", "general-purpose", False),
+        ("Correct R21 known-limits prose and log F1", "general-purpose", False),
+        ("Purge stale local worktrees safely", "coder", True),
+        ("Lane A: RED-before-GREEN validator", "coder", True),
+        ("Lane B: setUp pin, R19 scope, R12 honesty", "coder", True),
+        ("Lane C: credit scan, docstring sibling scan", "coder", True),
+        ("Lane D: stopping rule and design-ruling gate", "coder", True),
+        ("Audit and design dispatch-time enforcement", "reviewer", True),
+        ("List vacuous-risk tests", "general-purpose", False),
+        ("Extract prior-art issues", "general-purpose", False),
+        ("Read harness guidance files", "general-purpose", False),
+        ("Measure batch size vs review cycles", "general-purpose", False),
+        ("Inventory guard.py rules and tests", "general-purpose", False),
+        ("Audit ticket acceptance criteria vs diff", "general-purpose", False),
+    )
+
+    def test_correct_historical_dispatches_and_all_four_lanes_are_allowed(self):
+        self.assertEqual(len(self.DISPATCHES), 18)
+        lanes = [entry for entry in self.DISPATCHES if entry[0].startswith("Lane ")]
+        self.assertEqual(len(lanes), 4)
+        for description, subagent_type, allowed in self.DISPATCHES:
+            with self.subTest(description=description):
+                output = io.StringIO()
+                payload = {
+                    "tool_name": "Agent",
+                    "tool_input": {"subagent_type": subagent_type},
+                    "session_id": "historic-4570",
+                    "cwd": ".",
+                }
+                with patch("scripts.agents.guard.ledger_record"):
+                    with redirect_stdout(output):
+                        self.assertEqual(guard.run_pretooluse(payload), 0)
+                self.assertEqual("R22 blocked" not in output.getvalue(), allowed)
+
     def test_r15_accepts_an_observed_dispatch(self):
         arming = "gh pr merge 1 --auto --squash"
         with patch("scripts.agents.guard._independent_review_count", return_value=0):
