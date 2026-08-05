@@ -1870,7 +1870,24 @@ class RunStateStopGateTest(unittest.TestCase):
             # draft-PR-first rule asks for, and did not count until review.
             "gh pr create --draft --title t --body x",
             "gh pr edit 4554 --body x",
-            "gh issue create --title t --body x",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard._updates_a_tracked_issue(command))
+
+    def test_targeting_a_repository_explicitly_still_counts(self):
+        """#4548, second review: gh's own `-R`/`--repo` was not recognised.
+
+        `gh -R owner/repo issue comment ...` is the standard way to post from
+        a linked worktree or any cwd that is not the tracked repo's own
+        checkout -- exactly the post R21 demands. The mutation this test
+        kills: delete `_skip_gh_global_flags` (or its call site) and these
+        commands stop counting, so R21 fires on a session that already did
+        the required work.
+        """
+        for command in (
+            "gh -R ShaftHQ/SHAFT_ENGINE issue comment 4536 --body x",
+            "gh --repo ShaftHQ/SHAFT_ENGINE pr edit 4554 --body x",
+            "gh --repo=ShaftHQ/SHAFT_ENGINE issue edit 4536 --body x",
         ):
             with self.subTest(command=command):
                 self.assertTrue(guard._updates_a_tracked_issue(command))
@@ -1886,6 +1903,33 @@ class RunStateStopGateTest(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assertFalse(guard._updates_a_tracked_issue(command))
+
+    def test_creating_an_unrelated_issue_does_not_count(self):
+        """#4548, second review: `issue create` names no existing issue.
+
+        `gh issue create` for a brand-new, unrelated ticket used to clear
+        R21 for whatever this session was actually supposed to report --
+        real, and reproduced by the reviewer running unrelated
+        `gh issue create` calls in the same session this rule governs.
+        `pr create` is unaffected: it is bound to the current branch, so it
+        cannot name someone else's work the way `issue create` can. The
+        mutation this test kills: match `issue create` the same way `pr
+        create` is matched, and this goes back to asserting the opposite.
+        """
+        for command in ("gh issue create --title t --body x",):
+            with self.subTest(command=command):
+                self.assertFalse(guard._updates_a_tracked_issue(command))
+
+    def test_pr_create_without_draft_still_counts(self):
+        """`pr create` is matched regardless of `--draft` (unlike `issue create`).
+
+        Guards the asymmetry in the fix above: dropping `issue create` must
+        not have accidentally narrowed `pr create` to only its `--draft`
+        form, which the pre-existing case in
+        `test_the_commands_that_count_as_recording_state` does not cover on
+        its own.
+        """
+        self.assertTrue(guard._updates_a_tracked_issue("gh pr create --title t --body x"))
 
     def test_both_recorders_are_wired_into_the_hook(self):
         source = inspect.getsource(guard.run_pretooluse)

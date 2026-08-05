@@ -1830,19 +1830,20 @@ def _updates_a_tracked_issue(command: str) -> bool:
         # state -- which is what the draft-PR-first rule asks for -- still owed
         # R21, while `issue edit` counted and `pr edit` did not, for no reason
         # anyone could state.
-        #
-        # `create` does not count, deliberately, and no longer does (#4548,
-        # second review). Unlike `comment` and `edit`, a `create` call names
-        # no existing issue, so it cannot distinguish "recorded this run's
-        # state" from "opened some unrelated ticket" -- an ordinary
-        # `gh issue create` for a different piece of work cleared R21 for
-        # this one. A branch that cannot tell the two apart is worse than not
-        # having it, and `comment`/`edit` already cover every documented way
-        # to post state to a tracked issue or pull request.
-        if rest[:1] in (["issue"], ["pr"]) and rest[1:2] in (
-            ["comment"],
-            ["edit"],
-        ):
+        if rest[:1] == ["pr"] and rest[1:2] in (["comment"], ["edit"], ["create"]):
+            return True
+        # `issue create` deliberately does not count, and no longer does
+        # (#4548, second review). `pr create` is bound to the current
+        # branch -- it is the run state the draft-PR-first rule asks for --
+        # but an issue is not: `gh issue create` names no existing issue, so
+        # it cannot distinguish "recorded this run's state" from "opened
+        # some unrelated ticket". The reviewer reproduced it running
+        # ordinary, unrelated `gh issue create` calls in the same session
+        # this rule governs, and it cleared R21 for this one. A branch that
+        # cannot tell the two apart is worse than not having it, and
+        # `comment`/`edit` already cover every documented way to post state
+        # to a tracked issue.
+        if rest[:1] == ["issue"] and rest[1:2] in (["comment"], ["edit"]):
             return True
     return False
 
@@ -1900,8 +1901,13 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
 def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
     """True when this session watched a reviewer being dispatched for `branch`.
 
-    A bare `review` counts too, because it is only ever written when git could
-    not name the branch at dispatch time.
+    Keyed to the branch only (#4548, second review: this docstring used to
+    claim a bare `review` also counted, written when git could not name the
+    branch at dispatch time -- but that keyless fallback cleared *every*
+    branch's R15, so `_reviewer_dispatch_event` no longer writes it.
+    Recording nothing when the branch is unanswerable is the safe direction,
+    and this reader has no bare-`review` path left to match; the sentence
+    describing one was stale).
     """
     if not isinstance(hook_input, dict) or not branch:
         return False
@@ -2623,6 +2629,16 @@ def _branch_edits_harness_sources(cwd: object = None) -> bool:
 
     Committed and uncommitted both count: an edit in the working tree changes
     what the sync compares just as much as a committed one does.
+
+    Accepted cost, stated rather than left for the next reader to
+    rediscover (#4548, second review): the same fail-closed branch below
+    also suppresses R20 for every session where `origin/main` simply cannot
+    be resolved locally -- a shallow clone, or a machine that has never
+    fetched -- not only on a branch that actually edits harness sources.
+    R20 goes silent there for a reason unrelated to the one this function is
+    named for. The alternative is the defect this function exists to fix
+    (an unanswerable git resurrecting a remedy that deploys unmerged
+    guidance), so the trade stands; it just was not written down.
     """
     committed = _git_output(["diff", "--name-only", "origin/main...HEAD"], cwd)
     working = _git_output(["status", "--porcelain"], cwd)
