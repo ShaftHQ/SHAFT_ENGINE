@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess  # nosec B404 - tests drive the tracked hook command locally.
+import sys
 import tempfile
 import time
 import unittest
@@ -1268,6 +1269,101 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
     def test_the_rule_set_is_not_empty(self):
         """A name filter that matched nothing would make the check above vacuous."""
         self.assertGreaterEqual(len(self.rules()), 10)
+
+
+class _NoSubprocess:
+    """Stand-in for the `subprocess` module in which nothing can be run.
+
+    Keeps the real exception classes, because `guard` catches them by name and
+    a bare mock in an `except` clause raises `TypeError` instead of being
+    caught -- which would report as an error in the subject tests and look
+    exactly like the defect being searched for.
+    """
+
+    SubprocessError = subprocess.SubprocessError
+    TimeoutExpired = subprocess.TimeoutExpired
+    CalledProcessError = subprocess.CalledProcessError
+
+    @staticmethod
+    def run(*args, **kwargs):
+        raise OSError("subprocess disabled for the determinism check")
+
+
+class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
+    """#4555: assert determinism directly instead of enumerating the readers.
+
+    The same defect has now shipped four times. R18 read git and made five Stop
+    tests depend on whether a push was pending. R17 did it through `gh`, so the
+    same five went red once this pull request received a review. R20's helper
+    `_branch_edits_harness_sources` did it again, and that one the equality pin
+    could not see at all -- `ISOLATED_STOP_RULES` names Stop *rules*, and this
+    was a helper one of them calls.
+
+    Enumeration keeps losing to the next thing nobody enumerated, so this
+    stops enumerating. It runs the Stop-facing test classes twice -- once
+    normally, once with every subprocess refused -- and requires the same
+    result. A test that reaches outside the process for its answer changes
+    behaviour between those two runs; one that does not, cannot. It does not
+    matter whether the reader is a rule, a helper, or something added later.
+
+    CI structurally cannot catch any instance of this: a fresh checkout has
+    nothing unpushed, no credentials to ask about reviews, and no branch
+    mid-edit, so the environment that runs the suite is exactly the one where
+    the defect is invisible. This check does not depend on the environment at
+    all, which is the point.
+    """
+
+    SUBJECT_CLASSES = (
+        "GuardLifecycleTest",
+        "StopReasonsAreCollectedTest",
+        "UserHarnessDriftStopGateTest",
+        "UnarmedPullRequestStopGateTest",
+        "UnpushedWorkStopGateTest",
+        "LearningLoopStopGateTest",
+    )
+
+    def subjects(self) -> unittest.TestSuite:
+        suite = unittest.TestSuite()
+        loader = unittest.TestLoader()
+        module = sys.modules[__name__]
+        for name in self.SUBJECT_CLASSES:
+            suite.addTests(loader.loadTestsFromTestCase(getattr(module, name)))
+        return suite
+
+    def outcome(self) -> tuple[int, int, int]:
+        result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(
+            self.subjects()
+        )
+        return result.testsRun, len(result.failures), len(result.errors)
+
+    def test_the_subject_classes_all_exist(self):
+        """A misspelled class name would silently shrink what is being checked."""
+        module = sys.modules[__name__]
+        for name in self.SUBJECT_CLASSES:
+            with self.subTest(cls=name):
+                self.assertTrue(hasattr(module, name), f"{name} is not defined here")
+        self.assertGreaterEqual(self.outcome()[0], 20, "the subject set is suspiciously small")
+
+    def test_refusing_every_subprocess_changes_nothing(self):
+        baseline = self.outcome()
+        with patch("scripts.agents.guard.subprocess", _NoSubprocess):
+            forced = self.outcome()
+        self.assertEqual(
+            baseline,
+            forced,
+            "a Stop test's outcome changed when subprocesses were refused, so it "
+            "reads live state -- patch that reader off in the class whose subject "
+            "is something else",
+        )
+
+    def test_the_check_can_fail(self):
+        """Proof the comparison is live, not two identical no-ops.
+
+        Without this, a subject list that loaded nothing would compare (0,0,0)
+        to (0,0,0) and report determinism it never examined.
+        """
+        with patch("scripts.agents.guard.subprocess", _NoSubprocess):
+            self.assertRaises(OSError, guard.subprocess.run, ["git", "status"])
 
 
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):
