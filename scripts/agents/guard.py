@@ -1336,6 +1336,12 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+# Every helper query shares one budget, well inside the 10s PreToolUse
+# timeout in .claude/settings.json and .codex/hooks.json. It was 8s, which
+# left no margin: one slow `git` or `gh` on a contended machine and the hook
+# is killed mid-decision. That matters more since the matcher widened to
+# Write|Edit, because this now runs on every edit rather than every command.
+SUBPROCESS_TIMEOUT = 4
 # Blank line between collected Stop reasons. A named constant rather than an
 # inline escape, because an inline one has to survive every future edit to
 # this file to keep run_stop parseable, and it did not survive the first.
@@ -1425,7 +1431,7 @@ def _unpushed_commit_count(branch: str) -> int | None:
             ["git", "rev-list", "--count", branch, "--not", "--remotes"],
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=SUBPROCESS_TIMEOUT,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -1448,7 +1454,7 @@ def _uncommitted_file_count(cwd: object) -> int | None:
             cwd=str(cwd),
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=SUBPROCESS_TIMEOUT,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -1535,7 +1541,7 @@ def _independent_review_count(target: str | None) -> int | None:
     arguments += ["--json", "reviews,author"]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
-            arguments, capture_output=True, text=True, timeout=8, check=False
+            arguments, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT, check=False
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -1933,7 +1939,7 @@ def _open_pull_request_count(branch: str | None) -> int | None:
             ],
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=SUBPROCESS_TIMEOUT,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -2001,7 +2007,7 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=SUBPROCESS_TIMEOUT,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -2067,7 +2073,7 @@ def _current_branch(cwd: object) -> str | None:
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
-            timeout=8,
+            timeout=SUBPROCESS_TIMEOUT,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
