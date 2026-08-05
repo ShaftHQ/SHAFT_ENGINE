@@ -1297,6 +1297,29 @@ def _extract_command(hook_input: dict) -> str:
     return ""
 
 
+def _is_learning_write_command(command: str) -> bool:
+    """True for the CLI commands that persist a learning."""
+    for segment in _command_segments(_sanitize_for_command_head(command)):
+        memory = _tokens_after_head(segment, frozenset({"memory"}))
+        if memory and memory[:1] == ["remember"]:
+            return True
+        palace = _tokens_after_head(segment, frozenset({"mempalace"}))
+        if palace and palace[:1] in (["mine"], ["sweep"]):
+            return True
+    return False
+
+
+def _is_mempalace_write(tool_name: str, tool_input: object) -> bool:
+    """True for a mutating MemPalace MCP call, never its default dry run."""
+    if tool_name not in _MEMPALACE_WRITE_TOOLS:
+        return False
+    if tool_name == "mcp__mempalace__mempalace_delete_by_source":
+        return isinstance(tool_input, dict) and tool_input.get("dry_run") is False
+    if tool_name == "mcp__mempalace__mempalace_sync":
+        return isinstance(tool_input, dict) and tool_input.get("apply") is True
+    return True
+
+
 def _hook_working_directory(hook_input: dict) -> str | None:
     """Directory the guarded command will run in, or None when unknown."""
     # Hosts that report the session directory win over the hook process's own
@@ -1337,6 +1360,27 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+_NATIVE_MEMORY_WRITE_TOOLS = frozenset(
+    {"mcp__shaft-memory__remember_memory", "mcp__shaft-memory__save_memory_patch"}
+)
+_MEMPALACE_WRITE_TOOLS = frozenset(
+    {
+        "mcp__mempalace__mempalace_add_drawer",
+        "mcp__mempalace__mempalace_checkpoint",
+        "mcp__mempalace__mempalace_create_tunnel",
+        "mcp__mempalace__mempalace_delete_by_source",
+        "mcp__mempalace__mempalace_delete_drawer",
+        "mcp__mempalace__mempalace_delete_hallway",
+        "mcp__mempalace__mempalace_delete_tunnel",
+        "mcp__mempalace__mempalace_diary_write",
+        "mcp__mempalace__mempalace_kg_add",
+        "mcp__mempalace__mempalace_kg_invalidate",
+        "mcp__mempalace__mempalace_kg_supersede",
+        "mcp__mempalace__mempalace_mine",
+        "mcp__mempalace__mempalace_sync",
+        "mcp__mempalace__mempalace_update_drawer",
+    }
+)
 # Ceiling for any single helper query, well inside the 10s PreToolUse timeout
 # in .claude/settings.json and .codex/hooks.json. It was 8s, which left no
 # margin: one slow `git` or `gh` on a contended machine and the hook is killed
@@ -2167,7 +2211,9 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     # R16 reads these. Recorded here because a later hook invocation is a
     # fresh process: if the event is not written down as it happens, the
     # Stop hook has no way to know it ever did.
-    if tool_name.startswith("mcp__shaft-memory__"):
+    if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or _is_mempalace_write(
+        tool_name, hook_input.get("tool_input")
+    ):
         ledger_record(hook_input, "memory-write")
     if reason is not None:
         _print_deny(reason, host)
@@ -2193,6 +2239,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is not None:
             _print_deny(reason, host)
             return 0
+        if _is_learning_write_command(command):
+            ledger_record(hook_input, "memory-write")
         # Observed, not judged. R12 reads this ledger; recording here is the
         # only place a test run is visible, since a later hook invocation is a
         # fresh process with no memory of it.

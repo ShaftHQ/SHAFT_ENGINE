@@ -1075,6 +1075,63 @@ class DelegateStopHookTest(unittest.TestCase):
         self.assertIn("Learning loop", output.getvalue())
 
 
+class LearningWriteObservationTest(unittest.TestCase):
+    """R16 must observe every supported route that writes a learning (#4570 A9)."""
+
+    def events_after(
+        self, tool_name: str, command: str = "", tool_input: dict | None = None
+    ) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = {
+                    "session_id": f"learning-{tool_name}-{command}",
+                    "cwd": directory,
+                    "tool_name": tool_name,
+                    "tool_input": {"command": command, **(tool_input or {})},
+                }
+                self.assertEqual(guard.run_pretooluse(payload), 0)
+                return guard.ledger_events(payload)
+
+    def test_mcp_and_cli_learning_writes_reach_the_ledger(self):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for name in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(host=name):
+                with open(os.path.join(root, name), encoding="utf-8") as handle:
+                    matcher = json.load(handle)["hooks"]["PreToolUse"][0]["matcher"]
+                self.assertIn("mcp__mempalace__", matcher)
+
+        for tool_name, command in (
+            ("mcp__mempalace__mempalace_mine", ""),
+            ("Bash", "memory remember --stdin"),
+            ("PowerShell", "mempalace sweep"),
+        ):
+            with self.subTest(tool_name=tool_name, command=command):
+                self.assertIn("memory-write", self.events_after(tool_name, command))
+
+    def test_reading_or_mentioning_a_write_does_not_count(self):
+        self.assertNotIn("memory-write", self.events_after("mcp__shaft-memory__search_memory"))
+        self.assertNotIn(
+            "memory-write", self.events_after("mcp__mempalace__mempalace_get_aaak_spec")
+        )
+        self.assertNotIn(
+            "memory-write", self.events_after("mcp__mempalace__mempalace_delete_by_source")
+        )
+        self.assertNotIn("memory-write", self.events_after("mcp__mempalace__mempalace_sync"))
+        self.assertNotIn("memory-write", self.events_after("Bash", 'echo "memory remember"'))
+
+    def test_a_non_dry_memories_deletion_counts_as_a_write(self):
+        self.assertIn(
+            "memory-write",
+            self.events_after(
+                "mcp__mempalace__mempalace_delete_by_source", tool_input={"dry_run": False}
+            ),
+        )
+        self.assertIn(
+            "memory-write",
+            self.events_after("mcp__mempalace__mempalace_sync", tool_input={"apply": True}),
+        )
+
+
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
     """R17: opening a pull request does not end the duty; arming it is the duty.
 
