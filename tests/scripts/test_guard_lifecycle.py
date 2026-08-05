@@ -639,3 +639,55 @@ class UnarmedPullRequestStopGateTest(unittest.TestCase):
                     arming_blocked and stop_blocked,
                     "no reachable state may block arming and block stopping at once",
                 )
+
+
+class StopReasonsAreCollectedTest(unittest.TestCase):
+    """Every Stop rule must be reachable, not just the first one listed.
+
+    `run_stop` returned after the first reason it found, and `stop_hook_active`
+    makes the *second* Stop attempt return 0 immediately. Together those mean
+    exactly one Stop rule can ever fire per session: when R16 blocked, R17 and
+    the uncommitted-work check were never evaluated at all.
+
+    That is the same family as the unbound-check defects recorded in
+    `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
+    hook-can-reach-it` -- a rule that exists, tests green, and cannot fire --
+    and it got worse with every Stop rule added, since each new one starved
+    the ones below it. Found by pairwise-checking the Stop rules against each
+    other before adding a third, which is what
+    `decision.check-every-new-guard-pairwise-against-the-guards-already-shipped`
+    asks for.
+
+    Collecting them into one block is also better for the reader: an agent
+    ending its turn learns everything it owes at once rather than discovering
+    the next duty only after satisfying the previous one.
+    """
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_a_learning_and_an_unarmed_pull_request_are_reported_together(self, _report):
+        with patch("scripts.agents.guard.check_r16_learning_loop", return_value="LEARNING"):
+            with patch(
+                "scripts.agents.guard.check_r17_unarmed_pull_request", return_value="UNARMED"
+            ):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    guard.run_stop({"cwd": ".", "session_id": "s"})
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["decision"], "block")
+        self.assertIn("LEARNING", payload["reason"])
+        self.assertIn("UNARMED", payload["reason"])
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_a_clean_session_still_produces_no_block(self, _report):
+        with patch("scripts.agents.guard.check_r16_learning_loop", return_value=None):
+            with patch("scripts.agents.guard.check_r17_unarmed_pull_request", return_value=None):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    self.assertEqual(guard.run_stop({"cwd": ".", "session_id": "s"}), 0)
+        self.assertEqual(output.getvalue().strip(), "")

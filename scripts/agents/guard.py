@@ -1336,6 +1336,10 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+# Blank line between collected Stop reasons. A named constant rather than an
+# inline escape, because an inline one has to survive every future edit to
+# this file to keep run_stop parseable, and it did not survive the first.
+STOP_REASON_SEPARATOR = "\n\n"
 
 
 def looks_like_a_test_run(command: str) -> bool:
@@ -2018,15 +2022,21 @@ def run_stop(hook_input: dict) -> int:
     if hook_input.get("stop_hook_active") is True:
         return 0
 
-    learning = check_r16_learning_loop(hook_input)
-    if learning is not None:
-        print(json.dumps({"decision": "block", "reason": learning}))
-        return 0
-
-    unarmed = check_r17_unarmed_pull_request(hook_input)
-    if unarmed is not None:
-        print(json.dumps({"decision": "block", "reason": unarmed}))
-        return 0
+    # Collected, never short-circuited. Returning on the first reason meant
+    # exactly one Stop rule could ever fire per session: `stop_hook_active`
+    # makes the second attempt return 0 immediately, so whichever rule was
+    # listed first starved every rule below it. Each Stop rule added made
+    # that worse. It is also better for the reader -- an agent ending its
+    # turn learns everything it owes at once, instead of discovering the
+    # next duty only after satisfying the previous one.
+    reasons = [
+        item
+        for item in (
+            check_r16_learning_loop(hook_input),
+            check_r17_unarmed_pull_request(hook_input),
+        )
+        if item is not None
+    ]
     report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         reason = "Completion hygiene could not be verified; inspect the current worktree."
@@ -2055,12 +2065,19 @@ def run_stop(hook_input: dict) -> int:
             if branch:
                 covered = _open_pull_request_count(branch)
                 if covered is None or covered > 0:
-                    return 0
+                    # Delivered. Not a `return`: reasons collected above this
+                    # point would be discarded, which is the starvation this
+                    # refactor exists to remove. An unmapped state simply
+                    # contributes nothing.
+                    state = "delivered"
         completion_route = (
             "Re-read the act-as-mohab Completion section and apply its routed, "
             "authorization-aware preservation, validation, delivery, and cleanup steps."
         )
-        reasons = {
+        # `state_reasons`, not `reasons`: the collected list above owns that
+        # name, and shadowing it here made every worktree state raise instead
+        # of report.
+        state_reasons = {
             "corrupt": (
                 "Current worktree contains NUL-corrupt files. Preserve healthy work and "
                 "restore only confirmed corrupt paths before continuing."
@@ -2080,13 +2097,15 @@ def run_stop(hook_input: dict) -> int:
             ),
         }
         reason = (
-            reasons.get(state)
+            state_reasons.get(state)
             if state is not None
             else "The current worktree could not be identified; inspect it before stopping."
         )
-        if reason is None:
-            return 0
-    print(json.dumps({"decision": "block", "reason": reason}))
+    if reason is not None:
+        reasons.append(reason)
+    if not reasons:
+        return 0
+    print(json.dumps({"decision": "block", "reason": STOP_REASON_SEPARATOR.join(reasons)}))
     return 0
 
 
