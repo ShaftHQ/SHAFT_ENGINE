@@ -1773,7 +1773,7 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     """
     if tool_name not in _WRITE_TOOLS:
         return None
-    branch = _current_branch(hook_input.get("cwd"))
+    branch = _current_branch(_hook_working_directory(hook_input))
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
     return (
@@ -2193,7 +2193,7 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
     demand arming while R15 refused it, leaving no legal state and making the
     deletion of one guard the cheapest exit, which iron law 4 forbids.
     """
-    number = _unarmed_reviewed_pull_request(hook_input.get("cwd"))
+    number = _unarmed_reviewed_pull_request(_hook_working_directory(hook_input))
     if not number:
         return None
     return (
@@ -2244,7 +2244,7 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     collapse #4542 was filed for. Aligned with R13 rather than opposed to it --
     both are satisfied by the same `git push`.
     """
-    branch = _current_branch(hook_input.get("cwd"))
+    branch = _current_branch(_hook_working_directory(hook_input))
     if not branch:
         return None
     unpushed = _unrecoverable_commit_count(branch)

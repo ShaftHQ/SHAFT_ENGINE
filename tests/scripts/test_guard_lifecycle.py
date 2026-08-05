@@ -1089,6 +1089,54 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
             self.assertIsNone(guard.check_r14_hard_reset(remedy, "Bash", "."))
 
 
+class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
+    """Every rule asks for the working directory through the same helper (#4553).
+
+    `_hook_working_directory` exists to normalise the payload's `cwd` and fall
+    back to the process directory when a host omits it. R10, R11 and R14 used
+    it; R17, R18 and R19 read `hook_input.get("cwd")` directly.
+
+    Harmless on the day it was found, because `subprocess(cwd=None)` inherits
+    the process directory and lands on the same answer. It stops being harmless
+    the moment a value goes anywhere other than a subprocess `cwd`, or a host
+    sends a payload the normaliser would have corrected. What it costs
+    immediately is a reader with no way to tell which of the two forms is
+    intended, and two forms that disagree only in the rare case are the ones
+    that survive review.
+
+    Asserted over the source rather than by calling each rule, because the
+    defect is which expression is written, and a behavioural test would pass
+    for as long as the two forms happen to agree -- which is the entire period
+    in which the bug is invisible.
+    """
+
+    def rules(self) -> dict[str, object]:
+        return {
+            name: value
+            for name, value in vars(guard).items()
+            if name.startswith("check_r") and callable(value)
+        }
+
+    def test_no_rule_reads_cwd_off_the_payload(self):
+        for name, function in self.rules().items():
+            with self.subTest(rule=name):
+                self.assertNotIn(
+                    'hook_input.get("cwd")',
+                    inspect.getsource(function),
+                    f"{name} must go through _hook_working_directory",
+                )
+
+    def test_the_normaliser_is_the_one_place_that_reads_it(self):
+        """The helper itself must keep reading the raw field, or it normalises nothing."""
+        self.assertIn(
+            'hook_input.get("cwd")', inspect.getsource(guard._hook_working_directory)
+        )
+
+    def test_the_rule_set_is_not_empty(self):
+        """A name filter that matched nothing would make the check above vacuous."""
+        self.assertGreaterEqual(len(self.rules()), 10)
+
+
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):
     """`ISOLATED_STOP_RULES` must name every rule `run_stop` calls.
 
