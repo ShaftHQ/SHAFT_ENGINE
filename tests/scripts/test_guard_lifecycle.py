@@ -8,12 +8,14 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess  # nosec B404 - tests drive the tracked hook command locally.
 import sys
 import tempfile
 import time
 import unittest
 from contextlib import redirect_stdout
+from unittest import mock
 from unittest.mock import patch
 
 from scripts.agents import guard
@@ -688,6 +690,154 @@ class DeliveredBranchIsNotUnrecoverableTest(unittest.TestCase):
                 reason = guard.check_r13_push_before_delete("git branch -D feature", "Bash")
         self.assertIsNotNone(reason)
         self.assertIn("R13 blocked", reason)
+
+
+class OnlyAddedLinesAreBranchUniqueTest(unittest.TestCase):
+    """The delivery predicate reads a diff direction it was getting backwards (#4569).
+
+    `_content_exists_on_default_branch` asks whether deleting a branch would
+    lose content the default branch lacks, and answered it with `git diff
+    --quiet`, which reports *any* difference. In `git diff origin/main
+    <branch>` a `-` line is content on `main` and not on the branch: the
+    default branch moved on after the squash landed. Only a `+` line is
+    content the branch holds and `main` does not, and only that can be lost.
+
+    Measured, not reasoned: of the nine branches #4569 left undeletable, three
+    carry zero branch-only added lines and were still refused. The stored
+    gotcha `squash-merge-makes-landed-branches-look-unmerged-by-rev-list-count`
+    had already recorded the same trap in the same words -- `git diff
+    origin/main <branch>` "renders main's newer commits as deletions on the
+    branch side, which reads like the branch is about to delete live work".
+
+    `--numstat` rather than counting `+` lines out of a patch. It is one
+    structured field per file, it reports a binary difference as `-` instead of
+    a number -- which must never read as delivered -- and it exits 0 whether or
+    not anything differs, so it goes through `_git_output` like every other
+    query here instead of needing its own `subprocess.run` to read an exit
+    code as data.
+
+    What this deliberately does NOT decide: whether a branch whose own work was
+    a *deletion* has landed. Such a branch is a content subset of `main` and is
+    read as delivered. That is the predicate this function is named for and
+    documents -- "loses no content the default branch lacks" -- and telling it
+    apart from a landed branch needs main read for meaning, which is the shape
+    section 6.1 of #4567 records this repository losing at every time.
+    """
+
+    REFERENCE = "abc123\n"
+    BRANCH = "ChaosEngine/probe-that-does-not-exist"
+
+    def delivery(self, numstat: str | None, listing: str = "one.py\ntwo.py\n"):
+        """Run the predicate with git's three answers scripted."""
+        git = mock.Mock(side_effect=[self.REFERENCE, listing, numstat])
+        with patch("scripts.agents.guard._git_output", git):
+            answer = guard._content_exists_on_default_branch(self.BRANCH)
+        return answer, git
+
+    def test_a_branch_main_is_merely_ahead_of_is_delivered(self):
+        """Deletions only: `main` has more, the branch has nothing of its own."""
+        answer, git = self.delivery("0\t12\tone.py\n0\t3\ttwo.py\n")
+        self.assertTrue(answer, "a pure-deletion residual is `main` ahead, not unlanded work")
+        self.assertEqual(git.call_count, 3, "the delivery question must reach git")
+        self.assertIn(
+            "--numstat",
+            git.call_args_list[2].args[0],
+            "added lines have to be counted, and --quiet cannot count them",
+        )
+
+    def test_a_branch_holding_added_lines_is_not_delivered(self):
+        """The protection, unweakened: one `+` line is one line only this branch has."""
+        answer, _ = self.delivery("7\t0\tone.py\n0\t3\ttwo.py\n")
+        self.assertFalse(answer)
+
+    def test_a_binary_difference_is_never_read_as_delivered(self):
+        """`--numstat` writes `-` for binary, and `-` is not zero."""
+        answer, _ = self.delivery("-\t-\tone.bin\n")
+        self.assertFalse(answer)
+
+    def test_an_unanswerable_diff_is_not_read_as_delivered(self):
+        """False on uncertainty, because only one of the two answers permits a deletion."""
+        answer, _ = self.delivery(None)
+        self.assertFalse(answer)
+
+    def test_a_branch_that_introduces_no_files_is_delivered(self):
+        """Unchanged behaviour, pinned so the rewrite cannot drop it."""
+        answer, _ = self.delivery("unused", listing="\n")
+        self.assertTrue(answer)
+
+    def test_r13_permits_deleting_a_branch_main_is_ahead_of(self):
+        """End to end through the rule, not only the predicate.
+
+        `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
+        hook-can-reach-it` is why this exists: every other test in this class
+        would pass identically if `_unrecoverable_commit_count` stopped calling
+        the predicate at all.
+        """
+        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+            with patch("scripts.agents.guard._git_output", git):
+                self.assertIsNone(
+                    guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash")
+                )
+
+    def test_r13_still_refuses_a_branch_holding_unlanded_additions(self):
+        """The over-application guard: the fix must not clear a branch with real work."""
+        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "42\t0\tone.py\n"])
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+            with patch("scripts.agents.guard._git_output", git):
+                reason = guard.check_r13_push_before_delete(
+                    f"git branch -D {self.BRANCH}", "Bash"
+                )
+        self.assertIsNotNone(reason)
+        self.assertIn("R13 blocked", reason)
+
+    def test_r13_and_r18_agree_a_landed_branch_needs_no_push(self):
+        """Pairwise, and the one the store had already flagged as open.
+
+        `decision.check-every-new-guard-pairwise-against-the-guards-already-
+        shipped` lists "the push-cadence rule versus R13 (do not push a branch
+        about to be deleted)" under still to check. This is that pair: R13's
+        refusal is what makes a squash-landed branch look unpushed, and R18 is
+        the rule whose remedy is to push it. Both read
+        `_unrecoverable_commit_count`, so widening delivery has to clear both
+        at once or the agent is told to push exactly the branch it may now
+        delete.
+        """
+        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+            with patch("scripts.agents.guard._git_output", git):
+                self.assertIsNone(
+                    guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash")
+                )
+        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
+        with patch("scripts.agents.guard._current_branch", return_value=self.BRANCH):
+            with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
+                with patch("scripts.agents.guard._git_output", git):
+                    self.assertIsNone(
+                        guard.check_r18_unpushed_work({"cwd": "."}),
+                        "R18 must not demand a push for a branch R13 now lets go",
+                    )
+
+    def test_the_unpushed_count_asks_git_with_an_explicit_revision(self):
+        """`--not --remotes` with no positive revision reports nothing, ever.
+
+        Not a regression this branch introduced -- `_unpushed_commit_count`
+        already names the branch -- and pinned here because #4569 watched the
+        revisionless form hand a clean bill of health to all ten branches while
+        `git branch -r --contains` said the opposite. The next agent editing
+        this query will reach for the shape that reads more naturally, and it
+        is the one that can never fail.
+        """
+        completed = mock.Mock(returncode=0, stdout="2\n")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._unpushed_commit_count("feature")
+        argv = run.call_args.args[0]
+        self.assertIn("feature", argv, "the query must name a positive revision")
+        self.assertLess(
+            argv.index("feature"),
+            argv.index("--not"),
+            "git does not default to HEAD; the revision has to precede --not",
+        )
 
 
 class HardResetGateTest(unittest.TestCase):
@@ -2226,8 +2376,125 @@ class FreshBaseGateTest(unittest.TestCase):
     deleted, so this one does not guess.
     """
 
-    def payload(self, path: str) -> dict:
-        return {"cwd": ".", "tool_name": "Write", "tool_input": {"file_path": path}}
+    def payload(self, path: str, cwd: str = ".") -> dict:
+        return {"cwd": cwd, "tool_name": "Write", "tool_input": {"file_path": path}}
+
+    def repository(self):
+        """A throwaway repository root and a sibling directory outside it.
+
+        Both are realpath'd because the temp directory is a symlink on some
+        platforms, and a check that compares one resolved path against one
+        unresolved prefix reports every write as outside -- which would make
+        the out-of-repo cases below pass for the wrong reason.
+        """
+        base = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, base, ignore_errors=True)
+        root = os.path.join(os.path.realpath(base), "repo")
+        outside = os.path.join(os.path.realpath(base), "elsewhere")
+        os.makedirs(root, exist_ok=True)
+        os.makedirs(outside, exist_ok=True)
+        return root, outside
+
+    def test_a_write_outside_the_repository_is_not_refused(self):
+        """R19 governs where this repository's work lands, and nothing else.
+
+        Reproduced three times before it was scoped: an analysis agent, a
+        read-only agent writing its own scratch file, and the orchestrator
+        opening the pull request for the batch that fixed it. Each was refused
+        for writing to a path with no relation to this checkout, and the remedy
+        the rule names -- `git checkout -b` -- would have switched a working
+        tree shared with other live agents. A gate that fires on correct work
+        is the gate that gets deleted.
+        """
+        root, outside = self.repository()
+        target = os.path.join(outside, "scratch.txt")
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                self.assertIsNone(
+                    guard.check_r19_fresh_base(self.payload(target, cwd=root), "Write")
+                )
+
+    def test_a_write_inside_the_repository_is_still_refused(self):
+        """The other half, asserted in the same shape: the rule still binds."""
+        root, _ = self.repository()
+        target = os.path.join(root, "scripts", "x.py")
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                reason = guard.check_r19_fresh_base(self.payload(target, cwd=root), "Write")
+        self.assertIsNotNone(reason)
+        self.assertIn("ChaosEngine/", reason)
+
+    def test_a_relative_path_is_resolved_against_the_hook_directory(self):
+        """A bare `scripts/x.py` is in-repo, and reads as out-of-repo unresolved.
+
+        This is the case that decides whether the scoping is a fix or a hole:
+        agents write relative paths, and a check comparing the raw string to an
+        absolute root would let every one of them through.
+        """
+        root, _ = self.repository()
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                reason = guard.check_r19_fresh_base(
+                    self.payload("scripts/x.py", cwd=root), "Write"
+                )
+        self.assertIsNotNone(reason, "a relative path is relative to the checkout")
+
+    def test_a_relative_path_that_escapes_the_repository_is_not_refused(self):
+        """`..` leaves the checkout, so the rule has nothing to say about it."""
+        root, _ = self.repository()
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                self.assertIsNone(
+                    guard.check_r19_fresh_base(
+                        self.payload(os.path.join("..", "elsewhere", "note.txt"), cwd=root),
+                        "Write",
+                    )
+                )
+
+    def test_a_symlink_out_of_the_repository_is_followed(self):
+        """The write lands outside, so the name it was reached by is not the fact.
+
+        Skipped rather than faked where the platform will not create one:
+        Windows needs developer mode or elevation for `os.symlink`, and a test
+        that silently degraded to a plain directory would assert the case it
+        was written to cover was never exercised.
+        """
+        root, outside = self.repository()
+        link = os.path.join(root, "scratch-link")
+        try:
+            os.symlink(outside, link, target_is_directory=True)
+        except (OSError, NotImplementedError, AttributeError) as error:
+            self.skipTest(f"symlinks unavailable here: {error}")
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                self.assertIsNone(
+                    guard.check_r19_fresh_base(
+                        self.payload(os.path.join(link, "note.txt"), cwd=root), "Write"
+                    )
+                )
+
+    def test_an_unanswerable_repository_root_still_refuses(self):
+        """Fails closed, unlike R18, and for a reason that is not symmetry.
+
+        `_current_branch` has already answered from this same directory, so a
+        root that will not answer means git is behaving inconsistently rather
+        than absently. Guessing "outside" there would disable the rule for the
+        whole session on one flaky query, and the cost of guessing "inside" is
+        one refusal with a remedy already in the message.
+        """
+        root, outside = self.repository()
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=None):
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(
+                        self.payload(os.path.join(outside, "scratch.txt"), cwd=root), "Write"
+                    )
+                )
+
+    def test_a_write_with_no_path_is_still_refused(self):
+        """No path is not evidence of an outside path, and the self-test relies on it."""
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            self.assertIsNotNone(guard.check_r19_fresh_base({"cwd": "."}, "Write"))
 
     def test_editing_on_the_default_branch_is_refused(self):
         for branch in ("main", "master"):
@@ -2248,6 +2515,29 @@ class FreshBaseGateTest(unittest.TestCase):
     def test_non_write_tools_are_untouched(self):
         with patch("scripts.agents.guard._current_branch", return_value="main"):
             self.assertIsNone(guard.check_r19_fresh_base({"cwd": "."}, "Bash"))
+
+    def test_the_hook_itself_lets_an_out_of_repo_write_through(self):
+        """Wiring, not just the function.
+
+        `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
+        hook-can-reach-it`: every other test in this class calls
+        `check_r19_fresh_base` directly and would pass identically if
+        `run_pretooluse` denied the call for some other reason. The scoping is
+        only worth anything if the deny never reaches the agent, so this drives
+        the entry point and asserts nothing was printed -- a deny is stdout.
+        """
+        root, outside = self.repository()
+        payload = {
+            "cwd": root,
+            "tool_name": "Write",
+            "tool_input": {"file_path": os.path.join(outside, "scratch.txt")},
+        }
+        stream = io.StringIO()
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                with redirect_stdout(stream):
+                    self.assertEqual(guard.run_pretooluse(payload), 0)
+        self.assertEqual(stream.getvalue().strip(), "", "the hook still denied the write")
 
     def test_r19_and_r14_do_not_trap_an_agent_on_main_with_uncommitted_work(self):
         """Pairwise: the remedy for R19 must not be something R14 forbids.

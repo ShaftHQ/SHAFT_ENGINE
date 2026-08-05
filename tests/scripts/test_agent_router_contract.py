@@ -11,6 +11,7 @@ instead of summarising the body.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import tempfile
@@ -155,6 +156,27 @@ PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
 # for prose-only rows and is checked for substance, because "n/a" is non-empty
 # and says nothing.
 #
+# `scope` is the fourth field and the newest, from #4567 item 7. A status says
+# what *kind* of enforcement a rule has and deliberately says nothing about how
+# much of the repository that enforcement reaches, and for law 3 the difference
+# is most of the work: `_PRODUCTION_PATH` matches `src/main/` only, so R12
+# could not fire once on the 3138-line branch #4554, where `guard.py` and its
+# tests were 76% of the diff. `gated` was true and read as more than it meant.
+#
+# It is a separate field rather than a qualified status because the status
+# vocabulary is mechanical -- `REGISTRY_STATUSES` is a closed set and
+# `test_every_row_is_honestly_classified` keys on `== "gated"` to look the
+# mechanism up in `run_pretooluse` -- so a value like "gated (src/main only)"
+# would not be a status at all, it would be a status that matches nothing and
+# quietly exempts its own row from both dispatch checks. `scope` qualifies a
+# true status the way `reason` qualifies `prose-only`, and it is pinned against
+# what the mechanism actually matches rather than left as prose.
+#
+# The recorded gap is deliberately not closed by widening `_PRODUCTION_PATH`.
+# That would gate every guidance and script edit behind an observed test run --
+# a rule firing on correct work, the shape this whole registry exists to stop
+# claiming.
+#
 # Deliberately NOT required: that prose-only be empty, or that the registry be
 # non-empty. `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-
 # that-will-be-weakened` records what that produces -- guards that are each
@@ -189,6 +211,14 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
         "rule": "no production code before an observed failing test",
         "status": "gated",
         "mechanism": "check_r12_test_before_production",
+        "scope": (
+            "Compiled source under a module's src/main/ only. Everything else the "
+            "entrypoint exempts itself -- but that exemption is by directory, so it "
+            "also covers scripts/agents/guard.py, a 3,800-line enforcement program "
+            "whose defects this harness keeps finding. On #4554 R12 could not fire "
+            "once: zero files under src/main/, against 2,214 lines of guard and test "
+            "churn. Outside src/main/ law 3 is enforced by nothing here."
+        ),
     },
     {
         "law": 4,
@@ -478,6 +508,120 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
             hits = [marker for marker in EXEMPTION_MARKERS if marker in block]
             if hits:
                 defects.append(f"{where}: {clause!r} qualified by {hits[0]!r}")
+    return defects
+
+
+def patched_symbols(node: ast.AST) -> set[str]:
+    """Symbols a `patch(...)` call anywhere inside `node` replaces with a mock.
+
+    The last dotted segment only: `patch("scripts.agents.guard._x")` and
+    `patch("other.module._x")` both name `_x`, and a test class asserting on
+    the wrong `_x` is the same vacuous pass either way.
+    """
+    found: set[str] = set()
+    for call in ast.walk(node):
+        if not isinstance(call, ast.Call):
+            continue
+        function = call.func
+        target = None
+        if isinstance(function, ast.Attribute) and function.attr == "object":
+            if len(call.args) > 1 and isinstance(call.args[1], ast.Constant):
+                target = call.args[1].value
+        else:
+            name = (
+                function.attr
+                if isinstance(function, ast.Attribute)
+                else getattr(function, "id", "")
+            )
+            if name == "patch" and call.args and isinstance(call.args[0], ast.Constant):
+                target = call.args[0].value
+        if isinstance(target, str) and target:
+            found.add(target.rsplit(".", 1)[-1])
+    return found
+
+
+def asserted_calls(node: ast.AST) -> set[str]:
+    """Symbols *invoked* inside a `self.assertX(...)` argument.
+
+    Invoked, not merely mentioned, and that narrowing is what keeps the check
+    free of false positives. `self.assertIn("_helper(cwd)", inspect.getsource(
+    ...))` names the symbol in a string and asserts on the shipped source, not
+    on the mock; `guard.check_r20(...)` reaching the patched helper internally
+    is the entire point of patching it. Only a direct call of the patched
+    symbol inside the assertion makes the assertion observe the mock's own
+    `return_value`.
+    """
+    called: set[str] = set()
+    for outer in ast.walk(node):
+        if not isinstance(outer, ast.Call):
+            continue
+        function = outer.func
+        if not (isinstance(function, ast.Attribute) and function.attr.startswith("assert")):
+            continue
+        if not (isinstance(function.value, ast.Name) and function.value.id == "self"):
+            continue
+        for argument in [*outer.args, *(keyword.value for keyword in outer.keywords)]:
+            for inner in ast.walk(argument):
+                if not isinstance(inner, ast.Call):
+                    continue
+                target = inner.func
+                if isinstance(target, ast.Attribute):
+                    called.add(target.attr)
+                elif isinstance(target, ast.Name):
+                    called.add(target.id)
+    return called
+
+
+def setup_patch_defects(source: str, where: str) -> list[str]:
+    """Report a test asserting on a symbol its own class's `setUp` patched off.
+
+    #4567 section 4.2, and the check that would have caught the finding behind
+    round two's DO NOT MERGE verdict at commit time. The shape:
+    `UserHarnessDriftStopGateTest.setUp` patched `_branch_edits_harness_sources`
+    to a fixed `False` so the class's real subject stayed deterministic, and a
+    test in the same class then asserted on `_branch_edits_harness_sources`
+    itself. It observed the mock, so it passed whatever the helper did, and it
+    went on passing through the round-one fix.
+
+    Reproduced across five revisions of `tests/scripts/test_guard_lifecycle.py`
+    before this was written: 1 finding at `d346bac4b0` (build) and at
+    `254a830710` (the round-one fix that missed it), 0 at `5f6c00fb76` (the
+    real fix), `1981a3fded` and `origin/main`. Zero false positives over all
+    934 test methods in the 48 modules under `tests/scripts/`.
+
+    A test that re-patches the symbol itself is exempt: it has taken control of
+    the value, which is how the legitimate "this is about the suppression"
+    tests in that very class are written.
+
+    Scanned across every test module rather than the one that produced the
+    defect, per `decision.fix-a-live-state-test-defect-by-pinning-the-whole-
+    rule-class-with-an-equality-check-never-by-naming-the-rule-that-bit-you`:
+    naming the instance is how the same defect walked back in one rule later.
+    """
+    defects: list[str] = []
+    for klass in ast.walk(ast.parse(source)):
+        if not isinstance(klass, ast.ClassDef):
+            continue
+        shared: set[str] = set()
+        for decorator in klass.decorator_list:
+            shared |= patched_symbols(decorator)
+        for member in klass.body:
+            if isinstance(member, ast.FunctionDef) and member.name in ("setUp", "setUpClass"):
+                shared |= patched_symbols(member)
+        if not shared:
+            continue
+        for member in klass.body:
+            if not isinstance(member, ast.FunctionDef) or not member.name.startswith("test"):
+                continue
+            own = patched_symbols(member)
+            for decorator in member.decorator_list:
+                own |= patched_symbols(decorator)
+            for symbol in sorted(asserted_calls(member) & (shared - own)):
+                defects.append(
+                    f"{where}: {klass.name}.{member.name} asserts on {symbol}(), "
+                    f"which {klass.name}.setUp patched off -- the assertion reads "
+                    "the mock's own return_value and cannot fail"
+                )
     return defects
 
 
@@ -1963,6 +2107,61 @@ class DisciplineTest(unittest.TestCase):
                     f"{mechanism} is claimed as the mechanism and is not defined in guard.py",
                 )
 
+    def test_a_narrowed_row_records_what_its_mechanism_does_not_reach(self):
+        """`scope` is honest only while it carries substance, exactly like `reason`."""
+        for row in REQUIRED_ACTION_REGISTRY:
+            if "scope" not in row:
+                continue
+            with self.subTest(rule=row["rule"][:50]):
+                self.assertIn(
+                    row["status"],
+                    ("gated", "reports", "performed"),
+                    "only an enforced row has a reach to qualify",
+                )
+                self.assertGreaterEqual(
+                    len(row["scope"].split()), 12, "state what the mechanism does not reach"
+                )
+
+    def test_law_threes_recorded_scope_is_the_one_its_mechanism_enforces(self):
+        """The claim binds to behaviour, so widening R12 cannot leave it stale.
+
+        #4567 item 7. The row reads `gated`, which is mechanically true, and on
+        #4554 -- 3138 lines, 20 files, zero of them under `src/main/` -- the
+        mechanism could not fire once. The `scope` field records that, and this
+        pins the record against `_PRODUCTION_PATH` itself rather than against a
+        sentence somebody has to remember to update.
+
+        Deliberately fails if `_PRODUCTION_PATH` is widened. Widening is a real
+        option #4567 weighs and rejects, because gating every guidance and
+        script edit behind an observed test run is a rule that fires on correct
+        work. If it is ever taken anyway, the registry must stop claiming
+        `src/main/` in the same commit, and this is what makes that happen.
+        """
+        from scripts.agents import guard
+
+        row = next(row for row in REQUIRED_ACTION_REGISTRY if row["law"] == 3)
+        self.assertIn(
+            "src/main/",
+            row.get("scope", ""),
+            "law 3 reads gated and its mechanism reaches src/main/ only; "
+            "the row has to say so",
+        )
+        self.assertTrue(
+            guard._PRODUCTION_PATH.search("shaft-engine/src/main/java/A.java"),
+            "the mechanism no longer matches the paths its scope claims",
+        )
+        for outside in (
+            "scripts/agents/guard.py",
+            "tests/scripts/test_guard_lifecycle.py",
+            ".agents/skills/act-as-mohab/SKILL.md",
+            ".github/workflows/pr-gate.yml",
+        ):
+            with self.subTest(path=outside):
+                self.assertIsNone(
+                    guard._PRODUCTION_PATH.search(outside),
+                    f"R12 now reaches {outside}; the registry's recorded scope is stale",
+                )
+
     def test_every_prose_only_row_records_why(self):
         """The third status is honest only while it carries its reason."""
         for row in REQUIRED_ACTION_REGISTRY:
@@ -2252,6 +2451,103 @@ class DisciplineTest(unittest.TestCase):
             r"refute",
             "the reviewer must be prompted to refute, not to approve",
         )
+
+
+class VacuousSetupPatchTest(unittest.TestCase):
+    """No test may assert on a symbol its own class's `setUp` patched off.
+
+    #4567 item 4. A source-scanning pin, in the file that already owns them.
+
+    The class it protects against is `vacuous-check`: at least eight instances
+    in the session #4567 measures, of which this one produced a DO NOT MERGE
+    verdict and survived a round of review aimed straight at it. A reviewer is
+    an expensive way to run a lint, and this one runs in milliseconds at commit
+    time.
+    """
+
+    MODULES = ("tests/scripts/test_*.py",)
+
+    def sources(self) -> list[Path]:
+        return glob_files(ROOT, self.MODULES)
+
+    def test_no_shipped_test_asserts_on_its_own_setups_mock(self):
+        files = self.sources()
+        self.assertGreater(len(files), 40, "the module scan collapsed to almost nothing")
+        defects: list[str] = []
+        for path in files:
+            defects.extend(
+                setup_patch_defects(
+                    path.read_text(encoding="utf-8"), path.relative_to(ROOT).as_posix()
+                )
+            )
+        self.assertEqual(defects, [], "\n".join(defects))
+
+    def test_the_defect_this_was_written_for_is_reported(self):
+        """Mutation proof. Green proves the scan ran; only this proves it binds.
+
+        Reduced from `UserHarnessDriftStopGateTest` at `d346bac4b0` verbatim in
+        shape: `setUp` pins the helper, and a test then asserts on the helper.
+        """
+        source = (
+            "class T(unittest.TestCase):\n"
+            "    def setUp(self):\n"
+            "        patcher = patch('scripts.agents.guard._helper', return_value=False)\n"
+            "        patcher.start()\n"
+            "        self.addCleanup(patcher.stop)\n"
+            "\n"
+            "    def test_it(self):\n"
+            "        with patch('scripts.agents.guard._git_output', return_value=None):\n"
+            "            self.assertFalse(guard._helper())\n"
+        )
+        defects = setup_patch_defects(source, "synthetic.py")
+        self.assertEqual(len(defects), 1, defects)
+        self.assertIn("_helper", defects[0])
+
+    def test_a_test_that_repatches_the_symbol_itself_is_not_reported(self):
+        """The legitimate shape in the same class must stay legal.
+
+        Without this exemption the check would report the tests that are *about*
+        the suppression, which is the `fires-on-correct-work` shape the whole
+        of #4567 exists to stop shipping.
+        """
+        source = (
+            "class T(unittest.TestCase):\n"
+            "    def setUp(self):\n"
+            "        patcher = patch('scripts.agents.guard._helper', return_value=False)\n"
+            "        patcher.start()\n"
+            "\n"
+            "    def test_it(self):\n"
+            "        with patch('scripts.agents.guard._helper', return_value=True):\n"
+            "            self.assertTrue(guard._helper())\n"
+        )
+        self.assertEqual(setup_patch_defects(source, "synthetic.py"), [])
+
+    def test_naming_the_symbol_in_a_string_is_not_asserting_on_it(self):
+        """A source assertion mentions the symbol and never calls it.
+
+        This is a real idiom in the protected modules -- asserting that a rule's
+        shipped source reads its working directory through one helper -- and
+        reporting it would have made the check unshippable.
+        """
+        source = (
+            "class T(unittest.TestCase):\n"
+            "    def setUp(self):\n"
+            "        patch('scripts.agents.guard._helper', return_value=False).start()\n"
+            "\n"
+            "    def test_it(self):\n"
+            "        self.assertIn('_helper(cwd)', inspect.getsource(guard.rule))\n"
+        )
+        self.assertEqual(setup_patch_defects(source, "synthetic.py"), [])
+
+    def test_a_class_with_no_setup_patch_is_never_reported(self):
+        """The fix for the measured defect was to move the test to such a class."""
+        source = (
+            "class T(unittest.TestCase):\n"
+            "    def test_it(self):\n"
+            "        with patch('scripts.agents.guard._git_output', return_value=None):\n"
+            "            self.assertTrue(guard._helper('.'))\n"
+        )
+        self.assertEqual(setup_patch_defects(source, "synthetic.py"), [])
 
 
 if __name__ == "__main__":
