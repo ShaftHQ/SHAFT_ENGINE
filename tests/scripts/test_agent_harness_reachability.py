@@ -315,6 +315,25 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         if not any(token_matchers[token].match(node) for node in nodes)
     )
 
+    # The boundary, derived from the guidance rather than declared beside it.
+    # `element_globs` decides what may be reported as an orphan, so a surface
+    # outside it is invisible rather than unreachable -- #4531 gap 1, and the
+    # limit this module's own docstring calls "most likely to bite next". An
+    # instrument the harness *names* is the one case where the tree answers the
+    # question by itself: guidance that tells an agent to run a file has already
+    # declared that file part of the harness, so excluding it from the element
+    # set is a contradiction the repository can detect without anyone
+    # maintaining a list. Wildcards are skipped for the same reason they buy no
+    # reachability -- they re-derive themselves from the tree being checked.
+    named_but_uncovered = sorted(
+        f"{token} (named in {source}) is not covered by element_globs"
+        for token, source in tokens.items()
+        if "*" not in token
+        and (root / token).is_file()
+        and token in set(tracked)
+        and not any(matcher.match(token) for matcher in element_globs)
+    )
+
     exemption_problems: list[str] = []
     exemption_matchers: list[re.Pattern[str]] = []
     for index, entry in enumerate(config.get("exemptions", [])):
@@ -372,6 +391,7 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         "orphans": sorted(orphans),
         "broken_links": sorted(broken),
         "stale_named_paths": stale,
+        "named_but_uncovered": named_but_uncovered,
         "exemption_problems": sorted(exemption_problems),
         "reached": sorted(reached),
         "elements": elements,
@@ -424,6 +444,19 @@ class HarnessReachabilityTest(unittest.TestCase):
         resolves to nothing fails here instead.
         """
         self.assertEqual(harness_report(ROOT)["stale_named_paths"], [])
+
+    def test_every_named_harness_instrument_is_inside_the_element_boundary(self):
+        """#4531 gap 1: a surface outside `element_globs` is invisible, not reachable.
+
+        `EXPECTED_ELEMENT_COUNT` makes the boundary shrinking loud and does
+        nothing about a surface that was never inside it. This is the half the
+        repository can answer on its own: if a reachable guidance file names a
+        tracked instrument, the harness has already claimed that file, so the
+        boundary must cover it or an exemption must say why not. It cannot be
+        satisfied by editing a list, because the failing token comes from the
+        guidance rather than from the config.
+        """
+        self.assertEqual(harness_report(ROOT)["named_but_uncovered"], [])
 
     def test_every_exemption_states_a_reason_and_matches_a_live_element(self):
         """An exemption with no reason is an orphan wearing a hat (#4489)."""
