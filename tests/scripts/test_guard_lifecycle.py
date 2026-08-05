@@ -1446,6 +1446,88 @@ class GuardTestClassesNameTheRuleTheyDefendTest(unittest.TestCase):
         self.assertGreaterEqual(len(self.test_classes()), 15)
 
 
+class WhatCountsAsAReviewTest(unittest.TestCase):
+    """R15 and R17: a bot comment is not a review, and a draft is not ready.
+
+    Both defects were observed live on #4554, when R17 told this session to arm
+    a draft pull request carrying four unimplemented tickets. Obeying it would
+    have merged unfinished work as soon as CI went green.
+
+    The second defect is the dangerous one. `github-code-quality` had left a
+    `COMMENTED` review, and the shared predicate counted any review by a
+    distinct account -- so **R15, the gate whose entire purpose is that
+    somebody independent read the diff, was satisfiable by a bot posting a
+    comment.** A reviewer who reads and finds nothing approves; one who finds
+    something requests changes. Neither leaves a bare comment.
+
+    One predicate for both rules, because they must agree. If R17 counted a
+    review R15 did not, Stop would demand arming while R15 refused it, leaving
+    no legal state -- the deadlock `_unarmed_reviewed_pull_request` already
+    warns about, reproduced one rule over.
+    """
+
+    AUTHOR = "the-author"
+
+    def reviews(self, login: str, state: str) -> list:
+        return [{"author": {"login": login}, "state": state}]
+
+    def test_a_bot_comment_is_not_an_independent_review(self):
+        self.assertEqual(
+            guard._independent_reviews(
+                self.reviews("github-code-quality", "COMMENTED"), self.AUTHOR
+            ),
+            [],
+        )
+
+    def test_a_verdict_from_another_account_is(self):
+        for state in ("APPROVED", "CHANGES_REQUESTED"):
+            with self.subTest(state=state):
+                self.assertEqual(
+                    len(guard._independent_reviews(self.reviews("someone", state), self.AUTHOR)),
+                    1,
+                )
+
+    def test_the_authors_own_approval_is_not_independent(self):
+        self.assertEqual(
+            guard._independent_reviews(self.reviews(self.AUTHOR, "APPROVED"), self.AUTHOR), []
+        )
+
+    def test_malformed_review_data_is_not_a_review(self):
+        """Unknown must not read as reviewed; that direction unlocks arming."""
+        for payload in (None, "APPROVED", [{"author": None, "state": "APPROVED"}], [{}]):
+            with self.subTest(payload=repr(payload)[:30]):
+                self.assertEqual(guard._independent_reviews(payload, self.AUTHOR), [])
+
+    def test_both_rules_use_the_one_predicate(self):
+        """Divergence is what creates the deadlock, so it is asserted away."""
+        for name in ("_independent_review_count", "_unarmed_reviewed_pull_request"):
+            with self.subTest(helper=name):
+                source = inspect.getsource(getattr(guard, name))
+                self.assertIn("_independent_reviews(", source)
+
+    def test_a_draft_pull_request_is_never_reported_as_unarmed(self):
+        """A draft is the author saying it is not ready; arming it merges that."""
+        payload = {
+            "number": 4554,
+            "autoMergeRequest": None,
+            "isDraft": True,
+            "author": {"login": self.AUTHOR},
+            "reviews": self.reviews("someone", "APPROVED"),
+        }
+        completed = subprocess.CompletedProcess([], 0, json.dumps(payload), "")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed):
+            self.assertIsNone(guard._unarmed_reviewed_pull_request("."))
+
+        ready = dict(payload, isDraft=False)
+        completed = subprocess.CompletedProcess([], 0, json.dumps(ready), "")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed):
+            self.assertEqual(guard._unarmed_reviewed_pull_request("."), "4554")
+
+    def test_the_draft_field_is_actually_requested(self):
+        """A field the query never asks for is always absent, so never a draft."""
+        self.assertIn("isDraft", inspect.getsource(guard._unarmed_reviewed_pull_request))
+
+
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):
     """`ISOLATED_STOP_RULES` must name every rule `run_stop` calls.
 

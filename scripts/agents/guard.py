@@ -1698,15 +1698,7 @@ def _independent_review_count(target: str | None) -> int | None:
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    return len(
-        [
-            review
-            for review in reviews
-            if isinstance(review, dict)
-            and (review.get("author") or {}).get("login")
-            and (review.get("author") or {}).get("login") != author
-        ]
-    )
+    return len(_independent_reviews(reviews, author))
 
 
 def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
@@ -1746,6 +1738,38 @@ def check_r15_review_before_arming(command: str, tool_name: str) -> str | None:
             "could not read it; that case is allowed through."
         )
     return None
+
+
+# A review counts only when it renders a verdict. `COMMENTED` is what an
+# automated code-quality bot posts, and counting it meant R15 -- the gate whose
+# whole purpose is that somebody independent read the diff -- was satisfiable by
+# a bot leaving a comment. Observed on #4554, where `github-code-quality`
+# COMMENTED and R17 duly demanded the pull request be armed.
+#
+# A human or agent who genuinely reviews and finds nothing approves; one who
+# finds something requests changes. Neither is a comment.
+REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
+
+def _independent_reviews(reviews: object, author: object) -> list:
+    """Reviews by somebody other than the author that render a verdict.
+
+    One predicate, consumed by both R15 (may this be armed) and R17 (should
+    this have been armed). They must agree: if R17 counted a review R15 does
+    not, Stop would demand arming while R15 refused it, leaving no legal state
+    -- the deadlock `_unarmed_reviewed_pull_request` already warns about, one
+    rule over. Two copies of a predicate is how that divergence arrives, so
+    there is one.
+    """
+    if not isinstance(reviews, list):
+        return []
+    return [
+        review
+        for review in reviews
+        if isinstance(review, dict)
+        and (review.get("author") or {}).get("login")
+        and (review.get("author") or {}).get("login") != author
+        and review.get("state") in REVIEW_VERDICTS
+    ]
 
 
 DEFAULT_BRANCHES = frozenset({"main", "master"})
@@ -2203,7 +2227,7 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
         "pr",
         "view",
         "--json",
-        "number,autoMergeRequest,reviews,author",
+        "number,autoMergeRequest,reviews,author,isDraft",
     ]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
@@ -2224,17 +2248,16 @@ def _unarmed_reviewed_pull_request(cwd: object) -> str | None:
         return None
     if not isinstance(payload, dict) or payload.get("autoMergeRequest"):
         return None
+    # A draft is the author saying the work is not ready. Arming it would
+    # merge unfinished work the moment CI went green -- this rule told its
+    # own author to arm a draft carrying four unimplemented tickets.
+    if payload.get("isDraft"):
+        return None
     author = (payload.get("author") or {}).get("login")
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    independent = [
-        review
-        for review in reviews
-        if isinstance(review, dict)
-        and (review.get("author") or {}).get("login")
-        and (review.get("author") or {}).get("login") != author
-    ]
+    independent = _independent_reviews(reviews, author)
     if not independent:
         return None  # R15 would refuse arming; demanding it here would deadlock
     number = payload.get("number")
