@@ -133,8 +133,17 @@ PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
 #
 # Three honest statuses, and the third is not a failure:
 #   performed   -- a hook does it, so no adherence is required at all
-#   gated       -- a hook or check refuses to proceed until it has happened
+#   gated       -- a PreToolUse rule REFUSES the call until it has happened
+#   reports     -- a Stop rule interrupts the turn but cannot refuse anything
 #   prose-only  -- no practical mechanism, with the reason recorded here
+#
+# `reports` exists because the first version had only `gated`, and five rows
+# claimed it for rules whose own docstrings say the opposite -- R16 "not a hard
+# gate", R20 "reports rather than refuses", R21 "reports, never refuses". A
+# registry whose whole deliverable is honest classification cannot round
+# "interrupts once" up to "refuses". The distinction is mechanical, not a
+# judgement: a gated rule is dispatched from `run_pretooluse` and returns a
+# denial; a reporting rule is dispatched from `run_stop`.
 #
 # `law` ties a row to a numbered iron law. Every law needs exactly one row and
 # no row may name a law that does not exist, so adding a seventh iron law fails
@@ -237,31 +246,31 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     {
         "law": None,
         "rule": "run the learning loop before reporting done",
-        "status": "gated",
+        "status": "reports",
         "mechanism": "check_r16_learning_loop",
     },
     {
         "law": None,
         "rule": "arm auto-merge once the review gate passes, then watch until merged",
-        "status": "gated",
+        "status": "reports",
         "mechanism": "check_r17_unarmed_pull_request",
     },
     {
         "law": None,
         "rule": "push before the session can end; unpushed work is unrecoverable",
-        "status": "gated",
+        "status": "reports",
         "mechanism": "check_r18_unpushed_work",
     },
     {
         "law": None,
         "rule": "keep the deployed harness in step with the tracked one",
-        "status": "gated",
+        "status": "reports",
         "mechanism": "check_r20_user_harness_drift",
     },
     {
         "law": None,
         "rule": "put in-flight run state on the tracker when work is delegated",
-        "status": "gated",
+        "status": "reports",
         "mechanism": "check_r21_run_state_not_recorded",
     },
     {
@@ -277,7 +286,7 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
 )
 
-REGISTRY_STATUSES = frozenset({"performed", "gated", "prose-only"})
+REGISTRY_STATUSES = frozenset({"performed", "gated", "reports", "prose-only"})
 
 # Words that leave every pinned word in place and turn the rule into a
 # suggestion.
@@ -1885,10 +1894,59 @@ class DisciplineTest(unittest.TestCase):
         )
 
     def test_every_row_is_honestly_classified(self):
+        """The name is the claim, so it has to test both halves of it.
+
+        The first version asserted only that `status` was a member of the
+        allowed set and that `rule` was non-empty -- which is satisfied by
+        every possible misclassification. Adversarial review found five rows
+        claiming `gated` for rules whose own docstrings say they only report.
+
+        The distinction is mechanical rather than a judgement: a `gated` rule
+        is dispatched from `run_pretooluse`, where returning a string denies
+        the call; a `reports` rule is dispatched from `run_stop`, which cannot
+        refuse anything.
+        """
+        pretooluse = self.dispatched_from("run_pretooluse")
+        stop = self.dispatched_from("run_stop")
+        self.assertTrue(pretooluse and stop, "the dispatch scan found nothing")
+        self.assertNotEqual(
+            pretooluse,
+            stop,
+            "the two entry points cannot dispatch identical sets; the scan is too wide",
+        )
+
         for row in REQUIRED_ACTION_REGISTRY:
             with self.subTest(rule=row["rule"][:50]):
                 self.assertIn(row["status"], REGISTRY_STATUSES)
                 self.assertTrue(row["rule"].strip())
+                mechanism = row.get("mechanism", "")
+                if row["status"] == "gated":
+                    self.assertIn(
+                        mechanism,
+                        pretooluse,
+                        f"{mechanism} is classified gated but does not refuse a call",
+                    )
+                if row["status"] == "reports":
+                    self.assertIn(
+                        mechanism,
+                        stop,
+                        f"{mechanism} is classified reports but is not a Stop rule",
+                    )
+
+    def dispatched_from(self, entry: str) -> set[str]:
+        """Rule names appearing in one hook entry point's body.
+
+        `inspect.getsource` rather than slicing the file between `def` markers.
+        The slicing version silently returned every rule in the module for
+        `run_stop`, which made the `reports` half of the classification check
+        pass for any input -- a vacuous check inside the test whose whole
+        subject is dishonest classification.
+        """
+        import inspect
+
+        from scripts.agents import guard
+
+        return set(re.findall(r"check_r[0-9]+_[a-z_]+", inspect.getsource(getattr(guard, entry))))
 
     def test_every_enforced_row_names_a_mechanism_that_exists(self):
         """A row claiming enforcement by a symbol nobody wrote is worse than no row."""
