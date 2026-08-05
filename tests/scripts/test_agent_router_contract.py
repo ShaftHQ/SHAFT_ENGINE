@@ -541,7 +541,7 @@ def patched_symbols(node: ast.AST) -> set[str]:
 
 
 def asserted_calls(node: ast.AST) -> set[str]:
-    """Symbols *invoked* inside a `self.assertX(...)` argument.
+    """Symbols *invoked* inside a test assertion.
 
     Invoked, not merely mentioned, and that narrowing is what keeps the check
     free of false positives. `self.assertIn("_helper(cwd)", inspect.getsource(
@@ -553,14 +553,19 @@ def asserted_calls(node: ast.AST) -> set[str]:
     """
     called: set[str] = set()
     for outer in ast.walk(node):
-        if not isinstance(outer, ast.Call):
+        if isinstance(outer, ast.Assert):
+            arguments = [outer.test]
+        elif (
+            isinstance(outer, ast.Call)
+            and isinstance(outer.func, ast.Attribute)
+            and outer.func.attr.startswith("assert")
+            and isinstance(outer.func.value, ast.Name)
+            and outer.func.value.id == "self"
+        ):
+            arguments = [*outer.args, *(keyword.value for keyword in outer.keywords)]
+        else:
             continue
-        function = outer.func
-        if not (isinstance(function, ast.Attribute) and function.attr.startswith("assert")):
-            continue
-        if not (isinstance(function.value, ast.Name) and function.value.id == "self"):
-            continue
-        for argument in [*outer.args, *(keyword.value for keyword in outer.keywords)]:
+        for argument in arguments:
             for inner in ast.walk(argument):
                 if not isinstance(inner, ast.Call):
                     continue
@@ -2502,6 +2507,17 @@ class VacuousSetupPatchTest(unittest.TestCase):
         defects = setup_patch_defects(source, "synthetic.py")
         self.assertEqual(len(defects), 1, defects)
         self.assertIn("_helper", defects[0])
+
+    def test_a_bare_assert_on_the_mock_is_reported(self):
+        source = (
+            "class T(unittest.TestCase):\n"
+            "    def setUp(self):\n"
+            "        patch('scripts.agents.guard._helper', return_value=False).start()\n"
+            "\n"
+            "    def test_it(self):\n"
+            "        assert guard._helper() is False\n"
+        )
+        self.assertEqual(len(setup_patch_defects(source, "synthetic.py")), 1)
 
     def test_a_test_that_repatches_the_symbol_itself_is_not_reported(self):
         """The legitimate shape in the same class must stay legal.

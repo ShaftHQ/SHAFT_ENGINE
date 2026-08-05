@@ -734,16 +734,20 @@ class OnlyAddedLinesAreBranchUniqueTest(unittest.TestCase):
             answer = guard._content_exists_on_default_branch(self.BRANCH)
         return answer, git
 
-    def test_a_branch_main_is_merely_ahead_of_is_delivered(self):
-        """Deletions only: `main` has more, the branch has nothing of its own."""
+    def test_an_unmerged_deletion_only_branch_is_not_delivered(self):
+        """A deletion is branch work until the default branch proves it landed."""
         answer, git = self.delivery("0\t12\tone.py\n0\t3\ttwo.py\n")
-        self.assertTrue(answer, "a pure-deletion residual is `main` ahead, not unlanded work")
+        self.assertFalse(answer, "R13 must not discard unpushed deletion-only work")
         self.assertEqual(git.call_count, 3, "the delivery question must reach git")
         self.assertIn(
             "--numstat",
             git.call_args_list[2].args[0],
             "added lines have to be counted, and --quiet cannot count them",
         )
+
+    def test_an_identical_branch_is_delivered(self):
+        answer, _ = self.delivery("")
+        self.assertTrue(answer)
 
     def test_a_branch_holding_added_lines_is_not_delivered(self):
         """The protection, unweakened: one `+` line is one line only this branch has."""
@@ -765,7 +769,7 @@ class OnlyAddedLinesAreBranchUniqueTest(unittest.TestCase):
         answer, _ = self.delivery("unused", listing="\n")
         self.assertTrue(answer)
 
-    def test_r13_permits_deleting_a_branch_main_is_ahead_of(self):
+    def test_r13_refuses_deleting_a_branch_with_unproved_deletions(self):
         """End to end through the rule, not only the predicate.
 
         `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
@@ -776,8 +780,9 @@ class OnlyAddedLinesAreBranchUniqueTest(unittest.TestCase):
         git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
         with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
             with patch("scripts.agents.guard._git_output", git):
-                self.assertIsNone(
-                    guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash")
+                self.assertIn(
+                    "R13 blocked",
+                    guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash"),
                 )
 
     def test_r13_still_refuses_a_branch_holding_unlanded_additions(self):
@@ -791,31 +796,30 @@ class OnlyAddedLinesAreBranchUniqueTest(unittest.TestCase):
         self.assertIsNotNone(reason)
         self.assertIn("R13 blocked", reason)
 
-    def test_r13_and_r18_agree_a_landed_branch_needs_no_push(self):
-        """Pairwise, and the one the store had already flagged as open.
+    def test_r13_and_r18_agree_an_unproved_branch_needs_a_push(self):
+        """Pairwise: both guards retain work whose delivery is unproved.
 
         `decision.check-every-new-guard-pairwise-against-the-guards-already-
         shipped` lists "the push-cadence rule versus R13 (do not push a branch
         about to be deleted)" under still to check. This is that pair: R13's
         refusal is what makes a squash-landed branch look unpushed, and R18 is
         the rule whose remedy is to push it. Both read
-        `_unrecoverable_commit_count`, so widening delivery has to clear both
-        at once or the agent is told to push exactly the branch it may now
-        delete.
+        `_unrecoverable_commit_count`, so the safety predicate must drive both
+        guards consistently.
         """
         git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
         with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
             with patch("scripts.agents.guard._git_output", git):
-                self.assertIsNone(
+                self.assertIsNotNone(
                     guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash")
                 )
         git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
         with patch("scripts.agents.guard._current_branch", return_value=self.BRANCH):
             with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
                 with patch("scripts.agents.guard._git_output", git):
-                    self.assertIsNone(
+                    self.assertIsNotNone(
                         guard.check_r18_unpushed_work({"cwd": "."}),
-                        "R18 must not demand a push for a branch R13 now lets go",
+                        "R18 must demand a push for work R13 cannot safely delete",
                     )
 
     def test_the_unpushed_count_asks_git_with_an_explicit_revision(self):
@@ -2376,8 +2380,9 @@ class FreshBaseGateTest(unittest.TestCase):
     deleted, so this one does not guess.
     """
 
-    def payload(self, path: str, cwd: str = ".") -> dict:
-        return {"cwd": cwd, "tool_name": "Write", "tool_input": {"file_path": path}}
+    def payload(self, path: str, cwd: str = ".", tool_name: str = "Write") -> dict:
+        path_key = "notebook_path" if tool_name == "NotebookEdit" else "file_path"
+        return {"cwd": cwd, "tool_name": tool_name, "tool_input": {path_key: path}}
 
     def repository(self):
         """A throwaway repository root and a sibling directory outside it.
@@ -2412,6 +2417,17 @@ class FreshBaseGateTest(unittest.TestCase):
             with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
                 self.assertIsNone(
                     guard.check_r19_fresh_base(self.payload(target, cwd=root), "Write")
+                )
+
+    def test_a_notebook_edit_outside_the_repository_is_not_refused(self):
+        root, outside = self.repository()
+        target = os.path.join(outside, "scratch.ipynb")
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._git_output", return_value=root + "\n"):
+                self.assertIsNone(
+                    guard.check_r19_fresh_base(
+                        self.payload(target, cwd=root, tool_name="NotebookEdit"), "NotebookEdit"
+                    )
                 )
 
     def test_a_write_inside_the_repository_is_still_refused(self):

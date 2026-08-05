@@ -1531,14 +1531,11 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     stays correct once `main` advances with unrelated work, because the
     comparison is restricted to the branch's own files.
 
-    Read one direction of that comparison, not both (#4569). The first cut
-    demanded the files be *identical*, and identity is the wrong bar: in
-    `git diff origin/main <branch>` a `-` line is content `main` holds and the
-    branch does not, which is `main` having moved on after the squash landed.
-    Only a `+` line is content this branch alone holds, and only that can be
-    destroyed by deleting it. Nine branches were left permanently undeletable
-    by the stricter reading, three of them carrying zero added lines, and the
-    remedy offered -- push them -- would have put dead branches on the remote.
+    Require identity (#4567 review). A deletion-only branch looks identical to
+    a branch `main` merely moved ahead of when read as one-sided line counts,
+    but deleting the former loses an unpushed commit. This guard cannot prove a
+    deletion landed after a squash without reading commit meaning, so it fails
+    closed on either side of a textual difference.
 
     `--numstat` reads that direction as data instead of as an exit code: one
     structured field per file, `-` for a binary difference, and exit 0 either
@@ -1549,12 +1546,6 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     deletion. A binary difference is uncertainty, since `--numstat` cannot say
     which side holds what.
 
-    The one thing it does not decide is a branch whose own work was a
-    deletion. Such a branch is a content subset of `main` and reads as
-    delivered here. That is this function's stated question -- would deleting
-    it lose content the default branch lacks -- and separating a landed
-    deletion from an unlanded one needs `main` read for meaning, which is the
-    shape this repository has already recorded losing every time it tried.
     """
     if not branch:
         return False
@@ -1578,8 +1569,8 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     for line in numstat.splitlines():
         if not line.strip():
             continue
-        added = line.split("\t", 1)[0].strip()
-        if added != "0":
+        added, _, deleted = line.partition("\t")
+        if added.strip() != "0" or deleted.split("\t", 1)[0].strip() != "0":
             return False
     return True
 
@@ -2094,7 +2085,12 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     tool_input = hook_input.get("tool_input")
     path = ""
     if isinstance(tool_input, dict):
-        path = tool_input.get("file_path") or tool_input.get("path") or ""
+        path = (
+            tool_input.get("file_path")
+            or tool_input.get("path")
+            or tool_input.get("notebook_path")
+            or ""
+        )
     root = _repository_root(cwd)
     if path and root and not _path_is_inside(path, root, cwd):
         return None
