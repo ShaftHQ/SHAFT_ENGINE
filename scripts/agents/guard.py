@@ -1776,8 +1776,8 @@ REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
 _GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
 
 
-def _skip_gh_global_flags(tokens: list[str]) -> list[str]:
-    """Drop a leading `-R`/`--repo <value>` (or `--repo=value`) from `tokens`.
+def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
+    """Split a leading `-R`/`--repo <value>` off `tokens`, returning both halves.
 
     `-R owner/repo` / `--repo owner/repo` is gh's own global flag for
     targeting a repository explicitly -- the standard way to post run state
@@ -1788,30 +1788,74 @@ def _skip_gh_global_flags(tokens: list[str]) -> list[str]:
     == ["-R"]`, matched neither `issue` nor `pr`, and R21 fired on a session
     that had already done the required work (#4548, second review).
 
+    The value comes back with the rest because it also says *which*
+    repository, and `_updates_a_tracked_issue` has to ask (#4554, third
+    review). Only the last occurrence is reported; gh takes the last flag
+    too, and a command with two is already outside what this rule reasons
+    about.
+
     Other value-taking global flags (`--hostname`, `-h`/`--help`) are left
     alone: none has been observed making R21 fire on correct work, and
     covering gh's full flag surface ahead of an evidenced defect just
     couples this rule to a CLI it does not otherwise track.
     """
     index = 0
+    repository: str | None = None
     while index < len(tokens):
         token = tokens[index]
         if token in _GH_GLOBAL_FLAGS_WITH_ARG:
+            repository = tokens[index + 1] if index + 1 < len(tokens) else None
             index += 2
             continue
-        if any(token.startswith(f"{flag}=") for flag in _GH_GLOBAL_FLAGS_WITH_ARG):
+        matched = next(
+            (flag for flag in _GH_GLOBAL_FLAGS_WITH_ARG if token.startswith(f"{flag}=")),
+            None,
+        )
+        if matched:
+            repository = token[len(matched) + 1:]
             index += 1
             continue
         break
-    return tokens[index:]
+    return tokens[index:], repository
 
 
-def _updates_a_tracked_issue(command: str) -> bool:
-    """True when a command posts run state to an issue or pull request.
+def _names_this_repository(repository: str, cwd: object) -> bool:
+    """True unless `-R owner/name` provably points somewhere other than here.
+
+    Compares the name after the slash, not the owner: a fork's `origin` is
+    `someone/SHAFT_ENGINE`, and refusing to count an explicit
+    `-R ShaftHQ/SHAFT_ENGINE` there would be the #4548 false positive back
+    under a new name. The companion-docs case this exists for --
+    `ShaftHQ/shafthq.github.io` -- differs in the name, which is the part
+    that carries the signal.
+
+    Fails open when git will not answer, the direction R15 and R20 already
+    take: an environment that cannot name its own remote is not evidence
+    the agent posted to the wrong place.
+
+    Known limit, stated rather than papered over: a `cd ../shafthq.github.io
+    && gh pr create` in another repository's checkout still counts, because
+    no token in it says so. `-R` is the half that is visible.
+    """
+    remote = _git_output(["remote", "get-url", "origin"], cwd)
+    if not remote:
+        return True
+    here = remote.strip().rstrip("/").removesuffix(".git").rsplit("/", 1)[-1]
+    named = repository.strip().strip("\"'").rstrip("/").removesuffix(".git").rsplit("/", 1)[-1]
+    if not here or not named:
+        return True
+    return here.lower() == named.lower()
+
+
+def _updates_a_tracked_issue(command: str, cwd: object = None) -> bool:
+    """True when a command posts run state to *this* repository's issue or pull request.
 
     Observed, not judged, like every other ledger recorder: whether the comment
     said anything useful is not a question a hook can answer, and one that
     tried would be satisfied by posting noise.
+
+    Which repository it went to is a question a hook can answer, at least when
+    the command names one (#4554, third review).
     """
     if not command:
         return False
@@ -1823,7 +1867,16 @@ def _updates_a_tracked_issue(command: str) -> bool:
         # have shown it.
         if not rest:
             continue
-        rest = _skip_gh_global_flags(rest)
+        rest, repository = _split_gh_global_flags(rest)
+        # An explicit `-R` at another repository cannot be this session's run
+        # state, whatever it writes. `AGENTS.md` sends companion docs changes
+        # to their own pull request in `../shafthq.github.io`, so opening that
+        # one used to clear R21 for the SHAFT_ENGINE session that had posted
+        # nothing -- the two halves of #4548's fix cancelling out, since
+        # `pr create` counts precisely because it is bound to the current
+        # branch, and `-R other/repo` is how that binding is removed.
+        if repository and not _names_this_repository(repository, cwd):
+            continue
         # Any gh call that writes durable prose to an issue or pull request.
         # The first version took `issue comment`, `pr comment` and `issue edit`
         # only, so a session that opened a pull request carrying its full run
@@ -1875,9 +1928,12 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
     one that gets bypassed and then deleted.
 
     Keyed to the branch so a review of one branch cannot silently clear
-    another. When git cannot answer, a bare `review` is recorded instead: that
-    is the same fail-open direction R15 already takes when `gh` cannot answer,
-    and refusing to record would punish the agent for the environment.
+    another. When git cannot answer, nothing is recorded at all: an earlier
+    version wrote a bare `review` here, and that keyless event cleared R15 for
+    *every* branch, so a dispatch from a detached HEAD armed an unrelated pull
+    request. Recording nothing is the direction the agent can leave, by
+    dispatching from a branch (#4548, second review; the reader
+    `_ledger_records_a_review` was corrected then and this writer was not).
     """
     if tool_name not in DISPATCH_TOOLS:
         return None
@@ -1890,11 +1946,7 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
     if subagent.strip().lower() not in REVIEWER_SUBAGENT_TYPES:
         return None
     branch = _current_branch(_hook_working_directory(hook_input))
-    # No keyless fallback. A bare `review` cleared *every* branch, so a
-    # dispatch from a detached HEAD armed an unrelated pull request -- which
-    # made the "keyed to the branch" guarantee void exactly when git could not
-    # answer. Recording nothing is the safe direction: R15 then refuses, and
-    # refusing is a state the agent can leave by dispatching from a branch.
+    # No keyless fallback -- see above for what one cost.
     return f"review:{branch}" if branch else None
 
 
@@ -2041,7 +2093,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             if _tokens_after_head(segment, frozenset({"git"}))
         ):
             ledger_record(hook_input, "commit")
-        if _updates_a_tracked_issue(command):
+        if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
             ledger_record(hook_input, "issue-update")
         return 0
 

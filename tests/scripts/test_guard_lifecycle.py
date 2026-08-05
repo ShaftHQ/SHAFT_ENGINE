@@ -1880,17 +1880,57 @@ class RunStateStopGateTest(unittest.TestCase):
         `gh -R owner/repo issue comment ...` is the standard way to post from
         a linked worktree or any cwd that is not the tracked repo's own
         checkout -- exactly the post R21 demands. The mutation this test
-        kills: delete `_skip_gh_global_flags` (or its call site) and these
+        kills: delete `_split_gh_global_flags` (or its call site) and these
         commands stop counting, so R21 fires on a session that already did
         the required work.
+
+        `_git_output` is patched so this asserts the repository comparison
+        added in the third review rather than its fail-open branch, which is
+        what an unpatched run would have exercised wherever `origin` is
+        unset.
         """
-        for command in (
-            "gh -R ShaftHQ/SHAFT_ENGINE issue comment 4536 --body x",
-            "gh --repo ShaftHQ/SHAFT_ENGINE pr edit 4554 --body x",
-            "gh --repo=ShaftHQ/SHAFT_ENGINE issue edit 4536 --body x",
+        with patch(
+            "scripts.agents.guard._git_output",
+            return_value="git@github.com:ShaftHQ/SHAFT_ENGINE.git\n",
         ):
-            with self.subTest(command=command):
-                self.assertTrue(guard._updates_a_tracked_issue(command))
+            for command in (
+                "gh -R ShaftHQ/SHAFT_ENGINE issue comment 4536 --body x",
+                "gh --repo ShaftHQ/SHAFT_ENGINE pr edit 4554 --body x",
+                "gh --repo=ShaftHQ/SHAFT_ENGINE issue edit 4536 --body x",
+                # A fork's own `origin` is `someone/SHAFT_ENGINE`; the name
+                # after the slash is what carries the signal.
+                "gh -R someone/SHAFT_ENGINE pr comment 4554 --body x",
+            ):
+                with self.subTest(command=command):
+                    self.assertTrue(guard._updates_a_tracked_issue(command))
+
+    def test_writing_to_another_repository_does_not_count(self):
+        """#4554, third review: `-R` also names repositories that are not this one.
+
+        The two halves of the previous fix contradicted each other.
+        `_skip_gh_global_flags` strips exactly the flag that says "not this
+        repository", and `pr create` counts because it is bound to the
+        current branch -- a binding `-R other/repo` removes. `AGENTS.md`
+        sends companion docs changes to a separate pull request in
+        `../shafthq.github.io`, so opening that one cleared R21 for the
+        SHAFT_ENGINE session it had posted nothing to.
+
+        The mutation this test kills: drop the repository comparison and
+        `-R` goes back to satisfying R21 from anywhere. `_git_output` is
+        patched because git is the boundary here, not the behavior: the
+        assertion is about which repository the command names.
+        """
+        with patch(
+            "scripts.agents.guard._git_output",
+            return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git\n",
+        ):
+            for command in (
+                "gh -R ShaftHQ/shafthq.github.io pr create --title docs --body x",
+                "gh --repo ShaftHQ/shafthq.github.io pr comment 12 --body x",
+                "gh --repo=someone/unrelated issue comment 1 --body x",
+            ):
+                with self.subTest(command=command):
+                    self.assertFalse(guard._updates_a_tracked_issue(command))
 
     def test_reading_an_issue_is_not_recording_state(self):
         """The boundary, held by what it refuses rather than what it accepts."""
