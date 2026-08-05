@@ -2131,19 +2131,35 @@ def ledger_events(hook_input: dict) -> list[str]:
     except (OSError, ValueError, UnicodeDecodeError):
         return []
     events: list[str] = []
+    decoder = json.JSONDecoder()
     for line in lines:
-        if not line.strip():
-            continue
-        try:
-            item = json.loads(line)
-        except ValueError:
-            # A torn line from a concurrent append. Skipping it loses that one
-            # event; refusing the whole file would lose every event before it,
-            # which is what the previous whole-document format did on any
-            # corruption.
-            continue
-        if isinstance(item, str):
-            events.append(item)
+        # Scan every value on the line rather than requiring the line to be
+        # exactly one. Two shapes need this, and the first was found in live
+        # data an hour after the append-only change shipped:
+        #
+        #   1. Migration. The previous format wrote one whole-document array
+        #      with no trailing newline, so the first append landed on the same
+        #      line: `["test-run", "commit"]"test-run"`. Treating that line as
+        #      one value made it unparsable, and skipping it silently dropped
+        #      the entire pre-upgrade history -- which would leave R12 blocking
+        #      a production write whose test run really had been observed.
+        #   2. Concurrency. Two appends that interleave can share a line.
+        #
+        # A value that cannot be decoded still costs only the rest of that one
+        # line, never the file.
+        position = 0
+        text = line.strip()
+        while position < len(text):
+            try:
+                item, position = decoder.raw_decode(text, position)
+            except ValueError:
+                break
+            if isinstance(item, str):
+                events.append(item)
+            elif isinstance(item, list):
+                events.extend(entry for entry in item if isinstance(entry, str))
+            while position < len(text) and text[position] in " \t,":
+                position += 1
     return events
 
 

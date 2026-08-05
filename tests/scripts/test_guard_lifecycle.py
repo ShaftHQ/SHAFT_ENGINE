@@ -1166,6 +1166,48 @@ class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
                 guard.ledger_record(payload, "after")
                 self.assertEqual(guard.ledger_events(payload), ["before", "after"])
 
+    def test_a_legacy_whole_document_ledger_survives_the_first_append(self):
+        """Found in live data an hour after the append-only change shipped.
+
+        The previous format wrote one array with no trailing newline, so the
+        first append landed on the same line:
+        `["test-run", "commit"]"test-run"`. Read as a single value that line is
+        unparsable, and skipping it dropped the entire pre-upgrade history --
+        which would leave R12 blocking a production write whose test run really
+        had been observed. On the real ledger this session was using, 140
+        events were being read as 10.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-legacy", directory)
+                path = guard._ledger_path(payload)
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('["test-run", "commit"]')  # legacy, no newline
+                guard.ledger_record(payload, "memory-write")
+
+                self.assertEqual(
+                    guard.ledger_events(payload), ["test-run", "commit", "memory-write"]
+                )
+
+    def test_two_appends_sharing_a_line_both_survive(self):
+        """The concurrency shape of the same defect."""
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-shared-line", directory)
+                path = guard._ledger_path(payload)
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('"first""second"\n')
+                self.assertEqual(guard.ledger_events(payload), ["first", "second"])
+
+    def test_an_undecodable_value_costs_only_the_rest_of_its_line(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("session-partial", directory)
+                path = guard._ledger_path(payload)
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('"kept"\n{"torn\n"also-kept"\n')
+                self.assertEqual(guard.ledger_events(payload), ["kept", "also-kept"])
+
     def test_stale_ledgers_are_reaped_and_current_ones_are_kept(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
