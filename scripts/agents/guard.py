@@ -1483,6 +1483,50 @@ def run_session_start(hook_input: dict) -> int:
     return 0
 
 
+def _open_pull_request_count(branch: str | None) -> int | None:
+    """Open pull requests for `branch`, or None when the question cannot be answered.
+
+    None and 0 are different facts and must stay different: "the lookup did
+    not run" versus "it ran and found none". Collapsing them is #4542, where
+    the Stop hook read an unperformed lookup as an absent pull request and
+    blocked a delivered branch on every turn.
+
+    One bounded call for one branch, not a survey. `worktree_hygiene.py` owns
+    the same query behind `--check-pull-requests`, but the Stop hook runs it
+    across every worktree under a 10-second budget, and this needs to answer
+    for the current branch only.
+    """
+    if not branch:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+            [
+                "gh",
+                "pr",
+                "list",
+                "--head",
+                branch,
+                "--state",
+                "open",
+                "--json",
+                "number",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        listed = json.loads(completed.stdout or "[]")
+    except ValueError:
+        return None
+    return len(listed) if isinstance(listed, list) else None
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
@@ -1496,6 +1540,26 @@ def run_stop(hook_input: dict) -> int:
             None,
         )
         state = current.get("state") if current else None
+        # #4542: `pending` is decided by commit count alone, so a branch that
+        # is clean, pushed and covered by an open pull request blocked here on
+        # every turn -- the work was delivered and the hook never asked. Ask
+        # now, for this branch only, and fail open: a machine with no `gh`,
+        # no credentials or no network must not be stranded, which the
+        # requirement of any agent on any machine makes non-negotiable.
+        # Confirmed zero still blocks, because commits nobody else can see are
+        # exactly what this check is for.
+        # Only ask where the question applies. A pending worktree on no branch
+        # -- a detached HEAD holding unique commits -- cannot be covered by a
+        # pull request at all, so it keeps blocking: that work has no delivery
+        # vehicle, which is the case this check most needs to catch. Treating
+        # "inapplicable" as "unknown" would fail it open, the same collapse
+        # #4542 is about, one level up.
+        if state == "pending":
+            branch = current.get("branch") if current else None
+            if branch:
+                covered = _open_pull_request_count(branch)
+                if covered is None or covered > 0:
+                    return 0
         completion_route = (
             "Re-read the act-as-mohab Completion section and apply its routed, "
             "authorization-aware preservation, validation, delivery, and cleanup steps."

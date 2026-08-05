@@ -84,6 +84,82 @@ class GuardLifecycleTest(unittest.TestCase):
             "act-as-mohab", output["hookSpecificOutput"]["additionalContext"]
         )
 
+    @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={
+            "worktrees": [
+                {"is_current": True, "state": "pending", "branch": "ChaosEngine/x"}
+            ],
+            "advisories": [],
+        },
+    )
+    def test_stop_accepts_pending_commits_that_an_open_pull_request_covers(
+        self, _report, _count
+    ):
+        """#4542: the hook blocked on a state it never did the work to evaluate.
+
+        `pending` is returned on commit count alone. The branch that found this
+        was clean, pushed, and covered by an open pull request carrying nine
+        `Closes` lines -- and blocked on every turn, because
+        `open_pull_requests` was `None`, meaning *the lookup never ran*, not
+        *no pull request exists*.
+
+        With no reachable green state the only exits were to merge a draft to
+        silence a hook or to delete the guard, which is
+        `gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-
+        will-be-weakened` exactly, and iron law 4 forbids the second.
+        """
+        self.assertIsNone(self.output(guard.run_stop, {"cwd": "."}))
+
+    @patch("scripts.agents.guard._open_pull_request_count", return_value=0)
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={
+            "worktrees": [
+                {"is_current": True, "state": "pending", "branch": "ChaosEngine/x"}
+            ],
+            "advisories": [],
+        },
+    )
+    def test_stop_still_blocks_pending_commits_with_no_pull_request(
+        self, _report, _count
+    ):
+        """The case the check exists for must survive the fix.
+
+        Commits ahead with a *confirmed* zero open pull requests is genuinely
+        unfinished work: it lives on one machine and nobody else can see it.
+        Fixing #4542 must not buy a reachable green state by making the hook
+        toothless.
+        """
+        output = self.output(guard.run_stop, {"cwd": "."})
+        self.assertEqual(output["decision"], "block")
+        self.assertIn("pending work", output["reason"])
+
+    @patch("scripts.agents.guard._open_pull_request_count", return_value=None)
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={
+            "worktrees": [
+                {"is_current": True, "state": "pending", "branch": "ChaosEngine/x"}
+            ],
+            "advisories": [],
+        },
+    )
+    def test_stop_fails_open_when_the_pull_request_lookup_cannot_answer(
+        self, _report, _count
+    ):
+        """`None` and `0` must not collapse into the same branch.
+
+        No `gh`, no auth, no network, or a rate limit yields `None`. Treating
+        that as "no pull request" is what produced #4542, and on a machine
+        without `gh` it would strand every session permanently rather than
+        once. A hook that cannot verify must not hold the session hostage --
+        the requirement is any agent on any machine, and most machines have no
+        GitHub credentials at all.
+        """
+        self.assertIsNone(self.output(guard.run_stop, {"cwd": "."}))
+
     @patch(
         "scripts.agents.guard._worktree_report",
         return_value={
