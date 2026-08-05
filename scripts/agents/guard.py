@@ -2258,6 +2258,49 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     )
 
 
+_HARNESS_SOURCE = re.compile(
+    r"^(?:\.agents/skills/|\.claude/skills/|\.claude/user-harness/|\.claude/agents/|\.codex/agents/)"
+)
+
+
+def _branch_edits_harness_sources() -> bool:
+    """True when this branch is itself changing the files the sync deploys.
+
+    R20 fired on the commit that added it, correctly, and then fired again on
+    the next commit -- which edited `delegation.md`. That second firing was
+    wrong, and its remedy was worse than wrong: running `--apply` would have
+    deployed an unmerged branch edit onto the host harness, so the machine
+    would run guidance that has not landed and no one has reviewed.
+
+    While a branch edits harness sources the deployment is *supposed* to lag.
+    Drift is then the expected state, not a finding, and a gate that fires on
+    correct work is the shape `decision.check-every-new-guard-pairwise-against
+    -the-guards-already-shipped` records as the one that gets guards deleted.
+
+    Deliberately coarse, and the trade is stated rather than hidden: this also
+    silences genuine staleness for the life of such a branch. The precise
+    version compares drift per file against what the branch touched, which
+    needs a machine-readable mode on the sync tool that does not exist yet --
+    filed rather than approximated here, because parsing its printed labels
+    would couple this rule to a print format.
+
+    Committed and uncommitted both count: an edit in the working tree changes
+    what the sync compares just as much as a committed one does.
+    """
+    committed = _git_output(["diff", "--name-only", "origin/main...HEAD"])
+    working = _git_output(["status", "--porcelain"])
+    if committed is None and working is None:
+        return False  # cannot tell; let the advisory speak rather than swallow it
+    paths = list((committed or "").splitlines())
+    for line in (working or "").splitlines():
+        # `XY path`, and a rename reads `R  old -> new`; the new name is what matters.
+        candidate = line[3:].strip() if len(line) > 3 else ""
+        if " -> " in candidate:
+            candidate = candidate.split(" -> ", 1)[1]
+        paths.append(candidate)
+    return any(_HARNESS_SOURCE.match(path.strip().strip('"')) for path in paths if path.strip())
+
+
 def check_r20_user_harness_drift(hook_input: dict) -> str | None:
     """Report a deployed user harness that no longer matches the tracked one.
 
@@ -2283,6 +2326,8 @@ def check_r20_user_harness_drift(hook_input: dict) -> str | None:
     question is about this host's deployed files, not about the repository the
     turn happened to run in.
     """
+    if _branch_edits_harness_sources():
+        return None
     if not _sync_advisory():
         return None
     return (

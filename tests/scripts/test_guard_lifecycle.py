@@ -974,6 +974,18 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
 
     def setUp(self):
         isolate_stop_rules(self, except_for=("check_r20_user_harness_drift",))
+        # R20 reads live git state through this helper, so without pinning it
+        # these tests pass or fail on whether the branch running them happens
+        # to edit harness sources -- and the branch that added R20 does. That
+        # is the fourth instance of the defect ISOLATED_STOP_RULES exists for,
+        # and the first the equality pin could not catch: the pin covers Stop
+        # rules, and this is a helper one of them calls. Filed as its own gap.
+        # The tests that are *about* the suppression override this locally.
+        patcher = patch(
+            "scripts.agents.guard._branch_edits_harness_sources", return_value=False
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def stop(self, payload: dict) -> dict | None:
         stream = io.StringIO()
@@ -1014,6 +1026,53 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
         ):
             self.assertIsNotNone(self.stop({"cwd": "."}))
             self.assertIsNone(self.stop({"cwd": ".", "stop_hook_active": True}))
+
+    def test_a_branch_editing_harness_sources_is_not_drift(self):
+        """The rule fired on its own author's next commit, and was wrong.
+
+        R20 shipped, then the very next commit edited `delegation.md` and R20
+        reported it as drift. It is not: while a branch edits harness sources
+        the deployment is *supposed* to lag. The remedy it named was worse than
+        the false positive -- `--apply` would have deployed an unmerged,
+        unreviewed branch edit onto the host harness.
+        """
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            with patch(
+                "scripts.agents.guard._branch_edits_harness_sources", return_value=True
+            ):
+                self.assertIsNone(guard.check_r20_user_harness_drift({"cwd": "."}))
+            with patch(
+                "scripts.agents.guard._branch_edits_harness_sources", return_value=False
+            ):
+                self.assertIsNotNone(guard.check_r20_user_harness_drift({"cwd": "."}))
+
+    def test_harness_source_paths_are_recognised_and_others_are_not(self):
+        """The suppression must be no wider than the files the sync deploys."""
+        for path in (
+            ".agents/skills/act-as-mohab/references/delegation.md",
+            ".claude/skills/retrieve-first/SKILL.md",
+            ".claude/user-harness/CLAUDE.md",
+            ".claude/agents/coder.md",
+            ".codex/agents/reviewer.toml",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(guard._HARNESS_SOURCE.match(path))
+        for path in (
+            "scripts/agents/guard.py",
+            "tests/scripts/test_guard_lifecycle.py",
+            "AGENTS.md",
+            "docs/.agents/skills/x.md",
+            ".memory/memory/decisions/x.json",
+        ):
+            with self.subTest(path=path):
+                self.assertIsNone(guard._HARNESS_SOURCE.match(path))
+
+    def test_an_unanswerable_git_does_not_swallow_the_advisory(self):
+        """Unknown is not the same as no, so it must not silence the rule."""
+        with patch("scripts.agents.guard._git_output", return_value=None):
+            self.assertFalse(guard._branch_edits_harness_sources())
 
     def test_the_remedy_it_names_is_not_refused_by_another_rule(self):
         """Pairwise, as a test: a gate whose only exit another rule blocks is a deadlock."""
