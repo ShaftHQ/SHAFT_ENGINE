@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404 - fixed list-argument fixture commands only.
 import sys
 import tempfile
 import unittest
@@ -82,10 +82,10 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
 
     @staticmethod
     def git(root: Path, *args: str) -> str:
-        return subprocess.check_output(["git", *args], cwd=root, text=True)
+        return subprocess.check_output(["git", *args], cwd=root, text=True)  # nosec B603 B607
 
     def run_validator(self, root: Path, revision: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
+        return subprocess.run(  # nosec B603 - fixed Python executable and validator path.
             [
                 sys.executable,
                 str(SCRIPT),

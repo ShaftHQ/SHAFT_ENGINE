@@ -7,7 +7,7 @@ import ast
 import io
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - fixed list-argument commands only.
 import sys
 import tempfile
 import tarfile
@@ -26,7 +26,7 @@ def source_at(root: Path, revision: str, path: str) -> str:
         encoding="utf-8",
         errors="replace",
         check=False,
-    )
+    )  # nosec B603 B607 - fixed read-only git command.
     if result.returncode:
         raise ValueError(f"cannot read {path} at {revision}")
     return result.stdout
@@ -49,11 +49,11 @@ def no_red_reason(root: Path, revision: str) -> bool:
     message = subprocess.run(
         ["git", "show", "-s", "--format=%B", revision], cwd=root, capture_output=True, text=True,
         encoding="utf-8", errors="replace", check=False,
-    ).stdout
+    ).stdout  # nosec B603 B607 - fixed read-only git command.
     trailers = subprocess.run(
         ["git", "interpret-trailers", "--parse"], input=message, capture_output=True, text=True,
         encoding="utf-8", errors="replace", check=False,
-    ).stdout
+    ).stdout  # nosec B603 B607 - fixed read-only git command.
     match = re.search(r"(?im)^no-red:\s*(.+)$", trailers)
     return bool(match and len(match.group(1).split()) >= NO_RED_REASON_WORDS)
 
@@ -68,7 +68,7 @@ def restore_parent_tree(root: Path, revision: str, overlay: Path) -> None:
         cwd=root,
         capture_output=True,
         check=False,
-    )
+    )  # nosec B603 B607 - fixed read-only git command.
     if archive.returncode:
         raise ValueError(f"cannot archive parent tree at {revision}^")
     with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as contents:
@@ -93,7 +93,7 @@ def run_parent_code_test(
         }
         return subprocess.run(
             [sys.executable, "-m", "unittest", target], cwd=overlay, env=environment, check=False
-        ).returncode
+        ).returncode  # nosec B603 - fixed Python executable and unittest module.
 
 
 def validate(root: Path, revision: str, production_path: str, test_path: str) -> list[str]:

@@ -374,7 +374,7 @@ class MainCLIIntegrationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
     def test_cli_reports_a_false_credit_without_failing_the_gate(self):
-        """#4567 item 5 is advisory: a commit message cannot be reworded after push.
+        """#4567 item 5 is advisory: a commit message cannot be reworded after push.  # noqa: D213
 
         The fixture has a real commit whose diff omits `raw_decode`. The scan must
         say so and still exit 0 -- failing here would demand an amend the branch
@@ -390,12 +390,12 @@ class MainCLIIntegrationTest(unittest.TestCase):
                 ["git", "config", "user.email", "test@example.com"],
                 ["git", "config", "user.name", "Test"],
             ):
-                subprocess.run(command, cwd=temporary, check=True, capture_output=True)  # nosec B603
+                subprocess.run(command, cwd=temporary, check=True, capture_output=True)  # nosec B603 B607
             with open(os.path.join(temporary, "example.py"), "w", encoding="utf-8") as source:
                 source.write("value = 1\n")
-            subprocess.run(["git", "add", "example.py"], cwd=temporary, check=True)  # nosec B603
-            subprocess.run(["git", "commit", "-m", "fixture"], cwd=temporary, check=True)  # nosec B603
-            sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=temporary, text=True).strip()  # nosec B603
+            subprocess.run(["git", "add", "example.py"], cwd=temporary, check=True)  # nosec B603 B607
+            subprocess.run(["git", "commit", "-m", "fixture"], cwd=temporary, check=True)  # nosec B603 B607
+            sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=temporary, text=True).strip()  # nosec B603 B607
             commits = json.dumps([{"sha": sha, "message": message}])
             result = self._run_cli(body="Closes #4127", commits_json=commits, cwd=temporary)
         self.assertEqual(result.returncode, 0)

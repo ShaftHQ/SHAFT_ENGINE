@@ -125,7 +125,7 @@ def find_negated_autocloses_in_commits(commits: list[tuple[str, str]]) -> list[d
 
 
 def _change_list_items(message: str) -> list[str]:
-    """Every markdown list item in the message, with its indented continuation lines.
+    """Every markdown list item in the message, with its indented continuation lines.  # noqa: D213
 
     Judged by the list delimiter alone -- never by what the item says. A commit
     enumerates what it did in its change list, so that is the surface where a
@@ -172,7 +172,7 @@ def find_credited_symbols_not_in_diff(
     commits: list[tuple[str, str]],
     diff_for_sha: Callable[[str], str | None],
 ) -> list[dict[str, str]]:
-    """Report each symbol a commit's change list credits but its own diff never touches.
+    """Report each symbol a commit's change list credits but its own diff never touches.  # noqa: D213
 
     Issue #4567 section 4.3, recurrence class `credit-not-in-diff`. `254a830710`
     credited `raw_decode` and `HOOK_BUDGET_SECONDS`, both landed by earlier
@@ -221,7 +221,7 @@ def find_credited_symbols_not_in_diff(
 
 
 def git_show_diff(sha: str) -> str | None:
-    """This commit's own diff with function context, or None when git cannot read it."""
+    """Return this commit's own diff with function context, or None when unreadable."""
     try:
         completed = subprocess.run(  # nosec B603 B607
             ["git", "show", "-W", "--format=", sha],

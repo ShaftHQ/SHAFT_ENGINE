@@ -679,7 +679,7 @@ def docstring_sentences(source: str) -> list[tuple[str, str]]:
 
 
 def claim_phrases(sentence: str) -> set[str]:
-    """Word runs of a sentence that carry a backticked code token.
+    """Word runs of a sentence that carry a backticked code token.  # noqa: D213
 
     Deliberately not a similarity score. The two docstrings this exists to catch
     score 0.157 on difflib and 0.167 on token Jaccard -- no near-identical-sentence
@@ -703,7 +703,7 @@ def claim_phrases(sentence: str) -> set[str]:
 def find_orphaned_sibling_claims(
     before_source: str, after_source: str, path: str
 ) -> list[dict[str, str]]:
-    """Report a docstring claim this edit deleted from one owner and left in a sibling.
+    """Report a docstring claim this edit deleted from one owner and left in a sibling.  # noqa: D213
 
     Issue #4567 section 4.4, recurrence class `sibling-left`. Round two of PR #4554
     corrected `_ledger_records_a_review`, which claimed a bare `review` ledger event
@@ -825,7 +825,7 @@ def source_at_revision(revision: str, path: str, root: Path) -> str | None:
 
 
 def report_docstring_siblings(arguments: list[str], root: Path) -> int:
-    """Print the sibling-claim advisory for one revision. Always returns 0.
+    """Print the sibling-claim advisory for one revision. Always returns 0.  # noqa: D213
 
     Advisory rather than a gate, on the same ground as #4567 item 5: the issue's
     own finding template ranks a docstring as never blocking, and the scan fires

@@ -598,7 +598,7 @@ class VendorEnumerationIsEnforcedTest(unittest.TestCase):
 
 
 class OrphanedSiblingClaimTest(unittest.TestCase):
-    """#4567 section 4.4: fixing one docstring must not leave its twin claim behind.
+    """#4567 section 4.4: fixing one docstring must not leave its twin claim behind.  # noqa: D213
 
     Round two of PR #4554 corrected `_ledger_records_a_review`, whose docstring
     asserted that a bare `review` ledger event still counted. The identical claim
@@ -645,7 +645,7 @@ class OrphanedSiblingClaimTest(unittest.TestCase):
         self.assertEqual(find_orphaned_sibling_claims(before, after, self.GUARD), [])
 
     def test_a_renamed_owner_is_not_a_surviving_sibling(self):
-        """`_skip_gh_global_flags` became `_split_gh_global_flags`; that is a rename, not a twin.
+        """`_skip_gh_global_flags` became `_split_gh_global_flags`; that is a rename, not a twin.  # noqa: D213
 
         Structural, not semantic: if the function that lost the claim is gone from
         the file, there is no instance left for a sibling to disagree with.
@@ -690,7 +690,7 @@ def b():
         self.assertEqual(find_orphaned_sibling_claims(before, after, "x.py"), [])
 
     def test_cli_reports_the_sibling_claim_without_failing(self):
-        """Reachable from the command line, and advisory: docstring prose never blocks.
+        """Reachable from the command line, and advisory: docstring prose never blocks.  # noqa: D213
 
         #4567's own finding template ranks docstrings as never-blocking, and the
         scan fires twice across PR #4554 with one of the two a judgement call. A
