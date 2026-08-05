@@ -43,6 +43,7 @@ ISOLATED_STOP_RULES = (
     # match the tracked one -- the third instance of the defect this list
     # exists for, caught by the equality pin in the commit that added it.
     "check_r20_user_harness_drift",
+    "check_r21_run_state_not_recorded",
 )
 
 
@@ -1629,6 +1630,69 @@ class ObservedReviewDispatchTest(unittest.TestCase):
         self.assertIn(
             "_ledger_records_a_review", inspect.getsource(guard.check_r15_review_before_arming)
         )
+
+
+class RunStateStopGateTest(unittest.TestCase):
+    """R21 / #4536: a delegating session that leaves no state behind.
+
+    The owner requirement is that enough state lives on GitHub for a second
+    agent to pick the work up when the first runs out of tokens. Findings
+    already have a rule and it is kept; decisions and in-flight state have no
+    home. Measured on #4504: zero comments while an agent was implementing the
+    owner's choice, which existed only in a dispatch prompt and a conversation.
+
+    Partial by construction, and the partiality is the honest part. Of the four
+    triggers #4536 lists, one is a tool call this hook sees. "An owner decided
+    something" is not an event, so it stays prose and the issue stays open.
+
+    Both halves are observed, never asserted: the dispatch, and a `gh issue
+    comment` that answers it. Whether the comment said anything useful is not a
+    question a hook can answer, and one that tried would be satisfied by noise.
+    """
+
+    def test_a_delegating_session_that_posts_nothing_is_reported(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=["delegate-dispatch"]):
+            self.assertIsNotNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_posting_state_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["delegate-dispatch", "issue-update"],
+        ):
+            self.assertIsNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_a_session_that_delegated_nothing_owes_nothing(self):
+        """It must not fire on a solo session, which is most of them."""
+        for events in ([], ["commit"], ["test-run", "commit", "memory-write"]):
+            with self.subTest(events=events):
+                with patch("scripts.agents.guard.ledger_events", return_value=events):
+                    self.assertIsNone(guard.check_r21_run_state_not_recorded({"session_id": "s"}))
+
+    def test_the_commands_that_count_as_recording_state(self):
+        for command in (
+            "gh issue comment 4536 --body x",
+            "gh pr comment 4554 --body x",
+            "gh issue edit 4536 --body x",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard._updates_a_tracked_issue(command))
+
+    def test_reading_an_issue_is_not_recording_state(self):
+        """The boundary, held by what it refuses rather than what it accepts."""
+        for command in (
+            "gh issue view 4536",
+            "gh issue list --state open",
+            "gh pr view 4554 --json body",
+            "git commit -m 'comment on the issue'",
+            "",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(guard._updates_a_tracked_issue(command))
+
+    def test_both_recorders_are_wired_into_the_hook(self):
+        source = inspect.getsource(guard.run_pretooluse)
+        self.assertIn('ledger_record(hook_input, "delegate-dispatch")', source)
+        self.assertIn('ledger_record(hook_input, "issue-update")', source)
 
 
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):

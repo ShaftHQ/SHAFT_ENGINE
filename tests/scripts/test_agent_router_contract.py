@@ -258,6 +258,23 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
         "status": "gated",
         "mechanism": "check_r20_user_harness_drift",
     },
+    {
+        "law": None,
+        "rule": "put in-flight run state on the tracker when work is delegated",
+        "status": "gated",
+        "mechanism": "check_r21_run_state_not_recorded",
+    },
+    {
+        "law": None,
+        "rule": "record an owner decision, and a sequencing constraint, where the next agent will find it",
+        "status": "prose-only",
+        "reason": (
+            "The remaining half of #4536. Delegation is a tool call a hook can see; "
+            "'an owner decided something in conversation' and 'a sequencing "
+            "constraint was discovered' are not events any hook observes, so they "
+            "stay prose and the issue stays open rather than being counted as done."
+        ),
+    },
 )
 
 REGISTRY_STATUSES = frozenset({"performed", "gated", "prose-only"})

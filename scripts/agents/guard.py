@@ -1767,6 +1767,28 @@ DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
 
 
+def _updates_a_tracked_issue(command: str) -> bool:
+    """True when a command posts run state to an issue or pull request.
+
+    Observed, not judged, like every other ledger recorder: whether the comment
+    said anything useful is not a question a hook can answer, and one that
+    tried would be satisfied by posting noise.
+    """
+    if not command:
+        return False
+    for segment in _command_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"gh"}))
+        # None for any segment that is not a `gh` call, which is most of them.
+        # Found by a negative fixture: `git commit -m 'comment on the issue'`
+        # raised here rather than returning False, and no positive case could
+        # have shown it.
+        if not rest:
+            continue
+        if rest[:2] in (["issue", "comment"], ["pr", "comment"], ["issue", "edit"]):
+            return True
+    return False
+
+
 def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
     """The ledger event a reviewer dispatch records, or None if this is not one.
 
@@ -1878,6 +1900,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     review_event = _reviewer_dispatch_event(hook_input, tool_name)
     if review_event:
         ledger_record(hook_input, review_event)
+    if tool_name in DISPATCH_TOOLS:
+        ledger_record(hook_input, "delegate-dispatch")
 
     reason = check_r11_memory_write_worktree(
         tool_name,
@@ -1935,6 +1959,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             if _tokens_after_head(segment, frozenset({"git"}))
         ):
             ledger_record(hook_input, "commit")
+        if _updates_a_tracked_issue(command):
+            ledger_record(hook_input, "issue-update")
         return 0
 
     return 0  # not a tool this hook checks
@@ -2499,6 +2525,41 @@ def check_r20_user_harness_drift(hook_input: dict) -> str | None:
     )
 
 
+def check_r21_run_state_not_recorded(hook_input: dict) -> str | None:
+    """Interrupt once when a session delegated work and recorded no run state.
+
+    #4536, partially. The owner requirement is that enough state lives on
+    GitHub for a second agent to pick the work up when the first runs out of
+    tokens. Findings already have a rule and it is kept; **decisions and
+    in-flight state have no home at all**. Measured: #4504 had zero comments
+    while an agent was actively implementing the owner's choice, which existed
+    only in a dispatch prompt and a conversation.
+
+    Of the four trigger points that issue lists, exactly one is observable:
+    dispatching a delegate. That is a tool call this hook sees. "An owner
+    decision was made" and "a sequencing constraint was discovered" are not
+    events any hook can detect, so they stay prose and the issue stays open --
+    stated rather than quietly counted as done.
+
+    Reports, never refuses. A session that delegates and posts nothing is
+    usually incomplete rather than wrong, and `run_stop` returns 0 once
+    `stop_hook_active` is set, so this interrupts a turn and cannot trap one.
+    """
+    events = set(ledger_events(hook_input))
+    if "delegate-dispatch" not in events:
+        return None  # nothing was delegated, so no handoff state is owed
+    if "issue-update" in events:
+        return None
+    return (
+        "Run state: this session dispatched a delegate and posted nothing to an "
+        "issue or pull request. If this session ends here, the branch, the batched "
+        "scope, what was deliberately excluded, and any decision made in "
+        "conversation are lost with it, and the next agent re-asks a question that "
+        "was already answered. Put it on the tracker now with `gh issue comment "
+        "<number> --body ...`. This interrupts once."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
@@ -2518,6 +2579,7 @@ def run_stop(hook_input: dict) -> int:
             check_r17_unarmed_pull_request(hook_input),
             check_r18_unpushed_work(hook_input),
             check_r20_user_harness_drift(hook_input),
+            check_r21_run_state_not_recorded(hook_input),
         )
         if item is not None
     ]
@@ -2774,6 +2836,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r18_unpushed_work": "run_required_action_self_test",
     "check_r19_fresh_base": "run_required_action_self_test",
     "check_r20_user_harness_drift": "run_required_action_self_test",
+    "check_r21_run_state_not_recorded": "run_required_action_self_test",
 }
 
 
@@ -3038,6 +3101,32 @@ def run_required_action_self_test() -> int:
                 "_sync_advisory": lambda: "User harness drift detected.",
             },
             lambda: check_r20_user_harness_drift({"cwd": "."}),
+        )
+        is None,
+    )
+
+    # R21: a session that delegated and recorded no run state.
+    check(
+        "R21 reports a delegation with no run state posted",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["delegate-dispatch"]},
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is not None,
+    )
+    check(
+        "R21 is satisfied once state is posted",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["delegate-dispatch", "issue-update"]},
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is None,
+    )
+    check(
+        "R21 asks nothing of a session that delegated nothing",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["commit"]},
+            lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
         )
         is None,
     )
