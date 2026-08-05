@@ -68,6 +68,62 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
         case.addCleanup(patcher.stop)
 
 
+class DelegatePreflightRedTest(unittest.TestCase):
+    """#4570's missing delegate and learning-loop behavior."""
+
+    def test_unadapted_dispatch_is_denied_before_it_can_run(self):
+        output = io.StringIO()
+        payload = {
+            "tool_name": "Task",
+            "tool_input": {"subagent_type": "general-purpose"},
+            "session_id": "red-r22",
+            "cwd": ".",
+        }
+        with patch("scripts.agents.guard.ledger_record"):
+            with redirect_stdout(output):
+                self.assertEqual(guard.run_pretooluse(payload), 0)
+        self.assertIn("R22 blocked", output.getvalue())
+
+    def test_committed_work_without_a_learning_route_cannot_arm_auto_merge(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+            with patch("scripts.agents.guard._independent_review_count", return_value=1):
+                self.assertIsNotNone(
+                    guard.check_r15_review_before_arming(
+                        "gh pr merge 1 --auto --squash", "Bash", {"session_id": "red-r15"}
+                    )
+                )
+
+    def test_session_preflight_stays_within_the_cross_host_byte_limit(self):
+        output = io.StringIO()
+        with patch("scripts.agents.guard._standing_constraints", return_value="x" * 9000):
+            with patch(
+                "scripts.agents.guard._worktree_report",
+                return_value={"worktrees": [], "advisories": []},
+            ):
+                with patch("scripts.agents.guard._sync_advisory", return_value=None):
+                    with redirect_stdout(output):
+                        self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
+        payload = json.loads(output.getvalue())
+        context = payload["hookSpecificOutput"]["additionalContext"]
+        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+
+    def test_substantive_learning_none_reason_is_recorded(self):
+        events: list[str] = []
+        payload = {
+            "tool_name": "Bash",
+            "tool_input": {
+                "command": 'py -3 scripts/agents/guard.py --learning-none "No durable learning surfaced"'
+            },
+            "session_id": "red-learning-none",
+            "cwd": ".",
+        }
+        with patch(
+            "scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: events.append(event)
+        ):
+            self.assertEqual(guard.run_pretooluse(payload), 0)
+        self.assertTrue(any(event.startswith("learning-none:") for event in events))
+
+
 class GuardLifecycleTest(unittest.TestCase):
     """The SessionStart and Stop contract every host shares.
 
