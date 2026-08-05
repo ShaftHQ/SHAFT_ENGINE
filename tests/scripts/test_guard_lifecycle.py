@@ -34,12 +34,28 @@ ISOLATED_STOP_RULES = (
     "check_r16_learning_loop",
     "check_r17_unarmed_pull_request",
     "check_r18_unpushed_work",
+    # R20 shells out to the sync helper, so leaving it live would make every
+    # test below depend on whether this machine's deployed harness happens to
+    # match the tracked one -- the third instance of the defect this list
+    # exists for, caught by the equality pin in the commit that added it.
+    "check_r20_user_harness_drift",
 )
 
 
-def isolate_stop_rules(case: unittest.TestCase) -> None:
-    """Patch every Stop rule off for `case`, undone when the test finishes."""
+def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()) -> None:
+    """Patch every Stop rule off for `case`, undone when the test finishes.
+
+    `except_for` leaves one rule live so a test can exercise it through
+    `run_stop` rather than by calling it directly. That distinction matters:
+    calling the check proves the function works, and only going through
+    `run_stop` proves the hook can reach it, which is the difference
+    `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
+    hook-can-reach-it` records. Every other rule stays patched, so the test is
+    still deterministic.
+    """
     for name in ISOLATED_STOP_RULES:
+        if name in except_for:
+            continue
         patcher = patch(f"scripts.agents.guard.{name}", return_value=None)
         patcher.start()
         case.addCleanup(patcher.stop)
@@ -929,6 +945,89 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
                 with redirect_stdout(output):
                     self.assertEqual(guard.run_stop({"cwd": ".", "session_id": "s"}), 0)
         self.assertEqual(output.getvalue().strip(), "")
+
+
+class UserHarnessDriftStopGateTest(unittest.TestCase):
+    """R20 / #4547: the harness noticed it disagreed with itself and said nothing.
+
+    `AGENTS.md` states that user harness drift deploys through
+    `scripts/agents/sync_user_harness.py`. `_sync_advisory` detects the drift
+    and had exactly one call site -- `run_session_start` -- so the finding was
+    printed once at session start and consumed by nothing. The drift reported
+    at the start of the session that wrote this rule was still there at the
+    end of it.
+
+    Drift means the *deployed* harness on this machine no longer matches the
+    *tracked* harness in the repository. Every conclusion drawn by reading
+    `.agents/skills/**` is then a conclusion about a copy that is not the one
+    the host loads. It is the one inconsistency the harness cannot detect from
+    inside a single file read, and the only advisory in the set whose remedy
+    is a single deterministic command with no judgement in it.
+
+    Reports rather than refuses, like R16 and R18: `run_stop` returns 0 once
+    `stop_hook_active` is set, so this interrupts a turn and never traps one.
+    Deploying the fix from the hook was considered and left to the issue --
+    it would have a hook writing outside the repository, which is more
+    authority than any rule here takes, and that is the owner's call to make
+    rather than a side effect of closing a ticket.
+    """
+
+    def setUp(self):
+        isolate_stop_rules(self, except_for=("check_r20_user_harness_drift",))
+
+    def stop(self, payload: dict) -> dict | None:
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            self.assertEqual(guard.run_stop(payload), 0)
+        text = stream.getvalue().strip()
+        return json.loads(text) if text else None
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_stop_reports_drift_through_the_hook(self, _report):
+        """Through `run_stop`, not by calling the check: reachability is the point."""
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            output = self.stop({"cwd": "."})
+        self.assertIsNotNone(output, "drift must reach the Stop payload")
+        self.assertEqual(output["decision"], "block")
+        self.assertIn("sync_user_harness.py --apply", output["reason"])
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_a_synced_harness_does_not_block(self, _report):
+        with patch("scripts.agents.guard._sync_advisory", return_value=None):
+            self.assertIsNone(self.stop({"cwd": "."}))
+
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
+    )
+    def test_it_interrupts_once_and_never_traps_the_turn(self, _report):
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            self.assertIsNotNone(self.stop({"cwd": "."}))
+            self.assertIsNone(self.stop({"cwd": ".", "stop_hook_active": True}))
+
+    def test_the_remedy_it_names_is_not_refused_by_another_rule(self):
+        """Pairwise, as a test: a gate whose only exit another rule blocks is a deadlock."""
+        with patch(
+            "scripts.agents.guard._sync_advisory", return_value="User harness drift detected."
+        ):
+            reason = guard.check_r20_user_harness_drift({"cwd": "."})
+        self.assertIsNotNone(reason)
+        remedy = "py -3 scripts/agents/sync_user_harness.py --apply"
+        self.assertIn(remedy, reason, "a gate must name the command that satisfies it")
+        self.assertIsNone(guard.check_r8_git_stash(remedy))
+        self.assertIsNone(guard.check_r13_push_before_delete(remedy, "Bash"))
+        with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
+            self.assertIsNone(guard.check_r14_hard_reset(remedy, "Bash", "."))
 
 
 class StopRuleIsolationIsCompleteTest(unittest.TestCase):

@@ -2258,6 +2258,43 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     )
 
 
+def check_r20_user_harness_drift(hook_input: dict) -> str | None:
+    """Report a deployed user harness that no longer matches the tracked one.
+
+    `AGENTS.md` says user harness drift deploys through
+    `scripts/agents/sync_user_harness.py`. `_sync_advisory` detected it and had
+    exactly one call site, `run_session_start`, so the finding was printed once
+    at session start and consumed by nothing -- the drift reported at the start
+    of the session that added this rule was still there at the end of it
+    (#4547).
+
+    It is the one inconsistency the harness cannot detect from inside a single
+    file read. Every rule read out of `.agents/skills/**` describes the tracked
+    copy while the host loads the deployed copy, so the two disagree with
+    neither looking wrong. It is also the only advisory of its group whose
+    remedy is a single deterministic command carrying no judgement.
+
+    Reports rather than refuses, and `run_stop` returns 0 once
+    `stop_hook_active` is set, so it interrupts a turn and cannot trap one.
+    Fails open through `_sync_advisory`, which returns its own advisory string
+    when the check cannot run rather than pretending the harness is clean.
+
+    Takes `hook_input` for one uniform Stop signature and does not read it: the
+    question is about this host's deployed files, not about the repository the
+    turn happened to run in.
+    """
+    if not _sync_advisory():
+        return None
+    return (
+        "The deployed user harness no longer matches the tracked one. Every rule "
+        "read from `.agents/skills/**` this session describes the tracked copy "
+        "while the host loads the deployed copy, so the two can disagree without "
+        "either looking wrong -- which is why this is the one inconsistency that "
+        "reading a file cannot settle. Run `py -3 scripts/agents/sync_user_harness"
+        ".py --apply`, then re-check it. This interrupts once."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
@@ -2276,6 +2313,7 @@ def run_stop(hook_input: dict) -> int:
             check_r16_learning_loop(hook_input),
             check_r17_unarmed_pull_request(hook_input),
             check_r18_unpushed_work(hook_input),
+            check_r20_user_harness_drift(hook_input),
         )
         if item is not None
     ]
