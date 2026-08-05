@@ -1089,6 +1089,42 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
             self.assertIsNone(guard.check_r14_hard_reset(remedy, "Bash", "."))
 
 
+class SelfTestCoversEveryRuleTest(unittest.TestCase):
+    """`--self-test` must exercise every rule, and `main` must run it (#4551).
+
+    The command an agent runs to sanity-check the guard, and a job the PR gate
+    runs, covered R1, R9, R10 and R11 and exercised none of R12 through R20 --
+    eight rules, two thirds of the file -- while printing a passing summary.
+    Reassuring output is what an agent acts on, so a green that means nothing
+    is worse than no check at all.
+    """
+
+    def test_main_runs_both_new_self_tests(self):
+        """A self-test the entry point never calls is the same defect one level up."""
+        source = inspect.getsource(guard.main)
+        self.assertIn("run_required_action_self_test()", source)
+        self.assertIn("run_rule_coverage_self_test()", source)
+
+    def test_every_defined_rule_is_claimed_by_the_coverage_table(self):
+        self.assertEqual(guard._defined_rules(), set(guard._SELF_TEST_COVERAGE))
+
+    def test_the_stub_helper_restores_what_it_replaced(self):
+        """A leaked stub would silently disarm every later case in the run."""
+        original = guard._uncommitted_file_count
+        guard._with_stubs({"_uncommitted_file_count": lambda cwd: 99}, lambda: None)
+        self.assertIs(guard._uncommitted_file_count, original)
+
+    def test_the_stub_helper_restores_even_when_the_action_raises(self):
+        original = guard._uncommitted_file_count
+
+        def boom():
+            raise RuntimeError("self-test case failed hard")
+
+        with self.assertRaises(RuntimeError):
+            guard._with_stubs({"_uncommitted_file_count": lambda cwd: 99}, boom)
+        self.assertIs(guard._uncommitted_file_count, original)
+
+
 class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
     """Every rule asks for the working directory through the same helper (#4553).
 

@@ -2587,6 +2587,272 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
 ]
 
 
+# How every rule in this file is exercised by `--self-test` (#4551).
+#
+# The self-test printed `0 failed` while covering R1, R9, R10 and R11 and
+# exercising none of R12 through R20 -- eight rules, two thirds of the file.
+# Reassuring output is what an agent acts on, which makes a green that means
+# nothing worse than no check at all.
+#
+# `run_rule_coverage_self_test` compares this table against the rules actually
+# defined, by equality in both directions: a rule added without coverage is the
+# defect, and an entry naming a rule that no longer exists is a claim of
+# coverage for nothing.
+_SELF_TEST_COVERAGE: dict[str, str] = {
+    "check_r1_maven": "command cases",
+    "check_r2_allure": "command cases",
+    "check_r3_gui_open": "command cases",
+    "check_r8_git_stash": "command cases",
+    "check_r9_worktree_add": "run_r9_worktree_self_test",
+    "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",
+    "check_r11_memory_write_worktree": "run_r11_memory_write_self_test",
+    "check_r12_test_before_production": "run_required_action_self_test",
+    "check_r13_push_before_delete": "run_required_action_self_test",
+    "check_r14_hard_reset": "run_required_action_self_test",
+    "check_r15_review_before_arming": "run_required_action_self_test",
+    "check_r16_learning_loop": "run_required_action_self_test",
+    "check_r17_unarmed_pull_request": "run_required_action_self_test",
+    "check_r18_unpushed_work": "run_required_action_self_test",
+    "check_r19_fresh_base": "run_required_action_self_test",
+    "check_r20_user_harness_drift": "run_required_action_self_test",
+}
+
+
+def _defined_rules() -> set[str]:
+    """Every rule this module defines, by name."""
+    return {
+        name
+        for name, value in globals().items()
+        if name.startswith("check_r") and callable(value)
+    }
+
+
+def _with_stubs(replacements: dict, action):
+    """Run `action` with module globals replaced, restoring them afterwards.
+
+    The required-action rules ask git, `gh` and the ledger about live state.
+    The self-test runs on CI, where there is no upstream branch, no credentials
+    and no session -- so exercising them for real would test the environment
+    rather than the rule, and would pass vacuously on the machine where it
+    matters least.
+    """
+    saved = {name: globals()[name] for name in replacements}
+    globals().update(replacements)
+    try:
+        return action()
+    finally:
+        globals().update(saved)
+
+
+def run_rule_coverage_self_test() -> int:
+    """Fail when a rule exists that `--self-test` does not exercise."""
+    defined = _defined_rules()
+    claimed = set(_SELF_TEST_COVERAGE)
+    uncovered = sorted(defined - claimed)
+    phantom = sorted(claimed - defined)
+    for name in uncovered:
+        print(f"[FAIL] {name} is defined and no self-test covers it")
+    for name in phantom:
+        print(f"[FAIL] {_SELF_TEST_COVERAGE[name]} claims {name}, which does not exist")
+    if not defined:
+        print("[FAIL] no rules found; the coverage check would pass vacuously")
+        return 1
+    if uncovered or phantom:
+        return 1
+    print(f"[PASS] all {len(defined)} rules are covered by a self-test")
+    return 0
+
+
+def run_required_action_self_test() -> int:
+    """Exercise R12-R20, each in both directions, with live state stubbed."""
+    failures: list[str] = []
+
+    def check(description: str, condition: bool) -> None:
+        status = "PASS" if condition else "FAIL"
+        print(f"[{status}] {description}")
+        if not condition:
+            failures.append(description)
+
+    write = {"tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+
+    # R12: a production write needs an observed test run this session.
+    check(
+        "R12 blocks a production write with no test run recorded",
+        _with_stubs(
+            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: set()},
+            lambda: check_r12_test_before_production(write, "Write"),
+        )
+        is not None,
+    )
+    check(
+        "R12 allows a production write once a test run is recorded",
+        _with_stubs(
+            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: {"test-run"}},
+            lambda: check_r12_test_before_production(write, "Write"),
+        )
+        is None,
+    )
+
+    # R13: never delete a branch whose work exists nowhere else.
+    check(
+        "R13 blocks deleting a branch that exists on no remote",
+        _with_stubs(
+            {"_unrecoverable_commit_count": lambda branch: 3},
+            lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
+        )
+        is not None,
+    )
+    check(
+        "R13 allows deleting a delivered branch",
+        _with_stubs(
+            {"_unrecoverable_commit_count": lambda branch: 0},
+            lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
+        )
+        is None,
+    )
+
+    # R14: no hard reset over uncommitted work.
+    check(
+        "R14 blocks a hard reset with uncommitted work",
+        _with_stubs(
+            {"_uncommitted_file_count": lambda cwd: 4},
+            lambda: check_r14_hard_reset("git reset --hard HEAD~1", "Bash", "."),
+        )
+        is not None,
+    )
+    check(
+        "R14 allows a hard reset on a clean tree",
+        _with_stubs(
+            {"_uncommitted_file_count": lambda cwd: 0},
+            lambda: check_r14_hard_reset("git reset --hard HEAD~1", "Bash", "."),
+        )
+        is None,
+    )
+
+    # R15: no arming before an independent review.
+    check(
+        "R15 blocks arming with no independent review",
+        _with_stubs(
+            {"_independent_review_count": lambda target: 0},
+            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
+        )
+        is not None,
+    )
+    check(
+        "R15 allows arming once a review exists",
+        _with_stubs(
+            {"_independent_review_count": lambda target: 1},
+            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
+        )
+        is None,
+    )
+
+    # R16: a session that committed owes the learning loop.
+    check(
+        "R16 reports a session that committed and routed no learning",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"commit"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is not None,
+    )
+    check(
+        "R16 is satisfied once a learning is routed",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"commit", "memory-write"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is None,
+    )
+
+    # R17: a reviewed pull request nobody armed.
+    check(
+        "R17 reports a reviewed pull request left unarmed",
+        _with_stubs(
+            {"_unarmed_reviewed_pull_request": lambda cwd: "1"},
+            lambda: check_r17_unarmed_pull_request({"cwd": "."}),
+        )
+        is not None,
+    )
+    check(
+        "R17 is silent when nothing is waiting to be armed",
+        _with_stubs(
+            {"_unarmed_reviewed_pull_request": lambda cwd: None},
+            lambda: check_r17_unarmed_pull_request({"cwd": "."}),
+        )
+        is None,
+    )
+
+    # R18: commits only this machine can see.
+    check(
+        "R18 reports commits that exist on no remote",
+        _with_stubs(
+            {
+                "_current_branch": lambda cwd: "feature",
+                "_unrecoverable_commit_count": lambda branch: 2,
+            },
+            lambda: check_r18_unpushed_work({"cwd": "."}),
+        )
+        is not None,
+    )
+    check(
+        "R18 is silent once the branch is pushed",
+        _with_stubs(
+            {
+                "_current_branch": lambda cwd: "feature",
+                "_unrecoverable_commit_count": lambda branch: 0,
+            },
+            lambda: check_r18_unpushed_work({"cwd": "."}),
+        )
+        is None,
+    )
+
+    # R19: never edit on the default branch.
+    check(
+        "R19 blocks a write while HEAD is the default branch",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "main"},
+            lambda: check_r19_fresh_base({"cwd": "."}, "Write"),
+        )
+        is not None,
+    )
+    check(
+        "R19 allows a write on a task branch",
+        _with_stubs(
+            {"_current_branch": lambda cwd: "ChaosEngine/task"},
+            lambda: check_r19_fresh_base({"cwd": "."}, "Write"),
+        )
+        is None,
+    )
+
+    # R20: a deployed harness that no longer matches the tracked one.
+    check(
+        "R20 reports drift the branch did not cause",
+        _with_stubs(
+            {
+                "_branch_edits_harness_sources": lambda: False,
+                "_sync_advisory": lambda: "User harness drift detected.",
+            },
+            lambda: check_r20_user_harness_drift({"cwd": "."}),
+        )
+        is not None,
+    )
+    check(
+        "R20 is silent while the branch is itself editing harness sources",
+        _with_stubs(
+            {
+                "_branch_edits_harness_sources": lambda: True,
+                "_sync_advisory": lambda: "User harness drift detected.",
+            },
+            lambda: check_r20_user_harness_drift({"cwd": "."}),
+        )
+        is None,
+    )
+
+    print(f"\nRequired-action self-test summary: {len(failures)} failed.")
+    return 1 if failures else 0
+
+
 def run_self_test() -> int:
     failures: list[str] = []
     for description, command, expect_block in _SELF_TEST_CASES:
@@ -2952,7 +3218,19 @@ def main(argv: list[str]) -> int:
         r9_result = run_r9_worktree_self_test()
         r10_result = run_r10_nul_corruption_self_test()
         r11_result = run_r11_memory_write_self_test()
-        return command_result or r9_result or r10_result or r11_result
+        required_result = run_required_action_self_test()
+        coverage_result = run_rule_coverage_self_test()
+        # Every result, never short-circuited: `or` on ints returns the first
+        # non-zero, and evaluating them first means a later failure is still
+        # printed rather than skipped.
+        return (
+            command_result
+            or r9_result
+            or r10_result
+            or r11_result
+            or required_result
+            or coverage_result
+        )
 
     raw = sys.stdin.read()
     if not raw.strip():
