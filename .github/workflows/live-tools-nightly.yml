@@ -83,7 +83,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle 9
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: '9.0.0'
       - name: Run live IntelliJ chat-panel tool tests (Tool + Capture)
@@ -127,7 +127,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle 9
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: '9.0.0'
       - name: Run live IntelliJ chat-panel tool tests (Diagnostics)
@@ -169,7 +169,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle 9
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: '9.0.0'
       # ShaftAssistantPanelLiveAuthoringToolE2ETest's two other methods
@@ -239,7 +239,7 @@ jobs:
           check-latest: true
       - name: Set up Gradle 9
         if: env.GEMINI_API_KEY != ''
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           gradle-version: '9.0.0'
       - name: Run live Gemini E2E test
