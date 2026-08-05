@@ -1,9 +1,15 @@
 import json
+
+# subprocess is used only to read this repository's own history with fixed,
+# list-args `git show` (never shell=True, no untrusted command construction).
+import subprocess  # nosec B404
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.ci.validate_agent_guidance import (
+    find_orphaned_sibling_claims,
     parse_frontmatter,
     validate_repository,
 )
@@ -589,3 +595,114 @@ class VendorEnumerationIsEnforcedTest(unittest.TestCase):
         contexts = set(budget.get("host_contexts", {}))
         stale = sorted(set(budget.get("host_skill_metadata_exemptions", {})) - contexts)
         self.assertEqual(stale, [])
+
+
+class OrphanedSiblingClaimTest(unittest.TestCase):
+    """#4567 section 4.4: fixing one docstring must not leave its twin claim behind.
+
+    Round two of PR #4554 corrected `_ledger_records_a_review`, whose docstring
+    asserted that a bare `review` ledger event still counted. The identical claim
+    survived in `_reviewer_dispatch_event` and cost a whole round-three finding to
+    re-discover. Both are in `scripts/agents/guard.py`.
+    """
+
+    GUARD = "scripts/agents/guard.py"
+    # The round-two fix. Its parent is the revision where BOTH docstrings are stale.
+    ROUND_TWO_FIX = "64d46cfdac"
+    # PR #4554 as merged: both docstrings corrected.
+    MERGED = "5b6d4b2b5f"
+
+    @staticmethod
+    def _source_at(revision, path):
+        """File content at a revision, or None when this clone cannot resolve it."""
+        completed = subprocess.run(  # nosec B603 B607
+            ["git", "show", f"{revision}:{path}"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=REPOSITORY_ROOT, check=False,
+        )
+        return completed.stdout if completed.returncode == 0 else None
+
+    def _pair(self, revision):
+        before = self._source_at(f"{revision}^", self.GUARD)
+        after = self._source_at(revision, self.GUARD)
+        if before is None or after is None:
+            self.skipTest(f"{revision} unavailable in this clone")
+        return before, after
+
+    def test_the_round_two_fix_left_its_twin_claim_in_a_sibling(self):
+        """RED fixture: the real commit whose sibling claim cost a review round."""
+        before, after = self._pair(self.ROUND_TWO_FIX)
+        findings = find_orphaned_sibling_claims(before, after, self.GUARD)
+        self.assertEqual({f["code"] for f in findings}, {"orphaned-sibling-claim"})
+        report = " ".join(f["message"] for f in findings)
+        self.assertIn("_ledger_records_a_review", report)
+        self.assertIn("_reviewer_dispatch_event", report)
+        self.assertIn("review", report)
+
+    def test_the_merged_branch_is_clean(self):
+        """Both docstrings corrected: the check must go quiet, or it is noise."""
+        before, after = self._pair(self.MERGED)
+        self.assertEqual(find_orphaned_sibling_claims(before, after, self.GUARD), [])
+
+    def test_a_renamed_owner_is_not_a_surviving_sibling(self):
+        """`_skip_gh_global_flags` became `_split_gh_global_flags`; that is a rename, not a twin.
+
+        Structural, not semantic: if the function that lost the claim is gone from
+        the file, there is no instance left for a sibling to disagree with.
+        """
+        before = '''
+def _skip_gh_global_flags(tokens):
+    """Skip a leading `-R`/`--repo <value>` off `tokens`."""
+'''
+        after = '''
+def _split_gh_global_flags(tokens):
+    """Split a leading `-R`/`--repo <value>` off `tokens`."""
+'''
+        self.assertEqual(find_orphaned_sibling_claims(before, after, "x.py"), [])
+
+    def test_an_untouched_docstring_is_not_a_deleted_claim(self):
+        """Two functions may legitimately share wording as long as nothing was edited."""
+        source = '''
+def a():
+    """Reads `HOOK_BUDGET_SECONDS` from the environment."""
+
+def b():
+    """Also reads `HOOK_BUDGET_SECONDS` from the environment."""
+'''
+        self.assertEqual(find_orphaned_sibling_claims(source, source, "x.py"), [])
+
+    def test_a_deleted_sentence_with_no_code_token_is_not_a_claim(self):
+        """Judged on backticked tokens only -- never on English prose overlap."""
+        before = '''
+def a():
+    """This helper is careful about the order it reads things in."""
+
+def b():
+    """It is careful about the order it reads things in."""
+'''
+        after = '''
+def a():
+    """Rewritten."""
+
+def b():
+    """It is careful about the order it reads things in."""
+'''
+        self.assertEqual(find_orphaned_sibling_claims(before, after, "x.py"), [])
+
+    def test_cli_reports_the_sibling_claim_without_failing(self):
+        """Reachable from the command line, and advisory: docstring prose never blocks.
+
+        #4567's own finding template ranks docstrings as never-blocking, and the
+        scan fires twice across PR #4554 with one of the two a judgement call. A
+        gate on that is noise; a printed finding is the review round moved upstream.
+        """
+        script = REPOSITORY_ROOT / "scripts/ci/validate_agent_guidance.py"
+        result = subprocess.run(  # nosec B603
+            [sys.executable, str(script), "--docstring-siblings",
+             self.ROUND_TWO_FIX, self.GUARD],
+            capture_output=True, text=True, cwd=REPOSITORY_ROOT, check=False,
+        )
+        if "unavailable" in result.stderr:
+            self.skipTest("revision unavailable in this clone")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("_reviewer_dispatch_event", result.stdout)
