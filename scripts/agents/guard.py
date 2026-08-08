@@ -3454,6 +3454,41 @@ def _with_stubs(replacements: dict, action):
         globals().update(saved)
 
 
+_STOP_RULE_RENDERERS = {
+    "check_r16_learning_loop": lambda: _with_stubs(
+        {"ledger_events": lambda payload: {"commit"}},
+        lambda: check_r16_learning_loop({"session_id": "s"}),
+    ),
+    "check_r17_unarmed_pull_request": lambda: _with_stubs(
+        {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: "1"},
+        lambda: check_r17_unarmed_pull_request({"cwd": "."}),
+    ),
+    "check_r18_unpushed_work": lambda: _with_stubs(
+        {
+            "_current_branch": lambda cwd: "feature",
+            "_unrecoverable_commit_count": lambda branch, cwd=None: 2,
+        },
+        lambda: check_r18_unpushed_work({"cwd": "."}),
+    ),
+    "check_r20_user_harness_drift": lambda: _with_stubs(
+        {
+            "_branch_edits_harness_sources": lambda cwd=None: False,
+            "_sync_advisory": lambda: "User harness drift detected.",
+        },
+        lambda: check_r20_user_harness_drift({"cwd": "."}),
+    ),
+    "check_r21_run_state_not_recorded": lambda: _with_stubs(
+        {"ledger_events": lambda payload: ["delegate-dispatch", "commit"]},
+        lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+    ),
+}
+
+
+def _rendered_stop_reasons(renderers=None) -> list[str]:
+    """Return reporting messages from deterministic Stop-rule fixtures."""
+    return [renderer() for renderer in (renderers or _STOP_RULE_RENDERERS).values()]
+
+
 def run_rule_coverage_self_test() -> int:
     """Fail when a rule exists that `--self-test` does not exercise."""
     defined = _defined_rules()
