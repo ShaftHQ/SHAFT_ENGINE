@@ -1473,6 +1473,7 @@ class RetrievalParityTest(unittest.TestCase):
             self.assertIn(destination, content, f"learning loop omits {destination}")
         self.assertRegex(content, r"nothing durable is a valid result|no durable learning")
         self.assertRegex(content, r"search before writing|search first", "must prevent duplicates")
+        self.assertRegex(content, r"scan.{0,80}(failure|trap|guard block)")
 
 
 class SoloOrOrchestrateTest(unittest.TestCase):
