@@ -1948,8 +1948,10 @@ def _changed_directory(segment: str, cwd: object) -> str | None:
     arguments = _tokens_after_head(segment, frozenset({"cd", "set-location"}))
     if not arguments:
         return None
-    if arguments[:1] and arguments[0].lower() in {"-path", "-literalpath"}:
-        arguments = arguments[1:]
+    if arguments:
+        option, separator, inline = arguments[0].partition(":")
+        if option.lower() in {"-path", "-literalpath"}:
+            arguments = [inline] if separator and inline else arguments[1:]
     if len(arguments) != 1 or arguments[0].startswith("-"):
         return None
     target = os.path.expanduser(arguments[0])
