@@ -1529,7 +1529,7 @@ def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | 
     )
 
 
-def _unpushed_commit_count(branch: str) -> int | None:
+def _unpushed_commit_count(branch: str, cwd: object = None) -> int | None:
     """Commits on `branch` that exist on no remote, or None if unanswerable.
 
     None and 0 stay distinct, which #4542 is the record of paying for: "git
@@ -1541,6 +1541,7 @@ def _unpushed_commit_count(branch: str) -> int | None:
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
             ["git", "rev-list", "--count", branch, "--not", "--remotes"],
+            cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -1579,7 +1580,7 @@ def _git_output(arguments: list[str], cwd: object = None) -> str | None:
     return completed.stdout or ""
 
 
-def _content_exists_on_default_branch(branch: str) -> bool:
+def _content_exists_on_default_branch(branch: str, cwd: object = None) -> bool:
     """True when deleting `branch` would lose no content the default branch lacks.
 
     This repository squash-merges and GitHub deletes the head branch on merge.
@@ -1619,19 +1620,23 @@ def _content_exists_on_default_branch(branch: str) -> bool:
         return False
     reference = None
     for candidate in sorted(DEFAULT_BRANCHES):
-        probe = _git_output(["rev-parse", "--verify", "--quiet", f"origin/{candidate}"])
+        probe = _git_output(
+            ["rev-parse", "--verify", "--quiet", f"origin/{candidate}"], cwd=cwd
+        )
         if probe is not None:
             reference = f"origin/{candidate}"
             break
     if reference is None:
         return False
-    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"])
+    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"], cwd=cwd)
     if listing is None:
         return False
     files = [line for line in listing.splitlines() if line.strip()]
     if not files:
         return True  # introduces nothing the default branch does not already have
-    numstat = _git_output(["diff", "--numstat", reference, branch, "--", *files])
+    numstat = _git_output(
+        ["diff", "--numstat", reference, branch, "--", *files], cwd=cwd
+    )
     if numstat is None:
         return False
     for line in numstat.splitlines():
@@ -1643,7 +1648,7 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     return True
 
 
-def _unrecoverable_commit_count(branch: str) -> int | None:
+def _unrecoverable_commit_count(branch: str, cwd: object = None) -> int | None:
     """Commits whose deletion would destroy work, or None if unanswerable.
 
     Wraps the raw unpushed count with the delivery question, because the raw
@@ -1659,10 +1664,10 @@ def _unrecoverable_commit_count(branch: str) -> int | None:
     about to block. A branch with nothing unpushed -- the common case -- pays
     nothing.
     """
-    count = _unpushed_commit_count(branch)
+    count = _unpushed_commit_count(branch, cwd)
     if count is None or count <= 0:
         return count
-    if _content_exists_on_default_branch(branch):
+    if _content_exists_on_default_branch(branch, cwd):
         return 0
     return count
 
@@ -1687,7 +1692,9 @@ def _uncommitted_file_count(cwd: object) -> int | None:
     return len([line for line in (completed.stdout or "").splitlines() if line.strip()])
 
 
-def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
+def check_r13_push_before_delete(
+    command: str, tool_name: str, cwd: object = None
+) -> str | None:
     """Refuse a force-delete of a branch whose commits exist nowhere else.
 
     The entrypoint's cleanup order exists because it is not interchangeable:
@@ -1705,7 +1712,7 @@ def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
         if not rest or rest[0] != "branch" or "-D" not in rest[1:]:
             continue
         for name in [token for token in rest[1:] if not token.startswith("-")]:
-            unpushed = _unrecoverable_commit_count(name)
+            unpushed = _unrecoverable_commit_count(name, cwd)
             if unpushed is None or unpushed <= 0:
                 continue
             return (
@@ -1754,7 +1761,7 @@ def check_r14_hard_reset(command: str, tool_name: str, cwd: object) -> str | Non
     return None
 
 
-def _independent_review_count(target: str | None) -> int | None:
+def _independent_review_count(target: str | None, cwd: object = None) -> int | None:
     """Reviews by someone other than the author, or None if unanswerable.
 
     None and 0 stay distinct: "gh could not answer" and "nobody has reviewed
@@ -1766,7 +1773,12 @@ def _independent_review_count(target: str | None) -> int | None:
     arguments += ["--json", "reviews,author"]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
-            arguments, capture_output=True, text=True, timeout=_subprocess_timeout(), check=False
+            arguments,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -1821,7 +1833,9 @@ def check_r15_review_before_arming(
             )
         positional = [token for token in arguments if not token.startswith("-")]
         target = positional[0] if positional else None
-        reviews = _independent_review_count(target)
+        reviews = _independent_review_count(
+            target, _hook_working_directory(hook_input or {})
+        )
         if reviews is None or reviews > 0:
             continue
         # #4545 option C: a dispatch this hook watched counts as well. R15 was
@@ -2297,7 +2311,9 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is None:
             reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
         if reason is None:
-            reason = check_r13_push_before_delete(command, tool_name)
+            reason = check_r13_push_before_delete(
+                command, tool_name, _hook_working_directory(hook_input)
+            )
         if reason is None:
             reason = check_r15_review_before_arming(command, tool_name, hook_input)
         if reason is None:
@@ -2734,7 +2750,7 @@ def run_session_start(hook_input: dict) -> int:
     return 0
 
 
-def _open_pull_request_count(branch: str | None) -> int | None:
+def _open_pull_request_count(branch: str | None, cwd: object = None) -> int | None:
     """Open pull requests for `branch`, or None when the question cannot be answered.
 
     None and 0 are different facts and must stay different: "the lookup did
@@ -2762,6 +2778,7 @@ def _open_pull_request_count(branch: str | None) -> int | None:
                 "--json",
                 "number",
             ],
+            cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -2943,7 +2960,9 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     branch = _current_branch(_hook_working_directory(hook_input))
     if not branch:
         return None
-    unpushed = _unrecoverable_commit_count(branch)
+    unpushed = _unrecoverable_commit_count(
+        branch, _hook_working_directory(hook_input)
+    )
     if unpushed is None or unpushed <= 0:
         return None
     return (
@@ -3149,7 +3168,9 @@ def run_stop(hook_input: dict) -> int:
         if state == "pending":
             branch = current.get("branch") if current else None
             if branch:
-                covered = _open_pull_request_count(branch)
+                covered = _open_pull_request_count(
+                    branch, _hook_working_directory(hook_input)
+                )
                 if covered is None or covered > 0:
                     # Delivered. Not a `return`: reasons collected above this
                     # point would be discarded, which is the starvation this
@@ -3504,7 +3525,7 @@ def run_required_action_self_test() -> int:
     check(
         "R13 blocks deleting a branch that exists on no remote",
         _with_stubs(
-            {"_unrecoverable_commit_count": lambda branch: 3},
+            {"_unrecoverable_commit_count": lambda branch, cwd=None: 3},
             lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
         )
         is not None,
@@ -3512,7 +3533,7 @@ def run_required_action_self_test() -> int:
     check(
         "R13 allows deleting a delivered branch",
         _with_stubs(
-            {"_unrecoverable_commit_count": lambda branch: 0},
+            {"_unrecoverable_commit_count": lambda branch, cwd=None: 0},
             lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
         )
         is None,
@@ -3540,7 +3561,7 @@ def run_required_action_self_test() -> int:
     check(
         "R15 blocks arming with no independent review",
         _with_stubs(
-            {"_independent_review_count": lambda target: 0},
+            {"_independent_review_count": lambda target, cwd=None: 0},
             lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
         )
         is not None,
@@ -3548,7 +3569,7 @@ def run_required_action_self_test() -> int:
     check(
         "R15 allows arming once a review exists",
         _with_stubs(
-            {"_independent_review_count": lambda target: 1},
+            {"_independent_review_count": lambda target, cwd=None: 1},
             lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
         )
         is None,
@@ -3560,7 +3581,7 @@ def run_required_action_self_test() -> int:
         "R15 allows arming after an observed reviewer dispatch",
         _with_stubs(
             {
-                "_independent_review_count": lambda target: 0,
+                "_independent_review_count": lambda target, cwd=None: 0,
                 "_ledger_records_a_review": lambda payload, branch: True,
             },
             lambda: check_r15_review_before_arming(
@@ -3630,7 +3651,7 @@ def run_required_action_self_test() -> int:
         _with_stubs(
             {
                 "_current_branch": lambda cwd: "feature",
-                "_unrecoverable_commit_count": lambda branch: 2,
+                "_unrecoverable_commit_count": lambda branch, cwd=None: 2,
             },
             lambda: check_r18_unpushed_work({"cwd": "."}),
         )
@@ -3641,7 +3662,7 @@ def run_required_action_self_test() -> int:
         _with_stubs(
             {
                 "_current_branch": lambda cwd: "feature",
-                "_unrecoverable_commit_count": lambda branch: 0,
+                "_unrecoverable_commit_count": lambda branch, cwd=None: 0,
             },
             lambda: check_r18_unpushed_work({"cwd": "."}),
         )

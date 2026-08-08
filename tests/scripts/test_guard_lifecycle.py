@@ -1821,6 +1821,29 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
         """A name filter that matched nothing would make the check above vacuous."""
         self.assertGreaterEqual(len(self.rules()), 10)
 
+    def test_subprocess_helpers_receive_the_hook_working_directory(self):
+        """GitHub and git queries must resolve in the hook's worktree (#4564)."""
+        cwd = "C:/hook-worktree"
+        completed = mock.Mock(returncode=0, stdout="0\n")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._unpushed_commit_count("feature", cwd)
+        self.assertEqual(run.call_args.kwargs["cwd"], cwd)
+
+        with patch("scripts.agents.guard._git_output", return_value=None) as git:
+            guard._content_exists_on_default_branch("feature", cwd)
+        self.assertTrue(git.call_args_list)
+        self.assertTrue(all(call.kwargs["cwd"] == cwd for call in git.call_args_list))
+
+        completed.stdout = '{"author":{"login":"author"},"reviews":[]}'
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._independent_review_count("42", cwd)
+        self.assertEqual(run.call_args.kwargs["cwd"], cwd)
+
+        completed.stdout = "[]"
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._open_pull_request_count("feature", cwd)
+        self.assertEqual(run.call_args.kwargs["cwd"], cwd)
+
 
 class _NoSubprocess:
     """Stand-in for the `subprocess` module in which nothing can be run.
