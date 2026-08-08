@@ -1871,6 +1871,7 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "UnarmedPullRequestStopGateTest",
         "UnpushedWorkStopGateTest",
         "LearningLoopStopGateTest",
+        "RunStateStopGateTest",
     )
 
     def subjects(self) -> unittest.TestSuite:
@@ -1890,6 +1891,20 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
     def test_the_subject_classes_all_exist(self):
         """A misspelled class name would silently shrink what is being checked."""
         module = sys.modules[__name__]
+        stop_gate_classes = {
+            name
+            for name, subject in vars(module).items()
+            if (
+                name.endswith("StopGateTest")
+                and isinstance(subject, type)
+                and issubclass(subject, unittest.TestCase)
+            )
+        }
+        self.assertTrue(
+            stop_gate_classes.issubset(self.SUBJECT_CLASSES),
+            f"Stop-gate classes missing from SUBJECT_CLASSES: "
+            f"{sorted(stop_gate_classes - set(self.SUBJECT_CLASSES))}",
+        )
         for name in self.SUBJECT_CLASSES:
             with self.subTest(cls=name):
                 self.assertTrue(hasattr(module, name), f"{name} is not defined here")
