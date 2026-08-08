@@ -27,7 +27,7 @@ def content(revision: str, path: str) -> str | None:
 
 
 def maven_dependencies(source: str) -> tuple[str, ...]:
-    return tuple(re.findall(r"<dependencies\\b[^>]*>.*?</dependencies>", source, re.DOTALL))
+    return tuple(re.findall(r"<dependencies\b[^>]*>.*?</dependencies>", source, re.DOTALL))
 
 
 def gradle_properties(source: str) -> dict[str, str]:
