@@ -2590,24 +2590,46 @@ class RunStateStopGateTest(unittest.TestCase):
 
 
 
-def _bare_interruption_promises(source: str) -> list[str]:
-    """Every "interrupts once" in `source` not immediately followed by "per turn".
+_STOP_RULE_RENDERERS = {
+    "check_r16_learning_loop": lambda: guard._with_stubs(
+        {"ledger_events": lambda payload: {"commit"}},
+        lambda: guard.check_r16_learning_loop({"session_id": "s"}),
+    ),
+    "check_r17_unarmed_pull_request": lambda: guard._with_stubs(
+        {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: "1"},
+        lambda: guard.check_r17_unarmed_pull_request({"cwd": "."}),
+    ),
+    "check_r18_unpushed_work": lambda: guard._with_stubs(
+        {
+            "_current_branch": lambda cwd: "feature",
+            "_unrecoverable_commit_count": lambda branch, cwd=None: 2,
+        },
+        lambda: guard.check_r18_unpushed_work({"cwd": "."}),
+    ),
+    "check_r20_user_harness_drift": lambda: guard._with_stubs(
+        {
+            "_branch_edits_harness_sources": lambda cwd=None: False,
+            "_sync_advisory": lambda: "User harness drift detected.",
+        },
+        lambda: guard.check_r20_user_harness_drift({"cwd": "."}),
+    ),
+    "check_r21_run_state_not_recorded": lambda: guard._with_stubs(
+        {"ledger_events": lambda payload: ["delegate-dispatch", "commit"]},
+        lambda: guard.check_r21_run_state_not_recorded({"session_id": "s"}),
+    ),
+}
 
-    Scans string *values*, not source text: `ast.parse` merges adjacent
-    string literals into one `Constant` at parse time, the same merge Python
-    performs before the program ever runs, so a phrase split across source
-    lines by implicit concatenation is already one string here. Each string
-    is lowercased and its whitespace collapsed to single spaces before the
-    scan, so casing and incidental formatting cannot hide a violation either.
 
-    Returns a snippet around each offending occurrence, empty when none.
-    """
+def _rendered_stop_reasons() -> list[str]:
+    """Return one actual reporting message from every Stop-dispatched rule."""
+    return [renderer() for renderer in _STOP_RULE_RENDERERS.values()]
+
+
+def _bare_interruption_promises(messages: list[str]) -> list[str]:
+    """Every rendered message with a bare "interrupts once" promise."""
     violations = []
-    tree = ast.parse(source)
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
-            continue
-        collapsed = re.sub(r"\s+", " ", node.value.lower())
+    for message in messages:
+        collapsed = re.sub(r"\s+", " ", message.lower())
         for match in re.finditer(r"interrupts once(?! per turn\b)", collapsed):
             start = max(0, match.start() - 20)
             violations.append(collapsed[start : match.start() + 40])
@@ -2647,13 +2669,18 @@ class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
     """
 
     def test_no_message_promises_a_single_interruption(self):
-        violations = _bare_interruption_promises(inspect.getsource(guard))
+        violations = _bare_interruption_promises(_rendered_stop_reasons())
         self.assertEqual(
             violations,
             [],
             "a guard message promises a single interruption instead of naming "
             f"the per-turn mechanism: {violations!r}",
         )
+
+    def test_every_stop_rule_has_a_rendered_message_probe(self):
+        source = inspect.getsource(guard.run_stop)
+        dispatched = set(re.findall(r"check_r\d+_[a-z_]+", source))
+        self.assertEqual(dispatched, set(_STOP_RULE_RENDERERS))
 
     def test_the_stop_rules_still_say_what_makes_the_retry_proceed(self):
         """The honest version has to name the mechanism, not just drop the claim."""
@@ -2668,16 +2695,20 @@ class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
         check. `_bare_interruption_promises` must catch it from the value,
         not the text.
         """
-        synthetic = 'MESSAGE = (\n    "ask for it. This "\n    "interrupts once."\n)\n'
-        violations = _bare_interruption_promises(synthetic)
+        message = "ask for it. This " "interrupts once."
+        violations = _bare_interruption_promises([message])
         self.assertTrue(
             violations, "a split-literal bare promise must be caught, not missed"
         )
 
+    def test_a_runtime_assembled_bare_promise_is_caught(self):
+        message = f"This interrupts {'once'}."
+        self.assertTrue(_bare_interruption_promises([message]))
+
     def test_the_honest_phrasing_raises_no_violation(self):
         """The check must not flag the wording it is meant to require."""
-        synthetic = 'MESSAGE = "This interrupts once per turn: retry proceeds."\n'
-        self.assertEqual(_bare_interruption_promises(synthetic), [])
+        message = "This interrupts once per turn: retry proceeds."
+        self.assertEqual(_bare_interruption_promises([message]), [])
 
 
 class HarnessDriftSuppressionTest(unittest.TestCase):
