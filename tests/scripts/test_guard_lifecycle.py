@@ -2472,6 +2472,27 @@ class RunStateStopGateTest(unittest.TestCase):
                         )
                     )
 
+    def test_colon_set_location_path_options_do_not_count(self):
+        """PowerShell also permits `-Path:<value>` (#4566 final review)."""
+        session_root = os.path.abspath(os.path.join(tempfile.gettempdir(), "SHAFT_ENGINE"))
+        companion_root = os.path.normpath(os.path.join(session_root, "..", "shafthq.github.io"))
+
+        def remote(_arguments, command_cwd):
+            if command_cwd == companion_root:
+                return "git@github.com:ShaftHQ/shafthq.github.io.git\n"
+            if command_cwd == session_root:
+                return "git@github.com:ShaftHQ/SHAFT_ENGINE.git\n"
+            self.fail(f"unexpected repository lookup: {command_cwd!r}")
+
+        with patch("scripts.agents.guard._git_output", side_effect=remote):
+            for option in ("-path:../shafthq.github.io", "-literalpath:../shafthq.github.io"):
+                with self.subTest(option=option):
+                    self.assertFalse(
+                        guard._updates_a_tracked_issue(
+                            f"Set-Location {option}; gh pr create --title docs --body x", session_root
+                        )
+                    )
+
     def test_trailing_repository_flags_for_another_repository_do_not_count(self):
         """#4566: `gh` accepts `--repo` after the subcommand too."""
         with patch(
