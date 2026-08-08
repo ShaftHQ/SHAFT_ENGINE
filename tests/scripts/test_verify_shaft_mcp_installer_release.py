@@ -45,6 +45,15 @@ class ShaftCliPublishedTest(unittest.TestCase):
             self.assertTrue(verify.shaft_cli_published())
         response.__enter__.assert_called_once()
 
+    def test_metadata_probe_identifies_the_release_verifier(self):
+        response = unittest.mock.MagicMock()
+        with unittest.mock.patch.object(
+            verify.urllib.request, "urlopen", return_value=response
+        ) as urlopen:
+            verify.shaft_cli_published()
+        request = urlopen.call_args.args[0]
+        self.assertEqual("SHAFT-Engine-release-verifier", request.get_header("User-agent"))
+
     def test_missing_metadata_means_unpublished(self):
         error = verify.urllib.error.HTTPError(
             verify.SHAFT_CLI_METADATA_URL, 404, "Not Found", None, None
