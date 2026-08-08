@@ -1180,12 +1180,18 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 "**/build.gradle.kts",
                 "**/gradle.properties",
                 ".github/dependency-review-config.yml",
+                "scripts/ci/dependency_review_changes.py",
+                "tests/scripts/test_dependency_review_changes.py",
             },
         )
         self.assertIn("dependency-changes", workflow["jobs"])
         classifier = workflow["jobs"].get("dependency-changes", {})
         self.assertIn("dependencies", classifier["if"])
         self.assertEqual(classifier["outputs"]["review"], "${{ steps.diff.outputs.review }}")
+        self.assertIn(
+            "tests.scripts.test_dependency_review_changes",
+            " ".join(str(step.get("run", "")) for step in classifier["steps"]),
+        )
         self.assertIn(
             "needs.dependency-changes.outputs.review == 'true'",
             workflow["jobs"]["dependency-review"]["if"],

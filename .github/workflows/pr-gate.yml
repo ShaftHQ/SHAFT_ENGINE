@@ -163,6 +163,8 @@ jobs:
               - '**/build.gradle.kts'
               - '**/gradle.properties'
               - '.github/dependency-review-config.yml'
+              - 'scripts/ci/dependency_review_changes.py'
+              - 'tests/scripts/test_dependency_review_changes.py'
             # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
             # its downstream Pilot-family modules. shaft-cli/shaft-intellij already have
             # dedicated legs above and are intentionally not repeated here. shaft-capture
@@ -755,9 +757,9 @@ jobs:
   # the external action to inspect (#4602).
   dependency-review:
     name: Dependency Review
-    needs: changes
+    needs: [changes, dependency-changes]
     if: >-
-      github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
+      github.event_name == 'pull_request' && needs.dependency-changes.outputs.review == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -770,6 +772,29 @@ jobs:
         uses: actions/dependency-review-action@v5
         with:
           config-file: './.github/dependency-review-config.yml'
+
+  dependency-changes:
+    name: Detect dependency changes
+    needs: changes
+    if: >-
+      github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      review: ${{ steps.diff.outputs.review }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Test dependency diff classifier
+        run: python3 -m unittest tests.scripts.test_dependency_review_changes -v
+      - name: Detect dependency-bearing diff
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "review=$(python3 scripts/ci/dependency_review_changes.py "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
 
   summary:
     name: PR Gate Summary
@@ -787,6 +812,7 @@ jobs:
       - module-boundary
       - orphaned-suite-files
       - pr-body-autoclose-guard
+      - dependency-changes
       - dependency-review
     if: always()
     runs-on: ubuntu-22.04
@@ -807,6 +833,7 @@ jobs:
           MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
           ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
           PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
+          DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
           set -uo pipefail
@@ -827,6 +854,7 @@ jobs:
             echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
             echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
             echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
+            echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -836,7 +864,7 @@ jobs:
           fi
 
           status=0
-          for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
