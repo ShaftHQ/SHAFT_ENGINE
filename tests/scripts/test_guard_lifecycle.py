@@ -1119,6 +1119,18 @@ class LearningLoopStopGateTest(unittest.TestCase):
         ):
             self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
 
+    def test_a_guard_block_requires_a_route_but_allows_issue_or_no_learning(self):
+        """A refusal is observed work even when PreToolUse cannot see command exit."""
+        with patch("scripts.agents.guard.ledger_events", return_value=["guard-block"]):
+            self.assertIn("refusal", guard.check_r16_learning_loop({"session_id": "s"}))
+        for resolution in ("issue-update", "learning-none:nothing-recurred"):
+            with self.subTest(resolution=resolution):
+                with patch(
+                    "scripts.agents.guard.ledger_events",
+                    return_value=["guard-block", resolution],
+                ):
+                    self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
     def test_a_session_that_changed_nothing_is_never_interrupted(self):
         """A read-only session owes no learning; asking would train the block away."""
         with patch("scripts.agents.guard.ledger_events", return_value=["test-run"]):
@@ -1206,6 +1218,9 @@ class LearningWriteObservationTest(unittest.TestCase):
         )
         self.assertNotIn("memory-write", self.events_after("mcp__mempalace__mempalace_sync"))
         self.assertNotIn("memory-write", self.events_after("Bash", 'echo "memory remember"'))
+
+    def test_a_denied_command_is_recorded_as_a_guard_block(self):
+        self.assertIn("guard-block", self.events_after("Bash", "git stash pop"))
 
     def test_a_non_dry_memories_deletion_counts_as_a_write(self):
         self.assertIn(
@@ -1737,6 +1752,43 @@ class DormantSessionLedgerIsNotReapedByAnotherSessionTest(unittest.TestCase):
                     "a session dormant for two full retention windows must be reaped",
                 )
 
+    def test_a_write_during_sweep_prevents_the_ledger_from_being_deleted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = os.path.join(directory, "concurrent.json")
+            mark = ledger + guard._REAP_MARK_SUFFIX
+            with open(ledger, "w", encoding="utf-8") as handle:
+                handle.write('"old"\n')
+            with open(mark, "w", encoding="utf-8"):
+                pass
+            old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+            os.utime(ledger, (old, old))
+            os.utime(mark, (old, old))
+
+            original_getmtime = os.path.getmtime
+
+            def mtime(path):
+                if path == mark:
+                    with open(ledger, "a", encoding="utf-8") as handle:
+                        handle.write('"resumed"\n')
+                return original_getmtime(path)
+
+            with patch("scripts.agents.guard.os.path.getmtime", side_effect=mtime):
+                guard._reap_stale_ledgers(directory)
+
+            self.assertTrue(os.path.exists(ledger))
+            with open(ledger, encoding="utf-8") as handle:
+                self.assertIn("resumed", handle.read())
+
+    def test_an_orphaned_reap_mark_is_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mark = os.path.join(directory, "orphan.json" + guard._REAP_MARK_SUFFIX)
+            with open(mark, "w", encoding="utf-8"):
+                pass
+
+            guard._reap_stale_ledgers(directory)
+
+            self.assertFalse(os.path.exists(mark))
+
 
 class SelfTestCoversEveryRuleTest(unittest.TestCase):
     """`--self-test` must exercise every rule, and `main` must run it (#4551).
@@ -1821,6 +1873,29 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
         """A name filter that matched nothing would make the check above vacuous."""
         self.assertGreaterEqual(len(self.rules()), 10)
 
+    def test_subprocess_helpers_receive_the_hook_working_directory(self):
+        """GitHub and git queries must resolve in the hook's worktree (#4564)."""
+        cwd = "C:/hook-worktree"
+        completed = mock.Mock(returncode=0, stdout="0\n")
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._unpushed_commit_count("feature", cwd)
+        self.assertEqual(run.call_args.kwargs["cwd"], cwd)
+
+        with patch("scripts.agents.guard._git_output", return_value=None) as git:
+            guard._content_exists_on_default_branch("feature", cwd)
+        self.assertTrue(git.call_args_list)
+        self.assertTrue(all(call.kwargs["cwd"] == cwd for call in git.call_args_list))
+
+        completed.stdout = '{"author":{"login":"author"},"reviews":[]}'
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._independent_review_count("42", cwd)
+        self.assertEqual(run.call_args.kwargs["cwd"], cwd)
+
+        completed.stdout = "[]"
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
+            guard._open_pull_request_count("feature", cwd)
+        self.assertEqual(run.call_args.kwargs["cwd"], cwd)
+
 
 class _NoSubprocess:
     """Stand-in for the `subprocess` module in which nothing can be run.
@@ -1871,6 +1946,7 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "UnarmedPullRequestStopGateTest",
         "UnpushedWorkStopGateTest",
         "LearningLoopStopGateTest",
+        "RunStateStopGateTest",
     )
 
     def subjects(self) -> unittest.TestSuite:
@@ -1890,6 +1966,20 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
     def test_the_subject_classes_all_exist(self):
         """A misspelled class name would silently shrink what is being checked."""
         module = sys.modules[__name__]
+        stop_gate_classes = {
+            name
+            for name, subject in vars(module).items()
+            if (
+                name.endswith("StopGateTest")
+                and isinstance(subject, type)
+                and issubclass(subject, unittest.TestCase)
+            )
+        }
+        self.assertTrue(
+            stop_gate_classes.issubset(self.SUBJECT_CLASSES),
+            f"Stop-gate classes missing from SUBJECT_CLASSES: "
+            f"{sorted(stop_gate_classes - set(self.SUBJECT_CLASSES))}",
+        )
         for name in self.SUBJECT_CLASSES:
             with self.subTest(cls=name):
                 self.assertTrue(hasattr(module, name), f"{name} is not defined here")
@@ -2430,6 +2520,82 @@ class RunStateStopGateTest(unittest.TestCase):
                 with self.subTest(command=command):
                     self.assertFalse(guard._updates_a_tracked_issue(command))
 
+    def test_changing_to_the_companion_repository_before_a_write_does_not_count(self):
+        """#4566: a same-command `cd` is an implicit repository target."""
+        session_root = os.path.abspath(os.path.join(tempfile.gettempdir(), "SHAFT_ENGINE"))
+        companion_root = os.path.normpath(os.path.join(session_root, "..", "shafthq.github.io"))
+
+        def remote(_arguments, command_cwd):
+            if command_cwd == companion_root:
+                return "git@github.com:ShaftHQ/shafthq.github.io.git\n"
+            if command_cwd == session_root:
+                return "git@github.com:ShaftHQ/SHAFT_ENGINE.git\n"
+            self.fail(f"unexpected repository lookup: {command_cwd!r}")
+
+        with patch("scripts.agents.guard._git_output", side_effect=remote):
+            self.assertFalse(
+                guard._updates_a_tracked_issue(
+                    "cd ../shafthq.github.io && gh pr create --title docs --body x", session_root
+                )
+            )
+
+    def test_lowercase_set_location_path_options_do_not_count(self):
+        """PowerShell parameters are case-insensitive (#4566 review)."""
+        session_root = os.path.abspath(os.path.join(tempfile.gettempdir(), "SHAFT_ENGINE"))
+        companion_root = os.path.normpath(os.path.join(session_root, "..", "shafthq.github.io"))
+
+        def remote(_arguments, command_cwd):
+            if command_cwd == companion_root:
+                return "git@github.com:ShaftHQ/shafthq.github.io.git\n"
+            if command_cwd == session_root:
+                return "git@github.com:ShaftHQ/SHAFT_ENGINE.git\n"
+            self.fail(f"unexpected repository lookup: {command_cwd!r}")
+
+        with patch("scripts.agents.guard._git_output", side_effect=remote):
+            for option in ("-path", "-literalpath"):
+                with self.subTest(option=option):
+                    self.assertFalse(
+                        guard._updates_a_tracked_issue(
+                            f"Set-Location {option} ../shafthq.github.io; "
+                            "gh pr create --title docs --body x",
+                            session_root,
+                        )
+                    )
+
+    def test_colon_set_location_path_options_do_not_count(self):
+        """PowerShell also permits `-Path:<value>` (#4566 final review)."""
+        session_root = os.path.abspath(os.path.join(tempfile.gettempdir(), "SHAFT_ENGINE"))
+        companion_root = os.path.normpath(os.path.join(session_root, "..", "shafthq.github.io"))
+
+        def remote(_arguments, command_cwd):
+            if command_cwd == companion_root:
+                return "git@github.com:ShaftHQ/shafthq.github.io.git\n"
+            if command_cwd == session_root:
+                return "git@github.com:ShaftHQ/SHAFT_ENGINE.git\n"
+            self.fail(f"unexpected repository lookup: {command_cwd!r}")
+
+        with patch("scripts.agents.guard._git_output", side_effect=remote):
+            for option in ("-path:../shafthq.github.io", "-literalpath:../shafthq.github.io"):
+                with self.subTest(option=option):
+                    self.assertFalse(
+                        guard._updates_a_tracked_issue(
+                            f"Set-Location {option}; gh pr create --title docs --body x", session_root
+                        )
+                    )
+
+    def test_trailing_repository_flags_for_another_repository_do_not_count(self):
+        """#4566: `gh` accepts `--repo` after the subcommand too."""
+        with patch(
+            "scripts.agents.guard._git_output",
+            return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git\n",
+        ):
+            for command in (
+                "gh pr create --repo ShaftHQ/shafthq.github.io --title docs --body x",
+                "gh issue comment 12 -R ShaftHQ/shafthq.github.io --body x",
+            ):
+                with self.subTest(command=command):
+                    self.assertFalse(guard._updates_a_tracked_issue(command))
+
     def test_reading_an_issue_is_not_recording_state(self):
         """The boundary, held by what it refuses rather than what it accepts."""
         for command in (
@@ -2476,24 +2642,11 @@ class RunStateStopGateTest(unittest.TestCase):
 
 
 
-def _bare_interruption_promises(source: str) -> list[str]:
-    """Every "interrupts once" in `source` not immediately followed by "per turn".
-
-    Scans string *values*, not source text: `ast.parse` merges adjacent
-    string literals into one `Constant` at parse time, the same merge Python
-    performs before the program ever runs, so a phrase split across source
-    lines by implicit concatenation is already one string here. Each string
-    is lowercased and its whitespace collapsed to single spaces before the
-    scan, so casing and incidental formatting cannot hide a violation either.
-
-    Returns a snippet around each offending occurrence, empty when none.
-    """
+def _bare_interruption_promises(messages: list[str]) -> list[str]:
+    """Every rendered message with a bare "interrupts once" promise."""
     violations = []
-    tree = ast.parse(source)
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
-            continue
-        collapsed = re.sub(r"\s+", " ", node.value.lower())
+    for message in messages:
+        collapsed = re.sub(r"\s+", " ", message.lower())
         for match in re.finditer(r"interrupts once(?! per turn\b)", collapsed):
             start = max(0, match.start() - 20)
             violations.append(collapsed[start : match.start() + 40])
@@ -2533,13 +2686,18 @@ class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
     """
 
     def test_no_message_promises_a_single_interruption(self):
-        violations = _bare_interruption_promises(inspect.getsource(guard))
+        violations = _bare_interruption_promises(guard._rendered_stop_reasons())
         self.assertEqual(
             violations,
             [],
             "a guard message promises a single interruption instead of naming "
             f"the per-turn mechanism: {violations!r}",
         )
+
+    def test_every_stop_rule_has_a_rendered_message_probe(self):
+        source = inspect.getsource(guard.run_stop)
+        dispatched = set(re.findall(r"check_r\d+_[a-z_]+", source))
+        self.assertEqual(dispatched, set(guard._STOP_RULE_RENDERERS))
 
     def test_the_stop_rules_still_say_what_makes_the_retry_proceed(self):
         """The honest version has to name the mechanism, not just drop the claim."""
@@ -2554,16 +2712,21 @@ class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
         check. `_bare_interruption_promises` must catch it from the value,
         not the text.
         """
-        synthetic = 'MESSAGE = (\n    "ask for it. This "\n    "interrupts once."\n)\n'
-        violations = _bare_interruption_promises(synthetic)
+        message = "ask for it. This " "interrupts once."
+        violations = _bare_interruption_promises([message])
         self.assertTrue(
             violations, "a split-literal bare promise must be caught, not missed"
         )
 
+    def test_a_runtime_assembled_bare_promise_is_caught(self):
+        message = f"This interrupts {'once'}."
+        reasons = guard._rendered_stop_reasons({"synthetic": lambda: message})
+        self.assertTrue(_bare_interruption_promises(reasons))
+
     def test_the_honest_phrasing_raises_no_violation(self):
         """The check must not flag the wording it is meant to require."""
-        synthetic = 'MESSAGE = "This interrupts once per turn: retry proceeds."\n'
-        self.assertEqual(_bare_interruption_promises(synthetic), [])
+        message = "This interrupts once per turn: retry proceeds."
+        self.assertEqual(_bare_interruption_promises([message]), [])
 
 
 class HarnessDriftSuppressionTest(unittest.TestCase):

@@ -29,12 +29,14 @@ public class BrowserStorageStateManagerTest {
             + "for (const [key, value] of Object.entries(arguments[1])) { window.sessionStorage.setItem(key, value); }";
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    private Path storageStateFile;
+    private final ThreadLocal<Path> storageStateFile = new ThreadLocal<>();
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
-        if (storageStateFile != null) {
-            Files.deleteIfExists(storageStateFile);
+        Path file = storageStateFile.get();
+        if (file != null) {
+            Files.deleteIfExists(file);
+            storageStateFile.remove();
         }
     }
 
@@ -78,11 +80,11 @@ public class BrowserStorageStateManagerTest {
                 "localStorage", Map.of("authToken", "storage-secret"),
                 "sessionStorage", Map.of("tab", "checkout")));
 
-        storageStateFile = Files.createTempFile("shaft-storage-state", ".json");
-        BrowserStorageStateManager.save(driver, storageStateFile.toString());
+        storageStateFile.set(Files.createTempFile("shaft-storage-state", ".json"));
+        BrowserStorageStateManager.save(driver, storageStateFile.get().toString());
 
         BrowserStorageStateManager.StorageState state =
-                JSON.readValue(storageStateFile.toFile(), BrowserStorageStateManager.StorageState.class);
+                JSON.readValue(storageStateFile.get().toFile(), BrowserStorageStateManager.StorageState.class);
 
         Assert.assertEquals(state.schemaVersion, "1.0");
         Assert.assertEquals(state.origin, "https://example.com");
@@ -105,8 +107,8 @@ public class BrowserStorageStateManagerTest {
         WebDriver.Options options = mock(WebDriver.Options.class);
         when(driver.manage()).thenReturn(options);
 
-        storageStateFile = Files.createTempFile("shaft-storage-state", ".json");
-        Files.writeString(storageStateFile, """
+        storageStateFile.set(Files.createTempFile("shaft-storage-state", ".json"));
+        Files.writeString(storageStateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "origin" : "https://example.com",
@@ -128,7 +130,7 @@ public class BrowserStorageStateManagerTest {
                 }
                 """);
 
-        BrowserStorageStateManager.load(driver, storageStateFile.toString());
+        BrowserStorageStateManager.load(driver, storageStateFile.get().toString());
 
         verify(options, times(1)).deleteAllCookies();
         var cookieCaptor = org.mockito.ArgumentCaptor.forClass(Cookie.class);
@@ -162,8 +164,8 @@ public class BrowserStorageStateManagerTest {
         WebDriver.Options options = mock(WebDriver.Options.class);
         when(driver.manage()).thenReturn(options);
 
-        storageStateFile = Files.createTempFile("shaft-storage-state-empty", ".json");
-        Files.writeString(storageStateFile, """
+        storageStateFile.set(Files.createTempFile("shaft-storage-state-empty", ".json"));
+        Files.writeString(storageStateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "origin" : "https://example.com",
@@ -172,7 +174,7 @@ public class BrowserStorageStateManagerTest {
                 }
                 """);
 
-        BrowserStorageStateManager.load(driver, storageStateFile.toString());
+        BrowserStorageStateManager.load(driver, storageStateFile.get().toString());
 
         verify(options, times(1)).deleteAllCookies();
         verify(options, never()).addCookie(any(Cookie.class));

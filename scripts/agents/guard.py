@@ -1371,6 +1371,12 @@ def _print_deny(reason: str, host: str) -> None:
     print(json.dumps(output))
 
 
+def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> None:
+    """Preserve an observed refusal for R16 before returning the denial."""
+    ledger_record(hook_input, "guard-block")
+    _print_deny(reason, host)
+
+
 # R12: iron law 3 -- no production code before an observed failing test.
 # Production means compiled source under any module's src/main/. Guidance,
 # configuration, tests, scripts and docs are excluded because the entrypoint
@@ -1529,7 +1535,7 @@ def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | 
     )
 
 
-def _unpushed_commit_count(branch: str) -> int | None:
+def _unpushed_commit_count(branch: str, cwd: object = None) -> int | None:
     """Commits on `branch` that exist on no remote, or None if unanswerable.
 
     None and 0 stay distinct, which #4542 is the record of paying for: "git
@@ -1541,6 +1547,7 @@ def _unpushed_commit_count(branch: str) -> int | None:
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
             ["git", "rev-list", "--count", branch, "--not", "--remotes"],
+            cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -1579,7 +1586,7 @@ def _git_output(arguments: list[str], cwd: object = None) -> str | None:
     return completed.stdout or ""
 
 
-def _content_exists_on_default_branch(branch: str) -> bool:
+def _content_exists_on_default_branch(branch: str, cwd: object = None) -> bool:
     """True when deleting `branch` would lose no content the default branch lacks.
 
     This repository squash-merges and GitHub deletes the head branch on merge.
@@ -1619,19 +1626,23 @@ def _content_exists_on_default_branch(branch: str) -> bool:
         return False
     reference = None
     for candidate in sorted(DEFAULT_BRANCHES):
-        probe = _git_output(["rev-parse", "--verify", "--quiet", f"origin/{candidate}"])
+        probe = _git_output(
+            ["rev-parse", "--verify", "--quiet", f"origin/{candidate}"], cwd=cwd
+        )
         if probe is not None:
             reference = f"origin/{candidate}"
             break
     if reference is None:
         return False
-    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"])
+    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"], cwd=cwd)
     if listing is None:
         return False
     files = [line for line in listing.splitlines() if line.strip()]
     if not files:
         return True  # introduces nothing the default branch does not already have
-    numstat = _git_output(["diff", "--numstat", reference, branch, "--", *files])
+    numstat = _git_output(
+        ["diff", "--numstat", reference, branch, "--", *files], cwd=cwd
+    )
     if numstat is None:
         return False
     for line in numstat.splitlines():
@@ -1643,7 +1654,7 @@ def _content_exists_on_default_branch(branch: str) -> bool:
     return True
 
 
-def _unrecoverable_commit_count(branch: str) -> int | None:
+def _unrecoverable_commit_count(branch: str, cwd: object = None) -> int | None:
     """Commits whose deletion would destroy work, or None if unanswerable.
 
     Wraps the raw unpushed count with the delivery question, because the raw
@@ -1659,10 +1670,10 @@ def _unrecoverable_commit_count(branch: str) -> int | None:
     about to block. A branch with nothing unpushed -- the common case -- pays
     nothing.
     """
-    count = _unpushed_commit_count(branch)
+    count = _unpushed_commit_count(branch, cwd)
     if count is None or count <= 0:
         return count
-    if _content_exists_on_default_branch(branch):
+    if _content_exists_on_default_branch(branch, cwd):
         return 0
     return count
 
@@ -1687,7 +1698,9 @@ def _uncommitted_file_count(cwd: object) -> int | None:
     return len([line for line in (completed.stdout or "").splitlines() if line.strip()])
 
 
-def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
+def check_r13_push_before_delete(
+    command: str, tool_name: str, cwd: object = None
+) -> str | None:
     """Refuse a force-delete of a branch whose commits exist nowhere else.
 
     The entrypoint's cleanup order exists because it is not interchangeable:
@@ -1705,7 +1718,7 @@ def check_r13_push_before_delete(command: str, tool_name: str) -> str | None:
         if not rest or rest[0] != "branch" or "-D" not in rest[1:]:
             continue
         for name in [token for token in rest[1:] if not token.startswith("-")]:
-            unpushed = _unrecoverable_commit_count(name)
+            unpushed = _unrecoverable_commit_count(name, cwd)
             if unpushed is None or unpushed <= 0:
                 continue
             return (
@@ -1754,7 +1767,7 @@ def check_r14_hard_reset(command: str, tool_name: str, cwd: object) -> str | Non
     return None
 
 
-def _independent_review_count(target: str | None) -> int | None:
+def _independent_review_count(target: str | None, cwd: object = None) -> int | None:
     """Reviews by someone other than the author, or None if unanswerable.
 
     None and 0 stay distinct: "gh could not answer" and "nobody has reviewed
@@ -1766,7 +1779,12 @@ def _independent_review_count(target: str | None) -> int | None:
     arguments += ["--json", "reviews,author"]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
-            arguments, capture_output=True, text=True, timeout=_subprocess_timeout(), check=False
+            arguments,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -1821,7 +1839,9 @@ def check_r15_review_before_arming(
             )
         positional = [token for token in arguments if not token.startswith("-")]
         target = positional[0] if positional else None
-        reviews = _independent_review_count(target)
+        reviews = _independent_review_count(
+            target, _hook_working_directory(hook_input or {})
+        )
         if reviews is None or reviews > 0:
             continue
         # #4545 option C: a dispatch this hook watched counts as well. R15 was
@@ -1893,7 +1913,7 @@ _GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
 
 
 def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
-    """Split a leading `-R`/`--repo <value>` off `tokens`, returning both halves.
+    """Remove `-R`/`--repo <value>` anywhere in `tokens`, returning its value.
 
     `-R owner/repo` / `--repo owner/repo` is gh's own global flag for
     targeting a repository explicitly -- the standard way to post run state
@@ -1910,15 +1930,20 @@ def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
     too, and a command with two is already outside what this rule reasons
     about.
 
-    Other value-taking global flags (`--hostname`, `-h`/`--help`) are left
+    `gh` accepts the flag after its subcommand too, which the nightly notifier
+    uses. Other value-taking global flags (`--hostname`, `-h`/`--help`) are left
     alone: none has been observed making R21 fire on correct work, and
     covering gh's full flag surface ahead of an evidenced defect just
     couples this rule to a CLI it does not otherwise track.
     """
-    index = 0
     repository: str | None = None
+    remaining: list[str] = []
+    index = 0
     while index < len(tokens):
         token = tokens[index]
+        if token == "--":
+            remaining.extend(tokens[index:])
+            break
         if token in _GH_GLOBAL_FLAGS_WITH_ARG:
             repository = tokens[index + 1] if index + 1 < len(tokens) else None
             index += 2
@@ -1931,8 +1956,26 @@ def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
             repository = token[len(matched) + 1:]
             index += 1
             continue
-        break
-    return tokens[index:], repository
+        remaining.append(token)
+        index += 1
+    return remaining, repository
+
+
+def _changed_directory(segment: str, cwd: object) -> str | None:
+    """Return a simple same-shell `cd` target, or None when it is ambiguous."""
+    if not isinstance(cwd, str) or not cwd:
+        return None
+    arguments = _tokens_after_head(segment, frozenset({"cd", "set-location"}))
+    if not arguments:
+        return None
+    if arguments:
+        option, separator, inline = arguments[0].partition(":")
+        if option.lower() in {"-path", "-literalpath"}:
+            arguments = [inline] if separator and inline else arguments[1:]
+    if len(arguments) != 1 or arguments[0].startswith("-"):
+        return None
+    target = os.path.expanduser(arguments[0])
+    return os.path.abspath(target if os.path.isabs(target) else os.path.join(cwd, target))
 
 
 def _names_this_repository(repository: str, cwd: object) -> bool:
@@ -1949,11 +1992,10 @@ def _names_this_repository(repository: str, cwd: object) -> bool:
     take: an environment that cannot name its own remote is not evidence
     the agent posted to the wrong place.
 
-    Known limits, stated rather than papered over: a `cd ../shafthq.github.io
-    && gh pr create` in another repository's checkout still counts, because
-    no token in it says so. A `-R` / `--repo` flag positioned after the
-    subcommand is similarly not recognized; only leading-position flags are
-    scanned (see #4566).
+    An in-command `cd` / `Set-Location` is compared to the session repository
+    when its following command runs in the same shell. A directory change made
+    by an earlier tool call remains unknowable because every hook invocation is
+    a fresh process (#4566).
     """
     remote = _git_output(["remote", "get-url", "origin"], cwd)
     if not remote:
@@ -1977,7 +2019,15 @@ def _updates_a_tracked_issue(command: str, cwd: object = None) -> bool:
     """
     if not command:
         return False
-    for segment in _command_segments(command):
+    active_cwd = cwd
+    parts = re.split(r"(&&|\|\||;|\||&|\r?\n)", command)
+    for index in range(0, len(parts), 2):
+        segment = parts[index]
+        connector = parts[index + 1] if index + 1 < len(parts) else ""
+        changed_directory = _changed_directory(segment, active_cwd)
+        if changed_directory and connector in ("&&", ";", "\n", "\r\n"):
+            active_cwd = changed_directory
+            continue
         rest = _tokens_after_head(segment, frozenset({"gh"}))
         # None for any segment that is not a `gh` call, which is most of them.
         # Found by a negative fixture: `git commit -m 'comment on the issue'`
@@ -1995,6 +2045,10 @@ def _updates_a_tracked_issue(command: str, cwd: object = None) -> bool:
         # branch, and `-R other/repo` is how that binding is removed.
         if repository and not _names_this_repository(repository, cwd):
             continue
+        if not repository and active_cwd != cwd:
+            remote = _git_output(["remote", "get-url", "origin"], active_cwd)
+            if remote and not _names_this_repository(remote, cwd):
+                continue
         # Any gh call that writes durable prose to an issue or pull request.
         # The first version took `issue comment`, `pr comment` and `issue edit`
         # only, so a session that opened a pull request carrying its full run
@@ -2214,7 +2268,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
 
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     # Observed, not judged, and first: a reviewer dispatch is not a call this
@@ -2232,12 +2286,12 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         hook_input.get("tool_input"),
     )
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     reason = check_r19_fresh_base(hook_input, tool_name)
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     reason = check_r12_test_before_production(hook_input, tool_name)
@@ -2250,7 +2304,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     ):
         ledger_record(hook_input, "memory-write")
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     if tool_name in ("Bash", "PowerShell"):
@@ -2263,7 +2317,9 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is None:
             reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
         if reason is None:
-            reason = check_r13_push_before_delete(command, tool_name)
+            reason = check_r13_push_before_delete(
+                command, tool_name, _hook_working_directory(hook_input)
+            )
         if reason is None:
             reason = check_r15_review_before_arming(command, tool_name, hook_input)
         if reason is None:
@@ -2271,7 +2327,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
                 command, tool_name, _hook_working_directory(hook_input)
             )
         if reason is not None:
-            _print_deny(reason, host)
+            _record_guard_block_and_deny(hook_input, reason, host)
             return 0
         if _is_learning_write_command(command):
             ledger_record(hook_input, "memory-write")
@@ -2437,7 +2493,14 @@ def _reap_stale_ledgers(directory: str) -> None:
         cutoff = time.time() - LEDGER_RETENTION_SECONDS
         for name in os.listdir(directory):
             if name.endswith(_REAP_MARK_SUFFIX):
-                continue  # visited alongside its ledger, never on its own
+                mark = os.path.join(directory, name)
+                ledger = mark[: -len(_REAP_MARK_SUFFIX)]
+                try:
+                    if not os.path.exists(ledger):
+                        os.remove(mark)
+                except OSError:
+                    pass
+                continue
             path = os.path.join(directory, name)
             mark = path + _REAP_MARK_SUFFIX
             try:
@@ -2452,6 +2515,12 @@ def _reap_stale_ledgers(directory: str) -> None:
                     continue
                 if os.path.isfile(mark):
                     if os.path.getmtime(mark) < cutoff:
+                        # A writer may have resumed the ledger after the
+                        # first staleness observation. Re-stat immediately
+                        # before deleting and leave cleanup for a later sweep
+                        # whenever the safe answer is uncertain.
+                        if os.path.getmtime(path) >= cutoff:
+                            continue
                         os.remove(path)
                         os.remove(mark)
                 else:
@@ -2700,7 +2769,7 @@ def run_session_start(hook_input: dict) -> int:
     return 0
 
 
-def _open_pull_request_count(branch: str | None) -> int | None:
+def _open_pull_request_count(branch: str | None, cwd: object = None) -> int | None:
     """Open pull requests for `branch`, or None when the question cannot be answered.
 
     None and 0 are different facts and must stay different: "the lookup did
@@ -2728,6 +2797,7 @@ def _open_pull_request_count(branch: str | None) -> int | None:
                 "--json",
                 "number",
             ],
+            cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -2745,7 +2815,7 @@ def _open_pull_request_count(branch: str | None) -> int | None:
 
 
 def check_r16_learning_loop(hook_input: dict) -> str | None:
-    """Interrupt once when a session changed things and routed no learning.
+    """Interrupt once when a session changed or a guard refused un-routed work.
 
     The entrypoint requires the learned-lessons workflow before reporting
     done, and it had no mechanism. This session is the evidence: an iteration
@@ -2762,10 +2832,22 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     second attempt always proceeds.
     """
     events = ledger_events(hook_input)
-    if "commit" not in events:
+    guard_blocked = "guard-block" in events
+    if "commit" not in events and not guard_blocked:
         return None  # a read-only session owes no learning
     if "memory-write" in events or any(event.startswith("learning-none:") for event in events):
         return None
+    if guard_blocked:
+        if "issue-update" in events:
+            return None
+        return (
+            "Learning loop: this session had an observed guard refusal with no route. "
+            "Before reporting done, route it once: if the refusal was correct, write the "
+            "lesson to native Memory with its evidence; if it was wrong or needs follow-up, "
+            "search for and update the issue. Nothing durable is a valid result -- say so "
+            "and end the turn. This interrupts once per turn: `stop_hook_active` makes the "
+            "retry proceed, and it is owed again next turn until it is satisfied."
+        )
     return (
         "Learning loop: this session committed work and routed no learning. Before "
         "reporting done, run the routing table once -- a fact that cost you time to "
@@ -2909,7 +2991,9 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     branch = _current_branch(_hook_working_directory(hook_input))
     if not branch:
         return None
-    unpushed = _unrecoverable_commit_count(branch)
+    unpushed = _unrecoverable_commit_count(
+        branch, _hook_working_directory(hook_input)
+    )
     if unpushed is None or unpushed <= 0:
         return None
     return (
@@ -3115,7 +3199,9 @@ def run_stop(hook_input: dict) -> int:
         if state == "pending":
             branch = current.get("branch") if current else None
             if branch:
-                covered = _open_pull_request_count(branch)
+                covered = _open_pull_request_count(
+                    branch, _hook_working_directory(hook_input)
+                )
                 if covered is None or covered > 0:
                     # Delivered. Not a `return`: reasons collected above this
                     # point would be discarded, which is the starvation this
@@ -3399,6 +3485,41 @@ def _with_stubs(replacements: dict, action):
         globals().update(saved)
 
 
+_STOP_RULE_RENDERERS = {
+    "check_r16_learning_loop": lambda: _with_stubs(
+        {"ledger_events": lambda payload: {"commit"}},
+        lambda: check_r16_learning_loop({"session_id": "s"}),
+    ),
+    "check_r17_unarmed_pull_request": lambda: _with_stubs(
+        {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: "1"},
+        lambda: check_r17_unarmed_pull_request({"cwd": "."}),
+    ),
+    "check_r18_unpushed_work": lambda: _with_stubs(
+        {
+            "_current_branch": lambda cwd: "feature",
+            "_unrecoverable_commit_count": lambda branch, cwd=None: 2,
+        },
+        lambda: check_r18_unpushed_work({"cwd": "."}),
+    ),
+    "check_r20_user_harness_drift": lambda: _with_stubs(
+        {
+            "_branch_edits_harness_sources": lambda cwd=None: False,
+            "_sync_advisory": lambda: "User harness drift detected.",
+        },
+        lambda: check_r20_user_harness_drift({"cwd": "."}),
+    ),
+    "check_r21_run_state_not_recorded": lambda: _with_stubs(
+        {"ledger_events": lambda payload: ["delegate-dispatch", "commit"]},
+        lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+    ),
+}
+
+
+def _rendered_stop_reasons(renderers=None) -> list[str]:
+    """Return reporting messages from deterministic Stop-rule fixtures."""
+    return [renderer() for renderer in (renderers or _STOP_RULE_RENDERERS).values()]
+
+
 def run_rule_coverage_self_test() -> int:
     """Fail when a rule exists that `--self-test` does not exercise."""
     defined = _defined_rules()
@@ -3470,7 +3591,7 @@ def run_required_action_self_test() -> int:
     check(
         "R13 blocks deleting a branch that exists on no remote",
         _with_stubs(
-            {"_unrecoverable_commit_count": lambda branch: 3},
+            {"_unrecoverable_commit_count": lambda branch, cwd=None: 3},
             lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
         )
         is not None,
@@ -3478,7 +3599,7 @@ def run_required_action_self_test() -> int:
     check(
         "R13 allows deleting a delivered branch",
         _with_stubs(
-            {"_unrecoverable_commit_count": lambda branch: 0},
+            {"_unrecoverable_commit_count": lambda branch, cwd=None: 0},
             lambda: check_r13_push_before_delete("git branch -D feature", "Bash"),
         )
         is None,
@@ -3506,7 +3627,7 @@ def run_required_action_self_test() -> int:
     check(
         "R15 blocks arming with no independent review",
         _with_stubs(
-            {"_independent_review_count": lambda target: 0},
+            {"_independent_review_count": lambda target, cwd=None: 0},
             lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
         )
         is not None,
@@ -3514,7 +3635,7 @@ def run_required_action_self_test() -> int:
     check(
         "R15 allows arming once a review exists",
         _with_stubs(
-            {"_independent_review_count": lambda target: 1},
+            {"_independent_review_count": lambda target, cwd=None: 1},
             lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
         )
         is None,
@@ -3526,7 +3647,7 @@ def run_required_action_self_test() -> int:
         "R15 allows arming after an observed reviewer dispatch",
         _with_stubs(
             {
-                "_independent_review_count": lambda target: 0,
+                "_independent_review_count": lambda target, cwd=None: 0,
                 "_ledger_records_a_review": lambda payload, branch: True,
             },
             lambda: check_r15_review_before_arming(
@@ -3571,6 +3692,22 @@ def run_required_action_self_test() -> int:
         )
         is None,
     )
+    check(
+        "R16 reports an observed guard block with no route",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"guard-block"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is not None,
+    )
+    check(
+        "R16 accepts an issue update for an observed guard block",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"guard-block", "issue-update"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is None,
+    )
 
     # R17: a reviewed pull request nobody armed.
     check(
@@ -3596,7 +3733,7 @@ def run_required_action_self_test() -> int:
         _with_stubs(
             {
                 "_current_branch": lambda cwd: "feature",
-                "_unrecoverable_commit_count": lambda branch: 2,
+                "_unrecoverable_commit_count": lambda branch, cwd=None: 2,
             },
             lambda: check_r18_unpushed_work({"cwd": "."}),
         )
@@ -3607,7 +3744,7 @@ def run_required_action_self_test() -> int:
         _with_stubs(
             {
                 "_current_branch": lambda cwd: "feature",
-                "_unrecoverable_commit_count": lambda branch: 0,
+                "_unrecoverable_commit_count": lambda branch, cwd=None: 0,
             },
             lambda: check_r18_unpushed_work({"cwd": "."}),
         )
