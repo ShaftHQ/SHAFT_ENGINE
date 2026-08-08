@@ -1182,8 +1182,12 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 ".github/dependency-review-config.yml",
             },
         )
+        self.assertIn("dependency-changes", workflow["jobs"])
+        classifier = workflow["jobs"].get("dependency-changes", {})
+        self.assertIn("dependencies", classifier["if"])
+        self.assertEqual(classifier["outputs"]["review"], "${{ steps.diff.outputs.review }}")
         self.assertIn(
-            "needs.changes.outputs.dependencies == 'true'",
+            "needs.dependency-changes.outputs.review == 'true'",
             workflow["jobs"]["dependency-review"]["if"],
         )
 
