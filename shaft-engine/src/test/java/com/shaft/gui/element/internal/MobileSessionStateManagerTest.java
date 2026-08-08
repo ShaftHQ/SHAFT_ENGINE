@@ -22,12 +22,14 @@ import static org.mockito.Mockito.when;
 public class MobileSessionStateManagerTest {
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    private Path stateFile;
+    private final ThreadLocal<Path> stateFile = new ThreadLocal<>();
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
-        if (stateFile != null) {
-            Files.deleteIfExists(stateFile);
+        Path file = stateFile.get();
+        if (file != null) {
+            Files.deleteIfExists(file);
+            stateFile.remove();
         }
     }
 
@@ -76,11 +78,11 @@ public class MobileSessionStateManagerTest {
         capabilities.setCapability("appium:appPackage", "com.example.app");
         when(driver.getCapabilities()).thenReturn(capabilities);
 
-        stateFile = Files.createTempFile("shaft-mobile-capabilities", ".json");
-        MobileSessionStateManager.saveCapabilities(driver, stateFile.toString());
+        stateFile.set(Files.createTempFile("shaft-mobile-capabilities", ".json"));
+        MobileSessionStateManager.saveCapabilities(driver, stateFile.get().toString());
 
         MobileSessionStateManager.SessionCapabilitiesState state =
-                JSON.readValue(stateFile.toFile(), MobileSessionStateManager.SessionCapabilitiesState.class);
+                JSON.readValue(stateFile.get().toFile(), MobileSessionStateManager.SessionCapabilitiesState.class);
 
         Assert.assertEquals(state.schemaVersion, "1.0");
         // Selenium's MutableCapabilities canonicalizes "platformName" into the Platform enum's name.
@@ -91,8 +93,8 @@ public class MobileSessionStateManagerTest {
 
     @Test
     public void shouldLoadCapabilitiesRoundTrip() throws Exception {
-        stateFile = Files.createTempFile("shaft-mobile-capabilities-load", ".json");
-        Files.writeString(stateFile, """
+        stateFile.set(Files.createTempFile("shaft-mobile-capabilities-load", ".json"));
+        Files.writeString(stateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "platformName" : "Android",
@@ -105,7 +107,7 @@ public class MobileSessionStateManagerTest {
                 }
                 """);
 
-        MutableCapabilities capabilities = MobileSessionStateManager.loadCapabilities(stateFile.toString());
+        MutableCapabilities capabilities = MobileSessionStateManager.loadCapabilities(stateFile.get().toString());
 
         // Selenium's MutableCapabilities canonicalizes "platformName" into a Platform enum value.
         Assert.assertEquals(String.valueOf(capabilities.getCapability("platformName")), "ANDROID");
@@ -135,11 +137,11 @@ public class MobileSessionStateManagerTest {
         when(options.window()).thenReturn(window);
         when(window.getSize()).thenReturn(new Dimension(1080, 1920));
 
-        stateFile = Files.createTempFile("shaft-mobile-app-state", ".json");
-        MobileSessionStateManager.saveAppState(driver, stateFile.toString());
+        stateFile.set(Files.createTempFile("shaft-mobile-app-state", ".json"));
+        MobileSessionStateManager.saveAppState(driver, stateFile.get().toString());
 
         MobileSessionStateManager.AppStateSnapshot state =
-                JSON.readValue(stateFile.toFile(), MobileSessionStateManager.AppStateSnapshot.class);
+                JSON.readValue(stateFile.get().toFile(), MobileSessionStateManager.AppStateSnapshot.class);
 
         Assert.assertEquals(state.schemaVersion, "1.0");
         Assert.assertEquals(state.appPackage, "com.example.app");
@@ -161,8 +163,8 @@ public class MobileSessionStateManagerTest {
         AndroidDriver driver = mock(AndroidDriver.class);
         when(driver.getContext()).thenReturn("NATIVE_APP");
 
-        stateFile = Files.createTempFile("shaft-mobile-app-state-load", ".json");
-        Files.writeString(stateFile, """
+        stateFile.set(Files.createTempFile("shaft-mobile-app-state-load", ".json"));
+        Files.writeString(stateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "appPackage" : "com.example.app",
@@ -174,7 +176,7 @@ public class MobileSessionStateManagerTest {
                 }
                 """);
 
-        MobileSessionStateManager.loadAppState(driver, stateFile.toString());
+        MobileSessionStateManager.loadAppState(driver, stateFile.get().toString());
 
         verify(driver).activateApp("com.example.app");
         verify(driver).context("WEBVIEW_1");
@@ -186,8 +188,8 @@ public class MobileSessionStateManagerTest {
         AndroidDriver driver = mock(AndroidDriver.class);
         when(driver.getContext()).thenReturn("NATIVE_APP");
 
-        stateFile = Files.createTempFile("shaft-mobile-app-state-same-context", ".json");
-        Files.writeString(stateFile, """
+        stateFile.set(Files.createTempFile("shaft-mobile-app-state-same-context", ".json"));
+        Files.writeString(stateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "appPackage" : null,
@@ -199,7 +201,7 @@ public class MobileSessionStateManagerTest {
                 }
                 """);
 
-        MobileSessionStateManager.loadAppState(driver, stateFile.toString());
+        MobileSessionStateManager.loadAppState(driver, stateFile.get().toString());
 
         verify(driver, never()).context(org.mockito.ArgumentMatchers.anyString());
         verify(driver, never()).activateApp(org.mockito.ArgumentMatchers.anyString());
@@ -211,8 +213,8 @@ public class MobileSessionStateManagerTest {
         AndroidDriver driver = mock(AndroidDriver.class);
         when(driver.getContext()).thenReturn("NATIVE_APP");
 
-        stateFile = Files.createTempFile("shaft-mobile-app-state-empty", ".json");
-        Files.writeString(stateFile, """
+        stateFile.set(Files.createTempFile("shaft-mobile-app-state-empty", ".json"));
+        Files.writeString(stateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "appPackage" : null,
@@ -224,7 +226,7 @@ public class MobileSessionStateManagerTest {
                 }
                 """);
 
-        MobileSessionStateManager.loadAppState(driver, stateFile.toString());
+        MobileSessionStateManager.loadAppState(driver, stateFile.get().toString());
 
         verify(driver, never()).activateApp(org.mockito.ArgumentMatchers.anyString());
         verify(driver, never()).context(org.mockito.ArgumentMatchers.anyString());
@@ -236,8 +238,8 @@ public class MobileSessionStateManagerTest {
         IOSDriver driver = mock(IOSDriver.class);
         when(driver.getContext()).thenReturn("NATIVE_APP");
 
-        stateFile = Files.createTempFile("shaft-mobile-app-state-ios", ".json");
-        Files.writeString(stateFile, """
+        stateFile.set(Files.createTempFile("shaft-mobile-app-state-ios", ".json"));
+        Files.writeString(stateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "appPackage" : null,
@@ -249,7 +251,7 @@ public class MobileSessionStateManagerTest {
                 }
                 """);
 
-        MobileSessionStateManager.loadAppState(driver, stateFile.toString());
+        MobileSessionStateManager.loadAppState(driver, stateFile.get().toString());
 
         verify(driver).activateApp("com.example.iosApp");
         verify(driver).rotate(ScreenOrientation.PORTRAIT);
@@ -260,8 +262,8 @@ public class MobileSessionStateManagerTest {
     public void shouldSkipRestoreStepsWhenUnsupportedByDriver() throws Exception {
         WebDriver driver = mock(WebDriver.class);
 
-        stateFile = Files.createTempFile("shaft-mobile-app-state-unsupported", ".json");
-        Files.writeString(stateFile, """
+        stateFile.set(Files.createTempFile("shaft-mobile-app-state-unsupported", ".json"));
+        Files.writeString(stateFile.get(), """
                 {
                   "schemaVersion" : "1.0",
                   "appPackage" : "com.example.app",
@@ -273,7 +275,7 @@ public class MobileSessionStateManagerTest {
                 }
                 """);
 
-        MobileSessionStateManager.loadAppState(driver, stateFile.toString());
+        MobileSessionStateManager.loadAppState(driver, stateFile.get().toString());
         // No interfaces implemented by the plain WebDriver mock, so every restore step must be skipped silently.
     }
 }
