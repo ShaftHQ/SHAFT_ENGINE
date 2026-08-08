@@ -1371,6 +1371,12 @@ def _print_deny(reason: str, host: str) -> None:
     print(json.dumps(output))
 
 
+def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> None:
+    """Preserve an observed refusal for R16 before returning the denial."""
+    ledger_record(hook_input, "guard-block")
+    _print_deny(reason, host)
+
+
 # R12: iron law 3 -- no production code before an observed failing test.
 # Production means compiled source under any module's src/main/. Guidance,
 # configuration, tests, scripts and docs are excluded because the entrypoint
@@ -2262,7 +2268,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
 
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     # Observed, not judged, and first: a reviewer dispatch is not a call this
@@ -2280,12 +2286,12 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         hook_input.get("tool_input"),
     )
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     reason = check_r19_fresh_base(hook_input, tool_name)
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     reason = check_r12_test_before_production(hook_input, tool_name)
@@ -2298,7 +2304,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     ):
         ledger_record(hook_input, "memory-write")
     if reason is not None:
-        _print_deny(reason, host)
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     if tool_name in ("Bash", "PowerShell"):
@@ -2321,7 +2327,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
                 command, tool_name, _hook_working_directory(hook_input)
             )
         if reason is not None:
-            _print_deny(reason, host)
+            _record_guard_block_and_deny(hook_input, reason, host)
             return 0
         if _is_learning_write_command(command):
             ledger_record(hook_input, "memory-write")
@@ -2809,7 +2815,7 @@ def _open_pull_request_count(branch: str | None, cwd: object = None) -> int | No
 
 
 def check_r16_learning_loop(hook_input: dict) -> str | None:
-    """Interrupt once when a session changed things and routed no learning.
+    """Interrupt once when a session changed or a guard refused un-routed work.
 
     The entrypoint requires the learned-lessons workflow before reporting
     done, and it had no mechanism. This session is the evidence: an iteration
@@ -2826,10 +2832,22 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     second attempt always proceeds.
     """
     events = ledger_events(hook_input)
-    if "commit" not in events:
+    guard_blocked = "guard-block" in events
+    if "commit" not in events and not guard_blocked:
         return None  # a read-only session owes no learning
     if "memory-write" in events or any(event.startswith("learning-none:") for event in events):
         return None
+    if guard_blocked:
+        if "issue-update" in events:
+            return None
+        return (
+            "Learning loop: this session had an observed guard refusal with no route. "
+            "Before reporting done, route it once: if the refusal was correct, write the "
+            "lesson to native Memory with its evidence; if it was wrong or needs follow-up, "
+            "search for and update the issue. Nothing durable is a valid result -- say so "
+            "and end the turn. This interrupts once per turn: `stop_hook_active` makes the "
+            "retry proceed, and it is owed again next turn until it is satisfied."
+        )
     return (
         "Learning loop: this session committed work and routed no learning. Before "
         "reporting done, run the routing table once -- a fact that cost you time to "
@@ -3670,6 +3688,22 @@ def run_required_action_self_test() -> int:
         "R16 is satisfied once a learning is routed",
         _with_stubs(
             {"ledger_events": lambda payload: {"commit", "memory-write"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is None,
+    )
+    check(
+        "R16 reports an observed guard block with no route",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"guard-block"}},
+            lambda: check_r16_learning_loop({"session_id": "s"}),
+        )
+        is not None,
+    )
+    check(
+        "R16 accepts an issue update for an observed guard block",
+        _with_stubs(
+            {"ledger_events": lambda payload: {"guard-block", "issue-update"}},
             lambda: check_r16_learning_loop({"session_id": "s"}),
         )
         is None,

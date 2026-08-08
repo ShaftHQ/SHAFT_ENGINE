@@ -232,7 +232,9 @@ task that opened the PR:
 Before reporting done, run the
 [learned-lessons workflow](references/work-github-playbook.md#learned-lessons-workflow):
 route every learning exactly once. One row per learning; never two, never a
-diary.
+diary. Before routing, scan the session for failures, traps, and guard blocks:
+if a refusal was correct, capture the lesson; if it was wrong or needs follow-up,
+search for and update the issue.
 
 | What surfaced | Where it goes |
 | --- | --- |
