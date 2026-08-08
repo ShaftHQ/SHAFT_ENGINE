@@ -1119,6 +1119,18 @@ class LearningLoopStopGateTest(unittest.TestCase):
         ):
             self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
 
+    def test_a_guard_block_requires_a_route_but_allows_issue_or_no_learning(self):
+        """A refusal is observed work even when PreToolUse cannot see command exit."""
+        with patch("scripts.agents.guard.ledger_events", return_value=["guard-block"]):
+            self.assertIn("refusal", guard.check_r16_learning_loop({"session_id": "s"}))
+        for resolution in ("issue-update", "learning-none:nothing-recurred"):
+            with self.subTest(resolution=resolution):
+                with patch(
+                    "scripts.agents.guard.ledger_events",
+                    return_value=["guard-block", resolution],
+                ):
+                    self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
     def test_a_session_that_changed_nothing_is_never_interrupted(self):
         """A read-only session owes no learning; asking would train the block away."""
         with patch("scripts.agents.guard.ledger_events", return_value=["test-run"]):
@@ -1206,6 +1218,9 @@ class LearningWriteObservationTest(unittest.TestCase):
         )
         self.assertNotIn("memory-write", self.events_after("mcp__mempalace__mempalace_sync"))
         self.assertNotIn("memory-write", self.events_after("Bash", 'echo "memory remember"'))
+
+    def test_a_denied_command_is_recorded_as_a_guard_block(self):
+        self.assertIn("guard-block", self.events_after("Bash", "git stash pop"))
 
     def test_a_non_dry_memories_deletion_counts_as_a_write(self):
         self.assertIn(
