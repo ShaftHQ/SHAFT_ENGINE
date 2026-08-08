@@ -20,9 +20,9 @@ name: PR Gate
 # documented "long-lived branch" behavior) rather than a PR base -- see the
 # dorny/paths-filter README at the pinned SHA for the exact semantics. The
 # `changes` job carries no `if:`, so it always runs on both event types, and
-# the `dependency-review` job's own `if: github.event_name == 'pull_request'`
-# makes it report `skipped` (not a failure) on push, which the summary job's
-# success|skipped leg check already accepts.
+# the `dependency-review` job's own conditional makes it report `skipped` (not
+# a failure) on pushes and pull requests with no dependency-bearing diff, which
+# the summary job's success|skipped leg check already accepts.
 
 on:
   pull_request:
@@ -48,6 +48,7 @@ jobs:
       capture: ${{ steps.filter.outputs.capture }}
       templates: ${{ steps.filter.outputs.templates }}
       javacore: ${{ steps.filter.outputs.javacore }}
+      dependencies: ${{ steps.filter.outputs.dependencies }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
@@ -153,6 +154,15 @@ jobs:
               - 'shaft-skills/**'
               - 'shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java'
               - 'shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java'
+            # Dependency Review only needs a diff that can change the resolved
+            # dependency graph or its review policy. Keeping it path-scoped
+            # prevents unrelated release/version PRs from waiting on an
+            # external action with nothing relevant to inspect (#4602).
+            dependencies:
+              - '**/pom.xml'
+              - '**/build.gradle.kts'
+              - '**/gradle.properties'
+              - '.github/dependency-review-config.yml'
             # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
             # its downstream Pilot-family modules. shaft-cli/shaft-intellij already have
             # dedicated legs above and are intentionally not repeated here. shaft-capture
@@ -740,15 +750,14 @@ jobs:
           PR_COMMITS_JSON: ${{ steps.pr-commits.outputs.commits_json }}
         run: python3 scripts/ci/validate_pr_closing_keywords.py
 
-  # Moved from security.yml's dependency-review job. Runs unconditionally on
-  # every pull_request (no path leg matches it in the `changes` job, mirroring
-  # its unconditional-per-PR behavior in security.yml today) and temporarily
-  # double-runs alongside security.yml's own dependency-review job until
-  # Phase 3 removes it from security.yml.
+  # Moved from security.yml's dependency-review job. It stays required for a
+  # dependency-bearing PR, but an unrelated diff has no graph or policy for
+  # the external action to inspect (#4602).
   dependency-review:
     name: Dependency Review
     needs: changes
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
