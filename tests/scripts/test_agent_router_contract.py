@@ -1167,6 +1167,26 @@ class CiGateIsBlockingTest(unittest.TestCase):
         outputs = workflow["jobs"]["changes"]["outputs"]
         self.assertIn("agent_guidance", outputs, "filter result is never exported")
 
+    def test_dependency_review_runs_only_for_dependency_bearing_diffs(self):
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        changes = workflow["jobs"]["changes"]
+        filters = yaml.safe_load(changes["steps"][1]["with"]["filters"])
+        self.assertIn("dependencies", changes["outputs"])
+        self.assertEqual(
+            set(filters["dependencies"]),
+            {
+                "**/pom.xml",
+                "**/build.gradle.kts",
+                "**/gradle.properties",
+                ".github/dependency-review-config.yml",
+            },
+        )
+        self.assertIn(
+            "needs.changes.outputs.dependencies == 'true'",
+            workflow["jobs"]["dependency-review"]["if"],
+        )
+
 
 class GlobFilesHelperTest(unittest.TestCase):
     """The resolver every GUIDANCE_GLOBS consumer in this file shares.
