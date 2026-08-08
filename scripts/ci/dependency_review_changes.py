@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
+import re
 
 
 DEPENDENCY_CONFIG = ".github/dependency-review-config.yml"
@@ -14,30 +14,20 @@ GRADLE_PROPERTIES_SUFFIX = "/gradle.properties"
 
 
 def git(*arguments: str) -> str:
-    return subprocess.check_output(["git", *arguments], text=True, encoding="utf-8")
+    return subprocess.check_output(  # nosec B603 B607 - fixed read-only Git command.
+        ["git", *arguments], text=True, encoding="utf-8"
+    )
 
 
 def content(revision: str, path: str) -> str | None:
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603 B607 - fixed read-only Git command.
         ["git", "show", f"{revision}:{path}"], capture_output=True, text=True, encoding="utf-8"
     )
     return result.stdout if result.returncode == 0 else None
 
 
-def local_name(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
-
-
-def maven_dependencies(source: str) -> tuple[str, ...] | None:
-    try:
-        root = ET.fromstring(source)
-    except ET.ParseError:
-        return None
-    return tuple(
-        ET.tostring(element, encoding="unicode")
-        for element in root.iter()
-        if local_name(element.tag) == "dependencies"
-    )
+def maven_dependencies(source: str) -> tuple[str, ...]:
+    return tuple(re.findall(r"<dependencies\\b[^>]*>.*?</dependencies>", source, re.DOTALL))
 
 
 def gradle_properties(source: str) -> dict[str, str]:
@@ -61,7 +51,7 @@ def needs_review(base: str, head: str) -> bool:
                 return True
             old_dependencies = maven_dependencies(before)
             new_dependencies = maven_dependencies(after)
-            if old_dependencies is None or new_dependencies is None or old_dependencies != new_dependencies:
+            if old_dependencies != new_dependencies:
                 return True
         elif path.endswith(GRADLE_BUILD_SUFFIX):
             return True
