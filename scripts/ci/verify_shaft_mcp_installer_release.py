@@ -32,7 +32,11 @@ def shaft_cli_published() -> bool:
     first release cut since then; until that release, --install-shaft-cli can only 404 and
     its verification must be skipped rather than failing every PR and main build.
     """
-    request = urllib.request.Request(SHAFT_CLI_METADATA_URL, method="HEAD")
+    request = urllib.request.Request(
+        SHAFT_CLI_METADATA_URL,
+        headers={"User-Agent": "SHAFT-Engine-release-verifier"},
+        method="HEAD",
+    )
     try:
         with urllib.request.urlopen(request, timeout=30):  # nosec B310 - fixed https URL.
             return True
