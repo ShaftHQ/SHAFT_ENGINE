@@ -2674,6 +2674,10 @@ class InterruptsOncePromiseIsHonestTest(unittest.TestCase):
             violations, "a split-literal bare promise must be caught, not missed"
         )
 
+    def test_a_runtime_assembled_bare_promise_is_caught(self):
+        message = f"This interrupts {'once'}."
+        self.assertTrue(_bare_interruption_promises([message]))
+
     def test_the_honest_phrasing_raises_no_violation(self):
         """The check must not flag the wording it is meant to require."""
         synthetic = 'MESSAGE = "This interrupts once per turn: retry proceeds."\n'
