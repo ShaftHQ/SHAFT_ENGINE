@@ -2430,6 +2430,61 @@ class RunStateStopGateTest(unittest.TestCase):
                 with self.subTest(command=command):
                     self.assertFalse(guard._updates_a_tracked_issue(command))
 
+    def test_changing_to_the_companion_repository_before_a_write_does_not_count(self):
+        """#4566: a same-command `cd` is an implicit repository target."""
+        session_root = os.path.abspath(os.path.join(tempfile.gettempdir(), "SHAFT_ENGINE"))
+        companion_root = os.path.normpath(os.path.join(session_root, "..", "shafthq.github.io"))
+
+        def remote(_arguments, command_cwd):
+            if command_cwd == companion_root:
+                return "git@github.com:ShaftHQ/shafthq.github.io.git\n"
+            if command_cwd == session_root:
+                return "git@github.com:ShaftHQ/SHAFT_ENGINE.git\n"
+            self.fail(f"unexpected repository lookup: {command_cwd!r}")
+
+        with patch("scripts.agents.guard._git_output", side_effect=remote):
+            self.assertFalse(
+                guard._updates_a_tracked_issue(
+                    "cd ../shafthq.github.io && gh pr create --title docs --body x", session_root
+                )
+            )
+
+    def test_lowercase_set_location_path_options_do_not_count(self):
+        """PowerShell parameters are case-insensitive (#4566 review)."""
+        session_root = os.path.abspath(os.path.join(tempfile.gettempdir(), "SHAFT_ENGINE"))
+        companion_root = os.path.normpath(os.path.join(session_root, "..", "shafthq.github.io"))
+
+        def remote(_arguments, command_cwd):
+            if command_cwd == companion_root:
+                return "git@github.com:ShaftHQ/shafthq.github.io.git\n"
+            if command_cwd == session_root:
+                return "git@github.com:ShaftHQ/SHAFT_ENGINE.git\n"
+            self.fail(f"unexpected repository lookup: {command_cwd!r}")
+
+        with patch("scripts.agents.guard._git_output", side_effect=remote):
+            for option in ("-path", "-literalpath"):
+                with self.subTest(option=option):
+                    self.assertFalse(
+                        guard._updates_a_tracked_issue(
+                            f"Set-Location {option} ../shafthq.github.io; "
+                            "gh pr create --title docs --body x",
+                            session_root,
+                        )
+                    )
+
+    def test_trailing_repository_flags_for_another_repository_do_not_count(self):
+        """#4566: `gh` accepts `--repo` after the subcommand too."""
+        with patch(
+            "scripts.agents.guard._git_output",
+            return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git\n",
+        ):
+            for command in (
+                "gh pr create --repo ShaftHQ/shafthq.github.io --title docs --body x",
+                "gh issue comment 12 -R ShaftHQ/shafthq.github.io --body x",
+            ):
+                with self.subTest(command=command):
+                    self.assertFalse(guard._updates_a_tracked_issue(command))
+
     def test_reading_an_issue_is_not_recording_state(self):
         """The boundary, held by what it refuses rather than what it accepts."""
         for command in (
