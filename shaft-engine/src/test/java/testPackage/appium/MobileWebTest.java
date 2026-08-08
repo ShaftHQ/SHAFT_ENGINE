@@ -9,6 +9,7 @@ import org.testng.annotations.Test;
 
 public class MobileWebTest {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+    private static final String TEST_PAGE = "data:text/html;charset=utf-8,<input id='et_pb_contact_name_0'><input id='et_pb_contact_email_0'><textarea id='et_pb_contact_message_0'></textarea><input id='et_pb_contact_name_1'><input id='et_pb_contact_email_1'><textarea id='et_pb_contact_message_1'></textarea><input id='et_pb_contact_name_2'><input id='et_pb_contact_email_2'><textarea id='et_pb_contact_message_2'></textarea>";
     SHAFT.TestData.JSON testData;
 
     @Test
@@ -33,13 +34,13 @@ public class MobileWebTest {
                         and special characters ...######$%^&&*!!""")
                 .captureScreenshot(By.id("et_pb_contact_message_2"))
                 .and().browser().captureScreenshot()
-                .and().assertThat().url().contains("ultimateqa").perform();
+                .and().assertThat().url().contains("data:text/html").perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://ultimateqa.com/complicated-page");
+        driver.get().browser().navigateToURL(TEST_PAGE);
     }
 
     @AfterMethod(alwaysRun = true)
