@@ -1737,6 +1737,42 @@ class DormantSessionLedgerIsNotReapedByAnotherSessionTest(unittest.TestCase):
                     "a session dormant for two full retention windows must be reaped",
                 )
 
+    def test_a_write_during_sweep_prevents_the_ledger_from_being_deleted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = os.path.join(directory, "concurrent.json")
+            mark = ledger + guard._REAP_MARK_SUFFIX
+            with open(ledger, "w", encoding="utf-8") as handle:
+                handle.write('"old"\n')
+            with open(mark, "w", encoding="utf-8"):
+                pass
+            old = time.time() - guard.LEDGER_RETENTION_SECONDS - 60
+            os.utime(ledger, (old, old))
+            os.utime(mark, (old, old))
+
+            original_getmtime = os.path.getmtime
+
+            def mtime(path):
+                if path == mark:
+                    with open(ledger, "a", encoding="utf-8") as handle:
+                        handle.write('"resumed"\n')
+                return original_getmtime(path)
+
+            with patch("scripts.agents.guard.os.path.getmtime", side_effect=mtime):
+                guard._reap_stale_ledgers(directory)
+
+            self.assertTrue(os.path.exists(ledger))
+            self.assertIn("resumed", open(ledger, encoding="utf-8").read())
+
+    def test_an_orphaned_reap_mark_is_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mark = os.path.join(directory, "orphan.json" + guard._REAP_MARK_SUFFIX)
+            with open(mark, "w", encoding="utf-8"):
+                pass
+
+            guard._reap_stale_ledgers(directory)
+
+            self.assertFalse(os.path.exists(mark))
+
 
 class SelfTestCoversEveryRuleTest(unittest.TestCase):
     """`--self-test` must exercise every rule, and `main` must run it (#4551).
