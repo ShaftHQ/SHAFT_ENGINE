@@ -142,3 +142,21 @@ class TimeoutGuardIsReRunByItsOwnEditsTest(unittest.TestCase):
             [],
             "a check whose own edits do not re-run it can be weakened green",
         )
+
+
+class CliGatePackagingContractTest(unittest.TestCase):
+    """#4606: keep the CLI binary smoke test without packaging the same JAR twice."""
+
+    WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"
+
+    def test_cli_smoke_reuses_the_jar_created_by_reactor_install(self):
+        content = self.WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            "mvn --batch-mode -pl shaft-cli -am -DskipTests install -q",
+            content,
+        )
+        self.assertIn("- name: Run packaged shaft-cli binary", content)
+        self.assertNotIn(
+            "mvn --batch-mode -pl shaft-cli package -DskipTests",
+            content,
+        )

@@ -415,7 +415,10 @@ jobs:
           check-latest: true
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
-      - name: Install shaft-cli reactor dependencies
+      # `install` packages the CLI JAR as well as installing its reactor
+      # dependencies. Reuse that artifact after tests instead of running a
+      # second package lifecycle in this 10-minute Windows job (#4606).
+      - name: Install shaft-cli reactor dependencies and package binary
         run: mvn --batch-mode -pl shaft-cli -am -DskipTests install -q '-DheadlessExecution=true' '-Dgpg.skip' '-Dcyclonedx.skip'
       # -Dshaft.intellij.liveToolE2E=true with no liveMcpCommand set (issue #3932a):
       # exercises ShaftCliLiveE2ETest's 3 offline methods (tools --cached, codegen,
@@ -424,10 +427,9 @@ jobs:
       # the live-server trio only runs in live-tools-nightly.yml.
       - name: Test shaft-cli
         run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true' '-Dshaft.intellij.liveToolE2E=true'
-      - name: Package shaft-cli and run the binary
+      - name: Run packaged shaft-cli binary
         shell: bash
         run: |
-          mvn --batch-mode -pl shaft-cli package -DskipTests '-DheadlessExecution=true' -q
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --version
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
 
