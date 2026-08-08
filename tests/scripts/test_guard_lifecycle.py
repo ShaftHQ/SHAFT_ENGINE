@@ -1761,7 +1761,8 @@ class DormantSessionLedgerIsNotReapedByAnotherSessionTest(unittest.TestCase):
                 guard._reap_stale_ledgers(directory)
 
             self.assertTrue(os.path.exists(ledger))
-            self.assertIn("resumed", open(ledger, encoding="utf-8").read())
+            with open(ledger, encoding="utf-8") as handle:
+                self.assertIn("resumed", handle.read())
 
     def test_an_orphaned_reap_mark_is_removed(self):
         with tempfile.TemporaryDirectory() as directory:
