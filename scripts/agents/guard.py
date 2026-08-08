@@ -2487,7 +2487,14 @@ def _reap_stale_ledgers(directory: str) -> None:
         cutoff = time.time() - LEDGER_RETENTION_SECONDS
         for name in os.listdir(directory):
             if name.endswith(_REAP_MARK_SUFFIX):
-                continue  # visited alongside its ledger, never on its own
+                mark = os.path.join(directory, name)
+                ledger = mark[: -len(_REAP_MARK_SUFFIX)]
+                try:
+                    if not os.path.exists(ledger):
+                        os.remove(mark)
+                except OSError:
+                    pass
+                continue
             path = os.path.join(directory, name)
             mark = path + _REAP_MARK_SUFFIX
             try:
@@ -2502,6 +2509,12 @@ def _reap_stale_ledgers(directory: str) -> None:
                     continue
                 if os.path.isfile(mark):
                     if os.path.getmtime(mark) < cutoff:
+                        # A writer may have resumed the ledger after the
+                        # first staleness observation. Re-stat immediately
+                        # before deleting and leave cleanup for a later sweep
+                        # whenever the safe answer is uncertain.
+                        if os.path.getmtime(path) >= cutoff:
+                            continue
                         os.remove(path)
                         os.remove(mark)
                 else:
