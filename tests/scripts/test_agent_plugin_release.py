@@ -116,6 +116,10 @@ class AgentPluginReleaseTest(unittest.TestCase):
         self.assertIn("actions/upload-artifact@v7", workflow)
         self.assertIn("actions/download-artifact@v8", workflow)
         self.assertIn("artifacts: /tmp/agent-plugin-release-assets/*", workflow)
+        self.assertLess(
+            workflow.index("- name: Build portable Agent Plugin release assets"),
+            workflow.index("- name: Deploy to Maven Central"),
+        )
 
 
 if __name__ == "__main__":

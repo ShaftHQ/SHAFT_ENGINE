@@ -199,6 +199,14 @@ jobs:
           image-tag: shaft-pilot-release:test
           container-name: shaft-pilot-release-smoke
           client-name: release-smoke
+      - name: Build portable Agent Plugin release assets
+        run: python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets
+      - name: Upload portable Agent Plugin release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-plugin-release-assets
+          path: agent-plugin-release-assets/*
+          if-no-files-found: error
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
@@ -214,14 +222,6 @@ jobs:
         run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
       - name: Verify published Maven Central coordinates
         run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
-      - name: Build portable Agent Plugin release assets
-        run: python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets
-      - name: Upload portable Agent Plugin release assets
-        uses: actions/upload-artifact@v7
-        with:
-          name: agent-plugin-release-assets
-          path: agent-plugin-release-assets/*
-          if-no-files-found: error
 
   verify_public_shaft_mcp_installer:
     name: Verify public shaft-mcp installer (${{ matrix.os }})
