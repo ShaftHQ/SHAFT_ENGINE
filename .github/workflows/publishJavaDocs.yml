@@ -64,5 +64,5 @@ jobs:
           javadoc-branch: javadoc
           java-version: 25
           project: maven
-          custom-command: mvn --batch-mode clean install "-DskipTests" "-Dgpg.skip" && python3 scripts/ci/assemble_javadocs.py
+          custom-command: mvn --batch-mode clean install "-DskipTests" "-Dgpg.skip" && mvn --batch-mode javadoc:javadoc && python3 scripts/ci/assemble_javadocs.py
           javadoc-source-folder: target/javadocs
