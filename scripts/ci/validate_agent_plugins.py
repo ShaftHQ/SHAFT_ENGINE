@@ -137,57 +137,69 @@ def validate_manifest(root: Path) -> tuple[dict | None, list[dict[str, str]]]:
     return manifest, findings
 
 
-def validate_skills(root: Path) -> list[dict[str, str]]:
-    """Validate immediate Agent Skills without requiring host-specific policy."""
+def skills_component(root: Path) -> tuple[Path | None, list[dict[str, str]]]:
+    """Return the discoverable skills directory or its component finding."""
     skills_path = root / "skills"
     if not has_directory_entry(skills_path):
-        return []
+        return None, []
     if not resolves_inside(root, skills_path):
-        return [issue("component-escapes-root", "skills", "skills must remain inside the package")]
+        return None, [issue("component-escapes-root", "skills", "skills must remain inside the package")]
     if not skills_path.is_dir():
-        return [issue("component-invalid", "skills", "skills must be a directory when present")]
+        return None, [issue("component-invalid", "skills", "skills must be a directory when present")]
+    return skills_path, []
 
+
+def skill_metadata_errors(frontmatter: dict, directory_name: str, relative_path: Path) -> list[dict[str, str]]:
+    """Validate required and optional Agent Skills metadata."""
     findings: list[dict[str, str]] = []
+    name = frontmatter.get("name")
+    if not isinstance(name, str) or not SKILL_NAME.fullmatch(name) or name != directory_name:
+        findings.append(issue("skill-name", relative_path, "frontmatter name must be a valid skill name matching its directory"))
+    description = frontmatter.get("description")
+    if not isinstance(description, str) or not 1 <= len(description) <= 1024:
+        findings.append(issue("skill-description", relative_path, "frontmatter description must contain 1-1024 characters"))
+    optional_string_limits = {"license": None, "compatibility": 500, "allowed-tools": None}
+    for field, maximum_length in optional_string_limits.items():
+        value = frontmatter.get(field)
+        if field in frontmatter and (
+            not isinstance(value, str) or (maximum_length is not None and not 1 <= len(value) <= maximum_length)
+        ):
+            findings.append(issue("skill-field", relative_path, f"{field} must be a valid string"))
+    metadata = frontmatter.get("metadata")
+    if "metadata" in frontmatter and (
+        not isinstance(metadata, dict)
+        or not all(isinstance(key, str) and isinstance(value, str) for key, value in metadata.items())
+    ):
+        findings.append(issue("skill-field", relative_path, "metadata must map string keys to string values"))
+    return findings
+
+
+def validate_skill(root: Path, child: Path) -> list[dict[str, str]]:
+    """Validate one directly-discoverable skill directory."""
+    skill_path = child / "SKILL.md"
+    if not child.is_dir() or not has_directory_entry(skill_path):
+        return []
+    relative_path = skill_path.relative_to(root)
+    if not resolves_inside(root, skill_path):
+        return [issue("component-escapes-root", relative_path, "SKILL.md must remain inside the package")]
+    try:
+        skill = skill_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        return [issue("skill-read", relative_path, f"SKILL.md cannot be read: {error}")]
+    frontmatter = parse_skill_frontmatter(skill)
+    if frontmatter is None:
+        return [issue("skill-frontmatter", relative_path, "SKILL.md must start with YAML frontmatter")]
+    return skill_metadata_errors(frontmatter, child.name, relative_path)
+
+
+def validate_skills(root: Path) -> list[dict[str, str]]:
+    """Validate immediate Agent Skills without requiring host-specific policy."""
+    skills_path, findings = skills_component(root)
+    if skills_path is None:
+        return findings
+
     for child in sorted(skills_path.iterdir(), key=lambda entry: entry.name):
-        skill_path = child / "SKILL.md"
-        if not child.is_dir() or not has_directory_entry(skill_path):
-            continue
-        relative_path = skill_path.relative_to(root)
-        if not resolves_inside(root, skill_path):
-            findings.append(issue("component-escapes-root", relative_path, "SKILL.md must remain inside the package"))
-            continue
-        try:
-            skill = skill_path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as error:
-            findings.append(issue("skill-read", relative_path, f"SKILL.md cannot be read: {error}"))
-            continue
-        frontmatter = parse_skill_frontmatter(skill)
-        if frontmatter is None:
-            findings.append(issue("skill-frontmatter", relative_path, "SKILL.md must start with YAML frontmatter"))
-            continue
-        name = frontmatter.get("name")
-        if not isinstance(name, str) or not SKILL_NAME.fullmatch(name) or name != child.name:
-            findings.append(
-                issue("skill-name", relative_path, "frontmatter name must be a valid skill name matching its directory")
-            )
-        description = frontmatter.get("description")
-        if not isinstance(description, str) or not 1 <= len(description) <= 1024:
-            findings.append(
-                issue("skill-description", relative_path, "frontmatter description must contain 1-1024 characters")
-            )
-        optional_string_limits = {"license": None, "compatibility": 500, "allowed-tools": None}
-        for field, maximum_length in optional_string_limits.items():
-            if field not in frontmatter:
-                continue
-            value = frontmatter[field]
-            if not isinstance(value, str) or (maximum_length is not None and not 1 <= len(value) <= maximum_length):
-                findings.append(issue("skill-field", relative_path, f"{field} must be a valid string"))
-        if "metadata" in frontmatter:
-            metadata = frontmatter["metadata"]
-            if not isinstance(metadata, dict) or not all(
-                isinstance(key, str) and isinstance(value, str) for key, value in metadata.items()
-            ):
-                findings.append(issue("skill-field", relative_path, "metadata must map string keys to string values"))
+        findings.extend(validate_skill(root, child))
     return findings
 
 
