@@ -265,7 +265,7 @@ The typed interfaces are the complete `SHAFT.Properties` catalog. The `Default` 
 | `Healing` | `healing.ai.trigger` | `String` | `ambiguous` |
 | `Healing` | `healing.sourcePatch.enabled` | `boolean` | `false` |
 | `Healing` | `healing.ladder.budgetSeconds` | `int` | `0` |
-| `Internal` | `shaftEngineVersion` | `String` | `10.3.20260806` |
+| `Internal` | `shaftEngineVersion` | `String` | `10.3.20260809` |
 | `Internal` | `watermarkImagePath` | `String` | `https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-engine/src/main/resources/images/shaft_white_bg.png` |
 | `Internal` | `allure3Version` | `String` | `3.14.3` |
 | `Internal` | `nodeLtsVersion` | `String` | `24.18.1` |
@@ -643,7 +643,7 @@ flowchart LR
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260806`). It is the public front door for coding-partner work: start in Assistant or Guided, let MCP plan reuse, review generated code blocks, and run the focused verification command. It is intentionally thin: first-run setup defaults to Codex CLI, walks through `Pick agent`, `Copy command`, `Run in terminal`, and `Check setup`, then uses installer defaults to find and persist the local SHAFT MCP launch command automatically before revealing `Start chatting`. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260809`). It is the public front door for coding-partner work: start in Assistant or Guided, let MCP plan reuse, review generated code blocks, and run the focused verification command. It is intentionally thin: first-run setup defaults to Codex CLI, walks through `Pick agent`, `Copy command`, `Run in terminal`, and `Check setup`, then uses installer defaults to find and persist the local SHAFT MCP launch command automatically before revealing `Start chatting`. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
