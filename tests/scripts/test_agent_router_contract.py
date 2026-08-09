@@ -1167,6 +1167,21 @@ class CiGateIsBlockingTest(unittest.TestCase):
         outputs = workflow["jobs"]["changes"]["outputs"]
         self.assertIn("agent_guidance", outputs, "filter result is never exported")
 
+    def test_agent_plugin_contract_validator_is_registered_in_the_guidance_gate(self):
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        filters = yaml.safe_load(workflow["jobs"]["changes"]["steps"][1]["with"]["filters"])
+        guarded = set(filters["agent_guidance"])
+        for required in (
+            "scripts/ci/validate_agent_plugins.py",
+            "tests/scripts/test_validate_agent_plugins.py",
+        ):
+            self.assertIn(required, guarded, f"guidance filter misses {required}")
+        commands = " ".join(
+            str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
+        )
+        self.assertIn("tests.scripts.test_validate_agent_plugins", commands)
+
     def test_dependency_review_runs_only_for_dependency_bearing_diffs(self):
         yaml = __import__("yaml")
         workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))

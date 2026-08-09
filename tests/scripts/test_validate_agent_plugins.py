@@ -76,6 +76,13 @@ class ValidateAgentPluginsTest(unittest.TestCase):
         self.assertEqual([issue["code"] for issue in issues], ["manifest-unknown-field"])
         self.assertEqual(issues[0]["severity"], "warning")
 
+    def test_warning_only_extensions_problem_does_not_skip_skill_validation(self):
+        self.manifest["extensions"] = "old client data"
+        self.write_manifest()
+        self.write("skills/broken/SKILL.md", "# Missing frontmatter\n")
+
+        self.assertEqual(self.codes(), {"extensions-invalid", "skill-frontmatter"})
+
     def test_reports_invalid_skill_component_without_masking_valid_manifest(self):
         self.write("skills/broken/SKILL.md", "# Missing frontmatter\n")
 
