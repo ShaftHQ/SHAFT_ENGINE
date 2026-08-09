@@ -124,6 +124,7 @@ def sources(
 
 def main() -> int:
     apply_mode = "--apply" in sys.argv[1:]
+    json_mode = "--json" in sys.argv[1:]
     root = repo_root()
     claude_dir = user_claude_dir()
     manifest = sources(
@@ -133,22 +134,48 @@ def main() -> int:
         user_codex_dir(claude_dir),
     )
 
-    missing_sources = [str(source) for source, _ in manifest.values() if not source.is_file()]
+    entries: list[dict[str, object]] = []
+
+    def record(
+        state: str, label: str, source: Path, target: Path, **details: str
+    ) -> None:
+        entries.append(
+            {"state": state, "label": label, "source": str(source), "target": str(target), **details}
+        )
+
+    def finish(code: int) -> int:
+        if json_mode:
+            print(json.dumps({"entries": entries, "exit_code": code}))
+        return code
+
+    missing_sources = [
+        (label, source, target)
+        for label, (source, target) in manifest.items()
+        if not source.is_file()
+    ]
     if missing_sources:
-        print("ERROR: manifest source file(s) missing: " + ", ".join(missing_sources))
-        return 2
+        for label, source, target in missing_sources:
+            record("ERROR", label, source, target)
+        if not json_mode:
+            print("ERROR: manifest source file(s) missing: " + ", ".join(str(source) for _, source, _ in missing_sources))
+        return finish(2)
 
     all_in_sync = True
     hard_failure = False
     for label, (source, target) in manifest.items():
         source_bytes = source.read_bytes()
         if not target.is_file():
-            print(f"MISSING  {label}  (target absent: {target})")
+            details = {}
+            if not json_mode:
+                print(f"MISSING  {label}  (target absent: {target})")
             all_in_sync = False
             if apply_mode:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(source_bytes)
-                print(f"  -> deployed {target}")
+                if not json_mode:
+                    print(f"  -> deployed {target}")
+                details["deployed"] = str(target)
+            record("MISSING", label, source, target, **details)
             continue
 
         target_bytes = target.read_bytes()
@@ -158,7 +185,9 @@ def main() -> int:
                 owned = json.loads(source_bytes)
                 existing = json.loads(target_bytes)
             except (UnicodeDecodeError, json.JSONDecodeError):
-                print(f"INVALID  {label}  (target is not valid JSON: {target})")
+                if not json_mode:
+                    print(f"INVALID  {label}  (target is not valid JSON: {target})")
+                record("INVALID", label, source, target)
                 all_in_sync = False
                 hard_failure = True
                 continue
@@ -168,28 +197,40 @@ def main() -> int:
             desired_bytes = (json.dumps(desired, indent=2) + "\n").encode("utf-8")
 
         if normalize(desired_bytes) == normalize(target_bytes):
-            print(f"IN-SYNC  {label}")
+            if not json_mode:
+                print(f"IN-SYNC  {label}")
+            record("IN-SYNC", label, source, target)
             continue
 
         all_in_sync = False
         if not is_owned_codex_target(label, target_bytes):
-            print(f"CONFLICT  {label}  (unowned target exists: {target})")
+            if not json_mode:
+                print(f"CONFLICT  {label}  (unowned target exists: {target})")
+            record("CONFLICT", label, source, target)
             hard_failure = True
             continue
-        print(f"DRIFTED  {label}  (differs from {target})")
+        if not json_mode:
+            print(f"DRIFTED  {label}  (differs from {target})")
+        details = {}
         if apply_mode:
             backup = target.with_name(target.name + ".bak")
             if backup.exists():
-                print(f"  -> preserved existing backup {backup}")
+                if not json_mode:
+                    print(f"  -> preserved existing backup {backup}")
             else:
                 backup.write_bytes(target_bytes)
-                print(f"  -> backed up to {backup}")
+                if not json_mode:
+                    print(f"  -> backed up to {backup}")
+            details["backup"] = str(backup)
             target.write_bytes(desired_bytes)
-            print(f"  -> deployed {target}")
+            if not json_mode:
+                print(f"  -> deployed {target}")
+            details["deployed"] = str(target)
+        record("DRIFTED", label, source, target, **details)
 
     if hard_failure:
-        return 2
-    return 0 if apply_mode or all_in_sync else 1
+        return finish(2)
+    return finish(0 if apply_mode or all_in_sync else 1)
 
 
 if __name__ == "__main__":

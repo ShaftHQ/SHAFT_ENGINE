@@ -161,6 +161,24 @@ class SyncUserHarnessTest(unittest.TestCase):
         self.assertIn(personal_marker, target.read_text(encoding="utf-8"))
         self.assertFalse(target.with_name("coder.toml.bak").exists())
 
+    def test_json_reports_a_hard_conflict_without_exposing_target_contents(self):
+        personal_marker = "personal-agent-must-survive"
+        target = self.codex_target / "agents" / "coder.toml"
+        target.parent.mkdir(parents=True)
+        target.write_text(personal_marker, encoding="utf-8")
+
+        completed = self.run_sync("--json", "--apply")
+
+        self.assertEqual(completed.returncode, 2)
+        report = json.loads(completed.stdout)
+        conflict = next(
+            entry for entry in report["entries"]
+            if entry["label"] == "../.codex/agents/coder.toml"
+        )
+        self.assertEqual(conflict["state"], "CONFLICT")
+        self.assertEqual(conflict["target"], str(target))
+        self.assertNotIn(personal_marker, completed.stdout + completed.stderr)
+
     def test_legacy_codex_harness_agent_migrates_safely(self):
         target = self.codex_target / "agents" / "coder.toml"
         target.parent.mkdir(parents=True)
