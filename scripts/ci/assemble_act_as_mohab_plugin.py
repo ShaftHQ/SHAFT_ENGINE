@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
-SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
+SKILLS = ("act-as-mohab",)
 PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
@@ -48,8 +48,6 @@ def tracked_source_files(repository_root: Path) -> set[Path]:
             "-z",
             "--",
             ".agents/skills/act-as-mohab",
-            ".agents/skills/consult-first/SKILL.md",
-            ".agents/skills/retrieve-first/SKILL.md",
         ],
         cwd=repository_root,
         check=True,
@@ -166,7 +164,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     copy_release_files(repository_root, package_root)
     (package_root / "skills/README.md").write_text(
         "# Act as Mohab portable skills\n\n"
-        "This package contains the maintainer workflow entrypoint and its required companion skills.\n",
+        "This package contains the maintainer workflow entrypoint and its internal references.\n",
         encoding="utf-8",
     )
 

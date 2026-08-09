@@ -411,6 +411,14 @@ def absolute_guidance_path_offenders(
 
 
 class AgentHarnessPortabilityTest(unittest.TestCase):
+    def test_codex_discovers_only_the_repo_local_router(self):
+        discovered = sorted(ROOT.glob(".agents/skills/*/SKILL.md"))
+
+        self.assertEqual(
+            discovered,
+            [ROOT / ".agents/skills/act-as-mohab/SKILL.md"],
+        )
+
     def test_act_as_mohab_has_one_substantive_body_and_relative_adapter(self):
         canonical = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
         adapter = ROOT / ".claude/skills/act-as-mohab/SKILL.md"

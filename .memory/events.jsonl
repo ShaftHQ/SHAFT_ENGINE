@@ -1015,3 +1015,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.expose-a-recorder-owned-readiness-predicate-when-a-browser-test-must-cross-a-pipeline-timing-window","timestamp":"2026-08-09T11:52:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"constraint.approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval","timestamp":"2026-08-09T20:13:10+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.graphify-refresh-must-reject-negative-windows-process-exits-before-recording-freshness","timestamp":"2026-08-09T21:56:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval","timestamp":"2026-08-09T23:46:44+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop","timestamp":"2026-08-09T23:46:44+03:00"}

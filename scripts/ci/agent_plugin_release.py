@@ -9,6 +9,7 @@ import os
 import sys
 import tempfile
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -17,6 +18,7 @@ SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
 ROOT = Path(__file__).resolve().parents[2]
 PORTABLE_TEXT_SUFFIXES = {".LICENSE", ".json", ".md", ".yaml", ".yml"}
+POM_NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -49,6 +51,16 @@ def load_release_manifest(repository_root: Path) -> dict[str, str]:
 
     if set(versions) != set(REQUIRED_PACKAGES):
         raise ValueError("agent plugin release manifest must declare every package")
+    engine_version = (
+        ET.parse(Path(repository_root) / "pom.xml")
+        .getroot()
+        .findtext("m:version", default="", namespaces=POM_NS)
+        .strip()
+    )
+    if set(versions.values()) != {engine_version}:
+        raise ValueError(
+            f"every agent plugin version must match root POM version: {engine_version}"
+        )
     return versions
 
 

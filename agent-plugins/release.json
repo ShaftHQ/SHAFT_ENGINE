@@ -2,11 +2,11 @@
   "packages": [
     {
       "name": "act-as-mohab",
-      "version": "1.0.0"
+      "version": "10.3.20260809"
     },
     {
       "name": "shaft-skills",
-      "version": "1.0.0"
+      "version": "10.3.20260809"
     }
   ]
 }

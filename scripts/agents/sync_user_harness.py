@@ -4,6 +4,9 @@ import hashlib
 import json
 import os
 import sys
+import ctypes
+import errno
+from collections.abc import Callable
 from pathlib import Path
 
 MANIFEST = ("CLAUDE.md", "settings.json")
@@ -15,27 +18,34 @@ RETIRED_OWNED_SETTINGS_PATHS = (
     ("extraKnownMarketplaces", "mempalace"),
     ("env", "MEMPALACE_EMBEDDING_MODEL"),
 )
-CODEX_AGENT_PREFIX = "../.codex/agents/"
-CODEX_AGENTS_LABEL = "../.codex/AGENTS.md"
-MANAGED_CODEX_AGENT_MARKER = b"Managed by the SHAFT user harness"
-LEGACY_CODEX_TARGET_HASHES = {
-    "../.codex/AGENTS.md": {
-        "58488d3c6f860afec44c078d060c280ef887b69d37bd82e6b2be713371268865",
-        "eae7709a4c36efd170327c4bfbdbbed626f14915c8c46b8d3f3eb9947b9fbb25",
-    },
-    "../.codex/agents/chaos-engine.toml": {
-        "e50c90620d99eaa2701cacedc2a5f2b1f0f01e0607c04548aa7a80d8e5126915"
-    },
-    "../.codex/agents/coder.toml": {
-        "3c0dc2baa41a29c5049d68a815e9a41333432725850b92a7c964a3a1c28814f6"
-    },
-    "../.codex/agents/reviewer.toml": {
-        "95b6f4d87be43a7b33bf173fddefd8589fb0950853e98bf9fca8e9645c386e99"
-    },
-    "../.codex/agents/tester.toml": {
-        "f08a90fcb3e8a595f3572559bbadcff2ced310adbd534f7de491555abe3d35ea"
-    },
-}
+RETIRED_MANIFEST = Path(__file__).with_name("user_harness_retired_manifest.json")
+
+
+def load_retired_targets() -> dict[str, dict[str, object]]:
+    """Load the immutable, source-controlled pre-#4649 deployment inventory."""
+    manifest = json.loads(RETIRED_MANIFEST.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") != 1 or not isinstance(manifest.get("entries"), list):
+        raise ValueError(f"invalid retired user harness manifest: {RETIRED_MANIFEST}")
+    targets: dict[str, dict[str, object]] = {}
+    for entry in manifest["entries"]:
+        policy = dict(entry)
+        label = policy.pop("label")
+        policy["hashes"] = set(policy.get("hashes", []))
+        targets[label] = policy
+    if len(targets) != len(manifest["entries"]):
+        raise ValueError(f"duplicate retired target in manifest: {RETIRED_MANIFEST}")
+    return targets
+
+
+RETIRED_TARGETS = load_retired_targets()
+
+class RetirementConflict(RuntimeError):
+    """The target changed after preflight and was preserved instead."""
+
+    def __init__(self, target: Path, recovery: Path | None = None):
+        super().__init__(f"retired target changed during migration: {target}")
+        self.target = target
+        self.recovery = recovery
 
 
 def repo_root() -> Path:
@@ -61,14 +71,45 @@ def normalize(data: bytes) -> bytes:
     return data.replace(b"\r\n", b"\n")
 
 
-def is_owned_codex_target(label: str, target: bytes) -> bool:
-    """Recognize current and legacy SHAFT-owned Codex guidance targets."""
-    if not (label.startswith(CODEX_AGENT_PREFIX) or label == CODEX_AGENTS_LABEL):
-        return True
-    if MANAGED_CODEX_AGENT_MARKER in target:
-        return True
-    digest = hashlib.sha256(normalize(target)).hexdigest()
-    return digest in LEGACY_CODEX_TARGET_HASHES.get(label, set())
+def content_hash(data: bytes) -> str:
+    return hashlib.sha256(normalize(data)).hexdigest()
+
+
+def atomic_move_noreplace(source: Path, destination: Path) -> None:
+    """Atomically move one path without replacing an existing destination."""
+    if os.name == "nt":
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        move_file = kernel32.MoveFileExW
+        move_file.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32)
+        move_file.restype = ctypes.c_int
+        if move_file(str(source), str(destination), 0):
+            return
+        error = ctypes.get_last_error()
+        if error in (80, 183):
+            raise FileExistsError(error, ctypes.FormatError(error), str(destination))
+        raise OSError(error, ctypes.FormatError(error), str(source))
+
+    if sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise OSError(errno.ENOTSUP, "renameat2(RENAME_NOREPLACE) is unavailable")
+        renameat2.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        if renameat2(-100, os.fsencode(source), -100, os.fsencode(destination), 1) == 0:
+            return
+        error = ctypes.get_errno()
+        if error == errno.EEXIST:
+            raise FileExistsError(error, os.strerror(error), str(destination))
+        raise OSError(error, os.strerror(error), str(source))
+
+    raise OSError(errno.ENOTSUP, "atomic no-overwrite move is unsupported on this host")
 
 
 def merge_owned(existing: object, owned: object) -> object:
@@ -95,31 +136,62 @@ def remove_retired_owned_path(settings: dict, path: tuple[str, ...]) -> None:
         settings.pop(key, None)
 
 
-def sources(
-    root: Path, claude_dir: Path, agents_dir: Path, codex_dir: Path
-) -> dict[str, tuple[Path, Path]]:
+def sources(root: Path, claude_dir: Path) -> dict[str, tuple[Path, Path]]:
     harness = root / ".claude/user-harness"
-    result = {name: (harness / name, claude_dir / name) for name in MANIFEST}
-    for source in sorted((root / ".claude/agents").glob("*.md")):
-        result[f"agents/{source.name}"] = (source, claude_dir / "agents" / source.name)
-    result["../.codex/AGENTS.md"] = (harness / "CLAUDE.md", codex_dir / "AGENTS.md")
-    for source in sorted((root / ".codex/agents").glob("*.toml")):
-        result[f"../.codex/agents/{source.name}"] = (
-            source,
-            codex_dir / "agents" / source.name,
-        )
+    return {name: (harness / name, claude_dir / name) for name in MANIFEST}
 
-    # Deploy every canonical skill and its host adapter, not just the router:
-    # the router links sibling skills, so a partial deploy leaves dead links.
-    for adapter in sorted((root / ".claude/skills").glob("*/SKILL.md")):
-        relative = adapter.relative_to(root / ".claude/skills")
-        result[f"skills/{relative.as_posix()}"] = (adapter, claude_dir / "skills" / relative)
-    canonical_root = root / ".agents/skills"
-    for source in sorted(path for path in canonical_root.rglob("*") if path.is_file()):
-        relative = source.relative_to(canonical_root)
-        label = f"../.agents/skills/{relative.as_posix()}"
-        result[label] = (source, agents_dir / "skills" / relative)
-    return result
+
+def retired_targets(
+    root: Path, claude_dir: Path, agents_dir: Path, codex_dir: Path
+) -> list[tuple[str, Path, Path, set[str]]]:
+    """Return former managed targets with immutable ownership evidence."""
+    retired = []
+    for label, policy in RETIRED_TARGETS.items():
+        if label.startswith("../.agents/"):
+            base, relative = agents_dir, label.removeprefix("../.agents/")
+        elif label.startswith("../.codex/"):
+            base, relative = codex_dir, label.removeprefix("../.codex/")
+        else:
+            base, relative = claude_dir, label
+        source_name = policy.get("source")
+        source = root / source_name if isinstance(source_name, str) else root / label
+        hashes = set(policy.get("hashes", set()))
+        retired.append((label, source, base / relative, hashes))
+    return retired
+
+
+def backup_and_retire(
+    target: Path, is_owned: Callable[[bytes], bool] | None = None
+) -> Path:
+    """Atomically move the target to an exclusive backup and verify ownership."""
+    candidate = target.with_name(target.name + ".bak")
+    suffix = 1
+    while True:
+        try:
+            atomic_move_noreplace(target, candidate)
+            break
+        except FileExistsError:
+            candidate = target.with_name(f"{target.name}.bak.{suffix}")
+            suffix += 1
+
+    if is_owned is not None and not is_owned(candidate.read_bytes()):
+        try:
+            # A hard link restores the moved entry only when the original path
+            # is still absent; it never overwrites a second concurrent writer.
+            os.link(candidate, target)
+        except FileExistsError:
+            raise RetirementConflict(target, candidate)
+        except OSError:
+            raise RetirementConflict(target, candidate)
+        # Keep the atomic-move candidate on every conflict. The restored hard
+        # link can be replaced immediately by another writer; the candidate is
+        # the only path guaranteed to preserve the bytes we actually moved.
+        raise RetirementConflict(target, candidate)
+    if os.path.lexists(target):
+        # Another writer recreated the live path after the atomic move. Keep
+        # both paths and report the backup instead of claiming retirement.
+        raise RetirementConflict(target, candidate)
+    return candidate
 
 
 def main() -> int:
@@ -127,12 +199,9 @@ def main() -> int:
     json_mode = "--json" in sys.argv[1:]
     root = repo_root()
     claude_dir = user_claude_dir()
-    manifest = sources(
-        root,
-        claude_dir,
-        user_agents_dir(claude_dir),
-        user_codex_dir(claude_dir),
-    )
+    agents_dir = user_agents_dir(claude_dir)
+    codex_dir = user_codex_dir(claude_dir)
+    manifest = sources(root, claude_dir)
 
     entries: list[dict[str, object]] = []
 
@@ -162,6 +231,54 @@ def main() -> int:
 
     all_in_sync = True
     hard_failure = False
+    retirement_candidates = []
+    for label, source, target, owned_hashes in retired_targets(
+        root, claude_dir, agents_dir, codex_dir
+    ):
+        if not target.is_file():
+            continue
+        target_bytes = target.read_bytes()
+        owned = content_hash(target_bytes) in owned_hashes
+        if not owned:
+            if not json_mode:
+                print(f"CONFLICT  {label}  (unowned retired target exists: {target})")
+            record("CONFLICT", label, source, target)
+            hard_failure = True
+            continue
+        retirement_candidates.append((label, source, target, owned_hashes))
+
+    # A collision anywhere makes the migration read-only. This protects a mixed
+    # profile from partial retirement or deployment before the user resolves it.
+    if hard_failure:
+        return finish(2)
+
+    for label, source, target, owned_hashes in retirement_candidates:
+        all_in_sync = False
+        details = {}
+        if apply_mode:
+            def still_owned(data: bytes) -> bool:
+                return content_hash(data) in owned_hashes
+
+            try:
+                backup = backup_and_retire(target, still_owned)
+            except RetirementConflict as conflict:
+                if not json_mode:
+                    print(f"CONFLICT  {label}  ({conflict})")
+                    if conflict.recovery is not None:
+                        print(f"  -> recovery preserved at {conflict.recovery}")
+                conflict_details = {}
+                if conflict.recovery is not None:
+                    conflict_details["recovery"] = str(conflict.recovery)
+                record("CONFLICT", label, source, target, **conflict_details)
+                return finish(2)
+            details["backup"] = str(backup)
+            if not json_mode:
+                print(f"RETIRED  {label}  (managed user-level target: {target})")
+                print(f"  -> retired to {backup}")
+        elif not json_mode:
+            print(f"RETIRED  {label}  (managed user-level target: {target})")
+        record("RETIRED", label, source, target, **details)
+
     for label, (source, target) in manifest.items():
         source_bytes = source.read_bytes()
         if not target.is_file():
@@ -203,12 +320,6 @@ def main() -> int:
             continue
 
         all_in_sync = False
-        if not is_owned_codex_target(label, target_bytes):
-            if not json_mode:
-                print(f"CONFLICT  {label}  (unowned target exists: {target})")
-            record("CONFLICT", label, source, target)
-            hard_failure = True
-            continue
         if not json_mode:
             print(f"DRIFTED  {label}  (differs from {target})")
         details = {}
@@ -228,8 +339,6 @@ def main() -> int:
             details["deployed"] = str(target)
         record("DRIFTED", label, source, target, **details)
 
-    if hard_failure:
-        return finish(2)
     return finish(0 if apply_mode or all_in_sync else 1)
 
 

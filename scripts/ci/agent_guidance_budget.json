@@ -82,7 +82,6 @@
       "shaft-skills"
     ],
     "required_names": [
-      "consult-first",
       "shaft-developer"
     ]
   },
@@ -115,14 +114,10 @@
   ],
   "expected_skill_names": {
     ".agents/skills": [
-      "act-as-mohab",
-      "consult-first",
-      "retrieve-first"
+      "act-as-mohab"
     ],
     ".claude/skills": [
-      "act-as-mohab",
-      "consult-first",
-      "retrieve-first"
+      "act-as-mohab"
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",
@@ -155,7 +150,7 @@
     }
   },
   "harness_reachability": {
-    "notes": "Owner directive behind #4485: an agent that loads the entrypoint must reach the whole harness from it, so every tracked harness element is reachable or carries a stated exemption. Two reachability mechanisms, because one cannot cover both halves. Inside deployable_root the tree ships as a unit and every element is a real markdown link -- a backtick mention does not count there, per #4489. Outside it a markdown link is forbidden: tests/scripts/test_agent_harness_portability.py::test_deployed_canonical_subtree_has_no_external_or_broken_markdown_links treats any link escaping .agents/skills as broken, because it would be broken once the tree is deployed to a user-level skills directory. Those elements are instead named as a path token inside a code span or fence in a link-reachable file, and every such token must resolve to a real path -- which is what keeps it from failing open when the path moves (#4481). Only an EXACT token counts. A wildcard cannot fail: it re-derives itself from the tree it is meant to be checking, so `.claude/agents/*.md` kept a new role adapter and a staged rename both green. Wildcards stay legal as prose and are still checked for staleness; they satisfy nothing.",
+    "notes": "Owner directive behind #4485: an agent that loads the entrypoint must reach the whole harness from it, so every tracked harness element is reachable or carries a stated exemption. Two reachability mechanisms cover both halves. Inside deployable_root every element is a real markdown link -- a backtick mention does not count there, per #4489. Outside it, elements are named as exact path tokens in a link-reachable file and each token must resolve -- which keeps the rule from failing open when a path moves (#4481). A wildcard cannot fail because it re-derives itself from the tree it checks; wildcards remain legal prose but satisfy nothing.",
     "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
     "deployable_root": ".agents/skills",
     "boundary": "The union of every boundary anyone has drawn for this, because narrowing one silently is the failure this whole check exists to stop. #4485 measured 71 files: guidance, adapters, roles, hooks and the checks that police them. A second pass added the enforcement tests, scripts/ci/local_gate.py and .claude-plugin/marketplace.json. An adversarial review then refuted two exclusions and both are now in. .github/skills/** is agent guidance: its SKILL.md files are redirects structurally identical to the .claude/skills ones that were already counted, expected_skill_names checks their presence rather than their reachability, and pr-gate.yml already lists .github/skills/** under its agent_guidance path filter -- the repository had classified them before this check did. .github/workflows/pr-gate.yml is in as an exact path rather than the earlier agent|skill|guard regex over the workflow directory: that regex matched no file, and the one workflow it needed to match is the one that decides whether this check runs at all. A boundary drawn so that the thing running the gate falls outside the gate is convenient rather than honest.",

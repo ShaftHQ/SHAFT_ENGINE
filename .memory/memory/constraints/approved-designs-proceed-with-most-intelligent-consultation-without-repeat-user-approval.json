@@ -1,12 +1,21 @@
 {
   "body_path": "memory/constraints/approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval.md",
-  "content_hash": "sha256:2bf7c8e4be3bf19a2069696139a1b857609bed3f6c7d7ff4cd23e7ac1dcc8ed3",
+  "content_hash": "sha256:c2dcfa00b91042644bd18931d5055985a401d1470aad8a2dcb59480e4f9a6e7f",
   "created_at": "2026-08-09T20:13:10+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": ".agents/skills/act-as-mohab/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "id": ".agents/skills/act-as-mohab/references/consult-first.md",
+      "kind": "file"
+    }
+  ],
   "facets": {
     "applies_to": [
       ".agents/skills/act-as-mohab/SKILL.md",
-      ".agents/skills/consult-first/SKILL.md",
+      ".agents/skills/act-as-mohab/references/consult-first.md",
       ".agents/skills/act-as-mohab/references/work-github-planning.md"
     ],
     "category": "agent-guidance"
@@ -36,5 +45,5 @@
   ],
   "title": "Approved designs proceed without repeated user approval; consultation is delegated at the highest capability",
   "type": "constraint",
-  "updated_at": "2026-08-09T20:13:10+03:00"
+  "updated_at": "2026-08-09T23:46:44+03:00"
 }

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Retrieve"
-  short_description: "Ask the stores what is already known, before looking"
-  default_prompt: "Use $retrieve-first before broad discovery on this change."
-policy:
-  allow_implicit_invocation: true

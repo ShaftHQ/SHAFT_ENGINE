@@ -1498,11 +1498,8 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
     def test_harness_source_paths_are_recognised_and_others_are_not(self):
         """The suppression must be no wider than the files the sync deploys."""
         for path in (
-            ".agents/skills/act-as-mohab/references/delegation.md",
-            ".claude/skills/retrieve-first/SKILL.md",
             ".claude/user-harness/CLAUDE.md",
-            ".claude/agents/coder.md",
-            ".codex/agents/reviewer.toml",
+            ".claude/user-harness/settings.json",
         ):
             with self.subTest(path=path):
                 self.assertTrue(guard._HARNESS_SOURCE.match(path))
@@ -1510,6 +1507,10 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
             "scripts/agents/guard.py",
             "tests/scripts/test_guard_lifecycle.py",
             "AGENTS.md",
+            ".claude/agents/coder.md",
+            ".codex/agents/reviewer.toml",
+            ".agents/skills/act-as-mohab/references/delegation.md",
+            ".claude/skills/act-as-mohab/SKILL.md",
             "docs/.agents/skills/x.md",
             ".memory/memory/decisions/x.json",
         ):
