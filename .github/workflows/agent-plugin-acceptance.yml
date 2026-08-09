@@ -1,0 +1,49 @@
+name: Agent Plugin Live Acceptance
+
+on:
+  schedule:
+    - cron: '15 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-plugin-live-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native-client-load:
+    name: Claude and Codex live skill load
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install PyYAML
+        run: python -m pip install pyyaml --quiet
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pinned native plugin clients
+        run: npm install --global '@anthropic-ai/claude-code@2.1.223' '@openai/codex@0.146.0'
+      - name: Collect live compatibility evidence
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: >-
+          python scripts/ci/agent_plugin_client_smoke.py --mode live
+          --output agent-plugin-client-evidence.json
+      - name: Upload structured compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-plugin-live-acceptance-evidence
+          path: agent-plugin-client-evidence.json
+          if-no-files-found: error
+          retention-days: 30

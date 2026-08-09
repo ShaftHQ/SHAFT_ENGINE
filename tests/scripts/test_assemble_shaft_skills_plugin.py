@@ -57,10 +57,27 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
         assemble(ROOT, self.package_root)
 
         claude = json.loads((self.package_root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        claude_marketplace = json.loads(
+            (self.package_root / ".claude-plugin/marketplace.json").read_text(encoding="utf-8")
+        )
         codex = json.loads((self.package_root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
         marketplace = json.loads((self.package_root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
 
         self.assertEqual(claude["name"], "shaft-skills")
+        self.assertEqual(claude_marketplace["name"], "shaft-skills")
+        self.assertEqual(claude_marketplace["owner"], {"name": "ShaftHQ"})
+        self.assertEqual(claude_marketplace["description"], "Official SHAFT test-automation skills.")
+        self.assertEqual(
+            claude_marketplace["plugins"],
+            [
+                {
+                    "name": "shaft-skills",
+                    "source": "./",
+                    "description": "User-facing SHAFT test-automation skills.",
+                    "version": "1.0.0",
+                }
+            ],
+        )
         self.assertEqual(codex, {"name": "shaft-skills", "version": "1.0.0", "skills": "./skills/"})
         self.assertEqual(
             marketplace["plugins"],

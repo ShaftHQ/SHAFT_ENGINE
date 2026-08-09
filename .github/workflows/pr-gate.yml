@@ -85,6 +85,7 @@ jobs:
               - '.github/instructions/**'
               - '.github/copilot-instructions.md'
               - 'shaft-skills/**'
+              - 'agent-plugins/**'
               - '.claude-plugin/marketplace.json'
               - '.memory/**'
               - 'scripts/agents/**'
@@ -93,6 +94,7 @@ jobs:
               - 'scripts/ci/validate_agent_plugins.py'
               - 'scripts/ci/assemble_act_as_mohab_plugin.py'
               - 'scripts/ci/assemble_shaft_skills_plugin.py'
+              - 'scripts/ci/agent_plugin_client_smoke.py'
               - 'scripts/ci/shaft_skill_quality.py'
               - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
@@ -122,6 +124,7 @@ jobs:
               - 'tests/scripts/test_shaft_skills_content.py'
               - 'tests/scripts/test_shaft_skill_cli_examples.py'
               - 'tests/scripts/test_shaft_skill_quality.py'
+              - 'tests/scripts/test_agent_plugin_client_smoke.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what build_retry.sh needs (issue #4445).
@@ -273,6 +276,12 @@ jobs:
           python-version: "3.13"
       - name: Install PyYAML
         run: python -m pip install pyyaml --quiet
+      - name: Set up Node.js 24 for native client smoke
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pinned native plugin clients
+        run: npm install --global '@anthropic-ai/claude-code@2.1.223' '@openai/codex@0.146.0'
       - name: Run agent harness unit tests
         run: >-
           python -m unittest
@@ -287,6 +296,7 @@ jobs:
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_agent_plugin_release
+          tests.scripts.test_agent_plugin_client_smoke
           tests.scripts.test_assemble_act_as_mohab_plugin
           tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
@@ -342,6 +352,18 @@ jobs:
         run: python scripts/ci/validate_agent_setup.py --skip-external
       - name: Validate SHAFT skill inventory and quality evidence
         run: python scripts/ci/shaft_skill_quality.py
+      - name: Collect unauthenticated native client evidence
+        run: >-
+          python scripts/ci/agent_plugin_client_smoke.py --mode smoke
+          --output agent-plugin-client-evidence.json
+      - name: Upload native client smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-plugin-client-smoke-${{ runner.os }}
+          path: agent-plugin-client-evidence.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Run the portable PreToolUse guard self-test
         run: python scripts/agents/guard.py --self-test
 

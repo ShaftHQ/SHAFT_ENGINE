@@ -94,6 +94,13 @@ def write_adapters(package_root: Path, version: str) -> None:
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
         encoding="utf-8",
     )
+    (claude_adapter / "marketplace.json").write_text(
+        f'{{"name":"shaft-skills","owner":{{"name":"ShaftHQ"}},'
+        f'"description":"Official SHAFT test-automation skills.","plugins":['
+        f'{{"name":"shaft-skills","source":"./",'
+        f'"description":"User-facing SHAFT test-automation skills.","version":"{version}"}}]}}\n',
+        encoding="utf-8",
+    )
     codex_adapter = package_root / ".codex-plugin"
     codex_adapter.mkdir()
     (codex_adapter / "plugin.json").write_text(
