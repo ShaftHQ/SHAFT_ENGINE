@@ -343,6 +343,29 @@ final class AssistantLocalAgentRunner {
     }
 
     /**
+     * Panel-facing overload that keeps production's executable check while allowing headless panel
+     * tests to replace the process boundary.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments(), processLauncher);
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                LocalAgentApprovalBridge::start, verbose, terminalAnswerConsumer);
+    }
+
+    /**
      * Package-private overload used by tests to drive a stub process for both the compact preamble
      * and the main invocation, and to assert their relative ordering.
      */
@@ -370,7 +393,7 @@ final class AssistantLocalAgentRunner {
         Process launch(List<String> command, Path workingDirectory, Map<String, String> environment) throws IOException;
     }
 
-    private static Process launchProcess(List<String> command, Path workingDirectory, Map<String, String> environment)
+    static Process launchProcess(List<String> command, Path workingDirectory, Map<String, String> environment)
             throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(workingDirectory.toFile());

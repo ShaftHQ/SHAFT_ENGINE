@@ -295,6 +295,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
      * #stopLocalAgentStreaming} (Kill) captures its own equivalent locally, the same way. */
     private ShaftAssistantChatState.Message lastLocalAgentFinalizedMessage;
     private StringBuilder localAgentOutput;
+    /** Production process boundary; panel tests replace it to keep resend flows headless. */
+    private AssistantLocalAgentRunner.ProcessLauncher localAgentProcessLauncher =
+            AssistantLocalAgentRunner::launchProcess;
+    private boolean requireLocalAgentCommandAvailable = true;
     /** Issue #3918: false for a buffered/custom-command local-agent run (Copilot's default command, or
      * any hand-typed custom command) -- such a run's entire live stream is raw CLI passthrough with no
      * SHAFT-translated milestone content, so non-verbose mode must render none of it as a compact
@@ -1620,6 +1624,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                     invocation,
                     autoCompact.isSelected(),
                     localAgentOutputCoalescer::enqueue,
+                    localAgentProcessLauncher,
+                    requireLocalAgentCommandAvailable,
                     localAgentApprovalHandler(streamToken),
                     verboseLocalAgentOutput(),
                     pendingTerminalAnswer::complete);
