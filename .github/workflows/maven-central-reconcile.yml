@@ -66,6 +66,16 @@ jobs:
         with:
           ref: ${{ inputs.source_ref }}
           fetch-depth: 0
+      - name: Verify checked out source commit
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          ACTUAL_COMMIT="$(git rev-parse HEAD)"
+          if [[ "${ACTUAL_COMMIT}" != "${SOURCE_COMMIT}" ]]; then
+            echo "::error::source_ref resolved to ${ACTUAL_COMMIT}, expected ${SOURCE_COMMIT}."
+            exit 1
+          fi
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
