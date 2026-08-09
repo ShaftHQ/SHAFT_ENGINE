@@ -105,6 +105,18 @@ class AgentPluginReleaseTest(unittest.TestCase):
 
             self.assertFalse(output.exists())
 
+    def test_normal_release_workflow_builds_and_attaches_plugin_assets(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/mavenCentral_cd.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("- 'agent-plugins/**'", workflow)
+        self.assertIn("python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets", workflow)
+        self.assertIn("name: agent-plugin-release-assets", workflow)
+        self.assertIn("actions/upload-artifact@v7", workflow)
+        self.assertIn("actions/download-artifact@v8", workflow)
+        self.assertIn("artifacts: /tmp/agent-plugin-release-assets/*", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
