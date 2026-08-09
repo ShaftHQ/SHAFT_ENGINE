@@ -16,6 +16,7 @@ monkeypatch it - the real network/subprocess call is never made from a test.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess  # nosec B404 - runs Maven deployment of release artifacts.
@@ -86,11 +87,32 @@ def build_release_create_command(version: str, body_file: Path, assets: list[Pat
     ]
 
 
-def build_plugin_release_assets(output_directory: Path) -> list[Path]:
+def build_plugin_release_assets(version: str, output_directory: Path) -> list[Path]:
     """Build package assets from the checked-out release revision."""
     from scripts.ci.agent_plugin_release import build_release_artifacts
 
+    if read_reactor_version() != version:
+        raise RuntimeError(
+            f"checked-out reactor version does not match requested reconciliation version: {version}"
+        )
     return build_release_artifacts(ROOT, output_directory)
+
+
+def release_assets_need_repair(version: str, assets: list[Path]) -> bool:
+    """Return whether a release is missing any expected asset bytes."""
+    result = subprocess.run(
+        ["gh", "release", "view", version, "--json", "assets"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"could not inspect GitHub Release {version}")
+    if not result.stdout:
+        return True
+    try:
+        remote = {asset["name"]: asset.get("digest") for asset in json.loads(result.stdout)["assets"]}
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"invalid GitHub Release asset data for {version}") from error
+    return any(remote.get(asset.name) != f"sha256:{hashlib.sha256(asset.read_bytes()).hexdigest()}" for asset in assets)
 
 
 def upload_plugin_release_assets(version: str, assets: list[Path]) -> None:
@@ -212,8 +234,11 @@ def reconcile_release(
         return 0
 
     with tempfile.TemporaryDirectory(prefix="shaft-agent-plugin-release-") as temp_dir:
-        assets = build_plugin_release_assets(Path(temp_dir) / "assets")
+        assets = build_plugin_release_assets(version, Path(temp_dir) / "assets")
         if release_exists(version):
+            if not release_assets_need_repair(version, assets):
+                print(f"GitHub Release {version} already has complete portable Agent Plugin assets.")
+                return 0
             upload_plugin_release_assets(version, assets)
             print(f"Repaired portable Agent Plugin assets on GitHub Release {version}.")
             return 0

@@ -54,6 +54,26 @@ class ReleaseExistsTest(unittest.TestCase):
         ):
             self.assertFalse(reconcile.release_exists("1.2.3"))
 
+    def test_complete_release_assets_need_no_repair(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            archive = Path(temporary_directory) / "act-as-mohab-1.0.0.zip"
+            archive.write_bytes(b"archive")
+            checksum = archive.with_suffix(".zip.sha256")
+            checksum.write_text("digest  act-as-mohab-1.0.0.zip\n", encoding="utf-8")
+            expected_digest = "sha256:" + __import__("hashlib").sha256(b"archive").hexdigest()
+            with mock.patch.object(
+                reconcile.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    [], 0,
+                    stdout=json.dumps({"assets": [
+                        {"name": archive.name, "digest": expected_digest},
+                        {"name": checksum.name, "digest": "sha256:" + __import__("hashlib").sha256(checksum.read_bytes()).hexdigest()},
+                    ]}),
+                ),
+            ):
+                self.assertFalse(reconcile.release_assets_need_repair("1.2.3", [archive, checksum]))
+
 
 class SlackPayloadTest(unittest.TestCase):
     def test_payload_matches_the_workflows_inline_python_block(self):
@@ -100,6 +120,8 @@ class ReconcileReleaseTest(unittest.TestCase):
             reconcile.verify, "missing_publication_paths", return_value=all_missing
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
             reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ), mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
         ) as run, mock.patch.object(
             reconcile.verify, "maven_executable", return_value="mvn"
         ):
@@ -170,6 +192,8 @@ class ReconcileReleaseTest(unittest.TestCase):
             reconcile.verify, "missing_publication_paths", return_value=[]
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
             reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ), mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
         ) as run, mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
@@ -207,6 +231,8 @@ class ReconcileReleaseTest(unittest.TestCase):
             reconcile.verify, "missing_publication_paths", return_value=[]
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
             reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ), mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
         ) as run, mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
@@ -221,7 +247,7 @@ class ReconcileReleaseTest(unittest.TestCase):
             second = reconcile.reconcile_release(**kwargs)
 
         self.assertEqual((first, second), (0, 0))
-        self.assertEqual(run.call_count, 2)
+        run.assert_not_called()
         urlopen.assert_not_called()
 
     def test_missing_slack_webhook_url_skips_cleanly_after_release_creation(self):
