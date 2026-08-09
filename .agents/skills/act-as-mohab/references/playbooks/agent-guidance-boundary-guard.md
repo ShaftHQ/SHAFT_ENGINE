@@ -9,7 +9,7 @@ Use for agent guidance and retrieval/config surfaces. Keep one substantive entry
 3. Keep one hook implementation under `scripts/agents/`; provider hook files only register its relative command.
 4. Preserve restricted native Memory access, deterministic MemPalace retrieval, and Graphify routing. Do not save routine diaries.
 5. Update guidance budgets/manifests and add a failing portability test before changing behavior.
-6. Assemble portable entrypoint packages with `python3 scripts/ci/assemble_act_as_mohab_plugin.py <empty-output-directory>` and validate them with `scripts/ci/validate_agent_plugins.py`; cover the assembly boundary in `tests/scripts/test_assemble_act_as_mohab_plugin.py` before release.
+6. Assemble portable packages with `python3 scripts/ci/assemble_act_as_mohab_plugin.py <empty-output-directory>` or `python3 scripts/ci/assemble_shaft_skills_plugin.py <empty-output-directory>` and validate them with `scripts/ci/validate_agent_plugins.py`; cover the assembly boundary in `tests/scripts/test_assemble_act_as_mohab_plugin.py` or `tests/scripts/test_assemble_shaft_skills_plugin.py` before release.
 7. Run `python3 scripts/ci/validate_agent_setup.py --skip-external`; run the full command when network/npm access is stable.
 
 ## Output
