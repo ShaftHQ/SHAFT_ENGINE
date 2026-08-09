@@ -200,7 +200,7 @@ jobs:
           container-name: shaft-pilot-release-smoke
           client-name: release-smoke
       - name: Install Agent Plugin release prerequisites
-        run: python3 -m pip install pyyaml --quiet
+        run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Build portable Agent Plugin release assets
         run: python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets
       - name: Upload portable Agent Plugin release assets

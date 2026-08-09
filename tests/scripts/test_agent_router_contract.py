@@ -1149,13 +1149,14 @@ class CiGateIsBlockingTest(unittest.TestCase):
         summary, _ = self.summary_step()
         self.assertIn("module-boundary", summary["needs"])
 
-    def test_the_guidance_gate_installs_what_its_tests_import(self):
+    def test_the_guidance_gate_installs_the_managed_ci_dependencies(self):
         """The runner's tool-cache Python has no PyYAML; the frontmatter test
         imports it, so the job must install it or fail on every run."""
         _, jobs = self.summary_step()
         steps = jobs["agent-guidance"]["steps"]
         commands = " ".join(str(step.get("run", "")) for step in steps)
-        self.assertIn("pyyaml", commands.lower())
+        self.assertIn("--requirement requirements-ci.txt", commands)
+        self.assertIn("--no-deps", commands)
 
     def test_the_guidance_filter_covers_what_the_validator_checks(self):
         yaml = __import__("yaml")
@@ -1199,8 +1200,15 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 "**/pom.xml",
                 "**/build.gradle.kts",
                 "**/gradle.properties",
+                "requirements-ci.txt",
+                ".github/dependabot.yml",
                 ".github/dependency-review-config.yml",
+                ".github/workflows/agent-plugin-acceptance.yml",
+                ".github/workflows/mavenCentral_cd.yml",
+                ".github/workflows/pr-gate.yml",
+                ".github/workflows/publish-shaft-mcp.yml",
                 "scripts/ci/dependency_review_changes.py",
+                "tests/scripts/test_ci_python_dependencies.py",
                 "tests/scripts/test_dependency_review_changes.py",
             },
         )

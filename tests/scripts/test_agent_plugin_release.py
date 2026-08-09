@@ -121,7 +121,10 @@ class AgentPluginReleaseTest(unittest.TestCase):
         install_index, install_step = steps_by_name["Install Agent Plugin release prerequisites"]
         build_index, build_step = steps_by_name["Build portable Agent Plugin release assets"]
         deploy_index, _ = steps_by_name["Deploy to Maven Central"]
-        self.assertEqual(install_step["run"], "python3 -m pip install pyyaml --quiet")
+        self.assertEqual(
+            install_step["run"],
+            "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+        )
         self.assertEqual(
             build_step["run"],
             "python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets",

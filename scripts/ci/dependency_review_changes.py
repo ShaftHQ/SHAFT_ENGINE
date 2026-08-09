@@ -8,6 +8,7 @@ import re
 
 
 DEPENDENCY_CONFIG = ".github/dependency-review-config.yml"
+CI_PYTHON_REQUIREMENTS = "requirements-ci.txt"
 DEPENDENCY_SUFFIXES = ("/pom.xml", ".pom.xml")
 GRADLE_BUILD_SUFFIX = ".gradle.kts"
 GRADLE_PROPERTIES_SUFFIX = "/gradle.properties"
@@ -45,6 +46,8 @@ def needs_review(base: str, head: str) -> bool:
     if DEPENDENCY_CONFIG in changed:
         return True
     for path in changed:
+        if path == CI_PYTHON_REQUIREMENTS:
+            return True
         before, after = content(base, path), content(head, path)
         if path == "pom.xml" or path.endswith(DEPENDENCY_SUFFIXES):
             if before is None or after is None:
