@@ -1,6 +1,7 @@
 """Portable act-as-mohab package assembly tests (#4576)."""
 
 import json
+import inspect
 import re
 import subprocess
 import tempfile
@@ -41,8 +42,16 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
                 encoding="utf-8",
             )
         (source_skills / "act-as-mohab/references").mkdir()
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/CHANGELOG.md"
+        changelog.parent.mkdir()
+        changelog.write_text("# Test changelog\n", encoding="utf-8")
         subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
-        subprocess.run([git_executable(), "add", ".agents/skills"], cwd=source_root, check=True)  # nosec B603
+        subprocess.run(
+            [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins/CHANGELOG.md"],
+            cwd=source_root,
+            check=True,
+        )  # nosec B603
         return source_skills
 
     def test_assembly_creates_a_valid_self_contained_package_from_canonical_sources(self):
@@ -108,6 +117,19 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         self.assertEqual(
             marketplace["plugins"],
             [{"name": "act-as-mohab", "source": {"source": "local", "path": "./"}}],
+        )
+
+    def test_assembly_uses_the_declared_release_version_and_release_files(self):
+        self.assertIn("version", inspect.signature(assemble).parameters)
+        assemble(ROOT, self.package_root, "1.2.3")
+
+        for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+            manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["version"], "1.2.3")
+        self.assertEqual((self.package_root / "LICENSE").read_text(encoding="utf-8"), (ROOT / "LICENSE").read_text(encoding="utf-8"))
+        self.assertEqual(
+            (self.package_root / "CHANGELOG.md").read_text(encoding="utf-8"),
+            (ROOT / "agent-plugins/CHANGELOG.md").read_text(encoding="utf-8"),
         )
 
     def test_assembly_is_deterministic(self):

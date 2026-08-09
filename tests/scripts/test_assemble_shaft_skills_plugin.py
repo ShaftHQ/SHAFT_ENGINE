@@ -1,7 +1,10 @@
 """Portable shaft-skills package assembly tests (#4576)."""
 
 import json
+import inspect
 import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -64,6 +67,20 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             [{"name": "shaft-skills", "source": {"source": "local", "path": "./"}}],
         )
 
+    def test_assembly_uses_the_declared_release_version_and_release_files(self):
+        self.assertTrue(callable(assemble), "assemble must be available")
+        self.assertIn("version", inspect.signature(assemble).parameters)
+        assemble(ROOT, self.package_root, "1.2.3")
+
+        for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+            manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["version"], "1.2.3")
+        self.assertEqual((self.package_root / "LICENSE").read_text(encoding="utf-8"), (ROOT / "LICENSE").read_text(encoding="utf-8"))
+        self.assertEqual(
+            (self.package_root / "CHANGELOG.md").read_text(encoding="utf-8"),
+            (ROOT / "agent-plugins/CHANGELOG.md").read_text(encoding="utf-8"),
+        )
+
     def test_assembly_is_deterministic_and_ignores_untracked_sources(self):
         self.assertTrue(callable(assemble), "assemble must be available")
         untracked = CANONICAL_SKILLS / "session-notes.md"
@@ -101,6 +118,23 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             assemble(ROOT, output)
 
         self.assertFalse(output.exists())
+
+    def test_assembly_rejects_an_untracked_release_file(self):
+        git = shutil.which("git")
+        self.assertIsNotNone(git, "Git is required for portable assembly")
+        source_root = self.package_root.parent / "source"
+        skill = source_root / "shaft-skills/example/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: example\ndescription: Example.\n---\n", encoding="utf-8")
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/CHANGELOG.md"
+        changelog.parent.mkdir()
+        changelog.write_text("# Untracked\n", encoding="utf-8")
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
+        subprocess.run([git, "add", "shaft-skills", "LICENSE"], cwd=source_root, check=True)  # nosec B603
+
+        with self.assertRaisesRegex(ValueError, "tracked"):
+            assemble(source_root, self.package_root)
 
 
 if __name__ == "__main__":

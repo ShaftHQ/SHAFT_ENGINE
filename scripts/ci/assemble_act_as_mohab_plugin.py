@@ -9,6 +9,7 @@ from pathlib import Path
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
 PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
+RELEASE_FILES = (Path("LICENSE"), Path("agent-plugins/CHANGELOG.md"))
 
 
 def git_executable() -> str:
@@ -64,7 +65,23 @@ def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None
         shutil.copyfile(path, target)
 
 
-def assemble(repository_root: Path, package_root: Path) -> None:
+def copy_release_files(repository_root: Path, package_root: Path) -> None:
+    """Copy tracked public release files into a portable package root."""
+    for relative in RELEASE_FILES:
+        source = require_contained(repository_root, repository_root / relative, f"release file {relative}")
+        if not source.is_file():
+            raise ValueError(f"release file must be a file: {relative}")
+        tracked = subprocess.run(
+            [git_executable(), "ls-files", "--error-unmatch", "--", relative.as_posix()],
+            cwd=repository_root,
+            capture_output=True,
+        )
+        if tracked.returncode:
+            raise ValueError(f"release file must be tracked: {relative}")
+        shutil.copyfile(source, package_root / ("CHANGELOG.md" if relative.name == "CHANGELOG.md" else relative.name))
+
+
+def assemble(repository_root: Path, package_root: Path, version: str = "1.0.0") -> None:
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
     package_root = Path(package_root)
@@ -81,7 +98,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     allowed_files = tracked_source_files(repository_root)
     package_root.mkdir(parents=True)
     (package_root / "plugin.json").write_text(
-        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab","version":"1.0.0",'
+        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"},'
         '"repository":"https://github.com/ShaftHQ/SHAFT_ENGINE","license":"MIT"}\n',
@@ -90,7 +107,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     claude_adapter = package_root / ".claude-plugin"
     claude_adapter.mkdir()
     (claude_adapter / "plugin.json").write_text(
-        '{"name":"act-as-mohab","version":"1.0.0",'
+        f'{{"name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
         encoding="utf-8",
@@ -98,7 +115,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     codex_adapter = package_root / ".codex-plugin"
     codex_adapter.mkdir()
     (codex_adapter / "plugin.json").write_text(
-        '{"name":"act-as-mohab","version":"1.0.0",'
+        f'{{"name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"skills":"./skills/"}\n',
         encoding="utf-8",
@@ -125,6 +142,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
         package_root / "skills/act-as-mohab/references",
         allowed_files,
     )
+    copy_release_files(repository_root, package_root)
     (package_root / "skills/README.md").write_text(
         "# Act as Mohab portable skills\n\n"
         "This package contains the maintainer workflow entrypoint and its required companion skills.\n",
@@ -136,8 +154,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="new package output directory")
     parser.add_argument("--repository-root", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--version", default="1.0.0")
     arguments = parser.parse_args()
-    assemble(arguments.repository_root, arguments.output)
+    assemble(arguments.repository_root, arguments.output, arguments.version)
     return 0
 
 
