@@ -22,6 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ACTION = REPO_ROOT / ".github/actions/intellij-verify/action.yml"
 RETRY_SCRIPT = REPO_ROOT / "scripts/ci/build_retry.sh"
 WORKFLOWS = REPO_ROOT / ".github/workflows"
+BUILD_FILE = REPO_ROOT / "shaft-intellij/build.gradle.kts"
 
 # One failed attempt (2m38s in the run this issue was filed from) plus a pause
 # plus a full successful build (5m11s in run 30940070004) does not fit in ten
@@ -87,6 +88,26 @@ class IntellijVerifyRetryTest(unittest.TestCase):
                 MINIMUM_TIMEOUT_MINUTES,
                 f"{workflow}:{job} cannot fit a retried IntelliJ build",
             )
+
+    def test_the_plugin_verifier_is_pinned(self):
+        build = BUILD_FILE.read_text(encoding="utf-8")
+        self.assertRegex(
+            build,
+            r'pluginVerifier\("\d+\.\d+"\)',
+            "verifyPlugin must declare a reviewable, explicit Plugin Verifier version",
+        )
+
+    def test_gradle_cache_excludes_large_artifact_transforms(self):
+        document = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+        setup_gradle = next(
+            step for step in document["runs"]["steps"]
+            if step.get("uses", "").startswith("gradle/actions/setup-gradle@")
+        )
+        self.assertIn(
+            "caches/transforms-3",
+            setup_gradle.get("with", {}).get("gradle-home-cache-excludes", ""),
+            "the shared 10 GiB Actions cache must not retain Gradle's multi-gigabyte artifact transforms",
+        )
 
 
 if __name__ == "__main__":

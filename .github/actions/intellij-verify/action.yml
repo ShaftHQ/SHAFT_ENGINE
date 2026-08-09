@@ -37,6 +37,10 @@ runs:
       uses: gradle/actions/setup-gradle@v6
       with:
         gradle-version: '9.0.0'
+        # The 3 GB artifact-transform cache restores more slowly than it helps this single build
+        # and competes with SHAFT's Maven caches in GitHub's shared 10 GiB repository budget.
+        gradle-home-cache-excludes: |
+          caches/transforms-3
     # ubuntu-22.04 runner images ship only fonts-noto-color-emoji (no DejaVu/
     # Liberation/any general text font). Without a real text font present,
     # JVM/Swing logical-font substitution for Dialog/sans-serif on that image
