@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import hashlib
+import shutil
 import sys
 import tempfile
 import zipfile
@@ -63,6 +64,7 @@ def write_deterministic_zip(package_root: Path, archive: Path) -> None:
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as output:
         for source in sorted(path for path in package_root.rglob("*") if path.is_file()):
             entry = zipfile.ZipInfo(source.relative_to(package_root).as_posix(), (1980, 1, 1, 0, 0, 0))
+            entry.create_system = 3
             entry.external_attr = 0o100644 << 16
             entry.compress_type = zipfile.ZIP_DEFLATED
             output.writestr(entry, source.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
@@ -72,7 +74,7 @@ def write_checksum(archive: Path) -> Path:
     """Write the conventional SHA-256 sidecar for one archive."""
     checksum = archive.with_suffix(archive.suffix + ".sha256")
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+    checksum.write_bytes(f"{digest}  {archive.name}\n".encode("utf-8"))
     return checksum
 
 
@@ -84,27 +86,41 @@ def build_release_artifacts(repository_root: Path, output_directory: Path) -> li
 
     repository_root = Path(repository_root).resolve()
     output_directory = Path(output_directory)
+    if output_directory.exists() and not output_directory.is_dir():
+        raise ValueError(f"release artifact output must be a directory: {output_directory}")
     if output_directory.exists() and any(output_directory.iterdir()):
         raise ValueError(f"release artifact output must be empty: {output_directory}")
+    output_directory.parent.mkdir(parents=True, exist_ok=True)
     output_directory.mkdir(parents=True, exist_ok=True)
     assemblers = {
         "act-as-mohab": assemble_act_as_mohab,
         "shaft-skills": assemble_shaft_skills,
     }
     artifacts: list[Path] = []
-    with tempfile.TemporaryDirectory(prefix="shaft-agent-plugin-release-") as staging:
+    with tempfile.TemporaryDirectory(
+        prefix="shaft-agent-plugin-release-", dir=output_directory.parent
+    ) as staging:
         staging_root = Path(staging)
+        staged_assets = staging_root / "assets"
+        staged_assets.mkdir()
         for package_name in REQUIRED_PACKAGES:
             version = release_version(repository_root, package_name)
             package_root = staging_root / package_name
             assemblers[package_name](repository_root, package_root, version)
             errors = validate_package(package_root)
             if errors:
-                raise ValueError(f"invalid assembled {package_name} package: {'; '.join(errors)}")
-            archive = output_directory / f"{package_name}-{version}.zip"
+                details = "; ".join(
+                    f"{finding.get('path', 'package')}: {finding.get('message', finding)}"
+                    if isinstance(finding, dict) else str(finding)
+                    for finding in errors
+                )
+                raise ValueError(f"invalid assembled {package_name} package: {details}")
+            archive = staged_assets / f"{package_name}-{version}.zip"
             write_deterministic_zip(package_root, archive)
             artifacts.extend((archive, write_checksum(archive)))
-    return artifacts
+        for asset in artifacts:
+            shutil.move(str(asset), output_directory / asset.name)
+    return [output_directory / asset.name for asset in artifacts]
 
 
 def main() -> int:

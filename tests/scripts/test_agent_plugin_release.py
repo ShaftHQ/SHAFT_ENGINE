@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 try:
     from scripts.ci.agent_plugin_release import build_release_artifacts, load_release_manifest
@@ -65,12 +66,28 @@ class AgentPluginReleaseTest(unittest.TestCase):
             for first_path, second_path in zip(first, second):
                 self.assertEqual(first_path.read_bytes(), second_path.read_bytes(), first_path.name)
             for archive in (first_output / "act-as-mohab-1.0.0.zip", first_output / "shaft-skills-1.0.0.zip"):
-                checksum = archive.with_suffix(archive.suffix + ".sha256").read_text(encoding="utf-8")
-                self.assertEqual(checksum, f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n")
+                checksum = archive.with_suffix(archive.suffix + ".sha256").read_bytes()
+                self.assertEqual(
+                    checksum,
+                    f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n".encode("utf-8"),
+                )
                 with zipfile.ZipFile(archive) as package:
                     self.assertIn("LICENSE", package.namelist())
                     self.assertIn("CHANGELOG.md", package.namelist())
                     self.assertIn("COMPATIBILITY.md", package.namelist())
+                    self.assertTrue(all(item.create_system == 3 for item in package.infolist()))
+
+    def test_failed_package_validation_leaves_no_partial_release_assets(self):
+        self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")
+        repository_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "assets"
+            findings = [{"path": "plugin.json", "message": "invalid test package"}]
+            with mock.patch("scripts.ci.validate_agent_plugins.validate_package", side_effect=[[], findings]):
+                with self.assertRaisesRegex(ValueError, "plugin.json: invalid test package"):
+                    build_release_artifacts(repository_root, output)
+
+            self.assertEqual(list(output.iterdir()), [])
 
 
 if __name__ == "__main__":
