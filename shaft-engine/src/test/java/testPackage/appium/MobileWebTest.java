@@ -8,22 +8,25 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class MobileWebTest {
+    private static final String FORM_URL = "https://www.selenium.dev/selenium/web/web-form.html";
+    private static final By TEXT_INPUT = By.id("my-text-id");
+    private static final By PASSWORD = By.name("my-password");
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     SHAFT.TestData.JSON testData;
 
     @Test
     public void test() {
-        driver.get().element().type(By.id("user-name"), "standard_user")
-                .type(By.id("password"), "secret_sauce")
-                .captureScreenshot(By.id("password"))
+        driver.get().element().type(TEXT_INPUT, "SHAFT")
+                .type(PASSWORD, "stable fixture")
+                .captureScreenshot(PASSWORD)
                 .and().browser().captureScreenshot()
-                .and().assertThat().url().contains("saucedemo").perform();
+                .and().assertThat().url().contains("web-form.html").perform();
     }
 
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://www.saucedemo.com/");
+        driver.get().browser().navigateToURL(FORM_URL);
     }
 
     @AfterMethod(alwaysRun = true)
