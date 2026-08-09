@@ -34,6 +34,45 @@ user's framing disagree about size, say so in one line and work to the larger.
 8. **Completion gate.** State what you will run, read, and show to close this
    out, and who reviews it.
 
+## Executable specification for consequential work
+
+For cross-cutting or hard-to-reverse work, the three matrices below are mandatory.
+Every required cell must be resolved. Blank cells, TODO, TBD, placeholders,
+and guesses are invalid, even when qualified by explanatory text.
+Any unresolved cell blocks RED/GREEN.
+Every acceptance criterion and invariant must map to positive and negative proof.
+At least one sibling/caller omission mutation must fail.
+Record the completed matrices on the target GitHub issue comment before the first
+implementing commit.
+
+Use exactly these names and columns, in this order. Add one resolved data row
+for every caller/site, every state/transition/failure mode, and every acceptance
+criterion/invariant.
+
+### Resolved caller matrix
+
+| Site | Effective cwd/path | Runtime/version/platform | Permissions/trust | Configuration precedence | Input existence |
+| --- | --- | --- | --- | --- | --- |
+
+### State/failure matrix
+
+| State | Immutable ownership | Preflight | Mutation order | Mixed state | Atomicity | Concurrency | Idempotency | Recovery | Fail-closed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+### Acceptance-to-proof map
+
+| Criterion or invariant | Positive proof | Negative or mutation proof | Command |
+| --- | --- | --- | --- |
+
+Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each applicable scenario:
+
+- Effective working-directory/path resolution.
+- Interpreter/version/conditional dependency marker.
+- Mixed owned+unknown preflight.
+- Immutable ownership.
+- Atomic backup/concurrent replacement.
+- Post-migration adapter/link resolution.
+
 ## Plan artifact destination
 
 Choose the repository-safe destination before any imported design or planning

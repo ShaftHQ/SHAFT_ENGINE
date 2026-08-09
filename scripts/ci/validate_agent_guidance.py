@@ -753,6 +753,282 @@ def find_orphaned_sibling_claims(
     return findings
 
 
+EXECUTABLE_SPEC_SCHEMA = (
+    (
+        "Resolved caller matrix",
+        ("Site", "Effective cwd/path", "Runtime/version/platform", "Permissions/trust", "Configuration precedence", "Input existence"),
+    ),
+    (
+        "State/failure matrix",
+        ("State", "Immutable ownership", "Preflight", "Mutation order", "Mixed state", "Atomicity", "Concurrency", "Idempotency", "Recovery", "Fail-closed"),
+    ),
+    (
+        "Acceptance-to-proof map",
+        ("Criterion or invariant", "Positive proof", "Negative or mutation proof", "Command"),
+    ),
+)
+EXECUTABLE_SPEC_CONSULT_CLAUSES = (
+    "For cross-cutting or hard-to-reverse work, the three matrices below are mandatory.",
+    "Every required cell must be resolved. Blank cells, TODO, TBD, placeholders, and guesses are invalid, even when qualified by explanatory text.",
+    "Any unresolved cell blocks RED/GREEN.",
+    "Every acceptance criterion and invariant must map to positive and negative proof.",
+    "At least one sibling/caller omission mutation must fail.",
+    "Record the completed matrices on the target GitHub issue comment before the first implementing commit.",
+    "Add one resolved data row for every caller/site, every state/transition/failure mode, and every acceptance criterion/invariant.",
+)
+EXECUTABLE_SPEC_PLANNING_CLAUSE = (
+    "Record the completed executable-specification matrices on the target GitHub issue comment before the first implementing commit."
+)
+EXECUTABLE_SPEC_REGRESSION_INTRO = (
+    "Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each applicable scenario:"
+)
+EXECUTABLE_SPEC_REGRESSION_SCENARIOS = (
+    "- Effective working-directory/path resolution.",
+    "- Interpreter/version/conditional dependency marker.",
+    "- Mixed owned+unknown preflight.",
+    "- Immutable ownership.",
+    "- Atomic backup/concurrent replacement.",
+    "- Post-migration adapter/link resolution.",
+)
+
+
+def split_markdown_table_row(line: str) -> tuple[str, ...]:
+    """Split one Markdown row while treating an escaped pipe as cell text."""
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return ()
+    cells: list[str] = []
+    current: list[str] = []
+    index = 1
+    end = len(stripped) - 1
+    while index < end:
+        character = stripped[index]
+        if character == "|":
+            slash_count = 0
+            while slash_count < len(current) and current[-1 - slash_count] == "\\":
+                slash_count += 1
+            if slash_count:
+                del current[-slash_count:]
+                current.extend("\\" for _unused in range(slash_count // 2))
+            if slash_count % 2:
+                current.append("|")
+                index += 1
+                continue
+            cells.append("".join(current).strip())
+            current = []
+        else:
+            current.append(character)
+        index += 1
+    cells.append("".join(current).strip())
+    return tuple(cells)
+
+
+def _without_fenced_markdown(text: str) -> str:
+    """Remove fenced code samples before interpreting operative guidance."""
+    visible: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+    for line in text.splitlines(keepends=True):
+        if fence_character is None:
+            opener = re.match(r"^\s*(`{3,}|~{3,})", line)
+            if opener:
+                marker = opener.group(1)
+                fence_character = marker[0]
+                fence_length = len(marker)
+                continue
+            visible.append(line)
+            continue
+        closer = re.fullmatch(r"\s*(`{3,}|~{3,})\s*(?:\r?\n)?", line)
+        if (
+            closer
+            and closer.group(1)[0] == fence_character
+            and len(closer.group(1)) >= fence_length
+        ):
+            fence_character = None
+            fence_length = 0
+            continue
+    return "".join(visible)
+
+
+def executable_spec_cell_is_unresolved(cell: str) -> bool:
+    """True only for a blank or leading/whole-cell unresolved value."""
+    value = cell.strip()
+    if not value or value == "?" or value in {"—", "–"}:
+        return True
+    if re.match(
+        r"^(?:todo|tbd|tba|tbc|to\s+be\s+confirmed|pending|placeholder|n\s*/\s*a|"
+        r"guess(?:es|ed|ing)?|probably|maybe|likely|unknown|"
+        r"assum(?:e|ed|ing|ption))\b",
+        value,
+        re.IGNORECASE,
+    ):
+        return True
+    return bool(re.match(r"^(?:<[^>]+>|\[[^\]]+\])(?:\s|$)", value))
+
+
+def _executable_spec_section(text: str) -> str | None:
+    matches = list(
+        re.finditer(
+            r"(?m)^## Executable specification for consequential work\s*$",
+            text,
+        )
+    )
+    if len(matches) != 1:
+        return None
+    tail = text[matches[0].end() :]
+    next_section = re.search(r"(?m)^## (?!#)", tail)
+    return tail[: next_section.start()] if next_section else tail
+
+
+def _validate_executable_spec_tables(section: str, path: str) -> list[dict[str, str]]:
+    errors: list[dict[str, str]] = []
+    headings = re.findall(r"(?m)^### ([^\r\n]+?)\s*$", section)
+    expected_names = [name for name, _columns in EXECUTABLE_SPEC_SCHEMA]
+    if headings != expected_names:
+        return [
+            issue(
+                "executable-spec-structure",
+                path,
+                f"matrix headings must be exactly {expected_names}",
+            )
+        ]
+    for name, columns in EXECUTABLE_SPEC_SCHEMA:
+        marker = f"### {name}"
+        start = section.index(marker) + len(marker)
+        end = section.find("\n### ", start)
+        block = section[start : end if end >= 0 else len(section)]
+        table_groups: list[list[str]] = []
+        current_group: list[str] = []
+        for line in block.splitlines():
+            if line.strip().startswith("|"):
+                current_group.append(line)
+            elif current_group:
+                table_groups.append(current_group)
+                current_group = []
+        if current_group:
+            table_groups.append(current_group)
+        if len(table_groups) != 1:
+            errors.append(
+                issue(
+                    "executable-spec-structure",
+                    path,
+                    f"{name} must contain exactly one table",
+                )
+            )
+            continue
+        table_lines = table_groups[0]
+        if len(table_lines) < 2:
+            errors.append(issue("executable-spec-structure", path, f"{name} table is missing"))
+            continue
+        header = split_markdown_table_row(table_lines[0])
+        if header != columns:
+            errors.append(
+                issue(
+                    "executable-spec-structure",
+                    path,
+                    f"{name} columns must be exactly {columns}",
+                )
+            )
+            continue
+        separator = split_markdown_table_row(table_lines[1])
+        if len(separator) != len(columns) or any(
+            not re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            errors.append(issue("executable-spec-structure", path, f"{name} separator is invalid"))
+            continue
+        for row_number, line in enumerate(table_lines[2:], 1):
+            cells = split_markdown_table_row(line)
+            repeated_separator = len(cells) == len(columns) and all(
+                re.fullmatch(r":?-{3,}:?", cell) for cell in cells
+            )
+            if cells == columns or repeated_separator:
+                errors.append(
+                    issue(
+                        "executable-spec-structure",
+                        path,
+                        f"{name} contains a second table",
+                    )
+                )
+                continue
+            if len(cells) != len(columns):
+                errors.append(
+                    issue(
+                        "executable-spec-structure",
+                        path,
+                        f"{name} row {row_number} has {len(cells)} cells; expected {len(columns)}",
+                    )
+                )
+                continue
+            for column, cell in zip(columns, cells):
+                if executable_spec_cell_is_unresolved(cell):
+                    errors.append(
+                        issue(
+                            "executable-spec-unresolved",
+                            path,
+                            f"{name} row {row_number} column {column} is blank or unresolved",
+                        )
+                    )
+    return errors
+
+
+def validate_executable_spec_guidance(root: Path) -> list[dict[str, str]]:
+    """Validate #4656's source-controlled structural planning contract."""
+    consult_relative = ".agents/skills/act-as-mohab/references/consult-first.md"
+    planning_relative = ".agents/skills/act-as-mohab/references/work-github-planning.md"
+    consult_path = root / consult_relative
+    planning_path = root / planning_relative
+    if not consult_path.exists():
+        return []  # Minimal validator fixtures do not carry the canonical router.
+    try:
+        consult = _without_fenced_markdown(consult_path.read_text(encoding="utf-8"))
+        planning = _without_fenced_markdown(planning_path.read_text(encoding="utf-8"))
+    except OSError as error:
+        return [issue("executable-spec-guidance", consult_relative, f"guidance could not be read: {error}")]
+    errors: list[dict[str, str]] = []
+    compact_planning = " ".join(planning.split())
+    if " ".join(EXECUTABLE_SPEC_PLANNING_CLAUSE.split()) not in compact_planning:
+        errors.append(
+            issue(
+                "executable-spec-policy",
+                planning_relative,
+                f"mandatory clause changed or is missing: {EXECUTABLE_SPEC_PLANNING_CLAUSE}",
+            )
+        )
+    section = _executable_spec_section(consult)
+    if section is None:
+        errors.append(
+            issue(
+                "executable-spec-structure",
+                consult_relative,
+                "exactly one executable-specification section is required",
+            )
+        )
+    else:
+        preamble = section.split("###", 1)[0]
+        compact_preamble = " ".join(preamble.split())
+        for clause in EXECUTABLE_SPEC_CONSULT_CLAUSES:
+            if " ".join(clause.split()) not in compact_preamble:
+                errors.append(
+                    issue(
+                        "executable-spec-policy",
+                        consult_relative,
+                        f"mandatory clause changed or is missing before the matrices: {clause}",
+                    )
+                )
+        normalized_lines = {" ".join(line.split()) for line in section.splitlines() if line.strip()}
+        for clause in (EXECUTABLE_SPEC_REGRESSION_INTRO, *EXECUTABLE_SPEC_REGRESSION_SCENARIOS):
+            if " ".join(clause.split()) not in normalized_lines:
+                errors.append(
+                    issue(
+                        "executable-spec-policy",
+                        consult_relative,
+                        f"mandatory regression prompt changed or is missing: {clause}",
+                    )
+                )
+        errors.extend(_validate_executable_spec_tables(section, consult_relative))
+    return errors
+
+
 def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> list[dict[str, str]]:
     """Run every guidance validation and return sorted issues."""
     selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
@@ -776,6 +1052,7 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_forbidden_patterns(root, active_files, budget),
         *validate_stale_references(root, reference_files, budget),
         *validate_duplicate_paragraphs(root, active_files, budget),
+        *validate_executable_spec_guidance(root),
         *active_key_errors,
         *reference_key_errors,
         *active_glob_errors,

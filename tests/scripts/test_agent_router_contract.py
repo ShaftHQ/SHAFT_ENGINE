@@ -355,6 +355,17 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
             "stay prose and the issue stays open rather than being counted as done."
         ),
     },
+    {
+        "law": None,
+        "rule": "complete the executable specification before RED/GREEN and record it remotely before commit",
+        "status": "prose-only",
+        "reason": (
+            "A deterministic local hook cannot infer semantic risk or prove that a "
+            "remote issue comment preceded RED/GREEN or a commit before a diff or "
+            "action exists. Runtime enforcement caused false positives and new trust "
+            "failures, so CI enforces the source-controlled structure and wording only."
+        ),
+    },
 )
 
 REGISTRY_STATUSES = frozenset({"performed", "gated", "reports", "prose-only"})
@@ -2685,6 +2696,56 @@ class VacuousSetupPatchTest(unittest.TestCase):
             "            self.assertTrue(guard._helper('.'))\n"
         )
         self.assertEqual(setup_patch_defects(source, "synthetic.py"), [])
+
+
+class ExecutableSpecificationStructureTest(unittest.TestCase):
+    """#4656's planning template is three independently pinned matrices."""
+
+    SCHEMA = (
+        ("Resolved caller matrix", ("Site", "Effective cwd/path", "Runtime/version/platform", "Permissions/trust", "Configuration precedence", "Input existence")),
+        ("State/failure matrix", ("State", "Immutable ownership", "Preflight", "Mutation order", "Mixed state", "Atomicity", "Concurrency", "Idempotency", "Recovery", "Fail-closed")),
+        ("Acceptance-to-proof map", ("Criterion or invariant", "Positive proof", "Negative or mutation proof", "Command")),
+    )
+
+    def test_real_guidance_has_exact_named_6_10_4_tables(self):
+        text = CONSULT.read_text(encoding="utf-8")
+        for name, columns in self.SCHEMA:
+            with self.subTest(table=name):
+                marker = f"### {name}"
+                self.assertEqual(text.count(marker), 1)
+                block = text.split(marker, 1)[1]
+                header = next((line for line in block.splitlines() if line.startswith("|")), "")
+                self.assertEqual(tuple(cell.strip() for cell in header.strip("|").split("|")), columns)
+
+    def test_registry_honestly_marks_semantic_risk_and_remote_ordering_prose_only(self):
+        rows = [row for row in REQUIRED_ACTION_REGISTRY if "executable specification" in row["rule"]]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "prose-only")
+        self.assertIn("before red/green", rows[0]["rule"].lower())
+        self.assertIn("before commit", rows[0]["rule"].lower())
+        reason = rows[0]["reason"].lower()
+        self.assertIn("semantic risk", reason)
+        self.assertIn("remote", reason)
+        self.assertIn("false", reason)
+
+    def test_real_guidance_requires_exhaustive_rows_and_concrete_regressions(self):
+        text = CONSULT.read_text(encoding="utf-8")
+        compact_text = " ".join(text.split())
+        self.assertIn(
+            "Add one resolved data row for every caller/site, every state/transition/failure mode, "
+            "and every acceptance criterion/invariant.",
+            compact_text,
+        )
+        for scenario in (
+            "Effective working-directory/path resolution.",
+            "Interpreter/version/conditional dependency marker.",
+            "Mixed owned+unknown preflight.",
+            "Immutable ownership.",
+            "Atomic backup/concurrent replacement.",
+            "Post-migration adapter/link resolution.",
+        ):
+            with self.subTest(scenario=scenario):
+                self.assertIn(f"- {scenario}", text)
 
 
 if __name__ == "__main__":
