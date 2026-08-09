@@ -7,9 +7,12 @@ dependencies. Resolve shared cache first:
 py -3 tools/repository-map/resolve_graph_out.py --check
 ```
 
-If available, run `graphify query "<structural question>"` from primary
-checkout holding cache, then verify returned files in current worktree. If
-cache or CLI is unavailable, record degraded mode and use targeted `rg` plus
-other knowledge sources. Never rebuild from a worktree or commit
-`graphify-out/`. If the repo-local resolver is absent, continue without it;
-if it is stale, flag a refresh at completion.
+If current, run `graphify query "<structural question>"` from the primary
+checkout holding the cache, then verify returned files in the current
+worktree. A missing cache reports `absent`; a cache without a matching indexed
+revision reports `stale`. Either is degraded mode: use targeted `rg` plus other
+knowledge sources, and flag a primary-checkout refresh. Never rebuild or record
+the cache from a linked worktree, and never commit `graphify-out/`.
+
+Freshness behavior is pinned by
+[the resolver regression suite](../../../../tests/scripts/test_resolve_graph_out.py).

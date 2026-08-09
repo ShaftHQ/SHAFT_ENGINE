@@ -22,7 +22,12 @@ Run from the repository root:
 
 ```powershell
 graphify .
+py -3 tools/repository-map/resolve_graph_out.py --record-current
 ```
+
+The second command binds the completed cache build to the primary checkout's
+exact Git revision. Do not run it from a linked worktree or without a successful
+`graphify .` build.
 
 On PowerShell, use `graphify .`, not `/graphify .`.
 
@@ -49,6 +54,6 @@ The default `.graphifyignore` keeps semantic document/media formats out of the g
 Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree` clone. Rather than rebuilding per worktree, treat the **main checkout's** `graphify-out/` as one shared, read-only cache for all linked worktrees:
 
 - Resolve it from any worktree with `python3 tools/repository-map/resolve_graph_out.py` (prints the absolute path under the main checkout root, derived from `git rev-parse --git-common-dir`).
-- Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`: exits `0` and prints the path if the cache exists and is non-empty, else exits `1` with a one-line fallback message on stderr.
-- Refresh the cache by rerunning `graphify .` from the **main checkout** (see Build above); worktree sessions only read it, they do not rebuild it. On the primary maintainer machine the nightly maintenance task rebuilds it automatically (see the docs-site maintainers/agent-tooling runbook).
+- Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`: exits `0` and prints the path only when the cache marker matches the revision being inspected. Missing caches report `absent`; unmarked, changed, or revision-mismatched caches report `stale` with the indexed and requested revisions when available. Both degraded modes exit `1` and fall back to `rg` plus Memory.
+- Refresh the cache by rerunning both Build commands from the **primary checkout**; worktree sessions only read it, they do not rebuild or record it. On the primary maintainer machine the nightly maintenance task rebuilds it automatically (see the docs-site maintainers/agent-tooling runbook).
 - The "mandatory entry point" rule is satisfied by running the `--check` resolve, not by building the graph. If the cache is absent, fall back to `rg` and `.memory` instead of blocking the session on a rebuild.

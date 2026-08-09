@@ -192,6 +192,7 @@
       "scripts/ci/validate_skills.py",
       "scripts/ci/watch_pr_checks.py",
       "scripts/ci/worktree_hygiene.py",
+      "tools/repository-map/resolve_graph_out.py",
       "tests/scripts/test_agent_*.py",
       "tests/scripts/test_assemble_act_as_mohab_plugin.py",
       "tests/scripts/test_assemble_shaft_skills_plugin.py",
@@ -200,7 +201,8 @@
       "tests/scripts/test_sync_user_harness.py",
       "tests/scripts/test_validate_agent_*.py",
       "tests/scripts/test_validate_skills.py",
-      "tests/scripts/test_worktree_hygiene.py"
+      "tests/scripts/test_worktree_hygiene.py",
+      "tests/scripts/test_resolve_graph_out.py"
     ],
     "exemptions_note": "Empty, and that is the result rather than a placeholder. #4488 asked for a deliberate decision on the enforcement layer and the inbound adapters, the two categories with a real case for exemption; both were made reachable instead, so no category needs one. The mechanism stays because the next element may not be reachable, and it is exercised by a fixture in tests/scripts/test_agent_harness_reachability.py rather than by live data -- an exemption list is the one place a number can be made to look good without doing the work.",
     "exemptions": [],
