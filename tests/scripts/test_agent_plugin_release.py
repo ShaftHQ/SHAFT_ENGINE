@@ -106,20 +106,32 @@ class AgentPluginReleaseTest(unittest.TestCase):
             self.assertFalse(output.exists())
 
     def test_normal_release_workflow_builds_and_attaches_plugin_assets(self):
-        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/mavenCentral_cd.yml").read_text(
-            encoding="utf-8"
-        )
+        yaml = __import__("yaml")
+        workflow_text = (
+            Path(__file__).resolve().parents[2] / ".github/workflows/mavenCentral_cd.yml"
+        ).read_text(encoding="utf-8")
+        workflow = yaml.safe_load(workflow_text)
+        release_steps = workflow["jobs"]["build_release_and_deliver"]["steps"]
+        steps_by_name = {
+            step.get("name"): (index, step)
+            for index, step in enumerate(release_steps)
+        }
 
-        self.assertIn("- 'agent-plugins/**'", workflow)
-        self.assertIn("python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets", workflow)
-        self.assertIn("name: agent-plugin-release-assets", workflow)
-        self.assertIn("actions/upload-artifact@v7", workflow)
-        self.assertIn("actions/download-artifact@v8", workflow)
-        self.assertIn("artifacts: /tmp/agent-plugin-release-assets/*", workflow)
-        self.assertLess(
-            workflow.index("- name: Build portable Agent Plugin release assets"),
-            workflow.index("- name: Deploy to Maven Central"),
+        self.assertIn("agent-plugins/**", workflow[True]["push"]["paths"])
+        install_index, install_step = steps_by_name["Install Agent Plugin release prerequisites"]
+        build_index, build_step = steps_by_name["Build portable Agent Plugin release assets"]
+        deploy_index, _ = steps_by_name["Deploy to Maven Central"]
+        self.assertEqual(install_step["run"], "python3 -m pip install pyyaml --quiet")
+        self.assertEqual(
+            build_step["run"],
+            "python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets",
         )
+        self.assertLess(install_index, build_index)
+        self.assertLess(build_index, deploy_index)
+        self.assertIn("name: agent-plugin-release-assets", workflow_text)
+        self.assertIn("actions/upload-artifact@v7", workflow_text)
+        self.assertIn("actions/download-artifact@v8", workflow_text)
+        self.assertIn("artifacts: /tmp/agent-plugin-release-assets/*", workflow_text)
 
 
 if __name__ == "__main__":
