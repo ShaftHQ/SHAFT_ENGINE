@@ -11,6 +11,14 @@ SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
 PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
 
 
+def git_executable() -> str:
+    """Find Git before executing the fixed repository inventory command."""
+    executable = shutil.which("git")
+    if executable is None:
+        raise RuntimeError("Git is required to assemble the portable plugin")
+    return executable
+
+
 def require_contained(root: Path, candidate: Path, label: str) -> Path:
     """Resolve one source path and reject a link that leaves its canonical root."""
     try:
@@ -25,7 +33,7 @@ def tracked_source_files(repository_root: Path) -> set[Path]:
     """Return the reviewed canonical files permitted to enter the package."""
     result = subprocess.run(
         [
-            "git",
+            git_executable(),
             "ls-files",
             "-z",
             "--",
@@ -35,7 +43,7 @@ def tracked_source_files(repository_root: Path) -> set[Path]:
         ],
         cwd=repository_root,
         check=True,
-        capture_output=True,
+        capture_output=True,  # nosec B603: fixed Git command and arguments; shell is disabled.
     )
     return {
         repository_root / Path(path.decode("utf-8"))

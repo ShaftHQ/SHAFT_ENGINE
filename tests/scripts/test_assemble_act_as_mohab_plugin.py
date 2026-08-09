@@ -5,11 +5,13 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 try:
-    from scripts.ci.assemble_act_as_mohab_plugin import assemble, tracked_source_files
+    from scripts.ci.assemble_act_as_mohab_plugin import assemble, git_executable, tracked_source_files
 except ModuleNotFoundError:
     assemble = None
+    git_executable = None
     tracked_source_files = None
 
 from scripts.ci.validate_agent_plugins import validate_package
@@ -38,8 +40,8 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
                 encoding="utf-8",
             )
         (source_skills / "act-as-mohab/references").mkdir()
-        subprocess.run(["git", "init", "--quiet"], cwd=source_root, check=True)
-        subprocess.run(["git", "add", ".agents/skills"], cwd=source_root, check=True)
+        subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
+        subprocess.run([git_executable(), "add", ".agents/skills"], cwd=source_root, check=True)  # nosec B603
         return source_skills
 
     def test_assembly_creates_a_valid_self_contained_package_from_canonical_sources(self):
@@ -74,6 +76,15 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         self.assertEqual(first, second)
         for path in first:
             self.assertEqual((self.package_root / path).read_bytes(), (second_root / path).read_bytes(), path)
+
+    def test_tracked_source_files_uses_a_resolved_git_executable(self):
+        self.assertTrue(callable(tracked_source_files), "tracked_source_files must be available")
+        with mock.patch("scripts.ci.assemble_act_as_mohab_plugin.subprocess.run") as run:
+            run.return_value.stdout = b""
+
+            tracked_source_files(ROOT)
+
+        self.assertTrue(Path(run.call_args.args[0][0]).is_absolute())
 
     def test_assembly_keeps_every_relative_markdown_link_inside_the_package(self):
         assemble(ROOT, self.package_root)
