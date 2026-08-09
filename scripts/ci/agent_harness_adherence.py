@@ -54,7 +54,12 @@ def _is_safe_relative_file(path: object) -> bool:
 def validate_corpus(corpus: dict) -> list[str]:
     """Return structural errors for a version-1 adherence corpus."""
     errors: list[str] = []
-    if type(corpus.get("schema_version")) is not int or corpus.get("schema_version") != 1:
+    schema_version = corpus.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != 1
+    ):
         errors.append("schema_version must be 1")
 
     episodes = corpus.get("episodes")
@@ -298,7 +303,10 @@ def compare(baseline: dict, candidate: dict) -> dict:
             or any(
                 expectation.get("kind") not in VALID_EXPECTATION_KINDS
                 or "passed" not in expectation
-                or type(expectation["passed"]) not in (bool, type(None))
+                or not (
+                    isinstance(expectation["passed"], bool)
+                    or expectation["passed"] is None
+                )
                 for expectation in [*baseline_expectations, *candidate_expectations]
             )
         ):

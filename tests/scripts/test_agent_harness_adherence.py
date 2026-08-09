@@ -27,7 +27,7 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
         return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
     def run_cli(self, *arguments: Path | str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
+        return subprocess.run(  # nosec B603 B607 - fixed interpreter and repository script.
             [sys.executable, str(SCRIPT), *(str(argument) for argument in arguments)],
             check=False,
             capture_output=True,
