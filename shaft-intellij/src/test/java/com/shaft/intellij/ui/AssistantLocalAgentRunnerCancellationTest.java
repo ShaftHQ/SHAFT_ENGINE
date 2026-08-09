@@ -140,6 +140,65 @@ class AssistantLocalAgentRunnerCancellationTest {
                         + "the run goes on to launch, or the CLI and its reader threads outlive the run");
     }
 
+    @Test
+    void softCancelBeforeTheProcessIsPublishedStillUsesGracefulDestroy() throws Exception {
+        CountDownLatch launchReached = new CountDownLatch(1);
+        CountDownLatch releaseLaunch = new CountDownLatch(1);
+        BlockingStubProcess process = new BlockingStubProcess();
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAskInvocation(), line -> { },
+                (command, workingDirectory, environment) -> {
+                    launchReached.countDown();
+                    awaitQuietly(releaseLaunch);
+                    return process;
+                }, false);
+
+        assertTrue(launchReached.await(5, TimeUnit.SECONDS),
+                "The run must be inside the launcher before cancelling, or the race is nondeterministic");
+        running.cancel();
+        releaseLaunch.countDown();
+
+        assertTrue(process.awaitDestroyed(5, TimeUnit.SECONDS),
+                "A soft cancel before publication must still end the process the run launches");
+        assertAll(
+                () -> assertTrue(process.destroyCalled(), "Soft cancellation must preserve the CLI's SIGTERM path"),
+                () -> assertFalse(process.destroyForciblyCalled(), "Soft cancellation must not escalate to SIGKILL"));
+    }
+
+    @Test
+    void executorInterruptionDestroysThePublishedLocalAgentProcess() throws Exception {
+        BlockingStubProcess process = new BlockingStubProcess();
+        AssistantLocalAgentRunner.start(
+                claudeAskInvocation(), line -> { }, (command, workingDirectory, environment) -> process, false);
+
+        assertTrue(process.enteredWaitFor.await(5, TimeUnit.SECONDS),
+                "The stub process must be waiting before simulating executor shutdown");
+        process.interruptWaitingThread();
+
+        assertTrue(process.awaitDestroyed(5, TimeUnit.SECONDS),
+                "Interrupting the worker must destroy the published local-agent process before its handle is cleared");
+    }
+
+    @Test
+    void softCancelAfterReaderStreamsStartClosesAndDrainsThem() throws Exception {
+        CancelDuringStdinCloseProcess process = new CancelDuringStdinCloseProcess();
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAskInvocation(), line -> { }, (command, workingDirectory, environment) -> process, false);
+
+        assertTrue(process.stdinCloseStarted.await(5, TimeUnit.SECONDS),
+                "The process must have started both readers before cancellation");
+        try {
+            running.cancel();
+            process.allowStdinClose.countDown();
+
+            assertTrue(process.readersClosed.await(5, TimeUnit.SECONDS),
+                    "Cancellation after stream startup must close both readers so their bounded-worker tasks can finish");
+        } finally {
+            process.closeReaders();
+            process.allowStdinClose.countDown();
+        }
+    }
+
     private static void awaitQuietly(CountDownLatch latch) {
         try {
             latch.await(5, TimeUnit.SECONDS);
@@ -162,6 +221,7 @@ class AssistantLocalAgentRunnerCancellationTest {
         private final CountDownLatch destroyLatch = new CountDownLatch(1);
         private volatile boolean destroyCalled;
         private volatile boolean destroyForciblyCalled;
+        private volatile Thread waitingThread;
 
         boolean awaitDestroyed(long timeout, TimeUnit unit) throws InterruptedException {
             return destroyLatch.await(timeout, unit);
@@ -173,6 +233,11 @@ class AssistantLocalAgentRunnerCancellationTest {
 
         boolean destroyForciblyCalled() {
             return destroyForciblyCalled;
+        }
+
+        void interruptWaitingThread() {
+            assertTrue(waitingThread != null, "Precondition: waitFor must publish the worker thread");
+            waitingThread.interrupt();
         }
 
         @Override
@@ -197,6 +262,7 @@ class AssistantLocalAgentRunnerCancellationTest {
 
         @Override
         public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
+            waitingThread = Thread.currentThread();
             enteredWaitFor.countDown();
             return destroyLatch.await(timeout, unit);
         }
@@ -222,6 +288,109 @@ class AssistantLocalAgentRunnerCancellationTest {
         @Override
         public boolean isAlive() {
             return destroyLatch.getCount() > 0;
+        }
+    }
+
+    /** Holds stdin close open until cancellation has crossed the stream-start boundary. */
+    private static final class CancelDuringStdinCloseProcess extends Process {
+        private final CountDownLatch stdinCloseStarted = new CountDownLatch(1);
+        private final CountDownLatch allowStdinClose = new CountDownLatch(1);
+        private final CountDownLatch readersClosed = new CountDownLatch(2);
+        private final BlockingReader stdout = new BlockingReader(readersClosed);
+        private final BlockingReader stderr = new BlockingReader(readersClosed);
+
+        @Override
+        public OutputStream getOutputStream() {
+            return new OutputStream() {
+                @Override
+                public void write(int value) {
+                    // The prompt body is irrelevant to this cancellation boundary.
+                }
+
+                @Override
+                public void close() {
+                    stdinCloseStarted.countDown();
+                    boolean interrupted = false;
+                    while (allowStdinClose.getCount() > 0) {
+                        try {
+                            allowStdinClose.await();
+                        } catch (InterruptedException ignored) {
+                            interrupted = true;
+                        }
+                    }
+                    if (interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            };
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return stdout;
+        }
+
+        @Override
+        public InputStream getErrorStream() {
+            return stderr;
+        }
+
+        @Override
+        public int waitFor() {
+            return 0;
+        }
+
+        @Override
+        public boolean waitFor(long timeout, TimeUnit unit) {
+            return true;
+        }
+
+        @Override
+        public int exitValue() {
+            return 0;
+        }
+
+        @Override
+        public void destroy() {
+            // Stream closure is the runner's lifecycle responsibility under test.
+        }
+
+        @Override
+        public Process destroyForcibly() {
+            return this;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return true;
+        }
+
+        void closeReaders() {
+            stdout.close();
+            stderr.close();
+        }
+    }
+
+    private static final class BlockingReader extends InputStream {
+        private final CountDownLatch closed;
+
+        private BlockingReader(CountDownLatch closed) {
+            this.closed = closed;
+        }
+
+        @Override
+        public int read() {
+            try {
+                closed.await();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            return -1;
+        }
+
+        @Override
+        public void close() {
+            closed.countDown();
         }
     }
 

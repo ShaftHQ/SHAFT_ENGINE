@@ -2221,6 +2221,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private void showAgentResult(int streamToken, ShaftMcpToolResult result, Throwable error) {
+        if (disposed) {
+            return;
+        }
         if (handleKilledOrStaleAgentStream(streamToken)) {
             return;
         }

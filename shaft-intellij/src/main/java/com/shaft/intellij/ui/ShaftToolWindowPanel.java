@@ -43,6 +43,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private final ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe;
     private final ShaftMcpSetupPanel.AgentReadinessProbe deepReadinessProbe;
     private ShaftFeaturePanel advancedTools;
+    private ShaftMcpSetupPanel setupPanel;
     private ShaftAssistantPanel assistantPanel;
     private RecorderToolPanel recorderPanel;
     private List<ShaftFeaturePanel> featurePanels = List.of();
@@ -95,6 +96,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         removeAll();
         ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete,
                 readinessProbe, deepReadinessProbe);
+        setupPanel = setup;
         preferredFocusComponent = setup.preferredFocusComponent();
         workflowSelector = null;
         workflowSelectorLabel = null;
@@ -523,9 +525,18 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      * (issue #3619).
      */
     private void disposeActiveChildren() {
+        disposeSetupPanel();
         disposeApiRecordingPanel();
         disposeGuidedWorkflowPanel();
         disposeAssistantPanel();
+    }
+
+    /** Stops setup-only work before the setup view is replaced or the tool window closes. */
+    private void disposeSetupPanel() {
+        if (setupPanel != null) {
+            Disposer.dispose(setupPanel);
+            setupPanel = null;
+        }
     }
 
     /**

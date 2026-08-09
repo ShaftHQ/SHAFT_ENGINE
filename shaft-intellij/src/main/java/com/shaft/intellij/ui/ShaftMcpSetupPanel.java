@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -60,7 +61,7 @@ import java.util.stream.Stream;
 /**
  * First-run SHAFT MCP setup panel.
  */
-final class ShaftMcpSetupPanel extends JPanel {
+final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private static final String INSTALLER_BRANCH = "main";
     private static final String MCP_DOCS_URL = "https://shafthq.github.io/docs/agentic/mcp";
     private static final String USER_GUIDE_URL = "https://shafthq.github.io";
@@ -2694,6 +2695,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         });
         toastTimer.setRepeats(false);
         toastTimer.start();
+    }
+
+    @Override
+    public void dispose() {
+        if (toastTimer != null) {
+            toastTimer.stop();
+            toastTimer = null;
+        }
     }
 
     private String successSummary(String output) {
