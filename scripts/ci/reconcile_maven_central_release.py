@@ -75,22 +75,43 @@ def render_release_body(version: str, template_path: Path = RELEASE_BODY_TEMPLAT
     return template_path.read_text(encoding="utf-8").replace("$RELEASE_VERSION", version)
 
 
-def build_release_create_command(version: str, body_file: Path) -> list[str]:
+def build_release_create_command(version: str, body_file: Path, assets: list[Path]) -> list[str]:
     """Build the `gh release create` invocation for a version, given a rendered body file."""
     return [
         "gh", "release", "create", version,
         "--title", version,
         "--notes-file", str(body_file),
         "--generate-notes",
+        *(str(asset) for asset in assets),
     ]
 
 
-def create_release(version: str) -> str:
+def build_plugin_release_assets(output_directory: Path) -> list[Path]:
+    """Build package assets from the checked-out release revision."""
+    from scripts.ci.agent_plugin_release import build_release_artifacts
+
+    return build_release_artifacts(ROOT, output_directory)
+
+
+def upload_plugin_release_assets(version: str, assets: list[Path]) -> None:
+    """Attach or replace package assets on an existing GitHub Release."""
+    result = subprocess.run(
+        ["gh", "release", "upload", version, "--clobber", *(str(asset) for asset in assets)],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gh release upload failed (exit {result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def create_release(version: str, assets: list[Path]) -> str:
     """Create the GitHub Release for a version and return its URL."""
     with tempfile.TemporaryDirectory(prefix="shaft-release-body-") as temp_dir:
         body_file = Path(temp_dir) / "release_body.md"
         body_file.write_text(render_release_body(version), encoding="utf-8")
-        command = build_release_create_command(version, body_file)
+        command = build_release_create_command(version, body_file, assets)
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
         if result.returncode != 0:
             raise RuntimeError(
@@ -186,16 +207,18 @@ def reconcile_release(
     else:
         print(f"All Maven Central artifacts already present for {version}.")
 
-    if release_exists(version):
-        print(f"GitHub Release {version} already exists.")
-        return 0
-
     if dry_run:
         print(f"[dry-run] would create GitHub Release {version}")
         return 0
 
-    release_url = create_release(version)
-    print(f"Created GitHub Release {version}: {release_url}")
+    with tempfile.TemporaryDirectory(prefix="shaft-agent-plugin-release-") as temp_dir:
+        assets = build_plugin_release_assets(Path(temp_dir) / "assets")
+        if release_exists(version):
+            upload_plugin_release_assets(version, assets)
+            print(f"Repaired portable Agent Plugin assets on GitHub Release {version}.")
+            return 0
+        release_url = create_release(version, assets)
+        print(f"Created GitHub Release {version}: {release_url}")
 
     webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
     if not webhook_url:

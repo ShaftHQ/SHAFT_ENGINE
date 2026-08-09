@@ -85,6 +85,13 @@ class ReconcileReleaseTest(unittest.TestCase):
         patcher = mock.patch.dict(os.environ, {}, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
+        asset_patcher = mock.patch.object(
+            reconcile,
+            "build_plugin_release_assets",
+            return_value=[Path("assets/act-as-mohab-1.0.0.zip")],
+        )
+        asset_patcher.start()
+        self.addCleanup(asset_patcher.stop)
         os.environ.pop("SLACK_WEBHOOK_URL", None)
 
     def test_all_artifacts_missing_deploys_every_configured_module(self):
@@ -105,8 +112,7 @@ class ReconcileReleaseTest(unittest.TestCase):
             )
 
         self.assertEqual(exit_code, 0)
-        run.assert_called_once()
-        command = run.call_args.args[0]
+        command = run.call_args_list[0].args[0]
         self.assertEqual(command[:4], ["mvn", "--batch-mode", "deploy", "-pl"])
         modules = command[4].split(",")
         self.assertEqual(set(modules), set(reconcile.MODULE_DIR_BY_ARTIFACT.values()))
@@ -126,7 +132,7 @@ class ReconcileReleaseTest(unittest.TestCase):
                 dry_run=False,
             )
 
-        command = run.call_args.args[0]
+        command = run.call_args_list[0].args[0]
         self.assertEqual(command[command.index("-pl") + 1], "shaft-cli")
 
     def test_no_missing_artifacts_and_missing_release_creates_release_and_posts_slack(self):
@@ -159,11 +165,11 @@ class ReconcileReleaseTest(unittest.TestCase):
         payload = json.loads(request.data)
         self.assertIn("https://github.test/releases/1.2.3", payload["text"])
 
-    def test_no_missing_artifacts_and_existing_release_is_a_clean_no_op(self):
+    def test_no_missing_artifacts_and_existing_release_repairs_assets(self):
         with mock.patch.object(
             reconcile.verify, "missing_publication_paths", return_value=[]
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
-            reconcile.subprocess, "run"
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
         ) as run, mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
@@ -176,14 +182,31 @@ class ReconcileReleaseTest(unittest.TestCase):
             )
 
         self.assertEqual(exit_code, 0)
-        run.assert_not_called()
+        self.assertEqual(run.call_args.args[0][:3], ["gh", "release", "upload"])
         urlopen.assert_not_called()
+
+    def test_existing_release_repairs_portable_plugin_assets(self):
+        assets = [Path("assets/act-as-mohab-1.0.0.zip"), Path("assets/shaft-skills-1.0.0.zip")]
+        with mock.patch.object(reconcile.verify, "missing_publication_paths", return_value=[]), mock.patch.object(
+            reconcile, "release_exists", return_value=True
+        ), mock.patch.object(reconcile, "build_plugin_release_assets", return_value=assets), mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run:
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3", repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY", gpg_passphrase="PASS", dry_run=False,
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(run.call_args.args[0], [
+            "gh", "release", "upload", "1.2.3", "--clobber", *(str(asset) for asset in assets),
+        ])
 
     def test_repeated_no_op_run_stays_idempotent(self):
         with mock.patch.object(
             reconcile.verify, "missing_publication_paths", return_value=[]
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
-            reconcile.subprocess, "run"
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
         ) as run, mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
@@ -198,7 +221,7 @@ class ReconcileReleaseTest(unittest.TestCase):
             second = reconcile.reconcile_release(**kwargs)
 
         self.assertEqual((first, second), (0, 0))
-        run.assert_not_called()
+        self.assertEqual(run.call_count, 2)
         urlopen.assert_not_called()
 
     def test_missing_slack_webhook_url_skips_cleanly_after_release_creation(self):
