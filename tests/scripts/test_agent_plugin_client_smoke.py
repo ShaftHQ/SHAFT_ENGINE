@@ -29,6 +29,28 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.package_root = Path(self.temporary_directory.name) / "shaft-skills"
         self.package_root.mkdir()
         self.runner = FakeRunner()
+        self.routing_corpus = {
+            "schema_version": 1,
+            "package": "shaft-skills",
+            "thresholds": {"case_pass_rate": 1.0, "positive_skill_coverage": 1.0},
+            "cases": [
+                {
+                    "id": "requirements",
+                    "prompt": "Analyze checkout requirements for testability and acceptance gaps.",
+                    "expected_skill": "skill-a",
+                    "rejected_skills": ["skill-b"],
+                },
+                {
+                    "id": "planning",
+                    "prompt": "Create a risk-based scope, schedule, and entry and exit criteria.",
+                    "expected_skill": "skill-b",
+                    "rejected_skills": ["skill-a"],
+                },
+            ],
+        }
+        self.runner.routing_choices = {
+            case["prompt"]: case["expected_skill"] for case in self.routing_corpus["cases"]
+        }
 
     def test_client_evidence_api_is_available(self):
         self.assertIsInstance(CLIENTS, dict)
@@ -220,6 +242,259 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertTrue(any(command[:2] == ("claude", "-p") for command in self.runner.commands))
         self.assertTrue(any(command[:2] == ("codex", "exec") for command in self.runner.commands))
 
+    def test_live_routing_corpus_runs_every_case_with_native_structured_output(self):
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        loads = [row for row in evidence["results"] if row["evidence_level"] == "real_load"]
+        self.assertEqual({row["verdict"] for row in loads}, {"pass"})
+        self.assertTrue(all(len(row["case_results"]) == 2 for row in loads))
+        self.assertTrue(
+            all(case["verdict"] == "pass" for row in loads for case in row["case_results"])
+        )
+        self.assertTrue(any("--json-schema" in command for command in self.runner.commands))
+        self.assertTrue(any("--output-schema" in command for command in self.runner.commands))
+        self.assertEqual(evidence["package_decision"]["decision"], "retain-single-package")
+
+    def test_live_routing_corpus_fails_when_the_selected_specialist_changes(self):
+        first = self.routing_corpus["cases"][0]
+        self.runner.routing_choices[first["prompt"]] = "skill-b"
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        loads = [row for row in evidence["results"] if row["evidence_level"] == "real_load"]
+        self.assertEqual({row["verdict"] for row in loads}, {"fail"})
+        self.assertEqual(
+            {case["verdict"] for row in loads for case in row["case_results"]},
+            {"pass", "fail"},
+        )
+        self.assertEqual(
+            evidence["package_decision"]["decision"], "investigate-split-or-profile"
+        )
+
+    def test_missing_credentials_block_every_routing_case_without_fabricating_results(self):
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={},
+            routing_corpus=self.routing_corpus,
+        )
+
+        loads = [row for row in evidence["results"] if row["evidence_level"] == "real_load"]
+        self.assertEqual({row["verdict"] for row in loads}, {"external_blocker"})
+        self.assertTrue(
+            all(
+                case["verdict"] == "external_blocker"
+                for row in loads
+                for case in row["case_results"]
+            )
+        )
+        self.assertEqual(evidence["package_decision"]["decision"], "insufficient-evidence")
+
+    def test_late_auth_failure_preserves_completed_routing_case(self):
+        second = self.routing_corpus["cases"][1]
+        self.runner.fail_when = lambda command: (
+            command[:2] == ("claude", "-p") and second["prompt"] in command[2]
+        )
+        self.runner.failure_message = "401 Unauthorized"
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        claude = next(
+            row
+            for row in evidence["results"]
+            if row["client"] == "claude" and row["evidence_level"] == "real_load"
+        )
+        self.assertEqual(
+            [case["verdict"] for case in claude["case_results"]],
+            ["pass", "external_blocker"],
+        )
+
+    def test_late_rate_limit_preserves_completed_routing_case(self):
+        second = self.routing_corpus["cases"][1]
+        self.runner.fail_when = lambda command: (
+            command[:2] == ("claude", "-p") and second["prompt"] in command[2]
+        )
+        self.runner.failure_message = "429 Too Many Requests"
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        claude = next(
+            row
+            for row in evidence["results"]
+            if row["client"] == "claude" and row["evidence_level"] == "real_load"
+        )
+        self.assertEqual(
+            [case["verdict"] for case in claude["case_results"]],
+            ["pass", "external_blocker"],
+        )
+        self.assertEqual(evidence["package_decision"]["decision"], "insufficient-evidence")
+
+    def test_timeout_stops_the_client_loop_and_returns_partial_evidence(self):
+        self.runner.timeout_when = lambda command: command[:2] == ("claude", "-p")
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        claude = next(
+            row
+            for row in evidence["results"]
+            if row["client"] == "claude" and row["evidence_level"] == "real_load"
+        )
+        self.assertEqual({case["verdict"] for case in claude["case_results"]}, {"external_blocker"})
+        self.assertEqual(
+            sum(command[:2] == ("claude", "-p") for command in self.runner.commands),
+            1,
+        )
+        self.assertEqual(evidence["package_decision"]["decision"], "insufficient-evidence")
+
+    def test_aggregate_deadline_stops_slow_successful_routing_and_returns_partial_evidence(self):
+        clock = FakeClock()
+        self.runner.clock = clock
+        self.runner.routing_duration_seconds = 3
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+            clock=clock,
+            routing_budget_seconds=5,
+        )
+
+        claude = next(
+            row
+            for row in evidence["results"]
+            if row["client"] == "claude" and row["evidence_level"] == "real_load"
+        )
+        self.assertEqual(
+            [case["verdict"] for case in claude["case_results"]],
+            ["pass", "external_blocker"],
+        )
+        self.assertLessEqual(clock.value, 5)
+        self.assertEqual(evidence["package_decision"]["decision"], "insufficient-evidence")
+
+    def test_execution_deadline_bounds_setup_and_cleanup_before_artifact_reserve(self):
+        clock = FakeClock()
+        self.runner.clock = clock
+        self.runner.command_duration_seconds = 100
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+            clock=clock,
+            execution_budget_seconds=900,
+            routing_budget_seconds=600,
+            cleanup_reserve_seconds=120,
+            artifact_reserve_seconds=60,
+        )
+
+        self.assertLessEqual(clock.value, 840)
+        self.assertFalse(
+            any(command[:2] in (("claude", "-p"), ("codex", "exec")) for command in self.runner.commands)
+        )
+        self.assertEqual(len(evidence["results"]), len(CLIENTS) * len(EVIDENCE_LEVELS))
+        self.assertTrue(all(timeout <= 180 for timeout in self.runner.timeouts))
+
+    def test_unknown_nonzero_is_a_client_failure_not_a_routing_failure(self):
+        second = self.routing_corpus["cases"][1]
+        self.runner.fail_when = lambda command: (
+            command[:2] == ("claude", "-p") and second["prompt"] in command[2]
+        )
+        self.runner.failure_message = "unexpected native client crash"
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        claude = next(
+            row
+            for row in evidence["results"]
+            if row["client"] == "claude" and row["evidence_level"] == "real_load"
+        )
+        self.assertEqual(claude["verdict"], "client_failure")
+        self.assertEqual(
+            [case["verdict"] for case in claude["case_results"]],
+            ["pass", "client_failure"],
+        )
+        self.assertEqual(evidence["package_decision"]["decision"], "insufficient-evidence")
+
+    def test_dns_failure_is_an_external_blocker_and_stops_the_client_loop(self):
+        self.runner.fail_when = lambda command: command[:2] == ("claude", "-p")
+        self.runner.failure_message = "getaddrinfo ENOTFOUND api.anthropic.com"
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        claude = next(
+            row
+            for row in evidence["results"]
+            if row["client"] == "claude" and row["evidence_level"] == "real_load"
+        )
+        self.assertEqual({case["verdict"] for case in claude["case_results"]}, {"external_blocker"})
+        self.assertEqual(
+            sum(command[:2] == ("claude", "-p") for command in self.runner.commands),
+            1,
+        )
+
+    def test_validation_context_warning_changes_the_package_decision(self):
+        self.runner.warning = "Warning: skill descriptions shortened to fit context budget"
+
+        evidence = collect_evidence(
+            self.package_root,
+            mode="live",
+            runner=self.runner,
+            environ={"ANTHROPIC_API_KEY": "configured", "OPENAI_API_KEY": "configured"},
+            routing_corpus=self.routing_corpus,
+        )
+
+        self.assertEqual(
+            evidence["package_decision"]["decision"], "investigate-split-or-profile"
+        )
+        self.assertIn(self.runner.warning, evidence["package_decision"]["context_budget_warnings"])
+
     def test_each_live_client_receives_only_its_own_credential(self):
         evidence = collect_evidence(
             self.package_root,
@@ -399,6 +674,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         compatibility = (root / "agent-plugins/shaft-skills/COMPATIBILITY.md").read_text(encoding="utf-8")
         pr_gate = (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         live = (root / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        workflow_readme = (root / ".github/workflows/README.md").read_text(encoding="utf-8")
 
         for heading in ("Package validation", "Marketplace discovery", "Install / enable", "Real load"):
             self.assertIn(heading, compatibility)
@@ -406,10 +682,19 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("Codex CLI 0.146.0", compatibility)
         self.assertIn("tests.scripts.test_agent_plugin_client_smoke", pr_gate)
         self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode smoke", pr_gate)
+        self.assertIn("tests.scripts.test_shaft_skill_routing_eval", pr_gate)
+        self.assertIn("python scripts/ci/shaft_skill_routing_eval.py", pr_gate)
         self.assertIn("schedule:", live)
         self.assertIn("workflow_dispatch:", live)
         self.assertIn("ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}", live)
         self.assertIn("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", live)
+        self.assertIn("--routing-corpus agent-plugins/shaft-skills/evals/cases.json", live)
+        self.assertIn("--routing-budget-seconds 600", live)
+        self.assertIn("--execution-budget-seconds 900", live)
+        self.assertIn("timeout-minutes: 20", live)
+        self.assertLessEqual(900, (20 * 60) - 300)
+        self.assertIn("routing stops after 600 seconds", workflow_readme)
+        self.assertIn("60 seconds for artifact writing", workflow_readme)
         before_live_step, live_step = live.split("      - name: Collect live compatibility evidence", 1)
         self.assertNotIn("ANTHROPIC_API_KEY", before_live_step)
         self.assertNotIn("OPENAI_API_KEY", before_live_step)
@@ -422,6 +707,14 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
             self.assertIn(client["npm_package"], live)
 
 
+class FakeClock:
+    def __init__(self):
+        self.value = 0.0
+
+    def __call__(self):
+        return self.value
+
+
 class FakeRunner:
     def __init__(self):
         self.commands = []
@@ -429,6 +722,7 @@ class FakeRunner:
         self.fail_when = lambda _command: False
         self.raise_when = lambda _command: False
         self.partial_fail_when = lambda _command: False
+        self.timeout_when = lambda _command: False
         self.failure_message = "simulated failure"
         self.warning = ""
         self.installed_plugin = {"id": "shaft-skills@shaft-skills", "enabled": True}
@@ -437,14 +731,33 @@ class FakeRunner:
         self.preexisting = False
         self.marketplace_added = {"claude": False, "codex": False}
         self.installed = {"claude": False, "codex": False}
+        self.routing_choices = {}
+        self.clock = None
+        self.command_duration_seconds = 0
+        self.routing_duration_seconds = 0
+        self.timeouts = []
 
     def __call__(self, command, **kwargs):
         command = tuple(str(part) for part in command)
         self.commands.append(command)
         self.environments.append((command, kwargs.get("env", {})))
+        self.timeouts.append(kwargs["timeout"])
         client = command[0]
         if self.raise_when(command):
             raise FileNotFoundError("simulated client not found")
+        if self.timeout_when(command):
+            raise subprocess.TimeoutExpired(command, 180)
+        if self.clock:
+            timeout = kwargs["timeout"]
+            duration = (
+                self.routing_duration_seconds
+                if command[:2] in (("claude", "-p"), ("codex", "exec"))
+                else self.command_duration_seconds
+            )
+            elapsed = min(duration, timeout)
+            self.clock.value += elapsed
+            if duration > timeout:
+                raise subprocess.TimeoutExpired(command, timeout)
         if self.fail_when(command):
             return subprocess.CompletedProcess(command, 1, stdout="", stderr=self.failure_message)
         if command[-1:] == ("--version",):
@@ -473,7 +786,25 @@ class FakeRunner:
             self.marketplace_added[client] = False
             output = "{}"
         elif command[:2] in (("claude", "-p"), ("codex", "exec")):
-            output = "shaft-requirements-analysis | Load no adjacent skill preemptively."
+            prompt = command[2] if command[:2] == ("claude", "-p") else kwargs.get("input", "")
+            choice = next(
+                (skill for marker, skill in self.routing_choices.items() if marker in prompt),
+                None,
+            )
+            if choice and "--json-schema" in command:
+                output = json.dumps({"structured_output": {"chosen_skill": choice}})
+            elif choice and "--output-schema" in command:
+                output = json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "agent_message",
+                            "text": json.dumps({"chosen_skill": choice}),
+                        },
+                    }
+                )
+            else:
+                output = "shaft-requirements-analysis | Load no adjacent skill preemptively."
         else:
             output = "{}"
         stderr = self.warning if "validate" in command else ""

@@ -38,6 +38,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: >-
           python scripts/ci/agent_plugin_client_smoke.py --mode live
+          --routing-corpus agent-plugins/shaft-skills/evals/cases.json
+          --execution-budget-seconds 900
+          --routing-budget-seconds 600
           --output agent-plugin-client-evidence.json
       - name: Upload structured compatibility evidence
         if: always()

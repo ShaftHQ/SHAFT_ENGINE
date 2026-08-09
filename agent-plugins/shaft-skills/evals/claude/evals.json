@@ -1,0 +1,305 @@
+{
+  "skill_name": "shaft-developer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit the checkout form against WCAG 2.2 AA, including keyboard focus order, accessible names, error announcements, and the impact on screen-reader users.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-accessibility-testing.",
+        "The structured chosen_skill is none of: shaft-nonfunctional-test-design."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Implement a Java contract test for POST /orders that authenticates, sends a JSON payload, asserts status 201, and validates the response schema.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-api-testing.",
+        "The structured chosen_skill is none of: shaft-automated-test-authoring."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Choose the correct hard and soft verification APIs for a browser title, an element attribute, and an API response, with useful failure messages.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-assertions.",
+        "The structured chosen_skill is none of: shaft-automated-test-authoring."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Add an executable TestNG Java test for the existing login page object, covering a valid login and reusing the repository's current setup and teardown.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-automated-test-authoring.",
+        "The structured chosen_skill is none of: shaft-change-verification, shaft-web-actions."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Review the proposed Java diff, run its guardrail check and smallest focused test, then give an evidence-backed apply or reject verdict.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-change-verification.",
+        "The structured chosen_skill is none of: shaft-automated-test-authoring."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Run a deterministic one-shot command that lists the available automation tools as machine-readable JSON without starting an interactive session.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-cli.",
+        "The structured chosen_skill is none of: shaft-mcp."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Implement a database-backed integration check that verifies committed order rows, transaction rollback, and cleanup after the test.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-database-testing.",
+        "The structured chosen_skill is none of: shaft-automated-test-authoring."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Turn the confirmed checkout crash into a reproducible product defect with severity, environment, exact steps, expected versus actual behavior, and evidence links.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-defect-reporting.",
+        "The structured chosen_skill is none of: shaft-execution-reporting."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I need help with a SHAFT testing task, but I have not said whether the immediate output should be a plan, code, execution, analysis, or a report. Route me before doing work.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-developer.",
+        "The structured chosen_skill is none of: shaft-automated-test-authoring."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Produce an engineering report reconciling passed, failed, skipped, and retried test counts with environments, failure evidence, flakes, and next actions.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-execution-reporting.",
+        "The structured chosen_skill is none of: shaft-stakeholder-reporting."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Investigate a login test that fails consistently at the same locator, reproduce it under controlled conditions, test hypotheses, and identify the owning root cause.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-failure-analysis.",
+        "The structured chosen_skill is none of: shaft-flaky-test-analysis."
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Analyze a checkout test that alternates between pass and fail under equivalent inputs using retry history, timing, shared state, data, and environment evidence.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-flaky-test-analysis.",
+        "The structured chosen_skill is none of: shaft-failure-analysis."
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Compose a correct fluent chain that clicks the submit element, verifies its state, and attaches a report message while preserving the current chain semantics.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-fluent-api.",
+        "The structured chosen_skill is none of: shaft-web-actions, shaft-assertions."
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Find and cite the current official documentation for configuring parallel execution after a migration; do not infer syntax from memory.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-guide-search.",
+        "The structured chosen_skill is none of: shaft-developer."
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Replace a brittle absolute XPath for the Email field by ranking current DOM, label, ARIA, and stable test-attribute evidence, then verify uniqueness.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-locator-design.",
+        "The structured chosen_skill is none of: shaft-page-objects."
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "Use an interactive stateful tool sequence to inspect the current browser session, capture the page, and continue from the same driver state across calls.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-mcp.",
+        "The structured chosen_skill is none of: shaft-cli."
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "Implement a native-app flow that switches contexts, performs a swipe and long press, rotates the device, hides the keyboard, and resets the app.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-mobile-actions.",
+        "The structured chosen_skill is none of: shaft-web-actions."
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "Design measurable risk-based tests for peak-load performance, recovery time, service reliability, compatibility, and operational capacity.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-nonfunctional-test-design.",
+        "The structured chosen_skill is none of: shaft-accessibility-testing, shaft-test-planning."
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "Refactor duplicated checkout locators and interaction helpers into reusable component objects with user-intent methods and clear ownership boundaries.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-page-objects.",
+        "The structured chosen_skill is none of: shaft-locator-design."
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "Transform the persisted mobile recording artifact into compilable repository-aware Java code, reusing the existing checkout object and omitting captured secrets.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-recording-codegen.",
+        "The structured chosen_skill is none of: shaft-test-recording."
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "Analyze the refund requirements for testability, derive acceptance criteria and traceability, and identify contradictions, omissions, assumptions, and coverage gaps.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-requirements-analysis.",
+        "The structured chosen_skill is none of: shaft-test-planning, shaft-test-case-design."
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "Translate verified coverage, defect trends, and residual risk into a concise business release recommendation with the decision needed from leadership.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-stakeholder-reporting.",
+        "The structured chosen_skill is none of: shaft-execution-reporting."
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "Design reviewable boundary-value and decision-table scenarios with traceability, data, steps, expected outcomes, and priorities for the discount rules.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-case-design.",
+        "The structured chosen_skill is none of: shaft-test-planning, shaft-requirements-analysis."
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "Design deterministic private test data partitions with factories, seeding, uniqueness, isolation, reset, cleanup, retention, and schema constraints.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-data-design.",
+        "The structured chosen_skill is none of: shaft-database-testing."
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "Diagnose why the staging browser and service setup is not ready by checking versions, configuration parity, dependencies, isolation, reset state, and drift.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-environment.",
+        "The structured chosen_skill is none of: shaft-test-execution."
+      ]
+    },
+    {
+      "id": 26,
+      "prompt": "Run the approved smoke scope with preflight checks, deterministic configuration, trustworthy evidence, reconciled status, and cleanup.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-execution.",
+        "The structured chosen_skill is none of: shaft-test-monitoring."
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "Monitor the active regression run for progress, coverage, gates, duration, retries, flakiness, infrastructure health, risks, and completion signals.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-monitoring.",
+        "The structured chosen_skill is none of: shaft-test-execution."
+      ]
+    },
+    {
+      "id": 28,
+      "prompt": "Create a risk-based test plan with objectives, scope, approach, resources, estimates, schedule, entry and exit criteria, and monitoring.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-planning.",
+        "The structured chosen_skill is none of: shaft-requirements-analysis, shaft-test-case-design."
+      ]
+    },
+    {
+      "id": 29,
+      "prompt": "Capture the approved live checkout flow with privacy-safe browser evidence, readiness checks, interactions, and assertions for later code generation.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-recording.",
+        "The structured chosen_skill is none of: shaft-recording-codegen."
+      ]
+    },
+    {
+      "id": 30,
+      "prompt": "Implement browser navigation, cookie setup, file upload, drag-and-drop, window switching, element interaction, and a screenshot using the current web APIs.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-web-actions.",
+        "The structured chosen_skill is none of: shaft-mobile-actions, shaft-fluent-api."
+      ]
+    }
+  ]
+}
