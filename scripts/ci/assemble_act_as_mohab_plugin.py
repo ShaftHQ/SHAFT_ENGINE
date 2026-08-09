@@ -12,7 +12,7 @@ SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
 def copy_tree(source: Path, destination: Path) -> None:
     """Copy one canonical source tree without preserving host-specific metadata."""
     for path in sorted(source.rglob("*")):
-        if not path.is_file():
+        if path.is_symlink() or not path.is_file():
             continue
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -23,10 +23,16 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
     package_root = Path(package_root)
+    canonical_skills = repository_root / ".agents/skills"
+    try:
+        package_root.resolve(strict=False).relative_to(canonical_skills.resolve())
+    except ValueError:
+        pass
+    else:
+        raise ValueError("package output must not overlap canonical skill sources")
     if package_root.exists():
         raise FileExistsError(f"refusing to overwrite package output: {package_root}")
 
-    canonical_skills = repository_root / ".agents/skills"
     package_root.mkdir(parents=True)
     (package_root / "plugin.json").write_text(
         f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab"}}\n', encoding="utf-8"

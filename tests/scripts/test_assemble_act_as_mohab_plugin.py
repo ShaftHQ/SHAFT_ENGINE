@@ -58,6 +58,40 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         for path in first:
             self.assertEqual((self.package_root / path).read_bytes(), (second_root / path).read_bytes(), path)
 
+    def test_assembly_skips_a_symlinked_source_file(self):
+        source_root = self.package_root.parent / "source"
+        source_references = source_root / ".agents/skills/act-as-mohab/references"
+        source_references.mkdir(parents=True)
+        for skill in ("act-as-mohab", "consult-first", "retrieve-first"):
+            target = source_root / ".agents/skills" / skill / "SKILL.md"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("---\nname: " + skill + "\ndescription: Use when testing assembly.\n---\n", encoding="utf-8")
+        outside = self.package_root.parent / "outside.md"
+        outside.write_text("host secret", encoding="utf-8")
+        try:
+            (source_references / "leak.md").symlink_to(outside)
+        except OSError as error:
+            self.skipTest(f"symlinks unavailable: {error}")
+
+        assemble(source_root, self.package_root)
+
+        self.assertFalse((self.package_root / "skills/act-as-mohab/references/leak.md").exists())
+
+    def test_assembly_rejects_output_inside_its_canonical_sources(self):
+        source_root = self.package_root.parent / "source"
+        source_skills = source_root / ".agents/skills"
+        for skill in ("act-as-mohab", "consult-first", "retrieve-first"):
+            target = source_skills / skill / "SKILL.md"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("---\nname: " + skill + "\ndescription: Use when testing assembly.\n---\n", encoding="utf-8")
+        (source_skills / "act-as-mohab/references").mkdir()
+        output = source_skills / "act-as-mohab/references/assembled-output"
+
+        with self.assertRaises(ValueError):
+            assemble(source_root, output)
+
+        self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
