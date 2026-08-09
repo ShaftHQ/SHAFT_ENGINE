@@ -43,14 +43,23 @@ def validate_corpus(corpus: dict, review: dict) -> list[dict]:  # noqa: MC0001  
     defects: list[dict] = []
     skills = set(review.get("skills", {}))
     cases = corpus.get("cases")
-    if corpus.get("schema_version") != 1:
+    schema_version = corpus.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool aliases.
         defects.append(_defect("schema-version", "schema_version must be 1"))
     if corpus.get("package") != "shaft-skills":
         defects.append(_defect("package", "package must be shaft-skills"))
-    if corpus.get("thresholds") != {
+    expected_thresholds = {
         "case_pass_rate": 1.0,  # nosec B105 - routing threshold, not a credential.
         "positive_skill_coverage": 1.0,
-    }:
+    }
+    thresholds = corpus.get("thresholds")
+    thresholds_match = isinstance(thresholds, dict) and set(thresholds) == set(expected_thresholds)
+    if thresholds_match:
+        thresholds_match = all(
+            type(thresholds[key]) is float and thresholds[key] == value  # pylint: disable=unidiomatic-typecheck  # Exact floats reject bool aliases.
+            for key, value in expected_thresholds.items()
+        )
+    if not thresholds_match:
         defects.append(_defect("threshold", "both routing thresholds must be exactly 1.0"))
     if not isinstance(cases, list):
         return defects + [_defect("cases", "cases must be a list")]

@@ -219,7 +219,8 @@ def quarantine_command(
 
 def validate_policy(policy: dict) -> list[dict]:
     defects: list[dict] = []
-    if policy.get("schema_version") != 1:
+    schema_version = policy.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool aliases.
         defects.append(_defect("policy-schema", "policy schema_version must be 1"))
     if set(policy.get("decision_kinds", [])) != DECISIONS:
         defects.append(_defect("policy-decisions", "policy must declare all four decision kinds"))
@@ -234,7 +235,10 @@ def validate_policy(policy: dict) -> list[dict]:
         "non_root_user": "65532:65532",
         "canonical_roots_mounted": False,
     }
-    if any(trial.get(key) != value for key, value in required_trial.items()):
+    if any(
+        type(trial.get(key)) is not type(value) or trial.get(key) != value  # pylint: disable=unidiomatic-typecheck  # Security booleans reject 1/0 aliases.
+        for key, value in required_trial.items()
+    ):
         defects.append(_defect("trial-contract", "trial contract must stay no-network, read-only, nonroot, and credential-free"))
     roots = set(policy.get("canonical_roots", []))
     if not {

@@ -84,6 +84,8 @@ jobs:
               - '.github/skills/**'
               - '.github/instructions/**'
               - '.github/copilot-instructions.md'
+              - '.github/workflows/agent-plugin-acceptance.yml'
+              - '.github/workflows/README.md'
               - '.github/workflows/mavenCentral_cd.yml'
               - 'agent-plugins/**'
               - 'shaft-skills/**'

@@ -74,6 +74,26 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
 
         self.assertIn("positive-coverage", {defect["code"] for defect in defects})
 
+    def test_corpus_schema_and_thresholds_require_exact_numeric_types(self):
+        self.corpus["schema_version"] = True
+        self.assertIn(
+            "schema-version",
+            {row["code"] for row in validate_corpus(self.corpus, self.review)},
+        )
+
+        for threshold in ("case_pass_rate", "positive_skill_coverage"):
+            with self.subTest(threshold=threshold):
+                self.corpus["schema_version"] = 1
+                self.corpus["thresholds"] = {
+                    "case_pass_rate": 1.0,
+                    "positive_skill_coverage": 1.0,
+                }
+                self.corpus["thresholds"][threshold] = True
+                self.assertIn(
+                    "threshold",
+                    {row["code"] for row in validate_corpus(self.corpus, self.review)},
+                )
+
     def test_corpus_requires_each_reviewed_confusion_direction(self):
         self.corpus["cases"][0]["rejected_skills"] = []
 

@@ -11,6 +11,7 @@ try:
     from scripts.ci.shaft_skill_candidate_intake import (
         quarantine_command,
         scan_candidate,
+        validate_policy,
         validate_repository,
         validate_review,
     )
@@ -19,6 +20,7 @@ except ImportError:
     scan_candidate = None
     validate_repository = None
     validate_review = None
+    validate_policy = None
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +48,21 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
         self.assertTrue({"adopt-pattern", "retain-test-target", "reject"}.issubset(decisions))
         self.assertFalse(review["code_adopted"])
         self.assertTrue(all(candidate["official_source"] for candidate in review["candidates"]))
+
+    def test_policy_schema_and_security_booleans_require_exact_types(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        policy["schema_version"] = True
+        self.assertIn("policy-schema", {row["code"] for row in validate_policy(policy)})
+
+        for field, numeric_alias in (
+            ("container_only", 1),
+            ("read_only_root", 1),
+            ("canonical_roots_mounted", 0),
+        ):
+            with self.subTest(field=field):
+                policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+                policy["trial_contract"][field] = numeric_alias
+                self.assertIn("trial-contract", {row["code"] for row in validate_policy(policy)})
 
     def test_review_covers_each_required_candidate_category_and_every_rejection(self):
         review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))

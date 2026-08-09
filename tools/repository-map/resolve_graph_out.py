@@ -77,7 +77,8 @@ def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
         marker = json.loads(marker_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         return False, f"stale - indexed revision marker is unreadable: {error}"
-    if not isinstance(marker, dict) or marker.get("schema_version") != 1:
+    schema_version = marker.get("schema_version") if isinstance(marker, dict) else None
+    if type(schema_version) is not int or schema_version != 1:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool aliases.
         return False, "stale - indexed revision marker schema is unsupported"
     indexed = marker.get("indexed_revision")
     expected_manifest = marker.get("manifest_sha256")

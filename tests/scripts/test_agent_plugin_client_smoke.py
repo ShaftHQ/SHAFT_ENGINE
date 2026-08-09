@@ -719,6 +719,11 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode smoke", pr_gate)
         self.assertIn("tests.scripts.test_shaft_skill_routing_eval", pr_gate)
         self.assertIn("python scripts/ci/shaft_skill_routing_eval.py", pr_gate)
+        guidance_filter = pr_gate.split("            agent_guidance:\n", 1)[1].split(
+            "              # Reachability elements:", 1
+        )[0]
+        self.assertIn("'.github/workflows/agent-plugin-acceptance.yml'", guidance_filter)
+        self.assertIn("'.github/workflows/README.md'", guidance_filter)
         self.assertIn("schedule:", live)
         self.assertIn("workflow_dispatch:", live)
         self.assertIn("ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}", live)

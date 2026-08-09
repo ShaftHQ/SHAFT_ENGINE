@@ -86,6 +86,18 @@ class ResolveGraphOutTest(unittest.TestCase):
         )
         self.assertEqual(64, len(marker["manifest_sha256"]))
 
+    def test_boolean_marker_schema_is_stale(self):
+        self.assertEqual(0, self.resolver("--record-current").returncode)
+        marker_path = self.graph_out / ".shaft-source-revision.json"
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        marker["schema_version"] = True
+        marker_path.write_text(json.dumps(marker), encoding="utf-8")
+
+        completed = self.resolver("--check")
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("marker schema is unsupported", completed.stderr)
+
     def test_later_tracked_source_revision_makes_cache_stale(self):
         self.assertEqual(0, self.resolver("--record-current").returncode)
         indexed = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
