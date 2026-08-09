@@ -12,6 +12,16 @@ updates:
       - "dependencies"
       - "github-actions"
 
+  # Maintain Python dependencies installed by CI workflows
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+
   # Maintain dependencies for maven
   - package-ecosystem: "maven"
     directories:

@@ -187,8 +187,15 @@ jobs:
               - '**/pom.xml'
               - '**/build.gradle.kts'
               - '**/gradle.properties'
+              - 'requirements-ci.txt'
+              - '.github/dependabot.yml'
               - '.github/dependency-review-config.yml'
+              - '.github/workflows/agent-plugin-acceptance.yml'
+              - '.github/workflows/mavenCentral_cd.yml'
+              - '.github/workflows/pr-gate.yml'
+              - '.github/workflows/publish-shaft-mcp.yml'
               - 'scripts/ci/dependency_review_changes.py'
+              - 'tests/scripts/test_ci_python_dependencies.py'
               - 'tests/scripts/test_dependency_review_changes.py'
             # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
             # its downstream Pilot-family modules. shaft-cli/shaft-intellij already have
@@ -288,8 +295,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - name: Install PyYAML
-        run: python -m pip install pyyaml --quiet
+      - name: Install managed CI Python dependencies
+        run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Set up Node.js 24 for native client smoke
         uses: actions/setup-node@v6
         with:
@@ -690,8 +697,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - name: Install PyYAML
-        run: python3 -m pip install pyyaml --quiet
+      - name: Install managed CI Python dependencies
+        run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Run workflow timeout guard unit tests
         run: >-
           python3 -m unittest
@@ -849,7 +856,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Test dependency diff classifier
-        run: python3 -m unittest tests.scripts.test_dependency_review_changes -v
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_ci_python_dependencies
+          tests.scripts.test_dependency_review_changes
+          -v
       - name: Detect dependency-bearing diff
         id: diff
         env:
