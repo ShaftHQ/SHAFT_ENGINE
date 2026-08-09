@@ -291,7 +291,8 @@ py -3 scripts/ci/validate_agent_setup.py --skip-external
 ```
 
 That command drives `scripts/ci/validate_agent_guidance.py` and
-`scripts/ci/validate_skills.py`, reading its ceilings from
+`scripts/ci/validate_skills.py`, while the Agent Plugin contract is checked by
+`scripts/ci/validate_agent_plugins.py`; its ceilings come from
 `scripts/ci/agent_guidance_budget.json` and the cross-host capability matrix
 from `scripts/ci/agent_harness_parity.json`.
 
@@ -306,6 +307,7 @@ change it:
 | `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |
 | `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
 | `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |
+| `tests/scripts/test_validate_agent_plugins.py` | Portable Agent Plugin manifests, Agent Skills, and containment. |
 | `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
 | `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
 | `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py` | The lifecycle guard's decisions and its behaviour on a corrupt state file. |

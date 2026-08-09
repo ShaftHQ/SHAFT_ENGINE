@@ -185,6 +185,7 @@
       "scripts/ci/agent_harness_parity.json",
       "scripts/ci/local_gate.py",
       "scripts/ci/validate_agent_guidance.py",
+      "scripts/ci/validate_agent_plugins.py",
       "scripts/ci/validate_agent_setup.py",
       "scripts/ci/validate_skills.py",
       "scripts/ci/watch_pr_checks.py",
