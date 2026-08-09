@@ -216,7 +216,7 @@ def _activity_epoch(
         # The marker is advisory activity evidence, not a required report
         # dependency; an unreadable marker must not turn a usable git report
         # into an unknown worktree.
-        pass
+        return max(signals) if signals else None
     return max(signals) if signals else None
 
 
