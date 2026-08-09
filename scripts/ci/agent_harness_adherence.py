@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 
 VALID_HORIZONS = {"short", "medium", "long"}
 VALID_EXPECTATION_KINDS = {"requires", "forbids", "guard"}
+UNKNOWN_RESULT = None
 WINDOWS_RESERVED_NAMES = {
     "CON",
     "PRN",
@@ -197,7 +198,7 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
         if not isinstance(episode_evidence, dict):
             episodes[identifier] = {
                 "rule_ids": episode["rule_ids"],
-                "strict_episode_pass": None,
+                "strict_episode_pass": UNKNOWN_RESULT,
                 "expectations": [],
             }
             unmeasured_rule_ids.update(episode["rule_ids"])
@@ -245,7 +246,7 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
         episodes[identifier] = {
             "rule_ids": episode["rule_ids"],
             "strict_episode_pass": (
-                None
+                UNKNOWN_RESULT
                 if any(result["passed"] is None for result in expectation_results)
                 else all(result["passed"] for result in expectation_results)
             ),
