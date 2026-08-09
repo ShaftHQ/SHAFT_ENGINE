@@ -239,14 +239,16 @@ final class AssistantLocalAgentRunner {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
+        AtomicBoolean forceCancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
-                arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
+                arguments, processReference, cancellationRequested, forceCancellationRequested, outputConsumer,
+                processLauncher,
                 requireCommandAvailable, approvalHandler, bridgeLauncher, verbose, terminalAnswerConsumer),
                 ShaftPluginExecutor.getInstance().executor());
         return new ShaftMcpInvocation(
                 future,
-                () -> cancel(processReference, cancellationRequested, false),
-                () -> cancel(processReference, cancellationRequested, true));
+                () -> cancel(processReference, cancellationRequested, forceCancellationRequested, false),
+                () -> cancel(processReference, cancellationRequested, forceCancellationRequested, true));
     }
 
     /**
@@ -622,6 +624,23 @@ final class AssistantLocalAgentRunner {
             ApprovalBridgeLauncher bridgeLauncher,
             boolean verbose,
             Consumer<String> terminalAnswerConsumer) {
+        return run(arguments, processReference, cancellationRequested, new AtomicBoolean(), outputConsumer,
+                processLauncher, requireCommandAvailable, approvalHandler, bridgeLauncher, verbose,
+                terminalAnswerConsumer);
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            AtomicBoolean forceCancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
         Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
         LocalAgentApprovalBridge.ApprovalRequestHandler narratingApprovalHandler =
                 narrateApproval(approvalHandler, outputConsumer);
@@ -684,7 +703,7 @@ final class AssistantLocalAgentRunner {
                 Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
                 processReference.set(process);
                 if (cancellationRequested.get()) {
-                    process.destroyForcibly();
+                    destroy(process, forceCancellationRequested.get());
                     throw new CancellationException("Operation cancelled");
                 }
                 InputStream stdoutStream = process.getInputStream();
@@ -705,7 +724,11 @@ final class AssistantLocalAgentRunner {
                 if (cancellationRequested.get()) {
                     // Same reason as the guard around the launch above: a kill that landed while the
                     // handle was unpublished set only the flag, so this path owns the destroy.
-                    process.destroyForcibly();
+                    destroy(process, forceCancellationRequested.get());
+                    closeQuietly(stdoutStream);
+                    closeQuietly(stderrStream);
+                    stdoutNow(stdout);
+                    stderrNow(stderr);
                     throw new CancellationException("Operation cancelled");
                 }
                 if (!awaitProcessWithApprovalExtension(process, timeout, bridge)) {
@@ -754,6 +777,10 @@ final class AssistantLocalAgentRunner {
                         : ShaftMcpToolResult.failure(output);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
+                // Plugin unload interrupts the bounded worker directly rather than going through a
+                // ShaftMcpInvocation cancel action. Destroy the still-published child before the
+                // finally block clears its only handle, or the CLI survives the unloaded plugin.
+                destroy(processReference.getAndSet(null), true);
                 if (cancellationRequested.get()) {
                     throw new CancellationException("Operation cancelled");
                 }
@@ -1298,9 +1325,17 @@ final class AssistantLocalAgentRunner {
     private static void cancel(
             AtomicReference<Process> processReference,
             AtomicBoolean cancellationRequested,
+            AtomicBoolean forceCancellationRequested,
             boolean force) {
+        if (force) {
+            forceCancellationRequested.set(true);
+        }
         cancellationRequested.set(true);
         Process process = force ? processReference.getAndSet(null) : processReference.get();
+        destroy(process, force);
+    }
+
+    private static void destroy(Process process, boolean force) {
         if (process != null) {
             if (force) {
                 process.destroyForcibly();

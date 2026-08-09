@@ -1007,3 +1007,7 @@
 {"actor":"agent","event":"memory.created","id":"decision.portable-plugin-assembly-copies-only-tracked-contained-canonical-sources","timestamp":"2026-08-09T09:28:03+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.portable-agent-plugins-retain-native-claude-and-codex-discovery-adapters","timestamp":"2026-08-09T10:02:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.panel-one-click-resend-uses-an-injectable-local-agent-process-boundary","timestamp":"2026-08-09T10:21:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication","timestamp":"2026-08-09T10:42:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication-2","timestamp":"2026-08-09T10:46:14+03:00"}
+{"actor":"agent","event":"memory.updated","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication","timestamp":"2026-08-09T10:47:00+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication-2","timestamp":"2026-08-09T10:47:00+03:00"}

@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.intellij.openapi.util.Disposer;
+import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.Timer;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -86,6 +88,20 @@ class ShaftAssistantPanelDisposalTest {
                 () -> assertFalse(flushed.get(), "Nothing must be scheduled to run against a dead panel"));
     }
 
+    @Test
+    void aCompletedLocalAgentRunDoesNotRenderAfterThePanelIsDisposed() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        panel.dispose();
+
+        Method showAgentResult = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showAgentResult", ShaftMcpToolResult.class, Throwable.class);
+        showAgentResult.setAccessible(true); // NOPMD - invokes the real asynchronous completion target after disposal
+        showAgentResult.invoke(panel, ShaftMcpToolResult.success("late local-agent answer"), null);
+
+        assertTrue(panel.transcriptMarkdown().isBlank(),
+                "A completion that arrives after disposal must not render into the closed Assistant panel");
+    }
+
     /**
      * The one test holding the production wiring in place. Every other panel in the module's test run
      * is torn down directly by {@code ShaftPanelBackgroundWorkExtension}, so if
@@ -118,6 +134,25 @@ class ShaftAssistantPanelDisposalTest {
     }
 
     @Test
+    void disposingTheToolWindowPanelStopsTheSetupPanelsPendingToastTimer() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "shaft-mcp";
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings,
+                (client, runtime) -> null, new ShaftAssistantChatState());
+        Object setupPanel = getField(toolWindow, "setupPanel");
+        assertNotNull(setupPanel, "Precondition: incomplete setup must retain the setup panel it displays");
+        Timer toastTimer = new Timer(5_000, event -> { });
+        toastTimer.setRepeats(false);
+        toastTimer.start();
+        setField(setupPanel, "toastTimer", toastTimer);
+
+        Disposer.dispose(toolWindow);
+
+        assertFalse(toastTimer.isRunning(),
+                "Closing the tool window must stop a pending setup toast instead of leaving it in Swing's TimerQueue");
+    }
+
+    @Test
     void disposeLivePanelsTearsDownEveryAssistantPanelStillLiveInThisJvm() throws ReflectiveOperationException {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         AtomicBoolean killed = new AtomicBoolean();
@@ -144,6 +179,31 @@ class ShaftAssistantPanelDisposalTest {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = "";
         return settings;
+    }
+
+    private static Project fakeProject() {
+        return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
+                (proxy, method, arguments) -> switch (method.getName()) {
+                    case "equals" -> proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "getBasePath" -> "";
+                    case "getName" -> "SHAFT disposal test project";
+                    case "getService" -> null;
+                    default -> defaultValue(method.getReturnType());
+                });
+    }
+
+    private static Object defaultValue(Class<?> returnType) {
+        if (returnType == boolean.class) {
+            return false;
+        }
+        if (returnType == int.class) {
+            return 0;
+        }
+        if (returnType == long.class) {
+            return 0L;
+        }
+        return null;
     }
 
     private static void setField(Object target, String name, Object value) throws ReflectiveOperationException {
