@@ -81,7 +81,34 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     allowed_files = tracked_source_files(repository_root)
     package_root.mkdir(parents=True)
     (package_root / "plugin.json").write_text(
-        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab"}}\n', encoding="utf-8"
+        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab","version":"1.0.0",'
+        '"description":"Maintainer workflow and harness skills for SHAFT.",'
+        '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"},'
+        '"repository":"https://github.com/ShaftHQ/SHAFT_ENGINE","license":"MIT"}\n',
+        encoding="utf-8",
+    )
+    claude_adapter = package_root / ".claude-plugin"
+    claude_adapter.mkdir()
+    (claude_adapter / "plugin.json").write_text(
+        '{"name":"act-as-mohab","version":"1.0.0",'
+        '"description":"Maintainer workflow and harness skills for SHAFT.",'
+        '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
+        encoding="utf-8",
+    )
+    codex_adapter = package_root / ".codex-plugin"
+    codex_adapter.mkdir()
+    (codex_adapter / "plugin.json").write_text(
+        '{"name":"act-as-mohab","version":"1.0.0",'
+        '"description":"Maintainer workflow and harness skills for SHAFT.",'
+        '"skills":"./skills/"}\n',
+        encoding="utf-8",
+    )
+    codex_marketplace = package_root / ".agents/plugins"
+    codex_marketplace.mkdir(parents=True)
+    (codex_marketplace / "marketplace.json").write_text(
+        '{"name":"act-as-mohab","plugins":['
+        '{"name":"act-as-mohab","source":{"source":"local","path":"./"}}]}\n',
+        encoding="utf-8",
     )
     for skill in SKILLS:
         source = canonical_skills / skill
