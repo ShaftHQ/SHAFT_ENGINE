@@ -85,7 +85,7 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
             with self.subTest(threshold=threshold):
                 self.corpus["schema_version"] = 1
                 self.corpus["thresholds"] = {
-                    "case_pass_rate": 1.0,
+                    "case_pass_rate": 1.0,  # nosec B105 - routing threshold, not a credential.
                     "positive_skill_coverage": 1.0,
                 }
                 self.corpus["thresholds"][threshold] = True
