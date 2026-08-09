@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import json
 import re
+import hashlib
+import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 
 REQUIRED_PACKAGES = ("act-as-mohab", "shaft-skills")
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
+ROOT = Path(__file__).resolve().parents[2]
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def load_release_manifest(repository_root: Path) -> dict[str, str]:
@@ -48,3 +56,67 @@ def release_version(repository_root: Path, package_name: str, requested: str | N
     if requested is not None and requested != version:
         raise ValueError(f"{package_name} version must match the release manifest: {version}")
     return version
+
+
+def write_deterministic_zip(package_root: Path, archive: Path) -> None:
+    """Archive package files in lexical order with fixed portable metadata."""
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as output:
+        for source in sorted(path for path in package_root.rglob("*") if path.is_file()):
+            entry = zipfile.ZipInfo(source.relative_to(package_root).as_posix(), (1980, 1, 1, 0, 0, 0))
+            entry.external_attr = 0o100644 << 16
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            output.writestr(entry, source.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+
+
+def write_checksum(archive: Path) -> Path:
+    """Write the conventional SHA-256 sidecar for one archive."""
+    checksum = archive.with_suffix(archive.suffix + ".sha256")
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+    return checksum
+
+
+def build_release_artifacts(repository_root: Path, output_directory: Path) -> list[Path]:
+    """Assemble, validate, archive, and checksum every manifest-declared package."""
+    from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
+    from scripts.ci.assemble_shaft_skills_plugin import assemble as assemble_shaft_skills
+    from scripts.ci.validate_agent_plugins import validate_package
+
+    repository_root = Path(repository_root).resolve()
+    output_directory = Path(output_directory)
+    if output_directory.exists() and any(output_directory.iterdir()):
+        raise ValueError(f"release artifact output must be empty: {output_directory}")
+    output_directory.mkdir(parents=True, exist_ok=True)
+    assemblers = {
+        "act-as-mohab": assemble_act_as_mohab,
+        "shaft-skills": assemble_shaft_skills,
+    }
+    artifacts: list[Path] = []
+    with tempfile.TemporaryDirectory(prefix="shaft-agent-plugin-release-") as staging:
+        staging_root = Path(staging)
+        for package_name in REQUIRED_PACKAGES:
+            version = release_version(repository_root, package_name)
+            package_root = staging_root / package_name
+            assemblers[package_name](repository_root, package_root, version)
+            errors = validate_package(package_root)
+            if errors:
+                raise ValueError(f"invalid assembled {package_name} package: {'; '.join(errors)}")
+            archive = output_directory / f"{package_name}-{version}.zip"
+            write_deterministic_zip(package_root, archive)
+            artifacts.extend((archive, write_checksum(archive)))
+    return artifacts
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("output", type=Path, help="empty directory for ZIP and checksum assets")
+    parser.add_argument("--repository-root", type=Path, default=ROOT)
+    arguments = parser.parse_args()
+    build_release_artifacts(arguments.repository_root, arguments.output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
