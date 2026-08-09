@@ -130,10 +130,24 @@ class AgentPluginReleaseTest(unittest.TestCase):
         self.assertIn("- name: Validate immutable source commit", workflow)
         self.assertIn("SOURCE_COMMIT: ${{ inputs.source_ref }}", workflow)
         self.assertIn('[[ ! "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]', workflow)
+        validation = workflow[
+            workflow.index("- name: Validate immutable source commit"):
+            workflow.index("- name: Checkout Code")
+        ]
+        self.assertIn("exit 1", validation)
+        self.assertNotIn("continue-on-error", validation)
         self.assertLess(
             workflow.index("- name: Validate immutable source commit"),
             workflow.index("- name: Checkout Code"),
         )
+        checkout_verification = workflow[
+            workflow.index("- name: Verify checked out source commit"):
+            workflow.index("- name: Reclaim disk space")
+        ]
+        self.assertIn('ACTUAL_COMMIT="$(git rev-parse HEAD)"', checkout_verification)
+        self.assertIn('[[ "${ACTUAL_COMMIT}" != "${SOURCE_COMMIT}" ]]', checkout_verification)
+        self.assertIn("exit 1", checkout_verification)
+        self.assertNotIn("continue-on-error", checkout_verification)
 
 
 if __name__ == "__main__":
