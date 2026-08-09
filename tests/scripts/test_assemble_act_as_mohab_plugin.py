@@ -1,5 +1,6 @@
 """Portable act-as-mohab package assembly tests (#4576)."""
 
+import json
 import re
 import subprocess
 import tempfile
@@ -50,8 +51,16 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
         self.assertEqual(validate_package(self.package_root), [])
         self.assertEqual(
-            (self.package_root / "plugin.json").read_text(encoding="utf-8"),
-            '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"act-as-mohab"}\n',
+            json.loads((self.package_root / "plugin.json").read_text(encoding="utf-8")),
+            {
+                "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+                "name": "act-as-mohab",
+                "version": "1.0.0",
+                "description": "Maintainer workflow and harness skills for SHAFT.",
+                "author": {"name": "ShaftHQ", "url": "https://github.com/ShaftHQ/SHAFT_ENGINE"},
+                "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
+                "license": "MIT",
+            },
         )
         for skill in ("act-as-mohab", "consult-first", "retrieve-first"):
             self.assertEqual(
@@ -64,6 +73,42 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
                 target = self.package_root / "skills/act-as-mohab/references" / source.relative_to(canonical_references)
                 self.assertEqual(target.read_bytes(), source.read_bytes(), target)
         self.assertFalse((self.package_root / "skills/act-as-mohab/agents").exists())
+
+    def test_assembly_includes_a_claude_discovery_manifest(self):
+        assemble(ROOT, self.package_root)
+
+        manifest_path = self.package_root / ".claude-plugin/plugin.json"
+        self.assertTrue(manifest_path.is_file())
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["name"], "act-as-mohab")
+        self.assertEqual(manifest["version"], "1.0.0")
+        self.assertIn("maintainer", manifest["description"].lower())
+        self.assertEqual(manifest.get("author", {}).get("name"), "ShaftHQ")
+
+    def test_assembly_includes_a_codex_discovery_manifest(self):
+        assemble(ROOT, self.package_root)
+
+        manifest_path = self.package_root / ".codex-plugin/plugin.json"
+        self.assertTrue(manifest_path.is_file())
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["name"], "act-as-mohab")
+        self.assertEqual(manifest["version"], "1.0.0")
+        self.assertEqual(manifest["skills"], "./skills/")
+
+    def test_assembly_includes_a_codex_marketplace_entry(self):
+        assemble(ROOT, self.package_root)
+
+        marketplace_path = self.package_root / ".agents/plugins/marketplace.json"
+        self.assertTrue(marketplace_path.is_file())
+        marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(marketplace["name"], "act-as-mohab")
+        self.assertEqual(
+            marketplace["plugins"],
+            [{"name": "act-as-mohab", "source": {"source": "local", "path": "./"}}],
+        )
 
     def test_assembly_is_deterministic(self):
         self.assertTrue(callable(assemble), "assemble must be available")
