@@ -84,15 +84,16 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
     def test_native_commands_and_versions_are_exact_and_pinned(self):
         collect_evidence(self.package_root, runner=self.runner)
         commands = self.runner.commands
+        resolved_package_root = str(self.package_root.resolve())
 
         self.assertIn(("claude", "--version"), commands)
         self.assertIn(("codex", "--version"), commands)
         self.assertIn(
-            ("claude", "plugin", "validate", "--strict", str(self.package_root)),
+            ("claude", "plugin", "validate", "--strict", resolved_package_root),
             commands,
         )
         self.assertIn(
-            ("claude", "plugin", "marketplace", "add", str(self.package_root), "--scope", "project"),
+            ("claude", "plugin", "marketplace", "add", resolved_package_root, "--scope", "project"),
             commands,
         )
         self.assertIn(("claude", "plugin", "list", "--available", "--json"), commands)
@@ -101,7 +102,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
             commands,
         )
         self.assertIn(
-            ("codex", "plugin", "marketplace", "add", str(self.package_root), "--json"),
+            ("codex", "plugin", "marketplace", "add", resolved_package_root, "--json"),
             commands,
         )
         self.assertIn(("codex", "plugin", "list", "--available", "--json"), commands)
