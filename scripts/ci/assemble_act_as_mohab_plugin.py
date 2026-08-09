@@ -5,11 +5,20 @@ import shutil
 import subprocess
 from pathlib import Path
 
+try:
+    from scripts.ci.agent_plugin_release import release_version
+except ModuleNotFoundError:
+    from agent_plugin_release import release_version
+
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
 PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
-RELEASE_FILES = (Path("LICENSE"), Path("agent-plugins/CHANGELOG.md"))
+RELEASE_FILES = (
+    (Path("LICENSE"), Path("LICENSE")),
+    (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
+    (Path("agent-plugins/act-as-mohab/COMPATIBILITY.md"), Path("COMPATIBILITY.md")),
+)
 
 
 def git_executable() -> str:
@@ -65,25 +74,37 @@ def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None
         shutil.copyfile(path, target)
 
 
+def tracked_release_file(repository_root: Path, relative: Path) -> Path:
+    """Return a tracked regular release file without following repository links."""
+    candidate = repository_root / relative
+    current = candidate
+    while current != repository_root:
+        if current.is_symlink():
+            raise ValueError(f"release file must not be a symlink: {relative}")
+        current = current.parent
+    source = require_contained(repository_root, candidate, f"release file {relative}")
+    if not source.is_file():
+        raise ValueError(f"release file must be a file: {relative}")
+    tracked = subprocess.run(
+        [git_executable(), "ls-files", "--error-unmatch", "--", relative.as_posix()],
+        cwd=repository_root,
+        capture_output=True,
+    )
+    if tracked.returncode:
+        raise ValueError(f"release file must be tracked: {relative}")
+    return source
+
+
 def copy_release_files(repository_root: Path, package_root: Path) -> None:
     """Copy tracked public release files into a portable package root."""
-    for relative in RELEASE_FILES:
-        source = require_contained(repository_root, repository_root / relative, f"release file {relative}")
-        if not source.is_file():
-            raise ValueError(f"release file must be a file: {relative}")
-        tracked = subprocess.run(
-            [git_executable(), "ls-files", "--error-unmatch", "--", relative.as_posix()],
-            cwd=repository_root,
-            capture_output=True,
-        )
-        if tracked.returncode:
-            raise ValueError(f"release file must be tracked: {relative}")
-        shutil.copyfile(source, package_root / ("CHANGELOG.md" if relative.name == "CHANGELOG.md" else relative.name))
+    for relative, target in RELEASE_FILES:
+        shutil.copyfile(tracked_release_file(repository_root, relative), package_root / target)
 
 
-def assemble(repository_root: Path, package_root: Path, version: str = "1.0.0") -> None:
+def assemble(repository_root: Path, package_root: Path, version: str | None = None) -> None:
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
+    version = release_version(repository_root, "act-as-mohab", version)
     package_root = Path(package_root)
     canonical_skills = repository_root / ".agents/skills"
     try:
@@ -154,7 +175,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="new package output directory")
     parser.add_argument("--repository-root", type=Path, default=Path(__file__).resolve().parents[2])
-    parser.add_argument("--version", default="1.0.0")
+    parser.add_argument("--version")
     arguments = parser.parse_args()
     assemble(arguments.repository_root, arguments.output, arguments.version)
     return 0

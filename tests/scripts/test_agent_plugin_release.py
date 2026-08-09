@@ -21,10 +21,24 @@ class AgentPluginReleaseTest(unittest.TestCase):
         target.write_text(json.dumps(document), encoding="utf-8")
         return root
 
-    def test_release_manifest_rejects_missing_package_and_non_stable_semver(self):
+    def test_release_manifest_rejects_missing_package(self):
         self.assertTrue(callable(load_release_manifest), "release manifest loader must be available")
         root = self.write_manifest(
-            {"packages": [{"name": "shaft-skills", "version": "preview"}]}
+            {"packages": [{"name": "shaft-skills", "version": "1.0.0"}]}
+        )
+
+        with self.assertRaisesRegex(ValueError, "declare every package"):
+            load_release_manifest(root)
+
+    def test_release_manifest_rejects_non_stable_semver(self):
+        self.assertTrue(callable(load_release_manifest), "release manifest loader must be available")
+        root = self.write_manifest(
+            {
+                "packages": [
+                    {"name": "act-as-mohab", "version": "preview"},
+                    {"name": "shaft-skills", "version": "1.0.0"},
+                ]
+            }
         )
 
         with self.assertRaisesRegex(ValueError, "stable SemVer"):

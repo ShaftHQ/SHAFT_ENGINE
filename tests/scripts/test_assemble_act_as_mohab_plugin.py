@@ -43,12 +43,20 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             )
         (source_skills / "act-as-mohab/references").mkdir()
         (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
-        changelog = source_root / "agent-plugins/CHANGELOG.md"
-        changelog.parent.mkdir()
+        changelog = source_root / "agent-plugins/act-as-mohab/CHANGELOG.md"
+        changelog.parent.mkdir(parents=True)
         changelog.write_text("# Test changelog\n", encoding="utf-8")
+        compatibility = source_root / "agent-plugins/act-as-mohab/COMPATIBILITY.md"
+        compatibility.write_text("# Test compatibility\n", encoding="utf-8")
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
+            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            encoding="utf-8",
+        )
         subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         subprocess.run(
-            [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins/CHANGELOG.md"],
+            [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins"],
             cwd=source_root,
             check=True,
         )  # nosec B603
@@ -121,15 +129,28 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
     def test_assembly_uses_the_declared_release_version_and_release_files(self):
         self.assertIn("version", inspect.signature(assemble).parameters)
-        assemble(ROOT, self.package_root, "1.2.3")
+        source_root = self.package_root.parent / "source"
+        self.create_source_repository(source_root)
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"act-as-mohab","version":"1.2.3"},'
+            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            encoding="utf-8",
+        )
+        subprocess.run([git_executable(), "add", "agent-plugins/release.json"], cwd=source_root, check=True)  # nosec B603
+        assemble(source_root, self.package_root)
 
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
             self.assertEqual(manifest["version"], "1.2.3")
-        self.assertEqual((self.package_root / "LICENSE").read_text(encoding="utf-8"), (ROOT / "LICENSE").read_text(encoding="utf-8"))
+        self.assertEqual((self.package_root / "LICENSE").read_text(encoding="utf-8"), (source_root / "LICENSE").read_text(encoding="utf-8"))
         self.assertEqual(
             (self.package_root / "CHANGELOG.md").read_text(encoding="utf-8"),
-            (ROOT / "agent-plugins/CHANGELOG.md").read_text(encoding="utf-8"),
+            (source_root / "agent-plugins/act-as-mohab/CHANGELOG.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(
+            (self.package_root / "COMPATIBILITY.md").read_text(encoding="utf-8"),
+            (source_root / "agent-plugins/act-as-mohab/COMPATIBILITY.md").read_text(encoding="utf-8"),
         )
 
     def test_assembly_is_deterministic(self):
@@ -204,6 +225,21 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             self.skipTest(f"symlinks unavailable: {error}")
 
         with self.assertRaises(ValueError):
+            assemble(source_root, self.package_root)
+
+    def test_assembly_rejects_a_symlinked_release_file(self):
+        source_root = self.package_root.parent / "source"
+        self.create_source_repository(source_root)
+        untracked = source_root / "private-changelog.md"
+        untracked.write_text("private release note\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/act-as-mohab/CHANGELOG.md"
+        changelog.unlink()
+        try:
+            changelog.symlink_to(untracked)
+        except OSError as error:
+            self.skipTest(f"symlinks unavailable: {error}")
+
+        with self.assertRaisesRegex(ValueError, "symlink"):
             assemble(source_root, self.package_root)
 
     def test_assembly_rejects_a_symlinked_canonical_skill_directory(self):

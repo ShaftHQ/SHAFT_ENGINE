@@ -40,3 +40,11 @@ def load_release_manifest(repository_root: Path) -> dict[str, str]:
     if set(versions) != set(REQUIRED_PACKAGES):
         raise ValueError("agent plugin release manifest must declare every package")
     return versions
+
+
+def release_version(repository_root: Path, package_name: str, requested: str | None = None) -> str:
+    """Return one manifest-owned version and reject a conflicting override."""
+    version = load_release_manifest(repository_root)[package_name]
+    if requested is not None and requested != version:
+        raise ValueError(f"{package_name} version must match the release manifest: {version}")
+    return version
