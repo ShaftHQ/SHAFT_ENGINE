@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+from inspect import signature
 from pathlib import Path
 
 try:
@@ -283,22 +284,15 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
                 )
 
     def test_quarantine_canonical_roots_cannot_be_disabled_by_the_caller(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            candidate = root / "candidate"
-            fixtures = root / "fixtures"
-            candidate.mkdir()
-            fixtures.mkdir()
-
-            with self.assertRaises(TypeError):
-                quarantine_command(
-                    candidate,
-                    fixtures,
-                    ROOT / "agent-plugins/shaft-skills",
-                    "sha256:" + ("0" * 64),
-                    ["true"],
-                    canonical_roots=[],
-                )
+        with self.assertRaises(TypeError):
+            signature(quarantine_command).bind(
+                Path("candidate"),
+                Path("fixtures"),
+                Path("output"),
+                "sha256:" + ("0" * 64),
+                ["true"],
+                canonical_roots=[],
+            )
 
     def test_pr_gate_runs_candidate_intake_tests_and_validator(self):
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
