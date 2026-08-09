@@ -213,6 +213,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
         errors.append("JavaDocs publication must require a successful Maven Central workflow")
     if "scripts/ci/assemble_javadocs.py" not in javadocs_workflow:
         errors.append("JavaDocs workflow must assemble all Java-bearing module documentation")
+    if "mvn --batch-mode javadoc:javadoc" not in javadocs_workflow:
+        errors.append("JavaDocs workflow must generate per-module JavaDocs before assembly")
     if "javadoc-source-folder: target/javadocs" not in javadocs_workflow:
         errors.append("JavaDocs workflow must publish the assembled root target/javadocs site")
 

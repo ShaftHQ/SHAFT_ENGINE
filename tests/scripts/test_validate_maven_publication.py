@@ -63,6 +63,21 @@ class MavenPublicationValidationTest(unittest.TestCase):
             document.write(pom, encoding="utf-8", xml_declaration=True)
             self.assertTrue(any("inherited" in error for error in MODULE.validate_publication(root)))
 
+    def test_rejects_javadocs_workflow_without_per_module_generation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_contract(root)
+            workflow = root / ".github" / "workflows" / "publishJavaDocs.yml"
+            workflow.write_text(
+                workflow.read_text(encoding="utf-8").replace(
+                    "mvn --batch-mode javadoc:javadoc && ",
+                    "",
+                ),
+                encoding="utf-8",
+            )
+            self.assertTrue(any("generate per-module JavaDocs" in error
+                                for error in MODULE.validate_publication(root)))
+
     def test_signed_outputs_require_aggregate_sbom_signature(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
