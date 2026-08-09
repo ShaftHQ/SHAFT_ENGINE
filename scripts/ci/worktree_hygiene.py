@@ -213,6 +213,9 @@ def _activity_epoch(
         if git_marker.is_file():
             signals.append(git_marker.stat().st_mtime)
     except OSError:
+        # The marker is advisory activity evidence, not a required report
+        # dependency; an unreadable marker must not turn a usable git report
+        # into an unknown worktree.
         pass
     return max(signals) if signals else None
 
