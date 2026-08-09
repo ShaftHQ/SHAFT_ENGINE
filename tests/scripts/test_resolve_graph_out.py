@@ -200,6 +200,8 @@ Path(os.environ["GRAPHIFY_MARKER"]).touch()
         base_env["PYTHONPATH"] = str(fake_python)
         base_env["USERPROFILE"] = str(self.sandbox)
         base_env["GRAPHIFY_MARKER"] = str(marker)
+        cmd_executable = shutil.which("cmd.exe")
+        self.assertIsNotNone(cmd_executable)
         cases = ((1, 0), (-1, 0), (0, 1), (0, -1))
         for build_exit, cluster_exit in cases:
             with self.subTest(build_exit=build_exit, cluster_exit=cluster_exit):
@@ -208,7 +210,7 @@ Path(os.environ["GRAPHIFY_MARKER"]).touch()
                 env["GRAPHIFY_BUILD_EXIT"] = str(build_exit)
                 env["GRAPHIFY_CLUSTER_EXIT"] = str(cluster_exit)
                 result = subprocess.run(  # nosec B603 - fixed local command wrapper with controlled PATH fixture.
-                    ["cmd.exe", "/d", "/c", str(wrapper)],
+                    [cmd_executable, "/d", "/c", str(wrapper)],
                     cwd=ROOT,
                     env=env,
                     check=False,
@@ -222,7 +224,7 @@ Path(os.environ["GRAPHIFY_MARKER"]).touch()
         success_env["GRAPHIFY_BUILD_EXIT"] = "0"
         success_env["GRAPHIFY_CLUSTER_EXIT"] = "0"
         success = subprocess.run(  # nosec B603 - fixed local command wrapper with controlled PATH fixture.
-            ["cmd.exe", "/d", "/c", str(wrapper)],
+            [cmd_executable, "/d", "/c", str(wrapper)],
             cwd=ROOT,
             env=success_env,
             check=False,

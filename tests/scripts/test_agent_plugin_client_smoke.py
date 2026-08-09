@@ -13,6 +13,7 @@ try:
         EVIDENCE_LEVELS,
         LOAD_PROMPT,
         LOAD_PROOF_TERMS,
+        _run,
         collect_evidence,
     )
 except ImportError:
@@ -65,6 +66,30 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
             ),
         )
         self.assertTrue(callable(collect_evidence))
+
+    def test_native_runner_resolves_npm_shims_before_process_start(self):
+        resolved = r"C:\npm\claude.CMD"
+        environment = {"PATH": "fixture-path"}
+        with (
+            patch(
+                "scripts.ci.agent_plugin_client_smoke.shutil.which",
+                return_value=resolved,
+            ) as which,
+            patch("scripts.ci.agent_plugin_client_smoke.subprocess.run") as native_runner,
+        ):
+            native_runner.return_value = subprocess.CompletedProcess(
+                [resolved, "--version"], 0, stdout="claude 2.1.223", stderr=""
+            )
+            result = _run(
+                native_runner,
+                ["claude", "--version"],
+                self.package_root,
+                environment,
+            )
+
+        self.assertEqual(0, result.returncode)
+        which.assert_called_once_with("claude", path="fixture-path")
+        self.assertEqual(resolved, native_runner.call_args.args[0][0])
 
     def test_smoke_keeps_four_evidence_levels_distinct_for_both_clients(self):
         evidence = collect_evidence(self.package_root, runner=self.runner)

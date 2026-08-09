@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess  # nosec B404 - runs pinned native client commands without a shell.
 import tempfile
 import time
@@ -109,9 +110,14 @@ def _run(
                 stderr="aggregate native-client deadline exhausted",
             )
         timeout = min(timeout, remaining)
+    execution_command = command
+    if runner is subprocess.run:
+        resolved_executable = shutil.which(command[0], path=environment.get("PATH"))
+        if resolved_executable:
+            execution_command = [resolved_executable, *command[1:]]
     try:
         return runner(
-            command,
+            execution_command,
             cwd=cwd,
             env=dict(environment),
             input=prompt,
